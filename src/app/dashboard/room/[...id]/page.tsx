@@ -1,58 +1,61 @@
 "use client";
-import CustomTooltip from "@/components/CustomToolTip";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
-import { PropertiesDataType, QuickListingInterface } from "@/util/type";
 import axios from "axios";
-import {
-  CalendarDays,
-  CheckCheck,
-  Clock4,
-  House,
-  LucideLoader2,
-  Plus,
-  Trash2,
-  Undo2,
-} from "lucide-react";
 import Link from "next/link";
 import Pusher from "pusher-js";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FaRegStar, FaStar } from "react-icons/fa6";
-import toast, { Toaster } from "react-hot-toast";
 import debounce from "lodash.debounce";
-import { CustomDialog } from "@/components/CustomDialog";
+import { useRouter } from "next/navigation";
+import toast, { Toaster } from "react-hot-toast";
+import { FaRegStar, FaStar } from "react-icons/fa6";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  Plus,
+  House,
+  Undo2,
+  Trash2,
+  Clock4,
+  CheckCheck,
+  CalendarDays,
+  LucideLoader2,
+} from "lucide-react";
 import {
   Sheet,
+  SheetTitle,
   SheetClose,
-  SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
-  SheetTitle,
+  SheetContent,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   Dialog,
+  DialogTitle,
+  DialogHeader,
+  DialogFooter,
+  DialogTrigger,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
-  SelectContent,
-  SelectGroup,
   SelectItem,
   SelectLabel,
-  SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectContent,
+  SelectTrigger,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import CustomTooltip from "@/components/CustomToolTip";
+import { CustomDialog } from "@/components/CustomDialog";
+import { PropertiesDataType, QuickListingInterface } from "@/util/type";
+
+import CatalogueDropdown from "./catalogue-dropdown";
 
 interface pageProps {
   params: {
@@ -107,67 +110,18 @@ const Page = ({ params }: pageProps) => {
   const agentNameRef = useRef<HTMLInputElement>(null);
   const [visitType, setVisitType] = useState("Physical");
   const [customerName, setCustomerName] = useState("");
+  const [catalogueList, setCatalogueList] = useState([]);
+
   const router = useRouter();
 
-  useEffect(() => {
-    // console.log("params: ", params.id);
-    const roomDetails = params.id[0].split("-");
-    const roomId = roomDetails[0];
-    const roomPassword = roomDetails[1];
-
-    {
-      /*Room Properties*/
-    }
-    const fetchRoomProperties = async (roomId: string) => {
-      try {
-        const response = await axios.post("/api/room/getPropertiesFromRoom", {
-          roomId,
-        });
-        setShowcaseProperties(response.data.showcaseProperties);
-        setRejectedProperties(response.data.rejectedProperties);
-      } catch (err: any) {
-        console.error("Error in fetching room properties: ", err);
-      }
-    };
-
-    {
-      /*Verify Room Credentials*/
-    }
-    const checkRoomCredentials = async (roomId: string, roomPassword: string) => {
-      try {
-        setIsLoading(true);
-        // console.log("roomId: ", roomId, "roomPassword: ", roomPassword);
-        const response = await axios.post("/api/room/joinRoom", {
-          roomId,
-          roomPassword,
-        });
-        // console.log("room join response: ", response);
-        setRole(response.data.role);
-        setCustomerName(response.data.customerName);
-        setIsLoading(false);
-        fetchRoomProperties(roomId);
-      } catch (err: any) {
-        const previousPath = sessionStorage.getItem("previousPath");
-        if (previousPath) {
-          router.push(previousPath);
-        } else {
-          router.push("/dashboard/room/joinroom");
-        }
-      }
-      setIsLoading(false);
-    };
-
-    checkRoomCredentials(roomId, roomPassword);
-  }, []);
-
-  const addProperty = async () => {
-    if (!propertyIdRef?.current?.value) return;
+  const addProperty = async (propertyId: string) => {
+    if (!propertyId) return;
 
     if (
       showcaseProperties.filter((item) => item._id === propertyIdRef?.current?.value)
         .length
     ) {
-      setAlreadyAddedProperty(propertyIdRef?.current?.value);
+      setAlreadyAddedProperty(propertyId);
       toast("Property Already Added", {
         icon: "❗",
       });
@@ -180,14 +134,15 @@ const Page = ({ params }: pageProps) => {
     try {
       setIspropertyLoading(true);
       const response = await axios.post("/api/room/addPropertyInRoom", {
-        propertyId: propertyIdRef?.current?.value,
+        // propertyId: propertyIdRef?.current?.value,
+        propertyId,
         roomId: roomId,
       });
     } catch (err: any) {
       toast.error("Unable to add property");
     } finally {
       setIspropertyLoading(false);
-      propertyIdRef.current.value = "";
+      if (propertyIdRef.current) propertyIdRef.current.value = "";
     }
   };
 
@@ -296,6 +251,7 @@ const Page = ({ params }: pageProps) => {
     const channel = pusher.subscribe(`room-${roomId}`);
 
     channel.bind("showcasePropertyAdded", (data: any) => {
+      console.log("data in showcase: ", data);
       setShowcaseProperties((prev) => {
         const newProperties = [...prev];
         newProperties.push(data.data);
@@ -409,6 +365,76 @@ const Page = ({ params }: pageProps) => {
     };
   }, [roomId]);
 
+  const getAllCatalogues = async () => {
+    try {
+      const response = await axios.get("/api/catalogue/getAllCatalogues");
+      setCatalogueList(response.data.allCatalogues);
+    } catch (err: any) {}
+  };
+
+  const addPropertiesFromCatalogue = async (propertyIds: string[]) => {
+    if (!propertyIds.length) return;
+    propertyIds.forEach((propertyId: string) => {
+      try {
+        addProperty(propertyId);
+      } catch (err: any) {
+        console.error("Error in adding property: ", err);
+      }
+    });
+  };
+
+  // Verify Room Credentials & Fetch Room Properties & Load All Catalogues
+  useEffect(() => {
+    const roomDetails = params.id[0].split("-");
+    const roomId = roomDetails[0];
+    const roomPassword = roomDetails[1];
+
+    {
+      /*Room Properties*/
+    }
+    const fetchRoomProperties = async (roomId: string) => {
+      try {
+        const response = await axios.post("/api/room/getPropertiesFromRoom", {
+          roomId,
+        });
+        setShowcaseProperties(response.data.showcaseProperties);
+        setRejectedProperties(response.data.rejectedProperties);
+      } catch (err: any) {
+        console.error("Error in fetching room properties: ", err);
+      }
+    };
+
+    {
+      /*Verify Room Credentials*/
+    }
+    const checkRoomCredentials = async (roomId: string, roomPassword: string) => {
+      try {
+        setIsLoading(true);
+        // console.log("roomId: ", roomId, "roomPassword: ", roomPassword);
+        const response = await axios.post("/api/room/joinRoom", {
+          roomId,
+          roomPassword,
+        });
+        // console.log("room join response: ", response);
+        setRole(response.data.role);
+        setCustomerName(response.data.customerName);
+        setIsLoading(false);
+        fetchRoomProperties(roomId);
+      } catch (err: any) {
+        const previousPath = sessionStorage.getItem("previousPath");
+        if (previousPath) {
+          router.push(previousPath);
+        } else {
+          router.push("/dashboard/room/joinroom");
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkRoomCredentials(roomId, roomPassword);
+    getAllCatalogues();
+  }, []);
+
   return (
     <div className=" w-full h-full p-2">
       <Toaster position="top-right" reverseOrder={true} />{" "}
@@ -427,18 +453,27 @@ const Page = ({ params }: pageProps) => {
                     type="text"
                     ref={propertyIdRef}
                     placeholder="Enter Property Id"
-                    className="w-80"
+                    className=" w-60"
                   />
                 </Label>
               </div>
               <Button
                 className=" font-semibold text-base flex items-center gap-x-2 "
-                onClick={addProperty}
+                onClick={() => addProperty(propertyIdRef?.current?.value!)}
               >
                 <House /> {isPropertyLoading ? "Adding..." : "Add Property"}
               </Button>
+
+              {/* CatalogueDropdown */}
+              {catalogueList && (
+                <CatalogueDropdown
+                  catalogueList={catalogueList}
+                  onAddCatalogue={addPropertiesFromCatalogue}
+                />
+              )}
             </div>
           )}
+          {/* VISITS */}
           <div className=" absolute right-4 top-2">
             <Sheet>
               <SheetTrigger asChild>

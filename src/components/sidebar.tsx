@@ -29,7 +29,8 @@ import { useAuthStore } from "@/AuthStore";
 import { ModeToggle } from "./themeChangeButton";
 
 const isActive = (currentPath: string, path: string): boolean =>
-  currentPath.startsWith(path);
+  // currentPath.startsWith(path);
+  currentPath === path;
 
 type Route = {
   path: string;

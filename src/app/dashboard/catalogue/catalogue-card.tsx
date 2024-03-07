@@ -16,8 +16,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
 import PropertyBadge from "./property-badge";
 import { CatalogueInterface } from "./page";
 
@@ -111,10 +111,10 @@ export default function CatalogueCard({ catalogue }: CatalogueCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex justify-end border-t bg-muted/10 px-6 py-4">
-        <Button variant="outline" className="mr-2">
-          View Details
-        </Button>
-        <Button>Explore Catalogue</Button>
+          {/* <Button variant="outline" className="mr-2">
+            View Details
+          </Button>
+          <Button>Explore Catalogue</Button> */}
       </CardFooter>
     </Card>
   );

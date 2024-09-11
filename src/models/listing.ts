@@ -48,6 +48,7 @@ export interface IProperty extends Document {
   cooking?: string;
   additionalRules?: string[];
   reviews?: string[];
+  newReviews?: string[];
   propertyCoverFileUrl?: string;
   propertyPictureUrls?: string[];
   portionCoverFileUrls?: string[];
@@ -128,6 +129,7 @@ const PropertySchema: Schema = new Schema<IProperty>(
     cooking: String,
     additionalRules: [String],
     reviews: [String],
+    newReviews: [String],
     propertyCoverFileUrl: String,
     propertyPictureUrls: [String],
     portionCoverFileUrls: [String],

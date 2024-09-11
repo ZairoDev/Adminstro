@@ -1,0 +1,422 @@
+"use client";
+import Loader from "@/components/loader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Property } from "@/util/type";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
+import { FaEuroSign, FaInfoCircle, FaUser } from "react-icons/fa";
+import { IoIosBed } from "react-icons/io";
+import { FaBath } from "react-icons/fa";
+import { SlSizeFullscreen } from "react-icons/sl";
+import CustomTooltip from "@/components/customTooLTip";
+
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+const page = ({ params }: PageProps) => {
+  const { toast } = useToast();
+  const [property, setProperty] = useState<Property | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saveChangesLoading, setSaveChangesLoading] = useState<boolean>(false);
+  const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
+  const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
+    Array.from({ length: numberOfPortions }, () => false)
+  );
+
+  useEffect(() => {
+    if (params.id) {
+      const fetchProperty = async () => {
+        setLoading(true);
+        try {
+          const response = await axios.post("/api/singleproperty/getproperty", {
+            propertyId: params.id,
+          });
+          console.log(response.data);
+          setProperty(response.data);
+          setNumberOfPortions(response.data.basePrice.length);
+          setLoading(false);
+        } catch (error: any) {
+          console.error("Error fetching property:", error);
+          setLoading(false);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchProperty();
+    }
+  }, [params.id]);
+
+  const [formData, setFormData] = useState<Partial<Property>>({
+    VSID: property?.VSID,
+    rentalType: property?.rentalType,
+
+    propertyType: property?.propertyType,
+    placeName: property?.placeName,
+    rentalForm: property?.rentalForm,
+    numberOfPortions: property?.numberOfPortions,
+
+    street: property?.street,
+    postalCode: property?.postalCode,
+    city: property?.city,
+    state: property?.state,
+    country: property?.country,
+
+    portionName: property?.portionName,
+    portionSize: property?.portionSize,
+    guests: property?.guests,
+    bedrooms: property?.bedrooms,
+    beds: property?.beds,
+    bathroom: property?.bathroom,
+    kitchen: property?.kitchen,
+    childrenAge: property?.childrenAge,
+
+    basePrice: property?.basePrice,
+    weekendPrice: property?.weekendPrice,
+    monthlyDiscount: property?.monthlyDiscount,
+
+    generalAmenities: property?.generalAmenities,
+    otherAmenities: property?.otherAmenities,
+    safeAmenities: property?.safeAmenities,
+
+    smoking: property?.smoking,
+    pet: property?.pet,
+    party: property?.party,
+    cooking: property?.cooking,
+    additionalRules: property?.additionalRules,
+
+    center: property?.center,
+
+    reviews: property?.reviews,
+    newReviews: property?.newReviews,
+
+    propertyCoverFileUrl: property?.propertyCoverFileUrl,
+    propertyPictureUrls: property?.propertyPictureUrls,
+    portionCoverFileUrls: property?.portionCoverFileUrls,
+    portionPictureUrls: property?.portionPictureUrls,
+
+    night: property?.night,
+    time: property?.time,
+    datesPerPortion: property?.datesPerPortion,
+
+    isLive: property?.isLive,
+  });
+
+  useEffect(() => {
+    if (property) {
+      setFormData({
+        VSID: property.VSID,
+        rentalType: property.rentalType,
+
+        propertyType: property.propertyType,
+        placeName: property.placeName,
+        rentalForm: property.rentalForm,
+        numberOfPortions: property.numberOfPortions,
+
+        street: property.street,
+        postalCode: property.postalCode,
+        city: property.city,
+        state: property.state,
+        country: property.country,
+
+        portionName: property.portionName,
+        portionSize: property.portionSize,
+        guests: property.guests,
+        bedrooms: property.bedrooms,
+        beds: property.beds,
+        bathroom: property.bathroom,
+        kitchen: property.kitchen,
+        childrenAge: property.childrenAge,
+
+        center: property.center,
+        basePrice: property.basePrice,
+        weekendPrice: property.weekendPrice,
+        monthlyDiscount: property.monthlyDiscount,
+
+        generalAmenities: property.generalAmenities,
+        otherAmenities: property.otherAmenities,
+        safeAmenities: property.safeAmenities,
+
+        smoking: property.smoking,
+        pet: property.pet,
+        party: property.party,
+        cooking: property.cooking,
+        additionalRules: property.additionalRules,
+
+        propertyCoverFileUrl: property?.propertyCoverFileUrl,
+        propertyPictureUrls: property?.propertyPictureUrls,
+        portionCoverFileUrls: property?.portionCoverFileUrls,
+        portionPictureUrls: property?.portionPictureUrls,
+
+        reviews: property.reviews,
+        newReviews: property.newReviews,
+
+        night: property.night,
+        time: property.time,
+        datesPerPortion: property.datesPerPortion,
+
+        isLive: property.isLive,
+      });
+    }
+  }, [property]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const updateDesc = async () => {
+      setSaveChangesLoading(true);
+      try {
+        const response = await axios.post(
+          "/api/singleproperty/updatedescription",
+          {
+            newReviews: formData.newReviews,
+            propertyId: params.id,
+          }
+        );
+        toast({
+          title: "Description Updated Successfully",
+        });
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Something went wrong",
+          description: "Description not updated",
+        });
+      }
+      setSaveChangesLoading(false);
+    };
+    updateDesc();
+  };
+
+  useEffect(() => {
+    if (saveChangesLoading) {
+      toast({
+        title: "Saving Changes...",
+        description: "Description is being updated!",
+      });
+    }
+  }, [saveChangesLoading]);
+
+  return (
+    <div className="max-w-6xl p-2 mx-auto ">
+      {loading ? (
+        <div className="flex items-center justify-center h-screen w-full">
+          <Loader />
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <h1 className="text-3xl mt-2  mb-4"> Edit Description</h1>
+          <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
+            <div>
+              <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
+                <div>
+                  <label className="text-xs" htmlFor="portionName">
+                    Property Name
+                    <Input
+                      type="text"
+                      name="Property"
+                      readOnly
+                      value={formData?.placeName || ""}
+                    />
+                  </label>
+                </div>
+                <div>
+                  {/* <h1>Cover Image</h1>
+                  <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
+                    <img
+                      src={
+                        formData?.propertyCoverFileUrl || "/placeholder.webp"
+                      }
+                      className="max-w-2xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
+                      alt="coverimage"
+                    />
+                  </div> */}
+
+                  {/* Scrollable Container for Property Images */}
+                  <div>
+                    <h1 className="mt-1">Property Picture</h1>
+                  </div>
+                  <div className="mt-4 space-x-2 overflow-x-auto">
+                    <div className="flex space-x-4">
+                      {formData?.propertyPictureUrls?.map((url, index) => (
+                        <div key={index} className="flex-shrink-0">
+                          <img
+                            src={url || "/placeholder.webp"}
+                            alt="not found"
+                            className="w-40 h-40 object-cover rounded-md"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {Array.from({
+            length: numberOfPortions,
+          }).map((item, index) => {
+            return (
+              <div className=" flex  flex-col space-y-4 my-4" key={index}>
+                <h1
+                  className="  flex items-center transition-transform duration-300 ease-in-out cursor-pointer  border px-4 py-2 rounded-lg "
+                  onClick={() =>
+                    setIsPortionOpen((prev) => {
+                      const newIsPortionOpen = [...prev];
+                      newIsPortionOpen[index] = !newIsPortionOpen[index];
+                      return newIsPortionOpen;
+                    })
+                  }
+                >
+                  Portion no {index + 1}{" "}
+                  {isPortionOpen[index] ? (
+                    <MdArrowDropDown className="text-2xl" />
+                  ) : (
+                    <MdArrowRight className="text-2xl" />
+                  )}
+                  <div>
+                    {" "}
+                    {isPortionOpen[index] ? (
+                      <div className=" flex gap-x-4 ml-8">
+                        {/* <CustomTooltip icon={<FaUser/>} content={formData?.guests?.[index]} desc={"No. of Guests"}/> */}
+                        <CustomTooltip icon={<FaUser/>} desc="This is some info" />
+                        <abbr title="No. of Beds" className="flex gap-x-2 no-underline">
+                          <IoIosBed className="text-xl" />
+                          {formData?.beds?.[index]}
+                        </abbr>
+                        <abbr title="No. of Bathrooms" className="flex gap-x-2 no-underline">
+                          <FaBath className="text-xl" />
+                          {formData?.bathroom?.[index]}
+                        </abbr>
+                        <abbr title="Size of Portion" className="flex gap-x-2 no-underline">
+                          <SlSizeFullscreen className="text-xl" />
+                          {formData?.portionSize?.[index]}
+                        </abbr>
+                        <abbr title="Price of Portion" className="flex gap-x-2 no-underline">
+                          <FaEuroSign className="text-xl" />
+                          {formData?.basePrice?.[index]}
+                        </abbr>
+                        <abbr title="Price of Portion" className="flex gap-x-2 no-underline">
+                          {formData?.portionName?.[index]}
+                        </abbr>
+                      </div>
+                    ) : (
+                      <div></div>
+                    )}
+                  </div>
+                </h1>
+                {isPortionOpen[index] && (
+                  <>
+                    <div className=" flex flex-col space-y-4">
+                      {/* <h1>Portion Cover Image</h1> */}
+                      {/* <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
+                        <img
+                          src={
+                            formData?.portionCoverFileUrls?.[index] ||
+                            "/placeholder.webp"
+                          }
+                          alt="portionCover"
+                          className="max-w-2xl w-full rounded-lg px-2 py-2 h-full object-contain"
+                        />
+                      </div> */}
+
+                      {/* <div>
+                        <h1 className="mt-1">Portion Picture</h1>
+                      </div> */}
+                      <div className="mt-4 space-x-2 overflow-x-auto">
+                        <div className="flex space-x-4">
+                          {formData?.portionPictureUrls?.[index].map(
+                            (url, index) => (
+                              <div key={index} className="flex-shrink-0">
+                                <img
+                                  src={url || "/placeholder.webp"}
+                                  alt="not found"
+                                  className="w-40 h-40 object-cover rounded-md"
+                                />
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* <div>
+                        <label className="text-xs" htmlFor="portionName">
+                          Portion&apos;s Name
+                          <Input
+                            type="text"
+                            name="cooking"
+                            readOnly
+                            value={formData?.portionName?.at(index) || ""}
+                            // onChange={(e) => {
+                            //   const newFormData = { ...formData };
+                            //   newFormData?.portionName?.splice(
+                            //     index,
+                            //     1,
+                            //     e.target.value
+                            //   );
+                            //   setFormData(newFormData);
+                            // }}
+                          />
+                        </label>
+                      </div> */}
+                    </div>
+                    {/* <label className="" htmlFor="review">
+                      Description of Portion {index + 1}
+                      <Textarea
+                        className="h-32"
+                        name="review"
+                        value={formData?.reviews?.[index] || ""}
+                        disabled
+                        // onChange={(e) => {
+                        //   const updatedReviews = [...(formData?.reviews || [])]; // Copy the reviews array
+                        //   updatedReviews[index] = e.target.value; // Update the specific index
+                        //   setFormData({
+                        //     ...formData,
+                        //     reviews: updatedReviews,
+                        //   }); // Update the state immutably
+                        // }}
+                      />
+                    </label> */}
+
+                    {/* <label className="" htmlFor="monthlyDiscount">
+                      New Description of Portion {index + 1}
+                      <Textarea
+                        className="h-32"
+                        name="review"
+                        value={formData?.newReviews?.[index] || ""}
+                        onChange={(e) => {
+                          const updatedReviews = [
+                            ...(formData?.newReviews || []),
+                          ]; // Copy the reviews array
+                          updatedReviews[index] = e.target.value; // Update the specific index
+                          setFormData({
+                            ...formData,
+                            newReviews: updatedReviews,
+                          }); // Update the state immutably
+                        }}
+                      />
+                    </label> */}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          <div className=" flex mt-4">
+            <Button type="submit">
+              {saveChangesLoading ? "Updating..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+};
+
+export default page;

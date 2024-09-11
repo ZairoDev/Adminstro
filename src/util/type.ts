@@ -77,6 +77,7 @@ export interface Property {
   additionalRules?: string[];
 
   reviews?: string[];
+  newReviews?: string[];
 
   propertyCoverFileUrl: string;
   propertyPictureUrls?: string[];

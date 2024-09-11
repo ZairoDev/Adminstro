@@ -19,7 +19,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (searchTerm) {
       query[searchType] = regex;
     }
-
     let allProperties;
 
     if (!searchTerm) {

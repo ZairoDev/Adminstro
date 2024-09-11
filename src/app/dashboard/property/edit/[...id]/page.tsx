@@ -32,6 +32,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { X } from "lucide-react";
 
 interface PageProps {
   params: {
@@ -61,6 +62,142 @@ const EditPropertyPage = ({ params }: PageProps) => {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
+
+  const [deletingImage, setDeletingImage] = useState<string | undefined>("");
+
+  const handleDelete = async (
+    deletedIndex: number,
+    typeOfImage: string,
+    imageUrl: string | undefined,
+    portionIndex?: number
+  ) => {
+    console.log("Image URL:", imageUrl);
+    console.log("Image Type:", typeOfImage);
+    console.log("Deleted Index:", deletedIndex);
+    console.log("Portion Index:", portionIndex);
+
+    if (!imageUrl) {
+      alert("No image URL provided");
+      return;
+    }
+
+    setDeletingImage(imageUrl);
+
+    try {
+      // Step 1: Delete from database
+      const backendDeleteResponse = await axios.delete(
+        "/api/editproperty/deleteimage",
+        {
+          data: {
+            id: params.id[0],
+            url: imageUrl,
+            index: deletedIndex,
+            type: typeOfImage,
+            portionIndex: portionIndex,
+          },
+        }
+      );
+
+      console.log("Delete Response from Backend:", backendDeleteResponse.data);
+
+      // Step 2: Delete from Bunny CDN
+      const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+      const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+      const filePath = imageUrl.split("https://vacationsaga.b-cdn.net/")[1];
+
+      const deleteOptions = {
+        method: "DELETE",
+        url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
+        headers: { AccessKey: accessKey },
+      };
+
+      const deleteResponse = await axios.request(deleteOptions);
+      console.log("Delete Response from Bunny CDN:", deleteResponse.data);
+
+      // Step 3: Update frontend state
+      let updatedFormData = { ...formData };
+
+      switch (typeOfImage) {
+        case "propertyCoverFileUrl":
+          updatedFormData.propertyCoverFileUrl = "";
+          break;
+        case "propertyPictureUrls":
+          updatedFormData.propertyPictureUrls =
+            formData?.propertyPictureUrls?.filter(
+              (url, index) => index !== deletedIndex
+            );
+          break;
+        case "portionCoverFileUrls":
+          updatedFormData.portionCoverFileUrls =
+            formData?.portionCoverFileUrls?.map((url, index) =>
+              index === deletedIndex ? "" : url
+            );
+          break;
+        case "portionPictureUrls":
+          if (portionIndex !== undefined) {
+            updatedFormData.portionPictureUrls =
+              formData?.portionPictureUrls?.map((portion, index) =>
+                index === portionIndex
+                  ? portion.filter((url, idx) => idx !== deletedIndex)
+                  : portion
+              );
+          }
+          break;
+        default:
+          console.error("Invalid image type");
+          return;
+      }
+
+      setFormData(updatedFormData);
+      alert("File deleted successfully from both database and CDN!");
+    } catch (error: any) {
+      console.error("Error deleting file:", error);
+      console.log(error?.response?.data);
+      alert("Error deleting the file. Please try again.");
+    } finally {
+      setDeletingImage("");
+    }
+  };
+
+  // const handleDelete = async (
+  //   deletedindex: number,
+  //   typeofimage: string,
+  //   imageUrl: string | undefined,
+  //   portionIndex?: number ,
+  // ) => {
+  //   console.log("Image URL:", imageUrl);
+  //   console.log("Image Type:", typeofimage);
+  //   console.log(deletedindex);
+  //   console.log("Portion Index:", portionIndex);
+
+  //   const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+  //   const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+  //   const filePath = imageUrl?.split("https://vacationsaga.b-cdn.net/")[1];
+  //   setDeletingImage(imageUrl);
+
+  //   const deleteOptions = {
+  //     method: "DELETE",
+  //     url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
+  //     headers: { AccessKey: accessKey },
+  //   };
+
+  //   try {
+  //     const deleteResponse = await axios.request(deleteOptions);
+  //     console.log("Delete Response:", deleteResponse.data);
+  //     const updatedImages = formData?.propertyPictureUrls?.filter(
+  //       (url) => url !== imageUrl
+  //     );
+  //     setFormData({
+  //       ...formData,
+  //       propertyPictureUrls: updatedImages,
+  //     });
+  //     alert("File deleted successfully!");
+  //   } catch (error) {
+  //     console.error("Error deleting file:", error);
+  //     alert("Error deleting the file. Please try again.");
+  //   }
+  //   setDeletingImage("");
+  // };
 
   useEffect(() => {
     if (params.id) {
@@ -295,27 +432,63 @@ const EditPropertyPage = ({ params }: PageProps) => {
               <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
                 <div>
                   <h1>Cover Image</h1>
-                  <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
+                  <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center relative">
                     <img
-                      src={formData?.propertyCoverFileUrl || "/placeholder.webp"}
+                      src={
+                        formData?.propertyCoverFileUrl || "/placeholder.webp"
+                      }
                       className="max-w-2xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
                       alt="coverimage"
                     />
+                    {formData?.propertyCoverFileUrl && (
+                      <button
+                        onClick={() =>
+                          handleDelete(
+                            0,
+                            "propertyCoverFileUrl",
+                            formData?.propertyCoverFileUrl ?? ""
+                          )
+                        }
+                        className="absolute top-1 right-1 bg-red-500  w-5 h-5 rounded-full border-red-600  "
+                        disabled={
+                          deletingImage === formData.propertyCoverFileUrl
+                        }
+                      >
+                        {deletingImage === formData.propertyCoverFileUrl ? (
+                          <Loader />
+                        ) : (
+                          <X className="w-5 h-5" />
+                        )}
+                      </button>
+                    )}
                   </div>
 
-                  {/* Scrollable Container for Property Images */}
                   <div>
-                    <h1 className="mt-1">Property Picture</h1>
+                    <h1 className="mt-1">Property Pictures</h1>
                   </div>
-                  <div className="mt-4 space-x-2 overflow-x-auto">
+                  <div className="mt-4 space-x-2  overflow-x-auto">
                     <div className="flex space-x-4">
                       {formData?.propertyPictureUrls?.map((url, index) => (
-                        <div key={index} className="flex-shrink-0">
+                        <div key={index} className="relative flex-shrink-0">
                           <img
                             src={url || "/placeholder.webp"}
                             alt="not found"
                             className="w-40 h-40 object-cover rounded-md"
                           />
+                          {/* Delete Button */}
+                          <button
+                            onClick={() =>
+                              handleDelete(index, "propertyPictureUrls", url)
+                            }
+                            className="absolute top-1 right-1 bg-red-500  w-5 h-5 rounded-full border-red-600  "
+                            disabled={deletingImage === url}
+                          >
+                            {deletingImage === url ? (
+                              <Loader />
+                            ) : (
+                              <X className="w-5 h-5" />
+                            )}
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -470,6 +643,35 @@ const EditPropertyPage = ({ params }: PageProps) => {
               </div>
             </div>
 
+            {/* Check in chekout time */}
+
+            <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full ">
+              <div className="w-full">
+                <label>
+                  <h1 className="">Check-in Time</h1>
+                  <Input
+                    type="number"
+                    name="time"
+                    value={
+                      (formData && formData.time && formData.time[0]) || ""
+                    }
+                  />
+                </label>
+              </div>
+              <div className="w-full">
+                <label>
+                  <h1 className="">Check-out time</h1>
+                  <Input
+                    type="number"
+                    name="time"
+                    value={
+                      (formData && formData.time && formData.time[1]) || ""
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+
             <div className=" flex items-center flex-col gap-x-2 md:flex-row ">
               <label className="text-xs w-full" htmlFor="monthlyDiscount">
                 Min Nights
@@ -502,7 +704,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                     setFormData({
                       ...formData,
                       night: updatedNights,
-                    }); // Update the state immutably
+                    });
                   }}
                 />
               </label>
@@ -736,30 +938,72 @@ const EditPropertyPage = ({ params }: PageProps) => {
                     <>
                       <div className=" flex flex-col space-y-4">
                         <h1>Portion Cover Image</h1>
-                        <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
+                        <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center relative">
                           <img
                             src={
-                              formData.portionCoverFileUrls?.[index] ||
+                              formData?.portionCoverFileUrls?.[index] ||
                               "/placeholder.webp"
                             }
                             alt="portionCover"
                             className="max-w-2xl w-full rounded-lg px-2 py-2 h-full object-contain"
                           />
+                          {formData?.portionCoverFileUrls?.[index] && (
+                            <button
+                              onClick={() =>
+                                handleDelete(
+                                  index,
+                                  "portionCoverFileUrls",
+                                  formData?.portionCoverFileUrls?.[index]
+                                )
+                              }
+                              className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
+                              disabled={
+                                deletingImage ===
+                                formData?.portionCoverFileUrls[index]
+                              }
+                            >
+                              {deletingImage ===
+                              formData?.portionCoverFileUrls[index] ? (
+                                <Loader />
+                              ) : (
+                                <X className="w-5 h-5" />
+                              )}
+                            </button>
+                          )}
                         </div>
-
-                        <div>
-                          <h1 className="mt-1">Portion Picture</h1>
-                        </div>
+                        {/* Portion Pictures Section */}
+                        <h1 className="mt-1">Portion Picture</h1>
                         <div className="mt-4 space-x-2 overflow-x-auto">
                           <div className="flex space-x-4">
                             {formData?.portionPictureUrls?.[index].map(
-                              (url, index) => (
-                                <div key={index} className="flex-shrink-0">
+                              (url, imgIndex) => (
+                                <div
+                                  key={imgIndex}
+                                  className="relative flex-shrink-0"
+                                >
                                   <img
                                     src={url || "/placeholder.webp"}
                                     alt="not found"
                                     className="w-40 h-40 object-cover rounded-md"
                                   />
+                                  <button
+                                    onClick={() =>
+                                      handleDelete(
+                                        imgIndex,
+                                        "portionCoverFileUrls",
+                                        url,
+                                        index
+                                      )
+                                    }
+                                    className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
+                                    disabled={deletingImage === url}
+                                  >
+                                    {deletingImage === url ? (
+                                      <Loader />
+                                    ) : (
+                                      <X className="w-5 h-5" />
+                                    )}
+                                  </button>
                                 </div>
                               )
                             )}
@@ -785,7 +1029,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
                             />
                           </label>
                         </div>
-
                         <div className=" flex  md:flex-row flex-col  space-x-4">
                           <div>
                             <label className="text-xs" htmlFor="portionSize">
@@ -892,7 +1135,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
                             </label>
                           </div>
                         </div>
-
                         <div className=" flex  md:flex-row flex-col  space-x-4">
                           <label
                             className="text-xs mt-2 line-clamp-1"

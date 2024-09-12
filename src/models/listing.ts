@@ -16,6 +16,7 @@ export interface IProperty extends Document {
   userId: string;
   propertyType?: string;
   placeName?: string;
+  newPlaceName:string,
   rentalForm?: string;
   numberOfPortions: number;
   street?: string;
@@ -48,7 +49,7 @@ export interface IProperty extends Document {
   cooking?: string;
   additionalRules?: string[];
   reviews?: string[];
-  newReviews?: string[];
+  newReviews?: string;
   propertyCoverFileUrl?: string;
   propertyPictureUrls?: string[];
   portionCoverFileUrls?: string[];
@@ -83,6 +84,7 @@ const PropertySchema: Schema = new Schema<IProperty>(
     },
     propertyType: String,
     placeName: String,
+    newPlaceName:String,
     rentalForm: String,
     numberOfPortions: {
       type: Number,
@@ -129,7 +131,7 @@ const PropertySchema: Schema = new Schema<IProperty>(
     cooking: String,
     additionalRules: [String],
     reviews: [String],
-    newReviews: [String],
+    newReviews: String,
     propertyCoverFileUrl: String,
     propertyPictureUrls: [String],
     portionCoverFileUrls: [String],

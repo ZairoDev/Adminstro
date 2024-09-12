@@ -8,7 +8,7 @@ export const userSchema = z.object({
   nationality: z.string().min(1, "Please enter your nationality"),
   gender: z.enum(["Male", "Female", "Other"]),
   spokenLanguage: z.string().min(1, "Please Enter the language "),
-  bankDetails: z.string().min(1, "Please enter your bank details"),
+  bankDetails: z.string().optional(),
   phone: z.string().min(1, "Phone number is required"),
   myRequests: z.array(z.string()).optional(),
   myUpcommingRequests: z.array(z.string()).optional(),

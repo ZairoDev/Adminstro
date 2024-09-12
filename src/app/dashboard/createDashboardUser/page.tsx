@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeftFromLine, Plus } from "lucide-react";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -25,6 +25,7 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 const NewUser = () => {
   const { toast } = useToast();
   const [profilePic, setProfilepic] = useState("");
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const { uploadFiles } = useBunnyUpload();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -106,6 +107,16 @@ const NewUser = () => {
       ...data,
       profilePic,
     };
+    console.log(userData.password, confirmPasswordRef.current?.value);
+    if (userData.password !== confirmPasswordRef.current?.value) {
+      toast({
+        variant: "destructive",
+        title: "Passwords do not match",
+        description: "Please try again.",
+      });
+      setLoading(false);
+      return;
+    }
 
     console.log(userData);
     try {
@@ -215,19 +226,6 @@ const NewUser = () => {
 
               <div className="flex w-full gap-x-2">
                 <div className="w-full">
-                  <Label htmlFor="bankDetails">Bank Details</Label>
-                  <Input
-                    {...register("bankDetails")}
-                    className="w-full"
-                    placeholder="Enter bank details"
-                  />
-                  {errors.bankDetails && (
-                    <p className="text-red-500 text-xs">
-                      {errors.bankDetails.message}
-                    </p>
-                  )}
-                </div>
-                <div className="w-full">
                   <Label htmlFor="role">Role</Label>
                   <Select {...register("role")}>
                     <SelectTrigger className="w-full">
@@ -236,6 +234,10 @@ const NewUser = () => {
                     <SelectContent>
                       <SelectItem value="Owner">Owner</SelectItem>
                       <SelectItem value="Traveller">Traveller</SelectItem>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Content">Content Creator</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                      <SelectItem value="HR">Human Resource(HR)</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.role && (
@@ -245,66 +247,8 @@ const NewUser = () => {
                   )}
                 </div>
               </div>
-              <div>
-                <div className="w-full">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    {...register("phone")}
-                    className="w-full"
-                    placeholder="Enter phone number"
-                  />
-                  {errors.phone && (
-                    <p className="text-red-500 text-xs">
-                      {errors.phone.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex w-full gap-x-2">
-                <div className="w-full">
-                  <Label htmlFor="nationality">Nationality</Label>
-                  <Input
-                    {...register("nationality")}
-                    className="w-full"
-                    placeholder="Enter nationality"
-                  />
-                  {errors.nationality && (
-                    <p className="text-red-500 text-xs">
-                      {errors.nationality.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="w-full">
-                  <Label htmlFor="spokenLanguage">Language</Label>
-                  <Input
-                    {...register("spokenLanguage")}
-                    className="w-full"
-                    placeholder="Enter language"
-                  />
-                  {errors.spokenLanguage && (
-                    <p className="text-red-500 text-xs">
-                      {errors.spokenLanguage.message}
-                    </p>
-                  )}
-                </div>
-              </div>
 
               <div className="flex items-center gap-x-2 justify-between">
-                <div className="w-full">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    {...register("address")}
-                    className="w-full"
-                    placeholder="Enter address"
-                  />
-                  {errors.address && (
-                    <p className="text-red-500 text-xs">
-                      {errors.address.message}
-                    </p>
-                  )}
-                </div>
-
                 <div className="w-full">
                   <Label htmlFor="gender">Gender</Label>
                   <Select {...register("gender")} value="Male">
@@ -314,7 +258,6 @@ const NewUser = () => {
                     <SelectContent>
                       <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && (
@@ -325,18 +268,28 @@ const NewUser = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-x-2">
-                <Label
-                  htmlFor="sendDetails"
-                  className="flex items-center gap-x-2"
-                >
-                  <input
-                    type="checkbox"
-                    {...register("sendDetails")}
-                    className="h-4 w-4"
+              <div className="flex items-center gap-x-2 justify-between">
+                <div className="w-full">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    {...register("password")}
+                    type="password"
+                    className="w-full"
+                    placeholder="Enter password"
                   />
-                  <span>Send registration details to email</span>
-                </Label>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-x-2 justify-between">
+                <div className="w-full">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    type="password"
+                    className="w-full"
+                    placeholder="Enter Confirm password"
+                    ref={confirmPasswordRef}
+                  />
+                </div>
               </div>
 
               <Button type="submit" disabled={loading} className="w-full">

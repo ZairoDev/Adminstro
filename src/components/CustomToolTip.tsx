@@ -7,32 +7,17 @@ import {
 import { ReactNode } from "react";
 
 interface CustomToolTipProps{
-  icon: ReactNode;
+  icon?: ReactNode;
   content?: number|undefined;
+  text?: string;
   desc?: string;
 }
 
-// const CustomTooltip = ({ icon, content, desc }: CustomToolTipProps) => {
-//   return (
-//     <TooltipProvider>
-//       <Tooltip>
-//         <TooltipTrigger>{icon}</TooltipTrigger>
-//         <TooltipTrigger>{content}</TooltipTrigger>
-//         <TooltipContent>
-//           <p>{desc}</p>
-//         </TooltipContent>
-//       </Tooltip>
-//     </TooltipProvider>
-//   );
-// };
-
-// export default CustomTooltip;
-
-const CustomTooltip = ({ icon, content, desc }: CustomToolTipProps) => {
+const CustomTooltip = ({ icon, content, desc, text }: CustomToolTipProps) => {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger>{icon}</TooltipTrigger>
+        <TooltipTrigger className=" flex gap-x-2 items-center">{icon} {content || text}</TooltipTrigger>
         <TooltipContent>
           <p>{desc}</p>
         </TooltipContent>

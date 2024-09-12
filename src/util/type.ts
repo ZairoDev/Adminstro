@@ -27,6 +27,7 @@ export interface Property {
 
   propertyType?: string;
   placeName?: string;
+  newPlaceName?: string;
   rentalForm?: string;
   numberOfPortions?: number;
 
@@ -77,7 +78,7 @@ export interface Property {
   additionalRules?: string[];
 
   reviews?: string[];
-  newReviews?: string[];
+  newReviews?: string;
 
   propertyCoverFileUrl: string;
   propertyPictureUrls?: string[];

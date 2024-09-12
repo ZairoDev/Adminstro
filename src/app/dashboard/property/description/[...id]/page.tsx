@@ -12,7 +12,7 @@ import { FaEuroSign, FaInfoCircle, FaUser } from "react-icons/fa";
 import { IoIosBed } from "react-icons/io";
 import { FaBath } from "react-icons/fa";
 import { SlSizeFullscreen } from "react-icons/sl";
-import CustomTooltip from "@/components/customTooLTip";
+import CustomTooltip from "@/components/CustomToolTip";
 
 interface PageProps {
   params: {
@@ -58,6 +58,7 @@ const page = ({ params }: PageProps) => {
 
     propertyType: property?.propertyType,
     placeName: property?.placeName,
+    newPlaceName: property?.newPlaceName,
     rentalForm: property?.rentalForm,
     numberOfPortions: property?.numberOfPortions,
 
@@ -115,6 +116,7 @@ const page = ({ params }: PageProps) => {
 
         propertyType: property.propertyType,
         placeName: property.placeName,
+        newPlaceName: property.newPlaceName,
         rentalForm: property.rentalForm,
         numberOfPortions: property.numberOfPortions,
 
@@ -174,18 +176,19 @@ const page = ({ params }: PageProps) => {
         const response = await axios.post(
           "/api/singleproperty/updatedescription",
           {
+            newPlaceName: formData.newPlaceName,
             newReviews: formData.newReviews,
             propertyId: params.id,
           }
         );
         toast({
-          title: "Description Updated Successfully",
+          title: "Updated Successfully",
         });
-      } catch (err) {
+      } catch (err: any) {
         toast({
           variant: "destructive",
-          title: "Something went wrong",
-          description: "Description not updated",
+          title: "Something went wrong!",
+          description: `Error: ${err.response.data.error}`,
         });
       }
       setSaveChangesLoading(false);
@@ -213,31 +216,37 @@ const page = ({ params }: PageProps) => {
           <h1 className="text-3xl mt-2  mb-4"> Edit Description</h1>
           <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
             <div>
-              <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
-                <div>
-                  <label className="text-xs" htmlFor="portionName">
-                    Property Name
-                    <Input
-                      type="text"
-                      name="Property"
-                      readOnly
-                      value={formData?.placeName || ""}
-                    />
-                  </label>
+              <div className="flex rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
+                <div className="flex items-center gap-x-4 justify-between">
+                  <div className="w-full">
+                    <label className="text-xs" htmlFor="portionName">
+                      Property Name
+                      <Input
+                        type="text"
+                        name="Property"
+                        disabled
+                        value={formData?.placeName || ""}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="w-full">
+                    <label className="text-xs" htmlFor="portionName">
+                      New Name for Property
+                      <Input
+                        type="text"
+                        name="Property"
+                        value={formData?.newPlaceName || ""}
+                        onChange={(e) => {
+                          const newObj = { ...formData };
+                          newObj["newPlaceName"] = e.target.value;
+                          setFormData(newObj);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div>
-                  {/* <h1>Cover Image</h1>
-                  <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
-                    <img
-                      src={
-                        formData?.propertyCoverFileUrl || "/placeholder.webp"
-                      }
-                      className="max-w-2xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
-                      alt="coverimage"
-                    />
-                  </div> */}
-
-                  {/* Scrollable Container for Property Images */}
                   <div>
                     <h1 className="mt-1">Property Picture</h1>
                   </div>
@@ -253,6 +262,30 @@ const page = ({ params }: PageProps) => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+                <div className=" flex gap-x-4">
+                  <div className=" w-full">
+                    <label htmlFor="review">Description of Property</label>
+                    <Textarea
+                      className="h-64"
+                      name="review"
+                      value={formData?.reviews?.[0] || ""}
+                      disabled
+                    />
+                  </div>
+                  <div className=" w-full">
+                  <label htmlFor="review">New Description of Property</label>
+                    <Textarea
+                      className="h-64"
+                      name="review"
+                      value={formData?.newReviews || ""}
+                      onChange={(e) => {
+                        const newObj = { ...formData };
+                        newObj["newReviews"] = e.target.value;
+                        setFormData(newObj);
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -284,27 +317,35 @@ const page = ({ params }: PageProps) => {
                     {" "}
                     {isPortionOpen[index] ? (
                       <div className=" flex gap-x-4 ml-8">
-                        {/* <CustomTooltip icon={<FaUser/>} content={formData?.guests?.[index]} desc={"No. of Guests"}/> */}
-                        <CustomTooltip icon={<FaUser/>} desc="This is some info" />
-                        <abbr title="No. of Beds" className="flex gap-x-2 no-underline">
-                          <IoIosBed className="text-xl" />
-                          {formData?.beds?.[index]}
-                        </abbr>
-                        <abbr title="No. of Bathrooms" className="flex gap-x-2 no-underline">
-                          <FaBath className="text-xl" />
-                          {formData?.bathroom?.[index]}
-                        </abbr>
-                        <abbr title="Size of Portion" className="flex gap-x-2 no-underline">
-                          <SlSizeFullscreen className="text-xl" />
-                          {formData?.portionSize?.[index]}
-                        </abbr>
-                        <abbr title="Price of Portion" className="flex gap-x-2 no-underline">
-                          <FaEuroSign className="text-xl" />
-                          {formData?.basePrice?.[index]}
-                        </abbr>
-                        <abbr title="Price of Portion" className="flex gap-x-2 no-underline">
-                          {formData?.portionName?.[index]}
-                        </abbr>
+                        <CustomTooltip
+                          icon={<FaUser />}
+                          content={formData?.guests?.[index]}
+                          desc="No. Of Guests"
+                        />
+                        <CustomTooltip
+                          icon={<IoIosBed />}
+                          content={formData?.beds?.[index]}
+                          desc="No. Of beds"
+                        />
+                        <CustomTooltip
+                          icon={<FaBath />}
+                          content={formData?.bathroom?.[index]}
+                          desc="No. Of bathroom"
+                        />
+                        <CustomTooltip
+                          icon={<SlSizeFullscreen />}
+                          content={formData?.portionSize?.[index]}
+                          desc="Portion's size"
+                        />
+                        <CustomTooltip
+                          icon={<FaEuroSign />}
+                          content={formData?.basePrice?.[index]}
+                          desc="Price of Portion"
+                        />
+                        <CustomTooltip
+                          text={formData?.portionName?.[index]}
+                          desc="Name of Portion"
+                        />
                       </div>
                     ) : (
                       <div></div>

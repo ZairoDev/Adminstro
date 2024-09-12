@@ -2,7 +2,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MdAdsClick } from "react-icons/md";
-
+import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { HiArrowNarrowLeft } from "react-icons/hi";
 import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
@@ -10,7 +10,6 @@ import { Property, propertyTypes, rentalTypes } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IoRemoveSharp } from "react-icons/io5";
-
 import {
   Select,
   SelectContent,
@@ -64,6 +63,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
 
   const [deletingImage, setDeletingImage] = useState<string | undefined>("");
+  const { toast } = useToast();
 
   const handleDelete = async (
     deletedIndex: number,
@@ -80,11 +80,9 @@ const EditPropertyPage = ({ params }: PageProps) => {
       alert("No image URL provided");
       return;
     }
-
     setDeletingImage(imageUrl);
 
     try {
-      // Step 1: Delete from database
       const backendDeleteResponse = await axios.delete(
         "/api/editproperty/deleteimage",
         {
@@ -98,23 +96,29 @@ const EditPropertyPage = ({ params }: PageProps) => {
         }
       );
 
-      console.log("Delete Response from Backend:", backendDeleteResponse.data);
+      try {
+        const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+        const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+        const filePath = imageUrl.split("https://vacationsaga.b-cdn.net/")[1];
 
-      // Step 2: Delete from Bunny CDN
-      const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-      const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-      const filePath = imageUrl.split("https://vacationsaga.b-cdn.net/")[1];
+        const deleteOptions = {
+          method: "DELETE",
+          url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
+          headers: { AccessKey: accessKey },
+        };
 
-      const deleteOptions = {
-        method: "DELETE",
-        url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
-        headers: { AccessKey: accessKey },
-      };
-
-      const deleteResponse = await axios.request(deleteOptions);
-      console.log("Delete Response from Bunny CDN:", deleteResponse.data);
-
-      // Step 3: Update frontend state
+        const bunnyDeleteResponse = await axios(deleteOptions);
+        console.log("Bunny CDN file deleted:", bunnyDeleteResponse.data);
+      } catch (bunnyError) {
+        console.error("Error deleting file from Bunny CDN:", bunnyError);
+        toast({
+          variant: "destructive",
+          title: "Bunny CDN Deletion failed",
+          description:
+            "Some error occurred while deleting the image from Bunny CDN. Please try again later.",
+        });
+        return;
+      }
       let updatedFormData = { ...formData };
 
       switch (typeOfImage) {
@@ -147,57 +151,25 @@ const EditPropertyPage = ({ params }: PageProps) => {
           console.error("Invalid image type");
           return;
       }
-
       setFormData(updatedFormData);
-      alert("File deleted successfully from both database and CDN!");
+      toast({
+        title: "Deletion Successful",
+        description:
+          "Image was deleted successfully. This action cannot be undone.",
+      });
     } catch (error: any) {
       console.error("Error deleting file:", error);
       console.log(error?.response?.data);
-      alert("Error deleting the file. Please try again.");
+      toast({
+        variant: "destructive",
+        title: "Deletion failed",
+        description:
+          "Some error occurred while deleting the image. Please try again later.",
+      });
     } finally {
       setDeletingImage("");
     }
   };
-
-  // const handleDelete = async (
-  //   deletedindex: number,
-  //   typeofimage: string,
-  //   imageUrl: string | undefined,
-  //   portionIndex?: number ,
-  // ) => {
-  //   console.log("Image URL:", imageUrl);
-  //   console.log("Image Type:", typeofimage);
-  //   console.log(deletedindex);
-  //   console.log("Portion Index:", portionIndex);
-
-  //   const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-  //   const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-  //   const filePath = imageUrl?.split("https://vacationsaga.b-cdn.net/")[1];
-  //   setDeletingImage(imageUrl);
-
-  //   const deleteOptions = {
-  //     method: "DELETE",
-  //     url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
-  //     headers: { AccessKey: accessKey },
-  //   };
-
-  //   try {
-  //     const deleteResponse = await axios.request(deleteOptions);
-  //     console.log("Delete Response:", deleteResponse.data);
-  //     const updatedImages = formData?.propertyPictureUrls?.filter(
-  //       (url) => url !== imageUrl
-  //     );
-  //     setFormData({
-  //       ...formData,
-  //       propertyPictureUrls: updatedImages,
-  //     });
-  //     alert("File deleted successfully!");
-  //   } catch (error) {
-  //     console.error("Error deleting file:", error);
-  //     alert("Error deleting the file. Please try again.");
-  //   }
-  //   setDeletingImage("");
-  // };
 
   useEffect(() => {
     if (params.id) {
@@ -434,9 +406,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                   <h1>Cover Image</h1>
                   <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center relative">
                     <img
-                      src={
-                        formData?.propertyCoverFileUrl || "/placeholder.webp"
-                      }
+                      src={formData?.propertyCoverFileUrl || "/replacer.jpg"}
                       className="max-w-2xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
                       alt="coverimage"
                     />
@@ -466,31 +436,33 @@ const EditPropertyPage = ({ params }: PageProps) => {
                   <div>
                     <h1 className="mt-1">Property Pictures</h1>
                   </div>
-                  <div className="mt-4 space-x-2  overflow-x-auto">
+                  <div className="mt-4 space-x-2 overflow-x-auto">
                     <div className="flex space-x-4">
-                      {formData?.propertyPictureUrls?.map((url, index) => (
-                        <div key={index} className="relative flex-shrink-0">
-                          <img
-                            src={url || "/placeholder.webp"}
-                            alt="not found"
-                            className="w-40 h-40 object-cover rounded-md"
-                          />
-                          {/* Delete Button */}
-                          <button
-                            onClick={() =>
-                              handleDelete(index, "propertyPictureUrls", url)
-                            }
-                            className="absolute top-1 right-1 bg-red-500  w-5 h-5 rounded-full border-red-600  "
-                            disabled={deletingImage === url}
-                          >
-                            {deletingImage === url ? (
-                              <Loader />
-                            ) : (
-                              <X className="w-5 h-5" />
-                            )}
-                          </button>
-                        </div>
-                      ))}
+                      {formData?.propertyPictureUrls
+                        ?.filter((url) => url) // filter out falsy values (e.g. empty strings or nulls)
+                        .map((url, index) => (
+                          <div key={index} className="relative flex-shrink-0">
+                            <img
+                              src={url} // Only render valid URLs
+                              alt="not found"
+                              className="w-40 h-40 object-cover rounded-md"
+                            />
+                            {/* Delete Button */}
+                            <button
+                              onClick={() =>
+                                handleDelete(index, "propertyPictureUrls", url)
+                              }
+                              className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
+                              disabled={deletingImage === url}
+                            >
+                              {deletingImage === url ? (
+                                <Loader />
+                              ) : (
+                                <X className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -942,7 +914,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           <img
                             src={
                               formData?.portionCoverFileUrls?.[index] ||
-                              "/placeholder.webp"
+                              "/replacer.jpg"
                             }
                             alt="portionCover"
                             className="max-w-2xl w-full rounded-lg px-2 py-2 h-full object-contain"
@@ -973,16 +945,18 @@ const EditPropertyPage = ({ params }: PageProps) => {
                         </div>
                         {/* Portion Pictures Section */}
                         <h1 className="mt-1">Portion Picture</h1>
+
                         <div className="mt-4 space-x-2 overflow-x-auto">
                           <div className="flex space-x-4">
-                            {formData?.portionPictureUrls?.[index].map(
-                              (url, imgIndex) => (
+                            {formData?.portionPictureUrls?.[index]
+                              ?.filter((url) => url) // Filter out invalid or falsy URLs
+                              .map((url, imgIndex) => (
                                 <div
                                   key={imgIndex}
                                   className="relative flex-shrink-0"
                                 >
                                   <img
-                                    src={url || "/placeholder.webp"}
+                                    src={url} // Only render valid URLs
                                     alt="not found"
                                     className="w-40 h-40 object-cover rounded-md"
                                   />
@@ -990,7 +964,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                     onClick={() =>
                                       handleDelete(
                                         imgIndex,
-                                        "portionCoverFileUrls",
+                                        "portionPictureUrls",
                                         url,
                                         index
                                       )
@@ -1005,8 +979,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                     )}
                                   </button>
                                 </div>
-                              )
-                            )}
+                              ))}
                           </div>
                         </div>
 

@@ -82,19 +82,21 @@ const NewUser = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setValue,
   } = useForm<UserSchema>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: "",
       email: "",
       sendDetails: false,
-      nationality: "",
-      gender: "Male",
-      spokenLanguage: "",
+      nationality: "Indian",
+      gender: undefined,
+      spokenLanguage: "Hindi",
       bankDetails: "",
-      phone: "",
-      address: "",
-      role: "Traveller",
+      phone: "XXXXXXXXXX",
+      address: "nowhere",
+      role: undefined,
     },
   });
 
@@ -139,6 +141,12 @@ const NewUser = () => {
       setLoading(false);
     }
   };
+
+  const selectedRole = watch("role");
+  const selectedGender = watch("gender");
+  useEffect(() => {
+    console.log(selectedRole);
+  }, [watch]);
 
   return (
     <div className="sm:mt-10 mt-14 md:mt-10 lg:mt-0">
@@ -227,7 +235,22 @@ const NewUser = () => {
               <div className="flex w-full gap-x-2">
                 <div className="w-full">
                   <Label htmlFor="role">Role</Label>
-                  <Select {...register("role")}>
+                  <Select
+                    onValueChange={(value) =>
+                      setValue(
+                        "role",
+                        value as
+                          | "Owner"
+                          | "Traveller"
+                          | "Admin"
+                          | "Advert"
+                          | "Sales"
+                          | "Content"
+                          | "HR"
+                      )
+                    } // Update the form value manually
+                    value={selectedRole} // Bind the selected value to the form state
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
@@ -235,29 +258,37 @@ const NewUser = () => {
                       <SelectItem value="Owner">Owner</SelectItem>
                       <SelectItem value="Traveller">Traveller</SelectItem>
                       <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Content">Content Creator</SelectItem>
+                      <SelectItem value="Advert">Advert</SelectItem>
+                      <SelectItem value="Content">Content Writer</SelectItem>
                       <SelectItem value="Sales">Sales</SelectItem>
                       <SelectItem value="HR">Human Resource(HR)</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.role && (
+                  {/* {errors.role && (
                     <p className="text-red-500 text-xs">
                       {errors.role.message}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
 
               <div className="flex items-center gap-x-2 justify-between">
                 <div className="w-full">
                   <Label htmlFor="gender">Gender</Label>
-                  <Select {...register("gender")} value="Male">
+                  <Select
+                    // {...register("gender")}
+                    onValueChange={(value) =>
+                      setValue("gender", value as "Male" | "Female" | "Other")
+                    } // Update the form value manually
+                    value={selectedGender}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Gender" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && (
@@ -292,8 +323,8 @@ const NewUser = () => {
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? <Loader /> : "Countinue"}
+              <Button type="submit" className="w-full">
+                {loading ? <Loader /> : "Continue"}
               </Button>
             </form>
           </div>

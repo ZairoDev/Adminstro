@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { UserSchema } from "@/schemas/user.schema";
-interface IUser extends Document, UserSchema {}
+import { EmployeeSchema } from "@/schemas/employee.schema";
+interface IUser extends Document, EmployeeSchema {}
 
-const userSchema = new Schema<IUser>(
+const employeeSchema = new Schema<IUser>(
   {
     name: {
       type: String,
@@ -29,25 +29,18 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: "English",
     },
-    bankDetails: {
-      type: String,
-      default: "",
-    },
+    AccountNo:{
+			type: String,
+			default: "",
+		},
+		IFSC:{
+			type: String,
+			default: "", 
+		},
+
     phone: {
       type: String,
       required: true,
-    },
-    myRequests: {
-      type: [String],
-      required: false,
-    },
-    myUpcommingRequests: {
-      type: [String],
-      required: false,
-    },
-    declinedRequests: {
-      type: [String],
-      required: false,
     },
     address: {
       type: String,
@@ -63,8 +56,8 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["Owner", "Traveller", "Admin", "Advert", "Content", "Sales", "HR"],
-      default: "Owner",
+      enum: ["Admin", "Advert", "Content", "Sales", "HR"],
+      default: "Advert",
     },
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,
@@ -76,6 +69,6 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-const Users =
-  mongoose.models.Users || mongoose.model<IUser>("Users", userSchema);
-export default Users;
+const Employees =
+  mongoose.models.Users || mongoose.model<IUser>("Users", employeeSchema);
+export default Employees;

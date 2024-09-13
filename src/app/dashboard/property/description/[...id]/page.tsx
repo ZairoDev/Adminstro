@@ -355,21 +355,6 @@ const page = ({ params }: PageProps) => {
                 {isPortionOpen[index] && (
                   <>
                     <div className=" flex flex-col space-y-4">
-                      {/* <h1>Portion Cover Image</h1> */}
-                      {/* <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center">
-                        <img
-                          src={
-                            formData?.portionCoverFileUrls?.[index] ||
-                            "/placeholder.webp"
-                          }
-                          alt="portionCover"
-                          className="max-w-2xl w-full rounded-lg px-2 py-2 h-full object-contain"
-                        />
-                      </div> */}
-
-                      {/* <div>
-                        <h1 className="mt-1">Portion Picture</h1>
-                      </div> */}
                       <div className="mt-4 space-x-2 overflow-x-auto">
                         <div className="flex space-x-4">
                           {formData?.portionPictureUrls?.[index].map(
@@ -386,63 +371,7 @@ const page = ({ params }: PageProps) => {
                         </div>
                       </div>
 
-                      {/* <div>
-                        <label className="text-xs" htmlFor="portionName">
-                          Portion&apos;s Name
-                          <Input
-                            type="text"
-                            name="cooking"
-                            readOnly
-                            value={formData?.portionName?.at(index) || ""}
-                            // onChange={(e) => {
-                            //   const newFormData = { ...formData };
-                            //   newFormData?.portionName?.splice(
-                            //     index,
-                            //     1,
-                            //     e.target.value
-                            //   );
-                            //   setFormData(newFormData);
-                            // }}
-                          />
-                        </label>
-                      </div> */}
                     </div>
-                    {/* <label className="" htmlFor="review">
-                      Description of Portion {index + 1}
-                      <Textarea
-                        className="h-32"
-                        name="review"
-                        value={formData?.reviews?.[index] || ""}
-                        disabled
-                        // onChange={(e) => {
-                        //   const updatedReviews = [...(formData?.reviews || [])]; // Copy the reviews array
-                        //   updatedReviews[index] = e.target.value; // Update the specific index
-                        //   setFormData({
-                        //     ...formData,
-                        //     reviews: updatedReviews,
-                        //   }); // Update the state immutably
-                        // }}
-                      />
-                    </label> */}
-
-                    {/* <label className="" htmlFor="monthlyDiscount">
-                      New Description of Portion {index + 1}
-                      <Textarea
-                        className="h-32"
-                        name="review"
-                        value={formData?.newReviews?.[index] || ""}
-                        onChange={(e) => {
-                          const updatedReviews = [
-                            ...(formData?.newReviews || []),
-                          ]; // Copy the reviews array
-                          updatedReviews[index] = e.target.value; // Update the specific index
-                          setFormData({
-                            ...formData,
-                            newReviews: updatedReviews,
-                          }); // Update the state immutably
-                        }}
-                      />
-                    </label> */}
                   </>
                 )}
               </div>

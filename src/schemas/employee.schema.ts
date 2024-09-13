@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const userSchema = z.object({
+export const employeeSchema = z.object({
   name: z.string().min(1, "Please enter your name"),
   email: z.string().email("Please enter a valid email address"),
   profilePic: z.string().optional().default(""),
@@ -17,7 +17,15 @@ export const userSchema = z.object({
   address: z.string().min(1, "Address is required"),
   password: z.string().optional(),
   isVerified: z.boolean().optional().default(false),
-  role: z.enum(["Owner", "Traveller", "Admin", "Advert", "Content", "Sales", "HR"]),
+  role: z.enum([
+    "Owner",
+    "Traveller",
+    "Admin",
+    "Advert",
+    "Content",
+    "Sales",
+    "HR",
+  ]),
   forgotPasswordToken: z.string().optional(),
   forgotPasswordTokenExpiry: z.date().optional(),
   verifyToken: z.string().optional(),
@@ -26,4 +34,4 @@ export const userSchema = z.object({
   otpTokenExpiry: z.date().optional(),
 });
 
-export type UserSchema = z.infer<typeof userSchema>;
+export type EmployeeSchema = z.infer<typeof employeeSchema>;

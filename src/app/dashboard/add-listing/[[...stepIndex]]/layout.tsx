@@ -14,10 +14,14 @@ export interface CommonLayoutProps {
 const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
   const index = Number(params.stepIndex) || 1;
   const nextHref = (
-    index < 10 ? `/dashboard/add-listing/${index + 1}` : `/dashboard/add-listing/${1}`
+    index < 10
+      ? `/dashboard/add-listing/${index + 1}`
+      : `/dashboard/add-listing/${1}`
   ) as Route;
   const backtHref = (
-    index > 1 ? `/dashboard/add-listing/${index - 1}` : `/dashboard/add-listing/${1}`
+    index > 1
+      ? `/dashboard/add-listing/${index - 1}`
+      : `/dashboard/add-listing/${1}`
   ) as Route;
   const nextBtnText = index > 9 ? "Publish listing" : "Continue";
 
@@ -42,25 +46,18 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
     }
   }, [index, nextBtnText]);
 
+  console.log
+
   return (
     <>
       <div className={`max-w-4xl m-auto sm:p-4 p-2`}>
         <div className="space-y-11">
           <div className="text-center">
             <span className="text-4xl font-semibold">{index}</span>{" "}
-            <span className="text-lg ">
-              / 10
-            </span>
+            <span className="text-lg ">/ 10</span>
           </div>
 
-          <div className="">
-            {children}
-          </div>
-
-          <div className="flex justify-end mt-10 space-x-5">
-            <Button href={backtHref}>Go back</Button>
-            <Button href={nextHref}>{nextBtnText || "Continue"}</Button>
-          </div>
+          <div className="">{children}</div>
         </div>
       </div>
     </>

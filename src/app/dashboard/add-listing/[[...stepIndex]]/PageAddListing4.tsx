@@ -1,6 +1,9 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import React, { ChangeEvent, FC, useEffect, useMemo, useState } from "react";
 
 export interface PageAddListing4Props {}
@@ -20,6 +23,10 @@ type MainState = {
 };
 
 const PageAddListing4: FC<PageAddListing4Props> = () => {
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   const savedAmenities = JSON.parse(localStorage.getItem("page4") || "[]");
 
   const [amenitiesState, setAmenitiesState] = useState<MainState>(() => {
@@ -267,14 +274,14 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
     <>
       <div>
         <h2 className="text-2xl font-semibold">Amenities </h2>
-        <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
+        <span className="block mt-2 text-sm">
           Many customers have searched for accommodation based on amenities
           criteria
         </span>
       </div>
 
       <div className="space-y-8">
-        <div className="mt-6">
+        <div className="mt-6 border-b pb-6">
           <label className="text-xl font-semibold" htmlFor="">
             General amenities
           </label>
@@ -306,10 +313,10 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
         </div>
 
         <div>
-          <label className="text-lg font-semibold" htmlFor="">
+          <label className="text-lg  font-semibold" htmlFor="">
             Other amenities
           </label>
-          <div className="mt-6 grid grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="mt-6 border-b pb-6 grid grid-cols-2 lg:grid-cols-3 gap-5">
             {Object.keys(amenities.otherAmenities)
               .sort((a, b) => a.localeCompare(b))
               .map((key) => (
@@ -366,6 +373,24 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
               ))}
           </div>
         </div>
+      </div>
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+      <Link
+          href={{
+            pathname: `/dashboard/add-listing/3`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Go back</Button>
+        </Link>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/5`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
       </div>
     </>
   );

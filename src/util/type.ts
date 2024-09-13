@@ -40,6 +40,8 @@ export interface Property {
     lng: number;
   };
 
+  phone?: string;
+  name?:string;
   portionName?: string[];
   portionSize?: number[];
   guests?: number[];
@@ -83,6 +85,7 @@ export interface Property {
   portionCoverFileUrls?: string[];
   portionPictureUrls?: string[][];
 
+  monthlyDiscountLongTerm?: [Number];
   night?: number[];
   time?: number[];
   datesPerPortion?: number[][];

@@ -11,6 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export interface PageAddListing1Props {}
 
@@ -24,6 +28,10 @@ interface Page1State {
 }
 
 const PageAddListing1: FC<PageAddListing1Props> = () => {
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   const [propertyType, setPropertyType] = useState<string>(() => {
     const savedPage = localStorage.getItem("page1") || "";
     if (!savedPage) {
@@ -297,6 +305,16 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             </FormItem>
           </div>
         )}
+      </div>
+      <div className="mt-4 ml-2 mb-4">
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/2`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
       </div>
     </div>
   );

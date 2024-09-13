@@ -1,5 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import React, { FC } from "react";
 import { useEffect, useState } from "react";
 
@@ -10,6 +13,11 @@ interface Page6State {
 }
 
 const PageAddListing6: FC<PageAddListing6Props> = () => {
+
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   let portions = 0;
   const data = localStorage.getItem("page1") || "";
   if (data) {
@@ -52,33 +60,53 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
   }, [reviews]);
 
   return (
-    <div className=" flex flex-col gap-8">
-      {myArray.map((item, index) => (
-        <div key={index}>
-          <div className="mb-2">
-            <h2 className="text-2xl font-semibold">{portionNames[index]}</h2>
-            <span className="block mt-2 ">
-              Mention the best features of your accommodation, any special
-              amenities like fast Wi-Fi or parking, as well as things you like
-              about the neighborhood.
-            </span>
-          </div>
+    <>
+      <div className=" flex flex-col gap-8">
+        {myArray.map((item, index) => (
+          <div key={index}>
+            <div className="mb-2">
+              <h2 className="text-2xl font-semibold">{portionNames[index]}</h2>
+              <span className="block mt-2 ">
+                Mention the best features of your accommodation, any special
+                amenities like fast Wi-Fi or parking, as well as things you like
+                about the neighborhood.
+              </span>
+            </div>
 
-          <Textarea
-            placeholder="Enter your reviews"
-            rows={14}
-            value={reviews[index]}
-            onChange={(e) =>
-              setReviews((prev) => {
-                const newReviews = [...prev];
-                newReviews[index] = e.target.value.trim();
-                return newReviews;
-              })
-            }
-          />
-        </div>
-      ))}
-    </div>
+            <Textarea
+              placeholder="Enter your reviews"
+              rows={14}
+              value={reviews[index]}
+              onChange={(e) =>
+                setReviews((prev) => {
+                  const newReviews = [...prev];
+                  newReviews[index] = e.target.value.trim();
+                  return newReviews;
+                })
+              }
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+      <Link
+          href={{
+            pathname: `/dashboard/add-listing/5`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Go back</Button>
+        </Link>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/7`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
+      </div>
+    </>
   );
 };
 

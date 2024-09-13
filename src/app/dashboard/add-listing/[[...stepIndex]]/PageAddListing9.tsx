@@ -4,6 +4,9 @@ import React, { FC, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { MONTHS } from "../[[...stepIndex]]/PageAddListing8";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
 
 export interface PageAddListing9Props {}
 
@@ -19,6 +22,11 @@ const CustomDayPicker = dynamic(() => import("@/components/CustomDayPicker"), {
 });
 
 const PageAddListing9: FC<PageAddListing9Props> = () => {
+
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   const [portions, setPortions] = useState<number>(() => {
     const savedPage = localStorage.getItem("page1") || "";
     if (!savedPage) {
@@ -279,6 +287,25 @@ const PageAddListing9: FC<PageAddListing9Props> = () => {
           ))}
         </div>
       )}
+
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+      <Link
+          href={{
+            pathname: `/dashboard/add-listing/8`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Go back</Button>
+        </Link>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/10`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
+      </div>
     </>
   );
 };

@@ -16,6 +16,9 @@ import {
 
 import { Input } from "@/components/ui/input";
 import LocationMap from "@/components/LocationMap";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
@@ -29,6 +32,10 @@ interface Page2State {
 }
 
 const PageAddListing2: FC = () => {
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   const [address, setAddress] = useState<string>("");
   const [country, setCountry] = useState<string>("Greece");
   const [state, setState] = useState<string>("");
@@ -181,6 +188,24 @@ const PageAddListing2: FC = () => {
             </div>
           </div>
         </div>
+      </div>
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/1`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Go Back</Button>
+        </Link>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/3`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
       </div>
     </div>
   );

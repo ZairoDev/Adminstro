@@ -1,17 +1,14 @@
 "use client";
-import { LuLoader2 } from "react-icons/lu";
-import React, { FC, useEffect, useState } from "react";
-// import { PencilSquareIcon } from "@heroicons/react/24/outline";
-// import { Route } from "@/routers/types";
 
+import React, { FC, useEffect, useState } from "react";
 import Link from "next/link";
 import axios from "axios";
-// import toast, { Toaster } from "react-hot-toast";
-import { FaHouseUser } from "react-icons/fa";
-// import { useAuth } from "@/hooks/useAuth";
-// import PricingCard from "@/app/subscription/PricingCard";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Copy, Pencil } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "next/navigation";
+import { UserInterface } from "@/util/type";
+import ScreenLoader from "@/components/ScreenLoader";
 
 export interface PageAddListing10Props {}
 
@@ -97,7 +94,11 @@ interface checkBoxState {
 }
 
 const PageAddListing10: FC<PageAddListing10Props> = () => {
-  const user = "fdhjf";
+  const { toast } = useToast();
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
+
   const [goLiveState, setGoLiveState] = useState<boolean>(false);
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -189,24 +190,45 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         propertyPictureUrls,
         portionCoverFileUrls,
         portionPictureUrls,
-        // userId: user?._id,
       };
       setCombinedData(combinedData);
       return combinedData;
     };
 
     const data = fetchDataFromLocalStorage();
-  }, [user, propertyCoverFileUrl]);
+  }, []);
 
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyVSID, setPropertyVSID] = useState<string>();
+
+  const [user, setuser] = useState<UserInterface>();
+
+  useEffect(() => {
+    const fetchuser = async () => {
+      try {
+        const user = await axios.post("/api/user/getuserbyid", {
+          userId: userId,
+        });
+        setuser(user.data.data);
+        if (user) {
+          console.log("user data", user.data.data.email);
+        }
+        console.log(user);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchuser();
+  }, []);
+
+  console.log(user?.email, "At line number 222");
 
   const handleGoLive = async () => {
     setGoLiveState(true);
     setIsLoading(true);
     const data = {
-      // userId: user?._id,
-      // email: user?.email,
+      userId: userId,
+      email: user?.email,
       propertyType: combinedData?.propertyType,
       placeName: combinedData?.placeName,
       rentalForm: combinedData?.rentalForm,
@@ -261,39 +283,43 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       isLive: true,
     };
 
-    // try {
-    //   const response = await axios.post("/api/users", data);
-    //   if (data?.userId) {
-    //     toast.success("Property is successfully live!");
-    //     clearLocalStorage();
-    //     setIsLiveDisabled(true);
-    //     setIsLoading(false);
-    //   } else {
-    //     toast.error("User must be logged in to go live");
-    //     setIsLoading(false);
-    //   }
-    //   setPropertyId(response.data._id);
-    //   setPropertyVSID(response.data.VSID);
-    // } catch (error) {
-    //   toast.error("User must be logged in to go live");
-    //   setIsLoading(false);
-    //   throw error;
-    // }
+    try {
+      const response = await axios.post("/api/createnewproperty", data);
+      if (response.status === 200) {
+        console.log("Property is now live");
+        setIsLiveDisabled(true);
+        setPropertyVSID(response.data.VSID);
+        setPropertyId(response.data._id);
+        toast({
+          title: "Your Property is Now Live!",
+          description: `Your property for ${user?.name} is now live!`,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Some error occurred",
+        description:
+          "There are some issues with your request. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
   return (
     <>
-      {/* <Toaster position="bottom-right" reverseOrder={true} /> */}
-      <div className=" flex flex-col gap-12">
+      <div className="flex flex-col gap-12">
         <div>
-          <h2 className="text-2xl font-semibold">Congratulations 🎉</h2>
-          <span className="block mt-2 text-neutral-500 dark:text-neutral-400">
-            Excellent, congratulations on completing the listing, it is waiting
-            to be reviewed for publication
+          <h2 className="text-2xl font-semibold">Almost There! 🚀</h2>
+          <span className="block mt-2">
+            You're just one step away from listing your property. Tap on
+            "Continue" to finalize and publish your property listing.
           </span>
         </div>
-        <div className="flex flex-col w-72">
-          <div className="card  border border-gray-600 rounded-xl pb-2">
-            <div className=" h-72 flex justify-center items-center overflow-hidden">
+        <div className="border rounded-lg p-4">
+          <div className="">
+            <div className="flex justify-center items-center overflow-hidden">
               {propertyCoverFileUrl ? (
                 <img
                   src={propertyCoverFileUrl}
@@ -301,7 +327,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                   className="card-img-top rounded-xl object-cover"
                 />
               ) : (
-                <FaHouseUser className=" w-3/4 h-3/4" />
+                <p className="flex items-center justify-center">No image 404</p>
               )}
             </div>
             <div className="card-body mt-2 ml-2">
@@ -309,85 +335,99 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
             </div>
             <div className="flex gap-2 ml-2 mt-2 items-center">
               {page2?.country && (
-                <h6>
+                <h4>
                   {page2?.city}, {page2?.country}
-                </h6>
+                </h4>
               )}
-            </div>
-            <hr className=" w-16 border-gray-600 boder-2 my-2" />
-            <div className=" mt-1 font-medium text-xl ml-2">
-              {basePrice > 0 && <div>€ {basePrice} /night</div>}
             </div>
           </div>
-          <div className="flex gap-y-2  mt-2  flex-col    items-center">
+          <div className="flex items-center mt-4 gap-x-4 justify-between">
             <div className="w-full">
-              {isLoading ? (
-                <Button className="dark:bg-primary-6000 flex items-center justify-center gap-x-2 w-full dark:text-white text-slate-700 bg-orange-400">
-                  <span className="flex items-center justify-center gap-x-2">
-                    Processing...
-                    <LuLoader2 className="text-base animate-spin ml-2" />
-                  </span>
-                </Button>
+              {propertyVSID ? (
+                <Link
+                  href={{
+                    pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                    query: { id: propertyId },
+                  }}
+                >
+                  <Button className="w-full">Preview</Button>
+                </Link>
               ) : (
-                <button
-                  className="dark:bg-primary-6000 disabled:bg-neutral-600 w-full dark:text-white text-slate-700 bg-orange-400"
-                  onClick={handleGoLive}
-                  disabled={isLiveDisabled}>
-                  <span className="text-sm">Go Live</span>
-                </button>
+                <>
+                  {isLoading ? (
+                    <ScreenLoader />
+                  ) : (
+                    <Button
+                      className="w-full"
+                      onClick={handleGoLive}
+                      disabled={isLiveDisabled}
+                    >
+                      Go live 🚀
+                    </Button>
+                  )}
+                </>
               )}
             </div>
-
-            <div className="w-full flex items-center justify-between gap-x-2 ">
-              <Button
-                // href={"/add-listing/1" as Route}
-                className="  w-full  ">
+            <div className="w-full flex items-center justify-between gap-x-2">
+              <Button className="w-full">
                 <Pencil className="h-3 w-3" />
                 <span className="ml-3 text-sm">Edit</span>
               </Button>
-
-              <div>
-                {propertyVSID && (
-                  <Link
-                    href={{
-                      pathname: "/listing-stay-detail",
-                      query: {
-                        id: propertyId,
-                      },
-                    }}
-                  >
-                    <button className="-p-4 w-full mt-2">
-                      <span className="text-sm ">Preview</span>
-                    </button>
-                  </Link>
-                )}
-              </div>
             </div>
           </div>
         </div>
 
-        <div className=" flex flex-col">
-          {propertyVSID && <div>Your VSID: {propertyVSID}</div>}
+        <div className="flex flex-col ml-2 gap-2">
+          {propertyVSID && (
+            <div className="flex items-center gap-2">
+              <div className="text-xs">Your VSID: {propertyVSID}</div>
+              <Button
+                onClick={() => navigator.clipboard.writeText(propertyVSID)}
+                className=""
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {propertyId && (
-            <div className="">
-              Your Property Link:{" "}
-              {`https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`}
+            <div className="flex items-center gap-2">
+              <div className="text-xs">
+                Your Property Link:{" "}
+                <a
+                  href={`https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                >
+                  https://www.vacationsaga.com/listing-stay-detail?id=
+                  {propertyId}
+                </a>
+              </div>
+              <Button
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`
+                  )
+                }
+                className=""
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </div>
-        <div
-          className={` ${
-            goLiveState ? "block" : "hidden"
-          } relative w-screen mx-auto max-w-3xl`}
+      </div>
+
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/9`,
+            query: { userId: userId },
+          }}
         >
-          <div className="flex justify-center h-screen">
-            {goLiveState && (
-              <div className="absolute inset-0 w-[90vw] left-1/2 transform -translate-x-1/2">
-                {/* <PricingCard email={user?.email} /> */}
-              </div>
-            )}
-          </div>
-        </div>
+          <Button>Go back</Button>
+        </Link>
       </div>
     </>
   );

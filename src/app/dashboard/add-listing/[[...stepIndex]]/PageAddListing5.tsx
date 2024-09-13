@@ -4,6 +4,8 @@ import React, { FC, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export interface PageAddListing5Props {}
 
@@ -16,6 +18,9 @@ interface Page5State {
 }
 
 const PageAddListing5: FC<PageAddListing5Props> = () => {
+  const params = useSearchParams();
+  const userId = params.get("userId");
+  console.log(userId);
   const handleRadioChange = (name: string, value: string) => {
     setPage5((prevState) => {
       return {
@@ -121,7 +126,7 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
           Guests must agree to your house rules before they book.
         </span>
       </div>
-     
+
       {/* FORM */}
       <div className="space-y-8">
         {/* ITEM */}
@@ -217,6 +222,24 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
             <Plus className="w-4 h-4" /> Add tag
           </Button>
         </div>
+      </div>
+      <div className="mt-4 flex gap-x-4 ml-2 mb-4">
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/4`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Go back</Button>
+        </Link>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/6`,
+            query: { userId: userId },
+          }}
+        >
+          <Button>Continue</Button>
+        </Link>
       </div>
     </>
   );

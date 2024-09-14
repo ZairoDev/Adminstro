@@ -260,7 +260,7 @@ const PropertyPage: React.FC = () => {
                   <CardContent className="p-4 ">
                     <div className="flex items-center justify-between">
                       <p className="">Vsid {property?.VSID}</p>
-                      <p className="">Beds {property?.beds?.length || "NA"}</p>
+                      <p className="">Beds {property?.beds?.[0] || "NA"}</p>
                     </div>
                     <div className="mt-2">
                       {property &&

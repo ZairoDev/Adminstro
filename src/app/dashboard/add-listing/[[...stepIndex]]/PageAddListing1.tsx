@@ -1,7 +1,5 @@
 "use client";
-import React, { FC, useEffect } from "react";
-import { useState } from "react";
-
+import React, { FC, useEffect, useState } from "react";
 import FormItem from "../FormItem";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +12,6 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
 
 export interface PageAddListing1Props {}
 
@@ -30,83 +27,49 @@ interface Page1State {
 const PageAddListing1: FC<PageAddListing1Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
 
   const [propertyType, setPropertyType] = useState<string>(() => {
     const savedPage = localStorage.getItem("page1") || "";
-    if (!savedPage) {
-      return "Hotel";
-    }
-    const value = JSON.parse(savedPage)["propertyType"];
-    return value || "Hotel";
+    return savedPage ? JSON.parse(savedPage)["propertyType"] : "Hotel";
   });
 
   const [placeName, setPlaceName] = useState<string>(() => {
     const savedPage = localStorage.getItem("page1") || "";
-    if (!savedPage) {
-      return "";
-    }
-    const value = JSON.parse(savedPage)["placeName"];
-    return value || "";
+    return savedPage ? JSON.parse(savedPage)["placeName"] : "";
   });
 
   const [rentalForm, setRentalForm] = useState<string>(() => {
     const savedPage = localStorage.getItem("page1") || "";
-    if (!savedPage) {
-      return "Private room";
-    }
-    const value = JSON.parse(savedPage)["rentalForm"];
-    return value || "Private room";
+    return savedPage ? JSON.parse(savedPage)["rentalForm"] : "Private room";
   });
 
   const [numberOfPortions, setNumberOfPortions] = useState<number>(() => {
     const savedPage = localStorage.getItem("page1") || "";
-    if (!savedPage) {
-      return 1;
-    }
-    const value = JSON.parse(savedPage)["numberOfPortions"];
-    return value ? parseInt(value, 10) : 1;
+    return savedPage
+      ? parseInt(JSON.parse(savedPage)["numberOfPortions"], 10)
+      : 1;
   });
 
   const [showPortionsInput, setShowPortionsInput] = useState<boolean>(() => {
     const savedPage = localStorage.getItem("page1") || "";
-    if (!savedPage) {
-      return false;
-    }
-    const value = JSON.parse(savedPage)["showPortionsInput"];
-    return value ? JSON.parse(value) : false;
+    return savedPage ? JSON.parse(savedPage)["showPortionsInput"] : false;
   });
 
   const [rentalType, setRentalType] = useState<string>(() => {
     const savedRentalType = localStorage.getItem("page1") || "";
-    if (!savedRentalType) {
-      return "Short Term";
-    }
-    const value = JSON.parse(savedRentalType)["rentalType"];
-    return value || "Short Term";
+    return savedRentalType
+      ? JSON.parse(savedRentalType)["rentalType"]
+      : "Short Term";
   });
 
-  const [page1, setPage1] = useState<Page1State>({
-    propertyType: propertyType,
-    placeName: placeName,
-    rentalForm: rentalForm,
-    numberOfPortions: numberOfPortions,
-    showPortionsInput: showPortionsInput,
-    rentalType: rentalType,
-  });
-
-  const handlePropertyTypeChange = (value: string) => {
-    console.log("Selected Property Type: ", value);
-    setPropertyType(value);
-  };
+  const [isFormComplete, setIsFormComplete] = useState<boolean>(false);
+  const handlePropertyTypeChange = (value: string) => setPropertyType(value);
 
   const handlePlaceName = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const pName = e.target.value.trim();
-    setPlaceName(pName);
+    setPlaceName(e.target.value.trim());
   };
 
   const handleRentalFormChange = (value: string) => {
-    console.log("Selected Rental Form: ", value);
     setRentalForm(value);
     if (value === "Private room by portion") {
       setNumberOfPortions(2);
@@ -118,7 +81,6 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
   };
 
   const handleRentalTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.id);
     setRentalType(e.target.id);
   };
 
@@ -133,57 +95,31 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     }
   };
 
-  useEffect(() => {
-    setPage1((prev) => {
-      const newObj = { ...prev };
-      newObj.numberOfPortions = numberOfPortions;
-      return newObj;
-    });
-  }, [numberOfPortions]);
-
-  useEffect(() => {
-    setPage1((prev) => {
-      const newObj = { ...prev };
-      newObj.propertyType = propertyType;
-      return newObj;
-    });
-  }, [propertyType]);
-
-  useEffect(() => {
-    setPage1((prev) => {
-      const newObj = { ...prev };
-      newObj.placeName = placeName;
-      return newObj;
-    });
-  }, [placeName]);
-
-  useEffect(() => {
-    setPage1((prev) => {
-      const newObj = { ...prev };
-      newObj.rentalForm = rentalForm;
-      return newObj;
-    });
-  }, [rentalForm]);
-
-  useEffect(() => {
-    setPage1((prev) => {
-      const newObj = { ...prev };
-      newObj.rentalType = rentalType;
-      return newObj;
-    });
-  }, [rentalType]);
+  const checkFormCompletion = () => {
+    if (
+      propertyType &&
+      placeName &&
+      rentalForm &&
+      rentalType &&
+      (!showPortionsInput || numberOfPortions >= 2)
+    ) {
+      setIsFormComplete(true);
+    } else {
+      setIsFormComplete(false);
+    }
+  };
 
   useEffect(() => {
     const newPage1: Page1State = {
-      propertyType: propertyType,
-      placeName: placeName,
-      rentalForm: rentalForm,
-      numberOfPortions: numberOfPortions,
-      showPortionsInput: showPortionsInput,
-      rentalType: rentalType,
+      propertyType,
+      placeName,
+      rentalForm,
+      numberOfPortions,
+      showPortionsInput,
+      rentalType,
     };
-    setPage1(newPage1);
     localStorage.setItem("page1", JSON.stringify(newPage1));
+    checkFormCompletion();
   }, [
     propertyType,
     placeName,
@@ -193,52 +129,52 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     rentalType,
   ]);
 
+  const handleNextClick = () => {
+    if (!isFormComplete) {
+      alert("Please fill out all fields before continuing.");
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-semibold">Choosing listing categories</h2>
-
       <div className="space-y-8">
-        <div className=" mt-4 flex justify-between">
+        <div className="mt-4 flex justify-between">
           <div>
-            <label htmlFor="Short Term" id="Short Term">
-              Short Term
-            </label>
+            <label htmlFor="Short Term">Short Term</label>
             <input
               type="radio"
               name="rentalType"
-              className=" mx-2 p-2 cursor-pointer"
+              className="mx-2 p-2 cursor-pointer"
               id="Short Term"
               defaultChecked={rentalType === "Short Term"}
               onChange={handleRentalTypeChange}
             />
           </div>
           <div>
-            <label htmlFor="Long Term" id="Long Term">
-              Long Term
-            </label>
+            <label htmlFor="Long Term">Long Term</label>
             <input
               type="radio"
               name="rentalType"
-              className=" mx-2 p-2 cursor-pointer"
+              className="mx-2 p-2 cursor-pointer"
               id="Long Term"
               defaultChecked={rentalType === "Long Term"}
               onChange={handleRentalTypeChange}
             />
           </div>
           <div>
-            <label htmlFor="Both" id="Both">
-              Both
-            </label>
+            <label htmlFor="Both">Both</label>
             <input
               type="radio"
               name="rentalType"
-              className=" mx-2 p-2 cursor-pointer"
+              className="mx-2 p-2 cursor-pointer"
               id="Both"
               defaultChecked={rentalType === "Both"}
               onChange={handleRentalTypeChange}
             />
           </div>
         </div>
+
         <FormItem
           label="Choose a property type"
           desc="Hotel: Professional hospitality businesses that usually have a unique style or theme defining their brand and decor"
@@ -263,16 +199,18 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             </SelectContent>
           </Select>
         </FormItem>
+
         <FormItem
           label="Place name"
           desc="A catchy name usually includes: House name + Room name + Featured property + Tourist destination"
         >
           <Input
-            placeholder="Places name"
+            placeholder="Place name"
             onChange={handlePlaceName}
             value={placeName}
           />
         </FormItem>
+
         <FormItem
           label="Rental form"
           desc="Entire place: Guests have the whole place to themselves—there's a private entrance and no shared spaces. A bedroom, bathroom, and kitchen are usually included."
@@ -291,34 +229,42 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             </SelectContent>
           </Select>
         </FormItem>
+
         {showPortionsInput && (
           <div className="mt-8">
-            <FormItem desc="The number of portion this place have you hvae to fill it here ">
+            <FormItem desc="The number of portions this place has. You have to fill it here.">
               <Input
                 type="number"
                 value={numberOfPortions}
                 onChange={handlePortionsInputChange}
                 placeholder="Number of portions"
                 min={2}
-                title="Number of portions can not be less than 2"
+                title="Number of portions cannot be less than 2"
               />
             </FormItem>
           </div>
         )}
       </div>
-      <div className="mt-4 ml-2 mb-4">
-        <Link
-          href={{
-            pathname: `/dashboard/add-listing/2`,
-            query: { userId: userId },
-          }}
-        >
-          <Button>Continue</Button>
-        </Link>
-      </div>
+
+      {isFormComplete ? (
+        <div className="mt-4 ml-2 mb-4">
+          <Link
+            href={{
+              pathname: `/dashboard/add-listing/2`,
+              query: { userId: userId },
+            }}
+            onClick={handleNextClick}
+          >
+            <Button disabled={!isFormComplete}>Continue</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-4 ml-2 mb-4">
+          <Button disabled={!isFormComplete}>Continue</Button>
+        </div>
+      )}
     </div>
   );
 };
-export const useClient = true;
 
 export default PageAddListing1;

@@ -284,7 +284,7 @@ const PageAddListing9: FC<PageAddListing9Props> = () => {
           </h1>
           {longTermMonths.map((m, i) => (
             <p key={i}>{m}, </p>
-          ))}
+          ))}  
         </div>
       )}
 

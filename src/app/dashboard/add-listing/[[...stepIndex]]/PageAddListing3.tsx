@@ -20,7 +20,6 @@ interface Page3State {
 }
 
 const PageAddListing3: FC<PageAddListing3Props> = () => {
-
   const params = useSearchParams();
   const userId = params.get("userId");
   console.log(userId);
@@ -144,6 +143,37 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
     };
     setPage3(newPage3);
     localStorage.setItem("page3", JSON.stringify(newPage3));
+  }, [
+    portionName,
+    portionSize,
+    guests,
+    bedrooms,
+    beds,
+    bathroom,
+    kitchen,
+    childrenAge,
+  ]);
+
+  const isFormValid = () => {
+    // Check if any of the arrays contain empty strings or zeros
+    const allFieldsFilled = [
+      portionName,
+      portionSize,
+      guests,
+      bedrooms,
+      beds,
+      bathroom,
+      kitchen,
+      childrenAge,
+    ].every((array) => array.every((value) => value !== "" && value !== 0));
+
+    return allFieldsFilled;
+  };
+
+  const [isValidForm, setIsValidForm] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsValidForm(isFormValid());
   }, [
     portionName,
     portionSize,
@@ -282,7 +312,7 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
         ))}
       </div>
       <div className="mt-4 flex gap-x-4 ml-2 mb-4">
-      <Link
+        <Link
           href={{
             pathname: `/dashboard/add-listing/2/`,
             query: { userId: userId },
@@ -290,14 +320,16 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Link
-          href={{
-            pathname: `/dashboard/add-listing/4/`,
-            query: { userId: userId },
-          }}
-        >
-          <Button>Continue</Button>
-        </Link>
+        <Button disabled={!isValidForm}>
+          <Link
+            href={{
+              pathname: `/dashboard/add-listing/4/`,
+              query: { userId: userId },
+            }}
+          >
+            Continue
+          </Link>
+        </Button>
       </div>
     </>
   );

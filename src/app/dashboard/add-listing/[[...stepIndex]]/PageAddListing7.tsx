@@ -710,7 +710,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
                             {/* {Array.from({ length: 5 }, () => "").map((_, i) => ( */}
                             {portionPictureUrls[index]
                               .filter((url) => url != "")
-                              .map((_, i) => (
+                              .map((innerIndex, i) => (
                                 <div
                                   className="flex flex-wrap gap-4 mx-2"
                                   key={i}
@@ -727,12 +727,12 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
                       )}
                       <div className="flex text-sm text-neutral-6000 justify-center">
                         <label
-                          htmlFor="file-upload-2"
+                          htmlFor={`file-upload-portionPicture-${index}`}
                           className="relative cursor-pointer rounded-md font-medium text-primary-6000 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
                         >
                           <span className="text-center">Upload a file</span>
                           <input
-                            id="file-upload-2"
+                            id={`file-upload-portionPicture-${index}`}
                             name="file-upload-2"
                             type="file"
                             className="sr-only"

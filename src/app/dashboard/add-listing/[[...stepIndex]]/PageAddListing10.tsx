@@ -369,10 +369,12 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
               )}
             </div>
             <div className="w-full flex items-center justify-between gap-x-2">
-              <Button className="w-full">
-                <Pencil className="h-3 w-3" />
-                <span className="ml-3 text-sm">Edit</span>
-              </Button>
+              <Link className="w-full" href="/dashboard/add-listing/1">
+                <Button className="w-full">
+                  <Pencil className="h-3 w-3" />
+                  <span className="ml-3 text-sm">Edit</span>
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

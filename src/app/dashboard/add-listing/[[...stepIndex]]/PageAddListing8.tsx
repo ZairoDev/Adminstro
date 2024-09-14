@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
+import { boolean } from "zod";
 
 export interface PageAddListing8Props {}
 
@@ -44,7 +45,6 @@ export const MONTHS = [
 ];
 
 const PageAddListing8: FC<PageAddListing8Props> = () => {
-
   const params = useSearchParams();
   const userId = params.get("userId");
   console.log(userId);
@@ -210,6 +210,19 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
     }
   };
 
+  const isFormValid = () => {
+    const allFieldsFilled = [basePrice, weekendPrice].every((array) =>
+      array.every((value) => value !== 0 && value !== 0)
+    );
+    console.log("Runnig ")
+    return allFieldsFilled;
+  };
+  const [isValidForm, setIsValidForm] = useState<boolean>(false);
+  useEffect(() => {
+    setIsValidForm(isFormValid());
+    console.log(isValidForm);
+  }, [basePrice, weekendPrice]);
+
   return (
     <>
       <div className=" flex flex-col gap-12">
@@ -238,7 +251,6 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
             </div>
           </div>
         )}
-
         {rentalType && (rentalType == "Short Term" || rentalType == "Both") && (
           <div>
             <h1 className="text-3xl ">Short Term Pricing</h1>
@@ -395,6 +407,7 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
                         className="!pl-8 !pr-10"
                         placeholder="0.00"
                         value={basePriceLongTerm[index]}
+                        required
                         onChange={(e) =>
                           setBasePriceLongTerm((prev) => {
                             const newBasePriceLongTermArray = [...prev];
@@ -417,6 +430,7 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
                       <Input
                         className="!pl-8 !pr-10"
                         placeholder="0.00"
+                        required
                         value={monthlyDiscount[index]}
                         onChange={(e) =>
                           setMonthlyDiscount((prev) => {
@@ -438,9 +452,8 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
           </div>
         )}
       </div>
-
       <div className="mt-4 flex gap-x-4 ml-2 mb-4">
-      <Link
+        <Link
           href={{
             pathname: `/dashboard/add-listing/7`,
             query: { userId: userId },
@@ -448,14 +461,16 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Link
-          href={{
-            pathname: `/dashboard/add-listing/9`,
-            query: { userId: userId },
-          }}
-        >
-          <Button>Continue</Button>
-        </Link>
+        <Button disabled={!isValidForm}>
+          <Link
+            href={{
+              pathname: `/dashboard/add-listing/9`,
+              query: { userId: userId },
+            }}
+          >
+            Continue
+          </Link>
+        </Button>
       </div>
     </>
   );

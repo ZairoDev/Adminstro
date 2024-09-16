@@ -41,7 +41,7 @@ export interface Property {
   };
 
   phone?: string;
-  name?:string;
+  name?: string;
   portionName?: string[];
   portionSize?: number[];
   guests?: number[];

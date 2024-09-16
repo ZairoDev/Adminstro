@@ -12,8 +12,12 @@ import { useSearchParams } from "next/navigation";
 
 export interface PageAddListing7Props {}
 
+
 const PageAddListing7: FC<PageAddListing7Props> = () => {
+
+  
   const params = useSearchParams();
+
   const userId = params.get("userId");
   console.log(userId);
 
@@ -44,9 +48,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
           return emptyStringArrayGenerator(portions);
         }
       }
-      // if (savedUrls?.length != portions) {
-      //   return emptyStringArrayGenerator(portions);
-      // }
+
       return savedUrls
         ? JSON.parse(savedUrls)
         : emptyStringArrayGenerator(portions);
@@ -64,10 +66,6 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
     () => {
       const savedUrls = localStorage.getItem("portionPictureUrls") || "";
       const arrayOf5 = Array(5).fill("");
-
-      // if (savedUrls.length != portions) {
-      //   return Array(portions).fill(arrayOf5);
-      // }
 
       return savedUrls ? JSON.parse(savedUrls) : Array(portions).fill(arrayOf5);
     }

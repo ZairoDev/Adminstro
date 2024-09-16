@@ -61,6 +61,20 @@ export function Sidebar() {
                   Manage Property
                 </Link>
               </li>
+              <li
+                className={`${
+                  isActive(currentPath, "/dashboard/createnewEmployee")
+                    ? "bg-white rounded-l-xl text-black/80"
+                    : ""
+                }`}
+              >
+                <Link
+                  href="/dashboard/createnewEmployee"
+                  className="block rounded-l-xl px-4 py-2 hover:bg-white/10"
+                >
+                  Manage Employee
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
@@ -98,6 +112,7 @@ export function Sidebar() {
                     Manage User
                   </Link>
                 </li>
+
                 <li
                   className={`py-2 ${
                     isActive(currentPath, "/dashboard/property")
@@ -107,6 +122,20 @@ export function Sidebar() {
                 >
                   <Link href="/dashboard/property" className="block ml-2">
                     Manage Property
+                  </Link>
+                </li>
+                <li
+                  className={`py-2 ${
+                    isActive(currentPath, "/dashboard/createnewEmployee")
+                      ? "bg-white w-[230px] rounded-l-xl text-black"
+                      : ""
+                  }`}
+                >
+                  <Link
+                    href="/dashboard/createnewEmployee"
+                    className="block ml-2"
+                  >
+                    Manage Employee
                   </Link>
                 </li>
               </ul>

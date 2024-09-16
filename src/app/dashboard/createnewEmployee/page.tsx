@@ -14,13 +14,14 @@ import {
 import { ArrowLeftFromLine, Plus } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { userSchema } from "@/schemas/user.schema";
-import { UserSchema } from "@/schemas/user.schema";
 import Loader from "@/components/loader";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
+import { CustomDatePicker } from "@/components/CustomDatePicker";
+import PhoneInput from "react-phone-number-input";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -30,6 +31,8 @@ const NewUser = () => {
   const { uploadFiles } = useBunnyUpload();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [phone, setPhone] = useState<string | undefined>("undefined");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -84,8 +87,9 @@ const NewUser = () => {
     reset,
     watch,
     setValue,
-  } = useForm<UserSchema>({
-    resolver: zodResolver(userSchema),
+    control,
+  } = useForm<EmployeeSchema>({
+    resolver: zodResolver(employeeSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -93,16 +97,20 @@ const NewUser = () => {
       nationality: "Indian",
       gender: undefined,
       spokenLanguage: "Hindi",
-      bankDetails: "",
-      phone: "XXXXXXXXXX",
-      address: "nowhere",
+      accountNo: "",
+      ifsc: "",
+      aadhar: "",
+      alias: "",
+      dateOfJoining: undefined,
+      address: "",
       role: undefined,
+      experience: 0,
     },
   });
 
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (data: UserSchema) => {
+  const onSubmit = async (data: EmployeeSchema) => {
     console.log(data, "I am submitting");
     setLoading(true);
     const userData = {
@@ -140,6 +148,7 @@ const NewUser = () => {
     } finally {
       setLoading(false);
     }
+    setPhone("");
   };
 
   const selectedRole = watch("role");
@@ -162,11 +171,11 @@ const NewUser = () => {
         </Button>
       </div>
       <div className="flex items-center justify-center">
-        <div className="max-w-[35rem] w-full m-4">
+        <div className=" w-full m-4">
           <div className="border-2 rounded-lg p-4">
             <div className="border-b">
               <h1 className="text-2xl pb-2 text-center font-semibold">
-                Create new user
+                Create new employee
               </h1>
             </div>
             <div className="flex items-center justify-center">
@@ -202,7 +211,7 @@ const NewUser = () => {
               onSubmit={handleSubmit(onSubmit)}
               className="mt-6 flex flex-col gap-y-4"
             >
-              <div className="flex w-full gap-x-2">
+              <div className="flex sm:flex-row flex-col w-full gap-x-2">
                 <div className="w-full">
                   <Label htmlFor="name">Name</Label>
                   <Input
@@ -230,9 +239,6 @@ const NewUser = () => {
                     </p>
                   )}
                 </div>
-              </div>
-
-              <div className="flex w-full gap-x-2">
                 <div className="w-full">
                   <Label htmlFor="role">Role</Label>
                   <Select
@@ -272,7 +278,7 @@ const NewUser = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-x-2 justify-between">
+              <div className="flex w-full sm:flex-row flex-col gap-x-2">
                 <div className="w-full">
                   <Label htmlFor="gender">Gender</Label>
                   <Select
@@ -297,9 +303,173 @@ const NewUser = () => {
                     </p>
                   )}
                 </div>
+
+                <div className=" w-full">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    {...register("country")}
+                    className="w-full"
+                    placeholder="Enter Country"
+                  />
+                  {errors.country && (
+                    <p className="text-red-500 text-xs">
+                      {errors.country.message}
+                    </p>
+                  )}
+                </div>
+                <div className=" w-full">
+                  <Label htmlFor="nationality">Nationality</Label>
+                  <Input
+                    {...register("nationality")}
+                    className="w-full"
+                    placeholder="Enter Naitonality"
+                  />
+                  {errors.nationality && (
+                    <p className="text-red-500 text-xs">
+                      {errors.nationality.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-x-2 justify-between">
+              {/* <div className=" flex w-full gap-x-2 justify-between"> */}
+
+              <div className=" flex w-full sm:flex-row flex-col gap-x-1 justify-between">
+                <div className=" w-full">
+                  <Label htmlFor="spokenLanguage">Language</Label>
+                  <Input
+                    {...register("spokenLanguage")}
+                    className="w-full"
+                    placeholder="Enter Language"
+                  />
+                  {errors.spokenLanguage && (
+                    <p className="text-red-500 text-xs">
+                      {errors.spokenLanguage.message}
+                    </p>
+                  )}
+                </div>
+                <div className=" w-full">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    {...register("address")}
+                    className="w-full"
+                    placeholder="Enter Address"
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 text-xs">
+                      {errors.address.message}
+                    </p>
+                  )}
+                </div>
+                <div className=" w-full">
+                  <Label htmlFor="accountNo">Account No.</Label>
+                  <Input
+                    {...register("accountNo")}
+                    className="w-full"
+                    placeholder="Enter Account number"
+                  />
+                  {errors.accountNo && (
+                    <p className="text-red-500 text-xs">
+                      {errors.accountNo.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className=" flex w-full sm:flex-row flex-col gap-x-2 justify-between">
+                <div className=" w-full">
+                  <Label htmlFor="ifsc">IFSC Code</Label>
+                  <Input
+                    {...register("ifsc")}
+                    className="w-full"
+                    placeholder="Enter IFSC code"
+                  />
+                  {errors.ifsc && (
+                    <p className="text-red-500 text-xs">
+                      {errors.ifsc.message}
+                    </p>
+                  )}
+                </div>
+                <div className=" w-full">
+                  <Label htmlFor="aadhar">Aadhar No.</Label>
+                  <Input
+                    {...register("aadhar")}
+                    className="w-full"
+                    placeholder="Enter you Aadhar number"
+                  />
+                  {errors.aadhar && (
+                    <p className="text-red-500 text-xs">
+                      {errors.aadhar.message}
+                    </p>
+                  )}
+                </div>
+                <div className=" w-full">
+                  <Label htmlFor="alias">Alias</Label>
+                  <Input
+                    {...register("alias")}
+                    className="w-full"
+                    placeholder="Enter Alias name"
+                  />
+                  {errors.alias && (
+                    <p className="text-red-500 text-xs">
+                      {errors.alias.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex w-full gap-x-2 justify-between items-center">
+                <div className=" w-full">
+                  <Label htmlFor="experience">Experience</Label>
+                  <Input
+                    {...register("experience")}
+                    type={"number"}
+                    className="w-full"
+                    min={0}
+                    placeholder="Put the value in months 1 year = 12 "
+                  />
+                  {errors.experience && (
+                    <p className="text-red-500 text-xs">
+                      {errors.experience.message}
+                    </p>
+                  )}
+                </div>
+                <div className="w-full flex items-center">
+                  <PhoneInput
+                    {...register("phone")}
+                    className="phone-input"
+                    placeholder="Enter phone number"
+                    value={phone}
+                    international
+                    countryCallingCodeEditable={false}
+                    error={
+                      // phone
+                      //   ? isValidPhoneNumber(phone)
+                      //     ? undefined
+                      //     : "Invalid phone number"
+                      "Phone number required"
+                    }
+                    onChange={(value) => setPhone(value?.toString())}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs">
+                      {errors?.phone?.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center sm:flex-row flex-col gap-x-2 justify-between">
+                <div className=" w-full">
+                  <Label htmlFor="dateOfJoining">Date Of Joining</Label>
+                  {/* <CustomDatePicker /> */}
+                  <CustomDatePicker control={control} />
+                  {errors.dateOfJoining && (
+                    <p className="text-red-500 text-xs">
+                      {errors.dateOfJoining.message}
+                    </p>
+                  )}
+                </div>
                 <div className="w-full">
                   <Label htmlFor="password">Password</Label>
                   <Input
@@ -308,10 +478,13 @@ const NewUser = () => {
                     className="w-full"
                     placeholder="Enter password"
                   />
+                  {errors.password && (
+                    <p className="text-red-500 text-xs">
+                      {errors.password.message}
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              <div className="flex items-center gap-x-2 justify-between">
                 <div className="w-full">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
                   <Input
@@ -322,10 +495,11 @@ const NewUser = () => {
                   />
                 </div>
               </div>
-
-              <Button type="submit" className="w-full">
-                {loading ? <Loader /> : "Continue"}
-              </Button>
+              <div className="flex items-end justify-end">
+                <Button type="submit" className="">
+                  {loading ? <Loader /> : "Continue"}
+                </Button>
+              </div>
             </form>
           </div>
         </div>

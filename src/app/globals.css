@@ -32,6 +32,29 @@
   --background-end-rgb: 255, 255, 255;
 }
 
+
+.phone-input {
+  @apply flex items-center border border-neutral-800 rounded-md p-2 w-full bg-transparent;
+}
+
+.phone-input input {
+  @apply border-none outline-none flex-1 bg-transparent border-neutral-800 ;
+}
+
+.phone-input .PhoneInputCountry {
+  @apply flex items-center justify-center bg-transparent;
+}
+
+.phone-input .PhoneInputCountryIcon {
+  @apply h-full w-auto max-h-full mr-2 bg-transparent;
+}
+
+.phone-input .PhoneInputCountryIcon--square img {
+  @apply h-full w-auto bg-transparent;
+} 
+
+
+
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;

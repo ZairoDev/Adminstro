@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { EmployeeSchema } from "@/schemas/employee.schema";
-import { stripIgnoredCharacters } from "graphql";
 interface IUser extends Document, EmployeeSchema {}
 
 const employeeSchema = new Schema<IUser>(
@@ -30,14 +29,14 @@ const employeeSchema = new Schema<IUser>(
       type: String,
       default: "English",
     },
-    AccountNo:{
+    accountNo: {
       type: String,
-      default: ""
+      default: "",
     },
-		IFSC:{
-			type: String,
-			default: "", 
-		},
+    ifsc: {
+      type: String,
+      default: "",
+    },
     phone: {
       type: String,
       required: true,
@@ -59,23 +58,23 @@ const employeeSchema = new Schema<IUser>(
       enum: ["Admin", "Advert", "Content", "Sales", "HR"],
       default: "Advert",
     },
-    Aadhar:{
+    aadhar: {
       type: String,
       default: "",
     },
-    DateOfJoining:{
+    dateOfJoining: {
       type: Date,
       default: new Date(),
     },
-    Experience:{
+    experience: {
       type: Number,
       default: 0,
     },
-    Alias:{
+    alias: {
       type: String,
       default: "",
     },
-    
+
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,
     verifyToken: String,
@@ -87,5 +86,6 @@ const employeeSchema = new Schema<IUser>(
 );
 
 const Employees =
-  mongoose.models.Users || mongoose.model<IUser>("Users", employeeSchema);
+  mongoose.models.Employees ||
+  mongoose.model<IUser>("Employees", employeeSchema);
 export default Employees;

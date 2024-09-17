@@ -17,7 +17,7 @@ export const userSchema = z.object({
   address: z.string().min(1, "Address is required"),
   password: z.string().optional(),
   isVerified: z.boolean().optional().default(false),
-  role: z.enum(["Owner", "Traveller", "Admin", "Advert", "Content", "Sales", "HR"]),
+  role: z.enum(["Owner", "Traveller"]),
   forgotPasswordToken: z.string().optional(),
   forgotPasswordTokenExpiry: z.date().optional(),
   verifyToken: z.string().optional(),

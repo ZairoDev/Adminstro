@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDb } from "@/util/db";
-
-connectDb();
-
-import Employees from "@/models/employees";
+import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
+
+connectDb();
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
+    const dt = new Date(reqBody.dateOfJoining);
+    reqBody.dateOfJoining = dt;
     const parsedBody = employeeSchema.parse(reqBody);
 
     console.log(parsedBody);
@@ -71,7 +72,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.log(createUser);
 
     return NextResponse.json({
-      message: "User created successfully.",
+      message: "Employee created successfully.",
       success: true,
     });
   } catch (error) {
@@ -80,7 +81,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ errors: errorMessages }, { status: 400 });
     }
 
-    console.error("Error while creating user:", error);
+    console.error("Error while creating Employee:", error);
     return NextResponse.json(
       { error: "Error while creating user" },
       { status: 500 }

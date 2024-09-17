@@ -38,7 +38,7 @@
 }
 
 .phone-input input {
-  @apply border-none outline-none flex-1 bg-transparent border-neutral-800 ;
+  @apply border-none outline-none flex-1 bg-transparent border-neutral-800;
 }
 
 .phone-input .PhoneInputCountry {
@@ -46,12 +46,38 @@
 }
 
 .phone-input .PhoneInputCountryIcon {
-  @apply h-full w-auto max-h-full mr-2 bg-transparent;
+  @apply h-auto w-8 max-h-full mr-2 bg-transparent;
 }
 
 .phone-input .PhoneInputCountryIcon--square img {
-  @apply h-full w-auto bg-transparent;
-} 
+  @apply h-auto w-full bg-transparent;
+}
+
+/* Media queries to handle different screen sizes */
+@screen sm {
+  .phone-input {
+    @apply p-2;
+  }
+}
+
+@screen md {
+  .phone-input {
+    @apply p-2;
+  }
+}
+
+@screen lg {
+  .phone-input {
+    @apply p-2;
+  }
+}
+
+@screen xl {
+  .phone-input {
+    @apply p-2;
+  }
+}
+
 
 
 

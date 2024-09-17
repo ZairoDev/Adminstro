@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { EmployeeSchema } from "@/schemas/employee.schema";
-interface IUser extends Document, EmployeeSchema {}
+interface IEmployee extends Document, EmployeeSchema {}
 
-const employeeSchema = new Schema<IUser>(
+const employeeSchema = new Schema<IEmployee>(
   {
     name: {
       type: String,
@@ -41,23 +41,6 @@ const employeeSchema = new Schema<IUser>(
       type: String,
       required: true,
     },
-    address: {
-      type: String,
-      default: "",
-    },
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-    },
-    isVerified: {
-      type: Boolean,
-      default: true,
-    },
-    role: {
-      type: String,
-      enum: ["Admin", "Advert", "Content", "Sales", "HR"],
-      default: "Advert",
-    },
     aadhar: {
       type: String,
       default: "",
@@ -74,7 +57,27 @@ const employeeSchema = new Schema<IUser>(
       type: String,
       default: "",
     },
-
+    country: {
+      type: String,
+      default: "",
+    },
+    address: {
+      type: String,
+      default: "",
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+    },
+    isVerified: {
+      type: Boolean,
+      default: true,
+    },
+    role: {
+      type: String,
+      enum: ["Admin", "Advert", "Content", "Sales", "HR", "Developer"],
+      default: "Advert",
+    },
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,
     verifyToken: String,
@@ -87,5 +90,5 @@ const employeeSchema = new Schema<IUser>(
 
 const Employees =
   mongoose.models.Employees ||
-  mongoose.model<IUser>("Employees", employeeSchema);
+  mongoose.model<IEmployee>("Employees", employeeSchema);
 export default Employees;

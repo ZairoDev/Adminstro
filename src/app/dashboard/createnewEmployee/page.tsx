@@ -32,7 +32,7 @@ const NewUser = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [phone, setPhone] = useState<string | undefined>("undefined");
+  const [phone, setPhone] = useState<string | undefined>(undefined);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -93,7 +93,6 @@ const NewUser = () => {
     defaultValues: {
       name: "",
       email: "",
-      sendDetails: false,
       nationality: "Indian",
       gender: undefined,
       spokenLanguage: "Hindi",
@@ -101,7 +100,7 @@ const NewUser = () => {
       ifsc: "",
       aadhar: "",
       alias: "",
-      dateOfJoining: undefined,
+      dateOfJoining: new Date(),
       address: "",
       role: undefined,
       experience: 0,
@@ -130,10 +129,13 @@ const NewUser = () => {
 
     console.log(userData);
     try {
-      const response = await axios.post("/api/user/createnewuser", userData);
+      const response = await axios.post(
+        "/api/user/createnewEmployee",
+        userData
+      );
       console.log("Inside Api call", response.data);
       toast({
-        title: "User created successfully",
+        title: "Employee created successfully",
         description: "Please check your email for verification link",
       });
       reset();
@@ -245,14 +247,7 @@ const NewUser = () => {
                     onValueChange={(value) =>
                       setValue(
                         "role",
-                        value as
-                          | "Owner"
-                          | "Traveller"
-                          | "Admin"
-                          | "Advert"
-                          | "Sales"
-                          | "Content"
-                          | "HR"
+                        value as "Admin" | "Advert" | "Sales" | "Content" | "HR"
                       )
                     } // Update the form value manually
                     value={selectedRole} // Bind the selected value to the form state
@@ -261,13 +256,12 @@ const NewUser = () => {
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Owner">Owner</SelectItem>
-                      <SelectItem value="Traveller">Traveller</SelectItem>
                       <SelectItem value="Admin">Admin</SelectItem>
                       <SelectItem value="Advert">Advert</SelectItem>
                       <SelectItem value="Content">Content Writer</SelectItem>
                       <SelectItem value="Sales">Sales</SelectItem>
                       <SelectItem value="HR">Human Resource(HR)</SelectItem>
+                      <SelectItem value="Developer">Developer</SelectItem>
                     </SelectContent>
                   </Select>
                   {/* {errors.role && (
@@ -422,11 +416,11 @@ const NewUser = () => {
                 <div className=" w-full">
                   <Label htmlFor="experience">Experience</Label>
                   <Input
-                    {...register("experience")}
+                    {...register("experience", { valueAsNumber: true })}
                     type={"number"}
                     className="w-full"
                     min={0}
-                    placeholder="Put the value in months 1 year = 12 "
+                    placeholder="Enter the value in months"
                   />
                   {errors.experience && (
                     <p className="text-red-500 text-xs">
@@ -434,7 +428,8 @@ const NewUser = () => {
                     </p>
                   )}
                 </div>
-                <div className="w-full flex items-center">
+                <div className="w-full ">
+                  <Label htmlFor="phone">Phone Number</Label>
                   <PhoneInput
                     {...register("phone")}
                     className="phone-input"

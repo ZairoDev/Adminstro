@@ -2,10 +2,11 @@ import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import Link from "next/link";
 import { LogoutButton } from "./logoutAlertBox";
 import { CiMenuBurger } from "react-icons/ci";
+import { ModeToggle } from "./themeChangeButton";
 
 export function Navbar() {
   return (
-    <div className=" border-b-2 text-white">
+    <div className="  ">
       <div className="max-w-7xl m-auto">
         <div className="flex items-center justify-between p-4 ">
           <Link href="/" className="flex items-center gap-2">
@@ -16,7 +17,7 @@ export function Navbar() {
             />
           </Link>
           <div className="flex items-center gap-4">
-            <LogoutButton />
+            <ModeToggle />
           </div>
         </div>
       </div>

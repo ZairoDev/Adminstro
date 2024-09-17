@@ -10,10 +10,9 @@ export const useBunnyUpload = () => {
   const [loading, setLoading] = useState(false);
 
   const uploadFiles = async (
-    files: File | File[], // Accept a single file or an array of files
+    files: File | File[],
     name?: string
   ): Promise<UploadResult> => {
-    // Normalize input to always be an array
     const fileArray = Array.isArray(files) ? files : [files];
 
     if (fileArray.length === 0) {

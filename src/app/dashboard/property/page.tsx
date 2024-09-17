@@ -10,6 +10,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useRouter } from "next/navigation";
+
 import {
   Card,
   CardHeader,
@@ -244,7 +245,7 @@ const PropertyPage: React.FC = () => {
                       ) : (
                         <div className="relative">
                           <img
-                            src="/placeholder.webp"
+                            src="/replacer.jpg"
                             alt="PropertyImage"
                             className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg"
                           />

@@ -313,8 +313,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         <div>
           <h2 className="text-2xl font-semibold">Almost There! 🚀</h2>
           <span className="block mt-2">
-            You're just one step away from listing your property. Tap on
-            "Continue" to finalize and publish your property listing.
+            You&apos;re just one step away from listing your property. Tap on
+            &quot;Continue&quot; to finalize and publish your property listing.
           </span>
         </div>
         <div className="border rounded-lg p-4">

@@ -19,7 +19,7 @@ interface PageProps {
     id: string;
   };
 }
-const page = ({ params }: PageProps) => {
+const Page = ({ params }: PageProps) => {
   const { toast } = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -389,4 +389,4 @@ const page = ({ params }: PageProps) => {
   );
 };
 
-export default page;
+export default Page;

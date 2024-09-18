@@ -60,6 +60,7 @@ const getCoordinatesFromPincode = async (pincode: any) => {
 };
 
 const EditPropertyPage = ({ params }: PageProps) => {
+  let portions = 0;
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
@@ -249,7 +250,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // TODO Handling property picture starts from here
 
-  let portions = 0;
+
   const data = localStorage.getItem("page1") || "";
   if (data) {
     const value = JSON.parse(data)["numberOfPortions"];

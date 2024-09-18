@@ -46,11 +46,9 @@ const PageLogin: React.FC = () => {
           password,
         }
       );
-
+      console.log(response);
       if (response?.data?.message === "Verification OTP sent") {
-        setTimeout(() => {
-          router.push(`/verify-otp/${email}`);
-        }, 1000);
+        router.push(`/login/verify-otp/${email}`);
         return;
       }
       if (response.status === 200 && response.data.token) {
@@ -78,7 +76,7 @@ const PageLogin: React.FC = () => {
   return (
     <div className="h-screen flex">
       <div className="absolute top-0 right-0">
-      <ModeToggle />
+        <ModeToggle />
       </div>
       <div className="w-1/2  sm:flex hidden items-center justify-center">
         <img

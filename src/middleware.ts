@@ -109,16 +109,24 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createnewuser$/,
     /^\/dashboard\/add-listing\/.*$/,
   ],
-  Content: ["/dashboard/property/description", /^\/dashboard\/property\/description\/.*$/],
+  Content: [
+    "/dashboard/property",
+    "/dashboard/property/description",
+    /^\/dashboard\/property\/description\/.*$/,
+  ],
 };
 
 const defaultRoutes: { [key: string]: string } = {
-  SuperAdmin: "/dashboard",
+  SuperAdmin: "/dashboard/user",
   Admin: "/dashboard/user",
-  Content: "/dashboard/property/description",
+  Content: "/dashboard/property",
 };
 
-const publicRoutes = ["/login", "/verifyotp"];
+const publicRoutes = [
+  "/login",
+  "/login/verify-otp",
+  /^\/login\/verify-otp\/.+$/,
+];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -131,22 +139,21 @@ export async function middleware(request: NextRequest) {
     );
   };
 
-  const isPublicRoute = publicRoutes.includes(path);
+  const isPublicRoute = publicRoutes.some((pattern) =>
+    typeof pattern === "string" ? path === pattern : pattern.test(path)
+  );
 
   if (token) {
     try {
-      // Check if the user is already authenticated
       const obj = await getDataFromToken(request);
       const role = obj?.role as string;
 
       if (path === "/login") {
-        // Redirect logged-in users away from the login page
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/", request.url)
         );
       }
 
-      // Continue with existing role-based access control
       if (!role || !matchesRolePattern(role, path)) {
         const referer = request.headers.get("referer");
         const previousUrl = referer ? new URL(referer) : null;

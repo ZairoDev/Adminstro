@@ -112,7 +112,7 @@ const page = ({ params }: PageProps) => {
             className=" w-full mt-4 mb-4"
           >
             {verifyLoading ? (
-              <div className="flex items-center gap-x-2 ">
+              <div className="flex items-center gap-x-2 after: ">
                 Verifying...
                 <CgSpinner className="animate-spin ml-1 text-lg" />
               </div>

@@ -27,16 +27,11 @@ export function LogoutButton() {
       const response = await axios.get("/api/employeelogout", {
         withCredentials: true,
       });
-
-      if (response.status === 200) {
-        setLoading(false);
-        setOpen(false);
-        router.push("/login");
-      } else {
-        // Handle unsuccessful logout here
-        setLoading(false);
-        alert("Logout failed. Please try again.");
-      }
+      console.log("try");
+      console.log("response: ", response);
+      setLoading(false);
+      setOpen(false);
+      router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);
       setLoading(false);

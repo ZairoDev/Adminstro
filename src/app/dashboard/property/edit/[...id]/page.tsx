@@ -60,6 +60,7 @@ const getCoordinatesFromPincode = async (pincode: any) => {
 };
 
 const EditPropertyPage = ({ params }: PageProps) => {
+  let portions = 0;
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
@@ -95,7 +96,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   const [portionPictureUrls, setPortionPictureUrls] = useState<string[][]>(
     () => {
-      const savedUrls = localStorage.getItem("portionPictureUrls") || "";
+      const savedUrls = localStorage.getItem("portionPictureUrls");
       const arrayOf5 = Array(5).fill("");
 
       return savedUrls ? JSON.parse(savedUrls) : Array(portions).fill(arrayOf5);
@@ -249,7 +250,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // TODO Handling property picture starts from here
 
-  let portions = 0;
+
   const data = localStorage.getItem("page1") || "";
   if (data) {
     const value = JSON.parse(data)["numberOfPortions"];
@@ -259,13 +260,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   }
   let checkPortion = portions > 1 ? portions : 0;
 
-  const [myArray, setMyArray] = useState<number[]>(Array(checkPortion).fill(1));
-
   const booleanArray = Array.from({ length: portions }, () => false);
-  const emptyStringArrayGenerator = (size: number) => {
-    const emptyStringArray = Array.from({ length: size }, () => "");
-    return emptyStringArray;
-  };
 
   const [isPortionPictures, setIsPortionPictures] = useState<boolean[]>(() => {
     const savedFlags = localStorage.getItem("isPortionPictures");

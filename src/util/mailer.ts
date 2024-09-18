@@ -5,6 +5,7 @@ import {
   ResetPasswordTemplate,
   VerificationTemplate,
 } from "@/helper/EmailTemplate/email";
+import Employees from "@/models/employee";
 
 interface SendEmailParams {
   email: string;
@@ -28,14 +29,14 @@ export const sendEmail = async ({
 
     // Update user record in DB based on email type
     if (emailType === "VERIFY") {
-      await Users.findByIdAndUpdate(userId, {
+      await Employees.findByIdAndUpdate(userId, {
         $set: {
           verifyToken: hashedToken,
           verifyTokenExpiry: new Date(Date.now() + 3600000), // 1 hour
         },
       });
     } else if (emailType === "RESET") {
-      await Users.findByIdAndUpdate(userId, {
+      await Employees.findByIdAndUpdate(userId, {
         $set: {
           forgotPasswordToken: hashedToken,
           forgotPasswordTokenExpiry: new Date(Date.now() + 900000), // 15 mins
@@ -43,7 +44,7 @@ export const sendEmail = async ({
       });
     } else if (emailType === "OTP") {
       otp = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit OTP
-      await Users.findByIdAndUpdate(userId, {
+      await Employees.findByIdAndUpdate(userId, {
         $set: {
           otpToken: otp,
           otpTokenExpiry: new Date(Date.now() + 300000), // 5 mins

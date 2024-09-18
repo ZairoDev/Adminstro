@@ -4,6 +4,7 @@ import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { NextURL } from "next/dist/server/web/next-url";
 import { connectDb } from "@/util/db";
+import Employees from "@/models/employee";
 
 connectDb();
 
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const reqBody = await request.json();
     const { otp } = reqBody;
 
-    const savedUser = await Users.find({ email: email });
+    const savedUser = await Employees.find({ email: email });
 
     if (savedUser[0].otpTokenExpiry < Date.now()) {
       console.log("otp expired");
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
     }
 
-    await Users.updateOne(
+    await Employees.updateOne(
       { email: email },
       // { $set: { otpToken: undefined, otpTokenExpiry: undefined } }
       { $unset: { otpToken: "", otpTokenExpiry: "" } }

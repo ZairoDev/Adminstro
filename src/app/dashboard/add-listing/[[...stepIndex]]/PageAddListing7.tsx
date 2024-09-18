@@ -12,10 +12,7 @@ import { useSearchParams } from "next/navigation";
 
 export interface PageAddListing7Props {}
 
-
 const PageAddListing7: FC<PageAddListing7Props> = () => {
-
-  
   const params = useSearchParams();
 
   const userId = params.get("userId");
@@ -707,8 +704,8 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
                           <div className="flex gap-2 w-full">
                             {/* {Array.from({ length: 5 }, () => "").map((_, i) => ( */}
                             {portionPictureUrls[index]
-                              .filter((url) => url != "")
-                              .map((innerIndex, i) => (
+                              ?.filter((url) => url != "")
+                              ?.map((innerIndex, i) => (
                                 <div
                                   className="flex flex-wrap gap-4 mx-2"
                                   key={i}

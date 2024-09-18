@@ -77,14 +77,14 @@ export const columns: ColumnDef<UserInterface>[] = [
               <Link
                 href={{
                   pathname: `/dashboard/add-listing/1/`,
-                  query: { userId: user._id, email: user.email},
+                  query: { userId: user._id },
                 }}
               >
                 Add Property
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="/">Edit Profile</Link>
+              <Link href="/dashboard/edituserdetails">Edit Profile</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Link href="/">Delete User</Link>

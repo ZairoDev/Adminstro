@@ -96,7 +96,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   const [portionPictureUrls, setPortionPictureUrls] = useState<string[][]>(
     () => {
-      const savedUrls = localStorage.getItem("portionPictureUrls") || "";
+      const savedUrls = localStorage.getItem("portionPictureUrls");
       const arrayOf5 = Array(5).fill("");
 
       return savedUrls ? JSON.parse(savedUrls) : Array(portions).fill(arrayOf5);
@@ -260,13 +260,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   }
   let checkPortion = portions > 1 ? portions : 0;
 
-  const [myArray, setMyArray] = useState<number[]>(Array(checkPortion).fill(1));
-
   const booleanArray = Array.from({ length: portions }, () => false);
-  const emptyStringArrayGenerator = (size: number) => {
-    const emptyStringArray = Array.from({ length: size }, () => "");
-    return emptyStringArray;
-  };
 
   const [isPortionPictures, setIsPortionPictures] = useState<boolean[]>(() => {
     const savedFlags = localStorage.getItem("isPortionPictures");

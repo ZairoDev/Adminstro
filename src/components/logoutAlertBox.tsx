@@ -12,27 +12,50 @@ import {
   AlertDialogAction,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { Delete, LogOut } from "lucide-react";
-
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 export function LogoutButton() {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  // Function to handle logout
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("/api/employeelogout", {
+        withCredentials: true,
+      });
+
+      if (response.status === 200) {
+        setLoading(false);
+        setOpen(false);
+        router.push("/login");
+      } else {
+        // Handle unsuccessful logout here
+        setLoading(false);
+        alert("Logout failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      setLoading(false);
+      alert("An error occurred. Please try again.");
+    }
+  };
 
   return (
     <div>
-      {/* Button to trigger the alert dialog */}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
           <div>
-            <Button variant="destructive" className="sm:block hidden">
-              Logout
-            </Button>
+            <Button className="w-full">Logout</Button>
             <Button variant="destructive" className="sm:hidden">
               <LogOut />
             </Button>
           </div>
         </AlertDialogTrigger>
 
-        {/* Alert dialog content */}
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -44,14 +67,20 @@ export function LogoutButton() {
           <AlertDialogFooter>
             {/* Cancel button */}
             <AlertDialogCancel asChild>
-              <Button variant="ghost" onClick={() => setOpen(false)}>
+              <Button
+                variant="ghost"
+                onClick={() => setOpen(false)}
+                disabled={loading}
+              >
                 Cancel
               </Button>
             </AlertDialogCancel>
 
             {/* Confirm (Logout) button */}
             <AlertDialogAction asChild>
-              <Button onClick={() => setOpen(false)}>Logout</Button>
+              <Button onClick={handleLogout} disabled={loading}>
+                {loading ? "Logging out..." : "Logout"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

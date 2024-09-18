@@ -108,7 +108,7 @@ export function Sidebar() {
             <ul className="flex-grow">{renderRoutes()}</ul>
             <ul className="absolute bottom-0 ">
               <Popover>
-                <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center border w-64 p-2    bg-white rounded-l-lg text-black">
+                <PopoverTrigger className="cursor-pointer flex border-t items-center gap-x-2 justify-center  w-64 p-2    ">
                   {currentUser} <PanelTopOpen />
                 </PopoverTrigger>
                 <PopoverContent className="w-64">

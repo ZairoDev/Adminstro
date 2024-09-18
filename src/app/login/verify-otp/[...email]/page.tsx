@@ -14,7 +14,7 @@ interface PageProps {
   };
 }
 
-const page = ({ params }: PageProps) => {
+const Page = ({ params }: PageProps) => {
   const { toast } = useToast();
   const router = useRouter();
   const [otpInput, setOtpInput] = useState("");
@@ -142,4 +142,4 @@ const page = ({ params }: PageProps) => {
   );
 };
 
-export default page;
+export default Page;

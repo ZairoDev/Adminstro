@@ -64,8 +64,9 @@ const Page = ({ params }: PageProps) => {
       console.log(err);
       console.log(err.response.data.error);
       toast({
-        title: "Verification Successful",
-        description: `err.response.data.error`,
+        variant: "destructive",
+        title: "Verification Failed",
+        description: `${err.response.data.error}`,
       });
     }
     setVerifyLoading(false);

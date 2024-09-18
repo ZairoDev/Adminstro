@@ -1,3 +1,4 @@
+import Employees from "@/models/employee";
 import Users from "@/models/user";
 import { sendEmail } from "@/util/mailer";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +10,7 @@ export async function POST(request: NextRequest) {
   console.log(email);
 
   try {
-    const user = await Users.find({ email });
+    const user = await Employees.find({ email });
     console.log(user);
 
     const response = await sendEmail({

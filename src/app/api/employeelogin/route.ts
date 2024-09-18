@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
+import Employees from "@/models/employee";
 
 connectDb();
 
@@ -13,7 +14,7 @@ interface ReqBody {
   password: string;
 }
 
-interface User {
+interface Employee {
   _id: string;
   name: string;
   email: string;
@@ -27,16 +28,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     const reqBody: ReqBody = await request.json();
     const { email, password } = reqBody;
     console.log(email, password)
-    const user = (await Users.find({ email })) as User[];
+    const Employee = (await Employees.find({ email })) as Employee[];
 
-    if (!user || user.length === 0) {
+    if (!Employee || Employee.length === 0) {
       return NextResponse.json(
         { error: "Please Enter valid email or password" },
         { status: 400 }
       );
     }
 
-    const temp: User = user[0];
+    const temp: Employee = Employee[0];
 
     // Check if user is verified
     // if (!temp.isVerified) {

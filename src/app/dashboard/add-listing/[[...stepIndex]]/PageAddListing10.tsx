@@ -361,7 +361,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                     <Button
                       className="w-full"
                       onClick={handleGoLive}
-                      disabled={isLiveDisabled}
+                      disabled={isLiveDisabled || !combinedData?.placeName}
                     >
                       Go live 🚀
                     </Button>

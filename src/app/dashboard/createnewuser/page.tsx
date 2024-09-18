@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeftFromLine, Plus } from "lucide-react";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -81,6 +81,9 @@ const NewUser = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setValue,
+    control,
   } = useForm<UserSchema>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -88,16 +91,22 @@ const NewUser = () => {
       email: "",
       sendDetails: false,
       nationality: "",
-      gender: "Male",
+      gender: undefined,
       spokenLanguage: "",
       bankDetails: "",
       phone: "",
       address: "",
-      role: "Traveller",
+      role: undefined,
     },
   });
 
   const [loading, setLoading] = useState(false);
+  const selectedRole = watch("role");
+  const selectedGender = watch("gender");
+  useEffect(() => {
+    console.log(selectedRole);
+  }, [watch]);
+
 
   const onSubmit = async (data: UserSchema) => {
     console.log(data, "I am submitting");
@@ -229,20 +238,28 @@ const NewUser = () => {
                 </div>
                 <div className="w-full">
                   <Label htmlFor="role">Role</Label>
-                  <Select {...register("role")}>
+                  <Select
+                    onValueChange={(value) =>
+                      setValue(
+                        "role",
+                        value as "Traveller" | "Owner"
+                      )
+                    } // Update the form value manually
+                    value={selectedRole} // Bind the selected value to the form state
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Owner">Owner</SelectItem>
                       <SelectItem value="Traveller">Traveller</SelectItem>
+                      <SelectItem value="Owner">Owner</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.role && (
+                  {/* {errors.role && (
                     <p className="text-red-500 text-xs">
                       {errors.role.message}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
               <div>
@@ -307,7 +324,13 @@ const NewUser = () => {
 
                 <div className="w-full">
                   <Label htmlFor="gender">Gender</Label>
-                  <Select {...register("gender")} value="Male">
+                  <Select
+                    // {...register("gender")}
+                    onValueChange={(value) =>
+                      setValue("gender", value as "Male" | "Female" | "Other")
+                    } // Update the form value manually
+                    value={selectedGender}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Gender" />
                     </SelectTrigger>
@@ -323,6 +346,26 @@ const NewUser = () => {
                     </p>
                   )}
                 </div>
+
+
+                {/* <div className="w-full">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select {...register("gender")} value="Male">
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.gender && (
+                    <p className="text-red-500 text-xs">
+                      {errors.gender.message}
+                    </p>
+                  )}
+                </div> */}
               </div>
 
               <div className="flex items-center gap-x-2">

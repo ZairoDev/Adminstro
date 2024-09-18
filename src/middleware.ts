@@ -109,13 +109,13 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createnewuser$/,
     /^\/dashboard\/add-listing\/.*$/,
   ],
-  Content: ["/dashboard/contentwriter", /^\/dashboard\/contentwriter\/.*$/],
+  Content: ["/dashboard/property/description", /^\/dashboard\/property\/description\/.*$/],
 };
 
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard",
   Admin: "/dashboard/user",
-  Content: "/dashboard/contentwriter",
+  Content: "/dashboard/property/description",
 };
 
 const publicRoutes = ["/login", "/verifyotp"];

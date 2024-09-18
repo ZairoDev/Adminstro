@@ -24,10 +24,10 @@ const roleRoutes = {
     { path: "/dashboard/user", label: "Manage User" },
     { path: "/dashboard/property", label: "Manage Property" },
   ],
-  Content: [{ path: "/dashboard/contentwriter", label: "Manage Content" }],
+  Content: [{ path: "/dashboard/property", label: "Manage Content" }],
   SuperAdmin: [
     { path: "/dashboard/user", label: "Manage User" },
-    { path: "/dashboard/property", label: "Manage Property" },
+    { path: "/dashboard/property/description", label: "Manage Property" },
     { path: "/dashboard/content", label: "Manage Content" },
     { path: "/dashboard/admin", label: "Admin Panel" },
   ],

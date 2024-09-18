@@ -21,6 +21,7 @@ import { userSchema } from "@/schemas/user.schema";
 import { UserSchema } from "@/schemas/user.schema";
 import Loader from "@/components/loader";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import PhoneInput from "react-phone-number-input";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -29,6 +30,7 @@ const NewUser = () => {
   const { uploadFiles } = useBunnyUpload();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [phone, setPhone] = useState<string | undefined>(undefined);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -106,7 +108,6 @@ const NewUser = () => {
   useEffect(() => {
     console.log(selectedRole);
   }, [watch]);
-
 
   const onSubmit = async (data: UserSchema) => {
     console.log(data, "I am submitting");
@@ -240,10 +241,7 @@ const NewUser = () => {
                   <Label htmlFor="role">Role</Label>
                   <Select
                     onValueChange={(value) =>
-                      setValue(
-                        "role",
-                        value as "Traveller" | "Owner"
-                      )
+                      setValue("role", value as "Traveller" | "Owner")
                     } // Update the form value manually
                     value={selectedRole} // Bind the selected value to the form state
                   >
@@ -263,16 +261,27 @@ const NewUser = () => {
                 </div>
               </div>
               <div>
-                <div className="w-full">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
+                <div className="w-full ">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <PhoneInput
                     {...register("phone")}
-                    className="w-full"
+                    className="phone-input"
                     placeholder="Enter phone number"
+                    value={phone}
+                    international
+                    countryCallingCodeEditable={false}
+                    error={
+                      // phone
+                      //   ? isValidPhoneNumber(phone)
+                      //     ? undefined
+                      //     : "Invalid phone number"
+                      "Phone number required"
+                    }
+                    onChange={(value) => setPhone(value?.toString())}
                   />
                   {errors.phone && (
                     <p className="text-red-500 text-xs">
-                      {errors.phone.message}
+                      {errors?.phone?.message}
                     </p>
                   )}
                 </div>
@@ -346,7 +355,6 @@ const NewUser = () => {
                     </p>
                   )}
                 </div>
-
 
                 {/* <div className="w-full">
                   <Label htmlFor="gender">Gender</Label>

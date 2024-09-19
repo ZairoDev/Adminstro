@@ -41,6 +41,7 @@ import { Edit, EyeIcon, EyeOff } from "lucide-react";
 import axios from "axios";
 import Loader from "@/components/loader";
 import { Property } from "@/util/type";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface ApiResponse {
   data: Property[];
@@ -63,8 +64,14 @@ const PropertyPage: React.FC = () => {
 
   const router = useRouter();
 
+  const { userRole, isLoading, currentUser } = useUserRole();
+
   const handleEditClick = (propertyId: string) => {
     router.push(`/dashboard/property/edit/${propertyId}`);
+  };
+
+  const handleEditDescription = (propertyId: string) => {
+    router.push(`/dashboard/property/description/${propertyId}`);
   };
 
   const fetchProperties = useCallback(
@@ -99,7 +106,7 @@ const PropertyPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const response = await axios.post("/api/visibiltychange", {
-        id: propertyId, // change to 'id'
+        id: propertyId,
         isLive: true,
       });
 
@@ -231,7 +238,7 @@ const PropertyPage: React.FC = () => {
           <div>Error: {error}</div>
         ) : (
           <div className=" mb-4">
-            <div className="grid gap-4 mb-4 justify-center items-center sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
               {properties.map((property) => (
                 <Card key={property?._id} className="w-full rounded-lg">
                   <CardHeader className="p-0 border-b">
@@ -240,7 +247,7 @@ const PropertyPage: React.FC = () => {
                         <img
                           src={property?.propertyCoverFileUrl}
                           alt="PropertyImage"
-                          className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg"
+                          className="w-full h-[180px]  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
                         />
                       ) : (
                         <div className="relative">
@@ -258,7 +265,7 @@ const PropertyPage: React.FC = () => {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 ">
+                  <CardContent className="p-4  ">
                     <div className="flex items-center justify-between">
                       <p className="">Vsid {property?.VSID}</p>
                       <p className="">Beds {property?.beds?.[0] || "NA"}</p>
@@ -292,18 +299,23 @@ const PropertyPage: React.FC = () => {
                       )}
                     </div>
                   </CardContent>
-                  <CardFooter className="flex gap-x-2 justify-between">
+                  <CardFooter className="flex gap-2 flex-col  justify-between">
                     {!property?.isLive && (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          <Button
-                            className="w-full   text-xs gap-x-1 hover:bg-green-600/10 bg-transparent border border-green-600 text-green-600"
-                            onClick={() => setSelectedPropertyId(property?._id)}
-                            disabled={isSubmitting}
-                          >
-                            Live
-                            <EyeIcon size={12} />
-                          </Button>
+                          {userRole === "SuperAdmin" ||
+                          userRole === "Advert" ? (
+                            <Button
+                              className=" w-full  text-xs gap-x-1 hover:bg-green-600/10 bg-transparent border border-green-600 text-green-600"
+                              onClick={() =>
+                                setSelectedPropertyId(property?._id)
+                              }
+                              disabled={isSubmitting}
+                            >
+                              Live
+                              <EyeIcon size={12} />
+                            </Button>
+                          ) : null}
                         </DrawerTrigger>
                         <DrawerContent className="max-w-3xl m-auto">
                           <DrawerHeader>
@@ -330,13 +342,19 @@ const PropertyPage: React.FC = () => {
                     {property?.isLive && (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          <Button
-                            className="w-full flex items-center justify-center gap-x-1    text-xs  hover:bg-red-600/10 bg-transparent border border-red-600 text-red-600"
-                            disabled={isSubmitting}
-                            onClick={() => setSelectedPropertyId(property?._id)}
-                          >
-                            Hide <EyeOff size={12} />
-                          </Button>
+                          {(userRole === "SuperAdmin" ||
+                            userRole === "Advert") &&
+                          property?.isLive ? (
+                            <Button
+                              className="w-full flex items-center justify-center gap-x-1 text-xs hover:bg-red-600/10 bg-transparent border border-red-600 text-red-600"
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setSelectedPropertyId(property?._id)
+                              }
+                            >
+                              Hide <EyeOff size={12} />
+                            </Button>
+                          ) : null}
                         </DrawerTrigger>
                         <DrawerContent className="max-w-3xl m-auto">
                           <DrawerHeader>
@@ -360,14 +378,51 @@ const PropertyPage: React.FC = () => {
                       </Drawer>
                     )}
 
-                    <Button
-                      variant="outline"
-                      className="w-full gap-x-1"
-                      onClick={() => handleEditClick(property?._id)}
-                    >
-                      <Edit size={12} />
-                      Edit
-                    </Button>
+                    <div className="w-full ">
+                      {userRole === "SuperAdmin" && (
+                        <div>
+                          <Button
+                            variant="outline"
+                            className="w-full mb-2"
+                            onClick={() => handleEditClick(property?._id)}
+                          >
+                            <Edit size={12} />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => handleEditDescription(property?._id)}
+                          >
+                            <Edit size={12} />
+                            Edit Description
+                          </Button>
+                        </div>
+                      )}
+
+                      {userRole === "Advert" && (
+                        <div className="w-full">
+                          <Button
+                            className="w-full"
+                            onClick={() => handleEditClick(property?._id)}
+                          >
+                            <Edit size={12} />
+                            Edit
+                          </Button>
+                        </div>
+                      )}
+
+                      {userRole === "Content" && (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => handleEditDescription(property?._id)}
+                        >
+                          <Edit size={12} />
+                          Edit Description
+                        </Button>
+                      )}
+                    </div>
                   </CardFooter>
                 </Card>
               ))}

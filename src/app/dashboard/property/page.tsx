@@ -17,7 +17,7 @@ import {
   CardFooter,
   CardContent,
 } from "@/components/ui/card";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,7 +41,6 @@ import { Edit, EyeIcon, EyeOff } from "lucide-react";
 import axios from "axios";
 import Loader from "@/components/loader";
 import { Property } from "@/util/type";
-import { useUserRole } from "@/context/UserRoleContext";
 
 interface ApiResponse {
   data: Property[];
@@ -64,7 +63,25 @@ const PropertyPage: React.FC = () => {
 
   const router = useRouter();
 
-  const { userRole, isLoading, currentUser } = useUserRole();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const getUserRole = async () => {
+    try {
+      const response = await axios.get("/api/user/getloggedinuser");
+      console.log("API response:", response.data.user.role);
+      if (response.data && response.data.user && response.data.user.role) {
+        setUserRole(response.data.user.role);
+      } else {
+        console.error("No role found in the response.");
+      }
+    } catch (error: any) {
+      console.error("Error fetching user role:", error);
+    } finally {
+    }
+  };
+  useEffect(() => {
+    getUserRole();
+  }, []);
 
   const handleEditClick = (propertyId: string) => {
     router.push(`/dashboard/property/edit/${propertyId}`);

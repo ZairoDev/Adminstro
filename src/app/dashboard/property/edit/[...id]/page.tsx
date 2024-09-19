@@ -1587,7 +1587,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                 />
                               </label>
                             </div>
-
                             <div>
                               <label className="text-xs" htmlFor="guests">
                                 Number Of Guests

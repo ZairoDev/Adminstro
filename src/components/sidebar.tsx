@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover";
 import ScreenLoader from "./ScreenLoader";
 import { LogoutButton } from "./logoutAlertBox";
-import { PanelTopOpen } from "lucide-react";
+import { ArrowRight, PanelTopOpen } from "lucide-react";
 
 // Function to determine if a route is active
 const isActive = (currentPath: string, path: string): boolean =>
@@ -114,7 +114,7 @@ export function Sidebar() {
             <ul className="absolute bottom-0 ">
               <Popover>
                 <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center border w-64 p-2    bg-white rounded-l-lg text-black">
-                  {currentUser} <PanelTopOpen />
+                  {currentUser} <ArrowRight size={18} />
                 </PopoverTrigger>
                 <PopoverContent className="w-64">
                   <div className="">
@@ -148,6 +148,25 @@ export function Sidebar() {
           </div>
           <nav className="w-full">
             <ul className="w-full p-0">{renderRoutes()}</ul>
+            <ul>
+              {" "}
+              <ul className=" fixed bottom-0  ">
+                <Popover>
+                  <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center  w-full p-2 ">
+                    {currentUser} <ArrowRight size={18} />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64">
+                    <div className="">
+                      <p className="text-xs mb-2">
+                        Tap to logout from here to choose some diffrent route to
+                        acess
+                      </p>
+                      <LogoutButton />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </ul>
+            </ul>
           </nav>
         </SheetContent>
       </Sheet>

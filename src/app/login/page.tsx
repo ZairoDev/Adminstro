@@ -82,7 +82,7 @@ const PageLogin: React.FC = () => {
 
   return (
     <div className="h-screen flex">
-      <div className="absolute top-0 right-0">
+      <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
       <div className="w-1/2  sm:flex hidden items-center justify-center">

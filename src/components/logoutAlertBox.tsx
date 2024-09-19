@@ -32,7 +32,6 @@ export function LogoutButton() {
       setLoading(false);
       setOpen(false);
       router.push("/login");
-      
     } catch (error) {
       console.error("Logout error:", error);
       setLoading(false);
@@ -46,9 +45,6 @@ export function LogoutButton() {
         <AlertDialogTrigger asChild>
           <div>
             <Button className="w-full">Logout</Button>
-            <Button variant="destructive" className="sm:hidden">
-              <LogOut />
-            </Button>
           </div>
         </AlertDialogTrigger>
 

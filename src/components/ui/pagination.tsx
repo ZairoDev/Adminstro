@@ -76,7 +76,7 @@ const PaginationPrevious = ({
     {...props}
   >
     <span>
-      <ArrowLeft />
+      <ArrowLeft className="sm:text-base text-xs" />
     </span>
   </PaginationLink>
 );
@@ -93,7 +93,7 @@ const PaginationNext = ({
     {...props}
   >
     <span>
-      <ArrowRight />
+      <ArrowRight className="sm:text-base text-xs" />
     </span>
   </PaginationLink>
 );

@@ -13,6 +13,7 @@ import { IoIosBed } from "react-icons/io";
 import { FaBath } from "react-icons/fa";
 import { SlSizeFullscreen } from "react-icons/sl";
 import CustomTooltip from "@/components/CustomToolTip";
+;
 
 interface PageProps {
   params: {
@@ -28,6 +29,8 @@ const Page = ({ params }: PageProps) => {
   const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
     Array.from({ length: numberOfPortions }, () => false)
   );
+
+
 
   useEffect(() => {
     if (params.id) {
@@ -275,7 +278,7 @@ const Page = ({ params }: PageProps) => {
                     />
                   </div>
                   <div className=" w-full">
-                  <label htmlFor="review">New Description of Property</label>
+                    <label htmlFor="review">New Description of Property</label>
                     <Textarea
                       className="h-64"
                       name="review"
@@ -370,7 +373,6 @@ const Page = ({ params }: PageProps) => {
                           )}
                         </div>
                       </div>
-
                     </div>
                   </>
                 )}

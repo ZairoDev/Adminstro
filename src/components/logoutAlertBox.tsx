@@ -32,6 +32,7 @@ export function LogoutButton() {
       setLoading(false);
       setOpen(false);
       router.push("/login");
+      
     } catch (error) {
       console.error("Logout error:", error);
       setLoading(false);

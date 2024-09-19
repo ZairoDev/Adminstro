@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { UserRoleProvider } from "@/context/UserRoleContext";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Inter, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
@@ -28,7 +29,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <UserRoleProvider>{children}</UserRoleProvider>
         </ThemeProvider>
         <Toaster />
       </body>

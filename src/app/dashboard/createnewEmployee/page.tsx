@@ -160,7 +160,7 @@ const NewUser = () => {
   }, [watch]);
 
   return (
-    <div className="sm:mt-10 mt-14 md:mt-10 lg:mt-0">
+    <div className="sm:mt-10 mt-14 md:mt-10 max-w-4xl m-auto lg:mt-0">
       <div>
         <Button variant="ghost" className="border">
           <Link

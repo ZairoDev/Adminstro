@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface LoginResponse {
   message?: string;
@@ -26,6 +27,8 @@ const PageLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  const { refreshUserRole } = useUserRole();
 
   useEffect(() => {
     const { token } = parseCookies();
@@ -46,14 +49,18 @@ const PageLogin: React.FC = () => {
           password,
         }
       );
-      console.log(response);
+
       if (response?.data?.message === "Verification OTP sent") {
         router.push(`/login/verify-otp/${email}`);
         return;
       }
+
       if (response.status === 200 && response.data.token) {
         Cookies.set("token", response.data.token, { expires: 1 });
         router.push("/");
+
+        // Call refreshUserRole after successful login and token setting
+        refreshUserRole();
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {

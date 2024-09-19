@@ -21,10 +21,20 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createnewuser$/,
     /^\/dashboard\/add-listing\/.*$/,
   ],
+  Advert: [
+    "/admin",
+    "/dashboard",
+    /^\/dashboard\/user$/,
+    /^\/dashboard\/edituserdetails$/,
+    /^\/dashboard\/property$/,
+    /^\/dashboard\/property\/edit\/.*$/,
+    /^\/dashboard\/createnewuser$/,
+    /^\/dashboard\/add-listing\/.*$/,
+  ],
   Content: [
     "/dashboard/property",
-    "/dashboard/property/description",
-    /^\/dashboard\/property\/description\/.*$/,
+    "/dashboard/property/",
+    /^\/dashboard\/property$/,
   ],
 };
 
@@ -32,6 +42,7 @@ const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/user",
   Admin: "/dashboard/user",
   Content: "/dashboard/property",
+  Advert: "/dashboard/user",
 };
 
 const publicRoutes = [

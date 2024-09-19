@@ -448,20 +448,24 @@ const PropertyPage: React.FC = () => {
         )}
       </div>
       {/* Pagination Section */}
-      <div className="pagination-controls">
-        <Pagination>
+      <div className="text-xs w-full">
+        <Pagination className="flex flex-wrap items-center w-full">
           <PaginationPrevious
+            className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page - 1)}
-            // disabled={page === 1}
           >
-            Previous
+            {/* Previous */}
           </PaginationPrevious>
-          <PaginationContent>{renderPaginationItems()}</PaginationContent>
+
+          <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
+            {renderPaginationItems()}
+          </PaginationContent>
+
           <PaginationNext
+            className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page + 1)}
-            // disabled={page === totalPages}
           >
-            Next
+            {/* Next */}
           </PaginationNext>
         </Pagination>
       </div>

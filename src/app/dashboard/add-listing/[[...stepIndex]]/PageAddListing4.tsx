@@ -273,11 +273,9 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
   return (
     <>
       <div>
-        <h2 className="text-2xl font-semibold">Amenities </h2>
-        <span className="block mt-2 text-sm">
-          Many customers have searched for accommodation based on amenities
-          criteria
-        </span>
+        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+          Amenities
+        </h2>
       </div>
 
       <div className="space-y-8">
@@ -375,7 +373,7 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
         </div>
       </div>
       <div className="mt-4 flex gap-x-4 ml-2 mb-4">
-      <Link
+        <Link
           href={{
             pathname: `/dashboard/add-listing/3`,
             query: { userId: userId },

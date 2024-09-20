@@ -148,7 +148,7 @@ const NewUser = () => {
       <div className="">
         <div className="max-w-4xl m-auto ">
           <div className="border-2 rounded-lg p-4">
-            <div className="border-b">
+            <div className="border-b border-primary">
               <h1 className="text-2xl pb-2 text-center font-semibold">
                 Create new user
               </h1>

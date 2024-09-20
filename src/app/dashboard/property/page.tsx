@@ -272,17 +272,21 @@ const PropertyPage: React.FC = () => {
                         </AspectRatio>
                       ) : (
                         <div className="relative">
-                          <img
-                            src="/replacer.jpg"
-                            loading="lazy"
-                            alt="PropertyImage"
-                            className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg"
-                          />
-                          <div className="absolute top-8 -rotate-45 left-0 skew-x-6 text-red-500">
-                            <p className="text-xs">
-                              Replace me with <br /> property image
-                            </p>
-                          </div>
+                          <AspectRatio ratio={16 / 9}>
+                            <img
+                              src="/replacer.jpg"
+                              loading="lazy"
+                              alt="PropertyImage"
+                              className="w-full h-full  object-fill flex items-center justify-center rounded-t-lg"
+                            />
+                          </AspectRatio>
+                          <AspectRatio ratio={16 / 9}>
+                            <div className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg">
+                              <p className="text-xs">
+                                Replace me with <br /> property image
+                              </p>
+                            </div>
+                          </AspectRatio>
                         </div>
                       )}
                     </div>

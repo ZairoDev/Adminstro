@@ -38,6 +38,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
+import CustomTooltip from "./CustomToolTip";
 
 const BreadCrumb = () => {
   const pathname = usePathname();
@@ -65,7 +66,9 @@ const BreadCrumb = () => {
                   <BreadcrumbPage>{name}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink>
-                    <Link href={routeTo}>{name}</Link>
+                    {/* <Link href={routeTo}>{name}</Link> */}
+                    <CustomTooltip text={name} desc="Update sortly" />
+                    {/* <p className="cursor-pointer">{}</p> */}
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>

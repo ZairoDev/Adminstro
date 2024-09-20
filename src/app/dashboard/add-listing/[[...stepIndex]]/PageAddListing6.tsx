@@ -177,6 +177,9 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
 
   return (
     <>
+      <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+        Fill the appropriate description
+      </h2>
       <div className="flex flex-col gap-8">
         {myArray.map((item, index) => (
           <div key={index}>

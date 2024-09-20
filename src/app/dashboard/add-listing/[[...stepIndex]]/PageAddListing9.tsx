@@ -22,7 +22,6 @@ const CustomDayPicker = dynamic(() => import("@/components/CustomDayPicker"), {
 });
 
 const PageAddListing9: FC<PageAddListing9Props> = () => {
-
   const params = useSearchParams();
   const userId = params.get("userId");
   console.log(userId);
@@ -158,6 +157,9 @@ const PageAddListing9: FC<PageAddListing9Props> = () => {
 
   return (
     <>
+      <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+        Select appropriate days
+      </h2>
       <div>
         <h2 className="text-2xl font-semibold">How long can guests stay?</h2>
         <span className="block text-xs  mt-2 ">
@@ -284,12 +286,12 @@ const PageAddListing9: FC<PageAddListing9Props> = () => {
           </h1>
           {longTermMonths.map((m, i) => (
             <p key={i}>{m}, </p>
-          ))}  
+          ))}
         </div>
       )}
 
       <div className="mt-4 flex gap-x-4 ml-2 mb-4">
-      <Link
+        <Link
           href={{
             pathname: `/dashboard/add-listing/8`,
             query: { userId: userId },

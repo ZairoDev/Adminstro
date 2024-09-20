@@ -97,19 +97,15 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
   ) => {
     return (
       <div className="flex items-center">
-        <input
-          // defaultChecked={defaultChecked}
+        <Input
           id={`${name}-${value}`}
           name={name}
           type="radio"
-          className="focus:ring-primary-500 h-6 w-6 text-primary-500 border-neutral-300 !checked:bg-primary-500 bg-transparent"
+          className=" h-6 w-6 rounded-full cursor-pointer text-background "
           checked={page5[name] === value}
           onChange={() => handleRadioChange(name, value)}
         />
-        <label
-          htmlFor={`${name}-${value}`}
-          className="ml-3 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-        >
+        <label htmlFor={`${name}-${value}`} className="ml-3 block text-sm ">
           {label}
         </label>
       </div>
@@ -119,12 +115,9 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
   return (
     <>
       <div className="mb-4">
-        <h2 className="text-2xl font-semibold">
+        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
           Set house rules for your guests{" "}
         </h2>
-        <span className="block mt-1 text-xs">
-          Guests must agree to your house rules before they book.
-        </span>
       </div>
 
       {/* FORM */}
@@ -181,13 +174,13 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
         <div className=" bodrer border-b"></div>
         <span className="block text-lg font-semibold">Additional rules</span>
         <div className="flow-root">
-          <div className="-my-3 divide-y divide-neutral-100 dark:divide-neutral-800">
+          <div className="-my-3  ">
             {additionalRules.map((item, index) => (
               <div
-                className="py-3 flex items-center justify-between"
+                className="py-3 flex items-center  justify-between"
                 key={index}
               >
-                <div className="flex items-center">
+                <div className="flex border-primary items-center">
                   <span className="ml-3 ">{item}</span>
                 </div>
                 <i

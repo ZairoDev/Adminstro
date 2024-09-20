@@ -137,7 +137,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold">Choosing listing categories</h2>
+      <h2 className="text-2xl font-semibold border-b border-primary pb-2">Choosing listing categories</h2>
       <div className="space-y-8">
         <div className="mt-4 flex justify-between">
           <div>

@@ -460,11 +460,10 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
     <>
       <div className="flex flex-col gap-20">
         <div className="space-y-8">
+          <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+            Upload the appropriate images
+          </h2>
           <div>
-            <span className="text-2xl font-semibold">
-              Cover image Of the Property
-            </span>
-
             <div className="mt-5 ">
               <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md">
                 <div className="space-y-1 text-center flex flex-col items-center">

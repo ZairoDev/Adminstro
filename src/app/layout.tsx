@@ -27,6 +27,22 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="system"
           enableSystem
+          themes={[
+            "orange",
+            "rose",
+            "dark",
+            "light",
+            "green",
+            "blue",
+            "violet",
+            "slate",
+            "yellow",
+            "stone",
+            "gray",
+            "neutral",
+            "red",
+            "zinc"
+          ]}
           disableTransitionOnChange
         >
           <UserRoleProvider>{children}</UserRoleProvider>

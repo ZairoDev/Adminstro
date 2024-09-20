@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeftFromLine, Plus } from "lucide-react";
+import { ArrowLeft, ArrowLeftFromLine, Plus } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,6 +22,7 @@ import { UserSchema } from "@/schemas/user.schema";
 import Loader from "@/components/loader";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import PhoneInput from "react-phone-number-input";
+import GotoUserPage from "@/components/GotoUserPage";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -140,20 +141,12 @@ const NewUser = () => {
   };
 
   return (
-    <div className="sm:mt-10 mt-14 md:mt-10 lg:mt-0">
+    <>
       <div>
-        <Button variant="ghost" className="border">
-          <Link
-            className="flex items-center justify-between gap-x-2"
-            href={"/dashboard/user"}
-          >
-            <ArrowLeftFromLine />
-            Back
-          </Link>
-        </Button>
+        <GotoUserPage />
       </div>
-      <div className="flex items-center justify-center">
-        <div className="max-w-[35rem] w-full m-4">
+      <div className="">
+        <div className="max-w-4xl m-auto ">
           <div className="border-2 rounded-lg p-4">
             <div className="border-b">
               <h1 className="text-2xl pb-2 text-center font-semibold">
@@ -390,14 +383,16 @@ const NewUser = () => {
                 </Label>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? <Loader /> : "Countinue"}
-              </Button>
+              <div className="flex items-end justify-start">
+                <Button type="submit" className="">
+                  {loading ? <Loader /> : "Continue"}
+                </Button>
+              </div>
             </form>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

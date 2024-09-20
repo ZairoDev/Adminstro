@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUpIcon, Plus, X } from "lucide-react";
+import { FileUpIcon, Plus, UploadIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { FaCloudUploadAlt } from "react-icons/fa";
@@ -250,7 +250,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // TODO Handling property picture starts from here
 
-
   const data = localStorage.getItem("page1") || "";
   if (data) {
     const value = JSON.parse(data)["numberOfPortions"];
@@ -296,6 +295,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   }, [propertyPictureUrls]);
 
   useEffect(() => {
+    console.log('use effect');
     localStorage.setItem(
       "portionCoverFileUrls",
       JSON.stringify(portionCoverFileUrls)
@@ -702,6 +702,9 @@ const EditPropertyPage = ({ params }: PageProps) => {
           propertyPictureUrls.splice(deletedIndex, 1);
           break;
         case "portionCoverFileUrls":
+          const newArr = [...portionCoverFileUrls];
+          portionCoverFileUrls[deletedIndex] = "";
+          setPortionCoverFileUrls(newArr);
           updatedFormData.portionCoverFileUrls =
             formData?.portionCoverFileUrls?.map((url, index) =>
               index === deletedIndex ? "" : url
@@ -873,13 +876,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
                 <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
                   <div className="">
                     <h1>Cover Image</h1>
-                    <div className="dark:bg-white/60 bg-black/40 rounded-lg flex items-center justify-center relative ">
+                    <div className="border-b min-h-60 pb-2 rounded-lg flex items-center justify-center relative ">
                       <div className=" absolute bottom-0 right-0 ">
-                        <label
-                          htmlFor={`file-upload-propetyCoverFile`}
-                          className="relative cursor-pointer rounded-md font-medium text-primary-6000 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
-                        >
-                          <FaCloudUploadAlt className="w-20 h-20 z-10 text-2xl text-slate-800 cursor-pointer" />
+                        <label htmlFor={`file-upload-propetyCoverFile`}>
+                          <div className="text-xs  flex flex-col-reverse items-center dark:hover:bg-white/10 border  rounded-lg py-4 px-2">
+                            <span>Upload Cover </span>{" "}
+                            <UploadIcon className="animate-bounce" />
+                          </div>
                           <input
                             id={`file-upload-propetyCoverFile`}
                             name="file-upload-2"
@@ -891,15 +894,23 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           />
                         </label>
                       </div>
-                      <img
-                        src={
-                          propertyCoverFileUrl ||
-                          formData?.propertyCoverFileUrl ||
-                          "/replacer.jpg"
-                        }
-                        className="max-w-2xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
-                        alt="coverimage"
-                      />
+                      {propertyCoverFileUrl ||
+                      formData?.propertyCoverFileUrl ? (
+                        <img
+                          src={
+                            propertyCoverFileUrl ||
+                            formData?.propertyCoverFileUrl ||
+                            "/replacer.jpg"
+                          }
+                          className="max-w-4xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
+                          alt="coverimage"
+                        />
+                      ) : (
+                        <div className="">
+                          <p className="text-center flex items-center justify-center ">No image found</p>
+                        </div>
+                      )}
+
                       {formData?.propertyCoverFileUrl && (
                         <button
                           onClick={() =>
@@ -909,7 +920,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                               formData?.propertyCoverFileUrl ?? ""
                             )
                           }
-                          className="absolute top-1 right-1 bg-red-500  w-5 h-5 rounded-full border-red-600  "
+                          className="absolute top-1 right-1 bg-red-500/90  w-5 h-5 rounded-full border-red-600  "
                           disabled={
                             deletingImage === formData.propertyCoverFileUrl
                           }
@@ -917,7 +928,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           {deletingImage === formData.propertyCoverFileUrl ? (
                             <Loader />
                           ) : (
-                            <X className="w-5 h-5" />
+                            <X className="w-5 h-5 text-white" />
                           )}
                         </button>
                       )}
@@ -926,13 +937,15 @@ const EditPropertyPage = ({ params }: PageProps) => {
                     <div>
                       <h1 className="mt-1">Property Pictures</h1>
                     </div>
+
                     <div className="mt-4 space-x-2 overflow-x-auto m-2">
                       <div className="flex space-x-4">
-                        <label
-                          htmlFor={`file-upload-propertyPicturesUrl`}
-                          className="relative cursor-pointer rounded-md font-medium text-primary-6000 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500 border border-neutral-800 p-1 "
-                        >
-                          <FaCloudUploadAlt className="w-40 h-40 z-10 text-2xl text-slate-800 cursor-pointer" />
+                        <label htmlFor={`file-upload-propertyPicturesUrl`}>
+                          <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 mt-2 rounded-lg justify-center flex-col">
+                            <UploadIcon className=" animate-bounce z-10 text-xs  cursor-pointer" />
+                            <p> Upload Pictures</p>
+                          </div>
+
                           <input
                             id={`file-upload-propertyPicturesUrl`}
                             name="file-upload-2"
@@ -945,20 +958,28 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           />
                         </label>
                         {propertyPictureUrls
-                          ?.filter((url) => url) // filter out falsy values (e.g. empty strings or nulls)
+                          ?.filter((url) => url) 
                           ?.map((url, index) => (
                             <div
                               key={index}
                               className="relative flex-shrink-0 m-2"
                             >
-                              <img
-                                src={
-                                  propertyPictureUrls[index] ||
-                                  formData?.propertyPictureUrls?.[index]
-                                } // Only render valid URLs
-                                alt="not found"
-                                className="w-40 h-40 object-cover rounded-md"
-                              />
+                              {propertyPictureUrls[index] ||
+                              formData?.propertyPictureUrls?.[index] ? (
+                                <img
+                                  src={
+                                    propertyPictureUrls[index] ||
+                                    formData?.propertyPictureUrls?.[index]
+                                  }
+                                  alt="property"
+                                  className="w-40 h-40 object-cover rounded-md"
+                                />
+                              ) : (
+                                <p className="text-center text-gray-500">
+                                  No image found
+                                </p>
+                              )}
+
                               {/* Delete Button */}
                               <button
                                 onClick={() =>
@@ -968,13 +989,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                     url
                                   )
                                 }
-                                className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
+                                className="absolute top-1 right-1 dark:text-white text-white bg-red-500 w-5 h-5 rounded-full border-red-600"
                                 disabled={deletingImage === url}
                               >
                                 {deletingImage === url ? (
                                   <Loader />
                                 ) : (
-                                  <X className="w-5 h-5" />
+                                  <X className="w-5 h-5 text-white" />
                                 )}
                               </button>
                             </div>
@@ -1456,33 +1477,42 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       <>
                         <div className=" flex flex-col space-y-4">
                           <h1>Portion Cover Image</h1>
-                          <div className="dark:bg-white/40 bg-black/40 rounded-lg flex items-center justify-center relative">
+                          <div className="border min-h-60 rounded-lg flex items-center justify-center relative">
                             <div className=" absolute bottom-0 right-0 ">
                               <label
                                 htmlFor={`file-upload-portionCoverFiles-${index}`}
-                                className="relative cursor-pointer rounded-md font-medium text-primary-6000 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
                               >
-                                <FaCloudUploadAlt className="w-20 h-20 z-10 text-2xl text-slate-800 cursor-pointer" />
+                                <div className="text-xs  flex flex-col-reverse items-center dark:hover:bg-white/10 border  rounded-lg py-4 px-2">
+                                  <span>Upload Cover </span>{" "}
+                                  <UploadIcon className="animate-bounce" />
+                                </div>
                                 <input
                                   id={`file-upload-portionCoverFiles-${index}`}
                                   name={`file-upload-portionCoverFiles-${index}`}
                                   type="file"
                                   className="sr-only"
                                   accept="image/*"
-                                  // onChange={(e) => uploadPortionPictures(e, index)}
                                   onChange={(e) => uploadFile(e, index)}
                                 />
                               </label>
                             </div>
-                            <img
-                              src={
-                                portionCoverFileUrls[index] ||
-                                formData?.portionCoverFileUrls?.[index] ||
-                                "/replacer.jpg"
-                              }
-                              alt="portionCover"
-                              className="max-w-2xl w-full rounded-lg px-2 py-2 h-full object-contain"
-                            />
+                            {portionCoverFileUrls[index] ||
+                            formData?.portionCoverFileUrls?.[index] ? (
+                              <img
+                                src={
+                                  portionCoverFileUrls[index] ||
+                                  formData?.portionCoverFileUrls?.[index] ||
+                                  "/replacer.png"
+                                }
+                                alt="portionCover"
+                                className="max-w-4xl w-full rounded-lg px-2 py-2 h-full object-contain"
+                              />
+                            ) : (
+                              <p className="text-center ">
+                                No image found
+                              </p>
+                            )}
+
                             {formData?.portionCoverFileUrls?.[index] && (
                               <button
                                 onClick={() =>
@@ -1502,7 +1532,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                 formData?.portionCoverFileUrls[index] ? (
                                   <Loader />
                                 ) : (
-                                  <X className="w-5 h-5" />
+                                  <X className="w-5 h-5 text-white" />
                                 )}
                               </button>
                             )}
@@ -1510,36 +1540,71 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           {/* Portion Pictures Section */}
                           <h1 className="mt-1">Portion Picture</h1>
 
-                          <div className="mt-4 space-x-2 overflow-x-auto">
+                          {/* TODO  Gonna Try some code here */}
+
+                          <div className="mt-4 space-x-2 overflow-x-auto m-2">
                             <div className="flex space-x-4">
-                              {formData?.portionPictureUrls?.[index]
+                              <label htmlFor={`file-upload-portionPictureUrls`}>
+                                <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 mt-2 rounded-lg justify-center flex-col">
+                                  <UploadIcon className=" animate-bounce z-10 text-xs  cursor-pointer" />
+                                  <p> Upload Pictures</p>
+                                </div>
+
+                                <input
+                                  id={`file-upload-portionPictureUrls`}
+                                  name="file-upload-3"
+                                  type="file"
+                                  className="sr-only"
+                                  multiple
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    uploadPortionPictures(e, index)
+                                  }
+                                />
+                              </label>
+                              {portionPictureUrls
                                 ?.filter((url) => url)
-                                .map((url, imgIndex) => (
+                                ?.map((url, ind) => (
                                   <div
-                                    key={imgIndex}
-                                    className="relative flex-shrink-0"
+                                    key={ind}
+                                    className="relative flex-shrink-0 m-2"
                                   >
-                                    <img
-                                      src={url}
-                                      alt="not found"
-                                      className="w-40 h-40 object-cover rounded-md"
-                                    />
+                                    {portionPictureUrls[index]?.[ind] ||
+                                    formData?.portionPictureUrls?.[index]?.[
+                                      ind
+                                    ] ? (
+                                      <img
+                                        src={
+                                          portionPictureUrls[index][ind] ||
+                                          formData?.portionPictureUrls?.[index][
+                                            ind
+                                          ]
+                                        }
+                                        alt="not found"
+                                        className="w-40 h-40 object-cover rounded-md"
+                                      />
+                                    ) : (
+                                      <p className="text-center text-gray-500">
+                                        No image found
+                                      </p>
+                                    )}
+
+                                    {/* Delete Button */}
                                     <button
                                       onClick={() =>
                                         handleDelete(
-                                          imgIndex,
+                                          index,
                                           "portionPictureUrls",
-                                          url,
-                                          index
+                                          url[ind]
                                         )
                                       }
-                                      className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
-                                      disabled={deletingImage === url}
+                                      className="absolute top-1 right-1 dark:text-white text-white bg-red-500 w-5 h-5 rounded-full border-red-600"
+                                      disabled={deletingImage === url[ind]}
                                     >
-                                      {deletingImage === url ? (
+                                      {deletingImage === url[ind] ? (
                                         <Loader />
                                       ) : (
-                                        <X className="w-5 h-5" />
+                                        <X className="w-5 h-5 text-white" />
                                       )}
                                     </button>
                                   </div>

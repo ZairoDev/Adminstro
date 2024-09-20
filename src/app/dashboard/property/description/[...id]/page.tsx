@@ -13,8 +13,6 @@ import { IoIosBed } from "react-icons/io";
 import { FaBath } from "react-icons/fa";
 import { SlSizeFullscreen } from "react-icons/sl";
 import CustomTooltip from "@/components/CustomToolTip";
-;
-
 interface PageProps {
   params: {
     id: string;
@@ -29,8 +27,6 @@ const Page = ({ params }: PageProps) => {
   const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
     Array.from({ length: numberOfPortions }, () => false)
   );
-
-
 
   useEffect(() => {
     if (params.id) {
@@ -216,11 +212,14 @@ const Page = ({ params }: PageProps) => {
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
-          <h1 className="text-3xl mt-2  mb-4"> Edit Description</h1>
+          <h1 className="text-xl xss:text-2xl lg:text-3xl mt-2 mb-4">
+            {" "}
+            Edit Description
+          </h1>
           <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
             <div>
               <div className="flex rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
-                <div className="flex items-center gap-x-4 justify-between">
+                <div className="xs:flex items-center gap-x-4 justify-between">
                   <div className="w-full">
                     <label className="text-xs" htmlFor="portionName">
                       Property Name
@@ -267,8 +266,8 @@ const Page = ({ params }: PageProps) => {
                     </div>
                   </div>
                 </div>
-                <div className=" flex gap-x-4">
-                  <div className=" w-full">
+                <div className=" sm:flex gap-x-4">
+                  <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
                     <label htmlFor="review">Description of Property</label>
                     <Textarea
                       className="h-64"
@@ -277,7 +276,7 @@ const Page = ({ params }: PageProps) => {
                       disabled
                     />
                   </div>
-                  <div className=" w-full">
+                  <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
                     <label htmlFor="review">New Description of Property</label>
                     <Textarea
                       className="h-64"
@@ -299,9 +298,13 @@ const Page = ({ params }: PageProps) => {
             length: numberOfPortions,
           }).map((item, index) => {
             return (
-              <div className=" flex  flex-col space-y-4 my-4" key={index}>
-                <h1
-                  className="  flex items-center transition-transform duration-300 ease-in-out cursor-pointer  border px-4 py-2 rounded-lg "
+              <div
+                className=" text-sm sm:text-base flex flex-col space-y-4 my-4 w-full"
+                key={index}
+              >
+                {" "}
+                <div
+                  className=""
                   onClick={() =>
                     setIsPortionOpen((prev) => {
                       const newIsPortionOpen = [...prev];
@@ -310,16 +313,15 @@ const Page = ({ params }: PageProps) => {
                     })
                   }
                 >
-                  Portion no {index + 1}{" "}
-                  {isPortionOpen[index] ? (
-                    <MdArrowDropDown className="text-2xl" />
-                  ) : (
-                    <MdArrowRight className="text-2xl" />
-                  )}
-                  <div>
-                    {" "}
+                  <div className=" flex flex-wrap xs:flex-nowrap gap-y-2 items-center transition-transform duration-300 ease-in-out cursor-pointer border px-4 py-2 rounded-lg justify-center xs:justify-normal ">
+                    <p className=" text-nowrap">Portion no {index + 1}</p>
                     {isPortionOpen[index] ? (
-                      <div className=" flex gap-x-4 ml-8">
+                      <MdArrowDropDown className="text-2xl" />
+                    ) : (
+                      <MdArrowRight className="text-2xl" />
+                    )}{" "}
+                    {isPortionOpen[index] && (
+                      <div className=" flex flex-wrap md:flex-nowrap gap-x-4 xs:ml-8 justify-center gap-y-2">
                         <CustomTooltip
                           icon={<FaUser />}
                           content={formData?.guests?.[index]}
@@ -348,13 +350,12 @@ const Page = ({ params }: PageProps) => {
                         <CustomTooltip
                           text={formData?.portionName?.[index]}
                           desc="Name of Portion"
+                          className=" xs:text-nowrap"
                         />
                       </div>
-                    ) : (
-                      <div></div>
                     )}
                   </div>
-                </h1>
+                </div>
                 {isPortionOpen[index] && (
                   <>
                     <div className=" flex flex-col space-y-4">

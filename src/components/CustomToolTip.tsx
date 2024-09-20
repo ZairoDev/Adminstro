@@ -11,14 +11,15 @@ interface CustomToolTipProps{
   content?: number|undefined;
   text?: string;
   desc?: string;
+  className?: string;
 }
 
-const CustomTooltip = ({ icon, content, desc, text }: CustomToolTipProps) => {
+const CustomTooltip = ({ className, icon, content, desc, text }: CustomToolTipProps) => {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger className=" flex gap-x-2 items-center">{icon} {content || text}</TooltipTrigger>
-        <TooltipContent>
+        <TooltipTrigger className={`flex gap-x-2 items-center ${className}`}>{icon} {content || text}</TooltipTrigger>
+        <TooltipContent className={`${className}`}>
           <p>{desc}</p>
         </TooltipContent>
       </Tooltip>

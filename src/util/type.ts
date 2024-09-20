@@ -24,6 +24,7 @@ export interface Property {
   id?: string;
   userId?: string;
   VSID?: string;
+  email?: string;
 
   propertyType?: string;
   placeName?: string;
@@ -52,8 +53,6 @@ export interface Property {
   kitchen?: number[];
   childrenAge?: number[];
 
-  email?: string;
-  lastUpdates?: string[][];
   longTermMonths?: number[];
 
   rentalType?: string;
@@ -91,6 +90,12 @@ export interface Property {
   night?: number[];
   time?: number[];
   datesPerPortion?: number[][];
+
+  hostedFrom?: string;
+  hostedBy?: string;
+  listedOn?: string[];
+  lastUpdatedBy?: string[];
+  lastUpdates?: string[][];
 
   isLive?: boolean;
 }

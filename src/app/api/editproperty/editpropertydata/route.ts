@@ -15,6 +15,8 @@ interface RequestBody {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const host = request.headers.get("host");
+  console.log('host');
   try {
     const reqBody: RequestBody = await request.json();
     const { propertyId, updatedData, userEmail } = reqBody;

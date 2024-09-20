@@ -9,6 +9,8 @@ connectDb();
 export async function POST(request: Request) {
   try {
     const data = await request.json();
+    const host = request.headers.get("host");
+
     const {
       userId,
       email,
@@ -52,6 +54,7 @@ export async function POST(request: Request) {
       night,
       time,
       datesPerPortion,
+      hostedBy,
       rentalType,
       basePriceLongTerm,
       monthlyDiscountLongTerm,
@@ -100,6 +103,8 @@ export async function POST(request: Request) {
       night,
       time,
       datesPerPortion,
+      hostedBy,
+      hostedFrom: host,
       rentalType,
       basePriceLongTerm,
       monthlyDiscountLongTerm,

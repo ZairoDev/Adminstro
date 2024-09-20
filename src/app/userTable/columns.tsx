@@ -84,8 +84,11 @@ export const columns: ColumnDef<UserInterface>[] = [
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="/dashboard/edituserdetails">Edit Profile</Link>
+              <Link href={`/dashboard/edituserdetails/${user._id}`}>
+                Edit Profile
+              </Link>
             </DropdownMenuItem>
+
             <DropdownMenuItem>
               <Link href="/">Delete User</Link>
             </DropdownMenuItem>

@@ -41,6 +41,7 @@ import { Edit, EyeIcon, EyeOff } from "lucide-react";
 import axios from "axios";
 import Loader from "@/components/loader";
 import { Property } from "@/util/type";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface ApiResponse {
   data: Property[];
@@ -261,15 +262,19 @@ const PropertyPage: React.FC = () => {
                   <CardHeader className="p-0 border-b">
                     <div>
                       {property?.propertyCoverFileUrl[0] ? (
-                        <img
-                          src={property?.propertyCoverFileUrl}
-                          alt="PropertyImage"
-                          className="w-full h-[180px]  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                        />
+                        <AspectRatio ratio={16 / 9}>
+                          <img
+                            src={property?.propertyCoverFileUrl}
+                            alt="PropertyImage"
+                            loading="lazy"
+                            className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                          />
+                        </AspectRatio>
                       ) : (
                         <div className="relative">
                           <img
                             src="/replacer.jpg"
+                            loading="lazy"
                             alt="PropertyImage"
                             className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg"
                           />

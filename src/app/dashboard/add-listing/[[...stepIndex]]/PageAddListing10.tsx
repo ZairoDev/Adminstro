@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import { UserInterface } from "@/util/type";
 import ScreenLoader from "@/components/ScreenLoader";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 export interface PageAddListing10Props {}
 
@@ -204,8 +205,11 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   const [user, setuser] = useState<UserInterface>();
 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     const fetchuser = async () => {
+      setLoading(true);
       try {
         const user = await axios.post("/api/user/getuserbyid", {
           userId: userId,
@@ -215,9 +219,11 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           setuser(user.data.data);
           setLoggedInUserEmail(user.data.loggedInUserEmail);
         }
+        setLoading(false);
         console.log(user);
       } catch (error) {
         console.log(error);
+        setLoading(false);
       }
     };
     fetchuser();
@@ -326,11 +332,13 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           <div className="">
             <div className="flex justify-center items-center overflow-hidden">
               {propertyCoverFileUrl ? (
-                <img
-                  src={propertyCoverFileUrl}
-                  alt="coverImage"
-                  className="card-img-top rounded-xl object-cover"
-                />
+                <AspectRatio ratio={16 / 9}>
+                  <img
+                    src={propertyCoverFileUrl}
+                    alt="coverImage"
+                    className="rounded-md object-cover"
+                  />
+                </AspectRatio>
               ) : (
                 <p className="flex items-center justify-center">No image 404</p>
               )}
@@ -365,7 +373,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                     <Button
                       className="w-full"
                       onClick={handleGoLive}
-                      disabled={isLiveDisabled || !combinedData?.placeName}
+                      disabled={
+                        isLiveDisabled || !combinedData?.placeName || loading
+                      }
                     >
                       Go live 🚀
                     </Button>

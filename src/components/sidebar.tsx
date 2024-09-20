@@ -33,8 +33,7 @@ const roleRoutes = {
     { path: "/dashboard/user", label: "Manage User" },
     { path: "/dashboard/property", label: "Manage Property" },
     { path: "/dashboard/createnewEmployee", label: "Create Employee" },
-    { path: "/dashboard/property/description/:id", label: "Manage Content" },
-    { path: "/dashboard/admin", label: "Admin Panel" },
+    // { path: "/dashboard/admin", label: "Admin Panel" },
   ],
 };
 
@@ -84,13 +83,13 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? "bg-white rounded-l-lg text-black/80"
+            ? " bg-primary text-primary-foreground rounded-l-lg  "
             : ""
         }`}
       >
         <Link
           href={route.path}
-          className="block rounded-l-lg px-4 py-2 hover:bg-white/10"
+          className="block rounded-l-lg px-4 py-2  hover:bg-primary/20"
         >
           {route.label}
         </Link>
@@ -101,7 +100,7 @@ export function Sidebar() {
   return (
     <>
       {/* Sidebar for large screens */}
-      <div className="hidden lg:block w-64 bg-black text-white/80 fixed h-screen">
+      <div className="hidden lg:block w-64  border-r fixed h-screen">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold p-4">Dashboard</h2>
           <div className="mr-1">
@@ -110,10 +109,10 @@ export function Sidebar() {
         </div>
         <div>
           <nav className="flex flex-col justify-between flex-grow">
-            <ul className="flex-grow">{renderRoutes()}</ul>
+            <ul className="flex-grow ">{renderRoutes()}</ul>
             <ul className="absolute bottom-0 ">
               <Popover>
-                <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center border w-64 p-2    bg-white rounded-l-lg text-black">
+                <PopoverTrigger className="cursor-pointer flex border-t-white/40 items-center gap-x-2 justify-center   w-64 p-2     ">
                   {currentUser} <ArrowRight size={18} />
                 </PopoverTrigger>
                 <PopoverContent className="w-64">
@@ -135,34 +134,32 @@ export function Sidebar() {
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
           <div className="lg:hidden ">
-            <GiHamburgerMenu className="text-2xl  z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer text-black dark:text-white" />
+            <GiHamburgerMenu className="text-2xl  border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
           </div>
         </SheetTrigger>
 
-        <SheetContent side="left" className="w-64">
+        <SheetContent side="left" className="w-[17rem]  ">
           <div className="flex items-center mb-2 justify-between">
             <h2 className="text-2xl font-bold ">Dashboard</h2>
             <div className="-mr-3">
               <ModeToggle />
             </div>
           </div>
-          <nav className="w-full">
-            <ul className="w-full p-0">{renderRoutes()}</ul>
+          <nav className="w-[15.5rem]">
+            <ul className="">{renderRoutes()}</ul>
             <ul>
               {" "}
               <ul className=" fixed bottom-0  ">
                 <Popover>
-                  <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center  w-full p-2 ">
+                  <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center  p-2 ">
                     {currentUser} <ArrowRight size={18} />
                   </PopoverTrigger>
-                  <PopoverContent className="w-64">
-                    <div className="">
-                      <p className="text-xs mb-2">
-                        Tap to logout from here to choose some diffrent route to
-                        acess
-                      </p>
-                      <LogoutButton />
-                    </div>
+                  <PopoverContent className="w-[248px]">
+                    <p className="text-xs mb-2">
+                      Tap to logout from here to choose some diffrent route to
+                      acess
+                    </p>
+                    <LogoutButton />
                   </PopoverContent>
                 </Popover>
               </ul>

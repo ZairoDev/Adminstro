@@ -16,7 +16,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  cursor: pointer;
 }
 
 /* Firefox */

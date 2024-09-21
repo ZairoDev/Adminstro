@@ -34,6 +34,7 @@ import { FileUpIcon, Plus, UploadIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { FaCloudUploadAlt } from "react-icons/fa";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface PageProps {
   params: {
@@ -295,7 +296,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   }, [propertyPictureUrls]);
 
   useEffect(() => {
-    console.log('use effect');
+    console.log("use effect");
     localStorage.setItem(
       "portionCoverFileUrls",
       JSON.stringify(portionCoverFileUrls)
@@ -870,8 +871,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
               </Button>
             </Link>
 
-            <h1 className="text-3xl mt-2  mb-4"> Edit Property</h1>
             <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
+              <div className="border-b pb-2">
+                <h1 className="text-2xl mt-2  text-center  mb-4">
+                  Edit Property
+                </h1>
+              </div>
+
               <div>
                 <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
                   <div className="">
@@ -896,18 +902,22 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       </div>
                       {propertyCoverFileUrl ||
                       formData?.propertyCoverFileUrl ? (
-                        <img
-                          src={
-                            propertyCoverFileUrl ||
-                            formData?.propertyCoverFileUrl ||
-                            "/replacer.jpg"
-                          }
-                          className="max-w-4xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
-                          alt="coverimage"
-                        />
+                        <AspectRatio ratio={16 / 9}>
+                          <img
+                            src={
+                              propertyCoverFileUrl ||
+                              formData?.propertyCoverFileUrl ||
+                              "/replacer.jpg"
+                            }
+                            className="max-w-4xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
+                            alt="coverimage"
+                          />
+                        </AspectRatio>
                       ) : (
                         <div className="">
-                          <p className="text-center flex items-center justify-center ">No image found</p>
+                          <p className="text-center flex items-center justify-center ">
+                            No image found
+                          </p>
                         </div>
                       )}
 
@@ -958,7 +968,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           />
                         </label>
                         {propertyPictureUrls
-                          ?.filter((url) => url) 
+                          ?.filter((url) => url)
                           ?.map((url, index) => (
                             <div
                               key={index}
@@ -1508,9 +1518,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                 className="max-w-4xl w-full rounded-lg px-2 py-2 h-full object-contain"
                               />
                             ) : (
-                              <p className="text-center ">
-                                No image found
-                              </p>
+                              <p className="text-center ">No image found</p>
                             )}
 
                             {formData?.portionCoverFileUrls?.[index] && (

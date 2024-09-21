@@ -274,18 +274,14 @@ const PropertyPage: React.FC = () => {
                         <div className="relative">
                           <AspectRatio ratio={16 / 9}>
                             <img
-                              src="/replacer.jpg"
+                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
                               loading="lazy"
                               alt="PropertyImage"
-                              className="w-full h-full  object-fill flex items-center justify-center rounded-t-lg"
+                              className="w-full relative  object-fill flex items-center justify-center rounded-t-lg"
                             />
-                          </AspectRatio>
-                          <AspectRatio ratio={16 / 9}>
-                            <div className="w-full h-[180px]  object-fill flex items-center justify-center rounded-t-lg">
-                              <p className="text-xs">
-                                Replace me with <br /> property image
-                              </p>
-                            </div>
+                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                              404 Not Found
+                            </p>
                           </AspectRatio>
                         </div>
                       )}

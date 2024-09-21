@@ -1313,23 +1313,20 @@ const EditPropertyPage = ({ params }: PageProps) => {
                 </div>
               </div>
 
-              <div className="w-full my-4 pb-4 border-b">
-                <h1 className="text-xl mb-2 font-medium dark:text-white">
+              <div className="w-full my-4  pb-4 border-b">
+                <h1 className="text-xl mb-2 font-medium  tex">
                   Additional Rules
                 </h1>
-
-                {/* Render each additional rule with a remove button */}
                 {formData.additionalRules?.map((rule, index) => (
                   <div key={index} className="flex items-center gap-2 mb-2">
-                    <input
+                    <Input
                       type="text"
                       value={rule}
                       onChange={(e) => handleRuleChange(index, e.target.value)}
-                      className="w-full p-2 text-base border rounded-lg "
+                      className=" "
                       placeholder={`Rule ${index + 1}`}
                     />
                     <Button
-                      type="button"
                       variant="destructive"
                       onClick={() => handleRemoveRule(index)}
                       className=""

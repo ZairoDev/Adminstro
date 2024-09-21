@@ -42,6 +42,7 @@ import axios from "axios";
 import Loader from "@/components/loader";
 import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import Link from "next/link";
 
 interface ApiResponse {
   data: Property[];
@@ -263,12 +264,20 @@ const PropertyPage: React.FC = () => {
                     <div>
                       {property?.propertyCoverFileUrl[0] ? (
                         <AspectRatio ratio={16 / 9}>
-                          <img
-                            src={property?.propertyCoverFileUrl}
-                            alt="PropertyImage"
-                            loading="lazy"
-                            className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                          />
+                          <Link
+                            href={{
+                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                              query: { id: property._id },
+                            }}
+                            target="_blank"
+                          >
+                            <img
+                              src={property?.propertyCoverFileUrl}
+                              alt="PropertyImage"
+                              loading="lazy"
+                              className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                            />
+                          </Link>
                         </AspectRatio>
                       ) : (
                         <div className="relative">

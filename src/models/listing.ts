@@ -56,9 +56,28 @@ export interface IProperty extends Document {
   night?: number[];
   time?: number[];
   datesPerPortion?: string[][];
+
+  area?: string;
+  subarea?: string;
+  neighbourhood?: string;
+  floor?: string;
+  isTopFloor?: boolean;
+  orientation?: string;
+  levels?: number;
+  zones?: string;
+  propertyStyle?: string;
+  constructionYear?: number;
+  isSuitableForStudents?: boolean;
+  monthlyExpenses?: number;
+  heatingType?: string;
+  heatingMedium?: string;
+  energyClass?: string;
+
   hostedFrom?: string;
-  lastUpdatedBy: string[];
-  lastUpdates: string[][];
+  hostedBy?: string;
+  listedOn?: string[];
+  lastUpdatedBy?: string[];
+  lastUpdates?: string[][];
   isLive: boolean;
 }
 
@@ -138,7 +157,35 @@ const PropertySchema: Schema = new Schema(
     night: [Number],
     time: [Number],
     datesPerPortion: [[String]],
+
+    area: String,
+    subarea: String,
+    neighbourhood: String,
+    floor: String,
+    isTopFloor: {
+      type: Boolean,
+      default: false,
+    },
+    orientation: String,
+    levels: Number,
+    zones: String,
+    propertyStyle: String,
+    constructionYear: Number,
+    isSuitableForStudents: {
+      type: Boolean,
+      default: true,
+    },
+    monthlyExpenses: Number,
+    heatingType: String,
+    heatingMedium: String,
+    energyClass: String,
+
     hostedFrom: String,
+    hostedBy: String,
+    listedOn: {
+      type: [String],
+      default: ["VacationSaga"]
+    },
     lastUpdatedBy: {
       type: [String],
       default: [],

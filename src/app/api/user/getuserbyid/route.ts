@@ -1,5 +1,6 @@
 import Users from "@/models/user";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -15,6 +16,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   console.log("userId", userId);
   const user = await Users.findOne({ _id: userId }).select("-password");
 
+  const tokenData = await getDataFromToken(request);
+  const {email} = tokenData;
+
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -22,5 +26,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     message: "User found",
     data: user,
+    loggedInUserEmail: email,
   });
 }

@@ -103,6 +103,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   const [goLiveState, setGoLiveState] = useState<boolean>(false);
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loggedInUserEmail, setLoggedInUserEmail] = useState<string>("");
 
   const clearLocalStorage = () => {
     localStorage.removeItem("page1");
@@ -213,9 +214,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         const user = await axios.post("/api/user/getuserbyid", {
           userId: userId,
         });
-        setuser(user.data.data);
         if (user) {
           console.log("user data", user.data.data.email);
+          setuser(user.data.data);
+          setLoggedInUserEmail(user.data.loggedInUserEmail);
         }
         setLoading(false);
         console.log(user);
@@ -281,6 +283,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       night: combinedData?.night,
       time: combinedData?.time,
       datesPerPortion: combinedData?.datesPerPortion,
+
+      hostedBy: loggedInUserEmail,
 
       rentalType: combinedData?.rentalType,
       basePriceLongTerm: combinedData?.basePriceLongTerm,

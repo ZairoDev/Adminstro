@@ -33,7 +33,6 @@ const roleRoutes = {
     { path: "/dashboard/user", label: "Manage User" },
     { path: "/dashboard/property", label: "Manage Property" },
     { path: "/dashboard/createnewEmployee", label: "Create Employee" },
-    // { path: "/dashboard/admin", label: "Admin Panel" },
   ],
 };
 

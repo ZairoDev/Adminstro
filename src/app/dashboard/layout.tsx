@@ -13,7 +13,9 @@ export default function DashboardLayout({
       <Sidebar />
 
       <main className=" lg:ml-64 p-2 w-full">
-        <BreadCrumb />
+        <div className="sm:block hidden">
+          <BreadCrumb />
+        </div>
         <div>{children}</div>
       </main>
     </div>

@@ -214,7 +214,7 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
     const allFieldsFilled = [basePrice, weekendPrice].every((array) =>
       array.every((value) => value !== 0 && value !== 0)
     );
-    console.log("Runnig ")
+    console.log("Runnig ");
     return allFieldsFilled;
   };
   const [isValidForm, setIsValidForm] = useState<boolean>(false);
@@ -226,6 +226,9 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
   return (
     <>
       <div className=" flex flex-col gap-12">
+        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+          Select appropriate  Pricing
+        </h2>
         {rentalType && rentalType == "Both" && (
           <div className="">
             <h1 className="text-3xl font-semibold">

@@ -169,7 +169,7 @@ const NewUser = () => {
         <div className="flex items-center justify-center">
           <div className=" w-full ">
             <div className="border-2 rounded-lg p-4">
-              <div className="border-b">
+              <div className="border-b border-primary">
                 <h1 className="text-2xl pb-2 text-center font-semibold">
                   Create new employee
                 </h1>

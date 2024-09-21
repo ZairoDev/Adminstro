@@ -142,6 +142,9 @@ const PageAddListing2: FC = () => {
 
   return (
     <div>
+      <h2 className="text-2xl mb-2 font-semibold border-b border-primary pb-2">
+        Choose the country
+      </h2>
       <FormItem label="Country/Region">
         <Select value={country} onValueChange={(value) => setCountry(value)}>
           <SelectTrigger>

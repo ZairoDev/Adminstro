@@ -14,6 +14,14 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
 import { useUserRole } from "@/context/UserRoleContext";
 
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+
 interface LoginResponse {
   message?: string;
   token?: string;
@@ -85,13 +93,43 @@ const PageLogin: React.FC = () => {
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
-      <div className="w-1/2  sm:flex hidden items-center justify-center">
-        <img
-          src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
-          alt="Login Background"
-          className="object-cover w-full h-full"
-        />
+      <div className="w-1/2 sm:flex hidden items-center justify-center">
+        <Carousel className="w-full h-full">
+          <CarouselContent>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 1"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 2"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 3"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 4"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
       </div>
+
       <div className="sm:w-1/2 w-full flex items-center justify-center ">
         <div className="w-full max-w-sm px-6 py-8 border  rounded-lg shadow-lg">
           <h1 className="text-3xl font-semibold text-center mb-6">

@@ -8,7 +8,6 @@ const generateVSID = (length: number): string => {
   return generateUniqueId();
 };
 
-// Define Property Interface for TypeScript
 export interface IProperty extends Document {
   VSID: string;
   email: string;
@@ -83,7 +82,7 @@ export interface IProperty extends Document {
 }
 
 // Property Schema Definition
-const PropertySchema: Schema = new Schema<IProperty>(
+const PropertySchema: Schema = new Schema(
   {
     VSID: {
       type: String,

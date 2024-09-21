@@ -322,7 +322,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     <>
       <div className="flex flex-col gap-12">
         <div>
-          <h2 className="text-2xl font-semibold">Almost There! 🚀</h2>
+          <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
+            Almost There! 🚀
+          </h2>
           <span className="block mt-2">
             You&apos;re just one step away from listing your property. Tap on
             &quot;Continue&quot; to finalize and publish your property listing.
@@ -336,7 +338,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                   <img
                     src={propertyCoverFileUrl}
                     alt="coverImage"
-                    className="rounded-md object-cover"
+                    className="card-img-top rounded-xl object-cover"
                   />
                 </AspectRatio>
               ) : (

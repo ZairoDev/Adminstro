@@ -80,19 +80,10 @@ export const columns: ColumnDef<UserInterface>[] = [
                   query: { userId: user._id },
                 }}
               >
-                Add Property(ShortTerm)
+                Add Property
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link
-                href={{
-                  pathname: `/dashboard/add-listinglongterm/1/`,
-                  query: { userId: user._id },
-                }}
-              >
-                Add Property(LongTerm)
-              </Link>
-            </DropdownMenuItem>
+
             <DropdownMenuItem>
               <Link href={`/dashboard/edituserdetails/${user._id}`}>
                 Edit Profile

@@ -27,14 +27,177 @@ interface Page2State {
   city: string;
   state: string;
   postalCode: string;
+  address: string;
   center: { lat: number; lng: number };
+  area: string;
+  subarea: string;
+  neighbourhood: string;
+  floor: number;
+  isTopFloor: string;
+  orientation: string;
+  levels: number;
+  zones: string;
+  propertyStyle: string;
+  isSuitableForStudents: string;
+  monthlyExpenses: string;
+  heatingMedium: string;
+  energyClass: string;
+  heatingType: string;
+  constructionYear: string;
 }
 
 const PageAddListing2: FC = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
+
+  const [type, setType] = useState<string>();
+
+  const [rentalType, SetRentalType] = useState(() => {
+    const type = localStorage.getItem("page1");
+    if (!type) {
+      setType("");
+    } else {
+      const parsedData = JSON.parse(type);
+      console.log(parsedData);
+      setType(parsedData.rentalType);
+    }
+  });
+
+  const [constructionYear, setConstructionYear] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["constructionYear"];
+    }
+  });
+
+  const [heatingType, setHeatingType] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["heatingType"];
+    }
+  });
+
+  const [energyClass, setEnergyClass] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["energyClass"];
+    }
+  });
+
+  const [heatingMedium, setHeatingMedium] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["heatingmedium"];
+    }
+  });
+
+  const [monthlyExpenses, setMonthlyExpenses] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["commonExpenses"];
+    }
+  });
+
+  const [isSuitableForStudents, setisSuitableForStudents] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["isStudentLive"];
+    }
+  });
+
+  const [propertyStyle, setPropetyStyle] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["propertyStyle"];
+    }
+  });
+
+  const [zones, setZones] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["zones"];
+    }
+  });
+
+  const [levels, setLevel] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["level"];
+    }
+  });
+
+  const [orientation, setOrientation] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["orientation"];
+    }
+  });
+
+  const [isTopFloor, setTopFloor] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["topFloor"];
+    }
+  });
+
+  const [area, setArea] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["area"];
+    }
+  });
+
+  const [neighbourhood, setNeighborhood] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["neighborhood"];
+    }
+  });
+
+  const [subarea, setSubArea] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["subarea"];
+    }
+  });
+
+  const [floor, setFloor] = useState(() => {
+    const saved = localStorage.getItem("page2");
+    if (!saved) {
+      return "";
+    } else {
+      return JSON.parse(saved)["floor"];
+    }
+  });
 
   const [address, setAddress] = useState(() => {
     const saved = localStorage.getItem("page2");
@@ -77,13 +240,10 @@ const PageAddListing2: FC = () => {
       return "";
     } else return JSON.parse(saved)["postalCode"];
   });
-
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 0,
     lng: 0,
   });
-
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handlePlaceSelected = (place: any) => {
     setAddress(place.address);
@@ -92,7 +252,35 @@ const PageAddListing2: FC = () => {
     setCity(place.city);
     setStreet(place.street);
     setPostalCode(place.postalCode);
+    setArea(place.whereExist);
+    setNeighborhood(place.neighborhood);
+    setSubArea(place.subArea);
+    setFloor(place.floor);
+    setTopFloor(place.topFloor);
+    setOrientation(place.orientation);
     setCenter({ lat: place.lat, lng: place.lng });
+    setConstructionYear(place.constructionYear);
+    setHeatingType(place.heatingType);
+    setEnergyClass(place.energyClass);
+    setHeatingMedium(place.heatingmedium);
+    setMonthlyExpenses(place.commonExpenses);
+    setisSuitableForStudents(place.isStudentLive);
+    setZones(place.zones);
+    setLevel(place.level);
+    setOrientation(place.orientation);
+    setTopFloor(place.topFloor);
+    setNeighborhood(place.neighborhood);
+    setSubArea(place.subArea);
+    setFloor(place.floor);
+    setTopFloor(place.topFloor);
+    setOrientation(place.orientation);
+    setLevel(place.level);
+    setZones(place.zones);
+    setPropetyStyle(place.propertyStyle);
+    setConstructionYear(place.constructionYear);
+    setHeatingType(place.heatingType);
+    setEnergyClass(place.energyClass);
+    setHeatingMedium(place.heatingmedium);
   };
 
   const [page2, setPage2] = useState<Page2State>({
@@ -102,6 +290,22 @@ const PageAddListing2: FC = () => {
     state,
     postalCode,
     center,
+    address,
+    area,
+    subarea,
+    neighbourhood,
+    floor,
+    isTopFloor,
+    orientation,
+    levels,
+    zones,
+    propertyStyle,
+    isSuitableForStudents,
+    monthlyExpenses,
+    heatingMedium,
+    energyClass,
+    heatingType,
+    constructionYear,
   });
 
   useEffect(() => {
@@ -112,10 +316,48 @@ const PageAddListing2: FC = () => {
       state,
       postalCode,
       center,
+      address,
+      area,
+      subarea,
+      neighbourhood,
+      floor,
+      isTopFloor,
+      orientation,
+      levels,
+      zones,
+      propertyStyle,
+      isSuitableForStudents,
+      monthlyExpenses,
+      heatingMedium,
+      energyClass,
+      heatingType,
+      constructionYear,
     };
     setPage2(newPage2);
     localStorage.setItem("page2", JSON.stringify(newPage2));
-  }, [country, street, city, state, postalCode, center]);
+  }, [
+    country,
+    street,
+    city,
+    state,
+    postalCode,
+    center,
+    area,
+    subarea,
+    neighbourhood,
+    floor,
+    isTopFloor,
+    orientation,
+    levels,
+    zones,
+    propertyStyle,
+    isSuitableForStudents,
+    monthlyExpenses,
+    heatingMedium,
+    energyClass,
+    heatingType,
+    constructionYear,
+  ]);
 
   // Validation function
   const [isValidForm, setIsValidForm] = useState(false);
@@ -177,7 +419,6 @@ const PageAddListing2: FC = () => {
           </SelectContent>{" "}
         </Select>{" "}
       </FormItem>
-
       <div className="flex flex-col my-4">
         <div className="ml-2 ">
           <LoadScript
@@ -197,25 +438,29 @@ const PageAddListing2: FC = () => {
             <Input
               placeholder="..."
               value={street}
-              onChange={(e) => setStreet(e.target.value.trim())}
+              onChange={(e) => {
+                const trimmedValue = e.target.value.replace(/\s{2,}/g, " ");
+                setStreet(trimmedValue);
+              }}
             />
           </FormItem>
         </div>
       </div>
-
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-5">
           <FormItem label="City">
             <Input
               value={city}
-              onChange={(e) => setCity(e.target.value.trim())}
+              onChange={(e) => {
+                const trimmedValue = e.target.value
+                  .trim()
+                  .replace(/\s{2,}/g, " ");
+                setCity(trimmedValue);
+              }}
             />
           </FormItem>
           <FormItem label="State">
-            <Input
-              value={state}
-              onChange={(e) => setState(e.target.value.trim())}
-            />
+            <Input value={state} onChange={(e) => setState(e.target.value)} />
           </FormItem>
           <FormItem label="Postal code">
             <Input
@@ -223,7 +468,7 @@ const PageAddListing2: FC = () => {
               onChange={(e) => setPostalCode(e.target.value.trim())}
             />
           </FormItem>
-          <div>
+          <div className="ml-3">
             <h1>Coordinates</h1>
             <div className="flex gap-32 w-full mt-2">
               <div className="flex gap-2">
@@ -238,7 +483,7 @@ const PageAddListing2: FC = () => {
           </div>
         </div>
 
-        <div>
+        <div className="ml-3">
           <label htmlFor="">Detailed Address</label>
           <div className="mt-1 text-sm  text-neutral-500 dark:text-neutral-400 flex gap-x-3">
             <h2 className="flex gap-x-1">
@@ -261,6 +506,261 @@ const PageAddListing2: FC = () => {
           </div>
         </div>
       </div>
+
+      {/* This code only rebder if the rentalType is Longterm */}
+      {(type === "Long Term" || type === "Both") && (
+        <div>
+          <div className="text-2xl mt-3 font-semibold border-b border-primary pb-2 ">
+            Longterm Input
+          </div>
+          <div className="my-4">
+            <FormItem label="Choose Area">
+              <Select value={area} onValueChange={(value) => setArea(value)}>
+                <SelectTrigger>
+                  <span>{area}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Centre">Centre</SelectItem>
+                  <SelectItem value="East">East</SelectItem>
+                  <SelectItem value="West">West</SelectItem>
+                  <SelectItem value="North">North</SelectItem>
+                  <SelectItem value="South">South</SelectItem>
+                  <SelectItem value="North East">North East</SelectItem>
+                  <SelectItem value="North West">North West</SelectItem>
+                  <SelectItem value="South East">South East</SelectItem>
+                  <SelectItem value="South West">South West</SelectItem>
+                  <SelectItem value="Northeast">Northeast</SelectItem>
+                  <SelectItem value="Northwest">Northwest</SelectItem>
+                  <SelectItem value="Southeast">Southeast</SelectItem>
+                  <SelectItem value="Southwest">Southwest</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="w-full my-3">
+            <FormItem label="SubArea">
+              <Input
+                placeholder="SubArea"
+                value={subarea}
+                onChange={(e) => setSubArea(e.target.value)}
+              />
+            </FormItem>
+          </div>
+          <div className="w-full">
+            <FormItem label="Neighborhood">
+              <Input
+                placeholder="Neighborhood"
+                value={neighbourhood}
+                onChange={(e) => setNeighborhood(e.target.value)}
+              />
+            </FormItem>
+          </div>
+          <div className="w-full">
+            <FormItem label="Floor">
+              <Input
+                type="number"
+                placeholder="How many floor in numbers"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+              />
+            </FormItem>
+          </div>
+
+          <div className="my-4">
+            <FormItem label="Is Topfloor">
+              <Select
+                value={isTopFloor}
+                onValueChange={(value) => setTopFloor(value)}
+              >
+                <SelectTrigger>
+                  <span>{isTopFloor}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+          <div className="my-4">
+            <FormItem label="Orientation">
+              <Select
+                value={orientation}
+                onValueChange={(value) => setOrientation(value)}
+              >
+                <SelectTrigger>
+                  <span>{orientation}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="East-Facing">East-Facing</SelectItem>
+                  <SelectItem value="West-Facing">West-Facing</SelectItem>
+                  <SelectItem value="Nort-Facing">Nort-Facing</SelectItem>
+                  <SelectItem value="South-Facing">South-Facing</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="w-full">
+            <FormItem label="Level">
+              <Input
+                type="number"
+                placeholder="How many level "
+                value={levels}
+                min={0}
+                max={50}
+                inputMode="decimal"
+                onChange={(e) => setLevel(e.target.value)}
+              />
+            </FormItem>
+          </div>
+          <div className="my-4">
+            <FormItem label="Zone">
+              <Select value={zones} onValueChange={(value) => setZones(value)}>
+                <SelectTrigger>
+                  <span>{zones}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem defaultValue={"Residential"} value="Residential">
+                    Residential
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+          <div className="my-4">
+            <FormItem label="Property Style">
+              <Select
+                value={propertyStyle}
+                onValueChange={(value) => setPropetyStyle(value)}
+              >
+                <SelectTrigger>
+                  <span>{propertyStyle}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Renovated">Renovated</SelectItem>
+                  <SelectItem value="Unfinished">Unfinished</SelectItem>
+                  <SelectItem value="Luxury">Luxury</SelectItem>
+                  <SelectItem value="Under-Construction">
+                    Under Construction
+                  </SelectItem>
+                  <SelectItem value="Neo-Classical">NeoClassical</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="my-4">
+            <FormItem label="Heating Medium">
+              <Select
+                value={heatingMedium}
+                onValueChange={(value) => setHeatingMedium(value)}
+              >
+                <SelectTrigger>
+                  <span>{heatingMedium}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Petrol">Petrol</SelectItem>
+                  <SelectItem value="Natural-gas">Natural gas</SelectItem>
+                  <SelectItem value="Luxury">Luxury</SelectItem>
+                  <SelectItem value="Under-Construction">
+                    Under Construction
+                  </SelectItem>
+                  <SelectItem value="Gas-heating-system">
+                    Gas heating system
+                  </SelectItem>
+                  <SelectItem value="Current">Current</SelectItem>
+                  <SelectItem value="Stove">Stove</SelectItem>
+                  <SelectItem value="Thermal-accumulator">
+                    Thermal accumulator
+                  </SelectItem>
+                  <SelectItem value="Pellet">Pellet</SelectItem>
+                  <SelectItem value="Infrared">Infrared</SelectItem>
+                  <SelectItem value="Fan-coil">Fan coil</SelectItem>
+                  <SelectItem value="Wood">Wood</SelectItem>
+                  <SelectItem value="Teleheating">Teleheating</SelectItem>
+                  <SelectItem value="Geothermal-energy">
+                    Geothermal energy
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="my-4">
+            <FormItem label="Heating Type">
+              <Select
+                value={heatingType}
+                onValueChange={(value) => setHeatingType(value)}
+              >
+                <SelectTrigger>
+                  <span>{heatingType}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Autonomous-Heating">
+                    Autonomous Heating
+                  </SelectItem>
+                  <SelectItem value="Central-Heating">
+                    Central Heating
+                  </SelectItem>
+                  <SelectItem value="None">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="my-4">
+            <FormItem label="Is it suitable for Student">
+              <Select
+                value={isSuitableForStudents}
+                onValueChange={(value) => setisSuitableForStudents(value)}
+              >
+                <SelectTrigger>
+                  <span>{isSuitableForStudents}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </div>
+
+          <div className="w-full my-3">
+            <FormItem label="Energy Class">
+              <Input
+                type="text"
+                placeholder="Energy Class"
+                value={energyClass}
+                onChange={(e) => setEnergyClass(e.target.value)}
+              />
+            </FormItem>
+          </div>
+
+          <div className="w-full my-3">
+            <FormItem label="Construction Year">
+              <Input
+                type="text"
+                placeholder="Construction Year"
+                value={constructionYear}
+                onChange={(e) => setConstructionYear(e.target.value)}
+              />
+            </FormItem>
+          </div>
+
+          <div className="w-full my-3">
+            <FormItem label="Monthly Expenses">
+              <Input
+                type="number"
+                placeholder="Common expenses"
+                value={monthlyExpenses}
+                onChange={(e) => setMonthlyExpenses(e.target.value)}
+              />
+            </FormItem>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 flex gap-x-4 ml-2 mb-4">
         <Link

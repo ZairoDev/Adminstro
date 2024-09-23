@@ -155,7 +155,6 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
   ]);
 
   const isFormValid = () => {
-    // Check if any of the arrays contain empty strings or zeros
     const allFieldsFilled = [
       portionName,
       portionSize,
@@ -163,7 +162,6 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
       bedrooms,
       beds,
       bathroom,
-      kitchen,
       childrenAge,
     ].every((array) => array.every((value) => value !== "" && value !== 0));
 
@@ -199,12 +197,9 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
             <h2 className="text-sm font-semibold mt-2 ml-2">
               Name of {myArray.length > 1 ? `Portion ${index + 1}` : `Property`}{" "}
             </h2>
-            <div className="bg-primary   h-8 w-8 z-10 rounded-lg absolute -top-5 -left-5 flex items-center justify-center">
-              <p className="dark:text-black  text-white">
-                {myArray.length > 1 ? `${index + 1}` : `1`}
-              </p>
+            <div className="bg-primary text-foreground h-8 w-8 z-10 rounded-lg absolute -top-5 -left-5 flex items-center justify-center">
+              <p className="">{myArray.length > 1 ? `${index + 1}` : `1`}</p>
             </div>
-
             <Input
               required
               type="text"

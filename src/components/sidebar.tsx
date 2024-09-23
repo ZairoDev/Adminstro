@@ -13,26 +13,74 @@ import {
 } from "@/components/ui/popover";
 import ScreenLoader from "./ScreenLoader";
 import { LogoutButton } from "./logoutAlertBox";
-import { ArrowRight, PanelTopOpen } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheckBig,
+  PencilRuler,
+  TableOfContents,
+  User2Icon,
+} from "lucide-react";
 
 // Function to determine if a route is active
+// Function to determine if a route is active
 const isActive = (currentPath: string, path: string): boolean =>
-  currentPath === path;
+  currentPath.startsWith(path);
 
-const roleRoutes = {
+// Define the Route type
+type Route = {
+  path: string;
+  label: string;
+  Icon?: JSX.Element;
+};
+// Define roleRoutes with the Route type
+const roleRoutes: Record<string, Route[]> = {
   Advert: [
-    { path: "/dashboard/user", label: "Manage User" },
-    { path: "/dashboard/property", label: "Manage Property" },
+    {
+      path: "/dashboard/user",
+      label: "Manage User",
+      Icon: <User2Icon size={18} />,
+    },
+    {
+      path: "/dashboard/property",
+      label: "Manage Task",
+      Icon: <CircleCheckBig size={18} />,
+    },
   ],
   Admin: [
-    { path: "/dashboard/user", label: "Manage User" },
-    { path: "/dashboard/property", label: "Manage Property" },
+    {
+      path: "/dashboard/user",
+      label: "Manage User",
+      Icon: <User2Icon size={18} />,
+    },
+    {
+      path: "/dashboard/property",
+      label: "Manage Task",
+      Icon: <CircleCheckBig size={18} />,
+    },
   ],
-  Content: [{ path: "/dashboard/property", label: "Manage Property" }],
+  Content: [
+    {
+      path: "/dashboard/property",
+      label: "Manage Property",
+      Icon: <TableOfContents size={18} />,
+    },
+  ],
   SuperAdmin: [
-    { path: "/dashboard/user", label: "Manage User" },
-    { path: "/dashboard/property", label: "Manage Property" },
-    { path: "/dashboard/createnewEmployee", label: "Create Employee" },
+    {
+      path: "/dashboard/user",
+      label: "Manage User",
+      Icon: <User2Icon size={18} />,
+    },
+    {
+      path: "/dashboard/property",
+      label: "Manage Task",
+      Icon: <CircleCheckBig size={18} />,
+    },
+    {
+      path: "/dashboard/createnewEmployee",
+      label: "Create Employee",
+      Icon: <PencilRuler size={18} />,
+    },
   ],
 };
 
@@ -60,9 +108,11 @@ export function Sidebar() {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     getUserRole();
   }, []);
+
   const renderRoutes = () => {
     if (isLoading) {
       return <ScreenLoader />;
@@ -82,15 +132,16 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? " bg-primary text-primary-foreground rounded-l-lg  "
+            ? "bg-primary text-primary-foreground rounded-l-lg"
             : ""
         }`}
       >
         <Link
           href={route.path}
-          className="block rounded-l-lg px-4 py-2  hover:bg-primary/20"
+          className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20"
         >
-          {route.label}
+          {route.Icon && route.Icon}
+          <span>{route.label}</span>
         </Link>
       </li>
     ));
@@ -99,7 +150,7 @@ export function Sidebar() {
   return (
     <>
       {/* Sidebar for large screens */}
-      <div className="hidden lg:block w-64  border-r fixed h-screen">
+      <div className="hidden lg:block w-64 border-r fixed h-screen">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold p-4">Dashboard</h2>
           <div className="mr-1">
@@ -108,17 +159,17 @@ export function Sidebar() {
         </div>
         <div>
           <nav className="flex flex-col justify-between flex-grow">
-            <ul className="flex-grow ">{renderRoutes()}</ul>
-            <ul className="absolute bottom-0 ">
+            <ul className="flex-grow">{renderRoutes()}</ul>
+            <ul className="absolute bottom-0">
               <Popover>
-                <PopoverTrigger className="cursor-pointer flex border-t-white/40 items-center gap-x-2 justify-center   w-64 p-2     ">
+                <PopoverTrigger className="cursor-pointer flex border-t-white/40 items-center gap-x-2 justify-center w-64 p-2">
                   {currentUser} <ArrowRight size={18} />
                 </PopoverTrigger>
                 <PopoverContent className="w-64">
-                  <div className="">
+                  <div>
                     <p className="text-xs mb-2">
-                      Tap to logout from here to choose some diffrent route to
-                      acess
+                      Tap to logout from here to choose some different route to
+                      access
                     </p>
                     <LogoutButton />
                   </div>
@@ -132,36 +183,33 @@ export function Sidebar() {
       {/* Sidebar for smaller screens */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <div className="lg:hidden ">
-            <GiHamburgerMenu className="text-2xl  border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
+          <div className="lg:hidden">
+            <GiHamburgerMenu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
           </div>
         </SheetTrigger>
 
-        <SheetContent side="left" className="w-[17rem]  ">
+        <SheetContent side="left" className="w-[17rem]">
           <div className="flex items-center mb-2 justify-between">
-            <h2 className="text-2xl font-bold ">Dashboard</h2>
+            <h2 className="text-2xl font-bold">Dashboard</h2>
             <div className="-mr-3">
               <ModeToggle />
             </div>
           </div>
           <nav className="w-[15.5rem]">
-            <ul className="">{renderRoutes()}</ul>
-            <ul>
-              {" "}
-              <ul className=" fixed bottom-0  ">
-                <Popover>
-                  <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center  p-2 ">
-                    {currentUser} <ArrowRight size={18} />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[248px]">
-                    <p className="text-xs mb-2">
-                      Tap to logout from here to choose some diffrent route to
-                      acess
-                    </p>
-                    <LogoutButton />
-                  </PopoverContent>
-                </Popover>
-              </ul>
+            <ul>{renderRoutes()}</ul>
+            <ul className="fixed bottom-0">
+              <Popover>
+                <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center p-2">
+                  {currentUser} <ArrowRight size={18} />
+                </PopoverTrigger>
+                <PopoverContent className="w-[248px]">
+                  <p className="text-xs mb-2">
+                    Tap to logout from here to choose some different route to
+                    access
+                  </p>
+                  <LogoutButton />
+                </PopoverContent>
+              </Popover>
             </ul>
           </nav>
         </SheetContent>

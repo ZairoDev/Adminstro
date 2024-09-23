@@ -29,7 +29,7 @@ export default function TablePage() {
         });
         setData(response.data.allUsers);
         setTotalUser(response.data.totalUsers);
-        setTotalPages(Math.ceil(response.data.totalUsers / 20)); 
+        setTotalPages(Math.ceil(response.data.totalUsers / 10)); 
       } catch (error) {
         console.log(error);
       } finally {

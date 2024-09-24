@@ -208,9 +208,6 @@ const Page = ({ params }: PageProps) => {
 
   return (
     <>
-      <Link className=" inline-block" href="/dashboard/property">
-        <ArrowLeft size={18} />
-      </Link>
       <div className="max-w-6xl p-2 m-auto ">
         {loading ? (
           <div className="flex items-center justify-center h-screen w-full">

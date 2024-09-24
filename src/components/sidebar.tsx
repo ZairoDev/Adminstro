@@ -15,7 +15,10 @@ import ScreenLoader from "./ScreenLoader";
 import { LogoutButton } from "./logoutAlertBox";
 import {
   ArrowRight,
+  BadgePlus,
+  CheckCheck,
   CircleCheckBig,
+  CornerLeftUp,
   PencilRuler,
   TableOfContents,
   User2Icon,
@@ -26,7 +29,7 @@ import {
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
 
-// Define the Route type
+// Define the Route ty
 type Route = {
   path: string;
   label: string;
@@ -60,9 +63,14 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   Content: [
     {
-      path: "/dashboard/property",
-      label: "Manage Property",
-      Icon: <TableOfContents size={18} />,
+      path: "/dashboard/remainingproperties",
+      label: "Remaining Task",
+      Icon: <CornerLeftUp size={18} />,
+    },
+    {
+      path: "/dashboard/completedproperties",
+      label: "Completed Task",
+      Icon: <CheckCheck size={18} />,
     },
   ],
   SuperAdmin: [
@@ -79,7 +87,17 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/createnewEmployee",
       label: "Create Employee",
-      Icon: <PencilRuler size={18} />,
+      Icon: <BadgePlus size={18} />,
+    },
+    {
+      path: "/dashboard/remainingproperties",
+      label: "Leftover Task",
+      Icon: <CornerLeftUp size={18} />,
+    },
+    {
+      path: "/dashboard/completedproperties",
+      label: "Completed Task",
+      Icon: <CheckCheck size={18} />,
     },
   ],
 };

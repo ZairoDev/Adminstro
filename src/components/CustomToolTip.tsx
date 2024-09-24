@@ -12,6 +12,7 @@ interface CustomToolTipProps{
   text?: string;
   desc?: string;
   className?: string;
+  
 }
 
 const CustomTooltip = ({ className, icon, content, desc, text }: CustomToolTipProps) => {

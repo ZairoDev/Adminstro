@@ -445,6 +445,7 @@ const PropertyPage: React.FC = () => {
 
                       {userRole === "Content" && (
                         <Button
+                          disabled={!property?.isLive}
                           variant="outline"
                           className="w-full"
                           onClick={() => handleEditDescription(property?._id)}
@@ -464,23 +465,23 @@ const PropertyPage: React.FC = () => {
       {/* Pagination Section */}
       <div className="text-xs w-full">
         <Pagination className="flex flex-wrap items-center w-full">
-          <PaginationPrevious
+          {/* <PaginationPrevious
             className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page - 1)}
           >
-            {/* Previous */}
-          </PaginationPrevious>
+           
+          </PaginationPrevious> */}
 
           <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
             {renderPaginationItems()}
           </PaginationContent>
 
-          <PaginationNext
+          {/* <PaginationNext
             className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page + 1)}
           >
-            {/* Next */}
-          </PaginationNext>
+           
+          </PaginationNext> */}
         </Pagination>
       </div>
     </div>

@@ -36,11 +36,11 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Content: [
     "/dashboard/property",
     "/dashboard/property/",
-    /^\/dashboard\/property$/,
+    /^\/dashboard\/remainingproperties$/,
+    /^\/dashboard\/completedproperties$/,
     /^\/dashboard\/property\/description\/.*$/,
   ],
 };
-
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/user",
   Admin: "/dashboard/user",

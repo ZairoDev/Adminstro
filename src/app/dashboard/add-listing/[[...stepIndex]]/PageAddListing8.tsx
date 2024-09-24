@@ -210,24 +210,11 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
     }
   };
 
-  const isFormValid = () => {
-    const allFieldsFilled = [basePrice, weekendPrice].every((array) =>
-      array.every((value) => value !== 0 && value !== 0)
-    );
-    console.log("Runnig ");
-    return allFieldsFilled;
-  };
-  const [isValidForm, setIsValidForm] = useState<boolean>(false);
-  useEffect(() => {
-    setIsValidForm(isFormValid());
-    console.log(isValidForm);
-  }, [basePrice, weekendPrice]);
-
   return (
     <>
       <div className=" flex flex-col gap-12">
         <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-          Select appropriate  Pricing
+          Select appropriate Pricing
         </h2>
         {rentalType && rentalType == "Both" && (
           <div className="">
@@ -464,7 +451,7 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Button disabled={!isValidForm}>
+        <Button>
           <Link
             href={{
               pathname: `/dashboard/add-listing/9`,

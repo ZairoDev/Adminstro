@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { UserInterface } from "@/util/type";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { sub } from "date-fns";
 
 export interface PageAddListing10Props {}
 
@@ -81,6 +82,22 @@ interface CombinedData {
   night: number[];
   time: number[];
   datesPerPortion: number[][];
+
+  area?: string;
+  subarea?: string;
+  neighbourhood?: string;
+  floor?: number;
+  isTopFloor?: string;
+  constructionYear?: number;
+  energyClass?: string;
+  heatingMedium?: string;
+  heatingType?: string;
+  isSuitableForStudents?: string;
+  levels?: string;
+  monthlyExpenses?: string;
+  orientation?: string;
+  zones?: string;
+  propertyStyle?: string;
 
   rentalType?: string;
   basePriceLongTerm?: number[];
@@ -198,6 +215,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     };
 
     const data = fetchDataFromLocalStorage();
+    console.log(data , "Hello I am here");
   }, []);
 
   const [propertyId, setPropertyId] = useState<string>();
@@ -286,6 +304,22 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
       hostedBy: loggedInUserEmail,
 
+      area: combinedData?.area,
+      subarea: combinedData?.subarea,
+      constructionYear: combinedData?.constructionYear,
+      floor: combinedData?.floor,
+      isTopFloor: combinedData?.isTopFloor,
+      orientation: combinedData?.orientation,
+      levels: combinedData?.levels,
+      zones: combinedData?.zones,
+      propertyStyle: combinedData?.propertyStyle,
+      isSuitableForStudents: combinedData?.isSuitableForStudents,
+      monthlyExpenses: combinedData?.monthlyExpenses,
+      heatingMedium: combinedData?.heatingMedium,
+      energyClass: combinedData?.energyClass,
+      heatingType: combinedData?.heatingType,
+      neighbourhood: combinedData?.neighbourhood,
+
       rentalType: combinedData?.rentalType,
       basePriceLongTerm: combinedData?.basePriceLongTerm,
       monthlyDiscount: combinedData?.monthlyDiscount,
@@ -295,11 +329,13 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
+      console.log(data , "Hello i am here look at me ");
       if (response.status === 200) {
         console.log("Property is now live");
         setIsLiveDisabled(true);
         setPropertyVSID(response.data.VSID);
         setPropertyId(response.data._id);
+        console.log(data, "The whole data that going to be livel");
         toast({
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
@@ -313,6 +349,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         description:
           "There are some issues with your request. Please try again.",
       });
+      console.log(error);
+      console.log(data)
     } finally {
       setIsLoading(false);
     }

@@ -1,9 +1,10 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { customAlphabet } from 'nanoid';
+import mongoose, { Document, Schema } from "mongoose";
+import { customAlphabet } from "nanoid";
 
 // VSID Generator Function
 const generateVSID = (length: number): string => {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charset =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const generateUniqueId = customAlphabet(charset, length);
   return generateUniqueId();
 };
@@ -15,7 +16,7 @@ export interface IProperty extends Document {
   userId: string;
   propertyType?: string;
   placeName?: string;
-  newPlaceName:string,
+  newPlaceName: string;
   rentalForm?: string;
   numberOfPortions: number;
   street?: string;
@@ -94,7 +95,7 @@ const PropertySchema: Schema = new Schema(
     },
     rentalType: {
       type: String,
-      default: 'Short Term',
+      default: "Short Term",
     },
     userId: {
       type: String,
@@ -102,7 +103,7 @@ const PropertySchema: Schema = new Schema(
     },
     propertyType: String,
     placeName: String,
-    newPlaceName:String,
+    newPlaceName: String,
     rentalForm: String,
     numberOfPortions: {
       type: Number,
@@ -184,7 +185,7 @@ const PropertySchema: Schema = new Schema(
     hostedBy: String,
     listedOn: {
       type: [String],
-      default: ["VacationSaga"]
+      default: ["VacationSaga"],
     },
     lastUpdatedBy: {
       type: [String],
@@ -204,4 +205,5 @@ const PropertySchema: Schema = new Schema(
 
 // Property Model Export
 export const Property =
-  mongoose.models?.listings || mongoose.model<IProperty>('listings', PropertySchema);
+  mongoose.models?.listings ||
+  mongoose.model<IProperty>("listings", PropertySchema);

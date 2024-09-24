@@ -12,7 +12,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-
 import { Input } from "@/components/ui/input";
 import LocationMap from "@/components/LocationMap";
 import Link from "next/link";
@@ -96,7 +95,7 @@ const PageAddListing2: FC = () => {
     if (!saved) {
       return "";
     } else {
-      return JSON.parse(saved)["heatingmedium"];
+      return JSON.parse(saved)["heatingMedium"];
     }
   });
 
@@ -105,16 +104,16 @@ const PageAddListing2: FC = () => {
     if (!saved) {
       return "";
     } else {
-      return JSON.parse(saved)["commonExpenses"];
+      return JSON.parse(saved)["monthlyExpenses"];
     }
   });
 
   const [isSuitableForStudents, setisSuitableForStudents] = useState(() => {
     const saved = localStorage.getItem("page2");
     if (!saved) {
-      return "";
+      return true;
     } else {
-      return JSON.parse(saved)["isStudentLive"];
+      return JSON.parse(saved)["isSuitableForStudents"] || true;
     }
   });
 
@@ -141,7 +140,7 @@ const PageAddListing2: FC = () => {
     if (!saved) {
       return "";
     } else {
-      return JSON.parse(saved)["level"];
+      return JSON.parse(saved)["levels"];
     }
   });
 
@@ -157,9 +156,9 @@ const PageAddListing2: FC = () => {
   const [isTopFloor, setTopFloor] = useState(() => {
     const saved = localStorage.getItem("page2");
     if (!saved) {
-      return "";
+      return false;
     } else {
-      return JSON.parse(saved)["topFloor"];
+      return JSON.parse(saved)["isTopFloor"] || false;
     }
   });
 
@@ -177,7 +176,7 @@ const PageAddListing2: FC = () => {
     if (!saved) {
       return "";
     } else {
-      return JSON.parse(saved)["neighborhood"];
+      return JSON.parse(saved)["neighbourhood"];
     }
   });
 
@@ -252,8 +251,8 @@ const PageAddListing2: FC = () => {
     setCity(place.city);
     setStreet(place.street);
     setPostalCode(place.postalCode);
-    setArea(place.whereExist);
-    setNeighborhood(place.neighborhood);
+    setArea(place.area);
+    setNeighborhood(place.neighbourhood);
     setSubArea(place.subArea);
     setFloor(place.floor);
     setTopFloor(place.topFloor);
@@ -267,20 +266,7 @@ const PageAddListing2: FC = () => {
     setisSuitableForStudents(place.isStudentLive);
     setZones(place.zones);
     setLevel(place.level);
-    setOrientation(place.orientation);
-    setTopFloor(place.topFloor);
-    setNeighborhood(place.neighborhood);
-    setSubArea(place.subArea);
-    setFloor(place.floor);
-    setTopFloor(place.topFloor);
-    setOrientation(place.orientation);
-    setLevel(place.level);
-    setZones(place.zones);
     setPropetyStyle(place.propertyStyle);
-    setConstructionYear(place.constructionYear);
-    setHeatingType(place.heatingType);
-    setEnergyClass(place.energyClass);
-    setHeatingMedium(place.heatingmedium);
   };
 
   const [page2, setPage2] = useState<Page2State>({
@@ -577,8 +563,8 @@ const PageAddListing2: FC = () => {
                   <span>{isTopFloor}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Yes">Yes</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="true">true</SelectItem>
+                  <SelectItem value="false">false</SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>
@@ -720,8 +706,8 @@ const PageAddListing2: FC = () => {
                   <span>{isSuitableForStudents}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Yes">Yes</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="true">True</SelectItem>
+                  <SelectItem value="false">False</SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>
@@ -741,7 +727,7 @@ const PageAddListing2: FC = () => {
           <div className="w-full my-3">
             <FormItem label="Construction Year">
               <Input
-                type="text"
+                type="number"
                 placeholder="Construction Year"
                 value={constructionYear}
                 onChange={(e) => setConstructionYear(e.target.value)}

@@ -91,6 +91,22 @@ export interface Property {
   time?: number[];
   datesPerPortion?: number[][];
 
+  area: string;
+  subarea?: string;
+  neighbourhood?: string;
+  floor?: number;
+  isTopFloor?: boolean;
+  orientation?: string;
+  levels?: number;
+  zones?: string;
+  propertyStyle?: string;
+  isSuitableForStudents?: boolean;
+  monthlyExpenses?: string;
+  heatingMedium?: string;
+  energyClass?: string;
+  heatingType?: string;
+  constructionYear?: string;
+
   hostedFrom?: string;
   hostedBy?: string;
   listedOn?: string[];

@@ -1,11 +1,16 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MdAdsClick, MdCancel } from "react-icons/md";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { HiArrowNarrowLeft } from "react-icons/hi";
 import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
-import { Property, propertyTypes, rentalTypes } from "@/util/type";
+import {
+  imageInterface,
+  Property,
+  propertyTypes,
+  rentalTypes,
+} from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IoRemoveSharp } from "react-icons/io5";
@@ -35,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { FaCloudUploadAlt } from "react-icons/fa";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Elsie_Swash_Caps } from "next/font/google";
 
 interface PageProps {
   params: {
@@ -65,6 +71,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
+
+  // ! array to delete images from bunny
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+  const [imageDeleteObject, setImageDeleteObj] =
+    useState<Partial<imageInterface>>();
+  const [refreshFetchProperty, setRefreshFetchProperty] =
+    useState<boolean>(false);
 
   const [deletingImage, setDeletingImage] = useState<string | undefined>("");
   const { toast } = useToast();
@@ -176,6 +189,17 @@ const EditPropertyPage = ({ params }: PageProps) => {
           setPropertyCoverFileUrl(response.data.propertyCoverFileUrl);
           setPortionCoverFileUrls(response.data.portionCoverFileUrls);
           setPortionPictureUrls(response.data.portionPictureUrls);
+          const imgDeleteObj = {
+            propertyCoverFileUrl: [],
+            propertyPictureUrls: [],
+            portionCoverFileUrls: [],
+            portionPictureUrls: Array(
+              response.data.portionCoverFileUrls.length
+            ).fill("00000"),
+          };
+          console.log("imgDeleteObj", imgDeleteObj);
+          setImageDeleteObj(imgDeleteObj);
+
           setLoading(false);
         } catch (error: any) {
           console.error("Error fetching property:", error);
@@ -187,7 +211,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
       fetchProperty();
     }
-  }, [params.id]);
+  }, [params.id, refreshFetchProperty]);
 
   useEffect(() => {
     if (property) {
@@ -633,118 +657,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // TODO Handling property picture ends from here
 
-  const handleDelete = async (
-    deletedIndex: number,
-    typeOfImage: string,
-    imageUrl: string | undefined,
-    portionIndex?: number
-  ) => {
-    console.log("Image URL:", imageUrl);
-    console.log("Image Type:", typeOfImage);
-    console.log("Deleted Index:", deletedIndex);
-    console.log("Portion Index:", portionIndex);
-
-    if (!imageUrl) {
-      alert("No image URL provided");
-      return;
-    }
-    setDeletingImage(imageUrl);
-
-    try {
-      const backendDeleteResponse = await axios.delete(
-        "/api/editproperty/deleteimage",
-        {
-          data: {
-            id: params.id[0],
-            url: imageUrl,
-            index: deletedIndex,
-            type: typeOfImage,
-            portionIndex: portionIndex,
-          },
-        }
-      );
-
-      try {
-        const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-        const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-        const filePath = imageUrl.split("https://vacationsaga.b-cdn.net/")[1];
-
-        const deleteOptions = {
-          method: "DELETE",
-          url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
-          headers: { AccessKey: accessKey },
-        };
-
-        const bunnyDeleteResponse = await axios(deleteOptions);
-        console.log("Bunny CDN file deleted:", bunnyDeleteResponse.data);
-      } catch (bunnyError) {
-        console.error("Error deleting file from Bunny CDN:", bunnyError);
-        toast({
-          variant: "destructive",
-          title: "Bunny CDN Deletion failed",
-          description:
-            "Some error occurred while deleting the image from Bunny CDN. Please try again later.",
-        });
-        return;
-      }
-
-      let updatedFormData = { ...formData };
-
-      switch (typeOfImage) {
-        case "propertyCoverFileUrl":
-          updatedFormData.propertyCoverFileUrl = "";
-          portionCoverFileUrls.splice(deletedIndex, 1, "");
-          break;
-        case "propertyPictureUrls":
-          updatedFormData.propertyPictureUrls =
-            formData?.propertyPictureUrls?.filter(
-              (url, index) => index !== deletedIndex
-            );
-          propertyPictureUrls.splice(deletedIndex, 1);
-          break;
-        case "portionCoverFileUrls":
-          const newArr = [...portionCoverFileUrls];
-          portionCoverFileUrls[deletedIndex] = "";
-          setPortionCoverFileUrls(newArr);
-          updatedFormData.portionCoverFileUrls =
-            formData?.portionCoverFileUrls?.map((url, index) =>
-              index === deletedIndex ? "" : url
-            );
-          break;
-        case "portionPictureUrls":
-          if (portionIndex !== undefined) {
-            updatedFormData.portionPictureUrls =
-              formData?.portionPictureUrls?.map((portion, index) =>
-                index === portionIndex
-                  ? portion.filter((url, idx) => idx !== deletedIndex)
-                  : portion
-              );
-          }
-          break;
-        default:
-          console.error("Invalid image type");
-          return;
-      }
-      setFormData(updatedFormData);
-      toast({
-        title: "Deletion Successful",
-        description:
-          "Image was deleted successfully. This action cannot be undone.",
-      });
-    } catch (error: any) {
-      console.error("Error deleting file:", error);
-      console.log(error?.response?.data);
-      toast({
-        variant: "destructive",
-        title: "Deletion failed",
-        description:
-          "Some error occurred while deleting the image. Please try again later.",
-      });
-    } finally {
-      setDeletingImage("");
-    }
-  };
-
   const [loadingProperty, setLoadingproperty] = useState(false);
   const handleSubmit = async () => {
     const newFormData = { ...formData };
@@ -764,6 +676,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
           title: "Success",
           description: "Property updated successfully!",
         });
+        setRefreshFetchProperty((prev) => !prev);
       } else {
         toast({
           variant: "destructive",
@@ -792,8 +705,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }));
   };
 
-  // TODO for handling the addition rule
-  // Add new rule to additionalRules array
+  // TODO Additional Rules
   const handleAddRule = () => {
     setFormData((prevState) => ({
       ...prevState,
@@ -801,7 +713,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }));
   };
 
-  // Update a specific rule
+  //! Update a specific rule
   const handleRuleChange = (index: number, value: string) => {
     const updatedRules = [...(formData.additionalRules || [])];
     updatedRules[index] = value;
@@ -811,7 +723,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }));
   };
 
-  // Remove a rule from additionalRules array
+  //! Remove a rule from additionalRules array
   const handleRemoveRule = (index: number) => {
     const updatedRules = [...(formData.additionalRules || [])];
     updatedRules.splice(index, 1);
@@ -856,6 +768,417 @@ const EditPropertyPage = ({ params }: PageProps) => {
     Array.from({ length: numberOfPortions }, () => false)
   );
 
+  // TODO: portionContent - render portion content only if numberOfPortions is greater than 1
+  const portionContent = (index: number) => {
+    return (
+      <>
+        {/* // ! portion name */}
+        <div>
+          <label className="text-xs" htmlFor="portionName">
+            Portion&apos;s Name
+            <Input
+              type="text"
+              name="cooking"
+              value={formData?.portionName?.at(index) || ""}
+              onChange={(e) => {
+                const newFormData = { ...formData };
+                newFormData?.portionName?.splice(index, 1, e.target.value);
+                setFormData(newFormData);
+              }}
+            />
+          </label>
+        </div>
+
+        {/* // ! portionSize, guests, bedrooms, beds, bathrooms */}
+        <div className=" flex  md:flex-row flex-col  space-x-4">
+          <div>
+            <label className="text-xs" htmlFor="portionSize">
+              Portion&apos;s Size
+              <Input
+                type="number"
+                min={0}
+                name="portionSize"
+                value={formData?.portionSize?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.portionSize?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="guests">
+              Number Of Guests
+              <Input
+                type="number"
+                name="guests"
+                min={0}
+                value={formData?.guests?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.guests?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="bedrooms">
+              Number Of Bedrooms
+              <Input
+                type="number"
+                name="bedrooms"
+                min={0}
+                value={formData?.bedrooms?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.bedrooms?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="beds">
+              Number Of Beds
+              <Input
+                type="number"
+                name="beds"
+                min={0}
+                value={formData?.beds?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.beds?.splice(index, 1, parseInt(e.target.value));
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="bathroom">
+              Number Of Bathrooms
+              <Input
+                type="number"
+                name="bathroom"
+                min={0}
+                value={formData?.bathroom?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.bathroom?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* // ! number of kitchen, base price, children's age */}
+        <div className=" flex  md:flex-row flex-col  space-x-4">
+          <label
+            className="text-xs mt-2 line-clamp-1"
+            htmlFor="monthlyDiscount"
+          >
+            Weekly Discount {numberOfPortions > 1 ? `Portion ${index + 1}` : ""}
+            <Input
+              type="number"
+              min={0}
+              name="weeklyDiscount"
+              value={formData?.weeklyDiscount?.at(index) || ""}
+              onChange={(e) => {
+                const newFormData = { ...formData };
+                newFormData?.weeklyDiscount?.splice(
+                  index,
+                  1,
+                  parseInt(e.target.value)
+                );
+                setFormData(newFormData);
+              }}
+            />
+          </label>
+
+          <div>
+            <label className="text-xs" htmlFor="kitchen">
+              Number Of Kitchen
+              <Input
+                type="number"
+                name="kitchen"
+                min={0}
+                value={formData?.kitchen?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.kitchen?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="childrenAge">
+              Children&apos;s Age
+              <Input
+                type="number"
+                name="childrenAge"
+                min={0}
+                value={formData?.childrenAge?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.childrenAge?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="basePrice">
+              Base Price of{" "}
+              {numberOfPortions > 1 ? `Portion ${index + 1}` : "Property"}
+              <Input
+                type="number"
+                name="basePrice"
+                min={0}
+                value={formData?.basePrice?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.basePrice?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs" htmlFor="weekendPrice">
+              Weekend Price of{" "}
+              {numberOfPortions > 1 ? `Portion ${index + 1}` : "Property"}
+              <Input
+                type="number"
+                min={0}
+                name="weekendPrice"
+                value={formData?.weekendPrice?.at(index) || ""}
+                onChange={(e) => {
+                  const newFormData = { ...formData };
+                  newFormData?.weekendPrice?.splice(
+                    index,
+                    1,
+                    parseInt(e.target.value)
+                  );
+                  setFormData(newFormData);
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* // ! monthly discount */}
+        <div className=" flex  md:flex-row flex-col  space-x-4">
+          <label className="text-xs line-clamp-1" htmlFor="monthlyDiscount">
+            Monthly Discount For{" "}
+            {numberOfPortions > 1 ? `Portion ${index + 1}` : "Property"}
+            <Input
+              type="number"
+              min={0}
+              name="monthlyDiscount"
+              value={formData?.monthlyDiscount?.at(index) || ""}
+              onChange={(e) => {
+                const newFormData = { ...formData };
+                newFormData?.monthlyDiscount?.splice(
+                  index,
+                  1,
+                  parseInt(e.target.value)
+                );
+                setFormData(newFormData);
+              }}
+            />
+          </label>
+        </div>
+
+        {/* // ! description */}
+        <label className="" htmlFor={`description-${index}`}>
+          Description of{" "}
+          {numberOfPortions > 1 ? `Portion ${index + 1}` : "Property"}
+          <Textarea
+            className="h-32"
+            name="review"
+            value={formData?.reviews?.[index] || ""}
+            onChange={(e) => {
+              const updatedReviews = [...(formData.reviews || [])];
+              updatedReviews[index] = e.target.value;
+              setFormData({
+                ...formData,
+                reviews: updatedReviews,
+              });
+            }}
+          />
+        </label>
+      </>
+    );
+  };
+
+  //TODO: Image Upload Part
+  const handleImageUpload = (
+    event: ChangeEvent<HTMLInputElement>,
+    imageType: string,
+    index: number,
+    portionIndex: number
+  ) => {
+    const file = event?.target?.files?.[0];
+    const files = event?.target?.files;
+    console.log(files, typeof files);
+    if (
+      !file ||
+      !(
+        file.type === "image/jpeg" ||
+        file.type === "image/png" ||
+        file.type === "image/webp"
+      )
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Type Mismatch",
+        description:
+          "We only accept jpeg , png , webp for now try to upload this format",
+      });
+    }
+  };
+
+  // TODO: Image deletion part
+  const handleImageSelect = (
+    checked: string | boolean,
+    imageType: string,
+    imageUrl: string,
+    index: number,
+    portionIndex: number
+  ) => {
+    // * addding & deleting the images from the state array
+    const newArr = [...imagesToDelete];
+    if (newArr.includes(imageUrl)) {
+      const indexToRemove = newArr.indexOf(imageUrl);
+      newArr.splice(indexToRemove, 1);
+    } else {
+      newArr.push(imageUrl);
+    }
+    setImagesToDelete(newArr);
+
+    const newObj = { ...imageDeleteObject };
+
+    if (imageType === "portionPictureUrls") {
+      if (checked) {
+        newObj["portionPictureUrls"]![portionIndex] =
+          newObj["portionPictureUrls"]?.[portionIndex]?.slice(0, index) +
+          "1" +
+          newObj["portionPictureUrls"]?.[portionIndex]?.slice(index + 1);
+      } else {
+        newObj["portionPictureUrls"]![portionIndex] =
+          newObj["portionPictureUrls"]?.[portionIndex]?.slice(0, index) +
+          "0" +
+          newObj["portionPictureUrls"]?.[portionIndex]?.slice(index + 1);
+      }
+    } else {
+      // ! for imageType propertyCoverFileUrl, propertyPictureUrls and portionCoverFileUrls
+      if (checked) {
+        (newObj as any)[imageType]?.push(index);
+      } else {
+        const indexToRemove = (newObj as any)[imageType]!.indexOf(index);
+        (newObj as any)[imageType]!.splice(indexToRemove, 1);
+      }
+    }
+
+    setImageDeleteObj(newObj);
+  }; // ! create an array of urls of all the selected images
+
+  const bunnyImageDelete = async (imageUrl: string) => {
+    try {
+      const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+      const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+      const filePath = imageUrl.split("https://vacationsaga.b-cdn.net/")[1];
+
+      const deleteOptions = {
+        method: "DELETE",
+        url: `https://storage.bunnycdn.com/${storageZoneName}/${filePath}`,
+        headers: { AccessKey: accessKey },
+      };
+
+      const bunnyDeleteResponse = await axios(deleteOptions);
+      console.log("Bunny CDN file deleted:", bunnyDeleteResponse.data);
+    } catch (bunnyError) {
+      console.error("Error deleting file from Bunny CDN:", bunnyError);
+      toast({
+        variant: "destructive",
+        title: "Bunny CDN Deletion failed",
+        description:
+          "Some error occurred while deleting the image from Bunny CDN. Please try again later.",
+      });
+      return;
+    }
+  }; // ! delete the images from bunny storage by running a loop on handleImageSelect
+
+  const handleImageDelete = async () => {
+    try {
+      const response = await axios.post("/api/editproperty/deleteImages", {
+        pId: params.id,
+        data: imageDeleteObject,
+      });
+      toast({
+        title: "Success",
+        description: "Images deleted successfully",
+      });
+      setRefreshFetchProperty((prev) => !prev);
+
+      try {
+        imagesToDelete.forEach((imageUrl) => {
+          bunnyImageDelete(imageUrl);
+        });
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Error deleting image from bunny",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `${err.response.data.error}`,
+      });
+    }
+  }; // ! deletes the images from database and then from bunny
+
   return (
     <>
       <div className="max-w-6xl p-2 mx-auto ">
@@ -882,34 +1205,48 @@ const EditPropertyPage = ({ params }: PageProps) => {
                 <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
                   <div className="">
                     <h1>Cover Image</h1>
-                    <div className="border-b min-h-60 pb-2 rounded-lg flex items-center justify-center relative ">
-                      <div className=" absolute bottom-0 right-0 ">
-                        <label htmlFor={`file-upload-propetyCoverFile`}>
-                          <div className="text-xs  flex flex-col-reverse items-center dark:hover:bg-white/10 border  rounded-lg py-4 px-2">
+                    <div className="border min-h-60 pb-2 rounded-lg flex items-center justify-center relative overflow-hidden">
+                      <div className=" absolute bottom-0 right-0 z-50">
+                        <label htmlFor={`file-upload-propertyCoverFile`}>
+                          <div
+                            className="text-xs  flex flex-col-reverse items-center hover:bg-white/50 dark:hover:bg-white/10 border rounded-lg py-4 px-2 cursor-pointer
+                                "
+                          >
                             <span>Upload Cover </span>{" "}
                             <UploadIcon className="animate-bounce" />
                           </div>
                           <input
-                            id={`file-upload-propetyCoverFile`}
-                            name="file-upload-2"
+                            id={`file-upload-propertyCoverFile`}
+                            name={`file-upload-propertyCoverFile`}
                             type="file"
                             className="sr-only"
                             accept="image/*"
-                            // onChange={(e) => uploadPortionPictures(e, index)}
-                            onChange={(e) => uploadPropertyCoverFile(e)}
+                            multiple
+                            // onChange={(e) => uploadPropertyCoverFile(e)}
+                            onChange={(e) =>
+                              handleImageUpload(
+                                e,
+                                "propertyCoverFileUrl",
+                                0,
+                                -1
+                              )
+                            }
                           />
                         </label>
                       </div>
                       {propertyCoverFileUrl ||
                       formData?.propertyCoverFileUrl ? (
-                        <AspectRatio ratio={16 / 9}>
+                        <AspectRatio
+                          ratio={16 / 9}
+                          className=" flex justify-center items-center z-0"
+                        >
                           <img
                             src={
                               propertyCoverFileUrl ||
                               formData?.propertyCoverFileUrl ||
                               "/replacer.jpg"
                             }
-                            className="max-w-4xl w-full  rounded-lg px-2 py-2 max-h-[500px] object-contain"
+                            className=" w-full rounded-lg px-2 py-2 max-w-4xl max-h-[600px]  object-contain"
                             alt="coverimage"
                           />
                         </AspectRatio>
@@ -922,33 +1259,28 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       )}
 
                       {formData?.propertyCoverFileUrl && (
-                        <button
-                          onClick={() =>
-                            handleDelete(
-                              0,
+                        <Checkbox
+                          className="cursor-pointer absolute left-4 top-4 bg-neutral-900 border border-primary"
+                          key="propertyCoverFileUrl"
+                          name="propertyCoverFileUrl"
+                          onCheckedChange={(checked) =>
+                            handleImageSelect(
+                              checked,
                               "propertyCoverFileUrl",
-                              formData?.propertyCoverFileUrl ?? ""
+                              formData.propertyCoverFileUrl!,
+                              0,
+                              -1
                             )
                           }
-                          className="absolute top-1 right-1 bg-red-500/90  w-5 h-5 rounded-full border-red-600  "
-                          disabled={
-                            deletingImage === formData.propertyCoverFileUrl
-                          }
-                        >
-                          {deletingImage === formData.propertyCoverFileUrl ? (
-                            <Loader />
-                          ) : (
-                            <X className="w-5 h-5 text-white" />
-                          )}
-                        </button>
+                        />
                       )}
                     </div>
 
                     <div>
-                      <h1 className="mt-1">Property Pictures</h1>
+                      <h1 className="mt-4">Property Pictures</h1>
                     </div>
 
-                    <div className="mt-4 space-x-2 overflow-x-auto m-2">
+                    <div className="space-x-2 overflow-x-auto overflow-y-hidden">
                       <div className="flex space-x-4">
                         <label htmlFor={`file-upload-propertyPicturesUrl`}>
                           <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 mt-2 rounded-lg justify-center flex-col">
@@ -958,12 +1290,11 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
                           <input
                             id={`file-upload-propertyPicturesUrl`}
-                            name="file-upload-2"
+                            name={`file-upload-propertyPicturesUrl`}
                             type="file"
                             className="sr-only"
                             multiple
                             accept="image/*"
-                            // onChange={(e) => uploadPortionPictures(e, index)}
                             onChange={(e) => uploadPropertyPictures(e)}
                           />
                         </label>
@@ -990,24 +1321,20 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                 </p>
                               )}
 
-                              {/* Delete Button */}
-                              <button
-                                onClick={() =>
-                                  handleDelete(
-                                    index,
+                              <Checkbox
+                                className="cursor-pointer absolute left-2 top-2 bg-neutral-900 border-primary"
+                                key={`propertyPictureUrls-${index}`}
+                                name={`propertyPictureUrls-${index}`}
+                                onCheckedChange={(checked) =>
+                                  handleImageSelect(
+                                    checked,
                                     "propertyPictureUrls",
-                                    url
+                                    formData.propertyPictureUrls?.[index]!,
+                                    index,
+                                    -1
                                   )
                                 }
-                                className="absolute top-1 right-1 dark:text-white text-white bg-red-500 w-5 h-5 rounded-full border-red-600"
-                                disabled={deletingImage === url}
-                              >
-                                {deletingImage === url ? (
-                                  <Loader />
-                                ) : (
-                                  <X className="w-5 h-5 text-white" />
-                                )}
-                              </button>
+                              />
                             </div>
                           ))}
                       </div>
@@ -1080,7 +1407,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
               <p className="text-xs">
                 Above data it read only no need to change
               </p>
-              <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full ">
+              <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full">
                 <div className="w-full">
                   <h1 className="">Property Type</h1>
                   <Select
@@ -1090,7 +1417,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       handleChange({ target: { name: "propertyType", value } })
                     }
                   >
-                    <SelectTrigger className="text-black dark:text-white">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1313,8 +1640,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
                 </div>
               </div>
 
-              <div className="w-full my-4 pb-4 border-b">
-                <h1 className="text-xl mb-2 font-medium dark:text-white">
+              <div className="w-full my-4 pb-4 border-b bg-transparent">
+                <h1 className="text-xl mb-2 font-medium bg-background">
                   Additional Rules
                 </h1>
 
@@ -1325,7 +1652,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       type="text"
                       value={rule}
                       onChange={(e) => handleRuleChange(index, e.target.value)}
-                      className="w-full p-2 text-base border rounded-lg "
+                      className="w-full p-2 text-base bg-background border rounded-lg "
                       placeholder={`Rule ${index + 1}`}
                     />
                     <Button
@@ -1345,7 +1672,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
               </div>
 
               <AlertDialog>
-                <AlertDialogTrigger className="flex px-3 py-2 dark:bg-[#121212] bg-white/40  rounded-lg border items-start">
+                <AlertDialogTrigger className="flex px-3 py-2 bg-background  rounded-lg border items-start">
                   <div className="flex items-center justify-between gap-2">
                     Edit the amenties <MdAdsClick />
                   </div>
@@ -1461,457 +1788,185 @@ const EditPropertyPage = ({ params }: PageProps) => {
                   </div>
                 </label>
               </div>
-              {Array.from({
-                length: numberOfPortions,
-              }).map((item, index) => {
-                return (
-                  <div className=" flex  flex-col space-y-4 my-4" key={index}>
-                    <h1
-                      className="  flex items-center transition-transform duration-300 ease-in-out cursor-pointer  border px-4 py-2 rounded-lg "
-                      onClick={() =>
-                        setIsPortionOpen((prev) => {
-                          const newIsPortionOpen = [...prev];
-                          newIsPortionOpen[index] = !newIsPortionOpen[index];
-                          return newIsPortionOpen;
-                        })
-                      }
-                    >
-                      Portion no {index + 1}{" "}
-                      {isPortionOpen[index] ? (
-                        <MdArrowDropDown className="text-2xl" />
-                      ) : (
-                        <MdArrowRight className="text-2xl" />
-                      )}
-                    </h1>
-                    {isPortionOpen[index] && (
-                      <>
-                        <div className=" flex flex-col space-y-4">
-                          <h1>Portion Cover Image</h1>
-                          <div className="border min-h-60 rounded-lg flex items-center justify-center relative">
-                            <div className=" absolute bottom-0 right-0 ">
-                              <label
-                                htmlFor={`file-upload-portionCoverFiles-${index}`}
-                              >
-                                <div className="text-xs  flex flex-col-reverse items-center dark:hover:bg-white/10 border  rounded-lg py-4 px-2">
-                                  <span>Upload Cover </span>{" "}
-                                  <UploadIcon className="animate-bounce" />
-                                </div>
-                                <input
-                                  id={`file-upload-portionCoverFiles-${index}`}
-                                  name={`file-upload-portionCoverFiles-${index}`}
-                                  type="file"
-                                  className="sr-only"
-                                  accept="image/*"
-                                  onChange={(e) => uploadFile(e, index)}
-                                />
-                              </label>
-                            </div>
-                            {portionCoverFileUrls[index] ||
-                            formData?.portionCoverFileUrls?.[index] ? (
-                              <img
-                                src={
-                                  portionCoverFileUrls[index] ||
-                                  formData?.portionCoverFileUrls?.[index] ||
-                                  "/replacer.png"
-                                }
-                                alt="portionCover"
-                                className="max-w-4xl w-full rounded-lg px-2 py-2 h-full object-contain"
-                              />
-                            ) : (
-                              <p className="text-center ">No image found</p>
-                            )}
 
-                            {formData?.portionCoverFileUrls?.[index] && (
-                              <button
-                                onClick={() =>
-                                  handleDelete(
-                                    index,
-                                    "portionCoverFileUrls",
-                                    formData?.portionCoverFileUrls?.[index]
-                                  )
-                                }
-                                className="absolute top-1 right-1 bg-red-500 w-5 h-5 rounded-full border-red-600"
-                                disabled={
-                                  deletingImage ===
-                                  formData?.portionCoverFileUrls[index]
-                                }
-                              >
-                                {deletingImage ===
-                                formData?.portionCoverFileUrls[index] ? (
-                                  <Loader />
-                                ) : (
-                                  <X className="w-5 h-5 text-white" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                          {/* Portion Pictures Section */}
-                          <h1 className="mt-1">Portion Picture</h1>
+              {numberOfPortions == 1 && portionContent(0)}
 
-                          {/* TODO  Gonna Try some code here */}
-
-                          <div className="mt-4 space-x-2 overflow-x-auto m-2">
-                            <div className="flex space-x-4">
-                              <label htmlFor={`file-upload-portionPictureUrls`}>
-                                <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 mt-2 rounded-lg justify-center flex-col">
-                                  <UploadIcon className=" animate-bounce z-10 text-xs  cursor-pointer" />
-                                  <p> Upload Pictures</p>
-                                </div>
-
-                                <input
-                                  id={`file-upload-portionPictureUrls`}
-                                  name="file-upload-3"
-                                  type="file"
-                                  className="sr-only"
-                                  multiple
-                                  accept="image/*"
-                                  onChange={(e) =>
-                                    uploadPortionPictures(e, index)
-                                  }
-                                />
-                              </label>
-                              {portionPictureUrls
-                                ?.filter((url) => url)
-                                ?.map((url, ind) => (
+              {numberOfPortions > 1 &&
+                Array.from({
+                  length: numberOfPortions,
+                }).map((item, index) => {
+                  return (
+                    <div className=" flex  flex-col space-y-4 my-4" key={index}>
+                      <h1
+                        className="  flex items-center transition-transform duration-300 ease-in-out cursor-pointer  border px-4 py-2 rounded-lg "
+                        onClick={() =>
+                          setIsPortionOpen((prev) => {
+                            const newIsPortionOpen = [...prev];
+                            newIsPortionOpen[index] = !newIsPortionOpen[index];
+                            return newIsPortionOpen;
+                          })
+                        }
+                      >
+                        Portion no {index + 1}{" "}
+                        {isPortionOpen[index] ? (
+                          <MdArrowDropDown className="text-2xl" />
+                        ) : (
+                          <MdArrowRight className="text-2xl" />
+                        )}
+                      </h1>
+                      {isPortionOpen[index] && (
+                        <>
+                          <div className=" flex flex-col space-y-2">
+                            <h1>Portion Cover Image</h1>
+                            <div className="border min-h-60 rounded-lg flex items-center justify-center relative">
+                              <div className=" absolute bottom-0 right-0 ">
+                                <label
+                                  htmlFor={`file-upload-portionCoverFiles-${index}`}
+                                >
                                   <div
-                                    key={ind}
-                                    className="relative flex-shrink-0 m-2"
+                                    className="text-xs  flex flex-col-reverse items-center hover:bg-white/50 dark:hover:bg-white/10 border rounded-lg py-4 px-2 cursor-pointer
+                                "
                                   >
-                                    {portionPictureUrls[index]?.[ind] ||
-                                    formData?.portionPictureUrls?.[index]?.[
-                                      ind
-                                    ] ? (
-                                      <img
-                                        src={
-                                          portionPictureUrls[index][ind] ||
-                                          formData?.portionPictureUrls?.[index][
-                                            ind
-                                          ]
-                                        }
-                                        alt="not found"
-                                        className="w-40 h-40 object-cover rounded-md"
-                                      />
-                                    ) : (
-                                      <p className="text-center text-gray-500">
-                                        No image found
-                                      </p>
-                                    )}
-
-                                    {/* Delete Button */}
-                                    <button
-                                      onClick={() =>
-                                        handleDelete(
-                                          index,
-                                          "portionPictureUrls",
-                                          url[ind]
-                                        )
-                                      }
-                                      className="absolute top-1 right-1 dark:text-white text-white bg-red-500 w-5 h-5 rounded-full border-red-600"
-                                      disabled={deletingImage === url[ind]}
-                                    >
-                                      {deletingImage === url[ind] ? (
-                                        <Loader />
-                                      ) : (
-                                        <X className="w-5 h-5 text-white" />
-                                      )}
-                                    </button>
+                                    <span>Upload Cover </span>{" "}
+                                    <UploadIcon className="animate-bounce" />
                                   </div>
-                                ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-xs" htmlFor="portionName">
-                              Portion&apos;s Name
-                              <Input
-                                type="text"
-                                name="cooking"
-                                value={formData?.portionName?.at(index) || ""}
-                                onChange={(e) => {
-                                  const newFormData = { ...formData };
-                                  newFormData?.portionName?.splice(
-                                    index,
-                                    1,
-                                    e.target.value
-                                  );
-                                  setFormData(newFormData);
-                                }}
-                              />
-                            </label>
-                          </div>
-                          <div className=" flex  md:flex-row flex-col  space-x-4">
-                            <div>
-                              <label className="text-xs" htmlFor="portionSize">
-                                Portion&apos;s Size
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  name="portionSize"
-                                  value={formData?.portionSize?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.portionSize?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-                            <div>
-                              <label className="text-xs" htmlFor="guests">
-                                Number Of Guests
-                                <Input
-                                  type="number"
-                                  name="guests"
-                                  min={0}
-                                  value={formData?.guests?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.guests?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="bedrooms">
-                                Number Of Bedrooms
-                                <Input
-                                  type="number"
-                                  name="bedrooms"
-                                  min={0}
-                                  value={formData?.bedrooms?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.bedrooms?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="beds">
-                                Number Of Beds
-                                <Input
-                                  type="number"
-                                  name="beds"
-                                  min={0}
-                                  value={formData?.beds?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.beds?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="bathroom">
-                                Number Of Bathrooms
-                                <Input
-                                  type="number"
-                                  name="bathroom"
-                                  min={0}
-                                  value={formData?.bathroom?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.bathroom?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                          {/* // TODO here i have to make thing fix  */}
-                          <div className=" flex  md:flex-row flex-col  space-x-4">
-                            <label
-                              className="text-xs mt-2 line-clamp-1"
-                              htmlFor="monthlyDiscount"
-                            >
-                              Weekly Discount Portion {index + 1}
-                              <Input
-                                type="number"
-                                min={0}
-                                name="weeklyDiscount"
-                                value={
-                                  formData?.weeklyDiscount?.at(index) || ""
-                                }
-                                onChange={(e) => {
-                                  const newFormData = { ...formData };
-                                  newFormData?.weeklyDiscount?.splice(
-                                    index,
-                                    1,
-                                    parseInt(e.target.value)
-                                  );
-                                  setFormData(newFormData);
-                                }}
-                              />
-                            </label>
-
-                            <div>
-                              <label className="text-xs" htmlFor="kitchen">
-                                Number Of Kitchen
-                                <Input
-                                  type="number"
-                                  name="kitchen"
-                                  min={0}
-                                  value={formData?.kitchen?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.kitchen?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="childrenAge">
-                                Children&apos;s Age
-                                <Input
-                                  type="number"
-                                  name="childrenAge"
-                                  min={0}
-                                  value={formData?.childrenAge?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.childrenAge?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="basePrice">
-                                Base Price Of Portion {index + 1}
-                                <Input
-                                  type="number"
-                                  name="basePrice"
-                                  min={0}
-                                  value={formData?.basePrice?.at(index) || ""}
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.basePrice?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
-                                />
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs" htmlFor="weekendPrice">
-                                Weekend Price Of Portion {index + 1}
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  name="weekendPrice"
-                                  value={
-                                    formData?.weekendPrice?.at(index) || ""
+                                  <input
+                                    id={`file-upload-portionCoverFiles-${index}`}
+                                    name={`file-upload-portionCoverFiles-${index}`}
+                                    type="file"
+                                    className="sr-only"
+                                    accept="image/*"
+                                    onChange={(e) => uploadFile(e, index)}
+                                  />
+                                </label>
+                              </div>
+                              {portionCoverFileUrls[index] ||
+                              formData?.portionCoverFileUrls?.[index] ? (
+                                <img
+                                  src={
+                                    portionCoverFileUrls[index] ||
+                                    formData?.portionCoverFileUrls?.[index] ||
+                                    "/replacer.png"
                                   }
-                                  onChange={(e) => {
-                                    const newFormData = { ...formData };
-                                    newFormData?.weekendPrice?.splice(
-                                      index,
-                                      1,
-                                      parseInt(e.target.value)
-                                    );
-                                    setFormData(newFormData);
-                                  }}
+                                  alt="portionCover"
+                                  className="max-w-4xl max-h-[600px] w-full rounded-lg px-2 py-2 h-full object-contain"
                                 />
-                              </label>
+                              ) : (
+                                <p className="text-center ">No image found</p>
+                              )}
+
+                              {formData?.portionCoverFileUrls?.[index] && (
+                                <Checkbox
+                                  className="cursor-pointer absolute left-4 top-4 bg-neutral-900 border-primary"
+                                  key={`portionCoverFileUrls-${index}`}
+                                  name={`portionCoverFileUrls-${index}`}
+                                  onCheckedChange={(checked) =>
+                                    handleImageSelect(
+                                      checked,
+                                      "portionCoverFileUrls",
+                                      formData.portionCoverFileUrls?.[index]!,
+                                      index,
+                                      -1
+                                    )
+                                  }
+                                />
+                              )}
                             </div>
+                            {/* Portion Pictures Section */}
+                            <h1 className="">Portion Picture</h1>
+
+                            {/* // ! upload pictures */}
+                            <div className="space-x-2 overflow-x-auto overflow-y-hidden">
+                              <div className="flex space-x-4">
+                                <label
+                                  htmlFor={`file-upload-portionPictureUrls-${index}`}
+                                >
+                                  <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 rounded-lg justify-center flex-col">
+                                    <UploadIcon className=" animate-bounce z-10 text-xs  cursor-pointer" />
+                                    <p> Upload Pictures</p>
+                                  </div>
+
+                                  <input
+                                    id={`file-upload-portionPictureUrls-${index}`}
+                                    name={`file-upload-portionPictureUrls-${index}`}
+                                    type="file"
+                                    className="sr-only"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={(e) =>
+                                      uploadPortionPictures(e, index)
+                                    }
+                                  />
+                                </label>
+                                {portionPictureUrls
+                                  ?.filter((url) => url)
+                                  ?.map((url, ind) => (
+                                    <div
+                                      key={ind}
+                                      className="relative flex-shrink-0"
+                                    >
+                                      {portionPictureUrls[index]?.[ind] ||
+                                      formData?.portionPictureUrls?.[index]?.[
+                                        ind
+                                      ] ? (
+                                        <img
+                                          src={
+                                            portionPictureUrls[index][ind] ||
+                                            formData?.portionPictureUrls?.[
+                                              index
+                                            ][ind]
+                                          }
+                                          alt="not found"
+                                          className="w-40 h-40 object-cover rounded-md"
+                                        />
+                                      ) : (
+                                        <p className="text-center text-gray-500">
+                                          No image found
+                                        </p>
+                                      )}
+
+                                      <Checkbox
+                                        className="cursor-pointer absolute left-2 top-2 bg-neutral-900 border-primary"
+                                        key={`portionPictureUrls-${ind}${index}`}
+                                        name={`portionPictureUrls-${ind}${index}`}
+                                        onCheckedChange={(checked) =>
+                                          handleImageSelect(
+                                            checked,
+                                            "portionPictureUrls",
+                                            formData?.portionPictureUrls![
+                                              index
+                                            ][ind],
+                                            ind,
+                                            index
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+
+                            {portionContent(index)}
                           </div>
-                        </div>
-                        <div className=" flex  md:flex-row flex-col  space-x-4">
-                          <label
-                            className="text-xs line-clamp-1"
-                            htmlFor="monthlyDiscount"
-                          >
-                            Monthly Discount For Portion {index + 1}
-                            <Input
-                              type="number"
-                              min={0}
-                              name="monthlyDiscount"
-                              value={formData?.monthlyDiscount?.at(index) || ""}
-                              onChange={(e) => {
-                                const newFormData = { ...formData };
-                                newFormData?.monthlyDiscount?.splice(
-                                  index,
-                                  1,
-                                  parseInt(e.target.value)
-                                );
-                                setFormData(newFormData);
-                              }}
-                            />
-                          </label>
-                        </div>
-                        <div></div>
-                        <label className="" htmlFor="monthlyDiscount">
-                          Description of Portion {index + 1}
-                          <Textarea
-                            className="h-32"
-                            name="review"
-                            value={formData?.reviews?.[index] || ""}
-                            onChange={(e) => {
-                              const updatedReviews = [
-                                ...(formData.reviews || []),
-                              ]; // Copy the reviews array
-                              updatedReviews[index] = e.target.value; // Update the specific index
-                              setFormData({
-                                ...formData,
-                                reviews: updatedReviews,
-                              }); // Update the state immutably
-                            }}
-                          />
-                        </label>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
 
             {loadingProperty ? (
               <ScreenLoader />
             ) : (
-              <div className=" flex mt-4">
+              <div className=" flex mt-4 gap-x-8">
                 <Button onClick={handleSubmit} type="submit">
                   Save Changes
+                </Button>
+                <Button
+                  onClick={handleImageDelete}
+                  className=" bg-red-700 text-white font-medium"
+                >
+                  Delete Images
                 </Button>
               </div>
             )}

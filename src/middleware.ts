@@ -44,7 +44,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/user",
   Admin: "/dashboard/user",
-  Content: "/dashboard/property",
+  Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
 };
 

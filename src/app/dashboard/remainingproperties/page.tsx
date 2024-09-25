@@ -204,7 +204,7 @@ const CompletedProperties: React.FC = () => {
                   <CardHeader className="p-0 border-b">
                     <div>
                       {property?.propertyCoverFileUrl[0] ? (
-                        <AspectRatio ratio={16 / 9}>
+                        <AspectRatio ratio={16 / 12}>
                           <Link
                             href={{
                               pathname: `https://www.vacationsaga.com/listing-stay-detail`,
@@ -222,12 +222,12 @@ const CompletedProperties: React.FC = () => {
                         </AspectRatio>
                       ) : (
                         <div className="relative">
-                          <AspectRatio ratio={16 / 9}>
+                          <AspectRatio ratio={16 / 12}>
                             <img
                               src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
                               loading="lazy"
                               alt="PropertyImage"
-                              className="w-full relative  object-fill flex items-center justify-center rounded-t-lg"
+                              className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
                             />
                             <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
                               404 Not Found

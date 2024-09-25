@@ -15,6 +15,7 @@ import { SlSizeFullscreen } from "react-icons/sl";
 import CustomTooltip from "@/components/CustomToolTip";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import Img from "@/components/Img";
 interface PageProps {
   params: {
     id: string;
@@ -260,7 +261,7 @@ const Page = ({ params }: PageProps) => {
                       <div className="flex space-x-4">
                         {formData?.propertyPictureUrls?.map((url, index) => (
                           <div key={index} className="flex-shrink-0">
-                            <img
+                            <Img
                               src={url || "/placeholder.webp"}
                               alt="not found"
                               className="w-40 h-40 object-cover rounded-md"
@@ -367,10 +368,10 @@ const Page = ({ params }: PageProps) => {
                       <div className=" flex flex-col space-y-4">
                         <div className="mt-4 space-x-2 overflow-x-auto">
                           <div className="flex space-x-4">
-                            {formData?.portionPictureUrls?.[index].map(
+                            {formData?.portionPictureUrls?.[index]?.map(
                               (url, index) => (
                                 <div key={index} className="flex-shrink-0">
-                                  <img
+                                  <Img
                                     src={url || "/placeholder.webp"}
                                     alt="not found"
                                     className="w-40 h-40 object-cover rounded-md"

@@ -138,4 +138,11 @@ export const propertyTypes: string[] = [
   "Apart Hotel",
 ];
 
+export interface imageInterface {
+  propertyCoverFileUrl: number[];
+  propertyPictureUrls: number[];
+  portionCoverFileUrls: number[];
+  portionPictureUrls: string[];
+}
+
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

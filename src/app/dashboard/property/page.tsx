@@ -260,10 +260,10 @@ const PropertyPage: React.FC = () => {
             <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
               {properties.map((property) => (
                 <Card key={property?._id} className="w-full rounded-lg">
-                  <CardHeader className="p-0 border-b">
+                  <CardHeader className="p-0 border-b ">
                     <div>
                       {property?.propertyCoverFileUrl[0] ? (
-                        <AspectRatio ratio={16 / 9}>
+                        <AspectRatio ratio={16 / 12}>
                           <Link
                             href={{
                               pathname: `https://www.vacationsaga.com/listing-stay-detail`,
@@ -275,18 +275,18 @@ const PropertyPage: React.FC = () => {
                               src={property?.propertyCoverFileUrl}
                               alt="PropertyImage"
                               loading="lazy"
-                              className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                              className="w-full h-full sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
                             />
                           </Link>
                         </AspectRatio>
                       ) : (
                         <div className="relative">
-                          <AspectRatio ratio={16 / 9}>
+                          <AspectRatio ratio={16 / 12}>
                             <img
                               src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
                               loading="lazy"
                               alt="PropertyImage"
-                              className="w-full relative  object-fill flex items-center justify-center rounded-t-lg"
+                              className="w-full relative  h-full object-fill flex items-center justify-center rounded-t-lg"
                             />
                             <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
                               404 Not Found

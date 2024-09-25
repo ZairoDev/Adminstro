@@ -34,6 +34,7 @@ import { Plus, UploadIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import Img from "@/components/Img";
 
 interface PageProps {
   params: {
@@ -104,9 +105,11 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // ! Array to delete images from bunny
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
-  const [imageDeleteObject, setImageDeleteObj] = useState<Partial<imageInterface>>();
-  const [refreshFetchProperty, setRefreshFetchProperty] = useState<boolean>(false); 
-      // this state is used to re-fetch the property when a user clicks on 'save changes' or 'delete images' button
+  const [imageDeleteObject, setImageDeleteObj] =
+    useState<Partial<imageInterface>>();
+  const [refreshFetchProperty, setRefreshFetchProperty] =
+    useState<boolean>(false);
+  // this state is used to re-fetch the property when a user clicks on 'save changes' or 'delete images' button
 
   // ! FormData
   const [formData, setFormData] = useState<Partial<Property>>({
@@ -176,7 +179,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
           });
           console.log(response.data);
           setProperty(response.data);
-          setNumberOfPortions(response.data.basePrice.length);
+          setNumberOfPortions(response.data.numberOfPortions);
           setPropertyPictureUrls(response.data.propertyPictureUrls);
           setPropertyCoverFileUrl(response.data.propertyCoverFileUrl);
           setPortionCoverFileUrls(response.data.portionCoverFileUrls);
@@ -659,7 +662,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
     );
   };
 
-
   //TODO: Image Upload Part
   const handleImageUpload = async (
     event: ChangeEvent<HTMLInputElement>,
@@ -749,7 +751,10 @@ const EditPropertyPage = ({ params }: PageProps) => {
       setPortionPictureUrls((prev) => {
         const newUrls: string[][] = [...prev];
         newUrls[index] = newUrls[index].filter((item) => item != "");
-        newUrls[index] = [...savedUrls, ...newUrls[index].slice(savedUrls.length)];
+        newUrls[index] = [
+          ...savedUrls,
+          ...newUrls[index].slice(savedUrls.length),
+        ];
         return newUrls;
       });
     }
@@ -757,7 +762,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
     // setLoading(false);
     setLoadingproperty(false);
   };
-
 
   // TODO: Image deletion part
   const handleImageSelect = (
@@ -862,7 +866,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }
   }; // ! deletes the images from database and then from bunny
 
-
   // TODO: Submit Function
   const handleSubmit = async () => {
     const newFormData = { ...formData };
@@ -962,7 +965,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           ratio={16 / 9}
                           className=" flex justify-center items-center z-0"
                         >
-                          <img
+                          <Img
                             src={
                               propertyCoverFileUrl ||
                               formData?.propertyCoverFileUrl ||
@@ -1032,10 +1035,11 @@ const EditPropertyPage = ({ params }: PageProps) => {
                             >
                               {propertyPictureUrls[index] ||
                               formData?.propertyPictureUrls?.[index] ? (
-                                <img
+                                <Img
                                   src={
                                     propertyPictureUrls[index] ||
-                                    formData?.propertyPictureUrls?.[index]
+                                    formData?.propertyPictureUrls?.[index] ||
+                                    "/replacer.jpg"
                                   }
                                   alt="property"
                                   className="w-40 h-40 object-cover rounded-md"
@@ -1575,7 +1579,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                               </div>
                               {portionCoverFileUrls[index] ||
                               formData?.portionCoverFileUrls?.[index] ? (
-                                <img
+                                <Img
                                   src={
                                     portionCoverFileUrls[index] ||
                                     formData?.portionCoverFileUrls?.[index] ||
@@ -1647,12 +1651,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                       formData?.portionPictureUrls?.[index]?.[
                                         ind
                                       ] ? (
-                                        <img
+                                        <Img
                                           src={
                                             portionPictureUrls[index][ind] ||
                                             formData?.portionPictureUrls?.[
                                               index
-                                            ][ind]
+                                            ][ind] ||
+                                            "/replacer.jpg"
                                           }
                                           alt="not found"
                                           className="w-40 h-40 object-cover rounded-md"

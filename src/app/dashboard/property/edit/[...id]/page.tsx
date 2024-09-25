@@ -2,15 +2,10 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MdAdsClick, MdCancel } from "react-icons/md";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { HiArrowNarrowLeft } from "react-icons/hi";
 import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
-import {
-  imageInterface,
-  Property,
-  propertyTypes,
-  rentalTypes,
-} from "@/util/type";
+import { imageInterface, Property, propertyTypes } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IoRemoveSharp } from "react-icons/io5";
@@ -35,12 +30,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUpIcon, Plus, UploadIcon, X } from "lucide-react";
+import { Plus, UploadIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
-import { FaCloudUploadAlt } from "react-icons/fa";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Elsie_Swash_Caps } from "next/font/google";
 
 interface PageProps {
   params: {
@@ -48,6 +41,7 @@ interface PageProps {
   };
 }
 
+// TODO : Generate Lat-Lng from pincode
 const getCoordinatesFromPincode = async (pincode: any) => {
   const url = `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&format=json&limit=1`;
   try {
@@ -67,20 +61,11 @@ const getCoordinatesFromPincode = async (pincode: any) => {
 };
 
 const EditPropertyPage = ({ params }: PageProps) => {
+  const { toast } = useToast();
   let portions = 0;
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
-
-  // ! array to delete images from bunny
-  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
-  const [imageDeleteObject, setImageDeleteObj] =
-    useState<Partial<imageInterface>>();
-  const [refreshFetchProperty, setRefreshFetchProperty] =
-    useState<boolean>(false);
-
-  const [deletingImage, setDeletingImage] = useState<string | undefined>("");
-  const { toast } = useToast();
 
   const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>("");
 
@@ -116,6 +101,12 @@ const EditPropertyPage = ({ params }: PageProps) => {
       return savedUrls ? JSON.parse(savedUrls) : Array(portions).fill(arrayOf5);
     }
   );
+
+  // ! Array to delete images from bunny
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+  const [imageDeleteObject, setImageDeleteObj] = useState<Partial<imageInterface>>();
+  const [refreshFetchProperty, setRefreshFetchProperty] = useState<boolean>(false); 
+      // this state is used to re-fetch the property when a user clicks on 'save changes' or 'delete images' button
 
   // ! FormData
   const [formData, setFormData] = useState<Partial<Property>>({
@@ -174,6 +165,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     isLive: property?.isLive,
   });
 
+  // TODO: Fetching Property
   useEffect(() => {
     if (params.id) {
       const fetchProperty = async () => {
@@ -197,7 +189,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
               response.data.portionCoverFileUrls.length
             ).fill("00000"),
           };
-          console.log("imgDeleteObj", imgDeleteObj);
           setImageDeleteObj(imgDeleteObj);
 
           setLoading(false);
@@ -273,8 +264,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }
   }, [property]);
 
-  // TODO Handling property picture starts from here
-
   const data = localStorage.getItem("page1") || "";
   if (data) {
     const value = JSON.parse(data)["numberOfPortions"];
@@ -282,24 +271,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
       portions = parseInt(value, 10);
     }
   }
-  let checkPortion = portions > 1 ? portions : 0;
-
-  const booleanArray = Array.from({ length: portions }, () => false);
-
-  const [isPortionPictures, setIsPortionPictures] = useState<boolean[]>(() => {
-    const savedFlags = localStorage.getItem("isPortionPictures");
-    return savedFlags ? JSON.parse(savedFlags) : Array(portions).fill(false);
-  });
-
-  const [isPropertyPictures, setIsPropertyPictures] = useState<boolean>(() => {
-    const savedFlag = localStorage.getItem("isPropertyPictures");
-    return savedFlag ? JSON.parse(savedFlag) : false;
-  });
-
-  const [isImages, setIsImages] = useState<boolean[]>(() => {
-    const savedFlag = localStorage.getItem("isImages");
-    return savedFlag ? JSON.parse(savedFlag) : booleanArray;
-  });
 
   useEffect(() => {
     localStorage.setItem("propertyCoverFileUrl", propertyCoverFileUrl);
@@ -327,374 +298,12 @@ const EditPropertyPage = ({ params }: PageProps) => {
     );
   }, [portionCoverFileUrls]);
 
-  useEffect(() => {
-    localStorage.setItem("isImages", JSON.stringify(isImages));
-  }, [isImages]);
-
-  // TODO: File upload to BUNNY
-  const [propertyCoverFileLoading, setPropertyCoverFileLoading] =
-    useState(false);
-  const [propertyPicturesLoading, setPropertyPicturesLoading] = useState(false);
-  const [portionCoverFileLoading, setPortionCoverFileLoading] = useState<
-    boolean[]
-  >(Array.from({ length: checkPortion }, () => false));
-  const [portionPicturesLoading, setPortionPicturesLoading] = useState<
-    boolean[]
-  >(Array.from({ length: checkPortion }, () => false));
-
   let placeName: string | undefined = formData?.placeName;
   placeName = placeName?.toLowerCase();
   const placeNameSplitArray: string[] | undefined = placeName?.split(" ");
   placeName = placeNameSplitArray?.join("_");
 
-  const uploadFile = async (event: any, index: number) => {
-    setPortionCoverFileLoading((prev) => {
-      const newArray = [...prev];
-      newArray[index] = true;
-      return newArray;
-    });
-
-    const file = event?.target.files[0];
-
-    if (
-      !file ||
-      !(
-        file.type === "image/jpeg" ||
-        file.type === "image/png" ||
-        file.type === "image/webp"
-      )
-    ) {
-      toast({
-        variant: "destructive",
-        title: "Type Mismatch",
-        description:
-          "We only accept jpeg, png, webp for now. Try to upload these formats.",
-      });
-
-      setPortionCoverFileLoading((prev) => {
-        const newArray = [...prev];
-        newArray[index] = false;
-        return newArray;
-      });
-      return;
-    }
-
-    const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-    const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-    const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const response = await axios.put(
-        `${storageUrl}/${storageZoneName}/${placeName}/${file.name}`,
-        file,
-        {
-          headers: {
-            AccessKey: accessKey,
-            "Content-Type": file.type,
-          },
-        }
-      );
-
-      console.log("response: ", response);
-      const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${file.name}`;
-
-      setPortionCoverFileUrls((prevState) => {
-        const newUrls = [...prevState];
-        newUrls[index] = imageUrl;
-        return newUrls;
-      });
-
-      setIsImages((prevState) => {
-        const newImages = [...prevState];
-        newImages[index] = true;
-        return newImages;
-      });
-    } catch (error) {
-      console.error("Error uploading image to Bunny CDN:", error);
-      toast({
-        variant: "destructive",
-        title: "Upload Error",
-        description:
-          "Some error occurred while uploading the image. Please try again later.",
-      });
-    }
-
-    setPortionCoverFileLoading((prev) => {
-      const newArray = [...prev];
-      newArray[index] = false;
-      return newArray;
-    });
-  };
-
-  const uploadPropertyCoverFile = async (event: any) => {
-    setPropertyCoverFileLoading(true);
-    const file = event?.target.files[0];
-    if (
-      !file ||
-      !(
-        file.type === "image/jpeg" ||
-        file.type === "image/png" ||
-        file.type === "image/webp"
-      )
-    ) {
-      toast({
-        variant: "destructive",
-        title: "Type Mismatch",
-        description:
-          "We only accept jpeg , png , webp for now try to upload this format",
-      });
-      setPropertyCoverFileLoading(false);
-      return;
-    }
-
-    const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-    const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-    const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      setPropertyCoverFileLoading(true);
-      const response = await axios.put(
-        `${storageUrl}/${storageZoneName}/${placeName}/${file.name}`,
-        file,
-        {
-          headers: {
-            AccessKey: accessKey,
-            "Content-Type": file.type,
-          },
-        }
-      );
-
-      console.log("response: ", response);
-      const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${file.name}`;
-      setPropertyCoverFileUrl(imageUrl);
-      setPropertyCoverFileLoading(false);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Type Mismatch",
-        description:
-          "Some error occurred while uploading the image. Please try again later.",
-      });
-    }
-    setPropertyCoverFileLoading(false);
-  };
-
-  const uploadPortionPictures = async (event: any, index: number) => {
-    // Set loading to true for the current index
-    setPortionPicturesLoading((prevState) => {
-      const newLoading = [...prevState];
-      newLoading[index] = true;
-      return newLoading;
-    });
-
-    const files = event?.target.files;
-
-    if (!files || files.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No Files Selected",
-        description: "Please select files to upload.",
-      });
-      // Reset loading state if no files are selected
-      setPortionPicturesLoading((prevState) => {
-        const newLoading = [...prevState];
-        newLoading[index] = false;
-        return newLoading;
-      });
-      return;
-    }
-
-    // Validate file types
-    for (let i = 0; i < files.length; i++) {
-      if (
-        !(
-          files[i].type === "image/png" ||
-          files[i].type === "image/jpeg" ||
-          files[i].type === "image/webp"
-        )
-      ) {
-        toast({
-          variant: "destructive",
-          title: "Type Mismatch",
-          description:
-            "We only accept jpeg, png, webp for now. Try to upload these formats.",
-        });
-        // Reset loading state if there's a type mismatch
-        setPortionPicturesLoading((prevState) => {
-          const newLoading = [...prevState];
-          newLoading[index] = false;
-          return newLoading;
-        });
-        return;
-      }
-    }
-
-    const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-    const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-    const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
-    const formData = new FormData();
-
-    const updatedUrls = [...portionPictureUrls];
-    const newImages = [...isPortionPictures];
-
-    for (let i = 0; i < files.length; i++) {
-      formData.append("file", files[i]);
-
-      try {
-        const response = await axios.put(
-          `${storageUrl}/${storageZoneName}/${placeName}/${files[i].name}`,
-          files[i],
-          {
-            headers: {
-              AccessKey: accessKey,
-              "Content-Type": files[i].type,
-            },
-          }
-        );
-
-        console.log("response: ", response);
-
-        const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${files[i].name}`;
-
-        // Update portionPictureUrls with new image URLs
-        updatedUrls[index] = [...updatedUrls[index]];
-        updatedUrls[index][i] = imageUrl;
-      } catch (error) {
-        console.error("Error uploading image to Bunny CDN:", error);
-        toast({
-          variant: "destructive",
-          title: "Upload Error",
-          description:
-            "An error occurred while uploading the image. Please try again later.",
-        });
-        break;
-      }
-    }
-
-    newImages[index] = true;
-    setPortionPictureUrls(updatedUrls);
-    setIsPortionPictures(newImages);
-
-    // Set loading state to false after upload completion
-    setPortionPicturesLoading((prevState) => {
-      const newLoading = [...prevState];
-      newLoading[index] = false;
-      return newLoading;
-    });
-  };
-
-  const uploadPropertyPictures = async (event: any) => {
-    setPropertyPicturesLoading(true);
-    const files = event?.target.files;
-
-    for (let i = 0; i < files.length; i++) {
-      if (
-        !(
-          files[i].type === "image/png" ||
-          files[i].type === "image/jpeg" ||
-          files[i].type === "image/webp"
-        )
-      ) {
-        toast({
-          variant: "destructive",
-          title: "Type Mismatch",
-          description:
-            "We only accept jpeg , png , webp for now try to upload this format",
-        });
-        setPropertyPicturesLoading(false);
-        return;
-      }
-    }
-    const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
-    const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
-    const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
-    const formData = new FormData();
-    const savedUrls = [...propertyPictureUrls];
-
-    for (let i = 0; i < files.length; i++) {
-      formData.append("file", files[i]);
-      try {
-        setPropertyPicturesLoading(true);
-        const response = await axios.put(
-          `${storageUrl}/${storageZoneName}/${placeName}/${files[i].name}`,
-          files[i],
-          {
-            headers: {
-              AccessKey: accessKey,
-              "Content-Type": files[i].type,
-            },
-          }
-        );
-
-        console.log("response: ", response);
-        const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${files[i].name}`;
-        // savedUrls[i] = imageUrl;
-        savedUrls.unshift(imageUrl);
-        setPropertyPicturesLoading(false);
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Type Mismatch",
-          description:
-            "Some error occurred while uploading the image. Please try again later.",
-        });
-      }
-      setPropertyPicturesLoading(false);
-    }
-
-    setPropertyPictureUrls(savedUrls);
-    setIsPropertyPictures(true);
-    setPropertyPicturesLoading(false);
-  };
-
-  // TODO Handling property picture ends from here
-
   const [loadingProperty, setLoadingproperty] = useState(false);
-  const handleSubmit = async () => {
-    const newFormData = { ...formData };
-    newFormData["propertyCoverFileUrl"] = propertyCoverFileUrl;
-    newFormData["propertyPictureUrls"] = propertyPictureUrls;
-    newFormData["portionCoverFileUrls"] = portionCoverFileUrls;
-    newFormData["portionPictureUrls"] = portionPictureUrls;
-    setLoadingproperty(true);
-    try {
-      const response = await axios.post("/api/editproperty/editpropertydata", {
-        propertyId: params.id,
-        updatedData: newFormData,
-      });
-
-      if (response.status === 200) {
-        toast({
-          title: "Success",
-          description: "Property updated successfully!",
-        });
-        setRefreshFetchProperty((prev) => !prev);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to update property. Please try again.",
-        });
-      }
-      setLoadingproperty(false);
-    } catch (error) {
-      console.error("Error updating property:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred while updating the property.",
-      });
-      setLoadingproperty(false);
-    }
-  };
 
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
@@ -764,6 +373,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }
   };
 
+  // ! state to open the dropdown on clicking on portion number
   const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
     Array.from({ length: numberOfPortions }, () => false)
   );
@@ -1049,32 +659,105 @@ const EditPropertyPage = ({ params }: PageProps) => {
     );
   };
 
+
   //TODO: Image Upload Part
-  const handleImageUpload = (
+  const handleImageUpload = async (
     event: ChangeEvent<HTMLInputElement>,
     imageType: string,
     index: number,
     portionIndex: number
   ) => {
-    const file = event?.target?.files?.[0];
     const files = event?.target?.files;
-    console.log(files, typeof files);
-    if (
-      !file ||
-      !(
-        file.type === "image/jpeg" ||
-        file.type === "image/png" ||
-        file.type === "image/webp"
-      )
-    ) {
-      toast({
-        variant: "destructive",
-        title: "Type Mismatch",
-        description:
-          "We only accept jpeg , png , webp for now try to upload this format",
+    const fileArr = Array.from(files || []);
+
+    // * checking file type
+    for (const file of fileArr) {
+      if (
+        !file ||
+        !(
+          file.type === "image/jpeg" ||
+          file.type === "image/png" ||
+          file.type === "image/webp"
+        )
+      ) {
+        toast({
+          variant: "destructive",
+          title: "Type Mismatch",
+          description:
+            "We only accept jpeg , png , webp for now try to upload this format",
+        });
+        return;
+      }
+    }
+    console.log("files: ", files);
+    // * intitalizing Bunny
+    const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+    const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+    const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
+
+    const formData = new FormData();
+    const savedUrls: string[] = [];
+
+    // setLoading(true);
+    setLoadingproperty(true);
+
+    for (const file of fileArr) {
+      formData.append("file", file);
+      console.log("formdata: ", formData);
+      try {
+        const dt = Date.now();
+
+        const response = await axios.put(
+          `${storageUrl}/${storageZoneName}/${placeName}/${dt}${file.name}`,
+          file,
+          {
+            headers: {
+              AccessKey: accessKey,
+              "Content-Type": file.type,
+            },
+          }
+        );
+        console.log("response: ", response);
+
+        const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${dt}${file.name}`;
+        console.log("savedUrls: ", savedUrls);
+        savedUrls.push(imageUrl);
+        console.log("savedUrls: ", savedUrls);
+      } catch (error) {
+        console.error("Error uploading image to Bunny CDN:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload Error",
+          description:
+            "An error occurred while uploading the image. Please try again later.",
+        });
+        break;
+      }
+    }
+
+    if (imageType === "propertyCoverFileUrl") {
+      setPropertyCoverFileUrl(savedUrls[0]);
+    } else if (imageType === "propertyPictureUrls") {
+      setPropertyPictureUrls((prev) => [...prev, ...savedUrls]);
+    } else if (imageType === "portionCoverFileUrls") {
+      setPortionCoverFileUrls((prev) => [
+        ...prev.slice(0, index),
+        savedUrls[0],
+        ...prev.slice(index + 1),
+      ]);
+    } else if (imageType === "portionPictureUrls") {
+      setPortionPictureUrls((prev) => {
+        const newUrls: string[][] = [...prev];
+        newUrls[index] = newUrls[index].filter((item) => item != "");
+        newUrls[index] = [...savedUrls, ...newUrls[index].slice(savedUrls.length)];
+        return newUrls;
       });
     }
+
+    // setLoading(false);
+    setLoadingproperty(false);
   };
+
 
   // TODO: Image deletion part
   const handleImageSelect = (
@@ -1179,6 +862,46 @@ const EditPropertyPage = ({ params }: PageProps) => {
     }
   }; // ! deletes the images from database and then from bunny
 
+
+  // TODO: Submit Function
+  const handleSubmit = async () => {
+    const newFormData = { ...formData };
+    newFormData["propertyCoverFileUrl"] = propertyCoverFileUrl;
+    newFormData["propertyPictureUrls"] = propertyPictureUrls;
+    newFormData["portionCoverFileUrls"] = portionCoverFileUrls;
+    newFormData["portionPictureUrls"] = portionPictureUrls;
+    setLoadingproperty(true);
+    try {
+      const response = await axios.post("/api/editproperty/editpropertydata", {
+        propertyId: params.id,
+        updatedData: newFormData,
+      });
+
+      if (response.status === 200) {
+        toast({
+          title: "Success",
+          description: "Property updated successfully!",
+        });
+        setRefreshFetchProperty((prev) => !prev);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to update property. Please try again.",
+        });
+      }
+      setLoadingproperty(false);
+    } catch (error) {
+      console.error("Error updating property:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred while updating the property.",
+      });
+      setLoadingproperty(false);
+    }
+  };
+
   return (
     <>
       <div className="max-w-6xl p-2 mx-auto ">
@@ -1221,7 +944,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
                             type="file"
                             className="sr-only"
                             accept="image/*"
-                            multiple
                             // onChange={(e) => uploadPropertyCoverFile(e)}
                             onChange={(e) =>
                               handleImageUpload(
@@ -1282,20 +1004,23 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
                     <div className="space-x-2 overflow-x-auto overflow-y-hidden">
                       <div className="flex space-x-4">
-                        <label htmlFor={`file-upload-propertyPicturesUrl`}>
+                        <label htmlFor={`file-upload-propertyPictureUrls`}>
                           <div className="flex items-center h-40 border hover:cursor-pointer  hover:bg-white/50 dark:hover:bg-white/10 w-40 mt-2 rounded-lg justify-center flex-col">
                             <UploadIcon className=" animate-bounce z-10 text-xs  cursor-pointer" />
                             <p> Upload Pictures</p>
                           </div>
 
                           <input
-                            id={`file-upload-propertyPicturesUrl`}
-                            name={`file-upload-propertyPicturesUrl`}
+                            id={`file-upload-propertyPictureUrls`}
+                            name={`file-upload-propertyPictureUrls`}
                             type="file"
                             className="sr-only"
                             multiple
                             accept="image/*"
-                            onChange={(e) => uploadPropertyPictures(e)}
+                            // onChange={(e) => uploadPropertyPictures(e)}
+                            onChange={(e) =>
+                              handleImageUpload(e, "propertyPictureUrls", 0, -1)
+                            }
                           />
                         </label>
                         {propertyPictureUrls
@@ -1836,7 +1561,15 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                     type="file"
                                     className="sr-only"
                                     accept="image/*"
-                                    onChange={(e) => uploadFile(e, index)}
+                                    // onChange={(e) => uploadFile(e, index)}
+                                    onChange={(e) =>
+                                      handleImageUpload(
+                                        e,
+                                        "portionCoverFileUrls",
+                                        index,
+                                        -1
+                                      )
+                                    }
                                   />
                                 </label>
                               </div>
@@ -1875,7 +1608,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                             {/* Portion Pictures Section */}
                             <h1 className="">Portion Picture</h1>
 
-                            {/* // ! upload pictures */}
+                            {/* // ! upload portion pictures */}
                             <div className="space-x-2 overflow-x-auto overflow-y-hidden">
                               <div className="flex space-x-4">
                                 <label
@@ -1894,11 +1627,16 @@ const EditPropertyPage = ({ params }: PageProps) => {
                                     multiple
                                     accept="image/*"
                                     onChange={(e) =>
-                                      uploadPortionPictures(e, index)
+                                      handleImageUpload(
+                                        e,
+                                        "portionPictureUrls",
+                                        index,
+                                        index
+                                      )
                                     }
                                   />
                                 </label>
-                                {portionPictureUrls
+                                {portionPictureUrls[index]
                                   ?.filter((url) => url)
                                   ?.map((url, ind) => (
                                     <div

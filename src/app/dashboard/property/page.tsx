@@ -57,12 +57,12 @@ const PropertyPage: React.FC = () => {
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const limit: number = 10;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
     null
   );
-
+  const limit: number = 12;
   const router = useRouter();
 
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -420,14 +420,6 @@ const PropertyPage: React.FC = () => {
                             <Edit size={12} />
                             Edit
                           </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => handleEditDescription(property?._id)}
-                          >
-                            <Edit size={12} />
-                            Edit Description
-                          </Button>
                         </div>
                       )}
 
@@ -441,18 +433,6 @@ const PropertyPage: React.FC = () => {
                             Edit
                           </Button>
                         </div>
-                      )}
-
-                      {userRole === "Content" && (
-                        <Button
-                          disabled={!property?.isLive}
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => handleEditDescription(property?._id)}
-                        >
-                          <Edit size={12} />
-                          Edit Description
-                        </Button>
                       )}
                     </div>
                   </CardFooter>

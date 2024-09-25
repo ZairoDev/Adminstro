@@ -33,19 +33,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     } else {
       allProperties = await Property.find(query).sort({ _id: -1 });
     }
-
     if (allProperties.length === 0) {
       const totalCount = await Property.countDocuments();
       console.log("Total properties in database:", totalCount);
     }
-
     const totalProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limit);
-
     const incompletePropertiesCount = await Property.countDocuments({
       newReviews: { $in: [null, ""] },
     });
-
     return NextResponse.json({
       data: allProperties,
       page,

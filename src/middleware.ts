@@ -34,8 +34,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/edituserdetails\/.*$/,
   ],
   Content: [
-    "/dashboard/property",
-    "/dashboard/property/",
+    // "/dashboard/property",
+    /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
     /^\/dashboard\/completedproperties$/,
     /^\/dashboard\/property\/description\/.*$/,

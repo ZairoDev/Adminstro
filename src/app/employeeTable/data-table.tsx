@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { BadgePlus, Plus } from "lucide-react";
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
@@ -106,7 +106,6 @@ export function DataTable({
       rowSelection,
     },
   });
-
   const formatNumber = (number: number) => {
     if (number >= 1000000) {
       return (number / 1000000).toFixed(1) + "M";
@@ -116,7 +115,6 @@ export function DataTable({
       return number.toString();
     }
   };
-
   return (
     <>
       <div className="flex items-center justify-between">
@@ -150,21 +148,15 @@ export function DataTable({
             <Button className="w-full sm:flex items-center gap-x-1 hidden">
               <Link
                 className="flex items-center justify-center gap-x-2"
-                href="/dashboard/createnewuser"
+                href="/dashboard/createnewEmployee"
               >
-                Add user <Plus />
-              </Link>
-            </Button>
-            <Button className="sm:hidden">
-              <Link
-                className="flex items-center justify-center gap-x-2"
-                href="/dashboard/createnewuser"
-              >
-                <Plus />
+                Create Employee
+                <BadgePlus size={18} />
               </Link>
             </Button>
           </div>
         </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div>
@@ -215,7 +207,7 @@ export function DataTable({
           <div className="text-center py-4 h-screen flex items-center justify-center">
             <Loader />
           </div>
-        ) : data.length === 0 ? (
+        ) : data?.length === 0 ? (
           <div className="text-center py-4 h-screen flex items-center justify-center">
             No results.
           </div>
@@ -238,7 +230,7 @@ export function DataTable({
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.map((row) => (
+              {table?.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}

@@ -22,6 +22,7 @@ import {
   PencilRuler,
   TableOfContents,
   User2Icon,
+  Users,
 } from "lucide-react";
 
 // Function to determine if a route is active
@@ -75,6 +76,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   SuperAdmin: [
     {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <Users size={18} />,
+    },
+    {
       path: "/dashboard/user",
       label: "Manage User",
       Icon: <User2Icon size={18} />,
@@ -84,11 +90,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
     },
-    {
-      path: "/dashboard/createnewEmployee",
-      label: "Create Employee",
-      Icon: <BadgePlus size={18} />,
-    },
+    // {
+    //   path: "/dashboard/createnewEmployee",
+    //   label: "Create Employee",
+    //   Icon: <BadgePlus size={18} />,
+    // },
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",

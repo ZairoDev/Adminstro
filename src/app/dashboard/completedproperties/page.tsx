@@ -55,7 +55,7 @@ const CompletedProperties: React.FC = () => {
   const router = useRouter();
 
   const handleEditDescription = (propertyId: string) => {
-    router.push(`/dashboard/property/description/${propertyId}`);
+    router.push(`/dashboard/remainingproperties/description/${propertyId}`);
   };
 
   const fetchProperties = useCallback(

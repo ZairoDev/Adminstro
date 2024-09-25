@@ -89,11 +89,11 @@ const PageLogin: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen overflow-hidden flex">
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
-      <div className="w-1/2 sm:flex hidden items-center justify-center">
+      <div className="w-1/2  md:flex hidden items-center justify-center">
         <Carousel className="w-full h-full">
           <CarouselContent>
             <CarouselItem>
@@ -130,7 +130,7 @@ const PageLogin: React.FC = () => {
         </Carousel>
       </div>
 
-      <div className="sm:w-1/2 w-full flex items-center justify-center ">
+      <div className="md:w-1/2 w-full flex items-center justify-center ">
         <div className="w-full max-w-sm px-6 py-8 border  rounded-lg shadow-lg">
           <h1 className="text-3xl font-semibold text-center mb-6">
             Employee Login

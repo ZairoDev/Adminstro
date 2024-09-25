@@ -162,10 +162,7 @@ const NewUser = () => {
 
   return (
     <>
-      <div className="">
-        <GotoUserPage />
-      </div>
-      <div className="  max-w-4xl m-auto ">
+      <div className=" mt-4 max-w-4xl m-auto ">
         <div className="flex items-center justify-center">
           <div className=" w-full ">
             <div className="border-2 rounded-lg p-4">

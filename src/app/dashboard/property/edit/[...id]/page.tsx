@@ -907,19 +907,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   return (
     <>
-      <div className="max-w-6xl p-2 mx-auto ">
+      <div className="max-w-6xl  mx-auto ">
         {loading ? (
           <div className="flex items-center justify-center h-screen w-full">
             <Loader />
           </div>
         ) : (
           <form onSubmit={(e) => e.preventDefault()}>
-            <Link href="/dashboard/property">
-              <Button className="flex gap-x-1" variant="outline">
-                <HiArrowNarrowLeft /> Back
-              </Button>
-            </Link>
-
             <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
               <div className="border-b pb-2">
                 <h1 className="text-2xl mt-2  text-center  mb-4">
@@ -1701,13 +1695,14 @@ const EditPropertyPage = ({ params }: PageProps) => {
             {loadingProperty ? (
               <ScreenLoader />
             ) : (
-              <div className=" flex mt-4 gap-x-8">
-                <Button onClick={handleSubmit} type="submit">
+              <div className=" flex sm:flex-row flex-col gap-y-2 mt-4 gap-x-8">
+                <Button className="w-full" onClick={handleSubmit} type="submit">
                   Save Changes
                 </Button>
                 <Button
+                  variant="destructive"
                   onClick={handleImageDelete}
-                  className=" bg-red-700 text-white font-medium"
+                  className="w-full "
                 >
                   Delete Images
                 </Button>

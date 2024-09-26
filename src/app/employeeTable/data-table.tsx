@@ -66,7 +66,7 @@ export function DataTable({
   currentPage,
   totalPages,
   totalUser,
-  loading, // Destructure loading prop
+  loading,
 }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -163,8 +163,8 @@ export function DataTable({
                 className="flex items-center justify-center gap-x-2"
                 href="/dashboard/createnewEmployee"
               >
-                Create Employee
-                <BadgePlus size={18} />
+                Add Employee
+                <Plus size={18} />
               </Link>
             </Button>
           </div>

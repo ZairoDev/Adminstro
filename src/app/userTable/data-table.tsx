@@ -165,7 +165,7 @@ export function DataTable({
                 className="flex items-center justify-center gap-x-2"
                 href="/dashboard/createnewuser"
               >
-                Add user <Plus />
+                Add user <Plus size={18} />
               </Link>
             </Button>
             <Button className="sm:hidden">

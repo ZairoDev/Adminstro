@@ -46,7 +46,9 @@ const AccountPage = ({ params }: PageProps) => {
 
   const gettheUserdetails = async () => {
     try {
-      const response = await axios.post("/api/employee/editEmployee", { userId });
+      const response = await axios.post("/api/employee/editEmployee", {
+        userId,
+      });
       if (response.status === 404) {
         toast({
           title: "Uh oh! Something went wrong.",
@@ -90,7 +92,10 @@ const AccountPage = ({ params }: PageProps) => {
         nationality,
         bankDetails,
       };
-      const response = await axios.put("/api/employee/editEmployee", updateData);
+      const response = await axios.put(
+        "/api/employee/editEmployee",
+        updateData
+      );
       if (response.data.success) {
         toast({
           title: "Success!",
@@ -177,8 +182,7 @@ const AccountPage = ({ params }: PageProps) => {
 
   return (
     <>
-      <GotoUserPage />
-      <div className="max-w-4xl border rounded-lg p-4  m-auto">
+      <div className=" border rounded-lg ">
         <div className="border-b mb-4">
           <h1 className="text-2xl pb-2 text-center font-semibold">
             Edit userdetails

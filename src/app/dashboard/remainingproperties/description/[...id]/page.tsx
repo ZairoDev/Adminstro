@@ -217,7 +217,7 @@ const Page = ({ params }: PageProps) => {
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
-              <div className="border-b border-primary">
+              <div className="border-b ">
                 <h1 className="text-2xl pb-2 text-center font-semibold">
                   Edit description
                 </h1>
@@ -389,8 +389,15 @@ const Page = ({ params }: PageProps) => {
             })}
 
             <div className=" flex mt-4">
-              <Button type="submit">
-                {saveChangesLoading ? "Updating..." : "Save Changes"}
+              <Button className="sm:w-2/6 w-full" type="submit">
+                {saveChangesLoading ? (
+                  <div className="flex items-center gap-x-2">
+                    Updating..
+                    <Loader />
+                  </div>
+                ) : (
+                  "Save Changes"
+                )}
               </Button>
             </div>
           </form>

@@ -294,8 +294,8 @@ const CompletedProperties: React.FC = () => {
                         className="w-full"
                         onClick={() => handleEditDescription(property?._id)}
                       >
-                        <Edit size={12} />
-                        Edit Description
+                        <Edit size={18} />
+                        <span className=" ml-2">Preview</span>
                       </Button>
                     </div>
                   </CardFooter>

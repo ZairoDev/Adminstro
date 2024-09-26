@@ -155,11 +155,11 @@ const CompletedProperties: React.FC = () => {
   };
 
   const chartData = [
-    { title: "Completed", count: totalProperties, fill: "hsl(var(--primary-foreground))" },
+    { title: "Completed", count: totalProperties, fill: "hsl(var(--primary))" },
     {
       title: "Remaining",
       count: totalNumberOfProperties - totalProperties,
-      fill: "hsl(var(--primary))",
+      fill: "hsl(var(--primary-foreground))"
     },
   ];
 

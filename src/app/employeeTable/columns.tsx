@@ -73,9 +73,9 @@ export const columns: ColumnDef<UserInterface>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
-              {/* <Link href={`/dashboard/edituserdetails/${user._id}`}> */}
+              <Link href={`/dashboard/editemployeedetails/${user._id}`}>
                 Edit Profile
-              {/* </Link> */}
+              </Link>
             </DropdownMenuItem>
 
             <DropdownMenuItem>
@@ -90,5 +90,3 @@ export const columns: ColumnDef<UserInterface>[] = [
     },
   },
 ];
-
-

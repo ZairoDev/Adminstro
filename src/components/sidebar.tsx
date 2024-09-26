@@ -176,7 +176,7 @@ export function Sidebar() {
       {/* Sidebar for large screens */}
       <div className="hidden lg:block w-64 border-r fixed h-screen">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold p-4">Dashboard</h2>
+          <h2 className="text-2xl font-bold text-primary p-4">Adminstro</h2>
           <div className="mr-1">
             <ModeToggle />
           </div>
@@ -214,7 +214,7 @@ export function Sidebar() {
 
         <SheetContent side="left" className="w-[17rem]">
           <div className="flex items-center mb-2 justify-between">
-            <h2 className="text-2xl font-bold">Dashboard</h2>
+            <h2 className="text-2xl font-bold text-primary">Adminstro</h2>
             <div className="-mr-3">
               <ModeToggle />
             </div>

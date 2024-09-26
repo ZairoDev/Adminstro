@@ -53,9 +53,9 @@ const CompletedProperties: React.FC = () => {
   const router = useRouter();
 
   const handleEditDescription = (propertyId: string) => {
-    console.log(propertyId , "Up");
+    console.log(propertyId, "Up");
     router.push(`/dashboard/remainingproperties/description/${propertyId}`);
-    console.log(propertyId , "Down");
+    console.log(propertyId, "Down");
   };
 
   const fetchProperties = useCallback(
@@ -150,6 +150,17 @@ const CompletedProperties: React.FC = () => {
 
   return (
     <div>
+      <div className="">
+        <p className="flex text-xs  items-end justify-end">
+          Remaining
+          <span className=" text-primary">
+            <CustomTooltip
+              text={formatNumber(rermainigCount)}
+              desc={`${rermainigCount}`}
+            />
+          </span>
+        </p>
+      </div>
       {/* Search and filter section */}
       <div className="flex sm:items-center sm:flex-row flex-col justify-between">
         <div className="flex w-full lg:mt-0 mt-2 items-center gap-x-2">
@@ -178,14 +189,6 @@ const CompletedProperties: React.FC = () => {
               className="max-w-xl"
             />
           </div>
-        </div>
-        <div className="sm:ml-0 ml-1">
-          <p className="flex items-center text-xs gap-x-2">
-            Remaining
-            <span className="text-lg text-primary">
-              <CustomTooltip text={formatNumber(rermainigCount)}   desc={`${rermainigCount}`} />
-            </span>
-          </p>
         </div>
       </div>
 

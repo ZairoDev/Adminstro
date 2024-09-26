@@ -147,6 +147,17 @@ const CompletedProperties: React.FC = () => {
   };
   return (
     <div>
+      <div className="flex items-end justify-end">
+        <p className="flex items-center text-xs gap-x-2">
+          Completed{" "}
+          <span className=" text-primary">
+            <CustomTooltip
+              text={formatNumber(totalProperties)}
+              desc={`${totalProperties}`}
+            />
+          </span>
+        </p>
+      </div>
       <div className="flex sm:items-center sm:flex-row flex-col justify-between">
         <div className="flex w-full lg:mt-0 mt-2 items-center gap-x-2">
           <div className="sm:max-w-[180px] max-w-[100px] w-full">
@@ -174,17 +185,6 @@ const CompletedProperties: React.FC = () => {
               className="max-w-xl"
             />
           </div>
-        </div>
-        <div className="sm:ml-0 ml-1">
-          <p className="flex items-center text-xs gap-x-2">
-            Completed{" "}
-            <span className="text-lg text-primary">
-              <CustomTooltip
-                text={formatNumber(totalProperties)}
-                desc={`${totalProperties}`}
-              />
-            </span>
-          </p>
         </div>
       </div>
 

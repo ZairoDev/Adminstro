@@ -117,6 +117,19 @@ export function DataTable({
   };
   return (
     <>
+      <div className="flex items-end justify-end">
+        {totalUser > 0 && (
+          <p className="flex items-center text-xs gap-x-2">
+            Total Employee
+            <span className="text-primary">
+              <CustomTooltip
+                text={formatNumber(totalUser)}
+                desc={`${totalUser}`}
+              />
+            </span>
+          </p>
+        )}
+      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-2">
           <div>
@@ -189,19 +202,7 @@ export function DataTable({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div>
-        {totalUser > 0 && (
-          <p className="flex items-center text-xs gap-x-2">
-            Total Employee
-            <span className="text-primary">
-              <CustomTooltip
-                text={formatNumber(totalUser)}
-                desc={`${totalUser}`}
-              />
-            </span>
-          </p>
-        )}
-      </div>
+
       <div className="rounded-md border">
         {loading ? (
           <div className="text-center py-4 h-screen flex items-center justify-center">

@@ -1,5 +1,6 @@
+import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
-import User from "../../../../models/user";
+
 import { NextResponse } from "next/server";
 
 connectDb();
@@ -47,7 +48,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 
     console.log("Update data:", updateData); // Log the update data
 
-    const user = await User.findOneAndUpdate(
+    const user = await Employees.findOneAndUpdate(
       { _id },
       { $set: updateData },
       { new: true }

@@ -162,6 +162,7 @@ const NewUser = () => {
 
   return (
     <>
+    
       <div className=" mt-4 max-w-4xl m-auto ">
         <div className="flex items-center justify-center">
           <div className=" w-full ">

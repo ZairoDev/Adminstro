@@ -33,12 +33,15 @@ import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
+import { DonutChart } from "@/components/charts/DonutChart";
 import Animation from "@/components/animation";
 
 interface ApiResponse {
   data: Property[];
   totalPages: number;
   propertiesWithDescriptionsCount: number;
+  wordsCount: number;
+  totalProperties: number;
 }
 
 const CompletedProperties: React.FC = () => {
@@ -49,10 +52,13 @@ const CompletedProperties: React.FC = () => {
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalWords, setTotalWords] = useState<number>(0);
 
   const [totalProperties, setTotalProperties] = useState(0);
+  const [totalNumberOfProperties, setTotalNumberOfProperties] =
+    useState<number>(0);
 
-  const limit: number = 12;
+  const limit: number = 11;
   const router = useRouter();
 
   const handleEditDescription = (propertyId: string) => {
@@ -72,6 +78,8 @@ const CompletedProperties: React.FC = () => {
           setProperties(data.data);
           setTotalPages(data.totalPages);
           setTotalProperties(data?.propertiesWithDescriptionsCount);
+          setTotalWords(data?.wordsCount);
+          setTotalNumberOfProperties(data?.totalProperties);
         } else {
           throw new Error("Failed to fetch properties");
         }
@@ -146,6 +154,16 @@ const CompletedProperties: React.FC = () => {
       return number.toString();
     }
   };
+
+  const chartData = [
+    { title: "Completed", count: totalProperties, fill: "hsl(var(--primary))" },
+    {
+      title: "Remaining",
+      count: totalNumberOfProperties - totalProperties,
+      fill: "hsl(var(--primary-foreground))"
+    },
+  ];
+
   return (
     <div>
       <Animation>
@@ -190,70 +208,80 @@ const CompletedProperties: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-4">
-          {loading ? (
-            <div className="flex items-center justify-center h-screen">
-              <Loader />
-            </div>
-          ) : error ? (
-            <div>Error: {error}</div>
-          ) : (
-            <div className=" mb-4">
-              <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
-                {properties.map((property) => (
-                  <Card key={property?._id} className="w-full rounded-lg">
-                    <CardHeader className="p-0 border-b">
-                      <div>
-                        {property?.propertyCoverFileUrl[0] ? (
+      <div className="mt-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-screen">
+            <Loader />
+          </div>
+        ) : error ? (
+          <div>Error: {error}</div>
+        ) : (
+          <div className=" mb-4">
+            <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
+              <div>
+                <DonutChart
+                  title="Total Properties"
+                  data={chartData}
+                  totalCount={totalNumberOfProperties}
+                  totalCountTitle="Properties"
+                  footerText1={`Total Words: ${totalWords}`}
+                  footerText2={`Completed Properties: ${totalProperties}`}
+                />
+              </div>
+              {properties.map((property) => (
+                <Card key={property?._id} className="w-full rounded-lg">
+                  <CardHeader className="p-0 border-b">
+                    <div>
+                      {property?.propertyCoverFileUrl[0] ? (
+                        <AspectRatio ratio={16 / 12}>
+                          <Link
+                            href={{
+                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                              query: { id: property._id },
+                            }}
+                            target="_blank"
+                          >
+                            <img
+                              src={property?.propertyCoverFileUrl}
+                              alt="PropertyImage"
+                              loading="lazy"
+                              className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                            />
+                          </Link>
+                        </AspectRatio>
+                      ) : (
+                        <div className="relative">
                           <AspectRatio ratio={16 / 12}>
-                            <Link
-                              href={{
-                                pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                                query: { id: property._id },
-                              }}
-                              target="_blank"
-                            >
-                              <img
-                                src={property?.propertyCoverFileUrl}
-                                alt="PropertyImage"
-                                loading="lazy"
-                                className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                              />
-                            </Link>
+                            <img
+                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
+                              loading="lazy"
+                              alt="PropertyImage"
+                              className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
+                            />
+                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                              404 Not Found
+                            </p>
                           </AspectRatio>
-                        ) : (
-                          <div className="relative">
-                            <AspectRatio ratio={16 / 12}>
-                              <img
-                                src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
-                                loading="lazy"
-                                alt="PropertyImage"
-                                className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
-                              />
-                              <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
-                                404 Not Found
-                              </p>
-                            </AspectRatio>
-                          </div>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4  ">
-                      <div className="flex items-center justify-between">
-                        <p className="">Vsid {property?.VSID}</p>
-                        <p className="">Beds {property?.beds?.[0] || "NA"}</p>
-                      </div>
-                      <div className="mt-2">
-                        {property &&
-                        property.basePrice &&
-                        property.basePrice[0] ? (
-                          <p className="text-xl">
-                            €{property.basePrice[0]}/night
-                          </p>
-                        ) : (
-                          <p className="text-xl">Price not available</p>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4  ">
+                    <div className="flex items-center justify-between">
+                      <p className="">Vsid {property?.VSID}</p>
+                      <p className="">Beds {property?.beds?.[0] || "NA"}</p>
+                    </div>
+                    <div className="mt-2">
+                      {property &&
+                      property.basePrice &&
+                      property.basePrice[0] ? (
+                        <p className="text-xl">
+                          €{property.basePrice[0]}/night
+                        </p>
+                      ) : (
+                        <p className="text-xl">Price not available</p>
+                      )}
+                    </div>
 
                       <div className="mt-2 flex items-center justify-between">
                         <p className="line-clamp-1">

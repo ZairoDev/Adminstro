@@ -18,14 +18,18 @@ export const employeeSchema = z.object({
   address: z.string().min(1, "Address is required"),
   password: z.string().min(1, "Please enter your password"),
   isVerified: z.boolean().optional().default(true),
-  role: z.enum([
-    "Admin",
-    "Advert",
-    "Content",
-    "Sales",
-    "HR",
-    "Developer",
-  ]),
+  role: z.enum(["Admin", "Advert", "Content", "Sales", "HR", "Developer"]),
+  extras: z
+    .record(
+      z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.array(z.string()),
+        z.array(z.number()),
+      ])
+    )
+    .optional(),
   forgotPasswordToken: z.string().optional(),
   forgotPasswordTokenExpiry: z.date().optional(),
   verifyToken: z.string().optional(),

@@ -239,69 +239,81 @@ const Page = ({ params }: PageProps) => {
                         </label>
                       </div>
 
-                      <div className="w-full">
-                        <label className="text-xs" htmlFor="portionName">
-                          New Name for Property
-                          <Input
-                            type="text"
-                            name="Property"
-                            value={formData?.newPlaceName || ""}
-                            onChange={(e) => {
-                              const newObj = { ...formData };
-                              newObj["newPlaceName"] = e.target.value;
-                              setFormData(newObj);
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <div>
-                        <h1 className="mt-1">Property Picture</h1>
-                      </div>
-                      <div className="mt-4 space-x-2 overflow-x-auto">
-                        <div className="flex space-x-4">
-                          {formData?.propertyPictureUrls?.map((url, index) => (
-                            <div key={index} className="flex-shrink-0">
-                              <Img
-                                src={url || "/placeholder.webp"}
-                                alt="not found"
-                                className="w-40 h-40 object-cover rounded-md"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className=" sm:flex gap-x-4">
-                      <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
-                        <label htmlFor="review">Description of Property</label>
-                        <Textarea
-                          className="h-64"
-                          name="review"
-                          value={formData?.reviews?.[0] || ""}
-                          disabled
-                        />
-                      </div>
-                      <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
-                        <label htmlFor="review">
-                          New Description of Property
-                        </label>
-                        <Textarea
-                          className="h-64"
-                          name="review"
-                          value={formData?.newReviews || ""}
+                    <div className="w-full">
+                      <label className="text-xs" htmlFor="portionName">
+                        New Name for Property
+                        <Input
+                          type="text"
+                          name="Property"
+                          value={formData?.newPlaceName || ""}
                           onChange={(e) => {
                             const newObj = { ...formData };
-                            newObj["newReviews"] = e.target.value;
+                            newObj["newPlaceName"] = e.target.value;
                             setFormData(newObj);
                           }}
                         />
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <div>
+                      <h1 className="mt-1">Property Picture</h1>
+                    </div>
+                    <div className="mt-4 space-x-2 overflow-x-auto">
+                      <div className="flex space-x-4">
+                        {formData?.propertyPictureUrls?.map((url, index) => (
+                          <div key={index} className="flex-shrink-0">
+                            <Img
+                              src={url || "/placeholder.webp"}
+                              alt="not found"
+                              className="w-40 h-40 object-cover rounded-md"
+                            />
+                          </div>
+                        ))}
                       </div>
+                    </div>
+                  </div>
+                  <div className=" sm:flex gap-x-4">
+                    <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
+                      <label htmlFor="review">Description of Property</label>
+                      <Textarea
+                        className="h-64"
+                        name="review"
+                        value={formData?.reviews?.[0] || ""}
+                        disabled
+                      />
+                    </div>
+                    <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
+                      <label
+                        htmlFor="review"
+                        className="flex justify-between items-center"
+                      >
+                        New Description of Property{" "}
+                        <span className=" text-xs">
+                          (
+                          {`Words Count: ${
+                            formData?.newReviews
+                              ?.split(" ")
+                              .filter((item) => item != "").length || 0
+                          }`}
+                          )
+                        </span>
+                      </label>
+                      <Textarea
+                        className="h-64"
+                        name="review"
+                        value={formData?.newReviews || ""}
+                        onChange={(e) => {
+                          const newObj = { ...formData };
+                          newObj["newReviews"] = e.target.value;
+                          setFormData(newObj);
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
               {Array.from({
                 length: numberOfPortions,

@@ -78,6 +78,10 @@ const employeeSchema = new Schema<IEmployee>(
       enum: ["Admin", "Advert", "Content", "Sales", "HR", "Developer"],
       default: "Advert",
     },
+    extras: {
+      type: Map,
+      of: Schema.Types.Mixed,   // 'Mixed' allows any type of value
+    },
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,
     verifyToken: String,

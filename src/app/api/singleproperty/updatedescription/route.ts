@@ -2,6 +2,8 @@ import { Property } from "@/models/listing";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import Employees from "@/models/employee";
 
 connectDb();
 
@@ -11,13 +13,11 @@ export async function POST(request: NextRequest) {
     const { propertyId, newPlaceName, newReviews } = body;
     const id = propertyId[0];
 
-    console.log(newPlaceName, newReviews);
-
     if (!newReviews || !newPlaceName) {
       return NextResponse.json(
-        {error: "All fields are required"},
-        {status: 400}
-      )
+        { error: "All fields are required" },
+        { status: 400 }
+      );
     }
 
     if (!id) {
@@ -45,13 +45,34 @@ export async function POST(request: NextRequest) {
 
     property.newReviews = newReviews;
     property.newPlaceName = newPlaceName;
+
     await property.save();
+
+    try {// ! updating the words count in content writer's profile
+
+      const newWords: number = newReviews.split(" ").filter((item: string) => item != "").length;
+      console.log("newWords: ", newWords);
+
+      const token: any = await getDataFromToken(request);
+      const { email } = token;
+      console.log("email: ", email);
+      const employee = await Employees.findOneAndUpdate({email}, {
+        $set: {
+          "extras.wordsCount": newWords
+        }
+      });
+      console.log("document updated successfully!");
+    } catch (err: any) {
+      console.log("words count not updated", err);
+    }
 
     return NextResponse.json(
       { message: "Description Updated successfully" },
       { status: 200 }
     );
+
   } catch (error) {
+
     console.error("Error fetching property:", error);
     return NextResponse.json(
       { error: "Internal server error" },

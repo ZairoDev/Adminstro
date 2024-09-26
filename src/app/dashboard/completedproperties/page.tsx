@@ -33,11 +33,14 @@ import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
+import { DonutChart } from "@/components/charts/DonutChart";
 
 interface ApiResponse {
   data: Property[];
   totalPages: number;
   propertiesWithDescriptionsCount: number;
+  wordsCount: number;
+  totalProperties: number;
 }
 
 const CompletedProperties: React.FC = () => {
@@ -48,10 +51,13 @@ const CompletedProperties: React.FC = () => {
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalWords, setTotalWords] = useState<number>(0);
 
   const [totalProperties, setTotalProperties] = useState(0);
+  const [totalNumberOfProperties, setTotalNumberOfProperties] =
+    useState<number>(0);
 
-  const limit: number = 12;
+  const limit: number = 11;
   const router = useRouter();
 
   const handleEditDescription = (propertyId: string) => {
@@ -71,6 +77,8 @@ const CompletedProperties: React.FC = () => {
           setProperties(data.data);
           setTotalPages(data.totalPages);
           setTotalProperties(data?.propertiesWithDescriptionsCount);
+          setTotalWords(data?.wordsCount);
+          setTotalNumberOfProperties(data?.totalProperties);
         } else {
           throw new Error("Failed to fetch properties");
         }
@@ -145,6 +153,16 @@ const CompletedProperties: React.FC = () => {
       return number.toString();
     }
   };
+
+  const chartData = [
+    { title: "Completed", count: totalProperties, fill: "hsl(var(--primary-foreground))" },
+    {
+      title: "Remaining",
+      count: totalNumberOfProperties - totalProperties,
+      fill: "hsl(var(--primary))",
+    },
+  ];
+
   return (
     <div>
       <div className="flex sm:items-center sm:flex-row flex-col justify-between">
@@ -175,17 +193,6 @@ const CompletedProperties: React.FC = () => {
             />
           </div>
         </div>
-        <div className="sm:ml-0 ml-1">
-          <p className="flex items-center text-xs gap-x-2">
-            Completed{" "}
-            <span className="text-lg text-primary">
-              <CustomTooltip
-                text={formatNumber(totalProperties)}
-                desc={`${totalProperties}`}
-              />
-            </span>
-          </p>
-        </div>
       </div>
 
       <div className="mt-4">
@@ -198,6 +205,16 @@ const CompletedProperties: React.FC = () => {
         ) : (
           <div className=" mb-4">
             <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
+              <div>
+                <DonutChart
+                  title="Total Properties"
+                  data={chartData}
+                  totalCount={totalNumberOfProperties}
+                  totalCountTitle="Properties"
+                  footerText1={`Total Words: ${totalWords}`}
+                  footerText2={`Completed Properties: ${totalProperties}`}
+                />
+              </div>
               {properties.map((property) => (
                 <Card key={property?._id} className="w-full rounded-lg">
                   <CardHeader className="p-0 border-b">

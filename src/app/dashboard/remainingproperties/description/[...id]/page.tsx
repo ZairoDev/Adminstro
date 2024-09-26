@@ -282,8 +282,20 @@ const Page = ({ params }: PageProps) => {
                       />
                     </div>
                     <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
-                      <label htmlFor="review">
-                        New Description of Property
+                      <label
+                        htmlFor="review"
+                        className="flex justify-between items-center"
+                      >
+                        New Description of Property{" "}
+                        <span className=" text-xs">
+                          (
+                          {`Words Count: ${
+                            formData?.newReviews
+                              ?.split(" ")
+                              .filter((item) => item != "").length || 0
+                          }`}
+                          )
+                        </span>
                       </label>
                       <Textarea
                         className="h-64"

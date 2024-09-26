@@ -1,6 +1,5 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
-
 import { NextResponse } from "next/server";
 
 connectDb();
@@ -12,9 +11,15 @@ interface RequestBody {
   name?: string;
   gender?: string;
   spokenLanguage?: string;
-  bankDetails?: string;
   phone?: string;
   address?: string;
+  aadhar?: string;
+  accountNo?: number;
+  alias?: string;
+  country?: string;
+  experience?: string;
+  ifsc?: string;
+  role?: string;
 }
 
 export async function PUT(request: Request): Promise<NextResponse> {
@@ -41,12 +46,18 @@ export async function PUT(request: Request): Promise<NextResponse> {
     if (updateFields.gender) updateData.gender = updateFields.gender;
     if (updateFields.spokenLanguage)
       updateData.spokenLanguage = updateFields.spokenLanguage;
-    if (updateFields.bankDetails)
-      updateData.bankDetails = updateFields.bankDetails;
     if (updateFields.phone) updateData.phone = updateFields.phone;
     if (updateFields.address) updateData.address = updateFields.address;
+    if (updateFields.aadhar) updateData.aadhar = updateFields.aadhar;
+    if (updateFields.accountNo) updateData.accountNo = updateFields.accountNo;
+    if (updateFields.alias) updateData.alias = updateFields.alias;
+    if (updateFields.country) updateData.country = updateFields.country;
+    if (updateFields.experience)
+      updateData.experience = updateFields.experience;
+    if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
+    if (updateFields.role) updateData.role = updateFields.role;
 
-    console.log("Update data:", updateData); // Log the update data
+    console.log("Update data:", updateData);
 
     const user = await Employees.findOneAndUpdate(
       { _id },
@@ -63,7 +74,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
       success: true,
     });
   } catch (error) {
-    console.error("Error updating user:", error); // Log the error
+    console.error("Error updating user:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

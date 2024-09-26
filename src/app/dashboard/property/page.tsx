@@ -43,6 +43,7 @@ import Loader from "@/components/loader";
 import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
+import Animation from "@/components/animation";
 
 interface ApiResponse {
   data: Property[];
@@ -102,6 +103,7 @@ const PropertyPage: React.FC = () => {
           `/api/getallproperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
         );
         const data: ApiResponse = await response.json();
+        console.log(data);
         if (response.ok) {
           setProperties(data.data);
           setTotalPages(data.totalPages);
@@ -219,251 +221,269 @@ const PropertyPage: React.FC = () => {
 
   return (
     <div>
-      {/* Search and filter section */}
-      <div className="flex lg:mt-0 mt-2 items-center gap-x-2">
-        <div className="sm:max-w-[180px] max-w-[100px] w-full">
-          <Select
-            onValueChange={(value: string) => setSearchType(value)}
-            value={searchType}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="phone">Phone</SelectItem>
-              <SelectItem value="VSID">VSID</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex w-full items-center py-4">
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchTerm(e.target.value)
-            }
-            className="max-w-xl"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-screen">
-            <Loader />
+      <Animation>
+        {/* Search and filter section */}
+        <div className="flex lg:mt-0 mt-2 items-center gap-x-2">
+          <div className="sm:max-w-[180px] max-w-[100px] w-full">
+            <Select
+              onValueChange={(value: string) => setSearchType(value)}
+              value={searchType}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="phone">Phone</SelectItem>
+                <SelectItem value="VSID">VSID</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        ) : error ? (
-          <div>Error: {error}</div>
-        ) : (
-          <div className=" mb-4">
-            <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
-              {properties.map((property) => (
-                <Card key={property?._id} className="w-full rounded-lg">
-                  <CardHeader className="p-0 border-b ">
-                    <div>
-                      {property?.propertyCoverFileUrl[0] ? (
-                        <AspectRatio ratio={16 / 12}>
-                          <Link
-                            href={{
-                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                              query: { id: property._id },
-                            }}
-                            target="_blank"
-                          >
-                            <img
-                              src={property?.propertyCoverFileUrl}
-                              alt="PropertyImage"
-                              loading="lazy"
-                              className="w-full h-full sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                            />
-                          </Link>
-                        </AspectRatio>
-                      ) : (
-                        <div className="relative">
-                          <AspectRatio ratio={16 / 12}>
-                            <img
-                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
-                              loading="lazy"
-                              alt="PropertyImage"
-                              className="w-full relative  h-full object-fill flex items-center justify-center rounded-t-lg"
-                            />
-                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
-                              404 Not Found
-                            </p>
-                          </AspectRatio>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4  ">
-                    <div className="flex items-center justify-between">
-                      <p className="">Vsid {property?.VSID}</p>
-                      <p className="">Beds {property?.beds?.[0] || "NA"}</p>
-                    </div>
-                    <div className="mt-2">
-                      {property &&
-                      property.basePrice &&
-                      property.basePrice[0] ? (
-                        <p className="text-xl">
-                          €{property.basePrice[0]}/night
-                        </p>
-                      ) : (
-                        <p className="text-xl">Price not available</p>
-                      )}
-                    </div>
+          <div className="flex w-full items-center py-4">
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setSearchTerm(e.target.value)
+              }
+              className="max-w-xl"
+            />
+          </div>
+        </div>
 
-                    <div className="mt-2 flex items-center justify-between">
-                      <p className="line-clamp-1">
-                        State: <span></span> {property?.state || "NA"}
-                      </p>
-                      {property?.isLive ? (
-                        <span className="relative flex h-3 w-3">
-                          <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                        </span>
-                      ) : (
-                        <span className="relative flex h-3 w-3">
-                          <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex gap-2 flex-col  justify-between">
-                    {!property?.isLive && (
-                      <Drawer>
-                        <DrawerTrigger asChild>
-                          {userRole === "SuperAdmin" ||
-                          userRole === "Advert" ? (
-                            <Button
-                              className=" w-full  text-xs gap-x-1 hover:bg-green-600/10 bg-transparent border border-green-600 text-green-600"
-                              onClick={() =>
-                                setSelectedPropertyId(property?._id)
-                              }
-                              disabled={isSubmitting}
-                            >
-                              Live
-                              <EyeIcon size={12} />
-                            </Button>
-                          ) : null}
-                        </DrawerTrigger>
-                        <DrawerContent className="max-w-3xl m-auto">
-                          <DrawerHeader>
-                            <DrawerTitle>Live Confirmation</DrawerTitle>
-                            <DrawerDescription>
-                              Are you sure you want to make this property live?
-                            </DrawerDescription>
-                          </DrawerHeader>
-                          <DrawerFooter>
-                            <DrawerClose asChild>
-                              <Button
-                                className="p-2"
-                                onClick={() => handleLiveAction(property?._id)}
-                                disabled={isSubmitting}
-                              >
-                                Yes, Confirm
-                              </Button>
-                            </DrawerClose>
-                          </DrawerFooter>
-                        </DrawerContent>
-                      </Drawer>
-                    )}
-
-                    {property?.isLive && (
-                      <Drawer>
-                        <DrawerTrigger asChild>
-                          {(userRole === "SuperAdmin" ||
-                            userRole === "Advert") &&
-                          property?.isLive ? (
-                            <Button
-                              className="w-full flex items-center justify-center gap-x-1 text-xs hover:bg-red-600/10 bg-transparent border border-red-600 text-red-600"
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setSelectedPropertyId(property?._id)
-                              }
-                            >
-                              Hide <EyeOff size={12} />
-                            </Button>
-                          ) : null}
-                        </DrawerTrigger>
-                        <DrawerContent className="max-w-3xl m-auto">
-                          <DrawerHeader>
-                            <DrawerTitle>Hide Confirmation</DrawerTitle>
-                            <DrawerDescription>
-                              Are you sure you want to hide this property?
-                            </DrawerDescription>
-                          </DrawerHeader>
-                          <DrawerFooter>
-                            <DrawerClose asChild>
-                              <Button
-                                className="p-2"
-                                onClick={() => handleHideAction(property?._id)}
-                                disabled={isSubmitting}
-                              >
-                                Yes, Confirm
-                              </Button>
-                            </DrawerClose>
-                          </DrawerFooter>
-                        </DrawerContent>
-                      </Drawer>
-                    )}
-
-                    <div className="w-full ">
-                      {userRole === "SuperAdmin" && (
-                        <div>
-                          <Button
-                            variant="outline"
-                            className="w-full mb-2"
-                            onClick={() => handleEditClick(property?._id)}
-                          >
-                            <Edit size={12} />
-                            Edit
-                          </Button>
-                        </div>
-                      )}
-
-                      {userRole === "Advert" && (
-                        <div className="w-full">
-                          <Button
-                            className="w-full"
-                            onClick={() => handleEditClick(property?._id)}
-                          >
-                            <Edit size={12} />
-                            Edit
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-screen">
+              <Loader />
             </div>
-          </div>
-        )}
-      </div>
-      {/* Pagination Section */}
-      <div className="text-xs w-full">
-        <Pagination className="flex flex-wrap items-center w-full">
-          {/* <PaginationPrevious
+          ) : error ? (
+            <div>Error: {error}</div>
+          ) : (
+            <div className=" mb-4">
+              <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
+                {properties.map((property) => (
+                  <Card key={property?._id} className="w-full rounded-lg">
+                    <CardHeader className="p-0 border-b ">
+                      <div>
+                        {property?.propertyCoverFileUrl[0] ? (
+                          <AspectRatio ratio={16 / 12}>
+                            <Link
+                              href={{
+                                pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                                query: { id: property._id },
+                              }}
+                              target="_blank"
+                            >
+                              <img
+                                src={property?.propertyCoverFileUrl}
+                                alt="PropertyImage"
+                                loading="lazy"
+                                className="w-full h-full sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                              />
+                            </Link>
+                          </AspectRatio>
+                        ) : (
+                          <div className="relative">
+                            <AspectRatio ratio={16 / 12}>
+                              <img
+                                src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
+                                loading="lazy"
+                                alt="PropertyImage"
+                                className="w-full relative  h-full object-fill flex items-center justify-center rounded-t-lg"
+                              />
+                              <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                                404 Not Found
+                              </p>
+                            </AspectRatio>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="">
+                      <div className="flex items-center justify-between">
+                        <p className="">Vsid {property?.VSID}</p>
+                        <p className="">Beds {property?.beds?.[0] || "NA"}</p>
+                      </div>
+                      <div className="mt-2">
+                        {property &&
+                        property.basePrice &&
+                        property.basePrice[0] ? (
+                          <p className="text-xl">
+                            €{property.basePrice[0]}/night
+                          </p>
+                        ) : (
+                          <p className="text-xl">Price not available</p>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="flex m flex-col">
+                          <p className="line-clamp-1">
+                            State: <span></span> {property?.state || "NA"}
+                          </p>
+                          <div className="flex h-6 mt-2 flex-col opacity-40">
+                            <p className=" text-xs line-clamp-1">
+                              By: {property?.hostedBy || "NA"}
+                            </p>
+                            <p className=" text-xs line-clamp-1">
+                              From: {property?.hostedFrom || "NA"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {property?.isLive ? (
+                          <span className="relative flex h-3 w-3">
+                            <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                          </span>
+                        ) : (
+                          <span className="relative flex h-3 w-3">
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex gap-y-2 mt-1 flex-col  justify-between">
+                      {!property?.isLive && (
+                        <Drawer>
+                          <DrawerTrigger asChild>
+                            {userRole === "SuperAdmin" ||
+                            userRole === "Advert" ? (
+                              <Button
+                                className=" w-full  text-xs gap-x-1 hover:bg-green-600/10 bg-transparent border border-green-600 text-green-600"
+                                onClick={() =>
+                                  setSelectedPropertyId(property?._id)
+                                }
+                                disabled={isSubmitting}
+                              >
+                                Live
+                                <EyeIcon size={12} />
+                              </Button>
+                            ) : null}
+                          </DrawerTrigger>
+                          <DrawerContent className="max-w-3xl m-auto">
+                            <DrawerHeader>
+                              <DrawerTitle>Live Confirmation</DrawerTitle>
+                              <DrawerDescription>
+                                Are you sure you want to make this property
+                                live?
+                              </DrawerDescription>
+                            </DrawerHeader>
+                            <DrawerFooter>
+                              <DrawerClose asChild>
+                                <Button
+                                  className="p-2"
+                                  onClick={() =>
+                                    handleLiveAction(property?._id)
+                                  }
+                                  disabled={isSubmitting}
+                                >
+                                  Yes, Confirm
+                                </Button>
+                              </DrawerClose>
+                            </DrawerFooter>
+                          </DrawerContent>
+                        </Drawer>
+                      )}
+
+                      {property?.isLive && (
+                        <Drawer>
+                          <DrawerTrigger asChild>
+                            {(userRole === "SuperAdmin" ||
+                              userRole === "Advert") &&
+                            property?.isLive ? (
+                              <Button
+                                className="w-full flex items-center justify-center gap-x-1 text-xs hover:bg-red-600/10 bg-transparent border border-red-600 text-red-600"
+                                disabled={isSubmitting}
+                                onClick={() =>
+                                  setSelectedPropertyId(property?._id)
+                                }
+                              >
+                                Hide <EyeOff size={12} />
+                              </Button>
+                            ) : null}
+                          </DrawerTrigger>
+                          <DrawerContent className="max-w-3xl m-auto">
+                            <DrawerHeader>
+                              <DrawerTitle>Hide Confirmation</DrawerTitle>
+                              <DrawerDescription>
+                                Are you sure you want to hide this property?
+                              </DrawerDescription>
+                            </DrawerHeader>
+                            <DrawerFooter>
+                              <DrawerClose asChild>
+                                <Button
+                                  className="p-2"
+                                  onClick={() =>
+                                    handleHideAction(property?._id)
+                                  }
+                                  disabled={isSubmitting}
+                                >
+                                  Yes, Confirm
+                                </Button>
+                              </DrawerClose>
+                            </DrawerFooter>
+                          </DrawerContent>
+                        </Drawer>
+                      )}
+
+                      <div className="w-full ">
+                        {userRole === "SuperAdmin" && (
+                          <div>
+                            <Button
+                              variant="outline"
+                              className="w-full mb-2"
+                              onClick={() => handleEditClick(property?._id)}
+                            >
+                              <Edit size={12} />
+                              Edit
+                            </Button>
+                          </div>
+                        )}
+
+                        {userRole === "Advert" && (
+                          <div className="w-full">
+                            <Button
+                              className="w-full"
+                              onClick={() => handleEditClick(property?._id)}
+                            >
+                              <Edit size={12} />
+                              Edit
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Pagination Section */}
+        <div className="text-xs w-full">
+          <Pagination className="flex flex-wrap items-center w-full">
+            {/* <PaginationPrevious
             className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page - 1)}
           >
            
           </PaginationPrevious> */}
 
-          <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
-            {renderPaginationItems()}
-          </PaginationContent>
+            <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
+              {renderPaginationItems()}
+            </PaginationContent>
 
-          {/* <PaginationNext
+            {/* <PaginationNext
             className="text-xs sm:block hidden"
             onClick={() => handlePageChange(page + 1)}
           >
            
           </PaginationNext> */}
-        </Pagination>
-      </div>
+          </Pagination>
+        </div>
+      </Animation>
     </div>
   );
 };

@@ -21,6 +21,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import Animation from "@/components/animation";
 
 interface LoginResponse {
   message?: string;
@@ -89,111 +90,115 @@ const PageLogin: React.FC = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex">
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
-      </div>
-      <div className="w-1/2  md:flex hidden items-center justify-center">
-        <Carousel className="w-full h-full">
-          <CarouselContent>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 1"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 2"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 3"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 4"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      </div>
-
-      <div className="md:w-1/2 w-full flex items-center justify-center ">
-        <div className="w-full max-w-sm px-6 py-8 border  rounded-lg shadow-lg">
-          <h1 className="text-3xl font-semibold text-center mb-6">
-            Employee Login
-          </h1>
-          <form onSubmit={handleSubmit}>
-            <Label>
-              <span>Email address</span>
-              <Input
-                type="email"
-                placeholder="dummyemail@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-2 w-full"
-              />
-            </Label>
-            <Label className="mt-4">
-              <span className="flex mt-2 justify-between">
-                Password
-                <Link
-                  href="/authentication/forgotpassword"
-                  className="font-semibold underline"
-                >
-                  Forgot Password
-                </Link>
-              </span>
-              <div className="relative mt-2">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="********"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full"
+    <Animation>
+      <div className="h-screen overflow-hidden flex">
+        <div className="absolute top-4 right-4">
+          <ModeToggle />
+        </div>
+        <div className="w-1/2  md:flex hidden items-center justify-center">
+          <Carousel className="w-full h-full">
+            <CarouselContent>
+              <CarouselItem>
+                <img
+                  src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
+                  alt="Carousel Image 1"
+                  className="object-cover w-full h-full"
                 />
-                <span className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-xl text-neutral-800 dark:text-neutral-200">
-                  {showPassword ? (
-                    <AiFillEyeInvisible
-                      onClick={() => setShowPassword(!showPassword)}
-                    />
-                  ) : (
-                    <AiFillEye onClick={() => setShowPassword(!showPassword)} />
-                  )}
+              </CarouselItem>
+              <CarouselItem>
+                <img
+                  src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
+                  alt="Carousel Image 2"
+                  className="object-cover w-full h-full"
+                />
+              </CarouselItem>
+              <CarouselItem>
+                <img
+                  src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
+                  alt="Carousel Image 3"
+                  className="object-cover w-full h-full"
+                />
+              </CarouselItem>
+              <CarouselItem>
+                <img
+                  src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
+                  alt="Carousel Image 4"
+                  className="object-cover w-full h-full"
+                />
+              </CarouselItem>
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
+        </div>
+
+        <div className="md:w-1/2 w-full flex items-center justify-center ">
+          <div className="w-full max-w-sm px-6 py-8 border  rounded-lg shadow-lg">
+            <h1 className="text-3xl font-semibold text-center mb-6">
+              Employee Login
+            </h1>
+            <form onSubmit={handleSubmit}>
+              <Label>
+                <span>Email address</span>
+                <Input
+                  type="email"
+                  placeholder="dummyemail@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="mt-2 w-full"
+                />
+              </Label>
+              <Label className="mt-4">
+                <span className="flex mt-2 justify-between">
+                  Password
+                  <Link
+                    href="/authentication/forgotpassword"
+                    className="font-semibold underline"
+                  >
+                    Forgot Password
+                  </Link>
                 </span>
-              </div>
-            </Label>
-            <Button
-              type="submit"
-              className="w-full mt-6"
-              disabled={isLoggingIn}
-            >
-              {isLoggingIn ? (
-                <div className="flex justify-center items-center gap-2">
-                  Logging in.. <CgSpinner className="animate-spin text-xl" />
+                <div className="relative mt-2">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="********"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full"
+                  />
+                  <span className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-xl text-neutral-800 dark:text-neutral-200">
+                    {showPassword ? (
+                      <AiFillEyeInvisible
+                        onClick={() => setShowPassword(!showPassword)}
+                      />
+                    ) : (
+                      <AiFillEye
+                        onClick={() => setShowPassword(!showPassword)}
+                      />
+                    )}
+                  </span>
                 </div>
-              ) : (
-                "Continue"
-              )}
-            </Button>
-          </form>
+              </Label>
+              <Button
+                type="submit"
+                className="w-full mt-6"
+                disabled={isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  <div className="flex justify-center items-center gap-2">
+                    Logging in.. <CgSpinner className="animate-spin text-xl" />
+                  </div>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </Animation>
   );
 };
 

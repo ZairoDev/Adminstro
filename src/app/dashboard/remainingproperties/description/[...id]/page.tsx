@@ -16,6 +16,7 @@ import CustomTooltip from "@/components/CustomToolTip";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Img from "@/components/Img";
+import Animation from "@/components/animation";
 interface PageProps {
   params: {
     id: string;
@@ -209,200 +210,202 @@ const Page = ({ params }: PageProps) => {
 
   return (
     <>
-      <div className="max-w-6xl p-2 m-auto ">
-        {loading ? (
-          <div className="flex items-center justify-center h-screen w-full">
-            <Loader />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
-              <div className="border-b ">
-                <h1 className="text-2xl pb-2 text-center font-semibold">
-                  Edit description
-                </h1>
-              </div>
-              <div>
-                <div className="flex rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
-                  <div className="xs:flex items-center gap-x-4 justify-between">
-                    <div className="w-full">
-                      <label className="text-xs" htmlFor="portionName">
-                        Property Name
-                        <Input
-                          type="text"
-                          name="Property"
-                          disabled
-                          value={formData?.placeName || ""}
-                        />
-                      </label>
-                    </div>
+      <Animation>
+        <div className="max-w-6xl p-2 m-auto ">
+          {loading ? (
+            <div className="flex items-center justify-center h-screen w-full">
+              <Loader />
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
+                <div className="border-b ">
+                  <h1 className="text-2xl pb-2 text-center font-semibold">
+                    Edit description
+                  </h1>
+                </div>
+                <div>
+                  <div className="flex rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
+                    <div className="xs:flex items-center gap-x-4 justify-between">
+                      <div className="w-full">
+                        <label className="text-xs" htmlFor="portionName">
+                          Property Name
+                          <Input
+                            type="text"
+                            name="Property"
+                            disabled
+                            value={formData?.placeName || ""}
+                          />
+                        </label>
+                      </div>
 
-                    <div className="w-full">
-                      <label className="text-xs" htmlFor="portionName">
-                        New Name for Property
-                        <Input
-                          type="text"
-                          name="Property"
-                          value={formData?.newPlaceName || ""}
+                      <div className="w-full">
+                        <label className="text-xs" htmlFor="portionName">
+                          New Name for Property
+                          <Input
+                            type="text"
+                            name="Property"
+                            value={formData?.newPlaceName || ""}
+                            onChange={(e) => {
+                              const newObj = { ...formData };
+                              newObj["newPlaceName"] = e.target.value;
+                              setFormData(newObj);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <div>
+                        <h1 className="mt-1">Property Picture</h1>
+                      </div>
+                      <div className="mt-4 space-x-2 overflow-x-auto">
+                        <div className="flex space-x-4">
+                          {formData?.propertyPictureUrls?.map((url, index) => (
+                            <div key={index} className="flex-shrink-0">
+                              <Img
+                                src={url || "/placeholder.webp"}
+                                alt="not found"
+                                className="w-40 h-40 object-cover rounded-md"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className=" sm:flex gap-x-4">
+                      <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
+                        <label htmlFor="review">Description of Property</label>
+                        <Textarea
+                          className="h-64"
+                          name="review"
+                          value={formData?.reviews?.[0] || ""}
+                          disabled
+                        />
+                      </div>
+                      <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
+                        <label htmlFor="review">
+                          New Description of Property
+                        </label>
+                        <Textarea
+                          className="h-64"
+                          name="review"
+                          value={formData?.newReviews || ""}
                           onChange={(e) => {
                             const newObj = { ...formData };
-                            newObj["newPlaceName"] = e.target.value;
+                            newObj["newReviews"] = e.target.value;
                             setFormData(newObj);
                           }}
                         />
-                      </label>
-                    </div>
-                  </div>
-                  <div>
-                    <div>
-                      <h1 className="mt-1">Property Picture</h1>
-                    </div>
-                    <div className="mt-4 space-x-2 overflow-x-auto">
-                      <div className="flex space-x-4">
-                        {formData?.propertyPictureUrls?.map((url, index) => (
-                          <div key={index} className="flex-shrink-0">
-                            <Img
-                              src={url || "/placeholder.webp"}
-                              alt="not found"
-                              className="w-40 h-40 object-cover rounded-md"
-                            />
-                          </div>
-                        ))}
                       </div>
-                    </div>
-                  </div>
-                  <div className=" sm:flex gap-x-4">
-                    <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
-                      <label htmlFor="review">Description of Property</label>
-                      <Textarea
-                        className="h-64"
-                        name="review"
-                        value={formData?.reviews?.[0] || ""}
-                        disabled
-                      />
-                    </div>
-                    <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
-                      <label htmlFor="review">
-                        New Description of Property
-                      </label>
-                      <Textarea
-                        className="h-64"
-                        name="review"
-                        value={formData?.newReviews || ""}
-                        onChange={(e) => {
-                          const newObj = { ...formData };
-                          newObj["newReviews"] = e.target.value;
-                          setFormData(newObj);
-                        }}
-                      />
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {Array.from({
-              length: numberOfPortions,
-            }).map((item, index) => {
-              return (
-                <div
-                  className=" text-sm sm:text-base flex flex-col space-y-4 my-4 w-full"
-                  key={index}
-                >
-                  {" "}
+              {Array.from({
+                length: numberOfPortions,
+              }).map((item, index) => {
+                return (
                   <div
-                    className=""
-                    onClick={() =>
-                      setIsPortionOpen((prev) => {
-                        const newIsPortionOpen = [...prev];
-                        newIsPortionOpen[index] = !newIsPortionOpen[index];
-                        return newIsPortionOpen;
-                      })
-                    }
+                    className=" text-sm sm:text-base flex flex-col space-y-4 my-4 w-full"
+                    key={index}
                   >
-                    <div className=" flex flex-wrap xs:flex-nowrap gap-y-2 items-center transition-transform duration-300 ease-in-out cursor-pointer border px-4 py-2 rounded-lg justify-center xs:justify-normal ">
-                      <p className=" text-nowrap">Portion no {index + 1}</p>
-                      {isPortionOpen[index] ? (
-                        <MdArrowDropDown className="text-2xl" />
-                      ) : (
-                        <MdArrowRight className="text-2xl" />
-                      )}{" "}
-                      {isPortionOpen[index] && (
-                        <div className=" flex flex-wrap md:flex-nowrap gap-x-4 xs:ml-8 justify-center gap-y-2">
-                          <CustomTooltip
-                            icon={<FaUser />}
-                            content={formData?.guests?.[index]}
-                            desc="No. Of Guests"
-                          />
-                          <CustomTooltip
-                            icon={<IoIosBed />}
-                            content={formData?.beds?.[index]}
-                            desc="No. Of beds"
-                          />
-                          <CustomTooltip
-                            icon={<FaBath />}
-                            content={formData?.bathroom?.[index]}
-                            desc="No. Of bathroom"
-                          />
-                          <CustomTooltip
-                            icon={<SlSizeFullscreen />}
-                            content={formData?.portionSize?.[index]}
-                            desc="Portion's size"
-                          />
-                          <CustomTooltip
-                            icon={<FaEuroSign />}
-                            content={formData?.basePrice?.[index]}
-                            desc="Price of Portion"
-                          />
-                          <CustomTooltip
-                            text={formData?.portionName?.[index]}
-                            desc="Name of Portion"
-                            className=" xs:text-nowrap"
-                          />
-                        </div>
-                      )}
+                    {" "}
+                    <div
+                      className=""
+                      onClick={() =>
+                        setIsPortionOpen((prev) => {
+                          const newIsPortionOpen = [...prev];
+                          newIsPortionOpen[index] = !newIsPortionOpen[index];
+                          return newIsPortionOpen;
+                        })
+                      }
+                    >
+                      <div className=" flex flex-wrap xs:flex-nowrap gap-y-2 items-center transition-transform duration-300 ease-in-out cursor-pointer border px-4 py-2 rounded-lg justify-center xs:justify-normal ">
+                        <p className=" text-nowrap">Portion no {index + 1}</p>
+                        {isPortionOpen[index] ? (
+                          <MdArrowDropDown className="text-2xl" />
+                        ) : (
+                          <MdArrowRight className="text-2xl" />
+                        )}{" "}
+                        {isPortionOpen[index] && (
+                          <div className=" flex flex-wrap md:flex-nowrap gap-x-4 xs:ml-8 justify-center gap-y-2">
+                            <CustomTooltip
+                              icon={<FaUser />}
+                              content={formData?.guests?.[index]}
+                              desc="No. Of Guests"
+                            />
+                            <CustomTooltip
+                              icon={<IoIosBed />}
+                              content={formData?.beds?.[index]}
+                              desc="No. Of beds"
+                            />
+                            <CustomTooltip
+                              icon={<FaBath />}
+                              content={formData?.bathroom?.[index]}
+                              desc="No. Of bathroom"
+                            />
+                            <CustomTooltip
+                              icon={<SlSizeFullscreen />}
+                              content={formData?.portionSize?.[index]}
+                              desc="Portion's size"
+                            />
+                            <CustomTooltip
+                              icon={<FaEuroSign />}
+                              content={formData?.basePrice?.[index]}
+                              desc="Price of Portion"
+                            />
+                            <CustomTooltip
+                              text={formData?.portionName?.[index]}
+                              desc="Name of Portion"
+                              className=" xs:text-nowrap"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {isPortionOpen[index] && (
-                    <>
-                      <div className=" flex flex-col space-y-4">
-                        <div className="mt-4 space-x-2 overflow-x-auto">
-                          <div className="flex space-x-4">
-                            {formData?.portionPictureUrls?.[index]?.map(
-                              (url, index) => (
-                                <div key={index} className="flex-shrink-0">
-                                  <Img
-                                    src={url || "/placeholder.webp"}
-                                    alt="not found"
-                                    className="w-40 h-40 object-cover rounded-md"
-                                  />
-                                </div>
-                              )
-                            )}
+                    {isPortionOpen[index] && (
+                      <>
+                        <div className=" flex flex-col space-y-4">
+                          <div className="mt-4 space-x-2 overflow-x-auto">
+                            <div className="flex space-x-4">
+                              {formData?.portionPictureUrls?.[index]?.map(
+                                (url, index) => (
+                                  <div key={index} className="flex-shrink-0">
+                                    <Img
+                                      src={url || "/placeholder.webp"}
+                                      alt="not found"
+                                      className="w-40 h-40 object-cover rounded-md"
+                                    />
+                                  </div>
+                                )
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-            <div className=" flex mt-4">
-              <Button className="sm:w-2/6 w-full" type="submit">
-                {saveChangesLoading ? (
-                  <div className="flex items-center gap-x-2">
-                    Updating..
-                    <Loader />
+                      </>
+                    )}
                   </div>
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
+                );
+              })}
+
+              <div className=" flex mt-4">
+                <Button className="sm:w-2/6 w-full" type="submit">
+                  {saveChangesLoading ? (
+                    <div className="flex items-center gap-x-2">
+                      Updating..
+                      <Loader />
+                    </div>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Animation>
     </>
   );
 };

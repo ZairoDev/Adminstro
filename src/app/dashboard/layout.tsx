@@ -1,4 +1,5 @@
 "use client";
+import Animation from "@/components/animation";
 import BreadCrumb from "@/components/BreadCrumb";
 import { Sidebar } from "@/components/sidebar";
 
@@ -14,7 +15,9 @@ export default function DashboardLayout({
         <div className="sm:block hidden">
           <BreadCrumb />
         </div>
-        <div>{children}</div>
+        <div>
+          <Animation>{children}</Animation>
+        </div>
       </main>
     </div>
   );

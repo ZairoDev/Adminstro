@@ -6,6 +6,7 @@ import { DataTable } from "./data-table";
 import debounce from "lodash.debounce";
 import axios from "axios";
 import { UserInterface } from "@/util/type";
+import Animation from "@/components/animation";
 
 export default function TablePage() {
   const [data, setData] = useState<UserInterface[]>([]);
@@ -14,11 +15,11 @@ export default function TablePage() {
   const [queryType, setQueryType] = useState("email");
   const [totalPages, setTotalPages] = useState(1);
   const [totalUser, setTotalUser] = useState(0);
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
 
   const fetchData = useCallback(
     debounce(async (search: string, queryType: string, page: number) => {
-      setLoading(true); 
+      setLoading(true);
       try {
         const response = await axios.get(`/api/user/getallusers`, {
           params: {
@@ -29,11 +30,11 @@ export default function TablePage() {
         });
         setData(response.data.allUsers);
         setTotalUser(response.data.totalUsers);
-        setTotalPages(Math.ceil(response.data.totalUsers / 10)); 
+        setTotalPages(Math.ceil(response.data.totalUsers / 10));
       } catch (error) {
         console.log(error);
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     }, 1000),
     []
@@ -45,19 +46,21 @@ export default function TablePage() {
 
   return (
     <div className="">
-      <DataTable
-        data={data}
-        columns={columns}
-        setPage={setPage}
-        setSearch={setSearch}
-        setQueryType={setQueryType}
-        search={search}
-        currentPage={page}
-        totalPages={totalPages}
-        queryType={queryType}
-        totalUser={totalUser}
-        loading={loading} 
-      />
+      <Animation>
+        <DataTable
+          data={data}
+          columns={columns}
+          setPage={setPage}
+          setSearch={setSearch}
+          setQueryType={setQueryType}
+          search={search}
+          currentPage={page}
+          totalPages={totalPages}
+          queryType={queryType}
+          totalUser={totalUser}
+          loading={loading}
+        />
+      </Animation>
     </div>
   );
 }

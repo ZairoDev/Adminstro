@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const { email } = token;
       console.log("email: ", email);
       const employee = await Employees.findOneAndUpdate({email}, {
-        $set: {
+        $inc: {
           "extras.wordsCount": newWords
         }
       });

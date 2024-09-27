@@ -145,39 +145,19 @@ const CompletedProperties: React.FC = () => {
 
     return items;
   };
-  const formatNumber = (number: number) => {
-    if (number >= 1000000) {
-      return (number / 1000000).toFixed(1) + "M";
-    } else if (number >= 1000) {
-      return (number / 1000).toFixed(1) + "k";
-    } else {
-      return number.toString();
-    }
-  };
 
   const chartData = [
     { title: "Completed", count: totalProperties, fill: "hsl(var(--primary))" },
     {
       title: "Remaining",
       count: totalNumberOfProperties - totalProperties,
-      fill: "hsl(var(--primary-foreground))"
+      fill: "hsl(var(--primary-foreground))",
     },
   ];
 
   return (
     <div>
       <Animation>
-        <div className="flex items-end justify-end">
-          <p className="flex items-center text-xs gap-x-2">
-            Completed{" "}
-            <span className=" text-primary">
-              <CustomTooltip
-                text={formatNumber(totalProperties)}
-                desc={`${totalProperties}`}
-              />
-            </span>
-          </p>
-        </div>
         <div className="flex sm:items-center sm:flex-row flex-col justify-between">
           <div className="flex w-full lg:mt-0 mt-2 items-center gap-x-2">
             <div className="sm:max-w-[180px] max-w-[100px] w-full">
@@ -208,80 +188,80 @@ const CompletedProperties: React.FC = () => {
           </div>
         </div>
 
-      <div className="mt-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-screen">
-            <Loader />
-          </div>
-        ) : error ? (
-          <div>Error: {error}</div>
-        ) : (
-          <div className=" mb-4">
-            <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
-              <div>
-                <DonutChart
-                  title="Total Properties"
-                  data={chartData}
-                  totalCount={totalNumberOfProperties}
-                  totalCountTitle="Properties"
-                  footerText1={`Total Words: ${totalWords}`}
-                  footerText2={`Completed Properties: ${totalProperties}`}
-                />
-              </div>
-              {properties.map((property) => (
-                <Card key={property?._id} className="w-full rounded-lg">
-                  <CardHeader className="p-0 border-b">
-                    <div>
-                      {property?.propertyCoverFileUrl[0] ? (
-                        <AspectRatio ratio={16 / 12}>
-                          <Link
-                            href={{
-                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                              query: { id: property._id },
-                            }}
-                            target="_blank"
-                          >
-                            <img
-                              src={property?.propertyCoverFileUrl}
-                              alt="PropertyImage"
-                              loading="lazy"
-                              className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                            />
-                          </Link>
-                        </AspectRatio>
-                      ) : (
-                        <div className="relative">
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-screen">
+              <Loader />
+            </div>
+          ) : error ? (
+            <div>Error: {error}</div>
+          ) : (
+            <div className=" mb-4">
+              <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
+                <div>
+                  <DonutChart
+                    title="Total Properties"
+                    data={chartData}
+                    totalCount={totalProperties}
+                    totalCountTitle="Properties"
+                    footerText1={`Total Words: ${totalWords}`}
+                    footerText2={`Total Properties: ${totalNumberOfProperties}`}
+                  />
+                </div>
+                {properties.map((property) => (
+                  <Card key={property?._id} className="w-full rounded-lg">
+                    <CardHeader className="p-0 border-b">
+                      <div>
+                        {property?.propertyCoverFileUrl[0] ? (
                           <AspectRatio ratio={16 / 12}>
-                            <img
-                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
-                              loading="lazy"
-                              alt="PropertyImage"
-                              className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
-                            />
-                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
-                              404 Not Found
-                            </p>
+                            <Link
+                              href={{
+                                pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                                query: { id: property._id },
+                              }}
+                              target="_blank"
+                            >
+                              <img
+                                src={property?.propertyCoverFileUrl}
+                                alt="PropertyImage"
+                                loading="lazy"
+                                className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
+                              />
+                            </Link>
                           </AspectRatio>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4  ">
-                    <div className="flex items-center justify-between">
-                      <p className="">Vsid {property?.VSID}</p>
-                      <p className="">Beds {property?.beds?.[0] || "NA"}</p>
-                    </div>
-                    <div className="mt-2">
-                      {property &&
-                      property.basePrice &&
-                      property.basePrice[0] ? (
-                        <p className="text-xl">
-                          €{property.basePrice[0]}/night
-                        </p>
-                      ) : (
-                        <p className="text-xl">Price not available</p>
-                      )}
-                    </div>
+                        ) : (
+                          <div className="relative">
+                            <AspectRatio ratio={16 / 12}>
+                              <img
+                                src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
+                                loading="lazy"
+                                alt="PropertyImage"
+                                className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
+                              />
+                              <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                                404 Not Found
+                              </p>
+                            </AspectRatio>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4  ">
+                      <div className="flex items-center justify-between">
+                        <p className="">Vsid {property?.VSID}</p>
+                        <p className="">Beds {property?.beds?.[0] || "NA"}</p>
+                      </div>
+                      <div className="mt-2">
+                        {property &&
+                        property.basePrice &&
+                        property.basePrice[0] ? (
+                          <p className="text-xl">
+                            €{property.basePrice[0]}/night
+                          </p>
+                        ) : (
+                          <p className="text-xl">Price not available</p>
+                        )}
+                      </div>
 
                       <div className="mt-2 flex items-center justify-between">
                         <p className="line-clamp-1">
@@ -307,8 +287,8 @@ const CompletedProperties: React.FC = () => {
                           className="w-full"
                           onClick={() => handleEditDescription(property?._id)}
                         >
-                          <Edit size={12} />
-                          Edit Description
+                          <Edit size={18} />
+                          <span className=" ml-2">Preview</span>
                         </Button>
                       </div>
                     </CardFooter>

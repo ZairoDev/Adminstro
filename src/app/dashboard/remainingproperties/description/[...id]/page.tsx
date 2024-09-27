@@ -31,6 +31,7 @@ const Page = ({ params }: PageProps) => {
   const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
     Array.from({ length: numberOfPortions }, () => false)
   );
+  const [isNewReview, setIsNewReview] = useState<boolean>(false);
 
   useEffect(() => {
     if (params.id) {
@@ -44,6 +45,7 @@ const Page = ({ params }: PageProps) => {
           setProperty(response.data);
           setNumberOfPortions(response.data.basePrice.length);
           setLoading(false);
+          if (response.data.newReviews !== undefined) setIsNewReview(true); 
         } catch (error: any) {
           console.error("Error fetching property:", error);
           setLoading(false);
@@ -403,7 +405,7 @@ const Page = ({ params }: PageProps) => {
               })}
 
               <div className=" flex mt-4">
-                <Button className="sm:w-2/6 w-full" type="submit">
+                <Button className="sm:w-2/6 w-full" type="submit" disabled={isNewReview}>
                   {saveChangesLoading ? (
                     <div className="flex items-center gap-x-2">
                       Updating..

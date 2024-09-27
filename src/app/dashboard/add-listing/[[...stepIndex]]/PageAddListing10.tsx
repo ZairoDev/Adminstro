@@ -277,6 +277,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       childrenAge: combinedData?.childrenAge,
 
       basePrice: combinedData?.basePrice,
+      basePriceLongTerm: combinedData?.basePriceLongTerm,
       weekendPrice: combinedData?.weekendPrice,
       weeklyDiscount: combinedData?.weeklyDiscount,
       currency: combinedData?.currency,
@@ -321,7 +322,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       neighbourhood: combinedData?.neighbourhood,
 
       rentalType: combinedData?.rentalType,
-      basePriceLongTerm: combinedData?.basePriceLongTerm,
       monthlyDiscount: combinedData?.monthlyDiscount,
       longTermMonths: combinedData?.longTermMonths,
       isLive: true,
@@ -340,7 +340,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
         });
-        clearLocalStorage();
+        // clearLocalStorage();
       }
     } catch (error) {
       toast({

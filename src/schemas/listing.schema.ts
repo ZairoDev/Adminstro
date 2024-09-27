@@ -33,6 +33,7 @@ const propertyValidationSchema = z.object({
   kitchen: z.array(z.number()).optional(),
   childrenAge: z.array(z.number()).optional(),
   basePrice: z.array(z.number()).optional(),
+  basePriceLongTerm: z.array(z.number()).optional(),
   weekendPrice: z.array(z.number()).optional(),
   monthlyDiscount: z.array(z.number()).optional(),
   currency: z.string().optional(),
@@ -63,16 +64,36 @@ const propertyValidationSchema = z.object({
   levels: z.number().min(1, "Level can not be less than 1"),
   zones: z.string().min(1, "Please select the zone"),
   propertyStyle: z.string().min(1, "Please select the property style"),
-  constructionYear: z.number().int().gte(1800, "Please enter a valid year").lte(2024,"Please enter a valid year"),
+  constructionYear: z
+    .number()
+    .int()
+    .gte(1800, "Please enter a valid year")
+    .lte(2024, "Please enter a valid year"),
   isSuitableForStudents: z.boolean().default(true),
   monthlyExpenses: z.number().optional(),
   heatingType: z.string().min(1, "Please select a Heating type"),
   heatingMedium: z.string().min(1, "Please select a heating medium"),
   energyClass: z.string().min(1, "Please select a energy class"),
 
+  nearbyLocations: z
+    .record(
+      z.union([
+        z.string(),
+        z.number(),
+        z.array(z.string()),
+        z.array(z.number()),
+        z.boolean(),
+      ])
+    )
+    .optional(),
+
   hostedFrom: z.string().optional(),
   hostedBy: z.string().optional(),
-  listedOn: z.string().array().min(1, "Atleast one website should be selected").default(["VacationSaga"]),
+  listedOn: z
+    .string()
+    .array()
+    .min(1, "Atleast one website should be selected")
+    .default(["VacationSaga"]),
   lastUpdatedBy: z.array(z.string()).optional(),
   lastUpdates: z.array(z.array(z.string())).optional(),
   isLive: z.boolean().default(true),

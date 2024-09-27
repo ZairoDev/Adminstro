@@ -13,7 +13,6 @@ import PageAddListing10 from "./PageAddListing10";
 
 const Page = ({
   params,
-  searchParams,
 }: {
   params: { stepIndex: string };
   searchParams?: { [key: string]: string | string[] | undefined };

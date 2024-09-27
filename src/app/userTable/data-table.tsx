@@ -76,7 +76,6 @@ export function DataTable({
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  // Serial number column definition
   const serialNumberColumn: ColumnDef<UserInterface, any> = {
     header: "S.No.",
     cell: ({ row }) => {
@@ -107,31 +106,8 @@ export function DataTable({
     },
   });
 
-  const formatNumber = (number: number) => {
-    if (number >= 1000000) {
-      return (number / 1000000).toFixed(1) + "M";
-    } else if (number >= 1000) {
-      return (number / 1000).toFixed(1) + "k";
-    } else {
-      return number.toString();
-    }
-  };
-
   return (
     <>
-      <div className="flex items-end justify-end">
-        {totalUser > 0 && (
-          <p className="flex items-center text-xs gap-x-2">
-            Total Employee
-            <span className="text-primary">
-              <CustomTooltip
-                text={formatNumber(totalUser)}
-                desc={`${totalUser}`}
-              />
-            </span>
-          </p>
-        )}
-      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-2">
           <div>
@@ -259,9 +235,12 @@ export function DataTable({
         )}
       </div>
       <div className="flex items-center justify-between">
-        <div className="ml-1">
+        <div className="ml-1 text-xs">
           <p>
             Page {currentPage} out of {totalPages}
+          </p>
+          <p>
+            Total user <span className="text-primary">{totalUser}</span>{" "}
           </p>
         </div>
         <div className="flex items-center justify-end space-x-2 py-4">

@@ -11,6 +11,7 @@
   "dependencies": {
     "@apollo/client": "^3.11.7",
     "@apollo/server": "^4.11.0",
+    "@editorjs/editorjs": "^2.30.6",
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

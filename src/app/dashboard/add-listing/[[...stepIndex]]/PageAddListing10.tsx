@@ -33,6 +33,12 @@ interface Page2State {
   postalCode: string;
 }
 
+interface nearbyLocationInterface { 
+  nearbyLocationName: string[];
+  nearbyLocationDistance: number[];
+  nearbyLocationTag: string[];
+}
+
 interface CombinedData {
   userId?: string;
 
@@ -98,6 +104,8 @@ interface CombinedData {
   orientation?: string;
   zones?: string;
   propertyStyle?: string;
+
+  nearbyLocations?: nearbyLocationInterface;
 
   rentalType?: string;
   basePriceLongTerm?: number[];
@@ -175,6 +183,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   const [combinedData, setCombinedData] = useState<CombinedData>();
 
+  // ! useEffect for extracting data from local storage of all the pages from 1 to 9
   useEffect(() => {
     const fetchDataFromLocalStorage = () => {
       const page1 = JSON.parse(localStorage.getItem("page1") || "{}");
@@ -249,6 +258,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   console.log(user?.email, "At line number 222");
 
+  // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
     setGoLiveState(true);
     setIsLoading(true);
@@ -321,6 +331,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       heatingType: combinedData?.heatingType,
       neighbourhood: combinedData?.neighbourhood,
 
+      nearbyLocations: combinedData?.nearbyLocations,
+  
       rentalType: combinedData?.rentalType,
       monthlyDiscount: combinedData?.monthlyDiscount,
       longTermMonths: combinedData?.longTermMonths,
@@ -340,7 +352,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
         });
-        // clearLocalStorage();
+        clearLocalStorage();
       }
     } catch (error) {
       toast({

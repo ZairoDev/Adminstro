@@ -19,6 +19,12 @@ export interface UserInterface {
   updatedAt: string;
 }
 
+export interface nearbyLocationInterface {
+  nearbyLocationName: string[];
+  nearbyLocationDistance: number[];
+  nearbyLocationTag: string[];
+}
+
 export interface Property {
   _id: string;
   id?: string;
@@ -106,6 +112,8 @@ export interface Property {
   energyClass?: string;
   heatingType?: string;
   constructionYear?: string;
+
+  nearbyLocations: nearbyLocationInterface;
 
   hostedFrom?: string;
   hostedBy?: string;

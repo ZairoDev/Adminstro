@@ -17,9 +17,17 @@ import LocationMap from "@/components/LocationMap";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
+import { FaLocationDot } from "react-icons/fa6";
+import { Plus } from "lucide-react";
+import { IoRemoveSharp } from "react-icons/io5";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
+interface nearByLocationInterface {
+  nearByLocationName: string[];
+  nearByLocationDistance: number[];
+  nearByLocationTag: string[];
+}
 interface Page2State {
   country: string;
   street: string;
@@ -43,6 +51,7 @@ interface Page2State {
   energyClass: string;
   heatingType: string;
   constructionYear: string;
+  nearbyLocations: nearByLocationInterface;
 }
 
 const PageAddListing2: FC = () => {
@@ -239,9 +248,29 @@ const PageAddListing2: FC = () => {
       return "";
     } else return JSON.parse(saved)["postalCode"];
   });
+  
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 0,
     lng: 0,
+  });
+
+  const [nearbyLocations, setNearByLocations] =
+    useState<nearByLocationInterface>(() => {
+      const saved = localStorage.getItem("page2");
+      if (!saved) {
+        const newObj: nearByLocationInterface = {
+          nearByLocationName: [],
+          nearByLocationDistance: [],
+          nearByLocationTag: [],
+        };
+        return newObj;
+      } else return JSON.parse(saved)["nearbyLocations"];
+    });
+
+  const [nearByLocationInput, setNearByLocationInput] = useState({
+    nearByLocationName: "",
+    nearByLocationDistance: 0,
+    nearByLocationTag: "",
   });
 
   const handlePlaceSelected = (place: any) => {
@@ -292,6 +321,11 @@ const PageAddListing2: FC = () => {
     energyClass,
     heatingType,
     constructionYear,
+    nearbyLocations: {
+      nearByLocationName: [],
+      nearByLocationDistance: [],
+      nearByLocationTag: [],
+    },
   });
 
   useEffect(() => {
@@ -318,6 +352,7 @@ const PageAddListing2: FC = () => {
       energyClass,
       heatingType,
       constructionYear,
+      nearbyLocations,
     };
     setPage2(newPage2);
     localStorage.setItem("page2", JSON.stringify(newPage2));
@@ -343,6 +378,7 @@ const PageAddListing2: FC = () => {
     energyClass,
     heatingType,
     constructionYear,
+    nearbyLocations,
   ]);
 
   // Validation function
@@ -362,6 +398,52 @@ const PageAddListing2: FC = () => {
     }
     setIsValidForm(true);
     return true;
+  };
+
+  const addNearByLocation = () => {
+    console.log("clicked");
+    if (
+      nearByLocationInput.nearByLocationName === "" ||
+      nearByLocationInput.nearByLocationDistance === 0 ||
+      nearByLocationInput.nearByLocationTag === ""
+    ) {
+      console.log("returning");
+      return;
+    }
+    console.log("nearByLocation: ", nearbyLocations);
+    setNearByLocations((prev) => {
+      const newObj = { ...prev };
+      console.log("newObj: ", newObj);
+      newObj["nearByLocationName"] = [
+        ...newObj["nearByLocationName"],
+        nearByLocationInput.nearByLocationName,
+      ];
+      newObj["nearByLocationDistance"] = [
+        ...newObj["nearByLocationDistance"],
+        nearByLocationInput.nearByLocationDistance,
+      ];
+      newObj["nearByLocationTag"] = [
+        ...newObj["nearByLocationTag"],
+        nearByLocationInput.nearByLocationTag,
+      ];
+      return newObj;
+    });
+
+    setNearByLocationInput({
+      nearByLocationName: "",
+      nearByLocationDistance: 0,
+      nearByLocationTag: "",
+    });
+  };
+
+  const removeNearByLocation = (index: number) => {
+
+    const newObj = {...nearbyLocations};
+    newObj["nearByLocationName"].splice(index, 1);
+    newObj["nearByLocationDistance"].splice(index, 1);
+    newObj["nearByLocationTag"].splice(index, 1);
+    setNearByLocations(newObj);
+
   };
 
   useEffect(() => {
@@ -490,6 +572,110 @@ const PageAddListing2: FC = () => {
               <LocationMap latitude={center.lat} longitude={center.lng} />
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className=" mt-2">
+        <div className=" text-xl flex gap-x-1 items-center mt-4 mb-2">
+          Nearby Locations
+          <FaLocationDot className=" text-sm" />
+        </div>
+
+        <div className=" flex w-full justify-between ">
+          <div className="flex flex-col gap-y-1 w-1/3 ">
+            <FormItem label="Place Name">
+              <Input
+                placeholder="Nearby Location Place Name"
+                value={nearByLocationInput?.["nearByLocationName"]}
+                onChange={(e) => {
+                  setNearByLocationInput((prev) => {
+                    const newObj = { ...prev };
+                    newObj["nearByLocationName"] = e.target.value;
+                    return newObj;
+                  });
+                }}
+              />
+            </FormItem>
+          </div>
+          <div className="flex flex-col gap-y-1 w-1/5">
+            <FormItem label="Distance">
+              <Input
+                type="number"
+                placeholder="Distance in meters"
+                value={nearByLocationInput?.["nearByLocationDistance"]}
+                onChange={(e) => {
+                  setNearByLocationInput((prev) => {
+                    const newObj = { ...prev };
+                    newObj["nearByLocationDistance"] = parseInt(
+                      e.target.value,
+                      10
+                    );
+                    return newObj;
+                  });
+                }}
+              />
+            </FormItem>
+          </div>
+          <div className="flex flex-col gap-y-1 w-1/3">
+            <label htmlFor="nearByLocationInputTag"> Location Tag</label>
+            <Select
+              value={nearByLocationInput?.["nearByLocationTag"]}
+              onValueChange={(value) => {
+                setNearByLocationInput((prev) => {
+                  console.log("value changed: ", value);
+                  const newObj = { ...prev };
+                  newObj["nearByLocationTag"] = value;
+                  return newObj;
+                });
+              }}
+            >
+              <SelectTrigger>
+                <span>{nearByLocationInput?.["nearByLocationTag"]}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Restaurant">Restaurant</SelectItem>
+                <SelectItem value="Cafe">Cafe</SelectItem>
+                <SelectItem value="Mall">Mall</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className=" w-1/12 flex items-end justify-center">
+            <Button
+              type="button"
+              onClick={(e) => addNearByLocation()}
+              className=""
+            >
+              <Plus className=" w-4 h-4 font-medium" />
+            </Button>
+          </div>
+        </div>
+
+        <div className=" w-full flex flex-col mt-2 gap-y-1">
+          {nearbyLocations?.nearByLocationName?.map((item, index) => (
+            <div key={index} className=" flex justify-between">
+              <div className=" w-1/3 px-2 flex justify-center">
+                {nearbyLocations.nearByLocationName[index]}
+              </div>
+              <div className=" w-1/5 px-2 flex justify-center">
+                {nearbyLocations.nearByLocationDistance[index]}
+              </div>
+              <div className=" w-1/3 px-2 flex justify-center">
+                {nearbyLocations.nearByLocationTag[index]}
+              </div>
+
+              <div className=" w-1/12 flex items-end justify-center">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => removeNearByLocation(index)}
+                  className=""
+                >
+                  <IoRemoveSharp className=" w-4 h-4 font-medium" />
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -9,11 +9,9 @@ interface WebsiteCardProps {
   description: string;
   link: string;
 }
-
 export function WebsiteCard({ title, description, link }: WebsiteCardProps) {
   return (
     <Card className="relative w-full max-w-md mx-auto p-4 border rounded-lg shadow-md overflow-hidden backdrop-blur-lg before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary before:via-primary/20 before:to-foreground/20 before:opacity-50 before:blur-xl before:animate-glow">
-      {/* Add blur and glow effect */}
       <div className="relative z-10 flex justify-between gap-x-2">
         <div>
           <p className="text-xl font-semibold ">{title}</p>

@@ -1,7 +1,5 @@
 "use client";
-
 import { useState } from "react";
-
 import {
   EditorCommand,
   EditorCommandEmpty,
@@ -12,7 +10,6 @@ import {
   EditorRoot,
   type JSONContent,
 } from "novel";
-
 import { ImageResizer, handleCommandNavigation } from "novel/extensions";
 import { handleImageDrop, handleImagePaste } from "novel/plugins";
 
@@ -23,13 +20,13 @@ import {
 import EditorMenu from "@/components/editor/editor-menu";
 import { uploadFn } from "@/components/editor/image-upload";
 import { defaultExtensions } from "@/components/editor/extensions";
+import { TextButtons } from "@/components/editor/selectors/text-buttons";
+import { LinkSelector } from "@/components/editor/selectors/link-selector";
+import { NodeSelector } from "@/components/editor/selectors/node-selector";
+import { MathSelector } from "@/components/editor/selectors/math-selector";
+import { ColorSelector } from "@/components/editor/selectors/color-selector";
 
-import { ColorSelector } from "../selectors/color-selector";
-import { TextButtons } from "../selectors/text-buttons";
-import { MathSelector } from "../selectors/math-selector";
-import { LinkSelector } from "../selectors/link-selector";
-import { NodeSelector } from "../selectors/node-selector";
-import { Separator } from "../ui/separator";
+import { Separator } from "@/components/ui/separator";
 
 const hljs = require("highlight.js");
 
@@ -56,19 +53,20 @@ export default function Editor({ initialValue, onChange }: EditorProps) {
   const [openLink, setOpenLink] = useState(false);
   const [openAI, setOpenAI] = useState(false);
 
-  //Apply Codeblock Highlighting on the HTML from editor.getHTML()
+  // Apply Codeblock Highlighting on the HTML from editor.getHTML()
   const highlightCodeblocks = (content: string) => {
     const doc = new DOMParser().parseFromString(content, "text/html");
     doc.querySelectorAll("pre code").forEach((el) => {
       // @ts-ignore
-      // https://highlightjs.readthedocs.io/en/latest/api.html?highlight=highlightElement#highlightelement
-      hljs.highlightElement(el);
+      //highlightjs.readthedocs.io/en/latest/api.html?highlight=highlightElement#highlightelement
+      https: hljs.highlightElement(el);
     });
     return new XMLSerializer().serializeToString(doc);
   };
 
+
   return (
-    <div className="relative w-full max-w-screen-lg">
+    <div className="relative w-full pb-20 max-w-screen-lg">
       <EditorRoot>
         <EditorContent
           immediatelyRender={false}

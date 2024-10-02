@@ -7,7 +7,7 @@ const blogSchema = new mongoose.Schema({
     required: true,
   },
   banner: {
-    type: String, // URL of the banner image
+    type: String, 
   },
   maintext: {
     type: String,

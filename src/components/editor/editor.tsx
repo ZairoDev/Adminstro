@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+
 import {
   EditorCommand,
   EditorCommandEmpty,
@@ -10,6 +11,7 @@ import {
   EditorRoot,
   type JSONContent,
 } from "novel";
+
 import { ImageResizer, handleCommandNavigation } from "novel/extensions";
 import { handleImageDrop, handleImagePaste } from "novel/plugins";
 
@@ -53,20 +55,19 @@ export default function Editor({ initialValue, onChange }: EditorProps) {
   const [openLink, setOpenLink] = useState(false);
   const [openAI, setOpenAI] = useState(false);
 
-  // Apply Codeblock Highlighting on the HTML from editor.getHTML()
+  //Apply Codeblock Highlighting on the HTML from editor.getHTML()
   const highlightCodeblocks = (content: string) => {
     const doc = new DOMParser().parseFromString(content, "text/html");
     doc.querySelectorAll("pre code").forEach((el) => {
       // @ts-ignore
-      //highlightjs.readthedocs.io/en/latest/api.html?highlight=highlightElement#highlightelement
-      https: hljs.highlightElement(el);
+      // https://highlightjs.readthedocs.io/en/latest/api.html?highlight=highlightElement#highlightelement
+      hljs.highlightElement(el);
     });
     return new XMLSerializer().serializeToString(doc);
   };
 
-
   return (
-    <div className="relative w-full pb-20 max-w-screen-lg">
+    <div className="relative w-full max-w-screen-lg">
       <EditorRoot>
         <EditorContent
           immediatelyRender={false}

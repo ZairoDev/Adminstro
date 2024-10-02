@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Save the blog post to MongoDB
     const newBlog = new Blog({ title, content, tags, maintext, banner });
     await newBlog.save();
 

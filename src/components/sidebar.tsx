@@ -156,24 +156,22 @@ export function Sidebar() {
     }
 
     return routes.map((route) => (
-      <FadeInAnimation>
-        <li
-          key={route.path}
-          className={`${
-            isActive(currentPath, route.path)
-              ? "bg-primary text-primary-foreground rounded-l-lg"
-              : ""
-          }`}
+      <li
+        key={route.path}
+        className={`${
+          isActive(currentPath, route.path)
+            ? "bg-primary text-primary-foreground rounded-l-lg"
+            : ""
+        }`}
+      >
+        <Link
+          href={route.path}
+          className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20"
         >
-          <Link
-            href={route.path}
-            className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20"
-          >
-            {route.Icon && route.Icon}
-            <span>{route.label}</span>
-          </Link>
-        </li>
-      </FadeInAnimation>
+          {route.Icon && route.Icon}
+          <span>{route.label}</span>
+        </Link>
+      </li>
     ));
   };
 

@@ -102,7 +102,7 @@ const BlogList = () => {
           {blogs.length > 0 ? (
             blogs.map((blog) => (
               <Link key={blog._id} href={`/dashboard/allblogs/${blog._id}`}>
-                <Card key={blog._id} className="p-1 cursor-pointer border-0 shadow-none">
+                <Card key={blog._id} className="p-1 cursor-pointer border-0 shadow-none bg-background">
                   <div className="flex justify-between border-b pb-2">
                     <div>
                       <CardHeader className="p-0">

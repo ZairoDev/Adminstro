@@ -239,6 +239,7 @@ const BlogPage = () => {
           <Button
             disabled={isLoading || uploading || !isFormValid()}
             onClick={handleSubmit}
+            className=" w-full sm:w-auto"
           >
             Publish Blog
           </Button>

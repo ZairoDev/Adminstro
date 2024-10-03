@@ -138,7 +138,7 @@ const BlogPage = ({ params }: PageProps) => {
           </div>
 
           <div
-            className="prose mt-2 max-w-none prose-sm sm:prose-sm md:prose-base lg:prose-lg xl:prose-xl dark:prose-invert sm:mt-4 md:mt-6 lg:mt-8 sm:px-2 md:px-4 lg:px-6 xl:px-8"
+            className="prose mt-2 text-justify max-w-none prose-sm sm:prose-sm md:prose-base lg:prose-lg xl:prose-xl dark:prose-invert sm:mt-4 md:mt-6 lg:mt-8 sm:px-2 md:px-4 lg:px-6 xl:px-8"
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
 
@@ -146,10 +146,10 @@ const BlogPage = ({ params }: PageProps) => {
           <div className="flex  mt-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div>
+                <div className=" w-full">
                   <Button
                     variant="destructive"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 w-full sm:w-auto"
                   >
                     Delete <Trash2 size={18} />
                   </Button>

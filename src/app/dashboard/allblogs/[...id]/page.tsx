@@ -159,8 +159,8 @@ const BlogPage = ({ params }: PageProps) => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Confirm Blog Deletion</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Please type <strong>"I have to delete"</strong> to confirm
-                    deletion. This action cannot be undone.
+                    Please type <strong>&quot; I have to delete &quot; </strong>
+                    to confirm deletion. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="">

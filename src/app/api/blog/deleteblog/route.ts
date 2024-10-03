@@ -1,20 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Blog from "@/models/blog";
 import { connectDb } from "@/util/db";
 
 connectDb();
 
-export async function DELETE(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const { id } = await req.json();
-    const blog = await Blog.findById(id);
+    console.log(id);
+
+    const _id = id[0];
+    console.log(_id);
+
+    const blog = await Blog.findByIdAndDelete(_id);
     if (!blog) {
       return NextResponse.json(
         { success: false, message: "Blog not found" },
         { status: 404 }
       );
     }
-    await blog.remove();
+
     return NextResponse.json(
       { success: true, message: "Blog deleted successfully" },
       { status: 200 }

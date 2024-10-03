@@ -9,8 +9,6 @@ export async function POST(req: NextRequest) {
   try {
     const { title, content, tags, maintext, banner, author } = await req.json();
 
-    console.log(title, content, tags, maintext, banner);
-
     if (!title || !content || !maintext || !banner || !author) {
       return NextResponse.json(
         { success: false, message: `Some things are missing ${error}` },
@@ -30,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { success: true, message: "Blog saved successfully" },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error: any) {
     return NextResponse.json(

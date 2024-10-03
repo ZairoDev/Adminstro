@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Delete, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 interface PageProps {
   params: {
@@ -86,7 +86,7 @@ const BlogPage = ({ params }: PageProps) => {
 
   if (loading) {
     return (
-      <div className="text-center">
+      <div className="flex items-center justify-center">
         <Loader />
       </div>
     );

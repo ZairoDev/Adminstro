@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Editor from "@/components/editor/editor";
@@ -10,6 +10,8 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import ScreenLoader from "@/components/ScreenLoader";
 import { useUserRole } from "@/context/UserRoleContext";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 const defaultValue = {
   type: "doc",
@@ -19,7 +21,7 @@ const defaultValue = {
       content: [
         {
           type: "text",
-          text: "Write somthing that people will love type / to get the option",
+          text: "Write something that people will love. Type / to get the option.",
         },
       ],
     },
@@ -35,10 +37,14 @@ const BlogPage = () => {
   const [banner, setBanner] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uplaoding, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
     useUserRole();
+
+  const { toast } = useToast();
+
+  const router = useRouter();
 
   console.log(
     userRole,
@@ -54,10 +60,13 @@ const BlogPage = () => {
       setTagInput("");
     }
   };
+
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
+
   const { uploadFiles, loading } = useBunnyUpload();
+
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -92,19 +101,26 @@ const BlogPage = () => {
         author: userEmail,
       });
 
-      console.log("Blog saved successfully:", response.data);
-      setUploading(false);
+      toast({
+        title: "Success",
+        description: "Your blog created successfully.",
+      });
+      router.push("/dashboard/allblogs");
     } catch (error) {
-      console.error("Error saving blog:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed",
+        description: "Something went wrong. Please try again.",
+      });
+    } finally {
       setUploading(false);
     }
   };
 
-  console.log(content, "content");
-
-  // const handleImageClick = () => {
-  //   fileInputRef.current?.click();
-  // };
+  // Function to check if all required fields are filled
+  const isFormValid = () => {
+    return title && content && maintext && banner && tags.length > 0;
+  };
 
   return (
     <div>
@@ -130,7 +146,7 @@ const BlogPage = () => {
             </Label>
             <Input
               id="blogDescription"
-              placeholder="Little bit about something that you are going to explain..."
+              placeholder="A little bit about something that you are going to explain..."
               value={maintext}
               onChange={(e) => setMainText(e.target.value)}
             />
@@ -153,7 +169,7 @@ const BlogPage = () => {
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60">
-                    <Upload size={24} className=" animate-bounce" />
+                    <Upload size={24} className="animate-bounce" />
                     <p>Click to upload banner</p>
                   </div>
                 )}
@@ -196,7 +212,7 @@ const BlogPage = () => {
                 Add <Plus size={16} />
               </Button>
             </div>
-            <div className="flex  flex-wrap text-xs gap-1 mt-2">
+            <div className="flex flex-wrap text-xs gap-1 mt-2">
               {tags.map((tag, index) => (
                 <div
                   key={index}
@@ -213,8 +229,12 @@ const BlogPage = () => {
               ))}
             </div>
           </div>
-          <Button disabled={isLoading} onClick={handleSubmit}>
-            Submit
+
+          <Button
+            disabled={isLoading || uploading || !isFormValid()}
+            onClick={handleSubmit}
+          >
+            Publish Blog
           </Button>
         </div>
       </div>

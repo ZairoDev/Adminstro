@@ -1,32 +1,3 @@
-// import Link from "next/link";
-// import { usePathname } from "next/navigation";
-// import React from "react";
-
-// const BreadCrumb = () => {
-//   const pathname = usePathname();
-
-//   const pathnames = pathname.split("/").filter((x) => x);
-
-//   return (
-//     <>
-//       <Link href="/">Home</Link>
-//       {pathnames.map((name, index) => {
-//         const routeTo = `/${pathnames.slice(0, index + 1).join("/")}`;
-//         const isLast = index === pathnames.length - 1;
-
-//         return (
-//           <React.Fragment key={routeTo}>
-//             <span>/</span>
-//             {isLast ? <span>{name}</span> : <Link href={routeTo}>{name}</Link>}
-//           </React.Fragment>
-//         );
-//       })}
-//     </>
-//   );
-// };
-
-// export default BreadCrumb;
-
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

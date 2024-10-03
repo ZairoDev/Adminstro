@@ -41,7 +41,7 @@ export default function RootLayout({
             "gray",
             "neutral",
             "red",
-            "zinc"
+            "zinc",
           ]}
           disableTransitionOnChange
         >

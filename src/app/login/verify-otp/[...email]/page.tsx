@@ -23,14 +23,12 @@ import {
 } from "@/components/ui/input-otp";
 import { ArrowLeft } from "lucide-react";
 import { ModeToggle } from "@/components/themeChangeButton";
-import Animation from "@/components/animation";
 
 interface PageProps {
   params: {
     email: string;
   };
 }
-
 const Page = ({ params }: PageProps) => {
   const { toast } = useToast();
   const router = useRouter();
@@ -108,112 +106,110 @@ const Page = ({ params }: PageProps) => {
   };
 
   return (
-    <Animation>
-      <div className="h-screen overflow-hidden flex">
-        <div className="absolute top-4 right-4">
-          <ModeToggle />
-        </div>
-        <div className="w-1/2 md:flex hidden items-center justify-center">
-          <Carousel className="w-full h-full">
-            <CarouselContent>
-              <CarouselItem>
-                <img
-                  src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
-                  alt="Carousel Image 1"
-                  className="object-cover w-full h-full"
-                />
-              </CarouselItem>
-              <CarouselItem>
-                <img
-                  src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
-                  alt="Carousel Image 2"
-                  className="object-cover w-full h-full"
-                />
-              </CarouselItem>
-              <CarouselItem>
-                <img
-                  src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
-                  alt="Carousel Image 3"
-                  className="object-cover w-full h-full"
-                />
-              </CarouselItem>
-              <CarouselItem>
-                <img
-                  src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
-                  alt="Carousel Image 4"
-                  className="object-cover w-full h-full"
-                />
-              </CarouselItem>
-            </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
-          </Carousel>
-        </div>
-        <div className="md:w-1/2 w-full flex-col flex items-center justify-center">
-          <div className="w-full max-w-sm px-6 py-8 border rounded-lg shadow-lg">
-            <h1>Enter OTP</h1>
+    <div className="h-screen overflow-hidden flex">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      <div className="w-1/2 md:flex hidden items-center justify-center">
+        <Carousel className="w-full h-full">
+          <CarouselContent>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 1"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 2"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 3"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+            <CarouselItem>
+              <img
+                src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="Carousel Image 4"
+                className="object-cover w-full h-full"
+              />
+            </CarouselItem>
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
+      </div>
+      <div className="md:w-1/2 w-full flex-col flex items-center justify-center">
+        <div className="w-full max-w-sm px-6 py-8 border rounded-lg shadow-lg">
+          <h1>Enter OTP</h1>
 
-            {/* shadcn OTP input */}
-            <InputOTP maxLength={6} onChange={setOtpInput}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-              </InputOTPGroup>
-              <InputOTPSeparator />
-              <InputOTPGroup>
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
+          {/* shadcn OTP input */}
+          <InputOTP maxLength={6} onChange={setOtpInput}>
+            <InputOTPGroup>
+              <InputOTPSlot index={0} />
+              <InputOTPSlot index={1} />
+              <InputOTPSlot index={2} />
+            </InputOTPGroup>
+            <InputOTPSeparator />
+            <InputOTPGroup>
+              <InputOTPSlot index={3} />
+              <InputOTPSlot index={4} />
+              <InputOTPSlot index={5} />
+            </InputOTPGroup>
+          </InputOTP>
 
-            <Button
-              disabled={verifyLoading}
-              onClick={handleOTPverification}
-              className=" mt-4 mb-4"
-            >
-              {verifyLoading ? (
-                <div className="flex items-center gap-x-2">
-                  Verifying...
-                  <CgSpinner className="animate-spin ml-1 text-lg" />
-                </div>
-              ) : (
-                "Submit"
-              )}
-            </Button>
-
-            {verifyClick && (
-              <div className="text-center text-sm sm:text-base mt-4">
-                <p className="">
-                  Didn’t receive the OTP?{" "}
-                  <Button
-                    variant="link"
-                    disabled={disabledButton}
-                    onClick={handleRetryOTP}
-                  >
-                    Resend OTP
-                  </Button>
-                </p>
-                <p className=" mt-1">
-                  {disabledButton
-                    ? `You can retry after ${remainingTime} seconds.`
-                    : "You can now resend the OTP."}
-                </p>
+          <Button
+            disabled={verifyLoading}
+            onClick={handleOTPverification}
+            className=" mt-4 mb-4"
+          >
+            {verifyLoading ? (
+              <div className="flex items-center gap-x-2">
+                Verifying...
+                <CgSpinner className="animate-spin ml-1 text-lg" />
               </div>
+            ) : (
+              "Submit"
             )}
-            <Link
-              className=" flex items-center justify-center gap-x-1"
-              href="/login"
-            >
-              <Button className="absolute top-4 left-4">
-                <ArrowLeft size={18} /> Back
-              </Button>
-            </Link>
-          </div>
+          </Button>
+
+          {verifyClick && (
+            <div className="text-center text-sm sm:text-base mt-4">
+              <p className="">
+                Didn’t receive the OTP?{" "}
+                <Button
+                  variant="link"
+                  disabled={disabledButton}
+                  onClick={handleRetryOTP}
+                >
+                  Resend OTP
+                </Button>
+              </p>
+              <p className=" mt-1">
+                {disabledButton
+                  ? `You can retry after ${remainingTime} seconds.`
+                  : "You can now resend the OTP."}
+              </p>
+            </div>
+          )}
+          <Link
+            className=" flex items-center justify-center gap-x-1"
+            href="/login"
+          >
+            <Button className="absolute top-4 left-4">
+              <ArrowLeft size={18} /> Back
+            </Button>
+          </Link>
         </div>
       </div>
-    </Animation>
+    </div>
   );
 };
 

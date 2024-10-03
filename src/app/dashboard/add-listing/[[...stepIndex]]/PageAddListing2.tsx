@@ -910,7 +910,6 @@ const PageAddListing2: FC = () => {
               </Select>
             </FormItem>
           </div>
-
           <div className="my-4">
             <FormItem label="Heating Type">
               <Select

@@ -22,6 +22,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import Animation from "@/components/animation";
+import FadeInAnimation from "@/components/fadeinAnimation";
 
 interface LoginResponse {
   message?: string;
@@ -90,7 +91,7 @@ const PageLogin: React.FC = () => {
   };
 
   return (
-    <Animation>
+    <FadeInAnimation>
       <div className="h-screen overflow-hidden flex">
         <div className="absolute top-4 right-4">
           <ModeToggle />
@@ -198,7 +199,7 @@ const PageLogin: React.FC = () => {
           </div>
         </div>
       </div>
-    </Animation>
+    </FadeInAnimation>
   );
 };
 

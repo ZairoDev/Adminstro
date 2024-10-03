@@ -19,11 +19,14 @@ import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  NotebookPen,
   PencilRuler,
   TableOfContents,
   User2Icon,
   Users,
 } from "lucide-react";
+
+import FadeInAnimation from "./fadeinAnimation";
 
 // Function to determine if a route is active
 // Function to determine if a route is active
@@ -90,11 +93,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
     },
-    // {
-    //   path: "/dashboard/createnewEmployee",
-    //   label: "Create Employee",
-    //   Icon: <BadgePlus size={18} />,
-    // },
+
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",
@@ -104,6 +103,16 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/completedproperties",
       label: "Completed Task",
       Icon: <CheckCheck size={18} />,
+    },
+    {
+      path: "/dashboard/allblogs",
+      label: "Read Blogs",
+      Icon: <NotebookPen size={18} />,
+    },
+    {
+      path: "/dashboard/createblog",
+      label: "Create Blog",
+      Icon: <NotebookPen size={18} />,
     },
   ],
 };
@@ -184,22 +193,6 @@ export function Sidebar() {
         <div>
           <nav className="flex flex-col justify-between flex-grow">
             <ul className="flex-grow">{renderRoutes()}</ul>
-            <ul className="absolute bottom-0">
-              <Popover>
-                <PopoverTrigger className="cursor-pointer flex border-t-white/40 items-center gap-x-2 justify-center w-64 p-2">
-                  {currentUser} <ArrowRight size={18} />
-                </PopoverTrigger>
-                <PopoverContent className="w-64">
-                  <div>
-                    <p className="text-xs mb-2">
-                      Tap to logout from here to choose some different route to
-                      access
-                    </p>
-                    <LogoutButton />
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </ul>
           </nav>
         </div>
       </div>
@@ -221,20 +214,6 @@ export function Sidebar() {
           </div>
           <nav className="w-[15.5rem]">
             <ul>{renderRoutes()}</ul>
-            <ul className="fixed bottom-0">
-              <Popover>
-                <PopoverTrigger className="cursor-pointer flex items-center gap-x-2 justify-center p-2">
-                  {currentUser} <ArrowRight size={18} />
-                </PopoverTrigger>
-                <PopoverContent className="w-[248px]">
-                  <p className="text-xs mb-2">
-                    Tap to logout from here to choose some different route to
-                    access
-                  </p>
-                  <LogoutButton />
-                </PopoverContent>
-              </Popover>
-            </ul>
           </nav>
         </SheetContent>
       </Sheet>

@@ -106,30 +106,9 @@ export function DataTable({
       rowSelection,
     },
   });
-  const formatNumber = (number: number) => {
-    if (number >= 1000000) {
-      return (number / 1000000).toFixed(1) + "M";
-    } else if (number >= 1000) {
-      return (number / 1000).toFixed(1) + "k";
-    } else {
-      return number.toString();
-    }
-  };
+
   return (
     <>
-      <div className="flex items-end justify-end">
-        {totalUser > 0 && (
-          <p className="flex items-center text-xs gap-x-2">
-            Total Employee
-            <span className="text-primary">
-              <CustomTooltip
-                text={formatNumber(totalUser)}
-                desc={`${totalUser}`}
-              />
-            </span>
-          </p>
-        )}
-      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-2">
           <div>

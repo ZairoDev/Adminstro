@@ -34,12 +34,11 @@ const cardData = [
 export default function HomePage() {
   return (
     <>
-      <div>
+      <div className="h-screen w-full  bg-background  bg-grid-white/20   ">
+        <div className="absolute pointer-events-none inset-0 flex items-center justify-center  bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
         <div>
           <Navbar />
-        </div>
-        <div>
-          <div className=" max-w-7xl cursor-pointer m-auto p-2 mt-4">
+          <div className=" max-w-7xl m-auto p-2">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {cardData.map((card, index) => (
                 <WebsiteCard

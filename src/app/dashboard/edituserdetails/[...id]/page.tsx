@@ -181,7 +181,7 @@ const AccountPage = ({ params }: PageProps) => {
 
   return (
     <>
-      <Animation>
+    
         <div className=" border rounded-lg p-4  ">
           <div className="border-b mb-4">
             <h1 className="text-2xl pb-2 text-center font-semibold">
@@ -326,7 +326,7 @@ const AccountPage = ({ params }: PageProps) => {
             </Button>
           </div>
         </div>
-      </Animation>
+    
     </>
   );
 };

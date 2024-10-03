@@ -2,21 +2,21 @@
 import { motion } from "framer-motion";
 import React, { ReactNode } from "react";
 
-interface AnimationProps {
+interface FadeInAnimationProps {
   children: ReactNode;
   delay?: number;
   duration?: number;
 }
 
-const Animation: React.FC<AnimationProps> = ({
+const FadeInAnimation: React.FC<FadeInAnimationProps> = ({
   children,
   delay = 0.2,
   duration = 0.9,
 }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -50 }} // Start off-screen from the top
-      animate={{ opacity: 1, y: 0 }}   // Move into place
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ delay, duration }}
     >
       {children}
@@ -24,4 +24,4 @@ const Animation: React.FC<AnimationProps> = ({
   );
 };
 
-export default Animation;
+export default FadeInAnimation;

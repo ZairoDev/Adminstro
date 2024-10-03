@@ -126,19 +126,19 @@ const codeBlockLowlight = CodeBlockLowlight.configure({
   lowlight: createLowlight(common),
 });
 
-const youtube = Youtube.configure({
-  HTMLAttributes: {
-    class: cx("rounded-lg border border-muted"),
-  },
-  inline: false,
-});
+// const youtube = Youtube.configure({
+//   HTMLAttributes: {
+//     class: cx("rounded-lg border border-muted"),
+//   },
+//   inline: false,
+// });
 
-const twitter = Twitter.configure({
-  HTMLAttributes: {
-    class: cx("not-prose"),
-  },
-  inline: false,
-});
+// const twitter = Twitter.configure({
+//   HTMLAttributes: {
+//     class: cx("not-prose"),
+//   },
+//   inline: false,
+// });
 
 const mathematics = Mathematics.configure({
   HTMLAttributes: {
@@ -162,8 +162,8 @@ export const defaultExtensions = [
   horizontalRule,
   aiHighlight,
   codeBlockLowlight,
-  youtube,
-  twitter,
+  // youtube,
+  // twitter,
   mathematics,
   characterCount,
   TiptapUnderline,

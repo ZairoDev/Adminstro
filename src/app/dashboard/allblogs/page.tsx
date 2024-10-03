@@ -26,23 +26,22 @@ const BlogList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Ref for search input
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const fetchBlogs = async (search = "", page = 1) => {
     setLoading(true);
-    setSearching(true); // Set searching to true when the search starts
+    setSearching(true); 
     try {
       const response = await axios.get(
         `/api/blog/getblog?search=${search}&page=${page}`
       );
       setBlogs(response.data.data);
-      setTotalPages(response.data.totalPages); // Set total pages for pagination
+      setTotalPages(response.data.totalPages); 
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
-      setSearching(false); // Set searching to false when the search ends
+      setSearching(false); 
     }
   };
 

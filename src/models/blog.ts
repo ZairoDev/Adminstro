@@ -7,14 +7,18 @@ const blogSchema = new mongoose.Schema({
     required: true,
   },
   banner: {
-    type: String, 
+    type: String,
   },
   maintext: {
     type: String,
   },
   content: {
-    type: Object, // Store the entire content JSON structure
+    type: Object,
     required: true,
+  },
+  author: {
+    type: String,
+    required: false,
   },
   tags: [{ type: String }],
   createdAt: {

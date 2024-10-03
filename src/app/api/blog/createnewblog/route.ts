@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import Blog from "@/models/blog";
 import { connectDb } from "@/util/db";
+import { error } from "console";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, content, tags, maintext, banner } = await req.json();
+    const { title, content, tags, maintext, banner, author } = await req.json();
 
     console.log(title, content, tags, maintext, banner);
 
-    if (!title || !content || !maintext || !banner) {
+    if (!title || !content || !maintext || !banner || !author) {
       return NextResponse.json(
-        { success: false, message: "Title and content are required" },
+        { success: false, message: `Some things are missing ${error}` },
         { status: 400 }
       );
     }
 
-    const newBlog = new Blog({ title, content, tags, maintext, banner });
+    const newBlog = new Blog({
+      title,
+      content,
+      tags,
+      maintext,
+      banner,
+      author,
+    });
     await newBlog.save();
 
     return NextResponse.json(

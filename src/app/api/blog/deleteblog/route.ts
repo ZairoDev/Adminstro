@@ -4,9 +4,9 @@ import { connectDb } from "@/util/db";
 
 connectDb();
 
-export async function POST(req: Request) {
-  const { id } = await req.json(); 
+export async function DELETE(req: Request) {
   try {
+    const { id } = await req.json();
     const blog = await Blog.findById(id);
     if (!blog) {
       return NextResponse.json(
@@ -14,7 +14,11 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
-    return NextResponse.json({ success: true, data: blog }, { status: 200 });
+    await blog.remove();
+    return NextResponse.json(
+      { success: true, message: "Blog deleted successfully" },
+      { status: 200 }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message },

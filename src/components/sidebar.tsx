@@ -106,7 +106,12 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/allblogs",
-      label: "Blogs",
+      label: "Read Blogs",
+      Icon: <NotebookPen size={18} />,
+    },
+    {
+      path: "/dashboard/createblog",
+      label: "Create Blog",
       Icon: <NotebookPen size={18} />,
     },
   ],

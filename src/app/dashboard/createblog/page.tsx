@@ -4,9 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Editor from "@/components/editor/editor";
 import axios from "axios";
-import { Plus, X } from "lucide-react";
+import { Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import ScreenLoader from "@/components/ScreenLoader";
+import { useUserRole } from "@/context/UserRoleContext";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const defaultValue = {
   type: "doc",
@@ -16,7 +19,7 @@ const defaultValue = {
       content: [
         {
           type: "text",
-          text: 'Start typing here. Type "/" for commands.',
+          text: "Write somthing that people will love type / to get the option",
         },
       ],
     },
@@ -32,10 +35,18 @@ const BlogPage = () => {
   const [banner, setBanner] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uplaoding, setUploading] = useState(false);
 
+  const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
+    useUserRole();
 
-  
-  console.log(content)
+  console.log(
+    userRole,
+    currentUser,
+    userEmail,
+    isLoading,
+    "Things will print here"
+  );
 
   const handleAddTag = () => {
     if (tagInput && !tags.includes(tagInput)) {
@@ -43,13 +54,10 @@ const BlogPage = () => {
       setTagInput("");
     }
   };
-
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
-
   const { uploadFiles, loading } = useBunnyUpload();
-
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -74,23 +82,29 @@ const BlogPage = () => {
 
   const handleSubmit = async () => {
     try {
+      setUploading(true);
       const response = await axios.post("/api/blog/createnewblog", {
         title,
-        content: JSON.stringify(content),
+        content,
         tags,
         banner,
         maintext,
+        author: userEmail,
       });
 
       console.log("Blog saved successfully:", response.data);
+      setUploading(false);
     } catch (error) {
       console.error("Error saving blog:", error);
+      setUploading(false);
     }
   };
 
-  const handleImageClick = () => {
-    fileInputRef.current?.click();
-  };
+  console.log(content, "content");
+
+  // const handleImageClick = () => {
+  //   fileInputRef.current?.click();
+  // };
 
   return (
     <div>
@@ -104,7 +118,7 @@ const BlogPage = () => {
             </Label>
             <Input
               id="blogTitle"
-              placeholder="Enter your blog title"
+              placeholder="Enter the blog title..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -116,7 +130,7 @@ const BlogPage = () => {
             </Label>
             <Input
               id="blogDescription"
-              placeholder="Enter your blog description"
+              placeholder="Little bit about something that you are going to explain..."
               value={maintext}
               onChange={(e) => setMainText(e.target.value)}
             />
@@ -126,31 +140,34 @@ const BlogPage = () => {
             <Label htmlFor="uploadBanner" className="block mb-2">
               Blog Banner
             </Label>
-            <div
-              className="relative border-2 border-dashed rounded-xl aspect-video hover:opacity-90 hover:cursor-pointer overflow-hidden"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {imagePreview ? (
-                <img
-                  src={imagePreview}
-                  alt="Banner preview"
-                  className="rounded-xl object-fill "
+            <AspectRatio ratio={16 / 9}>
+              <div
+                className="relative border-2 border-dashed rounded-xl h-full w-full hover:opacity-90 hover:cursor-pointer overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Banner preview"
+                    className="rounded-xl object-fill "
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60">
+                    <Upload size={24} className=" animate-bounce" />
+                    <p>Click to upload banner</p>
+                  </div>
+                )}
+                <Input
+                  id="uploadBanner"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  ref={fileInputRef}
                 />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60">
-                  <p>Click or drag to upload banner</p>
-                </div>
-              )}
-              <Input
-                id="uploadBanner"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-                ref={fileInputRef}
-              />
-            </div>
-            {loading && <p>Uploading image...</p>}
+              </div>
+            </AspectRatio>
+            {loading && <ScreenLoader />}
           </div>
 
           {/* Blog Content */}
@@ -179,21 +196,26 @@ const BlogPage = () => {
                 Add <Plus size={16} />
               </Button>
             </div>
-            <div className="flex flex-wrap text-xs gap-2 mt-2">
+            <div className="flex  flex-wrap text-xs gap-1 mt-2">
               {tags.map((tag, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-2 bg-primary pl-2 rounded-lg"
+                  className="flex items-center gap-2 text-background bg-primary pl-2 rounded-lg"
                 >
                   {tag}
-                  <Button onClick={() => handleRemoveTag(tag)}>
+                  <Button
+                    className="text-background"
+                    onClick={() => handleRemoveTag(tag)}
+                  >
                     <X size={18} />
                   </Button>
                 </div>
               ))}
             </div>
           </div>
-          <Button onClick={handleSubmit}>Submit</Button>
+          <Button disabled={isLoading} onClick={handleSubmit}>
+            Submit
+          </Button>
         </div>
       </div>
     </div>

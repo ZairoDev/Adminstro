@@ -36,6 +36,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Content: [
     // "/dashboard/property",
+    /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
     /^\/dashboard\/completedproperties$/,
@@ -107,4 +108,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
-

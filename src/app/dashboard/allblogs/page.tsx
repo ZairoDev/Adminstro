@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import debounce from "lodash.debounce";
 import Loader from "@/components/loader";
 import Link from "next/link";
+import { User } from "lucide-react";
 
 const BlogList = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -47,12 +48,11 @@ const BlogList = () => {
   // Debounced search handler
   const debouncedFetchBlogs = useCallback(
     debounce((query) => {
-      fetchBlogs(query, 1); // Reset to first page on new search
+      fetchBlogs(query, 1);
     }, 1000),
     []
   );
 
-  // Set focus after search is updated
   useEffect(() => {
     debouncedFetchBlogs(searchTerm);
     if (searchInputRef.current) {
@@ -60,10 +60,8 @@ const BlogList = () => {
     }
   }, [searchTerm, debouncedFetchBlogs]);
 
-  // Fetch blogs when page changes
   useEffect(() => {
     fetchBlogs(searchTerm, currentPage);
-
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -102,25 +100,23 @@ const BlogList = () => {
           {blogs.length > 0 ? (
             blogs.map((blog) => (
               <Link key={blog._id} href={`/dashboard/allblogs/${blog._id}`}>
-                <Card key={blog._id} className="p-1 cursor-pointer border-0 shadow-none">
+                <Card
+                  key={blog._id}
+                  className="p-0 cursor-pointer border-0 shadow-none"
+                >
                   <div className="flex justify-between border-b pb-2">
                     <div>
                       <CardHeader className="p-0">
-                        <div className="flex text-xs items-center gap-x-2 mb-2">
+                        <div className="flex text-xs items-center gap-x-2 mb-0">
                           <div>
-                            <img
-                              className="h-10 w-10 rounded-full"
-                              src={
-                                blog.image || "https://github.com/shadcn.png"
-                              }
-                              alt={blog.title}
-                            />
+                            <div className="h-10 w-10 rounded-full border-full border flex items-center justify-center">
+                              <p className="text-lg font-bold">
+                                {blog.author.charAt(0).toUpperCase()}
+                              </p>
+                            </div>
                           </div>
                           <div>
-                            <p className="line-clamp-1">Author name</p>
-                            <p className="line-clamp-1">
-                              amantrivedi598@gmail.com
-                            </p>
+                            <p className="line-clamp-1">{blog.author}</p>
                           </div>
                         </div>
                         <CardTitle className="sm:text-xl line-clamp-1 text-lg p-0 font-semibold">
@@ -128,12 +124,12 @@ const BlogList = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <p className="sm:text-base font-thin line-clamp-2 max-w-4xl text-sm">
+                        <p className="sm:text-base  line-clamp-2 max-w-4xl text-sm">
                           {blog.maintext}
                         </p>
                         <div className="flex justify-between">
                           <div>
-                            <p className="text-primary/40 line-clamp-1 sm:text-sm text-xs mt-4">
+                            <p className=" line-clamp-1 sm:text-sm text-xs mt-4">
                               {format(
                                 new Date(blog.createdAt),
                                 "MMMM dd, yyyy"

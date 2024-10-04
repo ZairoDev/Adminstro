@@ -21,6 +21,7 @@ import {
   CornerLeftUp,
   NotebookPen,
   PencilRuler,
+  ScanEye,
   TableOfContents,
   User2Icon,
   Users,
@@ -75,6 +76,16 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/completedproperties",
       label: "Completed Task",
       Icon: <CheckCheck size={18} />,
+    },
+    {
+      path: "/dashboard/allblogs",
+      label: "Read Blogs",
+      Icon: <ScanEye size={18} />,
+    },
+    {
+      path: "/dashboard/createblog",
+      label: "Create Blog",
+      Icon: <NotebookPen size={18} />,
     },
   ],
   SuperAdmin: [

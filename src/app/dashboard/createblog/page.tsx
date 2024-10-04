@@ -117,7 +117,6 @@ const BlogPage = () => {
     }
   };
 
-  // Function to check if all required fields are filled
   const isFormValid = () => {
     return title && content && maintext && banner && tags.length > 0;
   };
@@ -125,7 +124,7 @@ const BlogPage = () => {
   return (
     <div>
       <h1 className="text-3xl text-center border-b pb-2">Create a Blog</h1>
-      <div className="max-w-5xl border-r mx-auto p-4">
+      <div className="max-w-5xl  mx-auto p-1 pt-2">
         <div className="space-y-6">
           {/* Blog Title */}
           <div>
@@ -233,6 +232,7 @@ const BlogPage = () => {
           <Button
             disabled={isLoading || uploading || !isFormValid()}
             onClick={handleSubmit}
+            className="sm:w-auto w-full"
           >
             Publish Blog
           </Button>

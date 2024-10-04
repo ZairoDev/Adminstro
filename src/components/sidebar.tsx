@@ -19,6 +19,7 @@ import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  Menu,
   NotebookPen,
   PencilRuler,
   ScanEye,
@@ -208,11 +209,10 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Sidebar for smaller screens */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
           <div className="lg:hidden">
-            <GiHamburgerMenu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
+            <Menu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
           </div>
         </SheetTrigger>
 

@@ -59,7 +59,7 @@ export function LogoutButton() {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent>
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuLabel>User Menu</DropdownMenuLabel>
           <DropdownMenuSeparator />
 
           {/* Sign Out Option */}
@@ -110,7 +110,11 @@ export function LogoutButton() {
               </Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant="destructive" onClick={handleLogout} disabled={loading}>
+              <Button
+                variant="destructive"
+                onClick={handleLogout}
+                disabled={loading}
+              >
                 {loading ? "Logging out..." : "Logout"}
               </Button>
             </AlertDialogAction>

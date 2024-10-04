@@ -41,6 +41,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/remainingproperties$/,
     /^\/dashboard\/completedproperties$/,
     /^\/dashboard\/property\/description\/.*$/,
+    /^\/dashboard\/allblogs$/,
+    /^\/dashboard\/allblogs\/.*$/,
   ],
 };
 const defaultRoutes: { [key: string]: string } = {

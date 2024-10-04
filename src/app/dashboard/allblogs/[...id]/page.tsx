@@ -146,10 +146,10 @@ const BlogPage = ({ params }: PageProps) => {
           <div className="flex  mt-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className=" w-full">
+                <div className="w-full">
                   <Button
                     variant="destructive"
-                    className="flex items-center gap-2 w-full sm:w-auto"
+                    className="flex w-full sm:w-auto items-center gap-2"
                   >
                     Delete <Trash2 size={18} />
                   </Button>

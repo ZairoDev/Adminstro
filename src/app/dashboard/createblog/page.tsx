@@ -12,7 +12,6 @@ import { useUserRole } from "@/context/UserRoleContext";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-
 const defaultValue = {
   type: "doc",
   content: [
@@ -27,7 +26,6 @@ const defaultValue = {
     },
   ],
 };
-
 const BlogPage = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>(defaultValue);
@@ -39,14 +37,9 @@ const BlogPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
-
-  const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
-    useUserRole();
-
+  const { userRole, currentUser, isLoading, userEmail } = useUserRole();
   const { toast } = useToast();
-
   const router = useRouter();
-
   console.log(
     userRole,
     currentUser,
@@ -65,9 +58,7 @@ const BlogPage = () => {
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
-
   const { uploadFiles, loading } = useBunnyUpload();
-
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -89,7 +80,6 @@ const BlogPage = () => {
       }
     }
   };
-
   const handleSubmit = async () => {
     try {
       setUploading(true);
@@ -102,7 +92,6 @@ const BlogPage = () => {
         wordCount,
         author: userEmail,
       });
-
       toast({
         title: "Success",
         description: "Your blog created successfully.",
@@ -118,17 +107,15 @@ const BlogPage = () => {
       setUploading(false);
     }
   };
-
+  console.log(content, "Content");
   const isFormValid = () => {
     return title && content && maintext && banner && tags.length > 0;
   };
-
   return (
     <div>
       <h1 className="text-3xl text-center border-b pb-2">Create a Blog</h1>
       <div className="max-w-5xl  mx-auto p-1 pt-2">
         <div className="space-y-6">
-          {/* Blog Title */}
           <div>
             <Label htmlFor="blogTitle" className="block mb-2">
               Blog Title
@@ -140,7 +127,6 @@ const BlogPage = () => {
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
-
           <div>
             <Label htmlFor="blogDescription" className="block mb-2">
               Description
@@ -186,19 +172,20 @@ const BlogPage = () => {
             </AspectRatio>
             {loading && <ScreenLoader />}
           </div>
-
           {/* Blog Content */}
           <div>
             <div className=" flex justify-between">
-              {" "}
               <Label htmlFor="blogContent" className="block mb-2">
                 Blog Content
               </Label>
               <p className=" text-xs">(Total Words: {wordCount})</p>
             </div>
-            <Editor initialValue={defaultValue} onChange={setContent} setWordCount={setWordCount} />
+            <Editor
+              initialValue={defaultValue}
+              onChange={setContent}
+              setWordCount={setWordCount}
+            />
           </div>
-
           <div>
             <Label htmlFor="tags" className="block mb-2">
               Tags
@@ -234,7 +221,6 @@ const BlogPage = () => {
               ))}
             </div>
           </div>
-
           <Button
             disabled={isLoading || uploading || !isFormValid()}
             onClick={handleSubmit}

@@ -12,7 +12,7 @@ import crypto from "crypto";
 
 const generateRandomPassword = (length: number): string => {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
-};
+}; 
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {

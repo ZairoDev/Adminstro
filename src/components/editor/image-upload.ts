@@ -1,11 +1,9 @@
-
 import { createImageUpload } from "novel/plugins";
 import { toast } from "sonner";
 
 const onUpload = (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-
   const promise = fetch(
     `https://storage.bunnycdn.com/vacationsaga/blogs/${file.name}`,
     {
@@ -17,18 +15,18 @@ const onUpload = (file: File) => {
       body: file,
     }
   );
-
   return new Promise((resolve, reject) => {
     toast.promise(
       promise.then(async (res) => {
         if (res.status === 201) {
           const url = `https://vacationsaga.b-cdn.net/${file.name}`;
-          // Preload the image
+          console.log(url);
           const image = new Image();
           image.src = url;
           image.onload = () => {
             resolve(url);
           };
+          console.log(url);
         } else if (res.status === 401) {
           resolve(file);
           throw new Error("Bunny CDN AccessKey is incorrect.");
@@ -47,7 +45,6 @@ const onUpload = (file: File) => {
     );
   });
 };
-
 export const uploadFn = createImageUpload({
   onUpload,
   validateFn: (file) => {

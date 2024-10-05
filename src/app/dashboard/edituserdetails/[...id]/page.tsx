@@ -15,11 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PhoneInput from "react-phone-number-input";
-import Loader from "@/components/loader";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader } from "lucide-react";
 import GotoUserPage from "@/components/GotoUserPage";
 import Animation from "@/components/animation";
+
 
 interface PageProps {
   params: {
@@ -317,7 +317,7 @@ const AccountPage = ({ params }: PageProps) => {
                 <>
                   <div className="flex items-center gap-x-1">
                     Updating...
-                    <Loader />
+                    <Loader className="animate-spin " size={18} />
                   </div>
                 </>
               ) : (

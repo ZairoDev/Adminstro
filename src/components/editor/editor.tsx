@@ -71,12 +71,7 @@ export default function Editor({
     return new XMLSerializer().serializeToString(doc);
   };
 
-  // ! Editor Debounce
-  // const debouncedUpdates = useDebouncedCallback(async (editor: EditorInstance) => {
-  //   const json = editor.getJSON();
-  //   setContent(json);
-  //   setSaveStatus("Saved");
-  // }, 500);
+ 
 
   return (
     <div className="relative w-full max-w-screen-lg">
@@ -132,7 +127,6 @@ export default function Editor({
               ))}
             </EditorCommandList>
           </EditorCommand>
-
           <EditorMenu open={openAI} onOpenChange={setOpenAI}>
             <Separator orientation="vertical" />
             <NodeSelector open={openNode} onOpenChange={setOpenNode} />
@@ -154,3 +148,4 @@ export default function Editor({
     </div>
   );
 }
+

@@ -32,8 +32,8 @@ const BlogPage = ({ params }: PageProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [confirmationText, setConfirmationText] = useState(""); // For confirmation input
-  const requiredConfirmationText = "I have to delete"; // Phrase to confirm deletion
+  const [confirmationText, setConfirmationText] = useState("");
+  const requiredConfirmationText = "I have to delete";
 
   const { toast } = useToast();
   const router = useRouter();
@@ -62,21 +62,21 @@ const BlogPage = ({ params }: PageProps) => {
       const response = await axios.post("/api/blog/deleteblog", {
         id,
       });
-
       if (response.data.success) {
         toast({
           title: "Success",
-          description: "Your blog deleted successfully.",
+          description: `${response.data.message}`,
         });
         router.push("/dashboard/allblogs");
       } else {
         setError("Failed to delete blog.");
       }
     } catch (error: any) {
+      console.log(error);
       toast({
         variant: "destructive",
         title: "False",
-        description: "Something went wrong. Please try again.",
+        description: `${error.response.data.error}`,
       });
     } finally {
       setDeleteLoading(false);

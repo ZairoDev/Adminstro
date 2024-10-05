@@ -1,6 +1,5 @@
 import { EditorBubble, useEditor } from "novel";
 import { removeAIHighlight } from "novel/extensions";
-
 import { type ReactNode, useEffect } from "react";
 
 interface EditorMenuProps {
@@ -8,7 +7,6 @@ interface EditorMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export default function EditorMenu({
   children,
   open,

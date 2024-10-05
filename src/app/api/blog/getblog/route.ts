@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Blog from "@/models/blog";
 import { connectDb } from "@/util/db";
-
+import { getDataFromToken } from "@/util/getDataFromToken";
 connectDb();
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const {
     search,
     page = 1,
@@ -12,6 +12,9 @@ export async function GET(req: Request) {
   const pageNumber = parseInt(page as string, 10);
   const limitNumber = parseInt(limit as string, 10);
   try {
+    const data = await getDataFromToken(req);
+    console.log("data will gonna print here ", data);
+
     let query = {};
     if (search) {
       query = { tags: { $regex: search, $options: "i" } };

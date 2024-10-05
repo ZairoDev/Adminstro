@@ -11,15 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, ArrowLeftFromLine, Plus } from "lucide-react";
-import Link from "next/link";
+import { Loader, Plus } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { userSchema } from "@/schemas/user.schema";
 import { UserSchema } from "@/schemas/user.schema";
-import Loader from "@/components/loader";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
@@ -385,7 +383,14 @@ const NewUser = () => {
 
                 <div className="flex  items-end justify-start">
                   <Button type="submit" className="w-full sm:w-2/6">
-                    {loading ? <Loader /> : "Continue"}
+                    {loading ? (
+                      <>
+                        Creating...
+                        <Loader className="animate-spin" size={18} />{" "}
+                      </>
+                    ) : (
+                      "Continue"
+                    )}
                   </Button>
                 </div>
               </form>

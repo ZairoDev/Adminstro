@@ -1,47 +1,32 @@
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { GiHamburgerMenu } from "react-icons/gi";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import ScreenLoader from "./ScreenLoader";
-import { LogoutButton } from "./logoutAlertBox";
 import {
-  ArrowRight,
-  BadgePlus,
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
   Menu,
   NotebookPen,
-  PencilRuler,
   ScanEye,
-  TableOfContents,
   User2Icon,
   Users,
 } from "lucide-react";
+import DeepLoader from "./DeepLoader";
 
-import FadeInAnimation from "./fadeinAnimation";
-
-// Function to determine if a route is active
-// Function to determine if a route is active
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
 
-// Define the Route ty
 type Route = {
   path: string;
   label: string;
   Icon?: JSX.Element;
 };
-// Define roleRoutes with the Route type
+
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
     {
@@ -119,7 +104,7 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/allblogs",
       label: "Read Blogs",
-      Icon: <NotebookPen size={18} />,
+      Icon: <ScanEye size={18} />,
     },
     {
       path: "/dashboard/createblog",
@@ -160,7 +145,7 @@ export function Sidebar() {
 
   const renderRoutes = () => {
     if (isLoading) {
-      return <ScreenLoader />;
+      return <DeepLoader />;
     }
 
     if (!userRole) {

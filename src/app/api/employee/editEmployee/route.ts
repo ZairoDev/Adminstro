@@ -1,9 +1,8 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
-import { NextResponse } from "next/server";
-
+import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 connectDb();
-
 interface RequestBody {
   _id: string;
   profilePic?: string;
@@ -22,13 +21,20 @@ interface RequestBody {
   role?: string;
 }
 
-export async function PUT(request: Request): Promise<NextResponse> {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
+    const data = await getDataFromToken(request);
+
+    if (data.role != "SuperAdmin") {
+      return NextResponse.json(
+        { error: "Unauthorized. Only SuperAdmin can edit employees." },
+        { status: 403 }
+      );
+    }
+
     const body: RequestBody = await request.json();
-    console.log("Received body:", body);
 
     const { _id, ...updateFields } = body;
-
     if (!_id) {
       return NextResponse.json(
         { error: "User ID is required" },
@@ -58,17 +64,14 @@ export async function PUT(request: Request): Promise<NextResponse> {
     if (updateFields.role) updateData.role = updateFields.role;
 
     console.log("Update data:", updateData);
-
     const user = await Employees.findOneAndUpdate(
       { _id },
       { $set: updateData },
       { new: true }
     ).select("-password");
-
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
     return NextResponse.json({
       message: "User profile updated successfully",
       success: true,

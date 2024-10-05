@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import ical from "ical";
 import axios from "axios";
 import { toast, useToast } from "@/hooks/use-toast";
+import dateParser from "@/helper/dateParser";
 
 interface PageProps {
   params: {
@@ -20,7 +21,8 @@ interface EventInterface {
   title: string;
   date?: string;
   start?: string;
-  end?: string; // if End is not given then the duration will be the same day only as start
+  end?: string; // if End is not given then the duration will be the same day as start
+  bookedFrom?: string;
 }
 
 const EditDates = ({ params }: PageProps) => {
@@ -32,22 +34,52 @@ const EditDates = ({ params }: PageProps) => {
 
   const [bookedDates, setBookedDates] = useState<EventInterface[]>([
     // { start: "2024-10-07", end: "2024-10-09", title: "Booked" }
-  ]); //! {start: "year-moth-day"}
+  ]); //! {start: "YYYY-MM-DD"}
 
   //! Array of dates that are already booked
   const [alreadyBookedDates, setAlreadyBookedDates] = useState<string[]>([]);
+  const [datesBookedFromHere, setDatesBookedFromHere] = useState<string[]>([]);
 
   //! method called when only date is clicked and not the event - adds the date to the alreadyBookedDates array
   const handleDateClick = (arg: any) => {
-    const clickedDate = new Date(arg.date).toLocaleDateString();
-    console.log("clickedDate: ", clickedDate, alreadyBookedDates);
-    if (alreadyBookedDates.includes(clickedDate)) return;
-    else {
+    const clickedDate = dateParser(arg.date);
+
+    if (alreadyBookedDates.includes(clickedDate)) {
+      if (!datesBookedFromHere.includes(clickedDate)) return;
+      // arg.dayEl.style.backgroundColor = "yellow";
+      const dateIndex = alreadyBookedDates.indexOf(clickedDate);
+      setAlreadyBookedDates((prev) => {
+        const newState = [...prev];
+        newState.splice(dateIndex, 1);
+        return newState;
+      });
+      const dateIndex2 = datesBookedFromHere.indexOf(clickedDate);
+      setDatesBookedFromHere((prev) => {
+        const newState = [...prev];
+        newState.splice(dateIndex2, 1);
+        return newState;
+      });
+
+      let ind = -1;
+      for (let i = 0; i < bookedDates.length; i++) {
+        if (bookedDates[i].start === clickedDate) {
+          ind = i;
+          break;
+        }
+      }
+      setBookedDates((prev) => {
+        const newState = [...prev];
+        newState.splice(ind, 1);
+        console.log("newState");
+        return newState;
+      });
+      return;
+    } else {
       const newDates = [...alreadyBookedDates, clickedDate];
       setAlreadyBookedDates(newDates);
+      setDatesBookedFromHere((prev) => [...prev, clickedDate]); //! dates booked from this platform
     }
     const newEvent = [...bookedDates, { title: "Booked", start: arg.dateStr }];
-    // console.log('newEvent: ', newEvent);
     setBookedDates(newEvent);
   };
 
@@ -77,7 +109,7 @@ const EditDates = ({ params }: PageProps) => {
           });
         }
       }
-      console.log("bookings: ", bookings);
+      // console.log("bookings: ", bookings);
       return bookings;
     } catch (error) {
       toast({
@@ -91,7 +123,6 @@ const EditDates = ({ params }: PageProps) => {
   const handleUrlSubmit = async () => {
     const url = inputRef.current?.value;
     if (!url) return;
-    console.log("url: ", url);
     setIcalLink(url);
     if (inputRef.current?.value) {
       inputRef.current.value = "";
@@ -99,29 +130,33 @@ const EditDates = ({ params }: PageProps) => {
 
     const bookedDatesinAirbnb = await fetchAndParseICal(url);
 
-    console.log(
-      "bookedDatesinAirbnb: ",
-      bookedDatesinAirbnb?.[0]?.startDate?.toLocaleString()
-    );
     const eventsFromAirbnb: EventInterface[] = [];
     bookedDatesinAirbnb?.forEach((event) => {
-      const st = event.startDate?.toLocaleString().split(",")[0].split("/");
-      const stdt = `${st?.[2]}-${st?.[0]}-${st?.[1]}`;
-
-      const nd = event.endDate?.toLocaleString().split(",")[0].split("/");
-      const nddt = `${nd?.[2]}-${nd?.[0]}-${nd?.[1]}`;
+      const stdt = dateParser(event.startDate?.toLocaleString() || "");
+      const nddt = dateParser(event.endDate?.toLocaleString() || "");
 
       const newObj: EventInterface = {
         start: stdt,
         end: nddt,
         title: "Booked",
+        bookedFrom: url.includes("airbnb") ? "Airbnb" : "Booking.com",
       };
       eventsFromAirbnb.push(newObj);
     });
-    console.log("events from airbnb: ", eventsFromAirbnb);
+
     setBookedDates(eventsFromAirbnb);
 
-    console.log("fetched");
+    //! adding events from airbnb to already booked dates
+    eventsFromAirbnb.forEach((event) => {
+      const newDates: string[] = [];
+      let currDt = new Date(event.start!);
+      while (currDt < new Date(event.end!)) {
+        newDates.push(dateParser(currDt));
+        currDt.setDate(currDt.getDate() + 1);
+      }
+
+      setAlreadyBookedDates((prev) => [...prev, ...newDates]);
+    });
   };
 
   return (
@@ -153,6 +188,18 @@ const EditDates = ({ params }: PageProps) => {
           }
         }}
         dayCellDidMount={(info) => {
+          info.el.style.position = "relative";
+          info.el.style.width = "100%";
+          const priceDiv = document.createElement("div");
+          priceDiv.innerHTML = "€230";
+          priceDiv.style.fontSize = "15px";
+          priceDiv.style.color = "gray";
+          priceDiv.style.position = "absolute";
+          priceDiv.style.bottom = "5px";
+          info.el.appendChild(priceDiv);
+          priceDiv.style.left = "50%";
+          priceDiv.style.transform = "translateX(-50%)";
+
           const calendarDate = formatDate(info.date, {
             year: "numeric",
             month: "2-digit",

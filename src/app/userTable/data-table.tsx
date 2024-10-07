@@ -189,7 +189,7 @@ export function DataTable({
 
       <div className="rounded-md border">
         {loading ? (
-          <div className="text-center py-4 h-screen flex items-center justify-center">
+          <div className="text-center py-4 h-screen flex  justify-center">
             <Loader />
           </div>
         ) : data.length === 0 ? (

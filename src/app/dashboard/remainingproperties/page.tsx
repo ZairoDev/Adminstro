@@ -175,7 +175,7 @@ const CompletedProperties: React.FC = () => {
 
         <div className="mt-4">
           {loading ? (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center ">
               <Loader />
             </div>
           ) : error ? (
@@ -275,29 +275,31 @@ const CompletedProperties: React.FC = () => {
           )}
         </div>
         {/* Pagination Section */}
-        <div className="text-xs w-full">
-          <Pagination className="flex flex-wrap items-center w-full">
-            {/* <PaginationPrevious
-            className="text-xs sm:block hidden"
-            onClick={() => handlePageChange(page - 1)}
-            aria-disabled={page === 1}
-          >
-         
-          </PaginationPrevious> */}
+        {properties.length > 0 && (
+          <div className="text-xs w-full">
+            <Pagination className="flex flex-wrap items-center w-full">
+              {/* <PaginationPrevious
+             className="text-xs sm:block hidden"
+             onClick={() => handlePageChange(page - 1)}
+             aria-disabled={page === 1}
+           >
+          
+           </PaginationPrevious> */}
 
-            <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
-              {renderPaginationItems()}
-            </PaginationContent>
+              <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
+                {renderPaginationItems()}
+              </PaginationContent>
 
-            {/* <PaginationNext
-            className="text-xs sm:block hidden"
-            aria-disabled={page === totalPages}
-            onClick={() => handlePageChange(page + 1)}
-          >
-           
-          </PaginationNext> */}
-          </Pagination>
-        </div>
+              {/* <PaginationNext
+             className="text-xs sm:block hidden"
+             aria-disabled={page === totalPages}
+             onClick={() => handlePageChange(page + 1)}
+           >
+            
+           </PaginationNext> */}
+            </Pagination>
+          </div>
+        )}
       </Animation>
     </div>
   );

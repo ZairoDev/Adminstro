@@ -4,13 +4,15 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { ModeToggle } from "./themeChangeButton";
+import { motion } from "framer-motion";
 import axios from "axios";
-import ScreenLoader from "./ScreenLoader";
+
 import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
   Menu,
+  MessageCircleQuestion,
   NotebookPen,
   ScanEye,
   User2Icon,
@@ -111,6 +113,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Blog",
       Icon: <NotebookPen size={18} />,
     },
+    {
+      path: "/dashboard/createquery",
+      label: "Create Query",
+      Icon: <MessageCircleQuestion size={18} />,
+    },
   ],
 };
 
@@ -168,9 +175,14 @@ export function Sidebar() {
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20"
+          className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20 group"
         >
-          {route.Icon && route.Icon}
+          <motion.div
+            className="group-hover:scale-110 group-hover:rotate-12"
+            transition={{ duration: 0.3, ease: [0.25, 0.8, 0.25, 1] }}
+          >
+            {route.Icon && route.Icon}
+          </motion.div>
           <span>{route.label}</span>
         </Link>
       </li>

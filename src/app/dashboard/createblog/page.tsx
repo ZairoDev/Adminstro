@@ -4,10 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Editor from "@/components/editor/editor";
 import axios from "axios";
-import { Plus, Upload, X } from "lucide-react";
+import { Loader2, Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
-import ScreenLoader from "@/components/ScreenLoader";
 import { useUserRole } from "@/context/UserRoleContext";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useToast } from "@/hooks/use-toast";
@@ -155,8 +154,8 @@ const BlogPage = () => {
                     className="rounded-xl object-fill "
                   />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60">
-                    <Upload size={24} className="animate-bounce" />
+                  <div className="absolute inset-0  flex flex-col items-center justify-center text-primary/60">
+                    <Upload size={24} className="" />
                     <p>Click to upload banner</p>
                   </div>
                 )}
@@ -170,7 +169,14 @@ const BlogPage = () => {
                 />
               </div>
             </AspectRatio>
-            {loading && <ScreenLoader />}
+            {loading && (
+              <div className="">
+                <p className="flex items-center justify-center gap-x-2">
+                  Uploading...
+                  <Loader2 size={18} className="animate-spin" />
+                </p>
+              </div>
+            )}
           </div>
           {/* Blog Content */}
           <div>

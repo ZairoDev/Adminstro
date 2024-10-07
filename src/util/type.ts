@@ -71,6 +71,7 @@ export interface Property {
   weekendPrice?: number[];
   monthlyDiscount?: number[];
   currency?: string;
+  pricePerDay?: number[][][];
 
   basePriceLongTerm?: string[];
 

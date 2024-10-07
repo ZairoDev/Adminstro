@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import { renderToStaticMarkup } from "react-dom/server";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -10,6 +12,19 @@ import ical from "ical";
 import axios from "axios";
 import { toast, useToast } from "@/hooks/use-toast";
 import dateParser from "@/helper/dateParser";
+import { Pencil } from "lucide-react";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Label } from "@/components/ui/label";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 interface PageProps {
   params: {
@@ -29,6 +44,7 @@ const EditDates = ({ params }: PageProps) => {
   const pId = params.id[0];
   const portionIndex = params.id[1];
   const inputRef = useRef<HTMLInputElement>(null);
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [icalLink, setIcalLink] = useState<string>("");
   const { toast } = useToast();
 
@@ -39,6 +55,8 @@ const EditDates = ({ params }: PageProps) => {
   //! Array of dates that are already booked
   const [alreadyBookedDates, setAlreadyBookedDates] = useState<string[]>([]);
   const [datesBookedFromHere, setDatesBookedFromHere] = useState<string[]>([]);
+  const [portionPrice, setPortionPrice] = useState<number[][]>([[]]);
+  const [renderSheet, setRenderSheet] = useState<boolean>(false);
 
   //! method called when only date is clicked and not the event - adds the date to the alreadyBookedDates array
   const handleDateClick = (arg: any) => {
@@ -159,6 +177,66 @@ const EditDates = ({ params }: PageProps) => {
     });
   };
 
+  const fetchPropertyPrice = async () => {
+    try {
+      const response = await axios.post("/api/singleproperty/getproperty", {
+        propertyId: params.id,
+      });
+      setPortionPrice(response.data.pricePerDay[portionIndex]);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error!",
+        description: "Problem in fetching Prices",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchPropertyPrice();
+  }, []);
+
+  const renderPriceEditDrawer = () => {
+    return (
+      <Drawer>
+        <DrawerTrigger asChild>
+          <Button variant="outline">Edit Prices</Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <div className="mx-auto w-full max-w-sm">
+            <DrawerHeader>
+              <DrawerTitle>Edit Prices</DrawerTitle>
+              <DrawerDescription>
+                Set specific prices for your property.
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pb-0">
+              <div className="flex items-center justify-center space-x-2">
+                <DateRangePicker />
+              </div>
+              <div className="mt-3 ">
+                <Label htmlFor="price" className="text-right">
+                  Enter Price
+                </Label>
+                <Input type="number" id="price" className="col-span-3" ref={priceInputRef} placeholder="€" />
+              </div>
+            </div>
+            <DrawerFooter>
+              <Button onClick={handleChangePrice} className=" hover:bg-white/60">Submit</Button>
+              <DrawerClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  };
+
+  const handleChangePrice = () => {
+    console.log("input price: ", priceInputRef.current?.value);
+  }
+
   return (
     <div>
       <div className=" flex gap-x-2 my-4">
@@ -172,56 +250,50 @@ const EditDates = ({ params }: PageProps) => {
       {icalLink && (
         <div className=" p-2 text-gray-600">iCal Url: {icalLink}</div>
       )}
-      <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        events={bookedDates}
-        dateClick={handleDateClick}
-        eventClick={handleEventClick}
-        eventDidMount={(info) => {
-          if (info.event.title === "Booked") {
-            info.el.style.backgroundColor = "gray"; // Change color of blocked dates
-            info.el.style.borderColor = "white"; // Optional: change border color
-            info.el.style.display = "flex";
-            info.el.style.justifyContent = "center";
-            info.el.style.padding = "5px";
-          }
-        }}
-        dayCellDidMount={(info) => {
-          info.el.style.position = "relative";
-          info.el.style.width = "100%";
-          const priceDiv = document.createElement("div");
-          priceDiv.innerHTML = "€230";
-          priceDiv.style.fontSize = "15px";
-          priceDiv.style.color = "gray";
-          priceDiv.style.position = "absolute";
-          priceDiv.style.bottom = "5px";
-          info.el.appendChild(priceDiv);
-          priceDiv.style.left = "50%";
-          priceDiv.style.transform = "translateX(-50%)";
+      {renderPriceEditDrawer()}
+      {portionPrice[0].length > 0 && (
+        <FullCalendar
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          events={bookedDates}
+          dateClick={handleDateClick}
+          eventClick={handleEventClick}
+          eventDidMount={(info) => {
+            if (info.event.title === "Booked") {
+              info.el.style.backgroundColor = "gray"; // Change color of blocked dates
+              info.el.style.borderColor = "white"; // Optional: change border color
+              info.el.style.display = "flex";
+              info.el.style.justifyContent = "center";
+            }
+          }}
+          dayCellDidMount={(info) => {
+            const monthNo = info.date.getMonth();
+            const dayNo = parseInt(info.dayNumberText);
+            info.el.style.position = "relative";
+            info.el.style.width = "100%";
+            const priceDiv = document.createElement("div");
+            priceDiv.innerHTML = `€ ${portionPrice[monthNo][dayNo - 1]}`;
+            priceDiv.style.fontSize = "15px";
+            priceDiv.style.color = "gray";
+            priceDiv.style.position = "absolute";
+            priceDiv.style.bottom = "3px";
 
-          const calendarDate = formatDate(info.date, {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
+            info.el.appendChild(priceDiv);
+            priceDiv.style.columnGap = "5px";
 
-          // const isBooked = bookedDates.some((event) => {
-          //   const eventStartDate = formatDate(new Date(event.start), { year: 'numeric', month: '2-digit', day: '2-digit' });
-          //   const eventEndDate = event.end ? formatDate(new Date(event.end), { year: 'numeric', month: '2-digit', day: '2-digit' }) : eventStartDate;
+            priceDiv.style.left = "50%";
+            priceDiv.style.transform = "translateX(-50%)";
 
-          //   return calendarDate >= eventStartDate && calendarDate <= eventEndDate;
-          // });
+            const dt = new Date(info.date);
+            const isBooked = alreadyBookedDates.includes(dt.toLocaleString());
 
-          const dt = new Date(info.date);
-          const isBooked = alreadyBookedDates.includes(dt.toLocaleString());
-
-          if (isBooked) {
-            info.el.style.pointerEvents = "none"; // Disable clicking on the cell
-            info.el.style.color = "#232023"; // Make the text red or any distinct color
-          }
-        }}
-      />
+            if (isBooked) {
+              info.el.style.pointerEvents = "none"; // Disable clicking on the cell
+              info.el.style.color = "#232023"; // Make the text red or any distinct color
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

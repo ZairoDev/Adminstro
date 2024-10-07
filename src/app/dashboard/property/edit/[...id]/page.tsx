@@ -1586,6 +1586,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                               <Link
                                 href={`/dashboard/property/edit/availability/${params.id}/${index}`}
                                 className=" flex items-center"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {" "}
                                 <CustomTooltip

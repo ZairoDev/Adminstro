@@ -72,6 +72,7 @@ export interface Property {
   monthlyDiscount?: number[];
   currency?: string;
   pricePerDay?: number[][][];
+  icalLinks?: object;
 
   basePriceLongTerm?: string[];
 

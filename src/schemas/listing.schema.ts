@@ -35,6 +35,7 @@ const propertyValidationSchema = z.object({
   basePrice: z.array(z.number()).optional(),
   basePriceLongTerm: z.array(z.number()).optional(),
   pricePerDay: z.array(z.array(z.array(z.number()))),
+  icalLinks: z.record(z.string()).optional(),
   weekendPrice: z.array(z.number()).optional(),
   monthlyDiscount: z.array(z.number()).optional(),
   currency: z.string().optional(),

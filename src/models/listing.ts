@@ -135,6 +135,10 @@ const PropertySchema: Schema = new Schema(
     basePrice: [Number],
     basePriceLongTerm: [Number],
     pricePerDay: [[[Number]]],
+    icalLinks: {
+      type: Map,
+      of: String,
+    },
 
     weekendPrice: [Number],
     monthlyDiscount: [Number],

@@ -1,7 +1,5 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
-import { renderToStaticMarkup } from "react-dom/server";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -10,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ical from "ical";
 import axios from "axios";
-import { toast, useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import dateParser from "@/helper/dateParser";
 import { Pencil } from "lucide-react";
 import {
@@ -25,6 +23,8 @@ import {
 } from "@/components/ui/drawer";
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { DateRange } from "react-day-picker";
+import { addDays } from "date-fns";
 
 interface PageProps {
   params: {
@@ -40,12 +40,14 @@ interface EventInterface {
   bookedFrom?: string;
 }
 
+interface icalLinkInterface {
+  [key: string]: string;
+}
+
 const EditDates = ({ params }: PageProps) => {
   const pId = params.id[0];
   const portionIndex = params.id[1];
-  const inputRef = useRef<HTMLInputElement>(null);
   const priceInputRef = useRef<HTMLInputElement>(null);
-  const [icalLink, setIcalLink] = useState<string>("");
   const { toast } = useToast();
 
   const [bookedDates, setBookedDates] = useState<EventInterface[]>([
@@ -56,7 +58,14 @@ const EditDates = ({ params }: PageProps) => {
   const [alreadyBookedDates, setAlreadyBookedDates] = useState<string[]>([]);
   const [datesBookedFromHere, setDatesBookedFromHere] = useState<string[]>([]);
   const [portionPrice, setPortionPrice] = useState<number[][]>([[]]);
-  const [renderSheet, setRenderSheet] = useState<boolean>(false);
+  const [icalLinks, setIcalLinks] = useState<string[]>([]);
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 10),
+  });
+  const [refreshEditPriceState, setRefreshEditPriceState] =
+    useState<boolean>(false);
+  const [validRange, setValidRange] = useState({});
 
   //! method called when only date is clicked and not the event - adds the date to the alreadyBookedDates array
   const handleDateClick = (arg: any) => {
@@ -132,20 +141,23 @@ const EditDates = ({ params }: PageProps) => {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Wrror!",
+        title: "Error!",
         description: "Error Fetching Bookings from Airbnb",
       });
     }
   };
 
-  const handleUrlSubmit = async () => {
-    const url = inputRef.current?.value;
-    if (!url) return;
-    setIcalLink(url);
-    if (inputRef.current?.value) {
-      inputRef.current.value = "";
-    }
+  const handleUrlSubmit = async (icalLinks: icalLinkInterface) => {
+    // const url = inputRef.current?.value;
+    // if (!url) return;
+    // setIcalLink(url);
+    // if (inputRef.current?.value) {
+    //   inputRef.current.value = "";
+    // }
 
+    const url = icalLinks["Airbnb"];
+    console.log("url: ", url);
+    setIcalLinks(prev => ([...prev, url]));
     const bookedDatesinAirbnb = await fetchAndParseICal(url);
 
     const eventsFromAirbnb: EventInterface[] = [];
@@ -178,11 +190,13 @@ const EditDates = ({ params }: PageProps) => {
   };
 
   const fetchPropertyPrice = async () => {
+    console.log("fetch property");
     try {
       const response = await axios.post("/api/singleproperty/getproperty", {
         propertyId: params.id,
       });
       setPortionPrice(response.data.pricePerDay[portionIndex]);
+      return response.data.icalLinks;
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -193,14 +207,35 @@ const EditDates = ({ params }: PageProps) => {
   };
 
   useEffect(() => {
-    fetchPropertyPrice();
-  }, []);
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0
+    );
+
+    // Set valid range to only allow dates within the current month
+    setValidRange({
+      start: firstDayOfMonth,
+      end: lastDayOfMonth,
+    });
+
+    const setupIcal = async () => {
+      const icalLinks = await fetchPropertyPrice();
+      handleUrlSubmit(icalLinks);
+    };
+
+    setupIcal();
+  }, [refreshEditPriceState]);
 
   const renderPriceEditDrawer = () => {
     return (
       <Drawer>
         <DrawerTrigger asChild>
-          <Button variant="outline">Edit Prices</Button>
+          <Button variant="outline" className=" flex gap-x-1">
+            Edit Prices <Pencil size={16} className=" text-xs" />
+          </Button>
         </DrawerTrigger>
         <DrawerContent>
           <div className="mx-auto w-full max-w-sm">
@@ -212,17 +247,28 @@ const EditDates = ({ params }: PageProps) => {
             </DrawerHeader>
             <div className="p-4 pb-0">
               <div className="flex items-center justify-center space-x-2">
-                <DateRangePicker />
+                <DateRangePicker date={date} setDate={setDate} />
               </div>
               <div className="mt-3 ">
                 <Label htmlFor="price" className="text-right">
                   Enter Price
                 </Label>
-                <Input type="number" id="price" className="col-span-3" ref={priceInputRef} placeholder="€" />
+                <Input
+                  type="number"
+                  id="price"
+                  className="col-span-3"
+                  ref={priceInputRef}
+                  placeholder="€"
+                />
               </div>
             </div>
             <DrawerFooter>
-              <Button onClick={handleChangePrice} className=" hover:bg-white/60">Submit</Button>
+              <Button
+                onClick={handleChangePrice}
+                className=" hover:bg-white/60"
+              >
+                Submit
+              </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Cancel</Button>
               </DrawerClose>
@@ -233,29 +279,56 @@ const EditDates = ({ params }: PageProps) => {
     );
   };
 
-  const handleChangePrice = () => {
-    console.log("input price: ", priceInputRef.current?.value);
-  }
+  const handleChangePrice = async () => {
+    try {
+      const response = await axios.post("/api/editPrices", {
+        propertyId: pId,
+        portion: portionIndex,
+        price: priceInputRef.current?.value,
+        dateRange: date,
+      });
+      console.log(response);
+      setRefreshEditPriceState((prev) => !prev);
+      toast({
+        title: "Success!",
+        description: "Prices Updated successfully",
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error!",
+        description: `${err.response.data.error}`,
+      });
+    }
+  };
 
   return (
     <div>
-      <div className=" flex gap-x-2 my-4">
+      {/* <div className=" flex gap-x-2 my-4">
         <Input
           type="text"
           placeholder="Enter the Url from Airbnb & Booking.com"
           ref={inputRef}
         />
         <Button onClick={handleUrlSubmit}>Submit</Button>
-      </div>
-      {icalLink && (
+      </div> */}
+      {/* {icalLink && (
         <div className=" p-2 text-gray-600">iCal Url: {icalLink}</div>
-      )}
+        
+      )} */}
+      {icalLinks &&
+        icalLinks.map((link, index) => (
+          <div key={index} className=" p-2 text-gray-600">
+            iCal Url: {icalLinks[index]}
+          </div>
+        ))}
       {renderPriceEditDrawer()}
       {portionPrice[0].length > 0 && (
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           events={bookedDates}
+          // validRange={validRange}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventDidMount={(info) => {

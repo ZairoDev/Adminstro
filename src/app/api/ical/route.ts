@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
     console.log("response data: ", response);
     const data = await response.text();
-		console.log('data: ', data);
+		console.log('******\n data: ', data, "******");
 		
 		const parsedData = ical.parseICS(data);
 		console.log('parsedData: ', parsedData);

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MdAdsClick, MdCancel } from "react-icons/md";
 import axios from "axios";
@@ -30,12 +30,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, UploadIcon } from "lucide-react";
+import { Plus, Trash2, UploadIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Img from "@/components/Img";
 import Animation from "@/components/animation";
+import CustomTooltip from "@/components/CustomToolTip";
+import { FaBath, FaEuroSign, FaUser } from "react-icons/fa6";
+import { IoIosBed } from "react-icons/io";
+import { SlSizeFullscreen } from "react-icons/sl";
+import { FaCalendarAlt } from "react-icons/fa";
+import { Label } from "@/components/ui/label";
 
 interface PageProps {
   params: {
@@ -79,19 +85,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
   );
 
   const [portionCoverFileUrls, setPortionCoverFileUrls] = useState<string[]>(
-    // () => {
-    //   const savedUrls = localStorage.getItem("portionCoverFileUrls");
-    //   if (savedUrls) {
-    //     const savedImages = JSON.parse(savedUrls);
-    //     if (savedImages?.length != portions) {
-    //       return emptyStringArrayGenerator(portions);
-    //     }
-    //   }
-
-    //   return savedUrls
-    //     ? JSON.parse(savedUrls)
-    //     : emptyStringArrayGenerator(portions);
-    // }
     []
   );
 
@@ -110,6 +103,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
     useState<Partial<imageInterface>>();
   const [refreshFetchProperty, setRefreshFetchProperty] =
     useState<boolean>(false);
+  const [icalPlatform, setIcalPlatform] = useState<string>("");
+  const icalLinkRef = useRef<HTMLInputElement>(null);
   // this state is used to re-fetch the property when a user clicks on 'save changes' or 'delete images' button
 
   // ! FormData
@@ -140,6 +135,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     basePrice: property?.basePrice,
     weekendPrice: property?.weekendPrice,
     monthlyDiscount: property?.monthlyDiscount,
+    icalLinks: property?.icalLinks,
 
     email: property?.email,
     generalAmenities: property?.generalAmenities,
@@ -241,6 +237,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
         weekendPrice: property.weekendPrice,
         monthlyDiscount: property.monthlyDiscount,
 
+        icalLinks: property.icalLinks,
+
         generalAmenities: property.generalAmenities,
         otherAmenities: property.otherAmenities,
         safeAmenities: property.safeAmenities,
@@ -323,6 +321,29 @@ const EditPropertyPage = ({ params }: PageProps) => {
     setFormData((prevState) => ({
       ...prevState,
       additionalRules: [...(prevState.additionalRules || []), ""],
+    }));
+  };
+
+  const handleAddIcalLink = () => {
+    const newObj = {
+      [icalPlatform]: icalLinkRef.current?.value,
+    };
+    setFormData((prevState) => ({
+      ...prevState,
+      icalLinks: { ...(prevState.icalLinks || {}), ...newObj },
+    }));
+    if (icalLinkRef.current) {
+      icalLinkRef.current.value = "";
+    }
+  };
+
+  const handleRemoveIcalLink = (platform: string) => {
+    const newObj = { ...formData?.icalLinks } as { [key: string]: string };
+    delete newObj[platform];
+
+    setFormData((prevState) => ({
+      ...prevState,
+      icalLinks: newObj,
     }));
   };
 
@@ -1374,6 +1395,65 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
                 <div className="w-full my-4 pb-4 border-b bg-transparent">
                   <h1 className="text-xl mb-2 font-medium bg-background">
+                    Ical links
+                  </h1>
+
+                  <div className=" w-full flex gap-x-2">
+                    <div className=" w-3/12">
+                      <Select
+                        name="icalLinks"
+                        value={icalPlatform}
+                        onValueChange={(value) => setIcalPlatform(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Airbnb", "Booking"].map((key) => (
+                            <SelectItem key={key} value={key}>
+                              {key}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Input
+                      type="text"
+                      name="icalLink"
+                      ref={icalLinkRef}
+                      className=" w-8/12"
+                    />
+
+                    <Button className=" w-1/12" onClick={handleAddIcalLink}>
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </div>
+
+                  {formData?.icalLinks &&
+                    Object.entries(formData?.icalLinks)?.map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-2 my-2">
+                        <Label className=" w-3/12 text-base ml-1">{key}</Label>
+                        <input
+                          type="text"
+                          value={value || ""}
+                          className=" w-8/12 p-2 text-base bg-background border rounded-lg disabled:cursor-not-allowed"
+                          disabled
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => handleRemoveIcalLink(key)}
+                          className=" w-1/12"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+
+                <div className="w-full my-4 pb-4 border-b bg-transparent">
+                  <h1 className="text-xl mb-2 font-medium bg-background">
                     Additional Rules
                   </h1>
 
@@ -1534,7 +1614,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                         className=" flex  flex-col space-y-4 my-4"
                         key={index}
                       >
-                        <h1
+                        <div
                           className="  flex items-center transition-transform duration-300 ease-in-out cursor-pointer  border px-4 py-2 rounded-lg "
                           onClick={() =>
                             setIsPortionOpen((prev) => {
@@ -1551,7 +1631,52 @@ const EditPropertyPage = ({ params }: PageProps) => {
                           ) : (
                             <MdArrowRight className="text-2xl" />
                           )}
-                        </h1>
+                          {isPortionOpen[index] && (
+                            <div className=" flex flex-wrap md:flex-nowrap gap-x-4 xs:ml-8 justify-center gap-y-2">
+                              <CustomTooltip
+                                icon={<FaUser />}
+                                content={formData?.guests?.[index]}
+                                desc="No. Of Guests"
+                              />
+                              <CustomTooltip
+                                icon={<IoIosBed />}
+                                content={formData?.beds?.[index]}
+                                desc="No. Of beds"
+                              />
+                              <CustomTooltip
+                                icon={<FaBath />}
+                                content={formData?.bathroom?.[index]}
+                                desc="No. Of bathroom"
+                              />
+                              <CustomTooltip
+                                icon={<SlSizeFullscreen />}
+                                content={formData?.portionSize?.[index]}
+                                desc="Portion's size"
+                              />
+                              <CustomTooltip
+                                icon={<FaEuroSign />}
+                                content={formData?.basePrice?.[index]}
+                                desc="Price of Portion"
+                              />
+                              <Link
+                                href={`/dashboard/property/edit/availability/${params.id}/${index}`}
+                                className=" flex items-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {" "}
+                                <CustomTooltip
+                                  icon={<FaCalendarAlt />}
+                                  desc="Calendar"
+                                />
+                              </Link>
+                              <CustomTooltip
+                                text={formData?.portionName?.[index]}
+                                desc="Name of Portion"
+                                className=" xs:text-nowrap"
+                              />
+                            </div>
+                          )}
+                        </div>
                         {isPortionOpen[index] && (
                           <>
                             <div className=" flex flex-col space-y-2">

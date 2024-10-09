@@ -5,8 +5,15 @@ import { connectDb } from "@/util/db";
 connectDb();
 
 export async function POST(req: Request) {
-  const { id } = await req.json(); 
+  const { id } = await req.json();
+
   try {
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Blog ID is required" },
+        { status: 400 }
+      );
+    }
     const blog = await Blog.findById(id);
     if (!blog) {
       return NextResponse.json(

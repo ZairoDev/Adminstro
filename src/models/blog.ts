@@ -1,4 +1,3 @@
-// models/Blog.js
 import mongoose from "mongoose";
 
 const blogSchema = new mongoose.Schema({

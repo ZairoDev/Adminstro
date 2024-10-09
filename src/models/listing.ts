@@ -38,6 +38,7 @@ export interface IProperty extends Document {
   childrenAge?: number[];
   basePrice?: number[];
   basePriceLongTerm?: number[];
+  pricePerDay?: number[][][];
   weekendPrice?: number[];
   monthlyDiscount?: number[];
   currency?: string;
@@ -133,6 +134,12 @@ const PropertySchema: Schema = new Schema(
     childrenAge: [Number],
     basePrice: [Number],
     basePriceLongTerm: [Number],
+    pricePerDay: [[[Number]]],
+    icalLinks: {
+      type: Map,
+      of: String,
+    },
+
     weekendPrice: [Number],
     monthlyDiscount: [Number],
     currency: String,
@@ -185,9 +192,9 @@ const PropertySchema: Schema = new Schema(
     heatingMedium: String,
     energyClass: String,
 
-    nearbyLocations:{
+    nearbyLocations: {
       type: Map,
-      of: Schema.Types.Mixed
+      of: Schema.Types.Mixed,
     },
 
     hostedFrom: String,

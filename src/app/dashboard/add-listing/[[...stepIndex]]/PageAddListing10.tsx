@@ -33,7 +33,7 @@ interface Page2State {
   postalCode: string;
 }
 
-interface nearbyLocationInterface { 
+interface nearbyLocationInterface {
   nearbyLocationName: string[];
   nearbyLocationDistance: number[];
   nearbyLocationTag: string[];
@@ -68,6 +68,7 @@ interface CombinedData {
   weekendPrice?: number[];
   weeklyDiscount?: number[];
   currency?: string;
+  pricePerDay?: number[][][];
 
   generalAmenities?: object;
   otherAmenities?: object;
@@ -173,14 +174,20 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     return "";
   });
 
-  const [basePrice, setBasePrice] = useState<number>(() => {
-    const saved = localStorage.getItem("page8");
-    if (!saved) {
-      return 0;
+  const createPricePerDayArray = (portions: number) => {
+    console.log("number of portions: ", portions);
+    const pricePerDayArray = Array.from({ length: portions }, () =>
+      Array.from({ length: 12 }, () => Array.from({ length: 31 }, () => 1))
+    );
+    for (let i = 0; i < portions; i++) {
+      for (let j = 0; j < 12; j++) {
+        for (let k = 0; k < 31; k++) {
+          pricePerDayArray[i][j][k] = combinedData?.basePrice?.[i] || 1;
+        }
+      }
     }
-    const value = JSON.parse(saved);
-    return parseInt(value.basePrice[0]) || 0;
-  });
+    return pricePerDayArray;
+  };
 
   const [combinedData, setCombinedData] = useState<CombinedData>();
 
@@ -225,7 +232,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     };
 
     const data = fetchDataFromLocalStorage();
-    console.log(data , "Hello I am here");
+    console.log(data, "Hello I am here");
   }, []);
 
   const [propertyId, setPropertyId] = useState<string>();
@@ -292,6 +299,11 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       weekendPrice: combinedData?.weekendPrice,
       weeklyDiscount: combinedData?.weeklyDiscount,
       currency: combinedData?.currency,
+      pricePerDay: createPricePerDayArray(combinedData?.numberOfPortions || 1),
+      // pricePerDay: Array.from(
+      //   { length: combinedData?.numberOfPortions || 1 },
+      //   () => monthArray
+      // ),
 
       generalAmenities: combinedData?.generalAmenities,
       otherAmenities: combinedData?.otherAmenities,
@@ -333,7 +345,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       neighbourhood: combinedData?.neighbourhood,
 
       nearbyLocations: combinedData?.nearbyLocations,
-  
+
       rentalType: combinedData?.rentalType,
       monthlyDiscount: combinedData?.monthlyDiscount,
       longTermMonths: combinedData?.longTermMonths,
@@ -342,7 +354,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
-      console.log(data , "Hello i am here look at me ");
+      console.log(data, "Hello i am here look at me ");
       if (response.status === 200) {
         console.log("Property is now live");
         setIsLiveDisabled(true);
@@ -363,7 +375,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           "There are some issues with your request. Please try again.",
       });
       console.log(error);
-      console.log(data)
+      console.log(data);
     } finally {
       setIsLoading(false);
     }

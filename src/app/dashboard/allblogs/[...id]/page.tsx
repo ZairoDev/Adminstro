@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import Loader from "@/components/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,14 +18,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
+import { BookOpen, CalendarFold, CircleUser, Trash2 } from "lucide-react";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface PageProps {
   params: {
     id: string;
   };
 }
-
 const BlogPage = ({ params }: PageProps) => {
   const id = params.id;
   const [blog, setBlog] = useState<any>(null);
@@ -39,11 +38,15 @@ const BlogPage = ({ params }: PageProps) => {
   const { toast } = useToast();
   const router = useRouter();
 
+  const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
+    useUserRole();
+
   const fetchBlog = async () => {
     if (id) {
       setLoading(true);
       try {
         const response = await axios.post("/api/blog/readblog", { id });
+        console.log(response.data.data);
         setBlog(response.data.data);
       } catch (err: any) {
         setError(err.message);
@@ -109,90 +112,98 @@ const BlogPage = ({ params }: PageProps) => {
           alt="Blog Image"
         />
 
-        <h1 className="md:text-5xl text-center sm:text-4xl text-3xl mt-2 font-bold">
+        <h1 className="md:text-5xl text-center sm:text-4xl text-3xl mt-2 font-semibold">
           {blog.title}
         </h1>
         <div>
-          <p className="md:text-xl text-center sm:text-lg text-base mt-2">
+          <p className="md:text-xl text-center sm:text-lg text-sm mt-2">
             {blog.maintext}
           </p>
-
           <div className="mt-4">
             <div className="flex flex-col sm:flex-row items-center sm:justify-center gap-y-2 sm:gap-x-4 text-center">
-              <p className="text-gray-500">Written by: {blog.author}</p>
-              <p className="text-gray-500">
-                On: {format(new Date(blog.createdAt), "MMMM dd, yyyy")}
+              <p className="opacity-40 sm:text-sm text-xs flex items-center gap-x-2">
+                <CircleUser size={12} />
+                Written by: {blog.author}
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-x-4 justify-center">
+            <p className="opacity-40 sm:text-sm text-xs flex items-center gap-x-1 mt-1">
+              <BookOpen size={12} />
+              {Math.ceil(blog.totalWords / 200)} min read
+            </p>
 
-          <div className="mt-2 flex items-center justify-center flex-wrap gap-2">
+            <p className="opacity-40 sm:text-sm text-xs flex gap-x-1 items-center ">
+              <CalendarFold size={12} /> On:{" "}
+              {format(new Date(blog.createdAt), "MMMM dd, yyyy")}
+            </p>
+          </div>
+
+          <div className="mt-2 flex opacity-40 items-center justify-center flex-wrap gap-2">
             {blog.tags.slice(0, 5).map((tag: string, index: number) => (
-              <span
-                key={index}
-                className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs"
-              >
+              <span key={index} className="text-xs border rounded-lg px-2 py-1">
                 {tag}
               </span>
             ))}
           </div>
 
           <div
-            className="prose mt-2 max-w-none prose-sm sm:prose-sm md:prose-base lg:prose-lg xl:prose-xl dark:prose-invert sm:mt-4 md:mt-6 lg:mt-8 sm:px-2 md:px-4 lg:px-6 xl:px-8"
+            className="prose mt-2 text-justify max-w-none prose-sm sm:prose-sm md:prose-base lg:prose-lg xl:prose-xl dark:prose-invert sm:mt-4 md:mt-6 lg:mt-8 sm:px-2 md:px-4 lg:px-6 xl:px-8"
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
 
-          {/* Delete Blog Button with Alert */}
-          <div className="flex  mt-4">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <div>
+          {(userRole === "Content" || userRole === "SuperAdmin") && (
+            <div className="flex  mt-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild className="">
                   <Button
                     variant="destructive"
-                    className="flex items-center gap-2"
+                    className="inline-block  fixed right-4 xl:top-5 top-8 z-50"
                   >
-                    Delete <Trash2 size={18} />
+                    <Trash2 size={14} />
                   </Button>
-                </div>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirm Blog Deletion</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Please type <strong>&quot; I have to delete &quot; </strong>
-                    to confirm deletion. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="">
-                  <Input
-                    type="text"
-                    value={confirmationText}
-                    onChange={(e) => setConfirmationText(e.target.value)}
-                    placeholder="Type 'I have to delete' here"
-                  />
-                </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction asChild>
-                    <Button
-                      onClick={deleteBlog}
-                      disabled={
-                        confirmationText !== requiredConfirmationText ||
-                        deleteLoading
-                      }
-                      className={`bg-red-600 text-white px-4 py-2 rounded-lg ${
-                        confirmationText === requiredConfirmationText
-                          ? "hover:bg-red-700"
-                          : "opacity-50 cursor-not-allowed"
-                      }`}
-                    >
-                      {deleteLoading ? "Deleting..." : "Delete Blog"}
-                    </Button>
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Blog Deletion</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Please type{" "}
+                      <strong>&quot; I have to delete &quot; </strong> to
+                      confirm deletion. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="">
+                    <Input
+                      type="text"
+                      value={confirmationText}
+                      onChange={(e) => setConfirmationText(e.target.value)}
+                      placeholder="Type 'I have to delete' here"
+                    />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction asChild>
+                      <Button
+                        onClick={deleteBlog}
+                        disabled={
+                          confirmationText !== requiredConfirmationText ||
+                          deleteLoading
+                        }
+                        className={`bg-red-600 text-white px-4 py-2 rounded-lg ${
+                          confirmationText === requiredConfirmationText
+                            ? "hover:bg-red-700"
+                            : "opacity-50 cursor-not-allowed"
+                        }`}
+                      >
+                        {deleteLoading ? "Deleting..." : "Delete Blog"}
+                      </Button>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,36 +1,46 @@
 "use client";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Editor from "@/components/editor/editor";
-import axios from "axios";
 import { Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import ScreenLoader from "@/components/ScreenLoader";
-import { useUserRole } from "@/context/UserRoleContext";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import Loader from "@/components/loader";
 
-const defaultValue = {
-  type: "doc",
-  content: [
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "Write something that people will love. Type / to get the option.",
-        },
-      ],
-    },
-  ],
-};
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
 
-const BlogPage = () => {
+// const defaultValue = {
+//   type: "doc",
+//   content: [
+//     {
+//       type: "paragraph",
+//       content: [
+//         {
+//           type: "text",
+//           text: "Write something that people will love. Type / to get the option.",
+//         },
+//       ],
+//     },
+//   ],
+// };
+
+const EditBlogPage = ({ params }: PageProps) => {
+  const id = params.id;
+  const [blog, setBlog] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState<any>(defaultValue);
+  const [content, setContent] = useState<any>();
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [maintext, setMainText] = useState("");
@@ -39,21 +49,34 @@ const BlogPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
-
-  const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
-    useUserRole();
-
+  const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
-
   const router = useRouter();
 
-  console.log(
-    userRole,
-    currentUser,
-    userEmail,
-    isLoading,
-    "Things will print here"
-  );
+  const fetchBlog = async () => {
+    if (id) {
+      setLoading(true);
+      try {
+        const response = await axios.post("/api/blog/readblog", { id });
+        const blogData = response.data.data;
+        setBlog(blogData);
+        setTitle(blogData.title);
+        setContent(blogData.content);
+        setTags(blogData.tags);
+        setMainText(blogData.maintext);
+        setBanner(blogData.banner);
+        setImagePreview(blogData.banner);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchBlog();
+  }, []);
 
   const handleAddTag = () => {
     if (tagInput && !tags.includes(tagInput)) {
@@ -65,8 +88,6 @@ const BlogPage = () => {
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
-
-  const { uploadFiles, loading } = useBunnyUpload();
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -93,19 +114,18 @@ const BlogPage = () => {
   const handleSubmit = async () => {
     try {
       setUploading(true);
-      const response = await axios.post("/api/blog/createnewblog", {
+      const response = await axios.post("/api/blog/updateblog", {
+        id: [id],
         title,
         content,
         tags,
         banner,
         maintext,
-        wordCount,
-        author: userEmail,
       });
 
       toast({
         title: "Success",
-        description: "Your blog created successfully.",
+        description: "Your blog updated successfully.",
       });
       router.push("/dashboard/allblogs");
     } catch (error) {
@@ -120,13 +140,27 @@ const BlogPage = () => {
   };
 
   const isFormValid = () => {
-    return title && content && maintext && banner && tags.length > 0;
+    return (
+      title &&
+      content &&
+      maintext &&
+      (banner || imagePreview) &&
+      tags.length > 0
+    );
   };
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center">
+        <Loader />
+      </div>
+    );
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div>
-      <h1 className="text-3xl text-center border-b pb-2">Create a Blog</h1>
-      <div className="max-w-5xl  mx-auto p-1 pt-2">
+      <h1 className="text-3xl text-center border-b pb-2">Edit Blog</h1>
+      <div className="max-w-5xl mx-auto p-1 pt-2">
         <div className="space-y-6">
           {/* Blog Title */}
           <div>
@@ -166,7 +200,7 @@ const BlogPage = () => {
                   <img
                     src={imagePreview}
                     alt="Banner preview"
-                    className="rounded-xl object-fill "
+                    className="rounded-xl object-fill"
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60">
@@ -184,20 +218,22 @@ const BlogPage = () => {
                 />
               </div>
             </AspectRatio>
-            {loading && <ScreenLoader />}
           </div>
 
           {/* Blog Content */}
-          <div>
-            <div className=" flex justify-between">
-              {" "}
+          {/* <div>
+            <div className="flex justify-between">
               <Label htmlFor="blogContent" className="block mb-2">
                 Blog Content
               </Label>
-              <p className=" text-xs">(Total Words: {wordCount})</p>
+              <p className="text-xs">(Total Words: {wordCount})</p>
             </div>
-            <Editor initialValue={defaultValue} onChange={setContent} setWordCount={setWordCount} />
-          </div>
+            <Editor
+              initialValue={content}
+              onChange={setContent}
+              setWordCount={setWordCount}
+            />
+          </div> */}
 
           <div>
             <Label htmlFor="tags" className="block mb-2">
@@ -236,11 +272,11 @@ const BlogPage = () => {
           </div>
 
           <Button
-            disabled={isLoading || uploading || !isFormValid()}
+            disabled={uploading || !isFormValid()}
             onClick={handleSubmit}
             className="sm:w-auto w-full"
           >
-            Publish Blog
+            Update Blog
           </Button>
         </div>
       </div>
@@ -248,4 +284,4 @@ const BlogPage = () => {
   );
 };
 
-export default BlogPage;
+export default EditBlogPage;

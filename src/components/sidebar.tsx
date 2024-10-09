@@ -19,8 +19,10 @@ import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  Menu,
   NotebookPen,
   PencilRuler,
+  ScanEye,
   TableOfContents,
   User2Icon,
   Users,
@@ -75,6 +77,16 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/completedproperties",
       label: "Completed Task",
       Icon: <CheckCheck size={18} />,
+    },
+    {
+      path: "/dashboard/allblogs",
+      label: "Read Blogs",
+      Icon: <ScanEye size={18} />,
+    },
+    {
+      path: "/dashboard/createblog",
+      label: "Create Blog",
+      Icon: <NotebookPen size={18} />,
     },
   ],
   SuperAdmin: [
@@ -197,11 +209,10 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Sidebar for smaller screens */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
           <div className="lg:hidden">
-            <GiHamburgerMenu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
+            <Menu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
           </div>
         </SheetTrigger>
 

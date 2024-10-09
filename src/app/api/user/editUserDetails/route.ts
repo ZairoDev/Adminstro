@@ -15,7 +15,6 @@ interface RequestBody {
   phone?: string;
   address?: string;
 }
-
 export async function PUT(request: Request): Promise<NextResponse> {
   try {
     const body: RequestBody = await request.json();
@@ -45,7 +44,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
     if (updateFields.phone) updateData.phone = updateFields.phone;
     if (updateFields.address) updateData.address = updateFields.address;
 
-    console.log("Update data:", updateData); // Log the update data
+    console.log("Update data:", updateData);
 
     const user = await User.findOneAndUpdate(
       { _id },
@@ -62,7 +61,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
       success: true,
     });
   } catch (error) {
-    console.error("Error updating user:", error); // Log the error
+    console.error("Error updating user:", error); 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

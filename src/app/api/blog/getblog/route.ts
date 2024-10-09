@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const {
     search,
     page = 1,
-    limit = 10,
+    limit = 12,
   } = Object.fromEntries(new URL(req.url).searchParams);
   const pageNumber = parseInt(page as string, 10);
   const limitNumber = parseInt(limit as string, 10);

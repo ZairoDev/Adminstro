@@ -72,7 +72,7 @@ export function DonutChart({ title, timeLine, totalCount, totalCountTitle, data,
   }, []);
 
   return (
-    <Card className="flex flex-col h-96">
+    <Card className="">
       <CardHeader className="items-center pb-0">
         <CardTitle>{title}</CardTitle>
         <CardDescription>{timeLine}</CardDescription>

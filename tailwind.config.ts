@@ -18,6 +18,7 @@ const config: Config = {
       screens: {
         xss: "380px",
         xs: "500px",
+        xxl: "1840px",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
@@ -75,7 +76,7 @@ const config: Config = {
   },
   plugins: [
     require("tailwindcss-animate"),
-    require('@tailwindcss/typography'),
+    require("@tailwindcss/typography"),
     addVariablesForColors,
     function ({ matchUtilities, theme }: any) {
       matchUtilities(

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/pagination";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { ArrowUpRight, Edit } from "lucide-react";
 import Loader from "@/components/loader";
 import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -197,127 +197,103 @@ const CompletedProperties: React.FC = () => {
             <div>Error: {error}</div>
           ) : (
             <div className=" mb-4">
-              <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
-                <div>
-                  <DonutChart
-                    title="Total Properties"
-                    data={chartData}
-                    totalCount={totalProperties}
-                    totalCountTitle="Properties"
-                    footerText1={`Total Words: ${totalWords}`}
-                    footerText2={`Total Properties: ${totalNumberOfProperties}`}
-                  />
-                </div>
+              <div className=" ">
+                <DonutChart
+                  title="Total Properties"
+                  data={chartData}
+                  totalCount={totalProperties}
+                  totalCountTitle="Properties"
+                  footerText1={`Total Words: ${totalWords}`}
+                  footerText2={`Total Properties: ${totalNumberOfProperties}`}
+                />
+              </div>
+              <div className="grid gap-4 mb-4 justify-center mt-2 items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
                 {properties.map((property) => (
-                  <Card key={property?._id} className="w-full rounded-lg">
-                    <CardHeader className="p-0 border-b">
+                  <div
+                    key={property?._id}
+                    className="border rounded-lg relative sm:max-w-sm w-full h-full"
+                  >
+                    <div className="">
                       <div>
                         {property?.propertyCoverFileUrl[0] ? (
-                          <AspectRatio ratio={16 / 12}>
-                            <Link
-                              href={{
-                                pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                                query: { id: property._id },
-                              }}
-                              target="_blank"
-                            >
-                              <img
-                                src={property?.propertyCoverFileUrl}
-                                alt="PropertyImage"
-                                loading="lazy"
-                                className="w-full h-full  sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                              />
-                            </Link>
-                          </AspectRatio>
+                          <Link
+                            href={{
+                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                              query: { id: property._id },
+                            }}
+                            target="_blank"
+                          >
+                            <img
+                              src={property?.propertyCoverFileUrl}
+                              alt="PropertyImage"
+                              loading="lazy"
+                              className="rounded-t-lg h-56 w-full object-cover"
+                            />
+                          </Link>
                         ) : (
                           <div className="relative">
-                            <AspectRatio ratio={16 / 12}>
-                              <img
-                                src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
-                                loading="lazy"
-                                alt="PropertyImage"
-                                className="w-full relative h-full object-fill flex items-center justify-center rounded-t-lg"
-                              />
-                              <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
-                                404 Not Found
-                              </p>
-                            </AspectRatio>
+                            <img
+                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
+                              loading="lazy"
+                              alt="PropertyImage"
+                              className="rounded-t-lg h-56 w-full object-cover"
+                            />
+                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                              404 Not Found
+                            </p>
                           </div>
                         )}
                       </div>
-                    </CardHeader>
-                    <CardContent className="p-4  ">
-                      <div className="flex items-center justify-between">
-                        <p className="">Vsid {property?.VSID}</p>
-                        <p className="">Beds {property?.beds?.[0] || "NA"}</p>
-                      </div>
-                      <div className="mt-2">
-                        {property &&
-                        property.basePrice &&
-                        property.basePrice[0] ? (
-                          <p className="text-xl">
-                            €{property.basePrice[0]}/night
+                    </div>
+                    <div className="flex  justify-between">
+                      <div className="p-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-thin opacity-80">
+                            <CustomTooltip
+                              text={`${property?.VSID}`}
+                              desc="Property VSID"
+                            />
                           </p>
-                        ) : (
-                          <p className="text-xl">Price not available</p>
-                        )}
+                        </div>
+                        <div className="">
+                          {property &&
+                          property.basePrice &&
+                          property.basePrice[0] ? (
+                            <p className="text-base">
+                              <CustomTooltip
+                                text={`€${property.basePrice[0]}`}
+                                desc="Property price per night"
+                              />
+                            </p>
+                          ) : (
+                            <p className="text-base">NAN</p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between">
-                        <p className="line-clamp-1">
-                          State: <span></span> {property?.state || "NA"}
-                        </p>
-                        {property?.isLive ? (
-                          <span className="relative flex h-3 w-3">
-                            <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                          </span>
-                        ) : (
-                          <span className="relative flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 flex-col  justify-between">
-                      <div className="w-full ">
+                      <div className="  ">
                         <Button
-                          variant="outline"
-                          className="w-full"
+                          variant="link"
+                          className="w-full "
                           onClick={() => handleEditDescription(property?._id)}
                         >
-                          <Edit size={18} />
-                          <span className=" ml-2">Preview</span>
+                          Preview
+                          <ArrowUpRight size={18} />
                         </Button>
                       </div>
-                    </CardFooter>
-                  </Card>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-        {/* Pagination Section */}
+
         <div className="text-xs w-full">
           <Pagination className="flex flex-wrap items-center w-full">
-            {/* <PaginationPrevious
-            className="text-xs sm:block hidden"
-            onClick={() => handlePageChange(page - 1)}
-          >
-           
-          </PaginationPrevious> */}
-
             <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
               {renderPaginationItems()}
             </PaginationContent>
-
-            {/* <PaginationNext
-            className="text-xs sm:block hidden"
-            onClick={() => handlePageChange(page + 1)}
-          >
-           
-          </PaginationNext> */}
           </Pagination>
         </div>
       </Animation>

@@ -44,6 +44,7 @@ import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import Animation from "@/components/animation";
+import CustomTooltip from "@/components/CustomToolTip";
 
 interface ApiResponse {
   data: Property[];
@@ -260,105 +261,107 @@ const PropertyPage: React.FC = () => {
             <div>Error: {error}</div>
           ) : (
             <div className=" mb-4">
-              <div className="grid gap-4 mb-4 justify-center items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-4">
+              <div className="grid gap-4 mb-4 justify-center mt-2 items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
                 {properties.map((property) => (
-                  <Card key={property?._id} className="w-full rounded-lg">
-                    <CardHeader className="p-0 border-b ">
+                  <div
+                    key={property?._id}
+                    className="border rounded-lg relative sm:max-w-sm w-full h-full"
+                  >
+                    <div className="p-0 border-b ">
                       <div>
                         {property?.propertyCoverFileUrl[0] ? (
-                          <AspectRatio ratio={16 / 12}>
-                            <Link
-                              href={{
-                                pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                                query: { id: property._id },
-                              }}
-                              target="_blank"
-                            >
-                              <img
-                                src={property?.propertyCoverFileUrl}
-                                alt="PropertyImage"
-                                loading="lazy"
-                                className="w-full h-full sm:object-fill object-cover flex items-center justify-center rounded-t-lg"
-                              />
-                            </Link>
-                          </AspectRatio>
+                          <Link
+                            href={{
+                              pathname: `https://www.vacationsaga.com/listing-stay-detail`,
+                              query: { id: property._id },
+                            }}
+                            target="_blank"
+                          >
+                            <img
+                              src={property?.propertyCoverFileUrl}
+                              alt="PropertyImage"
+                              loading="lazy"
+                              className=" rounded-t-lg h-56 w-full object-cover"
+                            />
+                          </Link>
                         ) : (
                           <div className="relative">
-                            <AspectRatio ratio={16 / 12}>
-                              <img
-                                src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
-                                loading="lazy"
-                                alt="PropertyImage"
-                                className="w-full relative  h-full object-fill flex items-center justify-center rounded-t-lg"
-                              />
-                              <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
-                                404 Not Found
-                              </p>
-                            </AspectRatio>
+                            <img
+                              src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
+                              loading="lazy"
+                              alt="PropertyImage"
+                              className="rounded-t-lg h-56 w-full object-cover"
+                            />
+                            <p className="absolute inset-0 text-2xl font-semibold flex items-center justify-center text-red-600">
+                              404 Not Found
+                            </p>
                           </div>
                         )}
                       </div>
-                    </CardHeader>
-                    <CardContent className="">
-                      <div className="flex items-center justify-between">
-                        <p className="">Vsid {property?.VSID}</p>
-                        <p className="">Beds {property?.beds?.[0] || "NA"}</p>
-                      </div>
-                      <div className="mt-2">
-                        {property &&
-                        property.basePrice &&
-                        property.basePrice[0] ? (
-                          <p className="text-xl">
-                            €{property.basePrice[0]}/night
+                    </div>
+                    <div className="p-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-xs font-thin opacity-80">
+                            <CustomTooltip
+                              text={`${property?.VSID}`}
+                              desc="Property VSID"
+                            />
                           </p>
-                        ) : (
-                          <p className="text-xl">Price not available</p>
-                        )}
-                      </div>
-
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="flex m flex-col">
-                          <p className="line-clamp-1">
-                            State: <span></span> {property?.state || "NA"}
-                          </p>
+                          <div className="">
+                            {property &&
+                            property.basePrice &&
+                            property.basePrice[0] ? (
+                              <p className="text-base">
+                                <CustomTooltip
+                                  text={`€${property.basePrice[0]}`}
+                                  desc="Property price per night"
+                                />
+                              </p>
+                            ) : (
+                              <p className="text-base">NAN</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex  flex-col">
                           <div className="flex h-6 mt-2 flex-col opacity-40">
                             <p className=" text-xs line-clamp-1">
-                              By: {property?.hostedBy || "NA"}
+                              {}
+                              <CustomTooltip
+                                text={`${
+                                  property?.hostedBy?.substring(0, 10) || "NA"
+                                }`}
+                                desc={`Hosted by: ${property?.hostedBy}`}
+                              />
                             </p>
                             <p className=" text-xs line-clamp-1">
-                              From: {property?.hostedFrom || "NA"}
+                              {}
+                              <CustomTooltip
+                                text={`${
+                                  property?.hostedFrom?.substring(0, 10) || "NA"
+                                }`}
+                                desc={`Hosted from: ${property?.hostedFrom}`}
+                              />
                             </p>
                           </div>
                         </div>
-
-                        {property?.isLive ? (
-                          <span className="relative flex h-3 w-3">
-                            <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                          </span>
-                        ) : (
-                          <span className="relative flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                          </span>
-                        )}
                       </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-y-2 mt-1 flex-col  justify-between">
+                    </div>
+                    <div className="flex gap-y-2 mt-1 px-2 gap-x-2  justify-between">
                       {!property?.isLive && (
                         <Drawer>
                           <DrawerTrigger asChild>
                             {userRole === "SuperAdmin" ||
                             userRole === "Advert" ? (
                               <Button
-                                className=" w-full  text-xs gap-x-1 hover:bg-green-600/10 bg-transparent border border-green-600 text-green-600"
+                                className=" absolute top-0 text-green-700 left-0"
+                                variant="link"
                                 onClick={() =>
                                   setSelectedPropertyId(property?._id)
                                 }
                                 disabled={isSubmitting}
                               >
-                                Live
-                                <EyeIcon size={12} />
+                                <EyeIcon size={18} />
                               </Button>
                             ) : null}
                           </DrawerTrigger>
@@ -394,13 +397,14 @@ const PropertyPage: React.FC = () => {
                               userRole === "Advert") &&
                             property?.isLive ? (
                               <Button
-                                className="w-full flex items-center justify-center gap-x-1 text-xs hover:bg-red-600/10 bg-transparent border border-red-600 text-red-600"
+                                className="absolute text-red-700 left-0 top-0"
+                                variant="link"
                                 disabled={isSubmitting}
                                 onClick={() =>
                                   setSelectedPropertyId(property?._id)
                                 }
                               >
-                                Hide <EyeOff size={12} />
+                                <EyeOff size={18} />
                               </Button>
                             ) : null}
                           </DrawerTrigger>
@@ -428,16 +432,15 @@ const PropertyPage: React.FC = () => {
                         </Drawer>
                       )}
 
-                      <div className="w-full ">
+                      <div className="absolute  right-0 top-0 ">
                         {userRole === "SuperAdmin" && (
                           <div>
                             <Button
-                              variant="outline"
+                              variant="link"
                               className="w-full mb-2"
                               onClick={() => handleEditClick(property?._id)}
                             >
-                              <Edit size={12} />
-                              Edit
+                              <Edit size={18} />
                             </Button>
                           </div>
                         )}
@@ -445,17 +448,17 @@ const PropertyPage: React.FC = () => {
                         {userRole === "Advert" && (
                           <div className="w-full">
                             <Button
+                              variant="link"
                               className="w-full"
                               onClick={() => handleEditClick(property?._id)}
                             >
-                              <Edit size={12} />
-                              Edit
+                              <Edit size={18} />
                             </Button>
                           </div>
                         )}
                       </div>
-                    </CardFooter>
-                  </Card>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

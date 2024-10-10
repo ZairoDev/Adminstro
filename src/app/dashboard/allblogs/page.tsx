@@ -103,7 +103,7 @@ const BlogList = () => {
         ) : (
           <div className="w-full  ">
             {blogs.length > 0 ? (
-              <div className=" grid gap-4 mb-4 justify-center mt-2 items-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
+              <div className=" grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
                 {blogs.map((blog) => (
                   <div className="w-full" key={blog._id}>
                     <div className="border rounded-lg sm:max-w-sm w-full h-full">

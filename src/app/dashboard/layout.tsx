@@ -12,19 +12,16 @@ export default function DashboardLayout({
   return (
     <div className="flex">
       <Sidebar />
-      <main className=" lg:ml-64 p-2 w-full">
-        <div className=" flex  bg-background pb-1 mb-2 sm:justify-between justify-end ">
+      <main className=" lg:ml-60 p-2 w-full">
+        {/* <div className=" flex  bg-background pb-1 mb-2 sm:justify-between justify-end ">
           <div className="sm:block hidden">
             <BreadCrumb />
           </div>
-          <div className="">
-            <LogoutButton />
-          </div>
-        </div>
+        </div> */}
         <div>
           <Animation>
             <div>
-              <div>{children}</div>
+              <div className="pb-16 lg:pb-0">{children}</div>
             </div>
           </Animation>
         </div>

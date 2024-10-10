@@ -1,4 +1,5 @@
 "use client";
+import Heading from "@/components/Heading";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
@@ -64,19 +65,15 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
 
   return (
     <>
-      <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-        Fill the appropriate description
-      </h2>
+      <Heading
+        heading="Description"
+        subheading="Add a description that suits the property"
+      />
       <div className="flex flex-col gap-8">
         {myArray.map((item, index) => (
           <div key={index}>
             <div className="mb-2">
               <h2 className="text-2xl font-semibold">{portionNames[index]}</h2>
-              <span className="block mt-2">
-                Mention the best features of your accommodation, any special
-                amenities like fast Wi-Fi or parking, as well as things you like
-                about the neighborhood.
-              </span>
             </div>
 
             <Textarea

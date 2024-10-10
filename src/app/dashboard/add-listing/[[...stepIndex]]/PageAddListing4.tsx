@@ -1,4 +1,5 @@
 "use client";
+import Heading from "@/components/Heading";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -273,9 +274,10 @@ const PageAddListing4: FC<PageAddListing4Props> = () => {
   return (
     <>
       <div>
-        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-          Amenities
-        </h2>
+        <Heading
+          heading="Amenities"
+          subheading="Choose the best Amenities describes your listing"
+        />
       </div>
 
       <div className="space-y-8">

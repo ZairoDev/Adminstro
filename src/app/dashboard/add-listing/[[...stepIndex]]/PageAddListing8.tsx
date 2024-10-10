@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { boolean } from "zod";
+import Heading from "@/components/Heading";
 
 export interface PageAddListing8Props {}
 
@@ -213,14 +214,16 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
   return (
     <>
       <div className=" flex flex-col gap-12">
-        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-          Select appropriate Pricing
-        </h2>
+        <Heading
+          heading="Appropriate Pricing"
+          subheading="Select appropriate Pricing that suits the property"
+        />
         {rentalType && rentalType == "Both" && (
           <div className="">
-            <h1 className="text-3xl font-semibold">
-              Select Months for Long Term Pricing
-            </h1>
+            <Heading
+              heading="Longterm Pricing"
+              subheading="Select appropriate Pricing for the longterm that suits the property"
+            />
             <div className=" flex flex-wrap gap-4 mt-4">
               {MONTHS.map((month, index) => {
                 return (
@@ -243,8 +246,11 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
         )}
         {rentalType && (rentalType == "Short Term" || rentalType == "Both") && (
           <div>
-            <h1 className="text-3xl ">Short Term Pricing</h1>
-            <h2 className=" flex flex-wrap gap-2">
+            <Heading
+              heading="Shortterm Pricing"
+              subheading="Select appropriate Pricing for the shortterm that suits the property"
+            />
+            <h2 className="flex flex-wrap gap-x-2 mt-4 sm:text-sm text-xs text-muted-foreground ">
               (
               {MONTHS.filter((m, i) => !longTermMonths.includes(m)).map(
                 (month, index) => (
@@ -256,10 +262,10 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
             {myArray.map((item, index) => (
               <div key={index} className="mt-8">
                 <div>
-                  <h2 className="text-2xl ">
+                  <h2 className="sm:text-xl text-lg font-semibold ">
                     Price for {isPortion ? `Portion ${index + 1}` : "Property"}
                   </h2>
-                  <span className="block mt-2 text-xs ">
+                  <span className="sm:text-sm text-xs text-muted-foreground ">
                     {` The host's revenue is directly dependent on the setting of rates and
                      regulations on the number of guests, the number of nights, and the
                       cancellation policy.`}

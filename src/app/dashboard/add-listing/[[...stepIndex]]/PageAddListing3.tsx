@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
+import Heading from "@/components/Heading";
 export interface PageAddListing3Props {}
 
 interface Page3State {
@@ -185,10 +186,11 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
 
   return (
     <>
-      <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-        Choose the available options
-      </h2>
-      <div className=" grid  grid-cols-1 md:grid-cols-2   gap-x-8 gap-y-8">
+      <Heading
+        heading="Choose available options"
+        subheading="Choose the best options that suit your needs"
+      />
+      <div className=" grid  grid-cols-1 md:grid-cols-2  mt-3  gap-x-8 gap-y-8">
         {myArray.map((item, index) => (
           <div
             key={index}

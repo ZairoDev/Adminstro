@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { ModeToggle } from "./themeChangeButton";
 import { motion } from "framer-motion";
 import axios from "axios";
-
+import ScreenLoader from "./ScreenLoader";
+import { LogoutButton } from "./logoutAlertBox";
 import {
   CheckCheck,
   CircleCheckBig,
@@ -150,7 +150,7 @@ export function Sidebar() {
     getUserRole();
   }, []);
 
-  const renderRoutes = () => {
+  const renderRoutes = (showText: boolean) => {
     if (isLoading) {
       return <DeepLoader />;
     }
@@ -169,21 +169,16 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? "bg-primary text-primary-foreground rounded-l-lg"
+            ? "bg-primary text-primary-foreground rounded-lg"
             : ""
         }`}
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 rounded-l-lg px-4 py-2 hover:bg-primary/20 group"
+          className="flex items-center gap-x-2 hover:bg-primary/20 rounded-lg px-4 py-2 "
         >
-          <motion.div
-            className="group-hover:scale-110 group-hover:rotate-12"
-            transition={{ duration: 0.3, ease: [0.25, 0.8, 0.25, 1] }}
-          >
-            {route.Icon && route.Icon}
-          </motion.div>
-          <span>{route.label}</span>
+          {route.Icon && route.Icon}
+          {showText && <span>{route.label}</span>}
         </Link>
       </li>
     ));
@@ -192,7 +187,7 @@ export function Sidebar() {
   return (
     <>
       {/* Sidebar for large screens */}
-      <div className="hidden lg:block w-64 border-r fixed h-screen">
+      {/* <div className="hidden lg:block w-60 border-r fixed h-screen">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-primary p-4">Adminstro</h2>
           <div className="mr-1">
@@ -201,30 +196,38 @@ export function Sidebar() {
         </div>
         <div>
           <nav className="flex flex-col justify-between flex-grow">
-            <ul className="flex-grow">{renderRoutes()}</ul>
+            <ul className="flex-grow">{renderRoutes(true)}</ul>
+          </nav>
+        </div>
+      </div> */}
+      <div className="hidden lg:block w-60 border-r fixed h-screen">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-primary p-4">Adminstro</h2>
+          <div className="mr-1">
+            <ModeToggle />
+          </div>
+        </div>
+        <div>
+          <nav className="flex flex-col  justify-between ">
+            <ul className="flex-grow">{renderRoutes(true)}</ul>
+            {/* Logout button for desktop sidebar */}
+            <div className=" absolute bottom-4 left-4">
+              <LogoutButton />
+            </div>
           </nav>
         </div>
       </div>
 
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <div className="lg:hidden">
-            <Menu className="text-2xl border-r z-50 ml-2 mt-1 fixed top-0 left-0 cursor-pointer" />
-          </div>
-        </SheetTrigger>
-
-        <SheetContent side="left" className="w-[17rem]">
-          <div className="flex items-center mb-2 justify-between">
-            <h2 className="text-2xl font-bold text-primary">Adminstro</h2>
-            <div className="-mr-3">
-              <ModeToggle />
-            </div>
-          </div>
-          <nav className="w-[15.5rem]">
-            <ul>{renderRoutes()}</ul>
-          </nav>
-        </SheetContent>
-      </Sheet>
+      {/* Bottom navbar for small screens */}
+      <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
+        <nav className="max-w-screen-xl mx-auto px-4">
+          <ul className="flex items-center justify-around overflow-x-scroll h-14">
+            {renderRoutes(false)}
+            <LogoutButton />
+          </ul>
+        </nav>
+        {/* Logout button for mobile navbar */}
+      </div>
     </>
   );
 }

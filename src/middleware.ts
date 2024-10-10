@@ -56,6 +56,7 @@ const publicRoutes = [
   "/login",
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
+  "/norole",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -82,6 +83,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/", request.url)
         );
+      }
+
+      if (!role || role.trim() === "") {
+        // Redirect to /norole if not already there
+        if (path !== "/norole") {
+          return NextResponse.redirect(new URL("/norole", request.url));
+        }
+        // If already on /norole, allow access
+        return NextResponse.next();
       }
 
       if (!role || !matchesRolePattern(role, path)) {

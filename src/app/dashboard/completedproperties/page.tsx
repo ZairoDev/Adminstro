@@ -35,6 +35,7 @@ import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
 import { DonutChart } from "@/components/charts/DonutChart";
 import Animation from "@/components/animation";
+import Heading from "@/components/Heading";
 
 interface ApiResponse {
   data: Property[];
@@ -158,6 +159,10 @@ const CompletedProperties: React.FC = () => {
   return (
     <div>
       <Animation>
+        <Heading
+          heading="Completed Properties"
+          subheading="These are the properties which have new description"
+        />
         <div className="flex sm:items-center sm:flex-row flex-col justify-between">
           <div className="flex w-full lg:mt-0 mt-2 items-center gap-x-2">
             <div className="sm:max-w-[180px] max-w-[100px] w-full">
@@ -175,7 +180,7 @@ const CompletedProperties: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex w-full items-center py-4">
+            <div className="flex w-full items-center ">
               <Input
                 placeholder="Search..."
                 value={searchTerm}

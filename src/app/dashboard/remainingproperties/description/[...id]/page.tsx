@@ -17,6 +17,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Img from "@/components/Img";
 import Animation from "@/components/animation";
+import Heading from "@/components/Heading";
 interface PageProps {
   params: {
     id: string;
@@ -45,7 +46,7 @@ const Page = ({ params }: PageProps) => {
           setProperty(response.data);
           setNumberOfPortions(response.data.basePrice.length);
           setLoading(false);
-          if (response.data.newReviews !== undefined) setIsNewReview(true); 
+          if (response.data.newReviews !== undefined) setIsNewReview(true);
         } catch (error: any) {
           console.error("Error fetching property:", error);
           setLoading(false);
@@ -220,14 +221,13 @@ const Page = ({ params }: PageProps) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
-                <div className="border-b ">
-                  <h1 className="text-2xl pb-2 text-center font-semibold">
-                    Edit description
-                  </h1>
-                </div>
+              <Heading
+                heading="Description"
+                subheading="You can add new description here will render on vacationSaga.com"
+              />
+              <div className="flex  flex-col">
                 <div>
-                  <div className="flex rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
+                  <div className="flex rounded-lg   flex-col gap-x-2 ">
                     <div className="xs:flex items-center gap-x-4 justify-between">
                       <div className="w-full">
                         <label className="text-xs" htmlFor="portionName">
@@ -241,81 +241,81 @@ const Page = ({ params }: PageProps) => {
                         </label>
                       </div>
 
-                    <div className="w-full">
-                      <label className="text-xs" htmlFor="portionName">
-                        New Name for Property
-                        <Input
-                          type="text"
-                          name="Property"
-                          value={formData?.newPlaceName || ""}
+                      <div className="w-full">
+                        <label className="text-xs" htmlFor="portionName">
+                          New Name for Property
+                          <Input
+                            type="text"
+                            name="Property"
+                            value={formData?.newPlaceName || ""}
+                            onChange={(e) => {
+                              const newObj = { ...formData };
+                              newObj["newPlaceName"] = e.target.value;
+                              setFormData(newObj);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <div>
+                        <h1 className="mt-1">Property Picture</h1>
+                      </div>
+                      <div className="mt-4 space-x-2 overflow-x-auto">
+                        <div className="flex space-x-4">
+                          {formData?.propertyPictureUrls?.map((url, index) => (
+                            <div key={index} className="flex-shrink-0">
+                              <Img
+                                src={url || "/placeholder.webp"}
+                                alt="not found"
+                                className="w-40 h-40 object-cover rounded-md"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className=" sm:flex gap-x-4">
+                      <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
+                        <label htmlFor="review">Description of Property</label>
+                        <Textarea
+                          className="h-64"
+                          name="review"
+                          value={formData?.reviews?.[0] || ""}
+                          disabled
+                        />
+                      </div>
+                      <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
+                        <label
+                          htmlFor="review"
+                          className="flex justify-between items-center"
+                        >
+                          New Description of Property{" "}
+                          <span className=" text-xs">
+                            (
+                            {`Words Count: ${
+                              formData?.newReviews
+                                ?.split(" ")
+                                .filter((item) => item != "").length || 0
+                            }`}
+                            )
+                          </span>
+                        </label>
+                        <Textarea
+                          className="h-64"
+                          name="review"
+                          value={formData?.newReviews || ""}
                           onChange={(e) => {
                             const newObj = { ...formData };
-                            newObj["newPlaceName"] = e.target.value;
+                            newObj["newReviews"] = e.target.value;
                             setFormData(newObj);
                           }}
                         />
-                      </label>
-                    </div>
-                  </div>
-                  <div>
-                    <div>
-                      <h1 className="mt-1">Property Picture</h1>
-                    </div>
-                    <div className="mt-4 space-x-2 overflow-x-auto">
-                      <div className="flex space-x-4">
-                        {formData?.propertyPictureUrls?.map((url, index) => (
-                          <div key={index} className="flex-shrink-0">
-                            <Img
-                              src={url || "/placeholder.webp"}
-                              alt="not found"
-                              className="w-40 h-40 object-cover rounded-md"
-                            />
-                          </div>
-                        ))}
                       </div>
-                    </div>
-                  </div>
-                  <div className=" sm:flex gap-x-4">
-                    <div className=" text-sm xss:text-md sm:text-lg my-2 w-full">
-                      <label htmlFor="review">Description of Property</label>
-                      <Textarea
-                        className="h-64"
-                        name="review"
-                        value={formData?.reviews?.[0] || ""}
-                        disabled
-                      />
-                    </div>
-                    <div className="text-sm xs:text-md sm:text-lg my-2 w-full">
-                      <label
-                        htmlFor="review"
-                        className="flex justify-between items-center"
-                      >
-                        New Description of Property{" "}
-                        <span className=" text-xs">
-                          (
-                          {`Words Count: ${
-                            formData?.newReviews
-                              ?.split(" ")
-                              .filter((item) => item != "").length || 0
-                          }`}
-                          )
-                        </span>
-                      </label>
-                      <Textarea
-                        className="h-64"
-                        name="review"
-                        value={formData?.newReviews || ""}
-                        onChange={(e) => {
-                          const newObj = { ...formData };
-                          newObj["newReviews"] = e.target.value;
-                          setFormData(newObj);
-                        }}
-                      />
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
               {Array.from({
                 length: numberOfPortions,
@@ -405,7 +405,11 @@ const Page = ({ params }: PageProps) => {
               })}
 
               <div className=" flex mt-4">
-                <Button className="sm:w-2/6 w-full" type="submit" disabled={isNewReview}>
+                <Button
+                  className="sm:w-2/6 w-full"
+                  type="submit"
+                  disabled={isNewReview}
+                >
                   {saveChangesLoading ? (
                     <div className="flex items-center gap-x-2">
                       Updating..

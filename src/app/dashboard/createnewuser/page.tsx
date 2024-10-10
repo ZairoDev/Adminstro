@@ -23,6 +23,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import GotoUserPage from "@/components/GotoUserPage";
 import Animation from "@/components/animation";
+import Heading from "@/components/Heading";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -143,14 +144,13 @@ const NewUser = () => {
   return (
     <>
       <Animation>
+        <Heading
+          heading="Create new user"
+          subheading="You can register new user from here."
+        />
         <div className="h-full">
           <div className=" ">
             <div className="border-2 rounded-lg p-4">
-              <div className="border-b ">
-                <h1 className="text-2xl pb-2 text-center font-semibold">
-                  Create new user
-                </h1>
-              </div>
               <div className="flex items-center justify-center">
                 <div className="flex items-center justify-center mt-8">
                   <div

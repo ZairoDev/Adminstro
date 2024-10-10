@@ -17,6 +17,7 @@ import PhoneInput from "react-phone-number-input";
 import Animation from "@/components/animation";
 import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
+import Heading from "@/components/Heading";
 
 interface PageProps {
   params: {
@@ -201,12 +202,11 @@ const AccountPage = ({ params }: PageProps) => {
   return (
     <>
       <Animation>
+        <Heading
+          heading="Edit Employee details"
+          subheading="You can edit employee details from here."
+        />
         <div className=" border p-4 rounded-lg ">
-          <div className="border-b mb-4">
-            <h1 className="text-2xl pb-2 text-center font-semibold">
-              Edit Employeedetails
-            </h1>
-          </div>
           <div className="flex items-center p-2 mb-8 justify-center">
             <div className="relative rounded-full overflow-hidden flex">
               <label htmlFor="file-upload">

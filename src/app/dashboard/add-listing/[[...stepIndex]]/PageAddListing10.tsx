@@ -11,6 +11,7 @@ import { UserInterface } from "@/util/type";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { sub } from "date-fns";
+import Heading from "@/components/Heading";
 
 export interface PageAddListing10Props {}
 
@@ -385,13 +386,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     <>
       <div className="flex flex-col gap-12">
         <div>
-          <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-            Almost There! 🚀
-          </h2>
-          <span className="block mt-2">
-            You&apos;re just one step away from listing your property. Tap on
-            &quot;Continue&quot; to finalize and publish your property listing.
-          </span>
+          <Heading
+            heading="Almost there"
+            subheading="Do check all the details and publish your listing."
+          />
         </div>
         <div className="border rounded-lg p-4">
           <div className="">

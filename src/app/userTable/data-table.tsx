@@ -39,7 +39,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
-import CustomTooltip from "@/components/CustomToolTip";
+import Heading from "@/components/Heading";
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
@@ -108,8 +108,12 @@ export function DataTable({
 
   return (
     <>
+      <Heading
+        heading="All users"
+        subheading="You will get the list of all users here"
+      />
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 mb-2">
           <div>
             <Select
               value={queryType}
@@ -125,7 +129,7 @@ export function DataTable({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-full items-center py-4">
+          <div className="flex w-full items-center ">
             <Input
               placeholder="Search..."
               value={search}
@@ -136,36 +140,36 @@ export function DataTable({
             />
           </div>
           <div>
-            <Button className="w-full sm:flex items-center gap-x-1 hidden">
-              <Link
-                className="flex items-center justify-center gap-x-2"
-                href="/dashboard/createnewuser"
-              >
-                Add user <Plus size={18} />
-              </Link>
-            </Button>
-            <Button className="sm:hidden">
-              <Link
-                className="flex items-center justify-center gap-x-2"
-                href="/dashboard/createnewuser"
-              >
-                <Plus />
-              </Link>
-            </Button>
+            <Link
+              className="flex items-center justify-center gap-x-2"
+              href="/dashboard/createnewuser"
+            >
+              <Button className="w-full sm:flex items-center gap-x-1 hidden">
+                Add user <Plus size={16} />
+              </Button>
+            </Link>
+            <Link
+              className="flex items-center justify-center gap-x-2"
+              href="/dashboard/createnewuser"
+            >
+              <Button className="sm:hidden">
+                <Plus size={18} />
+              </Button>
+            </Link>
           </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="ml-auto hidden sm:block"
               >
                 Column
               </Button>
-              <Button variant="outline" size="sm" className="ml-auto sm:hidden">
-                <CiViewColumn />
+              <Button variant="secondary" className="ml-auto mb-2 sm:hidden">
+                <CiViewColumn size={18} />
               </Button>
             </div>
           </DropdownMenuTrigger>

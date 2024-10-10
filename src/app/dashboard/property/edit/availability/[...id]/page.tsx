@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
+import Heading from "@/components/Heading";
 
 interface PageProps {
   params: {
@@ -157,7 +158,7 @@ const EditDates = ({ params }: PageProps) => {
 
     const url = icalLinks["Airbnb"];
     console.log("url: ", url);
-    setIcalLinks(prev => ([...prev, url]));
+    setIcalLinks((prev) => [...prev, url]);
     const bookedDatesinAirbnb = await fetchAndParseICal(url);
 
     const eventsFromAirbnb: EventInterface[] = [];
@@ -316,13 +317,21 @@ const EditDates = ({ params }: PageProps) => {
         <div className=" p-2 text-gray-600">iCal Url: {icalLink}</div>
         
       )} */}
-      {icalLinks &&
+      {/* {icalLinks &&
         icalLinks.map((link, index) => (
-          <div key={index} className=" p-2 text-gray-600">
+          <div key={index} className=" p-2 text-muted-foreground">
             iCal Url: {icalLinks[index]}
           </div>
-        ))}
-      {renderPriceEditDrawer()}
+        ))} */}
+      <div className="flex items-center justify-between">
+        <Heading
+          heading="Set availability"
+          subheading="You can edit user availability from here"
+        />
+
+        {renderPriceEditDrawer()}
+      </div>
+
       {portionPrice[0].length > 0 && (
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}

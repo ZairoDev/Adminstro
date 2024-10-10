@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {  Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -25,6 +25,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import GotoUserPage from "@/components/GotoUserPage";
 import Animation from "@/components/animation";
+import Heading from "@/components/Heading";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -165,15 +166,14 @@ const NewUser = () => {
   return (
     <>
       <Animation>
+        <Heading
+          heading="Create new employee"
+          subheading="You can register an employee to the organization here."
+        />
         <div className="  ">
           <div className="flex items-center justify-center">
             <div className=" w-full ">
               <div className="border-2 rounded-lg p-4">
-                <div className="border-b ">
-                  <h1 className="text-2xl pb-2 text-center font-semibold">
-                    Create new employee
-                  </h1>
-                </div>
                 <div className="flex items-center justify-center">
                   <div className="flex items-center sm:flex-row flex-col justify-center mt-8">
                     <div

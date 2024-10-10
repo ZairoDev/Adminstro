@@ -40,6 +40,7 @@ import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
 import CustomTooltip from "@/components/CustomToolTip";
+import Heading from "@/components/Heading";
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
@@ -109,8 +110,12 @@ export function DataTable({
 
   return (
     <>
+      <Heading
+        heading="All Employees"
+        subheading="You will get the list of all employees here"
+      />
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 pb-2">
           <div>
             <Select
               value={queryType}
@@ -126,7 +131,7 @@ export function DataTable({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-full items-center py-4">
+          <div className="flex w-full items-center ">
             <Input
               placeholder="Search..."
               value={search}
@@ -137,15 +142,23 @@ export function DataTable({
             />
           </div>
           <div>
-            <Button className="w-full sm:flex items-center gap-x-1 hidden">
-              <Link
-                className="flex items-center justify-center gap-x-2"
-                href="/dashboard/createnewEmployee"
-              >
+            <Link
+              className="flex items-center justify-center gap-x-2"
+              href="/dashboard/createnewEmployee"
+            >
+              <Button className="w-full sm:flex items-center gap-x-1 hidden">
                 Add Employee
                 <Plus size={18} />
-              </Link>
-            </Button>
+              </Button>
+            </Link>
+            <Link
+              className="flex items-center justify-center gap-x-2"
+              href="/dashboard/createnewEmployee"
+            >
+              <Button className="sm:hidden">
+                <Plus size={18} />
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -153,13 +166,13 @@ export function DataTable({
           <DropdownMenuTrigger asChild>
             <div>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                className="ml-auto hidden sm:block"
+                className="ml-auto mb-2 hidden sm:block"
               >
                 Column
               </Button>
-              <Button variant="outline" size="sm" className="ml-auto sm:hidden">
+              <Button variant="secondary" size="sm" className="ml-auto mb-2 sm:hidden">
                 <CiViewColumn />
               </Button>
             </div>

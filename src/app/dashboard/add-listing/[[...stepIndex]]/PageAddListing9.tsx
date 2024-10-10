@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
+import Heading from "@/components/Heading";
 
 export interface PageAddListing9Props {}
 
@@ -157,23 +158,26 @@ const PageAddListing9: FC<PageAddListing9Props> = () => {
 
   return (
     <>
-      <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-        Select appropriate days
-      </h2>
+      <Heading
+        heading="Select appropriate days"
+        subheading="Select the appropriate days when the property is available for booking"
+      />
       <div>
-        <h2 className="text-2xl font-semibold">How long can guests stay?</h2>
-        <span className="block text-xs  mt-2 ">
-          {` Shorter trips can mean more reservations, but you'll turn over your
-            space more often.`}
-        </span>
+        <Heading
+          heading="How long guest can stay"
+          subheading="Shorter trips can mean more reservations, but you'll turn over your
+            space more often"
+        />
       </div>
 
       {rentalType && (rentalType == "Short Term" || rentalType == "Both") && (
         <div className="space-y-7">
           {/* ITEM */}
           <div>
-            <h1 className=" font-medium text-lg my-4 ">Short Term Rental</h1>
-            <p className=" flex flex-wrap gap-2">
+            <h1 className=" sm:text-xl text-lg font-semibold ">
+              Short Term Rental
+            </h1>
+            <p className=" flex flex-wrap gap-2 sm:text-sm text-xs text-muted-foreground">
               (
               {MONTHS.filter((m) => !longTermMonths.includes(m)).map(
                 (month, index) => (

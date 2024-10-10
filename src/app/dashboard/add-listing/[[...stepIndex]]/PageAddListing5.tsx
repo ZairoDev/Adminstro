@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import Heading from "@/components/Heading";
 
 export interface PageAddListing5Props {}
 
@@ -115,9 +116,10 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
   return (
     <>
       <div className="mb-4">
-        <h2 className="text-2xl mb-8 font-semibold border-b border-primary pb-2">
-          Set house rules for your guests{" "}
-        </h2>
+        <Heading
+          heading="Additional Rules"
+          subheading="Add additional rules for comming guests"
+        />
       </div>
 
       {/* FORM */}

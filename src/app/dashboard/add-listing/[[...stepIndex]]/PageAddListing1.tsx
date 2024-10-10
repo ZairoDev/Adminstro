@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
+import Heading from "@/components/Heading";
 
 export interface PageAddListing1Props {}
 
@@ -155,9 +156,10 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold border-b border-primary pb-2">
-        Choosing listing categories
-      </h2>
+      <Heading
+        heading="Listing category"
+        subheading="Choose a property category that fits your needs."
+      />
       <div className="space-y-8">
         <div className="mt-4 flex justify-between">
           <div>

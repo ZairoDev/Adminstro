@@ -42,6 +42,7 @@ import { IoIosBed } from "react-icons/io";
 import { SlSizeFullscreen } from "react-icons/sl";
 import { FaCalendarAlt } from "react-icons/fa";
 import { Label } from "@/components/ui/label";
+import Heading from "@/components/Heading";
 
 interface PageProps {
   params: {
@@ -937,15 +938,14 @@ const EditPropertyPage = ({ params }: PageProps) => {
             </div>
           ) : (
             <form onSubmit={(e) => e.preventDefault()}>
-              <div className="flex sm:border rounded-lg sm:p-4 flex-col gap-x-2 gap-y-4 mt-4">
-                <div className="border-b pb-2">
-                  <h1 className="text-2xl mt-2  text-center  mb-4">
-                    Edit Property
-                  </h1>
-                </div>
+              <div className="flex sm:p-4 flex-col gap-x-2">
+                <Heading
+                  heading="Edit property details"
+                  subheading="You can edit property details from here."
+                />
 
                 <div>
-                  <div className="flex  rounded-lg sm:p-2  flex-col gap-x-2 gap-y-4 mt-4">
+                  <div className="flex  rounded-lg sm:p-2  flex-col ">
                     <div className="">
                       <h1>Cover Image</h1>
                       <div className="border min-h-60 pb-2 rounded-lg flex items-center justify-center relative overflow-hidden">

@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { WebsiteCard } from "@/components/websiteCard";
 import { Navbar } from "@/components/navbar";
 
@@ -26,7 +25,7 @@ const cardData = [
   },
   {
     title: "Future website",
-    description: "Will be update in furure",
+    description: "This route belong to Future space",
     link: "/dashboard/user",
   },
 ];
@@ -34,8 +33,7 @@ const cardData = [
 export default function HomePage() {
   return (
     <>
-      <div className="h-screen w-full  bg-background  bg-grid-white/20   ">
-        <div className="absolute pointer-events-none inset-0 flex items-center justify-center  bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
+      <div className="  ">
         <div>
           <Navbar />
           <div className=" max-w-7xl m-auto p-2">

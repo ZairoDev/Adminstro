@@ -19,7 +19,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader } from "lucide-react";
 import GotoUserPage from "@/components/GotoUserPage";
 import Animation from "@/components/animation";
-
+import Heading from "@/components/Heading";
 
 interface PageProps {
   params: {
@@ -181,13 +181,13 @@ const AccountPage = ({ params }: PageProps) => {
 
   return (
     <>
-    
+      <Animation>
+        <Heading
+          heading="Edit details"
+          subheading="You can edit user details from here."
+        />
+
         <div className=" border rounded-lg p-4  ">
-          <div className="border-b mb-4">
-            <h1 className="text-2xl pb-2 text-center font-semibold">
-              Edit userdetails
-            </h1>
-          </div>
           <div className="flex items-center mb-8 justify-center">
             <div className="relative rounded-full overflow-hidden flex">
               <label htmlFor="file-upload">
@@ -312,7 +312,11 @@ const AccountPage = ({ params }: PageProps) => {
           </div>
 
           <div className="flex justify-start mt-8">
-            <Button onClick={handleSubmit} disabled={loading} className="sm:w-2/6 w-full">
+            <Button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="sm:w-2/6 w-full"
+            >
               {loading ? (
                 <>
                   <div className="flex items-center gap-x-1">
@@ -326,7 +330,7 @@ const AccountPage = ({ params }: PageProps) => {
             </Button>
           </div>
         </div>
-    
+      </Animation>
     </>
   );
 };

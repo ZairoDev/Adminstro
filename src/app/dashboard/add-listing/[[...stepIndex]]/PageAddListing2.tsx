@@ -21,6 +21,7 @@ import { FaLink, FaLocationDot } from "react-icons/fa6";
 import { Plus } from "lucide-react";
 import { IoRemoveSharp } from "react-icons/io5";
 import { Label } from "@/components/ui/label";
+import Heading from "@/components/Heading";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
@@ -461,9 +462,10 @@ const PageAddListing2: FC = () => {
 
   return (
     <div>
-      <h2 className="text-2xl mb-2 font-semibold border-b border-primary pb-2">
-        Choose the country
-      </h2>
+      <Heading
+        heading="Choose the country"
+        subheading="Choose country that best describes your listing"
+      />
       <FormItem label="Country/Region">
         <Select value={country} onValueChange={(value) => setCountry(value)}>
           <SelectTrigger>
@@ -706,7 +708,11 @@ const PageAddListing2: FC = () => {
                     value={nearbyLocations.nearbyLocationUrl[index]}
                     className=" overflow-auto"
                   />
-                  <Link href={nearbyLocations.nearbyLocationUrl[index]} target="_blank" className=" ml-1">
+                  <Link
+                    href={nearbyLocations.nearbyLocationUrl[index]}
+                    target="_blank"
+                    className=" ml-1"
+                  >
                     <div className=" border rounded-lg p-2 bg-secondary">
                       {" "}
                       <FaLink className=" w-4 h-4 font-medium" />
@@ -733,9 +739,10 @@ const PageAddListing2: FC = () => {
       {/* This code only rebder if the rentalType is Longterm */}
       {(type === "Long Term" || type === "Both") && (
         <div>
-          <div className="text-2xl mt-3 font-semibold border-b border-primary pb-2 ">
-            Longterm Input
-          </div>
+          <Heading
+            heading="Longterm inputs"
+            subheading="These input belongs to longterm only"
+          />
           <div className="my-4">
             <FormItem label="Choose Area">
               <Select value={area} onValueChange={(value) => setArea(value)}>

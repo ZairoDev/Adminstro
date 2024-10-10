@@ -45,6 +45,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import Animation from "@/components/animation";
 import CustomTooltip from "@/components/CustomToolTip";
+import Heading from "@/components/Heading";
 
 interface ApiResponse {
   data: Property[];
@@ -223,8 +224,12 @@ const PropertyPage: React.FC = () => {
   return (
     <div>
       <Animation>
+        <Heading
+          heading="All Properties"
+          subheading="You will get the list of all properties here"
+        />
         {/* Search and filter section */}
-        <div className="flex lg:mt-0 mt-2 items-center gap-x-2">
+        <div className="flex lg:mt-0  items-center gap-x-2">
           <div className="sm:max-w-[180px] max-w-[100px] w-full">
             <Select
               onValueChange={(value: string) => setSearchType(value)}
@@ -240,7 +245,7 @@ const PropertyPage: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-full items-center py-4">
+          <div className="flex w-full items-center ">
             <Input
               placeholder="Search..."
               value={searchTerm}

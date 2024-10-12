@@ -1,13 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-
-import {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardContent,
-} from "@/components/ui/card";
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,21 +14,18 @@ import {
   PaginationContent,
   PaginationItem,
   PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Edit } from "lucide-react";
-import Loader from "@/components/loader";
 import { Property } from "@/util/type";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
 import { DonutChart } from "@/components/charts/DonutChart";
 import Animation from "@/components/animation";
 import Heading from "@/components/Heading";
+import CardLoader from "@/components/CardLoader";
 
 interface ApiResponse {
   data: Property[];
@@ -195,9 +185,7 @@ const CompletedProperties: React.FC = () => {
 
         <div className="mt-4">
           {loading ? (
-            <div className="flex items-center justify-center ">
-              <Loader />
-            </div>
+            <CardLoader />
           ) : error ? (
             <div>Error: {error}</div>
           ) : (

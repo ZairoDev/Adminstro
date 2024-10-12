@@ -106,15 +106,18 @@ const BlogPage = ({ params }: PageProps) => {
   return (
     <div className="p-1">
       <div className="max-w-5xl m-auto">
-        <img
-          className="mt-4 mx-auto rounded-lg object-cover w-full md:h-96 h-44"
-          src={blog.banner}
-          alt="Blog Image"
-        />
+        <div className="relative mt-4 mx-auto w-full">
+          <img
+            className="rounded-lg object-cover w-full md:h-96 h-44"
+            src={blog.banner}
+            alt="Blog Image"
+          />
 
-        <h1 className="md:text-5xl text-center sm:text-4xl text-3xl mt-2 font-semibold">
-          {blog.title}
-        </h1>
+          <h1 className="absolute inset-0 flex items-center justify-center text-center  md:text-5xl sm:text-4xl text-3xl font-semibold">
+            {blog.title}
+          </h1>
+        </div>
+
         <div>
           <p className="md:text-xl text-center sm:text-lg text-sm mt-2">
             {blog.maintext}

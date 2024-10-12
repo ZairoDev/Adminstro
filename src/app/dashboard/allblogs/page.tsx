@@ -1,6 +1,5 @@
 "use client";
-
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import {
   Pagination,
@@ -11,12 +10,11 @@ import {
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import debounce from "lodash.debounce";
-import Loader from "@/components/loader";
 import Link from "next/link";
 import { FilePenLine } from "lucide-react";
-import Img from "@/components/Img";
 import Animation from "@/components/animation";
 import Heading from "@/components/Heading";
+import CardLoader from "@/components/CardLoader";
 
 const BlogList = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -27,10 +25,8 @@ const BlogList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const fetchBlogs = async (search = "", page = 1) => {
+  const fetchBlogs = useCallback(async (search = "", page = 1) => {
     setLoading(true);
-    setSearching(true);
     try {
       const response = await axios.get(
         `/api/blog/getblog?search=${search}&page=${page}`
@@ -41,40 +37,24 @@ const BlogList = () => {
       setError(err.message);
     } finally {
       setLoading(false);
-      setSearching(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const debouncedFetch = debounce(() => {
+      fetchBlogs(searchTerm, currentPage);
+    }, 900);
+
+    debouncedFetch();
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [searchTerm, currentPage, fetchBlogs]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
   };
-
-  // Debounced search handler
-  const debouncedFetchBlogs = useCallback(
-    debounce((query) => {
-      fetchBlogs(query, 1);
-    }, 1000),
-    []
-  );
-
-  useEffect(() => {
-    debouncedFetchBlogs(searchTerm);
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [searchTerm, debouncedFetchBlogs]);
-
-  useEffect(() => {
-    fetchBlogs(searchTerm, currentPage);
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [currentPage]);
-
-  // Auto-focus the input when the component mounts
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center">
-        <Loader />
-      </div>
-    );
-  }
 
   if (error) {
     return <div className="text-red-600 text-center">Error: {error}</div>;
@@ -82,28 +62,28 @@ const BlogList = () => {
 
   return (
     <Animation>
-      <div className=" ">
+      <div>
         <Heading
           heading="All blogs"
           subheading="You will see the newly created item at the top."
         />
-        <div className=" ">
+        <div>
           <Input
             type="text"
-            ref={searchInputRef}
             placeholder="Search by tag..."
             className="max-w-xl"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            autoFocus
+            onChange={handleSearch}
           />
         </div>
         {searching ? (
-          <div className="">Searching...</div>
+          <div>Searching...</div>
+        ) : loading ? (
+          <CardLoader />
         ) : (
-          <div className="w-full  ">
+          <div className="w-full">
             {blogs.length > 0 ? (
-              <div className=" grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
+              <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
                 {blogs.map((blog) => (
                   <div className="w-full" key={blog._id}>
                     <div className="border rounded-lg sm:max-w-sm w-full h-full">
@@ -125,12 +105,11 @@ const BlogList = () => {
                         <div>
                           <Link
                             className="w-full hover:opacity-60"
-                            key={blog._id}
                             href={`/dashboard/allblogs/${blog._id}`}
                           >
                             <p className="text-base line-clamp-1 font-semibold">
                               {blog.title.slice(0, 15)}
-                              {blog.title.length > 10 ? "..." : ""}
+                              {blog.title.length > 15 ? "..." : ""}
                             </p>
                             <p className="text-sm line-clamp-1 font-thin">
                               {blog.maintext.slice(0, 25)}
@@ -139,18 +118,12 @@ const BlogList = () => {
                           </Link>
                         </div>
                         <div>
-                          <div>
-                            <p className="text-xs opacity-55 line-clamp-1 sm:hidden">
-                              {format(new Date(blog.createdAt), "dd, yyyy")}
-                            </p>
-
-                            <p className="text-xs opacity-55 line-clamp-1 hidden sm:block">
-                              {format(
-                                new Date(blog.createdAt),
-                                "MMMM dd, yyyy"
-                              )}
-                            </p>
-                          </div>
+                          <p className="text-xs opacity-55 line-clamp-1 sm:hidden">
+                            {format(new Date(blog.createdAt), "dd, yyyy")}
+                          </p>
+                          <p className="text-xs opacity-55 line-clamp-1 hidden sm:block">
+                            {format(new Date(blog.createdAt), "MMMM dd, yyyy")}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -158,27 +131,23 @@ const BlogList = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center">No blogs found</div>
+              <div className="text-center flex items-center justify-center mt-10">
+                No blogs found
+              </div>
             )}
           </div>
         )}
 
         {/* Pagination */}
-
         <div>
           <p className="text-xs">
             Page <span className="text-primary">{currentPage}</span> out of{" "}
             <span className="text-primary">{totalPages}</span>
           </p>
         </div>
-
         {totalPages > 1 && (
           <Pagination className="mt-8">
             <PaginationContent className="cursor-pointer">
-              {/* <PaginationPrevious
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              // disabled={currentPage === 1}
-            /> */}
               {Array.from({ length: totalPages }, (_, i) => (
                 <PaginationItem key={i}>
                   <PaginationLink
@@ -189,12 +158,6 @@ const BlogList = () => {
                   </PaginationLink>
                 </PaginationItem>
               ))}
-              {/* <PaginationNext
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              // disabled={currentPage === totalPages}
-            /> */}
             </PaginationContent>
           </Pagination>
         )}
@@ -202,5 +165,4 @@ const BlogList = () => {
     </Animation>
   );
 };
-
 export default BlogList;

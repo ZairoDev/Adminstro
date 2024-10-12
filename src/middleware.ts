@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
-
+interface tokenInterface {
+  role: string;
+  email: string;
+  name: string;
+  id: string;
+  iat: number;
+  exp: number;
+}
 // Define the role-based access control
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
@@ -76,7 +83,7 @@ export async function middleware(request: NextRequest) {
 
   if (token) {
     try {
-      const obj = await getDataFromToken(request);
+      const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
 
       if (path === "/login") {
@@ -106,8 +113,11 @@ export async function middleware(request: NextRequest) {
           );
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting role from token:", error);
+      if (error.response.error === "Token Expired") {
+        return NextResponse.redirect(new URL("/norole", request.url));
+      }
       return NextResponse.redirect(new URL("/login", request.url));
     }
   } else if (!isPublicRoute) {

@@ -11,12 +11,6 @@ import {
 } from "@/components/ui/drawer";
 import { useRouter } from "next/navigation";
 
-import {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardContent,
-} from "@/components/ui/card";
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,8 +25,6 @@ import {
   PaginationContent,
   PaginationItem,
   PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import debounce from "lodash.debounce";
@@ -46,6 +38,9 @@ import Link from "next/link";
 import Animation from "@/components/animation";
 import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
+import { Skeleton } from "@/components/ui/skeleton";
+import CardSkeleton from "@/components/skelton/CardSkelton";
+import CardLoader from "@/components/CardLoader";
 
 interface ApiResponse {
   data: Property[];
@@ -154,9 +149,7 @@ const PropertyPage: React.FC = () => {
         id: propertyId,
         isLive: false,
       });
-
       console.log(response.data);
-
       setProperties((prevProps) =>
         prevProps.map((property) =>
           property._id === propertyId
@@ -174,7 +167,6 @@ const PropertyPage: React.FC = () => {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
-
   const renderPaginationItems = () => {
     let items = [];
     const maxVisiblePages = 5;
@@ -192,7 +184,6 @@ const PropertyPage: React.FC = () => {
         </PaginationItem>
       );
     }
-
     for (let i = startPage; i <= endPage; i++) {
       items.push(
         <PaginationItem key={i}>
@@ -209,7 +200,6 @@ const PropertyPage: React.FC = () => {
         </PaginationItem>
       );
     }
-
     if (endPage < totalPages) {
       items.push(
         <PaginationItem key="end-ellipsis">
@@ -228,7 +218,6 @@ const PropertyPage: React.FC = () => {
           heading="All Properties"
           subheading="You will get the list of all properties here"
         />
-        {/* Search and filter section */}
         <div className="flex lg:mt-0  items-center gap-x-2">
           <div className="sm:max-w-[180px] max-w-[100px] w-full">
             <Select
@@ -259,9 +248,7 @@ const PropertyPage: React.FC = () => {
 
         <div className="mt-4">
           {loading ? (
-            <div className="flex items-center justify-center ">
-              <Loader />
-            </div>
+            <CardLoader />
           ) : error ? (
             <div>Error: {error}</div>
           ) : (
@@ -331,7 +318,6 @@ const PropertyPage: React.FC = () => {
                         <div className="flex  flex-col">
                           <div className="flex h-6 mt-2 flex-col opacity-40">
                             <p className=" text-xs line-clamp-1">
-                              {}
                               <CustomTooltip
                                 text={`${
                                   property?.hostedBy?.substring(0, 10) || "NA"
@@ -340,8 +326,8 @@ const PropertyPage: React.FC = () => {
                               />
                             </p>
                             <p className=" text-xs line-clamp-1">
-                              {}
                               <CustomTooltip
+                                className=""
                                 text={`${
                                   property?.hostedFrom?.substring(0, 10) || "NA"
                                 }`}
@@ -469,27 +455,12 @@ const PropertyPage: React.FC = () => {
             </div>
           )}
         </div>
-        {/* Pagination Section */}
         {properties.length > 0 && (
           <div className="text-xs w-full">
             <Pagination className="flex flex-wrap items-center w-full">
-              {/* <PaginationPrevious
-              className="text-xs sm:block hidden"
-              onClick={() => handlePageChange(page - 1)}
-            >
-             
-            </PaginationPrevious> */}
-
               <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
                 {renderPaginationItems()}
               </PaginationContent>
-
-              {/* <PaginationNext
-              className="text-xs sm:block hidden"
-              onClick={() => handlePageChange(page + 1)}
-            >
-             
-            </PaginationNext> */}
             </Pagination>
           </div>
         )}

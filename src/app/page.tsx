@@ -1,6 +1,7 @@
 "use client";
 import { WebsiteCard } from "@/components/websiteCard";
 import { Navbar } from "@/components/navbar";
+import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 
 const cardData = [
   {
@@ -33,11 +34,11 @@ const cardData = [
 export default function HomePage() {
   return (
     <>
-      <div className="  ">
+      <div className="max-w-7xl m-auto p-2  ">
         <div>
           <Navbar />
-          <div className=" max-w-7xl m-auto p-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className=" ">
+            <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
               {cardData.map((card, index) => (
                 <WebsiteCard
                   key={index}
@@ -49,6 +50,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        <ScrollToTopButton />
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 import React from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,7 +9,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import CustomTooltip from "./CustomToolTip";
 
 const BreadCrumb = () => {
   const pathname = usePathname();
@@ -20,7 +19,7 @@ const BreadCrumb = () => {
   };
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className="text-xs">
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbPage>Home</BreadcrumbPage>
@@ -34,11 +33,13 @@ const BreadCrumb = () => {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {isLast || !isClickable(name) ? (
-                  <BreadcrumbPage>{name}</BreadcrumbPage>
+                  <BreadcrumbPage className="text-xs">{name}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink>
-                    {/* <Link href={routeTo}>{name}</Link> */}
-                    <CustomTooltip text={name} desc="Update sortly" />
+                    <Link className="text-xs" href={routeTo}>
+                      {name}
+                    </Link>
+                    {/* <CustomTooltip className="text-xs" text={name} desc="Update sortly" /> */}
                     {/* <p className="cursor-pointer">{}</p> */}
                   </BreadcrumbLink>
                 )}

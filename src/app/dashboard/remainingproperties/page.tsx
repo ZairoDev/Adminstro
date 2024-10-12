@@ -25,6 +25,8 @@ import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
 import Animation from "@/components/animation";
 import Heading from "@/components/Heading";
+import CardSkeleton from "@/components/skelton/CardSkelton";
+import CardLoader from "@/components/CardLoader";
 
 interface ApiResponse {
   data: Property[];
@@ -169,9 +171,7 @@ const CompletedProperties: React.FC = () => {
 
         <div className="mt-4">
           {loading ? (
-            <div className="flex items-center justify-center ">
-              <Loader />
-            </div>
+            <CardLoader />
           ) : error ? (
             <div>Error: {error}</div>
           ) : (

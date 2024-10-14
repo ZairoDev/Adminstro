@@ -13,6 +13,12 @@ export async function GET(req: NextRequest) {
   const limitNumber = parseInt(limit as string, 10);
   try {
     const data = await getDataFromToken(req);
+    if (!data) {
+      return NextResponse.json(
+        { success: false, message: `Unauthorized` },
+        { status: 401 }
+      );
+    }
     console.log("data will gonna print here ", data);
 
     let query = {};

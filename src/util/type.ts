@@ -1,3 +1,12 @@
+export interface MiddlweareInterface {
+  name: string;
+  email: string;
+  role?: string;
+  id: string;
+  exp: Date;
+  iat: Date;
+}
+
 export interface UserInterface {
   _id: string;
   address: string;

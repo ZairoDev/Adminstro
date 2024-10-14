@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
 import { jwtVerify } from "jose";
 
 export const getDataFromToken = async (request: NextRequest) => {
@@ -9,7 +10,6 @@ export const getDataFromToken = async (request: NextRequest) => {
     console.log(payload);
     return payload;
   } catch (error: any) {
-    // console.log("error: ", error);
-    return "";
+    throw new Error(error.message);
   }
 };

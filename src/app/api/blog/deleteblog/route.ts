@@ -8,6 +8,12 @@ connectDb();
 export async function POST(req: NextRequest) {
   try {
     const data = await getDataFromToken(req);
+    if (!data) {
+      return NextResponse.json(
+        { success: false, message: `Unauthorized` },
+        { status: 401 }
+      );
+    }
     if (data.role !== "SuperAdmin") {
       return NextResponse.json(
         {

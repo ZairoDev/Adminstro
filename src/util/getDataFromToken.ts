@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { jwtVerify } from "jose";
 
 export const getDataFromToken = async (request: NextRequest) => {
@@ -11,6 +10,6 @@ export const getDataFromToken = async (request: NextRequest) => {
     return payload;
   } catch (error: any) {
     // console.log("error: ", error);
-    return NextResponse.json({ error: "Token Expired" }, { status: 400 });
+    return "";
   }
 };

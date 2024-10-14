@@ -35,7 +35,6 @@ import Loader from "@/components/loader";
 import { Property } from "@/util/type";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
-import Animation from "@/components/animation";
 import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -213,7 +212,7 @@ const PropertyPage: React.FC = () => {
 
   return (
     <div>
-      <Animation>
+     
         <Heading
           heading="All Properties"
           subheading="You will get the list of all properties here"
@@ -464,7 +463,7 @@ const PropertyPage: React.FC = () => {
             </Pagination>
           </div>
         )}
-      </Animation>
+     
     </div>
   );
 };

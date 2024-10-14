@@ -1,5 +1,4 @@
 "use client";
-import Animation from "@/components/animation";
 import BreadCrumb from "@/components/BreadCrumb";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { LogoutButton } from "@/components/logoutAlertBox";
@@ -20,11 +19,10 @@ export default function DashboardLayout({
           </div>
         </div>
         <div>
-          <Animation>
-            <div>
-              <div className="pb-16 lg:pb-0">{children}</div>
-            </div>
-          </Animation>
+          <div>
+            <div className="pb-16 lg:pb-0">{children}</div>
+          </div>
+
           <nav className="flex flex-col  justify-between ">
             <div className=" absolute top-2 right-2">
               <LogoutButton />

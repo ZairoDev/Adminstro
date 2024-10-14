@@ -1,3 +1,4 @@
+import { ViewTransitions } from "next-view-transitions";
 import type { Metadata } from "next";
 import { UserRoleProvider } from "@/context/UserRoleContext";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -23,34 +24,36 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          themes={[
-            "orange",
-            "rose",
-            "dark",
-            "light",
-            "green",
-            "blue",
-            "violet",
-            "slate",
-            "yellow",
-            "stone",
-            "gray",
-            "neutral",
-            "red",
-            "zinc",
-          ]}
-          disableTransitionOnChange
-        >
-          <UserRoleProvider>{children}</UserRoleProvider>
-        </ThemeProvider>
-        <Toaster />
-      </body>
-    </html>
+    <ViewTransitions>
+      <html lang="en">
+        <body className={inter.className}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            themes={[
+              "orange",
+              "rose",
+              "dark",
+              "light",
+              "green",
+              "blue",
+              "violet",
+              "slate",
+              "yellow",
+              "stone",
+              "gray",
+              "neutral",
+              "red",
+              "zinc",
+            ]}
+            disableTransitionOnChange
+          >
+            <UserRoleProvider>{children}</UserRoleProvider>
+          </ThemeProvider>
+          <Toaster />
+        </body>
+      </html>
+    </ViewTransitions>
   );
 }

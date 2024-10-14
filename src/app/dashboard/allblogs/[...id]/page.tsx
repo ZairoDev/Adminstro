@@ -161,7 +161,7 @@ const BlogPage = ({ params }: PageProps) => {
                 <AlertDialogTrigger asChild className="">
                   <Button
                     variant="destructive"
-                    className="inline-block  fixed right-4 xl:top-5 top-8 z-50"
+                    className="inline-block  fixed right-4 top-10 z-50"
                   >
                     <Trash2 size={14} />
                   </Button>

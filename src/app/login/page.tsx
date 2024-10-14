@@ -21,9 +21,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import Animation from "@/components/animation";
-import FadeInAnimation from "@/components/fadeinAnimation";
 
+import FadeInAnimation from "@/components/fadeinAnimation";
 interface LoginResponse {
   message?: string;
   token?: string;

@@ -11,7 +11,7 @@ import { useUserRole } from "@/context/UserRoleContext";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import Animation from "@/components/animation";
+
 import Heading from "@/components/Heading";
 const defaultValue = {
   type: "doc",
@@ -114,135 +114,133 @@ const BlogPage = () => {
   };
   return (
     <div>
-      <Animation>
-        <Heading
-          heading="Create blog"
-          subheading="You can write a blog here will render in vacationSaga"
-        />
-        <div className="max-w-5xl  mx-auto p-1 pt-2">
-          <div className="space-y-6">
-            <div>
-              <Label htmlFor="blogTitle" className="block mb-2">
-                Blog Title
-              </Label>
-              <Input
-                id="blogTitle"
-                placeholder="Enter the blog title..."
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="blogDescription" className="block mb-2">
-                Description
-              </Label>
-              <Input
-                id="blogDescription"
-                placeholder="A little bit about something that you are going to explain..."
-                value={maintext}
-                onChange={(e) => setMainText(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="uploadBanner" className="block mb-2">
-                Blog Banner
-              </Label>
-              <AspectRatio ratio={16 / 9}>
-                <div
-                  className="relative border-2 border-dashed rounded-xl h-full w-full hover:opacity-90 hover:cursor-pointer overflow-hidden"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="Banner preview"
-                      className="rounded-xl object-fill "
-                    />
-                  ) : (
-                    <div className="absolute inset-0  flex flex-col items-center justify-center text-primary/60">
-                      <Upload size={24} className="" />
-                      <p>Click to upload banner</p>
-                    </div>
-                  )}
-                  <Input
-                    id="uploadBanner"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    ref={fileInputRef}
-                  />
-                </div>
-              </AspectRatio>
-              {loading && (
-                <div className="">
-                  <p className="flex items-center justify-center gap-x-2">
-                    Uploading...
-                    <Loader2 size={18} className="animate-spin" />
-                  </p>
-                </div>
-              )}
-            </div>
-            {/* Blog Content */}
-            <div>
-              <div className=" flex justify-between">
-                <Label htmlFor="blogContent" className="block mb-2">
-                  Blog Content
-                </Label>
-                <p className=" text-xs">(Total Words: {wordCount})</p>
-              </div>
-              <Editor
-                initialValue={defaultValue}
-                onChange={setContent}
-                setWordCount={setWordCount}
-              />
-            </div>
-            <div>
-              <Label htmlFor="tags" className="block mb-2">
-                Tags
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="tags"
-                  placeholder="Enter tag and press 'Add'"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                />
-                <Button
-                  onClick={handleAddTag}
-                  className="flex items-center gap-x-2"
-                >
-                  Add <Plus size={16} />
-                </Button>
-              </div>
-              <div className="flex flex-wrap text-xs gap-1 mt-2">
-                {tags.map((tag, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 text-background bg-primary pl-2 rounded-lg"
-                  >
-                    {tag}
-                    <Button
-                      className="text-background"
-                      onClick={() => handleRemoveTag(tag)}
-                    >
-                      <X size={18} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <Button
-              disabled={isLoading || uploading || !isFormValid()}
-              onClick={handleSubmit}
-              className="sm:w-auto w-full"
-            >
-              Publish Blog
-            </Button>
+      <Heading
+        heading="Create blog"
+        subheading="You can write a blog here will render in vacationSaga"
+      />
+      <div className="max-w-5xl  mx-auto p-1 pt-2">
+        <div className="space-y-6">
+          <div>
+            <Label htmlFor="blogTitle" className="block mb-2">
+              Blog Title
+            </Label>
+            <Input
+              id="blogTitle"
+              placeholder="Enter the blog title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </div>
+          <div>
+            <Label htmlFor="blogDescription" className="block mb-2">
+              Description
+            </Label>
+            <Input
+              id="blogDescription"
+              placeholder="A little bit about something that you are going to explain..."
+              value={maintext}
+              onChange={(e) => setMainText(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="uploadBanner" className="block mb-2">
+              Blog Banner
+            </Label>
+            <AspectRatio ratio={16 / 9}>
+              <div
+                className="relative border-2 border-dashed rounded-xl h-full w-full hover:opacity-90 hover:cursor-pointer overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Banner preview"
+                    className="rounded-xl object-fill "
+                  />
+                ) : (
+                  <div className="absolute inset-0  flex flex-col items-center justify-center text-primary/60">
+                    <Upload size={24} className="" />
+                    <p>Click to upload banner</p>
+                  </div>
+                )}
+                <Input
+                  id="uploadBanner"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  ref={fileInputRef}
+                />
+              </div>
+            </AspectRatio>
+            {loading && (
+              <div className="">
+                <p className="flex items-center justify-center gap-x-2">
+                  Uploading...
+                  <Loader2 size={18} className="animate-spin" />
+                </p>
+              </div>
+            )}
+          </div>
+          {/* Blog Content */}
+          <div>
+            <div className=" flex justify-between">
+              <Label htmlFor="blogContent" className="block mb-2">
+                Blog Content
+              </Label>
+              <p className=" text-xs">(Total Words: {wordCount})</p>
+            </div>
+            <Editor
+              initialValue={defaultValue}
+              onChange={setContent}
+              setWordCount={setWordCount}
+            />
+          </div>
+          <div>
+            <Label htmlFor="tags" className="block mb-2">
+              Tags
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="tags"
+                placeholder="Enter tag and press 'Add'"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+              />
+              <Button
+                onClick={handleAddTag}
+                className="flex items-center gap-x-2"
+              >
+                Add <Plus size={16} />
+              </Button>
+            </div>
+            <div className="flex flex-wrap text-xs gap-1 mt-2">
+              {tags.map((tag, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 text-background bg-primary pl-2 rounded-lg"
+                >
+                  {tag}
+                  <Button
+                    className="text-background"
+                    onClick={() => handleRemoveTag(tag)}
+                  >
+                    <X size={18} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Button
+            disabled={isLoading || uploading || !isFormValid()}
+            onClick={handleSubmit}
+            className="sm:w-auto w-full"
+          >
+            Publish Blog
+          </Button>
         </div>
-      </Animation>
+      </div>
     </div>
   );
 };

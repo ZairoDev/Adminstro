@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/drawer";
 import { useRouter } from "next/navigation";
 
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback} from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -31,14 +31,10 @@ import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import { Edit, EyeIcon, EyeOff } from "lucide-react";
 import axios from "axios";
-import Loader from "@/components/loader";
 import { Property } from "@/util/type";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
-import { Skeleton } from "@/components/ui/skeleton";
-import CardSkeleton from "@/components/skelton/CardSkelton";
 import CardLoader from "@/components/CardLoader";
 
 interface ApiResponse {

@@ -273,6 +273,7 @@ const CompletedProperties: React.FC = () => {
                       </Button>
                     </div>
                   </div>
+                  
                 </div>
               ))}
             </div>

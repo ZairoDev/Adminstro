@@ -4,19 +4,17 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
-
 import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  LoaderCircle,
   MessageCircleQuestion,
   NotebookPen,
   ScanEye,
   User2Icon,
   Users,
 } from "lucide-react";
-import DeepLoader from "./DeepLoader";
-
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
 
@@ -25,7 +23,6 @@ type Route = {
   label: string;
   Icon?: JSX.Element;
 };
-
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
     {
@@ -119,7 +116,6 @@ const roleRoutes: Record<string, Route[]> = {
 };
 
 export function Sidebar() {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState("");
@@ -142,14 +138,19 @@ export function Sidebar() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     getUserRole();
   }, []);
 
   const renderRoutes = (showText: boolean) => {
     if (isLoading) {
-      return <DeepLoader />;
+      return (
+        <>
+          <div className="flex items-center justify-center">
+            <LoaderCircle className="animate-spin " size={18} />
+          </div>
+        </>
+      );
     }
 
     if (!userRole) {
@@ -175,7 +176,7 @@ export function Sidebar() {
           className="flex items-center gap-x-2 hover:bg-primary/5 rounded-lg px-4 py-2 "
         >
           {route.Icon && route.Icon}
-          {showText && <span>{route.label}</span>}
+          {showText && <span className="">{route.label}</span>}
         </Link>
       </li>
     ));
@@ -194,9 +195,9 @@ export function Sidebar() {
         </div>
         <div>
           <nav className="flex flex-col  justify-between ">
-            <ul className="flex-grow">{renderRoutes(true)}</ul>
-
-            <div className=" absolute bottom-4 left-4"></div>
+            <ul>
+              <li className="flex-grow">{renderRoutes(true)}</li>
+            </ul>
           </nav>
         </div>
       </div>

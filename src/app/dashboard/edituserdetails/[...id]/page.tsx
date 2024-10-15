@@ -15,10 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PhoneInput from "react-phone-number-input";
-import Link from "next/link";
 import { ArrowLeft, Loader } from "lucide-react";
-import GotoUserPage from "@/components/GotoUserPage";
-import Animation from "@/components/animation";
 import Heading from "@/components/Heading";
 
 interface PageProps {
@@ -181,156 +178,151 @@ const AccountPage = ({ params }: PageProps) => {
 
   return (
     <>
-      <Animation>
-        <Heading
-          heading="Edit details"
-          subheading="You can edit user details from here."
-        />
+      <Heading
+        heading="Edit details"
+        subheading="You can edit user details from here."
+      />
 
-        <div className=" border rounded-lg p-4  ">
-          <div className="flex items-center mb-8 justify-center">
-            <div className="relative rounded-full overflow-hidden flex">
-              <label htmlFor="file-upload">
-                <div className="lg:w-36 relative lg:h-36 md:w-28 md:h-28 w-20 h-20 rounded-full border border-gray-500 flex justify-center items-center mx-auto cursor-pointer hover:opacity-60 ">
-                  {(!previewImage || !profilePic) && !profilePicLoading && (
-                    <span className="absolute flex items-center justify-center w-full h-full">
-                      <FaPlus className="opacity-70 text-3xl cursor-pointer" />
-                    </span>
-                  )}
-                  <input
-                    type="file"
-                    className="sr-only"
-                    accept="image/*"
-                    id="file-upload"
-                    name="file-upload"
-                    onChange={handleProfilePhoto}
-                  />
-                  {profilePic && !profilePicLoading && (
-                    <div className="w-full h-full rounded-full overflow-hidden transition-all">
-                      <img
-                        src={profilePic}
-                        className="object-cover h-full w-full transition-all"
-                      />
-                    </div>
-                  )}
-                  {profilePicLoading && (
-                    <div className="w-full h-full rounded-full overflow-hidden transition-all">
-                      <img
-                        src={previewImage}
-                        className="opacity-70 object-contain h-full w-full transition-all"
-                      />
-                    </div>
-                  )}
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:flex-row flex-col">
-            <div className="w-full">
-              <Label>Name</Label>
-              <Input
-                className="w-full"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="w-full">
-              <Label>Gender</Label>
-              <Select
-                value={gender}
-                onValueChange={(value) => setGender(value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:flex-row flex-col">
-            <div className="w-full">
-              <Label>Language</Label>
-              <Input
-                className="mt-1.5"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              />
-            </div>
-
-            <div className="w-full">
-              <Label>Nationality</Label>
-              <Input
-                className="mt-1.5"
-                value={nationality}
-                onChange={(e) => setNationality(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:flex-row flex-col">
-            <div className="w-full">
-              <Label>Email</Label>
-              <Input className="mt-1.5" value={email} readOnly />
-            </div>
-
-            <div className="w-full">
-              <Label>Address</Label>
-              <Input
-                className="mt-1.5"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:flex-row flex-col">
-            <div className="w-full">
-              <Label>Phone</Label>
-              <div className="flex items-center mt-1.5">
-                <PhoneInput
-                  country={"us"}
-                  value={phone}
-                  onChange={(value) => setPhone(value || "")}
-                  containerClass="flex-grow"
-                  className="flex-1 phone-input"
+      <div className=" border rounded-lg p-4  ">
+        <div className="flex items-center mb-8 justify-center">
+          <div className="relative rounded-full overflow-hidden flex">
+            <label htmlFor="file-upload">
+              <div className="lg:w-36 relative lg:h-36 md:w-28 md:h-28 w-20 h-20 rounded-full border border-gray-500 flex justify-center items-center mx-auto cursor-pointer hover:opacity-60 ">
+                {(!previewImage || !profilePic) && !profilePicLoading && (
+                  <span className="absolute flex items-center justify-center w-full h-full">
+                    <FaPlus className="opacity-70 text-3xl cursor-pointer" />
+                  </span>
+                )}
+                <input
+                  type="file"
+                  className="sr-only"
+                  accept="image/*"
+                  id="file-upload"
+                  name="file-upload"
+                  onChange={handleProfilePhoto}
                 />
-              </div>
-            </div>
-
-            <div className="w-full">
-              <Label>Bank Details</Label>
-              <Input
-                className="mt-1.5"
-                value={bankDetails}
-                onChange={(e) => setBankDetails(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-start mt-8">
-            <Button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="sm:w-2/6 w-full"
-            >
-              {loading ? (
-                <>
-                  <div className="flex items-center gap-x-1">
-                    Updating...
-                    <Loader className="animate-spin " size={18} />
+                {profilePic && !profilePicLoading && (
+                  <div className="w-full h-full rounded-full overflow-hidden transition-all">
+                    <img
+                      src={profilePic}
+                      className="object-cover h-full w-full transition-all"
+                    />
                   </div>
-                </>
-              ) : (
-                "Continue"
-              )}
-            </Button>
+                )}
+                {profilePicLoading && (
+                  <div className="w-full h-full rounded-full overflow-hidden transition-all">
+                    <img
+                      src={previewImage}
+                      className="opacity-70 object-contain h-full w-full transition-all"
+                    />
+                  </div>
+                )}
+              </div>
+            </label>
           </div>
         </div>
-      </Animation>
+
+        <div className="flex items-center gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label>Name</Label>
+            <Input
+              className="w-full"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="w-full">
+            <Label>Gender</Label>
+            <Select value={gender} onValueChange={(value) => setGender(value)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label>Language</Label>
+            <Input
+              className="mt-1.5"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            />
+          </div>
+
+          <div className="w-full">
+            <Label>Nationality</Label>
+            <Input
+              className="mt-1.5"
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label>Email</Label>
+            <Input className="mt-1.5" value={email} readOnly />
+          </div>
+
+          <div className="w-full">
+            <Label>Address</Label>
+            <Input
+              className="mt-1.5"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label>Phone</Label>
+            <div className="flex items-center mt-1.5">
+              <PhoneInput
+                country={"us"}
+                value={phone}
+                onChange={(value) => setPhone(value || "")}
+                containerClass="flex-grow"
+                className="flex-1 phone-input"
+              />
+            </div>
+          </div>
+
+          <div className="w-full">
+            <Label>Bank Details</Label>
+            <Input
+              className="mt-1.5"
+              value={bankDetails}
+              onChange={(e) => setBankDetails(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-start mt-8">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="sm:w-2/6 w-full"
+          >
+            {loading ? (
+              <>
+                <div className="flex items-center gap-x-1">
+                  Updating...
+                  <Loader className="animate-spin " size={18} />
+                </div>
+              </>
+            ) : (
+              "Continue"
+            )}
+          </Button>
+        </div>
+      </div>
     </>
   );
 };

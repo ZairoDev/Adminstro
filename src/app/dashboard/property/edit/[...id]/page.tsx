@@ -35,7 +35,6 @@ import { useToast } from "@/hooks/use-toast";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Img from "@/components/Img";
-import Animation from "@/components/animation";
 import CustomTooltip from "@/components/CustomToolTip";
 import { FaBath, FaEuroSign, FaUser } from "react-icons/fa6";
 import { IoIosBed } from "react-icons/io";
@@ -930,7 +929,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   return (
     <>
-      <Animation>
+     
         <div className="max-w-6xl  mx-auto ">
           {loading ? (
             <div className="flex items-center justify-center  w-full">
@@ -1855,7 +1854,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
             </form>
           )}
         </div>
-      </Animation>
+      
     </>
   );
 };

@@ -1,5 +1,4 @@
 import React from "react";
-
 interface HeadingProps {
   heading: string;
   subheading: string;
@@ -7,7 +6,7 @@ interface HeadingProps {
 
 const Heading = ({ heading, subheading }: HeadingProps) => {
   return (
-    <div className="text-start pb-1">
+    <div className="text-start pb-1 mt-2">
       <div className="sm:text-xl text-lg font-semibold">
         {heading}
       </div>

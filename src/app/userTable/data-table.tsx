@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { CiViewColumn } from "react-icons/ci";
 import { Input } from "@/components/ui/input";
+import { useTransitionRouter } from "next-view-transitions";
 import {
   Select,
   SelectTrigger,
@@ -87,6 +88,7 @@ export function DataTable({
     },
   };
 
+  const router = useTransitionRouter();
   const table = useReactTable({
     data,
     columns: [serialNumberColumn, ...columns],
@@ -152,7 +154,13 @@ export function DataTable({
               className="flex items-center justify-center gap-x-2"
               href="/dashboard/createnewuser"
             >
-              <Button className="sm:hidden">
+              <Button
+                onClick={() => {
+                  router.push("/dashboard/createnewuser");
+                }}
+                className="sm:hidden"
+              >
+                Add User
                 <Plus size={18} />
               </Button>
             </Link>

@@ -1,12 +1,10 @@
 "use client";
-
 import { useCallback, useEffect, useState } from "react";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import debounce from "lodash.debounce";
 import axios from "axios";
 import { UserInterface } from "@/util/type";
-import Animation from "@/components/animation";
 
 export default function TablePage() {
   const [data, setData] = useState<UserInterface[]>([]);
@@ -46,21 +44,19 @@ export default function TablePage() {
 
   return (
     <div className="">
-      <Animation>
-        <DataTable
-          data={data}
-          columns={columns}
-          setPage={setPage}
-          setSearch={setSearch}
-          setQueryType={setQueryType}
-          search={search}
-          currentPage={page}
-          totalPages={totalPages}
-          queryType={queryType}
-          totalUser={totalUser}
-          loading={loading}
-        />
-      </Animation>
+      <DataTable
+        data={data}
+        columns={columns}
+        setPage={setPage}
+        setSearch={setSearch}
+        setQueryType={setQueryType}
+        search={search}
+        currentPage={page}
+        totalPages={totalPages}
+        queryType={queryType}
+        totalUser={totalUser}
+        loading={loading}
+      />
     </div>
   );
 }

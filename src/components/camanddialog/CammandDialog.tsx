@@ -9,6 +9,8 @@ import {
   BookCheck,
   BadgeCheck,
   CircleHelp,
+  CalendarPlus,
+  PencilLine,
 } from "lucide-react";
 
 import {
@@ -34,9 +36,19 @@ const routes = [
     icon: BadgeCheck,
     path: "/dashboard/completedproperties",
   },
+  {
+    name: "Create Lead",
+    icon: PencilLine,
+    path: "/dashboard/createquery",
+  },
+  {
+    name: "Created Lead",
+    icon: CalendarPlus,
+    path: "/dashboard/createdQuery",
+  },
+
   { name: "Read Blogs", icon: BookPlus, path: "/dashboard/allblogs" },
   { name: "Create Blog", icon: PackagePlus, path: "/dashboard/createblog" },
-  { name: "Create Query", icon: CircleHelp, path: "/dashboard/createquery" },
 ];
 
 export function CommandDialogDemo() {
@@ -62,12 +74,14 @@ export function CommandDialogDemo() {
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        Press{" "}
-        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-          <span className="text-xs">⌘/Ctrl</span> + k
-        </kbd>
-      </p>
+      <div className="border px-3 py-1 rounded-lg">
+        <p className="text-sm text-muted-foreground">
+          Press{" "}
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <span className="text-xs">⌘/Ctrl</span> + k
+          </kbd>
+        </p>
+      </div>
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Type a command or search..." />
         <CommandList>

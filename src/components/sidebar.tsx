@@ -5,12 +5,14 @@ import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
+  CalendarPlus,
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
   LoaderCircle,
   MessageCircleQuestion,
   NotebookPen,
+  PencilLine,
   ScanEye,
   User2Icon,
   Users,
@@ -109,8 +111,13 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/createquery",
-      label: "Create Query",
-      Icon: <MessageCircleQuestion size={18} />,
+      label: "Create Lead",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/createdQuery",
+      label: "Created Lead",
+      Icon: <CalendarPlus size={18} />,
     },
   ],
 };

@@ -81,11 +81,6 @@ const PropertyPage: React.FC = () => {
   const handleEditClick = (propertyId: string) => {
     router.push(`/dashboard/property/edit/${propertyId}`);
   };
-
-  const handleEditDescription = (propertyId: string) => {
-    router.push(`/dashboard/property/description/${propertyId}`);
-  };
-
   const fetchProperties = useCallback(
     debounce(async (searchTerm: string) => {
       setLoading(true);

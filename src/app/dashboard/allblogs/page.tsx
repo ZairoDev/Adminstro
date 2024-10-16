@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import {
   Pagination,
@@ -24,6 +24,7 @@ const BlogList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBlogs = useCallback(async (search = "", page = 1) => {
     setLoading(true);
@@ -51,15 +52,28 @@ const BlogList = () => {
     };
   }, [searchTerm, currentPage, fetchBlogs]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "j") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
-
   if (error) {
     return <div className="text-red-600 text-center">Error: {error}</div>;
   }
-
   return (
     <div>
       <Heading
@@ -69,9 +83,10 @@ const BlogList = () => {
       <div>
         <Input
           type="text"
-          placeholder="Search by tag..."
+          placeholder="Search by tag... ctrl+j to focus"
           className="max-w-xl"
           value={searchTerm}
+          ref={searchInputRef}
           onChange={handleSearch}
         />
       </div>

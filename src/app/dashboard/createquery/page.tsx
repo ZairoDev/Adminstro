@@ -1,8 +1,7 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,7 +10,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,11 +41,15 @@ import {
   X,
 } from "lucide-react";
 import {
+  Pagination,
+  PaginationContent,
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
 import { CiMoneyBill } from "react-icons/ci";
+import Loader from "@/components/loader";
+import { DialogTrigger } from "@radix-ui/react-dialog";
 
 interface ApiResponse {
   data: IQuery[];
@@ -65,6 +68,7 @@ interface IQuery {
 const SalesDashboard = () => {
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [submitQuery, setSubmitQuery] = useState<boolean>(false);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -82,43 +86,9 @@ const SalesDashboard = () => {
 
   const limit: number = 12;
 
-  const fetchQuery = useCallback(
-    debounce(async (searchTerm: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
-        );
-        const data: ApiResponse = await response.json();
-        console.log(data);
-        if (response.ok) {
-          setQueries(data.data);
-          setTotalPages(data.totalPages);
-        } else {
-          throw new Error("Failed to fetch properties");
-        }
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    [page, searchType, limit]
-  );
-
-  useEffect(() => {
-    fetchQuery(searchTerm);
-  }, [fetchQuery, searchTerm]);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
-  };
   const handleSubmit = async () => {
     try {
+      setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
         method: "POST",
         headers: {
@@ -128,6 +98,9 @@ const SalesDashboard = () => {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        const newQuery = result.data;
+        setQueries((prevQueries) => [newQuery, ...prevQueries]);
         setIsDialogOpen(false);
         setFormData({
           _id: "",
@@ -142,22 +115,58 @@ const SalesDashboard = () => {
       }
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setSubmitQuery(false);
     }
   };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
+  };
+  const fetchQuery = useCallback(
+    debounce(async (searchTerm: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
+        );
+        const data: ApiResponse = await response.json();
+        if (response.ok) {
+          setQueries(data.data);
+          setTotalPages(data.totalPages);
+        } else {
+          throw new Error("Failed to fetch properties");
+        }
+      } catch (err: any) {
+        setLoading(false);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }, 500),
+    [page, searchType, limit]
+  );
+
+  useEffect(() => {
+    fetchQuery(searchTerm);
+  }, [fetchQuery, searchTerm]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
   const renderPaginationItems = () => {
     let items = [];
     const maxVisiblePages = 5;
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-
     if (startPage > 1) {
       items.push(
         <PaginationItem key="start-ellipsis">
@@ -188,9 +197,23 @@ const SalesDashboard = () => {
         </PaginationItem>
       );
     }
-
     return items;
   };
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "j") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <div>
@@ -199,7 +222,7 @@ const SalesDashboard = () => {
         heading="All Leads"
         subheading="You will get the list of leads that created till now"
       />
-      <div className="flex lg:mt-0  items-center gap-x-2">
+      <div className="flex lg:mt-0 items-center gap-x-2">
         <div className="sm:max-w-[180px] max-w-[100px] w-full">
           <Select
             onValueChange={(value: string) => setSearchType(value)}
@@ -214,13 +237,14 @@ const SalesDashboard = () => {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-full items-center ">
+        <div className="flex w-full items-center">
           <Input
             placeholder="Search..."
             value={searchTerm}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setSearchTerm(e.target.value)
             }
+            ref={searchInputRef}
             className="max-w-xl"
           />
         </div>
@@ -231,22 +255,18 @@ const SalesDashboard = () => {
           >
             Create Query
           </Button>
-          <Button className=" xs:hidden" onClick={() => setIsDialogOpen(true)}>
+          <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
             <Plus />
           </Button>
         </div>
       </div>
 
-      {/* Button to open the alert dialog */}
-
-      {/* Dialog (Alert box) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Query</DialogTitle>
           </DialogHeader>
 
-          {/* Form inside the Dialog */}
           <div className="space-y-4">
             <div>
               <Label>Name</Label>
@@ -296,113 +316,127 @@ const SalesDashboard = () => {
           </div>
 
           <DialogFooter>
-            <Button onClick={handleSubmit}>Submit Query</Button>
+            <Button disabled={submitQuery} onClick={handleSubmit}>
+              Submit Query
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Render the list of queries */}
-      <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1  sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
-        {queries.map((query) => (
-          <div>
-            <div
-              key={query._id}
-              className="border rounded-lg relative sm:max-w-sm p-2 w-full h-full"
-            >
-              <div>
-                <div className="">
-                  <h2 className="line-clamp-1 p-1 text-lg font-semibold gap-x-2 flex items-center border-b">
-                    <div className=" bg-muted p-2 rounded-full">
-                      <FolderPen size={18} className="text-primary" />
-                    </div>
-                    {query.name}
-                  </h2>
+      {loading ? (
+        <div className="flex mt-2 items-center justify-center">
+          <Loader />
+        </div>
+      ) : (
+        <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
+          {queries.map((query) => (
+            <div key={query._id}>
+              <div className="border rounded-lg relative sm:max-w-sm p-2 w-full h-full">
+                <div>
                   <div>
-                    <p className="absolute top-4 right-4 ">
-                      <AlertDialog>
-                        <AlertDialogTrigger>
+                    <h2 className="line-clamp-1 p-1 text-lg font-semibold gap-x-2 flex items-center border-b">
+                      <div className="bg-muted p-2 rounded-full">
+                        <FolderPen size={18} className="text-primary" />
+                      </div>
+                      {query.name}
+                    </h2>
+                    <div className="absolute top-4 right-4">
+                      <Dialog>
+                        <DialogTrigger>
                           <Expand size={18} />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-muted-foreground text-start">
-                              Information about{" "}
-                              <span className="text-primary">{query.name}</span>
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="text-start">
-                              <div className="flex flex-col gap-y-1">
-                                <div>
-                                  <p>
-                                    <span className="text-muted-foreground">
-                                      ConsumerEmail:
-                                    </span>{" "}
-                                    {query.email}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p>
-                                    <span className="text-muted-foreground">
-                                      PriceRange:{" "}
-                                    </span>
-                                    {query.price}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p>
-                                    <span className="text-muted-foreground">Intrested In:</span> {query.intrest}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p><span className="text-muted-foreground">Description:</span> {query.about}</p>
-                                </div>
-                              </div>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="absolute top-2 p-2 right-2">
-                              <p className=" ">
-                                <X size={18} />
-                              </p>
-                            </AlertDialogCancel>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </p>
-                  </div>
-                </div>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle className="text-start text-lg">
+                              Information
+                            </DialogTitle>
 
-                <div className="line-clamp-1 p-1 text-sm  gap-x-2 flex items-center border-b">
-                  <div className=" bg-muted p-2 rounded-full">
-                    <Mail size={18} className="text-primary" />
+                            <div>
+                              <h1 className="  flex items-center gap-x-2">
+                                <span className="text-muted-foreground">
+                                  Name
+                                </span>{" "}
+                                <p className="text-sm">{query.name} </p>
+                              </h1>
+                            </div>
+                            <div>
+                              <h1 className="  flex items-center gap-x-2">
+                                <span className="text-muted-foreground">
+                                  Email:
+                                </span>{" "}
+                                <p className="text-sm">{query.email} </p>
+                              </h1>
+                            </div>
+                            <div>
+                              <h1 className="  flex items-center gap-x-2">
+                                <span className="text-muted-foreground">
+                                  Price:
+                                </span>{" "}
+                                <p className="text-sm">{query.price} </p>
+                              </h1>
+                            </div>
+                            <div>
+                              <h1 className="  flex items-center gap-x-2">
+                                <span className="text-muted-foreground">
+                                  Intrest:
+                                </span>
+                                <p className="text-sm">{query.intrest} </p>
+                              </h1>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                About:
+                              </span>
+                              <h1 className="  flex  gap-x-2">
+                                <p className="text-sm">{query.about} </p>
+                              </h1>
+                            </div>
+                          </DialogHeader>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
-                  <p className="line-clamp-1"> {query.email}</p>
-                </div>
 
-                <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
-                  <div className=" bg-muted p-2 rounded-full">
-                    <CiMoneyBill size={18} className="text-primary" />
+                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
+                    <div className="bg-muted p-2 rounded-full">
+                      <Mail size={18} className="text-primary" />
+                    </div>
+                    <p className="line-clamp-1">{query.email}</p>
                   </div>
-                  <p className="line-clamp-1"> €{query.price}</p>
+                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
+                    <div className="bg-muted p-2 rounded-full">
+                      <CiMoneyBill size={18} className="text-primary" />
+                    </div>
+                    <p className="line-clamp-1"> €{query.price}</p>
+                  </div>
+                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
+                    <div className="bg-muted p-2 rounded-full">
+                      <MessageSquareHeart size={18} className="text-primary" />
+                    </div>
+                    <p className="line-clamp-1">{query.intrest}</p>
+                  </div>
+                  <p className="p-1 text-sm gap-x-2 flex items-center">
+                    <div className="bg-muted p-2 rounded-full">
+                      <SearchX size={18} className="text-primary" />
+                    </div>
+                    <p className="line-clamp-1">{query.about}</p>
+                  </p>
                 </div>
-                <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
-                  <div className=" bg-muted p-2 rounded-full">
-                    <MessageSquareHeart size={18} className="text-primary" />
-                  </div>
-                  <p className="line-clamp-1"> {query.intrest}</p>
-                </div>
-                <p className=" p-1 text-sm gap-x-2 flex items-center ">
-                  <div className=" bg-muted p-2 rounded-full">
-                    <SearchX size={18} className="text-primary" />
-                  </div>
-                  <p className="line-clamp-1"> {query.about}</p>
-                </p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+      {queries.length > 12 && (
+        <div className="text-xs w-full">
+          <Pagination className="flex flex-wrap items-center w-full">
+            <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
+              {renderPaginationItems()}
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };
-
 export default SalesDashboard;

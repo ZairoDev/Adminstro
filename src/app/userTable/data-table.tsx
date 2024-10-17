@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CiViewColumn } from "react-icons/ci";
 import { Input } from "@/components/ui/input";
@@ -108,6 +108,22 @@ export function DataTable({
     },
   });
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "j") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   return (
     <>
       <Heading
@@ -139,6 +155,7 @@ export function DataTable({
                 setSearch(event.target.value);
               }}
               className="max-w-xl"
+              ref={searchInputRef}
             />
           </div>
           <div>

@@ -1,18 +1,12 @@
 import Users from "@/models/user";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
-
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
-
 connectDb();
 
-interface ReqBody {
-  email: string;
-  password: string;
-}
 
 interface Employee {
   _id: string;
@@ -22,12 +16,11 @@ interface Employee {
   isVerified: boolean;
   role: string;
 }
-
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const reqBody: ReqBody = await request.json();
+    const reqBody = await request.json();
     const { email, password } = reqBody;
-    console.log(email, password)
+    console.log(email, password);
     const Employee = (await Employees.find({ email })) as Employee[];
 
     if (!Employee || Employee.length === 0) {
@@ -36,30 +29,17 @@ export async function POST(request: Request): Promise<NextResponse> {
         { status: 400 }
       );
     }
-
     const temp: Employee = Employee[0];
-
-    // Check if user is verified
-    // if (!temp.isVerified) {
-    //   return NextResponse.json(
-    //     { error: "Please verify your email before logging in" },
-    //     { status: 400 }
-    //   );
-    // }
-
-    // Check if password is correct
     const validPassword: boolean = await bcryptjs.compare(
       password,
       temp.password
     );
-
     if (!validPassword) {
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 400 }
       );
     }
-
     if (temp.role === "SuperAdmin") {
       await sendEmail({
         email,

@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/pagination";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Edit } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Property } from "@/util/type";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
@@ -33,7 +33,6 @@ interface ApiResponse {
   wordsCount: number;
   totalProperties: number;
 }
-
 const CompletedProperties: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -43,7 +42,6 @@ const CompletedProperties: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalWords, setTotalWords] = useState<number>(0);
-
   const [totalProperties, setTotalProperties] = useState(0);
   const [totalNumberOfProperties, setTotalNumberOfProperties] =
     useState<number>(0);
@@ -54,7 +52,6 @@ const CompletedProperties: React.FC = () => {
   const handleEditDescription = (propertyId: string) => {
     router.push(`/dashboard/remainingproperties/description/${propertyId}`);
   };
-
   const fetchProperties = useCallback(
     debounce(async (searchTerm: string) => {
       setLoading(true);
@@ -81,7 +78,6 @@ const CompletedProperties: React.FC = () => {
     }, 500),
     [page, searchType, limit]
   );
-
   useEffect(() => {
     fetchProperties(searchTerm);
   }, [fetchProperties, searchTerm]);
@@ -95,11 +91,9 @@ const CompletedProperties: React.FC = () => {
     const maxVisiblePages = 4;
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-
     if (startPage > 1) {
       items.push(
         <PaginationItem key="start-ellipsis">
@@ -107,7 +101,6 @@ const CompletedProperties: React.FC = () => {
         </PaginationItem>
       );
     }
-
     for (let i = startPage; i <= endPage; i++) {
       items.push(
         <PaginationItem key={i}>
@@ -124,7 +117,6 @@ const CompletedProperties: React.FC = () => {
         </PaginationItem>
       );
     }
-
     if (endPage < totalPages) {
       items.push(
         <PaginationItem key="end-ellipsis">
@@ -132,10 +124,8 @@ const CompletedProperties: React.FC = () => {
         </PaginationItem>
       );
     }
-
     return items;
   };
-
   const chartData = [
     { title: "Completed", count: totalProperties, fill: "hsl(var(--primary))" },
     {
@@ -144,6 +134,19 @@ const CompletedProperties: React.FC = () => {
       fill: "hsl(var(--primary-foreground))",
     },
   ];
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "j") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <div>
@@ -176,6 +179,7 @@ const CompletedProperties: React.FC = () => {
                 setSearchTerm(e.target.value)
               }
               className="max-w-xl"
+              ref={searchInputRef}
             />
           </div>
         </div>
@@ -273,7 +277,6 @@ const CompletedProperties: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                  
                 </div>
               ))}
             </div>

@@ -1,7 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { EmployeeSchema } from "@/schemas/employee.schema";
-interface IEmployee extends Document, EmployeeSchema {}
-
+interface IEmployee extends Document, EmployeeSchema {}      
 const employeeSchema = new Schema<IEmployee>(
   {
     name: {
@@ -80,7 +79,7 @@ const employeeSchema = new Schema<IEmployee>(
     },
     extras: {
       type: Map,
-      of: Schema.Types.Mixed,   // 'Mixed' allows any type of value
+      of: Schema.Types.Mixed,  
     },
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,

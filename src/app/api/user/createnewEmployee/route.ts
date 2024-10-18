@@ -4,18 +4,14 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
-
 connectDb();
-
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
     const dt = new Date(reqBody.dateOfJoining);
     reqBody.dateOfJoining = dt;
     const parsedBody = employeeSchema.parse(reqBody);
-
     console.log(parsedBody);
-
     const {
       name,
       email,
@@ -45,7 +41,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(password, salt);
+    const hashedPassword = await bcryptjs.hash(password, salt); 
+
+    // const passwordExpiresAt = new Date();
+    // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
 
     const newUser = new Employees({
       name,
@@ -67,7 +66,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       profilePic,
     });
     const createUser = await newUser.save();
-
     console.log(newUser);
     console.log(createUser);
 

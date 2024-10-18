@@ -1,5 +1,5 @@
-export const RegistrationTemplate = (emailID:string , password:string) => { 
-	return `
+export const RegistrationTemplate = (emailID: string, password: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -457,12 +457,11 @@ export const RegistrationTemplate = (emailID:string , password:string) => {
 	</center>
 </body>
 </html>
-`};
+`;
+};
 
-
-
-export const ResetPasswordTemplate = (hashedToken:string) => {
-return `
+export const ResetPasswordTemplate = (hashedToken: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -941,10 +940,10 @@ return `
 </body>
 </html>
 `;
-}
+};
 
-export const ForgotPassword = ( email:string ,  resetPasswordLink:string)  => {
-return `
+export const ForgotPassword = (email: string, resetPasswordLink: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -1406,11 +1405,14 @@ return `
 </body>
 </html>
 `;
-} 
+};
 
-
-export const VerificationTemplate = (hashedToken:string , password:string , email:string) => {
-return   `
+export const VerificationTemplate = (
+  hashedToken: string,
+  password: string,
+  email: string
+) => {
+  return `
 	<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 	<head>
 		<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -1874,4 +1876,287 @@ return   `
 	</body>
 	</html>
 	`;
-}
+};
+// Temp work will start from here...
+
+export const NewPasswordTemplate = (newPassword: string) => {
+  return `
+	 <!DOCTYPE html>
+  <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>Your New Password</title>
+      <style>
+        body {
+        font-family: Arial, sans-serif;
+        line-height: 1.8;
+        color: #333;
+        background-color: #f9f9f9;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        width: 100%;
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #F29522;
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+        border-radius: 8px 8px 0 0;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.5em;
+      }
+      .content {
+        padding: 20px;
+        text-align: center;
+      }
+      .password {
+        font-size: 1.4em;
+        font-weight: bold;
+        background-color: #f4f4f4;
+        padding: 15px;
+        border-radius: 6px;
+        color: #333;
+        letter-spacing: 2px;
+        margin: 20px 0;
+      }
+      .note {
+        font-size: 0.95em;
+        color: #555;
+        margin-top: 20px;
+      }
+		.notetwo {
+        font-size: 0.95em;
+        color: #555;
+        margin-top: 20px;
+		text-align: start;
+      }
+      .footer {
+        background-color: #f4f4f4;
+        padding: 15px;
+        text-align: center;
+        font-size: 0.85em;
+        color: #777;
+        border-radius: 0 0 8px 8px;
+      }
+      .footer p {
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header Section -->
+      <div class="header">
+        <h1>Password Reset Successful</h1>
+      </div>
+
+      <!-- Content Section -->
+      <div class="content">
+        <p>Hello there!</p>
+        <p>
+          A new password has been generated for your account. For security
+          purposes, please use the following password to log in:
+        </p>
+
+        <div class="password">${newPassword}</div>
+
+		 <p class="note">
+         After logging in, your current password will expire in 24 hours. To access your account after that, please contact the administrator to request a new password.
+        </p>
+
+        <p class="note">
+          If you did not request this password change, please contact your
+          administrator immediately to ensure the security of your account.
+        </p>
+		 <p class="notetwo">
+           Have a nice day !!
+        </p>
+      </div>
+
+      <!-- Footer Section -->
+      <div class="footer">
+        <p>
+          This is an automated message. Please do not reply.
+        </p>
+        <p>Thank you for using our services. Stay safe!</p>
+      </div>
+    </div>
+  </body>
+</html>
+
+	`;
+};
+
+export const OtpTemplate = (otp: number) => {
+  return `
+		
+ <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>OTP Verification</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    style="
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: #f8f8f8;
+      font-size: 16px;
+      color: #434343;
+    "
+  >
+    <div
+      style="
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 45px 30px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+      "
+    >
+      <!-- Header Section -->
+      <header style="text-align: center; padding-bottom: 20px">
+        <img
+          src="https://vacationsaga.b-cdn.net/logo-removedBg.png"
+          alt="VacationSaga Logo"
+          style="max-width: 150px"
+        />
+        <h2
+          style="
+            font-size: 24px;
+            font-weight: 600;
+            color: #f7941d;
+            margin-top: 20px;
+          "
+        >
+          OTP Verification
+        </h2>
+        <p
+          style="
+            font-size: 16px;
+            color: #434343;
+            margin: 5px 0;
+            font-weight: 400;
+          "
+        >
+          Secure your account with the provided One-Time Password (OTP).
+        </p>
+      </header>
+
+      <!-- OTP Section -->
+      <section
+        style="
+          background: #f7f9fc;
+          padding: 30px;
+          border-radius: 12px;
+          text-align: center;
+          margin-bottom: 30px;
+        "
+      >
+        <p style="margin: 10px 0 20px; font-size: 16px; font-weight: 400">
+          We have generated an OTP for you to log in to your SuperAdmin account.
+          Please use the OTP below to proceed. For security reasons, the OTP
+          will expire in 10 minutes.
+        </p>
+
+        <div
+          style="
+            background: #fef6e9;
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 12px;
+            color: #f7941d;
+          "
+        >
+          ${otp}
+        </div>
+
+        <p
+          style="
+            font-size: 14px;
+            margin-top: 20px;
+            color: #888888;
+            font-weight: 400;
+          "
+        >
+          Please do not share this OTP with anyone.
+        </p>
+      </section>
+
+      <!-- Help Section -->
+      <section
+        style="
+          text-align: center;
+          margin-bottom: 30px;
+          font-size: 14px;
+          color: #888888;
+        "
+      >
+        <p style="font-weight: 500; margin: 0 0 10px">
+          Need help or have questions?
+        </p>
+        <p style="margin: 0 0 10px">
+          Contact our support team at
+          <a
+            href="mailto:info@vacationsaga.com"
+            style="color: #f7941d; text-decoration: none; font-weight: 500"
+            >info@vacationsaga.com</a
+          >.
+        </p>
+        <p style="margin: 0">
+          Visit our
+          <a
+            href="#"
+            target="_blank"
+            style="color: #f7941d; text-decoration: none; font-weight: 500"
+            >Help Center</a
+          >
+          for more information.
+        </p>
+      </section>
+
+      <!-- Footer Section -->
+      <footer
+        style="
+          text-align: center;
+          padding-top: 20px;
+          border-top: 1px solid #eaeaea;
+          font-size: 14px;
+          color: #888888;
+        "
+      >
+        <p style="margin: 0">© 2024 VacationSaga. All rights reserved.</p>
+        <p style="margin-top: 5px">
+          VacationSaga, 123 Main St, Suite 500, City, Country
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
+
+
+	  `;
+};

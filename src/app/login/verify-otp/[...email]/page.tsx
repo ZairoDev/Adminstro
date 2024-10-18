@@ -106,45 +106,18 @@ const Page = ({ params }: PageProps) => {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex">
+    <div className="h-dvh overflow-hidden flex">
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
       <div className="w-1/2 md:flex hidden items-center justify-center">
-        <Carousel className="w-full h-full">
-          <CarouselContent>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/3254754/pexels-photo-3254754.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 1"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/4817608/pexels-photo-4817608.png?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 2"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/2222839/pexels-photo-2222839.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 3"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-            <CarouselItem>
-              <img
-                src="https://images.pexels.com/photos/2897548/pexels-photo-2897548.jpeg?auto=compress&cs=tinysrgb&w=600"
-                alt="Carousel Image 4"
-                className="object-cover w-full h-full"
-              />
-            </CarouselItem>
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
+        <video className="w-full  h-screen object-cover" autoPlay muted loop>
+          <source
+            src="https://vacationsaga.b-cdn.net/loginvideo.mp4"
+            type="video/mp4"
+          />
+          Your browser does not support the video tag.
+        </video>
       </div>
       <div className="md:w-1/2 w-full flex-col flex items-center justify-center">
         <div className="w-full max-w-sm px-6 py-8 border rounded-lg shadow-lg">

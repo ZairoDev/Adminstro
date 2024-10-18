@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { EmployeeSchema } from "@/schemas/employee.schema";
-interface IEmployee extends Document, EmployeeSchema {}      
+interface IEmployee extends Document, EmployeeSchema {}
 const employeeSchema = new Schema<IEmployee>(
   {
     name: {
@@ -79,7 +79,16 @@ const employeeSchema = new Schema<IEmployee>(
     },
     extras: {
       type: Map,
-      of: Schema.Types.Mixed,  
+      of: Schema.Types.Mixed,
+    },
+
+    passwordExpiresAt: {
+      type: Date,
+      default: () => {
+        const now = new Date();
+        now.setHours(now.getHours() + 24);
+        return now;
+      },
     },
     forgotPasswordToken: String,
     forgotPasswordTokenExpiry: Date,

@@ -19,6 +19,7 @@ export const employeeSchema = z.object({
   password: z.string().min(1, "Please enter your password"),
   isVerified: z.boolean().optional().default(true),
   role: z.enum(["Admin", "Advert", "Content", "Sales", "HR", "Developer"]),
+  passwordExpiresAt: z.date().optional(),
   extras: z
     .record(
       z.union([

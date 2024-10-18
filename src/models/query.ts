@@ -2,10 +2,6 @@ import mongoose, { Schema, models, model } from "mongoose";
 
 const querySchema = new Schema(
   {
-    objectId: {
-      type: String,
-      require: [true, "Needed a object id"],
-    },
     name: {
       type: String,
       required: [true, "Please enter your name"],

@@ -1,5 +1,5 @@
-export const RegistrationTemplate = (emailID:string , password:string) => { 
-	return `
+export const RegistrationTemplate = (emailID: string, password: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -457,12 +457,11 @@ export const RegistrationTemplate = (emailID:string , password:string) => {
 	</center>
 </body>
 </html>
-`};
+`;
+};
 
-
-
-export const ResetPasswordTemplate = (hashedToken:string) => {
-return `
+export const ResetPasswordTemplate = (hashedToken: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -941,10 +940,10 @@ return `
 </body>
 </html>
 `;
-}
+};
 
-export const ForgotPassword = ( email:string ,  resetPasswordLink:string)  => {
-return `
+export const ForgotPassword = (email: string, resetPasswordLink: string) => {
+  return `
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -1406,11 +1405,14 @@ return `
 </body>
 </html>
 `;
-} 
+};
 
-
-export const VerificationTemplate = (hashedToken:string , password:string , email:string) => {
-return   `
+export const VerificationTemplate = (
+  hashedToken: string,
+  password: string,
+  email: string
+) => {
+  return `
 	<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 	<head>
 		<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -1874,4 +1876,40 @@ return   `
 	</body>
 	</html>
 	`;
-}
+};
+
+// Temp work will start from here...
+
+export const NewPasswordTemplate = (newPassword: string) => {
+  return `
+	  <html>
+		<head>
+		  <style>
+			body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+			.container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
+			.header { background-color: #f4f4f4; padding: 10px; text-align: center; }
+			.content { padding: 20px 0; }
+			.password { font-size: 1.2em; font-weight: bold; background-color: #e9e9e9; padding: 10px; border-radius: 5px; }
+			.footer { background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 0.8em; }
+		  </style>
+		</head>
+		<body>
+		  <div class="container">
+			<div class="header">
+			  <h1>Your New Password</h1>
+			</div>
+			<div class="content">
+			  <p>Hello,</p>
+			  <p>A new password has been generated for your account. Please use this password to log in:</p>
+			  <p class="password">${newPassword}</p>
+			  <p>If you did not request a new password, please contact your administrator immediately.</p>
+			</div>
+			<div class="footer">
+			  <p>This is an automated message, please do not reply.</p>
+			   <p>Have a nice day!</p>
+			</div>
+		  </div>
+		</body>
+	  </html>
+	`;
+};

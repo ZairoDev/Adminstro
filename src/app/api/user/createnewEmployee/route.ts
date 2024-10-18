@@ -45,7 +45,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(password, salt);
+    const hashedPassword = await bcryptjs.hash(password, salt); 
+
+    // const passwordExpiresAt = new Date();
+    // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
 
     const newUser = new Employees({
       name,

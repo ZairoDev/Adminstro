@@ -109,6 +109,7 @@ import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import {
   NewPasswordTemplate,
+  OtpTemplate,
   ResetPasswordTemplate,
   VerificationTemplate,
 } from "@/helper/EmailTemplate/email";
@@ -119,6 +120,7 @@ interface SendEmailParams {
   userId: string;
   password?: string;
   newPassword?: string;
+  otp?: number;
 }
 
 export const sendEmail = async ({
@@ -203,7 +205,7 @@ export const sendEmail = async ({
         subject = "Your New Password";
         break;
       case "OTP":
-        templateContent = `<p>Your OTP is: ${otp}</p>`;
+        templateContent = OtpTemplate(otp ?? 0);
         subject = "SuperAdmin Login OTP";
         break;
       default:

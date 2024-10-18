@@ -106,7 +106,7 @@ const Page = ({ params }: PageProps) => {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex">
+    <div className="h-dvh overflow-hidden flex">
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>

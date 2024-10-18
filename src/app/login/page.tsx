@@ -91,7 +91,7 @@ const PageLogin: React.FC = () => {
 
   return (
     <FadeInAnimation>
-      <div className="h-screen overflow-hidden flex">
+      <div className=" h-dvh flex">
         <div className="absolute top-4 right-4">
           <ModeToggle />
         </div>

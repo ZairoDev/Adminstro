@@ -91,6 +91,7 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     reviews: String,
     newReviews: String,
 
+    propertyImages: [String],
     propertyCoverFileUrl: String,
     propertyPictureUrls: [String],
 

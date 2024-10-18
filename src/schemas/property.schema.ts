@@ -51,6 +51,7 @@ const propertyValidationSchema = z.object({
   additionalRules: z.array(z.string()).optional(),
   reviews: z.string().optional(),
   newReviews: z.string().optional(),
+  propertyImages: z.string().optional(),
   propertyCoverFileUrl: z.string().optional(),
   propertyPictureUrls: z.array(z.string()).optional(),
   portionCoverFileUrls: z.array(z.string()).optional(),

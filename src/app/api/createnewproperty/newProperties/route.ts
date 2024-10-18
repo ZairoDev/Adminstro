@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Property as PropertyModel } from "@/models/listing";
 import { Property } from "@/util/type";
 import { sendUserDetailsToCompany } from "@/util/gmailmailer";
 import { Properties } from "@/models/property";
@@ -9,12 +8,10 @@ import { customAlphabet } from "nanoid";
 connectDb();
 
 const generateCommonId = (length: number): string => {
-  const charset =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const generateUniqueId = customAlphabet(charset, length);
   return generateUniqueId();
 };
-
 
 export async function POST(request: Request) {
   try {
@@ -46,6 +43,7 @@ export async function POST(request: Request) {
       childrenAge,
       basePrice,
       weekendPrice,
+      weeklyDiscount,
       monthlyDiscount,
       currency,
       pricePerDay,
@@ -92,24 +90,28 @@ export async function POST(request: Request) {
     }: Property = data;
 
     const propertyIds = [];
-		const commonId = generateCommonId(5);
+    const commonId = generateCommonId(7);
 
     for (let i = 0; i < (numberOfPortions ?? 1); i++) {
       console.log("LOOP: ", i);
-      const property = new Properties({
-				commonId: commonId,
+      console.log("userId: ", userId, "email: ", email);
+      const newProperty = await Properties.create({
+        commonId: commonId,
         userId,
         email,
+        rentalType,
+        isInstantBooking: false,
         propertyType,
-				propertyName: placeName,
-        placeName: portionName?.[i],
         rentalForm,
+        propertyName: placeName,
+        placeName: portionName?.[i],
         street,
         postalCode,
         city,
         state,
         country,
         center,
+        size: portionSize?.[i],
         guests: guests?.[i],
         bedrooms: bedrooms?.[i],
         beds: beds?.[i],
@@ -118,9 +120,13 @@ export async function POST(request: Request) {
         childrenAge: childrenAge?.[i],
         basePrice: basePrice?.[i],
         weekendPrice: weekendPrice?.[i],
-        monthlyDiscount: monthlyDiscount?.[i],
-        currency,
+        weeklyDiscount: weeklyDiscount?.[i],
         pricePerDay: pricePerDay?.[i],
+        basePriceLongTerm: basePriceLongTerm?.[i],
+        monthlyDiscount: monthlyDiscount?.[i],
+        monthlyDiscountLongTerm: monthlyDiscountLongTerm?.[i],
+        currency,
+        icalLinks: {},
         generalAmenities,
         otherAmenities,
         safeAmenities,
@@ -130,8 +136,10 @@ export async function POST(request: Request) {
         cooking,
         additionalRules,
         reviews: reviews?.[i],
-        propertyCoverFileUrl,
-        propertyPictureUrls,
+        newReviews: "",
+        propertyImages: [propertyCoverFileUrl, ...(propertyPictureUrls || [])],
+        propertyCoverFileUrl: portionCoverFileUrls?.[i] || "",
+        propertyPictureUrls: portionPictureUrls?.[i] || [],
         night,
         time,
         datesPerPortion: datesPerPortion?.[i],
@@ -144,103 +152,25 @@ export async function POST(request: Request) {
         levels,
         zones,
         propertyStyle,
+        constructionYear,
         isSuitableForStudents,
         monthlyExpenses,
+        heatingType,
         heatingMedium,
         energyClass,
-        heatingType,
-        constructionYear,
-
         nearbyLocations,
-
-        hostedBy,
         hostedFrom: host,
-        rentalType,
-        basePriceLongTerm: basePriceLongTerm?.[i],
-        monthlyDiscountLongTerm: monthlyDiscountLongTerm?.[i],
+        hostedBy,
+        listedOn: [],
+        lastUpdatedBy: [],
+        lastUpdates: [],
         longTermMonths,
         isLive,
       });
 
-      const newProperty = await property.save();
-      console.log("newProperty: ", newProperty);
-      const VSID = newProperty.VSID;
-      const propertyId = newProperty._id;
-      propertyIds.push(propertyId);
+      console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
+      propertyIds.push(newProperty.VSID);
     }
-
-    // const property = new Properties({
-    //   userId,
-    //   email,
-    //   propertyType,
-    //   placeName,
-    //   rentalForm,
-    //   numberOfPortions,
-    //   street,
-    //   postalCode,
-    //   city,
-    //   state,
-    //   country,
-    //   center,
-    //   portionName,
-    //   portionSize,
-    //   guests,
-    //   bedrooms,
-    //   beds,
-    //   bathroom,
-    //   kitchen,
-    //   childrenAge,
-    //   basePrice,
-    //   weekendPrice,
-    //   monthlyDiscount,
-    //   currency,
-    //   pricePerDay,
-    //   generalAmenities,
-    //   otherAmenities,
-    //   safeAmenities,
-    //   smoking,
-    //   pet,
-    //   party,
-    //   cooking,
-    //   additionalRules,
-    //   reviews,
-    //   propertyCoverFileUrl,
-    //   propertyPictureUrls,
-    //   portionCoverFileUrls,
-    //   portionPictureUrls,
-    //   night,
-    //   time,
-    //   datesPerPortion,
-    //   area,
-    //   subarea,
-    //   neighbourhood,
-    //   floor,
-    //   isTopFloor,
-    //   orientation,
-    //   levels,
-    //   zones,
-    //   propertyStyle,
-    //   isSuitableForStudents,
-    //   monthlyExpenses,
-    //   heatingMedium,
-    //   energyClass,
-    //   heatingType,
-    //   constructionYear,
-
-    //   nearbyLocations,
-
-    //   hostedBy,
-    //   hostedFrom: host,
-    //   rentalType,
-    //   basePriceLongTerm,
-    //   monthlyDiscountLongTerm,
-    //   longTermMonths,
-    //   isLive,
-    // });
-
-    // const createdProperty = await property.save();
-    // const VSID = createdProperty.VSID;
-    // const propertyId = createdProperty._id;
 
     // await sendUserDetailsToCompany({
     //   email: email || " ",
@@ -250,7 +180,6 @@ export async function POST(request: Request) {
     //   Link: `https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`,
     // });
 
-    // return NextResponse.json(createdProperty, { status: 200 });
     return NextResponse.json({ propertyIds }, { status: 200 });
   } catch (error) {
     console.error("Error:", error);

@@ -355,6 +355,11 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
+      const response2 = await axios.post(
+        "/api/createnewproperty/newProperties",
+        data
+      );
+      console.log("Multiple Properties: ", response2.data.propertyIds);
       console.log(data, "Hello i am here look at me ");
       if (response.status === 200) {
         console.log("Property is now live");
@@ -362,6 +367,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         setPropertyVSID(response.data.VSID);
         setPropertyId(response.data._id);
         console.log(data, "The whole data that going to be livel");
+        console.log("response: ", response.data);
         toast({
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,

@@ -1,15 +1,5 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +27,6 @@ import {
   MessageSquareHeart,
   Plus,
   SearchX,
-  X,
 } from "lucide-react";
 import {
   Pagination,
@@ -50,6 +38,7 @@ import {
 import { CiMoneyBill } from "react-icons/ci";
 import Loader from "@/components/loader";
 import { DialogTrigger } from "@radix-ui/react-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface ApiResponse {
   data: IQuery[];
@@ -64,7 +53,6 @@ interface IQuery {
   intrest: string;
   about: string;
 }
-
 const SalesDashboard = () => {
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -83,9 +71,8 @@ const SalesDashboard = () => {
     intrest: "",
     about: "",
   });
-
   const limit: number = 12;
-
+  const { toast } = useToast();
   const handleSubmit = async () => {
     try {
       setSubmitQuery(true);
@@ -96,7 +83,6 @@ const SalesDashboard = () => {
         },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
         const result = await response.json();
         const newQuery = result.data;
@@ -111,12 +97,29 @@ const SalesDashboard = () => {
           about: "",
         });
       } else {
+        toast({
+          description: `Failed to create query ${response.status}`,
+        });
         console.error("Failed to create query");
       }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setSubmitQuery(false);
+    }
+  };
+
+  const handleInputchecks = (): boolean => {
+    if (
+      formData.name.length > 0 &&
+      formData.email.length > 0 &&
+      formData.price.length > 0 &&
+      formData.intrest.length > 0 &&
+      formData.about.length > 0
+    ) {
+      return true;
+    } else {
+      return false;
     }
   };
 
@@ -217,7 +220,6 @@ const SalesDashboard = () => {
 
   return (
     <div>
-      <h1>Sales Dashboard</h1>
       <Heading
         heading="All Leads"
         subheading="You will get the list of leads that created till now"
@@ -350,7 +352,6 @@ const SalesDashboard = () => {
                             <DialogTitle className="text-start text-lg">
                               Information
                             </DialogTitle>
-
                             <div>
                               <h1 className="  flex items-center gap-x-2">
                                 <span className="text-muted-foreground">

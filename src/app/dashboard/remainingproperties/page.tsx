@@ -258,13 +258,13 @@ const CompletedProperties: React.FC = () => {
                         className="w-full "
                         onClick={() => handleEditDescription(property?._id)}
                       >
-                        Preview
+                        Edit
                         <ArrowUpRight size={18} />
                       </Button>
                     </div>
                   </div>
 
-                  <div className=" absolute right-0 top-0">
+                  {/* <div className=" absolute right-0 top-0">
                     <Button
                       disabled={!property?.isLive}
                       variant="link"
@@ -273,7 +273,7 @@ const CompletedProperties: React.FC = () => {
                     >
                       Edit <Edit size={12} />
                     </Button>
-                  </div>
+                  </div> */}
                 </div>
               ))}
             </div>

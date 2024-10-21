@@ -7,18 +7,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,7 +16,7 @@ import {
 import PhoneInput from "react-phone-number-input";
 
 import "react-phone-number-input/style.css";
-import { Copy, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
 
 interface PageProps {
@@ -36,7 +24,6 @@ interface PageProps {
     id: string[];
   };
 }
-
 const AccountPage = ({ params }: PageProps) => {
   const userId = params.id[0];
   const { toast } = useToast();
@@ -64,10 +51,11 @@ const AccountPage = ({ params }: PageProps) => {
 
   const gettheUserdetails = async () => {
     try {
-      const response = await axios.post("/api/employee/getEmployDetails", {
+      const response = await axios.post("/api/employee/getEmployeeDetails", {
         userId,
       });
       console.log(response.data.data);
+      console.log("Data will be print here...");
       if (response.status === 404) {
         toast({
           title: "Uh oh! Something went wrong.",
@@ -212,53 +200,6 @@ const AccountPage = ({ params }: PageProps) => {
     }
   };
 
-  const [copySuccess, setCopySuccess] = useState("");
-  const [generatingPassword, setGeneratingPassword] = useState<boolean>(false);
-  const [newpassword, setNewPassword] = useState<string>("");
-
-  const copyToClipboard = () => {
-    navigator.clipboard
-      .writeText(newpassword)
-      .then(() => {
-        setCopySuccess("Password copied!");
-      })
-      .catch((err) => {
-        setCopySuccess("Failed to copy!");
-        console.error("Error copying text: ", err);
-      });
-  };
-
-  const passwordGeneration = async () => {
-    try {
-      setGeneratingPassword(true);
-      const resposne = await axios.post("/api/generateNewpassword", {
-        employeeId: userId,
-      });
-      console.log(
-        resposne.data.newPassword,
-        "Password response will be render here"
-      );
-      setNewPassword(resposne.data.newPassword);
-      setGeneratingPassword(false);
-    } catch (error: any) {
-      console.log(error, "Password error will be render here");
-
-      setGeneratingPassword(false);
-      return error;
-    }
-  };
-  const [open, setOpen] = useState(false); // State to manage dialog visibility
-
-  const handleGenerateClick = () => {
-    setOpen(true); // Open the confirmation dialog
-  };
-
-  const handleConfirm = () => {
-    setOpen(false); 
-    setGeneratingPassword(true); 
-    passwordGeneration(); 
-  };
-
   return (
     <>
       <Heading
@@ -302,37 +243,6 @@ const AccountPage = ({ params }: PageProps) => {
               </div>
             </label>
           </div>
-        </div>
-        <div>
-          {newpassword && (
-            <>
-              <div className="w-full">
-                <Label>Employee Password</Label>
-                <div className="relative w-full">
-                  <Input
-                    className="w-full pr-10" // Adding padding to prevent text overlap with button
-                    value={newpassword}
-                    readOnly
-                  />
-
-                  <button
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2  rounded px-2 py-1 "
-                    onClick={copyToClipboard}
-                  >
-                    <Copy size={18} />
-                  </button>
-                </div>
-                <p className="text-xs ml-1 ">
-                  This password field will be hidden after the page is
-                  refreshed. Please copy the password now before refreshing or
-                  leaving this page.
-                </p>
-                {copySuccess && (
-                  <p className="text-green-500 text-sm ml-1 ">{copySuccess}</p>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         <div className="flex items-center gap-2 sm:flex-row flex-col">
@@ -492,42 +402,6 @@ const AccountPage = ({ params }: PageProps) => {
               "Continue"
             )}
           </Button>
-
-          <AlertDialog open={open} onOpenChange={setOpen}>
-            <AlertDialogTrigger asChild>
-              <Button
-                onClick={handleGenerateClick}
-                disabled={generatingPassword}
-                className="sm:w-2/6 w-full"
-              >
-                {generatingPassword ? (
-                  <div className="flex items-center gap-x-1">
-                    Generating...
-                    <Loader size={18} className="animate-spin" />
-                  </div>
-                ) : (
-                  "Generate Password"
-                )}
-              </Button>
-            </AlertDialogTrigger>
-
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Password Generation</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to generate a new password?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOpen(false)}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirm}>
-                  Confirm
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
     </>

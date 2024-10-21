@@ -3,6 +3,7 @@ import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
 
 connectDb();
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const url = new URL(request.url);
@@ -19,15 +20,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (searchTerm) {
       query[searchType] = regex;
     }
+
+    const projection = {
+      isLive: 1,
+      hostedFrom: 1,
+      hostedBy: 1,
+      propertyCoverFileUrl: 1,
+      VSID: 1,
+      basePrice: 1,
+      _id: 1,
+    };
     let allProperties;
 
     if (!searchTerm) {
-      allProperties = await Property.find()
+      allProperties = await Property.find({}, projection)
         .skip(skip)
         .limit(limit)
         .sort({ _id: -1 });
     } else {
-      allProperties = await Property.find(query).sort({ _id: -1 });
+      allProperties = await Property.find(query, projection).sort({ _id: -1 });
     }
 
     if (allProperties.length === 0) {

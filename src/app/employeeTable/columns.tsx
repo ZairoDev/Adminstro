@@ -65,24 +65,21 @@ export const columns: ColumnDef<UserInterface>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuLabel className="">Options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(user._id)}
             >
               Copy Id
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {/* <DropdownMenuSeparator /> */}
             <DropdownMenuItem>
               <Link href={`/dashboard/editemployeedetails/${user._id}`}>
                 Edit Profile
               </Link>
             </DropdownMenuItem>
-
             <DropdownMenuItem>
-              <Link href="/">Delete Employee</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link href="/">Banned Employee</Link>
+              <Link href={`/dashboard/employeedetails/${user._id}`}>Actions</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

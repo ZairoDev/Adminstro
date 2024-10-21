@@ -7,6 +7,32 @@ export interface MiddlweareInterface {
   iat: Date;
 }
 
+export interface EmployeeInterface {
+  _id: string;
+  name: string;
+  email: string;
+  profilePic: string;
+  nationality: string;
+  gender: string;
+  spokenLanguage: string;
+  accountNo: string;
+  ifsc: string;
+  phone:string;
+  aadhar:string;
+  dateOfJoining:string;
+  experience:string;
+  alias:string;
+  country: string;
+  address: string;
+  isVerified:boolean;
+  role: [string];
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+
+
 export interface UserInterface {
   _id: string;
   address: string;

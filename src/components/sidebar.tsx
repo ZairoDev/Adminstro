@@ -88,7 +88,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
     },
-
+    {
+      path: "/dashboard/newproperty",
+      label: "Manage Newtask",
+      Icon: <Users size={18} />,
+    },
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",

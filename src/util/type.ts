@@ -7,6 +7,106 @@ export interface MiddlweareInterface {
   iat: Date;
 }
 
+export interface EmployeeInterface {
+  _id: string;
+  name: string;
+  email: string;
+  profilePic: string;
+  nationality: string;
+  gender: string;
+  spokenLanguage: string;
+  accountNo: string;
+  ifsc: string;
+  phone: string;
+  aadhar: string;
+  dateOfJoining: string;
+  experience: string;
+  alias: string;
+  country: string;
+  address: string;
+  isVerified: boolean;
+  role: [string];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PropertiesDataType {
+  _id: string;
+  VSID: string;
+  commonId: string;
+  email: string;
+  userID: string;
+  portionNo: string;
+  rentalType: string;
+  isInstantBooking: boolean;
+  propertyType: string;
+  rentalForm: string;
+  propertyName: string;
+  placeName: string;
+  newPlaceName: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  state: string;
+  country: string;
+  center: object;
+  size: number;
+  guests: number;
+  bedrooms: number;
+  beds: number;
+  bathroom: number;
+  kitchen: number;
+  childrenAge: number;
+  basePrice: number;
+  weekendPrice: number;
+  weeklyDiscount: number;
+  pricePerDay: number[][];
+  basePriceLongTerm: number;
+  monthlyDiscount: number;
+  currency: string;
+  icalLinks: object;
+  generalAmenities: object;
+  otherAmenities: object;
+  safeAmenities: object;
+  smoking: string;
+  pet: string;
+  party: string;
+  cooking: string;
+  additionalRules: string[];
+  reviews: string;
+  newReviews: string;
+  propertyImages: string[];
+  propertyCoverFileUrl: string;
+  propertyPictureUrls: string[];
+  night: number[];
+  time: number[];
+  datesPerPortion: [];
+  area?: string;
+  subarea?: string;
+  neighbourhood?: string;
+  floor?: string;
+  isTopFloor?: boolean;
+  orientation?: string;
+  levels?: number;
+  zones?: string;
+  propertyStyle?: string;
+  constructionYear?: number;
+  isSuitableForStudents?: boolean;
+  monthlyExpenses?: number;
+  heatingType?: string;
+  heatingMedium?: string;
+  energyClass?: string;
+  nearbyLocations: nearbyLocationInterface;
+  hostedFrom?: string;
+  hostedBy?: string;
+  listedOn?: string[];
+  lastUpdatedBy?: string[];
+  lastUpdates?: string[];
+  isLive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface UserInterface {
   _id: string;
   address: string;

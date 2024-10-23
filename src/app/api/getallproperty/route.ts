@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
-
 connectDb();
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -11,16 +10,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const skip = (page - 1) * limit;
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "VSID";
-
     const regex = new RegExp(searchTerm, "i");
-
     let query: Record<string, any> = {};
 
     if (searchTerm) {
       query[searchType] = regex;
     }
     let allProperties;
-
     if (!searchTerm) {
       allProperties = await Property.find()
         .skip(skip)
@@ -29,15 +25,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } else {
       allProperties = await Property.find(query).sort({ _id: -1 });
     }
-
     if (allProperties.length === 0) {
       const totalCount = await Property.countDocuments();
       console.log("Total properties in database:", totalCount);
     }
-
     const totalProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limit);
-
     return NextResponse.json({
       data: allProperties,
       page,

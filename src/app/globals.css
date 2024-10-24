@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+.masonry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 16px;
+}
+.masonry-grid > * {
+  grid-column-end: span 1;
+  grid-row-end: span 1;
+}
+
 
 .scrollbar-hide {
   -ms-overflow-style: none; /* for Internet Explorer, Edge */

@@ -23,3 +23,4 @@ export async function POST(request: NextRequest) {
     data: user,
   });
 }
+

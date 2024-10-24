@@ -646,7 +646,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                         />
                       </div>
                       <div>
-                        <Button className="mt-4">Update</Button>
+                        <Button className="mt-4 ">Update</Button>
                       </div>
                     </motion.div>
                   ) : (

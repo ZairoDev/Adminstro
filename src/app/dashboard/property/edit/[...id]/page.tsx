@@ -1408,7 +1408,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                 {property?.nearbyLocations?.nearbyLocationName.map(
                   (item, index) =>
                     item != "" && (
-                      <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full my-2">
+                      <div key={index} className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full my-2">
                         <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full border border-neutral-700 rounded-lg p-2">
                           <div className=" w-1/4">
                             {

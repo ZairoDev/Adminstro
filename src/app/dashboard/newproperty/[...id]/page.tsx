@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import ImageCard from "@/components/imagecard/ImageCard";
 import {
   CalendarDaysIcon,
-  DeleteIcon,
   LoaderCircle,
   Plus,
   Ratio,
@@ -27,7 +26,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 
 interface GeneralAmenities {
@@ -81,6 +79,10 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
   };
 
   const [propertyLoading, setPropertyLoading] = useState(false);
+
+  // Handle nearby location code started from here
+
+
 
   // Amenties handling here...
 
@@ -136,7 +138,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
       ],
     };
     setPropertyData(updatedData);
-    setNewRule(""); // Clear input after adding
+    setNewRule("");
   };
 
   const handleDeleteRule = (index: number) => {
@@ -152,6 +154,8 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
     setPropertyData(updatedData);
   };
 
+
+  
   // Edit property api call
   const editproperty = async () => {
     if (selectedPortion === null) return;
@@ -185,9 +189,9 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
               <div className="w-full md:w-[30%] min-h-40 border-b-2  md:border-0  p-4 overflow-y-auto">
                 <Heading
                   heading="List of portions"
-                  subheading="Select any of them to get details"
+                  subheading="You need to hit the update button after changing any details"
                 />
-                <div className="mt-4  space-y-2">
+                <div className="mt-4 space-y-2">
                   {propertyData.map((portion: any, index: number) => (
                     <div
                       key={portion.VSID}
@@ -256,7 +260,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                         </Link>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Property Vsid</Label>
                           <Input
                             disabled
@@ -267,7 +271,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Last updatedby</Label>
                           <Input
                             className="w-full"
@@ -280,7 +284,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Last updatedAt</Label>
                           <Input
                             disabled
@@ -293,7 +297,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Portion no</Label>
                           <Input
                             disabled
@@ -306,7 +310,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Updated at</Label>
                           <Input
                             className="w-full"
@@ -319,7 +323,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">User Id</Label>
                           <Input
                             className="w-full"
@@ -330,7 +334,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Common Id</Label>
                           <Input
                             disabled
@@ -343,7 +347,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">createdAt</Label>
                           <Input
                             disabled
@@ -356,7 +360,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Email</Label>
                           <Input
                             disabled
@@ -367,7 +371,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Property Id</Label>
                           <Input
                             disabled
@@ -378,7 +382,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">hosted From</Label>
                           <Input
                             disabled
@@ -392,7 +396,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">HostedFrom</Label>
                           <Input
                             disabled
@@ -406,7 +410,7 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             can not edit
                           </p>
                         </div>
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Number of Updation</Label>
                           <Input
                             disabled
@@ -418,14 +422,11 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           </p>
                         </div>
 
-                        <div>
+                        <div className="opacity-70">
                           <Label className="w-full">Property Name</Label>
                           <Input
                             className="w-full"
                             disabled
-                            // onChange={(e) =>
-                            //   handleInputChange(e, "propertyName")
-                            // }
                             defaultValue={
                               propertyData[selectedPortion].propertyName
                             }
@@ -433,6 +434,95 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           <p className="text-xs text-red-300 ml-2">
                             can not edit
                           </p>
+                        </div>
+
+                        <div className="">
+                          <Label className="">Tap to Edit</Label>
+                          <div className=" flex h-10 w-full rounded-md justify-between items-center border border-input bg-background px-2 py-3 text-sm ">
+                            <Label className="w-full">Instant Booking</Label>
+                            <Switch
+                              checked={
+                                propertyData[selectedPortion]
+                                  ?.isInstantBooking || false
+                              }
+                              onCheckedChange={(checked) => {
+                                if (selectedPortion === null) return;
+                                const updatedData = [...propertyData];
+                                updatedData[selectedPortion] = {
+                                  ...updatedData[selectedPortion],
+                                  isInstantBooking: checked,
+                                };
+                                setPropertyData(updatedData);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="">
+                          <Label className="">Tap to Edit</Label>
+                          <div className="flex h-10 w-full rounded-md justify-between items-center border border-input bg-background px-2 py-3 text-sm ">
+                            <Label className="w-full">Live Status</Label>
+                            <Switch
+                              checked={
+                                propertyData[selectedPortion]?.isLive || false
+                              }
+                              onCheckedChange={(checked) => {
+                                if (selectedPortion === null) return;
+
+                                const updatedData = [...propertyData];
+                                updatedData[selectedPortion] = {
+                                  ...updatedData[selectedPortion],
+                                  isLive: checked,
+                                };
+                                setPropertyData(updatedData);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="">
+                          <Label className="">Tap to Edit</Label>
+                          <div className="flex h-10 w-full rounded-md border justify-between items-center border-input bg-background px-2 py-3 text-sm ">
+                            <Label className="w-full">
+                              Student Suitability
+                            </Label>
+                            <Switch
+                              checked={
+                                propertyData[selectedPortion]
+                                  ?.isSuitableForStudents || false
+                              }
+                              onCheckedChange={(checked) => {
+                                if (selectedPortion === null) return;
+                                const updatedData = [...propertyData];
+                                updatedData[selectedPortion] = {
+                                  ...updatedData[selectedPortion],
+                                  isSuitableForStudents: checked,
+                                };
+                                setPropertyData(updatedData);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="">
+                          <Label className="">Tap to Edit</Label>
+                          <div className="flex h-10 w-full rounded-md justify-between items-center border border-input bg-background px-2 py-3 text-sm ">
+                            <Label className="w-full">Topfloor Status</Label>
+
+                            <Switch
+                              className=""
+                              checked={
+                                propertyData[selectedPortion]?.isTopFloor ||
+                                false
+                              }
+                              onCheckedChange={(checked) => {
+                                if (selectedPortion === null) return;
+                                const updatedData = [...propertyData];
+                                updatedData[selectedPortion] = {
+                                  ...updatedData[selectedPortion],
+                                  isTopFloor: checked,
+                                };
+                                setPropertyData(updatedData);
+                              }}
+                            />
+                          </div>
                         </div>
 
                         <div>
@@ -645,88 +735,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           />
                         </div>
 
-                        <div className="">
-                          <Label className="w-full">Instant Booking</Label>
-                          <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            <Switch
-                              checked={
-                                propertyData[selectedPortion]
-                                  ?.isInstantBooking || false
-                              }
-                              onCheckedChange={(checked) => {
-                                if (selectedPortion === null) return;
-                                const updatedData = [...propertyData];
-                                updatedData[selectedPortion] = {
-                                  ...updatedData[selectedPortion],
-                                  isInstantBooking: checked,
-                                };
-                                setPropertyData(updatedData);
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className="">
-                          <Label className="w-full">Live Status</Label>
-                          <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            <Switch
-                              checked={
-                                propertyData[selectedPortion]?.isLive || false
-                              }
-                              onCheckedChange={(checked) => {
-                                if (selectedPortion === null) return;
-
-                                const updatedData = [...propertyData];
-                                updatedData[selectedPortion] = {
-                                  ...updatedData[selectedPortion],
-                                  isLive: checked,
-                                };
-                                setPropertyData(updatedData);
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="w-full">
-                            Student Suitablity Status
-                          </Label>
-                          <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            <Switch
-                              checked={
-                                propertyData[selectedPortion]
-                                  ?.isSuitableForStudents || false
-                              }
-                              onCheckedChange={(checked) => {
-                                if (selectedPortion === null) return;
-                                const updatedData = [...propertyData];
-                                updatedData[selectedPortion] = {
-                                  ...updatedData[selectedPortion],
-                                  isSuitableForStudents: checked,
-                                };
-                                setPropertyData(updatedData);
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="w-full">Topfloor Status</Label>
-                          <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
-                            <Switch
-                              checked={
-                                propertyData[selectedPortion]?.isTopFloor ||
-                                false
-                              }
-                              onCheckedChange={(checked) => {
-                                if (selectedPortion === null) return;
-                                const updatedData = [...propertyData];
-                                updatedData[selectedPortion] = {
-                                  ...updatedData[selectedPortion],
-                                  isTopFloor: checked,
-                                };
-                                setPropertyData(updatedData);
-                              }}
-                            />
-                          </div>
-                        </div>
                         <div>
                           <Label className="w-full">kitchen</Label>
                           <Input
@@ -835,8 +843,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                             value={propertyData[selectedPortion]?.pet || ""}
                             onValueChange={(value) => {
                               if (selectedPortion === null) return;
-
-                              // Create a copy of propertyData and update the pet field
                               const updatedData = [...propertyData];
                               updatedData[selectedPortion] = {
                                 ...updatedData[selectedPortion],
@@ -1116,8 +1122,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           </div>
                         )}
                       </div>
-
-                      {/* Safe amenties hand;e from here... */}
                       <div>
                         {propertyData[selectedPortion]?.safeAmenities &&
                         Object.keys(
@@ -1158,6 +1162,11 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           </div>
                         )}
                       </div>
+
+                      {/* Handle nearby location code will start from here */}
+
+                      {/* Handle nearby lcoation code will end from here */}
+
                       <div className="mb-10">
                         <div className="">
                           <h2 className="text-xl font-semibold mb-2 ">
@@ -1197,18 +1206,23 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                       <div className="mt-10">
                         <Label className="w-full">Old Description</Label>
                         <Textarea
+                          onChange={(e: any) => handleInputChange(e, "reviews")}
                           className="w-full min-h-40"
                           defaultValue={propertyData[selectedPortion].reviews}
                         />
                       </div>
-                      <div>
+                      <div className="opacity-50">
                         <Label className="w-full ">New Description</Label>
                         <Textarea
-                          className="w-full min-h-40"
+                          disabled
+                          className="w-full min-h-40 "
                           defaultValue={
                             propertyData[selectedPortion].newReviews
                           }
                         />
+                        <p className="text-xs text-red-300 ml-2">
+                          can not edit
+                        </p>
                       </div>
                       <div>
                         <Button
@@ -1229,16 +1243,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
                           )}
                         </Button>
                       </div>
-
-                      {/* <div>
-                        <Button
-                          disabled={propertyLoading}
-                          onClick={editproperty}
-                          className="mt-4 "
-                        >
-                          Update
-                        </Button>
-                      </div> */}
                     </motion.div>
                   ) : (
                     <motion.div

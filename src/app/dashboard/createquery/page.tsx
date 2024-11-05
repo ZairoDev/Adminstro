@@ -57,12 +57,22 @@ interface ApiResponse {
 }
 
 interface IQuery {
-  _id: string;
-  name: string;
-  email: string;
-  price: string;
-  intrest: string;
-  about: string;
+  _id: "";
+  date?: string;
+  name?: string;
+  phoneNo?: string;
+  area?: string;
+  guest?: string;
+  duration?: string;
+  budget?: string;
+  noOfBeds?: string;
+  location?: string;
+  bookingTerm?: string;
+  zone?: string;
+  billStatus?: string;
+  typeOfProperty?: string;
+  propertyType?: string;
+  priority?: string;
 }
 
 const SalesDashboard = () => {
@@ -77,11 +87,21 @@ const SalesDashboard = () => {
   const [page, setPage] = useState<number>(1);
   const [formData, setFormData] = useState<IQuery>({
     _id: "",
+    date: "",
     name: "",
-    email: "",
-    price: "",
-    intrest: "",
-    about: "",
+    phoneNo: "",
+    area: "",
+    guest: "",
+    duration: "",
+    budget: "",
+    noOfBeds: "",
+    location: "",
+    bookingTerm: "",
+    zone: "",
+    billStatus: "",
+    typeOfProperty: "",
+    propertyType: "",
+    priority: "",
   });
 
   const limit: number = 12;
@@ -104,11 +124,21 @@ const SalesDashboard = () => {
         setIsDialogOpen(false);
         setFormData({
           _id: "",
+          date: "",
           name: "",
-          email: "",
-          price: "",
-          intrest: "",
-          about: "",
+          phoneNo: "",
+          area: "",
+          guest: "",
+          duration: "",
+          budget: "",
+          noOfBeds: "",
+          location: "",
+          bookingTerm: "",
+          zone: "",
+          billStatus: "",
+          typeOfProperty: "",
+          propertyType: "",
+          priority: "",
         });
       } else {
         console.error("Failed to create query");
@@ -248,6 +278,7 @@ const SalesDashboard = () => {
             className="max-w-xl"
           />
         </div>
+
         <div>
           <Button
             className="xs:block hidden"
@@ -267,7 +298,7 @@ const SalesDashboard = () => {
             <DialogTitle>Create New Query</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="gird col-span-2">
             <div>
               <Label>Name</Label>
               <Input
@@ -278,39 +309,120 @@ const SalesDashboard = () => {
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>Date</Label>
               <Input
-                name="email"
-                value={formData.email}
+                name="date"
+                value={formData.date}
                 onChange={handleInputChange}
-                placeholder="Enter email"
+                placeholder="Enter name"
               />
             </div>
             <div>
-              <Label>Price</Label>
+              <Label>Phone No</Label>
               <Input
-                name="price"
-                value={formData.price}
+                name="phoneNo"
+                value={formData.phoneNo}
                 onChange={handleInputChange}
-                placeholder="Enter price"
+                placeholder="Enter name"
               />
             </div>
             <div>
-              <Label>Interest</Label>
+              <Label>Area</Label>
               <Input
-                name="intrest"
-                value={formData.intrest}
+                name="area"
+                value={formData.area}
                 onChange={handleInputChange}
-                placeholder="Enter interest"
+                placeholder="Enter name"
               />
             </div>
             <div>
-              <Label>About</Label>
-              <Textarea
-                name="about"
-                value={formData.about}
+              <Label>Guest</Label>
+              <Input
+                name="guest"
+                value={formData.guest}
                 onChange={handleInputChange}
-                placeholder="Enter details"
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Duration</Label>
+              <Input
+                name="duration"
+                value={formData.duration}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Budget</Label>
+              <Input
+                name="budget"
+                value={formData.budget}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>NO Of Beds</Label>
+              <Input
+                name="noOfBeds"
+                value={formData.noOfBeds}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Location</Label>
+              <Input
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Booking Term</Label>
+              <Input
+                name="bookingTerm"
+                value={formData.bookingTerm}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Zone</Label>
+              <Input
+                name="zone"
+                value={formData.zone}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Bill Status</Label>
+              <Input
+                name="billStatus"
+                value={formData.billStatus}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Property Type</Label>
+              <Input
+                name="propertyType"
+                value={formData.propertyType}
+                onChange={handleInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Input
+                name="priority"
+                value={formData.priority}
+                onChange={handleInputChange}
+                placeholder="Enter name"
               />
             </div>
           </div>
@@ -322,6 +434,140 @@ const SalesDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div className="">
+        <div className="grid grid-cols-1 col-span-2">
+          <div>
+            <Label>Name</Label>
+            <Input
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Date</Label>
+            <Input
+              name="date"
+              value={formData.date}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Phone No</Label>
+            <Input
+              name="phoneNo"
+              value={formData.phoneNo}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Area</Label>
+            <Input
+              name="area"
+              value={formData.area}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Guest</Label>
+            <Input
+              name="guest"
+              value={formData.guest}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Duration</Label>
+            <Input
+              name="duration"
+              value={formData.duration}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Budget</Label>
+            <Input
+              name="budget"
+              value={formData.budget}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>NO Of Beds</Label>
+            <Input
+              name="noOfBeds"
+              value={formData.noOfBeds}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Location</Label>
+            <Input
+              name="location"
+              value={formData.location}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Booking Term</Label>
+            <Input
+              name="bookingTerm"
+              value={formData.bookingTerm}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Zone</Label>
+            <Input
+              name="zone"
+              value={formData.zone}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Bill Status</Label>
+            <Input
+              name="billStatus"
+              value={formData.billStatus}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Property Type</Label>
+            <Input
+              name="propertyType"
+              value={formData.propertyType}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+          <div>
+            <Label>Priority</Label>
+            <Input
+              name="priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+            />
+          </div>
+        </div>
+        <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
+          <Plus />
+        </Button>
+      </div>
 
       {loading ? (
         <div className="flex mt-2 items-center justify-center">
@@ -364,7 +610,7 @@ const SalesDashboard = () => {
                                 <span className="text-muted-foreground">
                                   Email:
                                 </span>{" "}
-                                <p className="text-sm">{query.email} </p>
+                                <p className="text-sm">{query.date} </p>
                               </h1>
                             </div>
                             <div>
@@ -372,7 +618,7 @@ const SalesDashboard = () => {
                                 <span className="text-muted-foreground">
                                   Price:
                                 </span>{" "}
-                                <p className="text-sm">{query.price} </p>
+                                <p className="text-sm">{query.area} </p>
                               </h1>
                             </div>
                             <div>
@@ -380,7 +626,7 @@ const SalesDashboard = () => {
                                 <span className="text-muted-foreground">
                                   Intrest:
                                 </span>
-                                <p className="text-sm">{query.intrest} </p>
+                                <p className="text-sm">{query.billStatus} </p>
                               </h1>
                             </div>
                             <div>
@@ -388,7 +634,7 @@ const SalesDashboard = () => {
                                 About:
                               </span>
                               <h1 className="  flex  gap-x-2">
-                                <p className="text-sm">{query.about} </p>
+                                <p className="text-sm">{query.bookingTerm} </p>
                               </h1>
                             </div>
                           </DialogHeader>
@@ -401,25 +647,25 @@ const SalesDashboard = () => {
                     <div className="bg-muted p-2 rounded-full">
                       <Mail size={18} className="text-primary" />
                     </div>
-                    <p className="line-clamp-1">{query.email}</p>
+                    <p className="line-clamp-1">{query.name}</p>
                   </div>
                   <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
                     <div className="bg-muted p-2 rounded-full">
                       <CiMoneyBill size={18} className="text-primary" />
                     </div>
-                    <p className="line-clamp-1"> €{query.price}</p>
+                    <p className="line-clamp-1"> €{query.budget}</p>
                   </div>
                   <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
                     <div className="bg-muted p-2 rounded-full">
                       <MessageSquareHeart size={18} className="text-primary" />
                     </div>
-                    <p className="line-clamp-1">{query.intrest}</p>
+                    <p className="line-clamp-1">{query.location}</p>
                   </div>
                   <p className="p-1 text-sm gap-x-2 flex items-center">
                     <div className="bg-muted p-2 rounded-full">
                       <SearchX size={18} className="text-primary" />
                     </div>
-                    <p className="line-clamp-1">{query.about}</p>
+                    <p className="line-clamp-1">{query.noOfBeds}</p>
                   </p>
                 </div>
               </div>

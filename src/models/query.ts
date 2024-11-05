@@ -2,25 +2,83 @@ import mongoose, { Schema, models, model } from "mongoose";
 
 const querySchema = new Schema(
   {
+    createdBy: {
+      type: String,
+      required: [false],
+    },
+    date: {
+      type: String,
+      require: [true, "Date is required"],
+    },
     name: {
       type: String,
-      required: [true, "Please enter your name"],
+      require: [true, "Name must be provided"],
     },
-    email: {
-      type: String,
-      required: [true, "Please enter your email"],
+    phoneNo: {
+      type: Number,
+      require: [true, "Phone number must be provided"],
     },
-    price: {
+    area: {
       type: String,
-      required: [true, "Please enter your price"],
+      require: [true, "Area must be provided"],
     },
-    intrest: {
-      type: String,
-      required: [true, "Please enter your interest"],
+    guest: {
+      type: Number,
+      require: [true, "Guest number should be provided"],
     },
-    about: {
+    duration: {
+      type: Number,
+      require: [true, "Duration shoule be provided"],
+    },
+    budget: {
+      type: Number,
+      require: [true, "Budget shoule be provided"],
+    },
+    noOfBeds: {
       type: String,
-      required: [true, "Please enter your about"],
+      require: [true, "Count of beds shoule be provided"],
+    },
+    location: {
+      type: String,
+      require: [true, "Location shoule be provided"],
+    },
+    bookingTerm: {
+      type: String,
+      enum: ["Short Term", "Long Term", "Mid Term"],
+      require: [true, "bookingTerm shoule be provided"],
+    },
+    zone: {
+      type: String,
+      enum: ["North", "South", "East", "West", "Centre", "Anywhere"],
+      require: [true, "Zone shoule be provided"],
+    },
+    billStatus: {
+      type: String,
+      enum: ["With Bill", "Without Bill"],
+    },
+    typeOfProperty: {
+      type: String,
+      enum: [
+        "Studio",
+        "Aprtment",
+        "Villa",
+        "Pent House",
+        " Detached House",
+        "Loft",
+        "Shared Apartment",
+        "Maisotte",
+        "Studio / 1 bedroom",
+      ],
+    },
+    propertyType: {
+      type: String,
+      enum: ["Furnished", "Un - furnished", "Semi-furnished"],
+      require: [true, "Property type must be provided"],
+    },
+    priority: {
+      type: String,
+      enum: ["High", "Low", "Medium"],
+      require: [true, "Priority must be provided"],
     },
   },
   { timestamps: true }

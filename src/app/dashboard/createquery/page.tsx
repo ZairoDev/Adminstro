@@ -1,17 +1,8 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -32,12 +23,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Badge,
+  Blend,
+  CalendarIcon,
+  ChartArea,
+  ChartNetwork,
+  CircleAlert,
+  ClockIcon,
   Expand,
+  FileDigitIcon,
   FolderPen,
+  Grid2X2,
+  Handshake,
   Mail,
+  MapPin,
   MessageSquareHeart,
+  Pilcrow,
+  PilcrowRight,
   Plus,
   SearchX,
+  TagIcon,
+  UserIcon,
   X,
 } from "lucide-react";
 import {
@@ -50,6 +56,10 @@ import {
 import { CiMoneyBill } from "react-icons/ci";
 import Loader from "@/components/loader";
 import { DialogTrigger } from "@radix-ui/react-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import QueryCard from "@/components/QueryCard";
+import LeadTable from "@/components/LeadTable";
 
 interface ApiResponse {
   data: IQuery[];
@@ -57,22 +67,22 @@ interface ApiResponse {
 }
 
 interface IQuery {
-  _id: "";
-  date?: string;
-  name?: string;
-  phoneNo?: string;
-  area?: string;
-  guest?: string;
-  duration?: string;
-  budget?: string;
-  noOfBeds?: string;
-  location?: string;
-  bookingTerm?: string;
-  zone?: string;
-  billStatus?: string;
-  typeOfProperty?: string;
-  propertyType?: string;
-  priority?: string;
+  _id?: string;
+  date: string;
+  name: string;
+  phoneNo: number;
+  area: string;
+  guest: number;
+  duration: number;
+  budget: number;
+  noOfBeds: number;
+  location: string;
+  bookingTerm: string;
+  zone: string;
+  billStatus: string;
+  typeOfProperty: string;
+  propertyType: string;
+  priority: string;
 }
 
 const SalesDashboard = () => {
@@ -86,15 +96,14 @@ const SalesDashboard = () => {
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
   const [formData, setFormData] = useState<IQuery>({
-    _id: "",
     date: "",
     name: "",
-    phoneNo: "",
+    phoneNo: 0,
     area: "",
-    guest: "",
-    duration: "",
-    budget: "",
-    noOfBeds: "",
+    guest: 0,
+    duration: 0,
+    budget: 0,
+    noOfBeds: 0,
     location: "",
     bookingTerm: "",
     zone: "",
@@ -123,15 +132,14 @@ const SalesDashboard = () => {
         setQueries((prevQueries) => [newQuery, ...prevQueries]);
         setIsDialogOpen(false);
         setFormData({
-          _id: "",
           date: "",
           name: "",
-          phoneNo: "",
+          phoneNo: 0,
           area: "",
-          guest: "",
-          duration: "",
-          budget: "",
-          noOfBeds: "",
+          guest: 0,
+          duration: 0,
+          budget: 0,
+          noOfBeds: 0,
           location: "",
           bookingTerm: "",
           zone: "",
@@ -184,6 +192,8 @@ const SalesDashboard = () => {
   useEffect(() => {
     fetchQuery(searchTerm);
   }, [fetchQuery, searchTerm]);
+
+  console.log(queries, "Queries will print here");
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -293,139 +303,239 @@ const SalesDashboard = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Create New Query</DialogTitle>
           </DialogHeader>
+          <ScrollArea className="md:h-full h-[400px]  w-full rounded-md border p-4">
+            <div className="grid p-2 lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-x-2">
+              <div className="w-full">
+                <Label>Name</Label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input
+                  name="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Phone No</Label>
+                <Input
+                  type="number"
+                  name="phoneNo"
+                  value={formData.phoneNo}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Area</Label>
+                <Input
+                  name="area"
+                  value={formData.area}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Guest</Label>
+                <Input
+                  type="number"
+                  name="guest"
+                  value={formData.guest}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Duration</Label>
+                <Input
+                  type="number"
+                  name="duration"
+                  value={formData.duration}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Budget</Label>
+                <Input
+                  type="number"
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>No Of Beds</Label>
+                <Input
+                  type="number"
+                  name="noOfBeds"
+                  value={formData.noOfBeds}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Location</Label>
+                <Input
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Booking Term</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      bookingTerm: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Short Term">Short Term</SelectItem>
+                    <SelectItem value="Long Term">Long Term</SelectItem>
+                    <SelectItem value="Mid Term">Mid Term</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Zone</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      zone: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="North">North</SelectItem>
+                    <SelectItem value="South">South</SelectItem>
+                    <SelectItem value="East">East</SelectItem>
+                    <SelectItem value="West">West</SelectItem>
+                    <SelectItem value="Centre">Centre</SelectItem>
+                    <SelectItem value="Anywhere">Anywhere</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Bill Status</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      billStatus: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="With Bill">With Bill</SelectItem>
+                    <SelectItem value="Without Bill">Without Bill</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Type of Property</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      typeOfProperty: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Studio">Studio</SelectItem>
+                    <SelectItem value="Aprtment">Aprtment</SelectItem>
+                    <SelectItem value="Villa">Villa</SelectItem>
+                    <SelectItem value="Pent House">Pent House</SelectItem>
+                    <SelectItem value="Detached House">
+                      Detached House
+                    </SelectItem>
+                    <SelectItem value="Loft">Loft</SelectItem>
+                    <SelectItem value="Shared Apartment">
+                      Shared Apartment
+                    </SelectItem>
+                    <SelectItem value="Maisotte">Maisotte</SelectItem>
+                    <SelectItem value="Studio / 1 bedroom">
+                      Studio / 1 bedroom
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="gird col-span-2">
-            <div>
-              <Label>Name</Label>
-              <Input
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
+              <div>
+                <Label>Property Type</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      propertyType: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Property Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Furnished">Furnished</SelectItem>
+                    <SelectItem value="Un - furnished">
+                      Un - furnished
+                    </SelectItem>
+                    <SelectItem value="Semi-furnished">
+                      Semi-furnished
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      priority: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="">
+                    <SelectValue placeholder="Select Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Date</Label>
-              <Input
-                name="date"
-                value={formData.date}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Phone No</Label>
-              <Input
-                name="phoneNo"
-                value={formData.phoneNo}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Area</Label>
-              <Input
-                name="area"
-                value={formData.area}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Guest</Label>
-              <Input
-                name="guest"
-                value={formData.guest}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Duration</Label>
-              <Input
-                name="duration"
-                value={formData.duration}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Budget</Label>
-              <Input
-                name="budget"
-                value={formData.budget}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>NO Of Beds</Label>
-              <Input
-                name="noOfBeds"
-                value={formData.noOfBeds}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Location</Label>
-              <Input
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Booking Term</Label>
-              <Input
-                name="bookingTerm"
-                value={formData.bookingTerm}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Zone</Label>
-              <Input
-                name="zone"
-                value={formData.zone}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Bill Status</Label>
-              <Input
-                name="billStatus"
-                value={formData.billStatus}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Property Type</Label>
-              <Input
-                name="propertyType"
-                value={formData.propertyType}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-            <div>
-              <Label>Priority</Label>
-              <Input
-                name="priority"
-                value={formData.priority}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-              />
-            </div>
-          </div>
+          </ScrollArea>
 
           <DialogFooter>
             <Button disabled={submitQuery} onClick={handleSubmit}>
@@ -435,139 +545,13 @@ const SalesDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="">
-        <div className="grid grid-cols-1 col-span-2">
-          <div>
-            <Label>Name</Label>
-            <Input
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Date</Label>
-            <Input
-              name="date"
-              value={formData.date}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Phone No</Label>
-            <Input
-              name="phoneNo"
-              value={formData.phoneNo}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Area</Label>
-            <Input
-              name="area"
-              value={formData.area}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Guest</Label>
-            <Input
-              name="guest"
-              value={formData.guest}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Duration</Label>
-            <Input
-              name="duration"
-              value={formData.duration}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Budget</Label>
-            <Input
-              name="budget"
-              value={formData.budget}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>NO Of Beds</Label>
-            <Input
-              name="noOfBeds"
-              value={formData.noOfBeds}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Location</Label>
-            <Input
-              name="location"
-              value={formData.location}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Booking Term</Label>
-            <Input
-              name="bookingTerm"
-              value={formData.bookingTerm}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Zone</Label>
-            <Input
-              name="zone"
-              value={formData.zone}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Bill Status</Label>
-            <Input
-              name="billStatus"
-              value={formData.billStatus}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Property Type</Label>
-            <Input
-              name="propertyType"
-              value={formData.propertyType}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
-          <div>
-            <Label>Priority</Label>
-            <Input
-              name="priority"
-              value={formData.priority}
-              onChange={handleInputChange}
-              placeholder="Enter name"
-            />
-          </div>
+      {loading ? (
+        <div className="flex mt-2 items-center justify-center">
+          <Loader />
         </div>
-        <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
-          <Plus />
-        </Button>
-      </div>
+      ) : (
+        <LeadTable queries={queries} />
+      )}
 
       {loading ? (
         <div className="flex mt-2 items-center justify-center">
@@ -577,98 +561,23 @@ const SalesDashboard = () => {
         <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
           {queries.map((query) => (
             <div key={query._id}>
-              <div className="border rounded-lg relative sm:max-w-sm p-2 w-full h-full">
-                <div>
-                  <div>
-                    <h2 className="line-clamp-1 p-1 text-lg font-semibold gap-x-2 flex items-center border-b">
-                      <div className="bg-muted p-2 rounded-full">
-                        <FolderPen size={18} className="text-primary" />
-                      </div>
-                      {query.name}
-                    </h2>
-                    <div className="absolute top-4 right-4">
-                      <Dialog>
-                        <DialogTrigger>
-                          <Expand size={18} />
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle className="text-start text-lg">
-                              Information
-                            </DialogTitle>
-
-                            <div>
-                              <h1 className="  flex items-center gap-x-2">
-                                <span className="text-muted-foreground">
-                                  Name
-                                </span>{" "}
-                                <p className="text-sm">{query.name} </p>
-                              </h1>
-                            </div>
-                            <div>
-                              <h1 className="  flex items-center gap-x-2">
-                                <span className="text-muted-foreground">
-                                  Email:
-                                </span>{" "}
-                                <p className="text-sm">{query.date} </p>
-                              </h1>
-                            </div>
-                            <div>
-                              <h1 className="  flex items-center gap-x-2">
-                                <span className="text-muted-foreground">
-                                  Price:
-                                </span>{" "}
-                                <p className="text-sm">{query.area} </p>
-                              </h1>
-                            </div>
-                            <div>
-                              <h1 className="  flex items-center gap-x-2">
-                                <span className="text-muted-foreground">
-                                  Intrest:
-                                </span>
-                                <p className="text-sm">{query.billStatus} </p>
-                              </h1>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                About:
-                              </span>
-                              <h1 className="  flex  gap-x-2">
-                                <p className="text-sm">{query.bookingTerm} </p>
-                              </h1>
-                            </div>
-                          </DialogHeader>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-
-                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
-                    <div className="bg-muted p-2 rounded-full">
-                      <Mail size={18} className="text-primary" />
-                    </div>
-                    <p className="line-clamp-1">{query.name}</p>
-                  </div>
-                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
-                    <div className="bg-muted p-2 rounded-full">
-                      <CiMoneyBill size={18} className="text-primary" />
-                    </div>
-                    <p className="line-clamp-1"> €{query.budget}</p>
-                  </div>
-                  <div className="line-clamp-1 p-1 text-sm gap-x-2 flex items-center border-b">
-                    <div className="bg-muted p-2 rounded-full">
-                      <MessageSquareHeart size={18} className="text-primary" />
-                    </div>
-                    <p className="line-clamp-1">{query.location}</p>
-                  </div>
-                  <p className="p-1 text-sm gap-x-2 flex items-center">
-                    <div className="bg-muted p-2 rounded-full">
-                      <SearchX size={18} className="text-primary" />
-                    </div>
-                    <p className="line-clamp-1">{query.noOfBeds}</p>
-                  </p>
-                </div>
-              </div>
+              <QueryCard
+                name={query.name}
+                phoneNo={query.phoneNo}
+                area={query.area}
+                guest={query.guest}
+                duration={query.duration}
+                budget={query.budget}
+                noOfBeds={query.noOfBeds}
+                location={query.location}
+                bookingTerm={query.bookingTerm}
+                zone={query.zone}
+                billStatus={query.billStatus}
+                typeOfProperty={query.typeOfProperty}
+                propertyType={query.propertyType}
+                date={query.date}
+                priority={query.priority}
+              />
             </div>
           ))}
         </div>

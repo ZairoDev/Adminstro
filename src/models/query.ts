@@ -1,4 +1,4 @@
-import mongoose, { Schema, models, model } from "mongoose";
+import { Schema, models, model } from "mongoose";
 
 const querySchema = new Schema(
   {
@@ -35,7 +35,7 @@ const querySchema = new Schema(
       require: [true, "Budget shoule be provided"],
     },
     noOfBeds: {
-      type: String,
+      type: Number,
       require: [true, "Count of beds shoule be provided"],
     },
     location: {
@@ -63,7 +63,7 @@ const querySchema = new Schema(
         "Aprtment",
         "Villa",
         "Pent House",
-        " Detached House",
+        "Detached House",
         "Loft",
         "Shared Apartment",
         "Maisotte",

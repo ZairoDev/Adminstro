@@ -242,7 +242,6 @@ const SalesDashboard = () => {
 
   return (
     <div>
-      <h1>Sales Dashboard</h1>
       <div className="flex md:flex-row flex-col items-center justify-between">
         <div className="w-full">
           <Heading

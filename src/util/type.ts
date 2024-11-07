@@ -257,6 +257,25 @@ export const propertyTypes: string[] = [
   "Apart Hotel",
 ];
 
+export interface IQuery {
+  _id?: string;
+  date: string;
+  name: string;
+  phoneNo: number;
+  area: string;
+  guest: number;
+  duration: number;
+  budget: number;
+  noOfBeds: number;
+  location: string;
+  bookingTerm: string;
+  zone: string;
+  billStatus: string;
+  typeOfProperty: string;
+  propertyType: string;
+  priority: string;
+}
+
 export interface imageInterface {
   propertyCoverFileUrl: number[];
   propertyPictureUrls: number[];

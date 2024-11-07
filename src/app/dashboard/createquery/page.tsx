@@ -1,19 +1,27 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import Heading from "@/components/Heading";
 import {
   Select,
@@ -23,66 +31,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Badge,
-  Blend,
-  CalendarIcon,
-  ChartArea,
-  ChartNetwork,
-  CircleAlert,
-  ClockIcon,
-  Expand,
-  FileDigitIcon,
-  FolderPen,
-  Grid2X2,
-  Handshake,
-  Mail,
-  MapPin,
-  MessageSquareHeart,
-  Pilcrow,
-  PilcrowRight,
-  Plus,
-  SearchX,
-  TagIcon,
-  UserIcon,
-  X,
-} from "lucide-react";
-import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import { CiMoneyBill } from "react-icons/ci";
 import Loader from "@/components/loader";
-import { DialogTrigger } from "@radix-ui/react-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/LeadTable";
+import { Plus, SlidersHorizontal } from "lucide-react";
+import { IQuery } from "@/util/type";
 
 interface ApiResponse {
   data: IQuery[];
   totalPages: number;
 }
-
-interface IQuery {
-  _id?: string;
-  date: string;
-  name: string;
-  phoneNo: number;
-  area: string;
-  guest: number;
-  duration: number;
-  budget: number;
-  noOfBeds: number;
-  location: string;
-  bookingTerm: string;
-  zone: string;
-  billStatus: string;
-  typeOfProperty: string;
-  propertyType: string;
-  priority: string;
+interface FetchQueryParams {
+  searchTerm: string;
+  searchType?: string;
+  dateFilter: string;
+  customDays: string;
+  customDateRange: { start: string; end: string };
 }
 
 const SalesDashboard = () => {
@@ -92,9 +62,16 @@ const SalesDashboard = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState("all");
+  const [customDays, setCustomDays] = useState("");
+  const [customDateRange, setCustomDateRange] = useState({
+    start: "",
+    end: "",
+  });
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [searchType, setSearchType] = useState<string>("email");
+  const [searchType, setSearchType] = useState<string>("name");
   const [page, setPage] = useState<number>(1);
+  const [view, setView] = useState("Table View");
   const [formData, setFormData] = useState<IQuery>({
     date: "",
     name: "",
@@ -112,9 +89,7 @@ const SalesDashboard = () => {
     propertyType: "",
     priority: "",
   });
-
   const limit: number = 12;
-
   const handleSubmit = async () => {
     try {
       setSubmitQuery(true);
@@ -157,7 +132,6 @@ const SalesDashboard = () => {
       setSubmitQuery(false);
     }
   };
-
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -165,40 +139,65 @@ const SalesDashboard = () => {
     setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
   const fetchQuery = useCallback(
-    debounce(async (searchTerm: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
-        );
-        const data: ApiResponse = await response.json();
-        if (response.ok) {
-          setQueries(data.data);
-          setTotalPages(data.totalPages);
-        } else {
-          throw new Error("Failed to fetch properties");
+    debounce(
+      async ({
+        searchTerm,
+        searchType,
+        dateFilter,
+        customDays,
+        customDateRange,
+      }: FetchQueryParams) => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await fetch(
+            `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}`
+          );
+          const data: ApiResponse = await response.json();
+          if (response.ok) {
+            setQueries(data.data);
+            setTotalPages(data.totalPages);
+          } else {
+            throw new Error("Failed to fetch properties");
+          }
+        } catch (err: any) {
+          setLoading(false);
+          setError(err.message);
+        } finally {
+          setLoading(false);
         }
-      } catch (err: any) {
-        setLoading(false);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    [page, searchType, limit]
+      },
+      1000
+    ),
+    [searchType, page, limit]
   );
 
+  console.log(page, "Page will print here ");
+
+  const handleSearch = () => {
+    fetchQuery({
+      searchTerm,
+      searchType,
+      dateFilter,
+      customDays,
+      customDateRange,
+    });
+  };
   useEffect(() => {
-    fetchQuery(searchTerm);
-  }, [fetchQuery, searchTerm]);
-
-  console.log(queries, "Queries will print here");
-
+    fetchQuery({
+      searchTerm,
+      searchType,
+      dateFilter: "",
+      customDays: "",
+      customDateRange: {
+        start: "",
+        end: "",
+      },
+    });
+  }, [searchTerm, searchType, page]);
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
-
   const renderPaginationItems = () => {
     let items = [];
     const maxVisiblePages = 5;
@@ -239,73 +238,149 @@ const SalesDashboard = () => {
     }
     return items;
   };
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === "j") {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  console.log(searchType);
 
   return (
     <div>
       <h1>Sales Dashboard</h1>
-      <Heading
-        heading="All Leads"
-        subheading="You will get the list of leads that created till now"
-      />
-      <div className="flex lg:mt-0 items-center gap-x-2">
-        <div className="sm:max-w-[180px] max-w-[100px] w-full">
-          <Select
-            onValueChange={(value: string) => setSearchType(value)}
-            value={searchType}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex w-full items-center">
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchTerm(e.target.value)
-            }
-            ref={searchInputRef}
-            className="max-w-xl"
+      <div className="flex md:flex-row flex-col items-center justify-between">
+        <div className="w-full">
+          <Heading
+            heading="All Leads"
+            subheading="You will get the list of leads that created till now"
           />
         </div>
 
-        <div>
-          <Button
-            className="xs:block hidden"
-            onClick={() => setIsDialogOpen(true)}
-          >
-            Create Query
-          </Button>
-          <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
-            <Plus />
-          </Button>
+        <div className="flex w-full gap-x-2">
+          <div className="">
+            <Select
+              onValueChange={(value: string) => setSearchType(value)}
+              value={searchType}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="phoneNo">Phone No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          <div className="sm:max-w-[140px] max-w-[80px] w-full">
+            <Select onValueChange={(value) => setView(value)}>
+              <SelectTrigger className="">
+                <SelectValue placeholder="Select View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Table View">Table View</SelectItem>
+                <SelectItem value="Card View">Card View</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Button
+              className="xs:block hidden"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              Create Query
+            </Button>
+            <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
+              <Plus size={18} />
+            </Button>
+          </div>
+          <Sheet>
+            <SheetTrigger>
+              <Button variant="outline">
+                <SlidersHorizontal size={18} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle className="text-start">Data Filters</SheetTitle>
+                <SheetDescription className="flex flex-col gap-y-2">
+                  <Select
+                    onValueChange={(value) => setDateFilter(value)}
+                    value={dateFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Date Filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="yesterday">Yesterday</SelectItem>
+                      <SelectItem value="lastDays">Last X Days</SelectItem>
+                      <SelectItem value="customRange">
+                        Custom Date Range
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {dateFilter === "lastDays" && (
+                    <Input
+                      placeholder="Enter number of days"
+                      type="number"
+                      value={customDays}
+                      onChange={(e) => setCustomDays(e.target.value)}
+                    />
+                  )}
+                  {dateFilter === "customRange" && (
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="Start Date"
+                        type="date"
+                        value={customDateRange.start}
+                        onChange={(e) =>
+                          setCustomDateRange({
+                            ...customDateRange,
+                            start: e.target.value,
+                          })
+                        }
+                      />
+                      <Input
+                        placeholder="End Date"
+                        type="date"
+                        value={customDateRange.end}
+                        onChange={(e) =>
+                          setCustomDateRange({
+                            ...customDateRange,
+                            end: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+                  <SheetClose asChild>
+                    <Button className="sm:w-auto w-full" onClick={handleSearch}>
+                      Apply
+                    </Button>
+                  </SheetClose>
+                </SheetDescription>
+              </SheetHeader>
+              <SheetFooter className="">
+                <p className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
+                  Fill in your search details, apply custom filters, and let us
+                  bring you the most relevant results with just a click of the
+                  Apply button !
+                </p>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Create New Query</DialogTitle>
+            <DialogTitle className="text-muted-foreground">
+              Create New Query
+            </DialogTitle>
           </DialogHeader>
           <ScrollArea className="md:h-full h-[400px]  w-full rounded-md border p-4">
             <div className="grid p-2 lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-x-2">
@@ -536,7 +611,6 @@ const SalesDashboard = () => {
               </div>
             </div>
           </ScrollArea>
-
           <DialogFooter>
             <Button disabled={submitQuery} onClick={handleSubmit}>
               Submit Query
@@ -546,51 +620,77 @@ const SalesDashboard = () => {
       </Dialog>
 
       {loading ? (
-        <div className="flex mt-2 items-center justify-center">
+        <div className="flex mt-2 min-h-screen items-center justify-center">
           <Loader />
         </div>
-      ) : (
-        <LeadTable queries={queries} />
-      )}
-
-      {loading ? (
-        <div className="flex mt-2 items-center justify-center">
-          <Loader />
-        </div>
-      ) : (
-        <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4 ">
-          {queries.map((query) => (
-            <div key={query._id}>
-              <QueryCard
-                name={query.name}
-                phoneNo={query.phoneNo}
-                area={query.area}
-                guest={query.guest}
-                duration={query.duration}
-                budget={query.budget}
-                noOfBeds={query.noOfBeds}
-                location={query.location}
-                bookingTerm={query.bookingTerm}
-                zone={query.zone}
-                billStatus={query.billStatus}
-                typeOfProperty={query.typeOfProperty}
-                propertyType={query.propertyType}
-                date={query.date}
-                priority={query.priority}
-              />
+      ) : view === "Table View" ? (
+        <div className="">
+          <div>
+            <div className="mt-2 border rounded-lg min-h-[90vh]">
+              <LeadTable queries={queries} />
             </div>
-          ))}
+            <div className="flex items-center justify-between p-2 w-full">
+              <div>
+                <p className="text-sm">
+                  Page {page} of {totalPages}
+                </p>
+              </div>
+              <div>
+                <Pagination className="flex items-center">
+                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
+                    {renderPaginationItems()}
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="min-h-screen">
+            <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
+              {queries.map((query) => (
+                <div key={query._id}>
+                  <QueryCard
+                    name={query.name}
+                    phoneNo={query.phoneNo}
+                    area={query.area}
+                    guest={query.guest}
+                    duration={query.duration}
+                    budget={query.budget}
+                    noOfBeds={query.noOfBeds}
+                    location={query.location}
+                    bookingTerm={query.bookingTerm}
+                    zone={query.zone}
+                    billStatus={query.billStatus}
+                    typeOfProperty={query.typeOfProperty}
+                    propertyType={query.propertyType}
+                    date={query.date}
+                    priority={query.priority}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between p-2 w-full">
+              <div>
+                <p className="text-sm">
+                  Page {page} of {totalPages}
+                </p>
+              </div>
+              <div>
+                <Pagination className="flex items-center">
+                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
+                    {renderPaginationItems()}
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-      {queries.length > 12 && (
-        <div className="text-xs w-full">
-          <Pagination className="flex flex-wrap items-center w-full">
-            <PaginationContent className="text-xs flex flex-wrap justify-center w-full md:w-auto">
-              {renderPaginationItems()}
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
+      <div className="text-xs flex items-end justify-end"></div>
     </div>
   );
 };

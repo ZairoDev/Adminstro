@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
-
   const toggleVisibility = () => {
     if (window.scrollY > 300) {
       setIsVisible(true);
@@ -30,7 +29,7 @@ const ScrollToTopButton = () => {
       {isVisible && (
         <Button
           onClick={scrollToTop}
-          className="fixed lg:bottom-8 px-2 py-1 lg:right-8 right-3 bottom-14 z-50 p-3 "
+          className="fixed  px-2 py-1 lg:right-8 right-3 bottom-14 z-50 p-3 "
         >
           <ArrowUp size={18} />
         </Button>

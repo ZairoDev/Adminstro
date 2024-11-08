@@ -43,7 +43,6 @@ interface LeadProperty {
   phoneNo: number;
   area: string;
   guest: number;
-  duration: number;
   budget: number;
   noOfBeds: number;
   location: string;
@@ -90,7 +89,6 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
           <TableRow>
             <TableHead className="">Name</TableHead>
             <TableHead className="">Guests</TableHead>
-            <TableHead className="">Duration</TableHead>
             <TableHead className="">Budget</TableHead>
             <TableHead className="">No of Beds</TableHead>
             <TableHead className="">Location</TableHead>
@@ -103,7 +101,6 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
             <TableRow key={query._id}>
               <TableCell>{query.name}</TableCell>
               <TableCell>{query.guest}</TableCell>
-              <TableCell>{query.duration} months</TableCell>
               <TableCell>€{query.budget}</TableCell>
               <TableCell>{query.noOfBeds} Beds</TableCell>
               <TableCell>{query.location}</TableCell>
@@ -153,11 +150,6 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
                       value={selectedQuery.guest}
                     />
                     <InfoItem
-                      icon={Calendar}
-                      label="Duration"
-                      value={`${selectedQuery.duration} months`}
-                    />
-                    <InfoItem
                       icon={DollarSign}
                       label="Budget"
                       value={`€${selectedQuery.budget}`}
@@ -173,7 +165,6 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
                       value={selectedQuery.bookingTerm}
                     />
                   </div>
-
                   <div className="">
                     <InfoItem
                       icon={MapPin}

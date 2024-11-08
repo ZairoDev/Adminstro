@@ -261,10 +261,12 @@ export interface IQuery {
   _id?: string;
   date: string;
   name: string;
+  duration:string;
+  startDate: string;
+  endDate: string;
   phoneNo: number;
   area: string;
   guest: number;
-  duration: number;
   budget: number;
   noOfBeds: number;
   location: string;

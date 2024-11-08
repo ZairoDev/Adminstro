@@ -4,6 +4,16 @@ import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -13,13 +23,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
@@ -40,8 +44,10 @@ import {
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/LeadTable";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
+import { DateRange } from "react-day-picker";
+import { addDays } from "date-fns";
 
 interface ApiResponse {
   data: IQuery[];
@@ -64,6 +70,10 @@ const SalesDashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 10),
+  });
   const [customDateRange, setCustomDateRange] = useState({
     start: "",
     end: "",
@@ -74,11 +84,13 @@ const SalesDashboard = () => {
   const [view, setView] = useState("Table View");
   const [formData, setFormData] = useState<IQuery>({
     date: "",
+    startDate: "",
+    duration: "",
+    endDate: "",
     name: "",
     phoneNo: 0,
     area: "",
     guest: 0,
-    duration: 0,
     budget: 0,
     noOfBeds: 0,
     location: "",
@@ -90,6 +102,93 @@ const SalesDashboard = () => {
     priority: "",
   });
   const limit: number = 12;
+
+  const handleBookingTermChange = (value: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      bookingTerm: value,
+      duration: "",
+    }));
+  };
+
+  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    let durationValues = value.split("-").map(Number);
+    if (formData.bookingTerm === "Short Term") {
+      if (
+        durationValues.length === 2 &&
+        durationValues[0] >= 1 &&
+        durationValues[0] <= 30 &&
+        durationValues[1] <= 30
+      ) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: value,
+        }));
+      } else if (
+        durationValues.length === 1 &&
+        durationValues[0] >= 1 &&
+        durationValues[0] <= 30
+      ) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: `${durationValues[0]}-${durationValues[0]}`,
+        }));
+      } else {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: "",
+        }));
+      }
+    } else if (formData.bookingTerm === "Mid Term") {
+      if (
+        durationValues.length === 2 &&
+        durationValues[0] >= 1 &&
+        durationValues[0] <= 3 &&
+        durationValues[1] <= 3
+      ) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: value,
+        }));
+      } else if (
+        durationValues.length === 1 &&
+        durationValues[0] >= 1 &&
+        durationValues[0] <= 3
+      ) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: `${durationValues[0]}-${durationValues[0]}`,
+        }));
+      } else {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: "",
+        }));
+      }
+    } else if (formData.bookingTerm === "Long Term") {
+      if (
+        durationValues.length === 2 &&
+        durationValues[0] >= 4
+      ) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: value,
+        }));
+      } else if (durationValues.length === 1 && durationValues[0] >= 4) {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: `${durationValues[0]}-${durationValues[0]}`,
+        }));
+      } else {
+        setFormData((prevData) => ({
+          ...prevData,
+          duration: "",
+        }));
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setSubmitQuery(true);
@@ -100,7 +199,6 @@ const SalesDashboard = () => {
         },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
         const result = await response.json();
         const newQuery = result.data;
@@ -109,10 +207,12 @@ const SalesDashboard = () => {
         setFormData({
           date: "",
           name: "",
+          startDate: "",
+          endDate: "",
+          duration: "",
           phoneNo: 0,
           area: "",
           guest: 0,
-          duration: 0,
           budget: 0,
           noOfBeds: 0,
           location: "",
@@ -238,7 +338,8 @@ const SalesDashboard = () => {
     }
     return items;
   };
-  console.log(searchType);
+
+  console.log(date, "Selected Date will print here");
 
   return (
     <div>
@@ -284,7 +385,7 @@ const SalesDashboard = () => {
             </Select>
           </div>
           <div>
-            <Button
+            {/* <Button
               className="xs:block hidden"
               onClick={() => setIsDialogOpen(true)}
             >
@@ -292,7 +393,296 @@ const SalesDashboard = () => {
             </Button>
             <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
               <Plus size={18} />
-            </Button>
+            </Button> */}
+            <Drawer>
+              <DrawerTrigger>
+                <Button>Create Query</Button>
+              </DrawerTrigger>
+              <DrawerContent className="">
+                <DrawerHeader>
+                  <DrawerTitle className="text-2xl">
+                    Details about lead
+                  </DrawerTitle>
+                  <DrawerDescription>
+                    Fill all the details about lead after that tap on submit
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className="">
+                  <ScrollArea className="lg:h-full h-[400px]  w-full   border-y p-4">
+                    <div className="grid p-2 lg:grid-cols-3 lg:mx-20  md:grid-cols-2 grid-cols-1 gap-x-2">
+                      <div className="w-full">
+                        <Label>Name</Label>
+                        <Input
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+
+                      <div className="flex w-full gap-x-2">
+                        <div className="w-full">
+                          <Label>Start Date</Label>
+                          <Input
+                            type="date"
+                            value={formData.startDate}
+                            onChange={(e) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                startDate: e.target.value,
+                              }))
+                            }
+                            placeholder="Start Date"
+                          />
+                        </div>
+                        <div className="w-full">
+                          <Label>End Date</Label>
+                          <Input
+                            type="date"
+                            value={formData.endDate}
+                            onChange={(e) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                endDate: e.target.value,
+                              }))
+                            }
+                            placeholder="End Date"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Phone No</Label>
+                        <Input
+                          type="number"
+                          name="phoneNo"
+                          value={formData.phoneNo}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Area</Label>
+                        <Input
+                          name="area"
+                          value={formData.area}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Guest</Label>
+                        <Input
+                          type="number"
+                          name="guest"
+                          value={formData.guest}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Booking Term</Label>
+                        <Select onValueChange={handleBookingTermChange}>
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Term" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Short Term">
+                              Short Term
+                            </SelectItem>
+                            <SelectItem value="Mid Term">Mid Term</SelectItem>
+                            <SelectItem value="Long Term">Long Term</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Duration</Label>
+                        <Input
+                          name="duration"
+                          value={formData.duration}
+                          onChange={handleDurationChange}
+                          placeholder={
+                            formData.bookingTerm === "Short Term"
+                              ? "Enter range in days (1-30) or single value"
+                              : formData.bookingTerm === "Mid Term"
+                              ? "Enter range in months (1-3) or single value"
+                              : "Enter range (min 4-) or any value at the end"
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label>Budget</Label>
+                        <Input
+                          name="budget"
+                          value={formData.budget}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>No Of Beds</Label>
+                        <Input
+                          type="number"
+                          name="noOfBeds"
+                          value={formData.noOfBeds}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Location</Label>
+                        <Input
+                          name="location"
+                          value={formData.location}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Zone</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              zone: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Zone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="North">North</SelectItem>
+                            <SelectItem value="South">South</SelectItem>
+                            <SelectItem value="East">East</SelectItem>
+                            <SelectItem value="West">West</SelectItem>
+                            <SelectItem value="Centre">Centre</SelectItem>
+                            <SelectItem value="Anywhere">Anywhere</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Bill Status</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              billStatus: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="With Bill">With Bill</SelectItem>
+                            <SelectItem value="Without Bill">
+                              Without Bill
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Type of Property</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              typeOfProperty: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Studio">Studio</SelectItem>
+                            <SelectItem value="Aprtment">Aprtment</SelectItem>
+                            <SelectItem value="Villa">Villa</SelectItem>
+                            <SelectItem value="Pent House">
+                              Pent House
+                            </SelectItem>
+                            <SelectItem value="Detached House">
+                              Detached House
+                            </SelectItem>
+                            <SelectItem value="Loft">Loft</SelectItem>
+                            <SelectItem value="Shared Apartment">
+                              Shared Apartment
+                            </SelectItem>
+                            <SelectItem value="Maisotte">Maisotte</SelectItem>
+                            <SelectItem value="Studio / 1 bedroom">
+                              Studio / 1 bedroom
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Property Type</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              propertyType: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Property Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Furnished">Furnished</SelectItem>
+                            <SelectItem value="Un - furnished">
+                              Un - furnished
+                            </SelectItem>
+                            <SelectItem value="Semi-furnished">
+                              Semi-furnished
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Priority</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              priority: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </div>
+                <DrawerFooter>
+                  <div className="flex sm:items-end sm:justify-end sm:flex-row flex-col items-center justify-center gap-y-2 gap-x-2">
+                    <Button
+                      className="sm:w-auto w-full"
+                      disabled={submitQuery}
+                      onClick={handleSubmit}
+                    >
+                      Submit Query
+                    </Button>
+                    <DrawerClose>
+                      <Button className="sm:w-auto w-full" variant="outline">
+                        Cancel
+                      </Button>
+                    </DrawerClose>
+                  </div>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
           </div>
           <Sheet>
             <SheetTrigger>
@@ -374,7 +764,7 @@ const SalesDashboard = () => {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-muted-foreground">
@@ -394,13 +784,14 @@ const SalesDashboard = () => {
               </div>
               <div>
                 <Label>Date</Label>
-                <Input
-                  name="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
+              
+                <DateRangePicker
+                  date={date}
+                  setDate={setDate}
+                  className="z-50"
                 />
               </div>
+
               <div>
                 <Label>Phone No</Label>
                 <Input
@@ -616,7 +1007,7 @@ const SalesDashboard = () => {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
 
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
@@ -655,7 +1046,6 @@ const SalesDashboard = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    duration={query.duration}
                     budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}

@@ -6,9 +6,9 @@ const querySchema = new Schema(
       type: String,
       required: [false],
     },
-    date: {
+    duration: {
       type: String,
-      require: [true, "Date is required"],
+      require: [true, "Duration is Required"],
     },
     name: {
       type: String,
@@ -26,12 +26,16 @@ const querySchema = new Schema(
       type: Number,
       require: [true, "Guest number should be provided"],
     },
-    duration: {
-      type: Number,
-      require: [true, "Duration shoule be provided"],
+    startDate: {
+      type: String,
+      require: [true, "Start Date is required"],
+    },
+    endDate: {
+      type: String,
+      require: [true, "End date is required"],
     },
     budget: {
-      type: Number,
+      type: String,
       require: [true, "Budget shoule be provided"],
     },
     noOfBeds: {

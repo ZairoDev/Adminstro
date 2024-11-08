@@ -20,6 +20,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/property\/.*$/,
   ],
   Admin: [
+    "/",
     "/admin",
     "/dashboard",
     /^\/dashboard\/user$/,
@@ -31,6 +32,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/edituserdetails\/.*$/,
   ],
   Advert: [
+    "/",
     "/admin",
     "/dashboard",
     /^\/dashboard\/user$/,
@@ -43,6 +45,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Content: [
     // "/dashboard/property",
+    "/",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
@@ -60,6 +63,7 @@ const defaultRoutes: { [key: string]: string } = {
 };
 
 const publicRoutes = [
+  "/",
   "/login",
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,

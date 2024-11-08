@@ -47,7 +47,6 @@ interface QueryCardProps {
   phoneNo: number;
   area: string;
   guest: number;
-  duration: number;
   budget: number;
   noOfBeds: number;
   location: string;
@@ -123,11 +122,6 @@ export default function QueryCard(query: QueryCardProps) {
             value={query.guest}
           />
           <InfoItem
-            icon={Blend}
-            label="Duration"
-            value={`${query.duration} months`}
-          />
-          <InfoItem
             icon={CalendarIcon}
             label="Budget"
             value={`€${query.budget}`}
@@ -175,11 +169,6 @@ export default function QueryCard(query: QueryCardProps) {
                 <div className="">
                   <InfoItem icon={MapPin} label="Area" value={query.area} />
                   <InfoItem icon={Users} label="Guests" value={query.guest} />
-                  <InfoItem
-                    icon={Calendar}
-                    label="Duration"
-                    value={`${query.duration} months`}
-                  />
                   <InfoItem
                     icon={DollarSign}
                     label="Budget"

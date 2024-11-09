@@ -9,7 +9,7 @@ interface tokenInterface {
   iat: number;
   exp: number;
 }
-// Define the role-based access control
+//Role based access
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
@@ -69,7 +69,6 @@ const publicRoutes = [
   /^\/login\/verify-otp\/.+$/,
   "/norole",
 ];
-
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
@@ -80,16 +79,13 @@ export async function middleware(request: NextRequest) {
       typeof pattern === "string" ? path === pattern : pattern.test(path)
     );
   };
-
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)
   );
-
   if (token) {
     try {
       const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
-
       if (path === "/login") {
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/", request.url)

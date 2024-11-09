@@ -1,28 +1,19 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
   CircleAlert,
-  Blend,
   CalendarIcon,
   FileDigitIcon,
   MapPin,
-  Handshake,
-  Grid2X2,
-  ChartNetwork,
-  Pilcrow,
-  PilcrowRight,
   Phone,
-  AreaChart,
   Users,
-  Calendar,
   DollarSign,
   Bed,
   Clock,
@@ -30,7 +21,6 @@ import {
   Receipt,
   Home,
   Building,
-  DatabaseZapIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,28 +28,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogClose,
 } from "@/components/ui/dialog";
+import { IQuery } from "@/util/type";
 
-interface QueryCardProps {
-  name: string;
-  phoneNo: number;
-  area: string;
-  guest: number;
-  budget: number;
-  noOfBeds: number;
-  location: string;
-  bookingTerm: string;
-  zone: string;
-  billStatus: string;
-  typeOfProperty: string;
-  propertyType: string;
-  date: string;
-  priority: string;
-}
-
-export default function QueryCard(query: QueryCardProps) {
+export default function QueryCard(query: IQuery) {
   const InfoItem = ({
     icon: Icon,
     label,
@@ -85,6 +57,23 @@ export default function QueryCard(query: QueryCardProps) {
       </Tooltip>
     </TooltipProvider>
   );
+
+  const startDate =
+    query.startDate && !isNaN(Date.parse(query.startDate))
+      ? new Date(query.startDate)
+      : null;
+
+  const endDate =
+    query.endDate && !isNaN(Date.parse(query.endDate))
+      ? new Date(query.endDate)
+      : null;
+
+  const formattedStartDate = startDate
+    ? format(startDate, "dd-MM-yyyy")
+    : "Invalid Date";
+  const formattedEndDate = endDate
+    ? format(endDate, "dd-MM-yyyy")
+    : "Invalid Date";
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -205,9 +194,14 @@ export default function QueryCard(query: QueryCardProps) {
                     value={query.propertyType}
                   />
                   <InfoItem
-                    icon={DatabaseZapIcon}
-                    label="Date"
-                    value={query.date}
+                    icon={CalendarIcon}
+                    label="Start Date"
+                    value={formattedStartDate}
+                  />
+                  <InfoItem
+                    icon={CalendarIcon}
+                    label="End Date"
+                    value={formattedEndDate}
                   />
                 </div>
               </CardContent>

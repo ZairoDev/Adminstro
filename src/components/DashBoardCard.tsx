@@ -1,7 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Shield, Smartphone, ArrowRight, Laptop, BetweenVerticalStartIcon } from "lucide-react";
+import {
+  Zap,
+  Shield,
+  Smartphone,
+  ArrowRight,
+  Laptop,
+  BetweenVerticalStartIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "./ui/button";
 
@@ -22,12 +29,6 @@ const features = [
     name: "Tech Tune",
     description: "Things that related to TechTune will goes in this route",
     icon: Smartphone,
-    link: "/",
-  },
-  {
-    name: "Coworking Space",
-    description: "Things that related to Coworking will goes in this route",
-    icon: Laptop,
     link: "/",
   },
 ];

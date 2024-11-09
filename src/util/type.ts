@@ -259,7 +259,6 @@ export const propertyTypes: string[] = [
 
 export interface IQuery {
   _id?: string;
-  date: string;
   name: string;
   duration:string;
   startDate: string;

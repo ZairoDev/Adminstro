@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import {
   Table,
   TableBody,
@@ -7,7 +8,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogTrigger,
@@ -17,7 +17,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import {
   Phone,
   User,
@@ -36,30 +35,13 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { IQuery } from "@/util/type";
 
-interface LeadProperty {
-  _id?: string;
-  name: string;
-  phoneNo: number;
-  area: string;
-  guest: number;
-  budget: number;
-  noOfBeds: number;
-  location: string;
-  bookingTerm: string;
-  zone: string;
-  billStatus: string;
-  typeOfProperty: string;
-  propertyType: string;
-  date: string;
-  priority: string;
-}
-
-export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
-  const [selectedQuery, setSelectedQuery] = useState<LeadProperty | null>(null);
+export default function LeadTable({ queries }: { queries: IQuery[] }) {
+  const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const openDialog = (query: LeadProperty) => {
+  const openDialog = (query: IQuery) => {
     setSelectedQuery(query);
     setIsDialogOpen(true);
   };
@@ -81,6 +63,23 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
       </p>
     </div>
   );
+
+  const startDate =
+    selectedQuery?.startDate && !isNaN(Date.parse(selectedQuery?.startDate))
+      ? new Date(selectedQuery?.startDate)
+      : null;
+
+  const endDate =
+    selectedQuery?.endDate && !isNaN(Date.parse(selectedQuery.endDate))
+      ? new Date(selectedQuery.endDate)
+      : null;
+
+  const formattedStartDate = startDate
+    ? format(startDate, "dd-MM-yyyy")
+    : "Invalid Date";
+  const formattedEndDate = endDate
+    ? format(endDate, "dd-MM-yyyy")
+    : "Invalid Date";
 
   return (
     <div className="">
@@ -193,8 +192,13 @@ export default function LeadTable({ queries }: { queries: LeadProperty[] }) {
                     />
                     <InfoItem
                       icon={DateIcon}
-                      label="Date"
-                      value={selectedQuery.date}
+                      label="Start Date"
+                      value={formattedStartDate}
+                    />
+                    <InfoItem
+                      icon={DateIcon}
+                      label="End Date"
+                      value={formattedEndDate}
                     />
                   </div>
                 </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import debounce from "lodash.debounce";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -23,7 +24,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
@@ -82,8 +82,8 @@ const SalesDashboard = () => {
   const [searchType, setSearchType] = useState<string>("name");
   const [page, setPage] = useState<number>(1);
   const [view, setView] = useState("Table View");
+  const { toast } = useToast();
   const [formData, setFormData] = useState<IQuery>({
-    date: "",
     startDate: "",
     duration: "",
     endDate: "",
@@ -167,10 +167,7 @@ const SalesDashboard = () => {
         }));
       }
     } else if (formData.bookingTerm === "Long Term") {
-      if (
-        durationValues.length === 2 &&
-        durationValues[0] >= 4
-      ) {
+      if (durationValues.length === 2 && durationValues[0] >= 4) {
         setFormData((prevData) => ({
           ...prevData,
           duration: value,
@@ -191,6 +188,34 @@ const SalesDashboard = () => {
 
   const handleSubmit = async () => {
     try {
+      // First check for empty fields
+      const emptyFields: string[] = [];
+
+      Object.entries(formData).forEach(([key, value]) => {
+        if (
+          value === "" ||
+          value === null ||
+          value === undefined ||
+          value === 0
+        ) {
+          const fieldName = key
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (str) => str.toUpperCase())
+            .trim();
+          emptyFields.push(fieldName);
+        }
+      });
+      // If there are empty fields, show alert and return
+      if (emptyFields.length > 0) {
+        toast({
+          description: `Please fill in the following required fields: ${emptyFields.join(
+            ", "
+          )}`,
+        });
+        return;
+      }
+
+      // If validation passes, proceed with form submission
       setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
         method: "POST",
@@ -199,36 +224,19 @@ const SalesDashboard = () => {
         },
         body: JSON.stringify(formData),
       });
-      if (response.ok) {
-        const result = await response.json();
-        const newQuery = result.data;
-        setQueries((prevQueries) => [newQuery, ...prevQueries]);
-        setIsDialogOpen(false);
-        setFormData({
-          date: "",
-          name: "",
-          startDate: "",
-          endDate: "",
-          duration: "",
-          phoneNo: 0,
-          area: "",
-          guest: 0,
-          budget: 0,
-          noOfBeds: 0,
-          location: "",
-          bookingTerm: "",
-          zone: "",
-          billStatus: "",
-          typeOfProperty: "",
-          propertyType: "",
-          priority: "",
-        });
-      } else {
-        console.error("Failed to create query");
-      }
+      const result = await response.json();
+      const newQuery = result.data;
+      setQueries((prevQueries) => [newQuery, ...prevQueries]);
+      setIsDialogOpen(false);
+      toast({
+        description: "Query Created Successfully",
+      });
     } catch (error) {
       console.error("Error:", error);
-    } finally {
+      toast({
+        variant: "destructive",
+        description: "Some error occurred while creating query",
+      });
       setSubmitQuery(false);
     }
   };
@@ -271,9 +279,7 @@ const SalesDashboard = () => {
     ),
     [searchType, page, limit]
   );
-
   console.log(page, "Page will print here ");
-
   const handleSearch = () => {
     fetchQuery({
       searchTerm,
@@ -287,14 +293,12 @@ const SalesDashboard = () => {
     fetchQuery({
       searchTerm,
       searchType,
-      dateFilter: "",
-      customDays: "",
-      customDateRange: {
-        start: "",
-        end: "",
-      },
+      dateFilter,
+      customDays,
+      customDateRange,
     });
   }, [searchTerm, searchType, page]);
+
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
@@ -339,676 +343,435 @@ const SalesDashboard = () => {
     return items;
   };
 
-  console.log(date, "Selected Date will print here");
+  // console.log(date, "Selected Date will print here");
 
   return (
     <div>
-      <div className="flex md:flex-row flex-col items-center justify-between">
+      <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
           <Heading
             heading="All Leads"
             subheading="You will get the list of leads that created till now"
           />
         </div>
-
-        <div className="flex w-full gap-x-2">
-          <div className="">
-            <Select
-              onValueChange={(value: string) => setSearchType(value)}
-              value={searchType}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="phoneNo">Phone No</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Need to manage the code below this */}
+        <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
+          <div className="flex w-full items-center gap-x-2">
+            <div className="">
+              <Select
+                onValueChange={(value: string) => setSearchType(value)}
+                value={searchType}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="phoneNo">Phone No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-
-          <div className="sm:max-w-[140px] max-w-[80px] w-full">
-            <Select onValueChange={(value) => setView(value)}>
-              <SelectTrigger className="">
-                <SelectValue placeholder="Select View" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Table View">Table View</SelectItem>
-                <SelectItem value="Card View">Card View</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            {/* <Button
-              className="xs:block hidden"
-              onClick={() => setIsDialogOpen(true)}
-            >
-              Create Query
-            </Button>
-            <Button className="xs:hidden" onClick={() => setIsDialogOpen(true)}>
-              <Plus size={18} />
-            </Button> */}
-            <Drawer>
-              <DrawerTrigger>
-                <Button>Create Query</Button>
-              </DrawerTrigger>
-              <DrawerContent className="">
-                <DrawerHeader>
-                  <DrawerTitle className="text-2xl">
-                    Details about lead
-                  </DrawerTitle>
-                  <DrawerDescription>
-                    Fill all the details about lead after that tap on submit
-                  </DrawerDescription>
-                </DrawerHeader>
-                <div className="">
-                  <ScrollArea className="lg:h-full h-[400px]  w-full   border-y p-4">
-                    <div className="grid p-2 lg:grid-cols-3 lg:mx-20  md:grid-cols-2 grid-cols-1 gap-x-2">
-                      <div className="w-full">
-                        <Label>Name</Label>
-                        <Input
-                          name="name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-
-                      <div className="flex w-full gap-x-2">
+          <div className="flex md:w-auto w-full justify-between  gap-x-2">
+            <div className="w-full md:mb-0 mb-2">
+              <Drawer>
+                <DrawerTrigger className=" w-full md:w-auto">
+                  <Button className="w-full">Create Query</Button>
+                </DrawerTrigger>
+                <DrawerContent className="">
+                  <DrawerHeader>
+                    <DrawerTitle className="text-2xl">
+                      Details about lead
+                    </DrawerTitle>
+                    <DrawerDescription>
+                      Fill all the details about lead after that tap on submit
+                    </DrawerDescription>
+                  </DrawerHeader>
+                  <div className="">
+                    <ScrollArea className="lg:h-full h-[400px]  w-full   border-y p-4">
+                      <div className="grid p-2 lg:grid-cols-3 lg:mx-20  md:grid-cols-2 grid-cols-1 gap-x-2">
                         <div className="w-full">
-                          <Label>Start Date</Label>
+                          <Label>Name</Label>
                           <Input
-                            type="date"
-                            value={formData.startDate}
-                            onChange={(e) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                startDate: e.target.value,
-                              }))
-                            }
-                            placeholder="Start Date"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
                           />
                         </div>
-                        <div className="w-full">
-                          <Label>End Date</Label>
+                        <div className="flex w-full gap-x-2">
+                          <div className="w-full">
+                            <Label>Start Date</Label>
+                            <Input
+                              type="date"
+                              value={formData.startDate}
+                              onChange={(e) =>
+                                setFormData((prevData) => ({
+                                  ...prevData,
+                                  startDate: e.target.value,
+                                }))
+                              }
+                              placeholder="Start Date"
+                            />
+                          </div>
+                          <div className="w-full">
+                            <Label>End Date</Label>
+                            <Input
+                              type="date"
+                              value={formData.endDate}
+                              onChange={(e) =>
+                                setFormData((prevData) => ({
+                                  ...prevData,
+                                  endDate: e.target.value,
+                                }))
+                              }
+                              placeholder="End Date"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>Phone No</Label>
                           <Input
-                            type="date"
-                            value={formData.endDate}
-                            onChange={(e) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                endDate: e.target.value,
-                              }))
-                            }
-                            placeholder="End Date"
+                            type="number"
+                            name="phoneNo"
+                            value={formData.phoneNo}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
                           />
                         </div>
-                      </div>
+                        <div>
+                          <Label>Area</Label>
+                          <Input
+                            name="area"
+                            value={formData.area}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Guest</Label>
+                          <Input
+                            type="number"
+                            name="guest"
+                            value={formData.guest}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Booking Term</Label>
+                          <Select onValueChange={handleBookingTermChange}>
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Term" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Short Term">
+                                Short Term
+                              </SelectItem>
+                              <SelectItem value="Mid Term">Mid Term</SelectItem>
+                              <SelectItem value="Long Term">
+                                Long Term
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Duration</Label>
+                          <Input
+                            name="duration"
+                            value={formData.duration}
+                            onChange={handleDurationChange}
+                            placeholder={
+                              formData.bookingTerm === "Short Term"
+                                ? "Enter range in days (1-30) or single value"
+                                : formData.bookingTerm === "Mid Term"
+                                ? "Enter range in months (1-3) or single value"
+                                : "Enter range (min 4-) or any value at the end"
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Budget</Label>
+                          <Input
+                            name="budget"
+                            value={formData.budget}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
+                          />
+                        </div>
+                        <div>
+                          <Label>No Of Beds</Label>
+                          <Input
+                            type="number"
+                            name="noOfBeds"
+                            value={formData.noOfBeds}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Location</Label>
+                          <Input
+                            name="location"
+                            value={formData.location}
+                            onChange={handleInputChange}
+                            placeholder="Enter name"
+                          />
+                        </div>
 
-                      <div>
-                        <Label>Phone No</Label>
-                        <Input
-                          type="number"
-                          name="phoneNo"
-                          value={formData.phoneNo}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Area</Label>
-                        <Input
-                          name="area"
-                          value={formData.area}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Guest</Label>
-                        <Input
-                          type="number"
-                          name="guest"
-                          value={formData.guest}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Booking Term</Label>
-                        <Select onValueChange={handleBookingTermChange}>
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Term" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Short Term">
-                              Short Term
-                            </SelectItem>
-                            <SelectItem value="Mid Term">Mid Term</SelectItem>
-                            <SelectItem value="Long Term">Long Term</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Duration</Label>
-                        <Input
-                          name="duration"
-                          value={formData.duration}
-                          onChange={handleDurationChange}
-                          placeholder={
-                            formData.bookingTerm === "Short Term"
-                              ? "Enter range in days (1-30) or single value"
-                              : formData.bookingTerm === "Mid Term"
-                              ? "Enter range in months (1-3) or single value"
-                              : "Enter range (min 4-) or any value at the end"
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>Budget</Label>
-                        <Input
-                          name="budget"
-                          value={formData.budget}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-                      <div>
-                        <Label>No Of Beds</Label>
-                        <Input
-                          type="number"
-                          name="noOfBeds"
-                          value={formData.noOfBeds}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Location</Label>
-                        <Input
-                          name="location"
-                          value={formData.location}
-                          onChange={handleInputChange}
-                          placeholder="Enter name"
-                        />
-                      </div>
+                        <div>
+                          <Label>Zone</Label>
+                          <Select
+                            onValueChange={(value) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                zone: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Zone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="North">North</SelectItem>
+                              <SelectItem value="South">South</SelectItem>
+                              <SelectItem value="East">East</SelectItem>
+                              <SelectItem value="West">West</SelectItem>
+                              <SelectItem value="Centre">Centre</SelectItem>
+                              <SelectItem value="Anywhere">Anywhere</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Bill Status</Label>
+                          <Select
+                            onValueChange={(value) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                billStatus: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="With Bill">
+                                With Bill
+                              </SelectItem>
+                              <SelectItem value="Without Bill">
+                                Without Bill
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Type of Property</Label>
+                          <Select
+                            onValueChange={(value) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                typeOfProperty: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Studio">Studio</SelectItem>
+                              <SelectItem value="Aprtment">Aprtment</SelectItem>
+                              <SelectItem value="Villa">Villa</SelectItem>
+                              <SelectItem value="Pent House">
+                                Pent House
+                              </SelectItem>
+                              <SelectItem value="Detached House">
+                                Detached House
+                              </SelectItem>
+                              <SelectItem value="Loft">Loft</SelectItem>
+                              <SelectItem value="Shared Apartment">
+                                Shared Apartment
+                              </SelectItem>
+                              <SelectItem value="Maisotte">Maisotte</SelectItem>
+                              <SelectItem value="Studio / 1 bedroom">
+                                Studio / 1 bedroom
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <div>
-                        <Label>Zone</Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              zone: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Zone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="North">North</SelectItem>
-                            <SelectItem value="South">South</SelectItem>
-                            <SelectItem value="East">East</SelectItem>
-                            <SelectItem value="West">West</SelectItem>
-                            <SelectItem value="Centre">Centre</SelectItem>
-                            <SelectItem value="Anywhere">Anywhere</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div>
+                          <Label>Property Type</Label>
+                          <Select
+                            onValueChange={(value) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                propertyType: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Property Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Furnished">
+                                Furnished
+                              </SelectItem>
+                              <SelectItem value="Un - furnished">
+                                Un - furnished
+                              </SelectItem>
+                              <SelectItem value="Semi-furnished">
+                                Semi-furnished
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Priority</Label>
+                          <Select
+                            onValueChange={(value) =>
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                priority: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Select Priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="High">High</SelectItem>
+                              <SelectItem value="Low">Low</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div>
-                        <Label>Bill Status</Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              billStatus: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="With Bill">With Bill</SelectItem>
-                            <SelectItem value="Without Bill">
-                              Without Bill
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Type of Property</Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              typeOfProperty: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Studio">Studio</SelectItem>
-                            <SelectItem value="Aprtment">Aprtment</SelectItem>
-                            <SelectItem value="Villa">Villa</SelectItem>
-                            <SelectItem value="Pent House">
-                              Pent House
-                            </SelectItem>
-                            <SelectItem value="Detached House">
-                              Detached House
-                            </SelectItem>
-                            <SelectItem value="Loft">Loft</SelectItem>
-                            <SelectItem value="Shared Apartment">
-                              Shared Apartment
-                            </SelectItem>
-                            <SelectItem value="Maisotte">Maisotte</SelectItem>
-                            <SelectItem value="Studio / 1 bedroom">
-                              Studio / 1 bedroom
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label>Property Type</Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              propertyType: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Property Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Furnished">Furnished</SelectItem>
-                            <SelectItem value="Un - furnished">
-                              Un - furnished
-                            </SelectItem>
-                            <SelectItem value="Semi-furnished">
-                              Semi-furnished
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Priority</Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              priority: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Priority" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-                <DrawerFooter>
-                  <div className="flex sm:items-end sm:justify-end sm:flex-row flex-col items-center justify-center gap-y-2 gap-x-2">
-                    <Button
-                      className="sm:w-auto w-full"
-                      disabled={submitQuery}
-                      onClick={handleSubmit}
-                    >
-                      Submit Query
-                    </Button>
-                    <DrawerClose>
-                      <Button className="sm:w-auto w-full" variant="outline">
-                        Cancel
-                      </Button>
-                    </DrawerClose>
+                    </ScrollArea>
                   </div>
-                </DrawerFooter>
-              </DrawerContent>
-            </Drawer>
-          </div>
-          <Sheet>
-            <SheetTrigger>
-              <Button variant="outline">
-                <SlidersHorizontal size={18} />
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle className="text-start">Data Filters</SheetTitle>
-                <SheetDescription className="flex flex-col gap-y-2">
-                  <Select
-                    onValueChange={(value) => setDateFilter(value)}
-                    value={dateFilter}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Date Filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="yesterday">Yesterday</SelectItem>
-                      <SelectItem value="lastDays">Last X Days</SelectItem>
-                      <SelectItem value="customRange">
-                        Custom Date Range
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {dateFilter === "lastDays" && (
-                    <Input
-                      placeholder="Enter number of days"
-                      type="number"
-                      value={customDays}
-                      onChange={(e) => setCustomDays(e.target.value)}
-                    />
-                  )}
-                  {dateFilter === "customRange" && (
-                    <div className="flex space-x-2">
-                      <Input
-                        placeholder="Start Date"
-                        type="date"
-                        value={customDateRange.start}
-                        onChange={(e) =>
-                          setCustomDateRange({
-                            ...customDateRange,
-                            start: e.target.value,
-                          })
-                        }
-                      />
-                      <Input
-                        placeholder="End Date"
-                        type="date"
-                        value={customDateRange.end}
-                        onChange={(e) =>
-                          setCustomDateRange({
-                            ...customDateRange,
-                            end: e.target.value,
-                          })
-                        }
-                      />
+                  <DrawerFooter>
+                    <div className="flex sm:items-end sm:justify-end sm:flex-row flex-col items-center justify-center gap-y-2 gap-x-2">
+                      <Button
+                        className="sm:w-auto w-full"
+                        disabled={submitQuery}
+                        onClick={handleSubmit}
+                      >
+                        Submit Query
+                      </Button>
+                      <DrawerClose>
+                        <Button className="sm:w-auto w-full" variant="outline">
+                          Cancel
+                        </Button>
+                      </DrawerClose>
                     </div>
-                  )}
-                  <SheetClose asChild>
-                    <Button className="sm:w-auto w-full" onClick={handleSearch}>
-                      Apply
-                    </Button>
-                  </SheetClose>
-                </SheetDescription>
-              </SheetHeader>
-              <SheetFooter className="">
-                <p className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                  Fill in your search details, apply custom filters, and let us
-                  bring you the most relevant results with just a click of the
-                  Apply button !
-                </p>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+                  </DrawerFooter>
+                </DrawerContent>
+              </Drawer>
+            </div>
+            <div className="">
+              <Sheet>
+                <SheetTrigger>
+                  <Button variant="outline">
+                    <SlidersHorizontal size={18} />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle className="text-start">Data Filters</SheetTitle>
+                    <SheetDescription className="flex flex-col gap-y-2">
+                      <Select
+                        onValueChange={(value) => setDateFilter(value)}
+                        value={dateFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Date Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="yesterday">Yesterday</SelectItem>
+                          <SelectItem value="lastDays">Last X Days</SelectItem>
+                          <SelectItem value="customRange">
+                            Custom Date Range
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {dateFilter === "lastDays" && (
+                        <Input
+                          placeholder="Enter number of days"
+                          type="number"
+                          value={customDays}
+                          onChange={(e) => setCustomDays(e.target.value)}
+                        />
+                      )}
+                      {dateFilter === "customRange" && (
+                        <div className="flex space-x-2">
+                          <Input
+                            placeholder="Start Date"
+                            type="date"
+                            value={customDateRange.start}
+                            onChange={(e) =>
+                              setCustomDateRange({
+                                ...customDateRange,
+                                start: e.target.value,
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="End Date"
+                            type="date"
+                            value={customDateRange.end}
+                            onChange={(e) =>
+                              setCustomDateRange({
+                                ...customDateRange,
+                                end: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
+                      <SheetClose asChild>
+                        <Button
+                          className="sm:w-auto w-full"
+                          onClick={handleSearch}
+                        >
+                          Apply
+                        </Button>
+                      </SheetClose>
+                    </SheetDescription>
+                  </SheetHeader>
+                  <SheetFooter className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
+                    <div className="flex flex-col gap-y-2">
+                      <Select onValueChange={(value) => setView(value)}>
+                        <SelectTrigger className="">
+                          <SelectValue placeholder="Select View" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Table View">Table View</SelectItem>
+                          <SelectItem value="Card View">Card View</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="px-2">
+                        Fill in your search details, apply custom filters, and
+                        let us bring you the most relevant results with just a
+                        click of the Apply button !
+                      </p>
+                    </div>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-muted-foreground">
-              Create New Query
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="md:h-full h-[400px]  w-full rounded-md border p-4">
-            <div className="grid p-2 lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-x-2">
-              <div className="w-full">
-                <Label>Name</Label>
-                <Input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Date</Label>
-              
-                <DateRangePicker
-                  date={date}
-                  setDate={setDate}
-                  className="z-50"
-                />
-              </div>
-
-              <div>
-                <Label>Phone No</Label>
-                <Input
-                  type="number"
-                  name="phoneNo"
-                  value={formData.phoneNo}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Area</Label>
-                <Input
-                  name="area"
-                  value={formData.area}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Guest</Label>
-                <Input
-                  type="number"
-                  name="guest"
-                  value={formData.guest}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Duration</Label>
-                <Input
-                  type="number"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Budget</Label>
-                <Input
-                  type="number"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>No Of Beds</Label>
-                <Input
-                  type="number"
-                  name="noOfBeds"
-                  value={formData.noOfBeds}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Location</Label>
-                <Input
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div>
-                <Label>Booking Term</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      bookingTerm: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Term" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Short Term">Short Term</SelectItem>
-                    <SelectItem value="Long Term">Long Term</SelectItem>
-                    <SelectItem value="Mid Term">Mid Term</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Zone</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      zone: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Zone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="North">North</SelectItem>
-                    <SelectItem value="South">South</SelectItem>
-                    <SelectItem value="East">East</SelectItem>
-                    <SelectItem value="West">West</SelectItem>
-                    <SelectItem value="Centre">Centre</SelectItem>
-                    <SelectItem value="Anywhere">Anywhere</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Bill Status</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      billStatus: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="With Bill">With Bill</SelectItem>
-                    <SelectItem value="Without Bill">Without Bill</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Type of Property</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      typeOfProperty: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Studio">Studio</SelectItem>
-                    <SelectItem value="Aprtment">Aprtment</SelectItem>
-                    <SelectItem value="Villa">Villa</SelectItem>
-                    <SelectItem value="Pent House">Pent House</SelectItem>
-                    <SelectItem value="Detached House">
-                      Detached House
-                    </SelectItem>
-                    <SelectItem value="Loft">Loft</SelectItem>
-                    <SelectItem value="Shared Apartment">
-                      Shared Apartment
-                    </SelectItem>
-                    <SelectItem value="Maisotte">Maisotte</SelectItem>
-                    <SelectItem value="Studio / 1 bedroom">
-                      Studio / 1 bedroom
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Property Type</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      propertyType: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Property Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Furnished">Furnished</SelectItem>
-                    <SelectItem value="Un - furnished">
-                      Un - furnished
-                    </SelectItem>
-                    <SelectItem value="Semi-furnished">
-                      Semi-furnished
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Priority</Label>
-                <Select
-                  onValueChange={(value) =>
-                    setFormData((prevData) => ({
-                      ...prevData,
-                      priority: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="">
-                    <SelectValue placeholder="Select Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button disabled={submitQuery} onClick={handleSubmit}>
-              Submit Query
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
-
+      {/* Need to manaeg the code above this  */}
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
           <Loader />
@@ -1043,6 +806,9 @@ const SalesDashboard = () => {
                 <div key={query._id}>
                   <QueryCard
                     name={query.name}
+                    duration={query.duration}
+                    startDate={query.startDate}
+                    endDate={query.endDate}
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
@@ -1054,7 +820,6 @@ const SalesDashboard = () => {
                     billStatus={query.billStatus}
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
-                    date={query.date}
                     priority={query.priority}
                   />
                 </div>

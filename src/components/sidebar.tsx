@@ -88,7 +88,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
     },
-
+    {
+      path: "/dashboard/newproperty",
+      label: "Manage Newtask",
+      Icon: <Users size={18} />,
+    },
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",
@@ -174,13 +178,13 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? "bg-primary text-primary-foreground rounded-lg"
+            ? "bg-primary/40  rounded-l-sm border-r-4 border-primary"
             : ""
         }`}
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 hover:bg-primary/5 rounded-lg px-4 py-2 "
+          className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "
         >
           {route.Icon && route.Icon}
           {showText && <span className="">{route.label}</span>}

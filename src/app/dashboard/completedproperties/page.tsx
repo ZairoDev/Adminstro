@@ -192,7 +192,7 @@ const CompletedProperties: React.FC = () => {
           <div>Error: {error}</div>
         ) : (
           <div className=" mb-4">
-            <div className=" ">
+            <div className=" ">       
               <DonutChart
                 title="Total Properties"
                 data={chartData}

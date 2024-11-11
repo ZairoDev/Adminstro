@@ -1,16 +1,13 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { customAlphabet } from "nanoid";
-import { IProperty } from "./listing";
 import type { PropertySchema } from "@/schemas/property.schema";
 
 // VSID Generator Function
 const generateVSID = (length: number): string => {
-  const charset =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const generateUniqueId = customAlphabet(charset, length);
   return generateUniqueId();
 };
-
 const PropertySchema: Schema = new Schema<PropertySchema>(
   {
     VSID: {
@@ -33,7 +30,7 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     isInstantBooking: Boolean,
     propertyType: String,
     rentalForm: String,
-		propertyName: String,
+    propertyName: String,
     placeName: String,
     newPlaceName: String,
 

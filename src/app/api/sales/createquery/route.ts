@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Pusher from "pusher";
-import Query from "@/models/query"; 
+import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 
 connectDb();
@@ -15,23 +15,66 @@ const pusher = new Pusher({
 
 export async function POST(req: Request) {
   try {
-    const { name, email, price, intrest, about } = await req.json(); 
+    const {
+      date,
+      name,
+      email,
+      phoneNo,
+      duration,
+      startDate,
+      endDate,
+      area,
+      guest,
+      budget,
+      noOfBeds,
+      location,
+      bookingTerm,
+      zone,
+      billStatus,
+      typeOfProperty,
+      propertyType,
+      priority,
+    } = await req.json();
     const newQuery = await Query.create({
       name,
       email,
-      price,
-      intrest,
-      about,
+      date,
+      startDate,
+      endDate,
+      phoneNo,
+      duration,
+      area,
+      guest,
+      budget,
+      noOfBeds,
+      location,
+      bookingTerm,
+      zone,
+      billStatus,
+      typeOfProperty,
+      propertyType,
+      priority,
     });
 
     // Trigger the Pusher event
     await pusher.trigger("queries", "new-query", {
+      date: newQuery.date,
       name: newQuery.name,
-      email: newQuery.email,
-      price: newQuery.price,
-      intrest: newQuery.intrest,
-      about: newQuery.about,
-      createdAt: newQuery.createdAt,
+      startDate: newQuery.startDate,
+      endDate: newQuery.endDate,
+      phoneNo: newQuery.phoneNo,
+      duration: newQuery.duration,
+      area: newQuery.area,
+      guest: newQuery.guest,
+      budget: newQuery.budget,
+      noOfBeds: newQuery.noOfBeds,
+      location: newQuery.location,
+      bookingTerm: newQuery.bookingTerm,
+      zone: newQuery.zone,
+      billStatus: newQuery.billStatus,
+      typeOfProperty: newQuery.typeOfProperty,
+      propertyType: newQuery.propertyType,
+      priority: newQuery.priority,
     });
 
     return NextResponse.json(

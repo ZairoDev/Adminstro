@@ -1,0 +1,48 @@
+import Rooms from "@/models/room";
+import { connectDb } from "@/util/db";
+import { NextRequest, NextResponse } from "next/server";
+
+connectDb();
+
+export async function POST(req: NextRequest) {
+  try {
+    const { roomId, roomPassword } = await req.json();
+    console.log("roomId: ", roomId);
+    console.log("roomPassword: ", roomPassword);
+
+    if (!roomId || !roomPassword) {
+      return NextResponse.json(
+        { error: "Fill the credentials" },
+        { status: 400 }
+      );
+    }
+    console.log("before: ");
+    const room = await Rooms.findById(roomId);
+    console.log("room: ", room);
+
+    if (!room) {
+      return NextResponse.json(
+        { error: "Room Does Not Exist!" },
+        { status: 400 }
+      );
+    }
+
+    if (room.password !== roomPassword) {
+      return NextResponse.json(
+        { error: "Invalid Room Credentials" },
+        { status: 400 }
+      );
+    }
+
+    if (!room.isActive) {
+      return NextResponse.json(
+        { error: "This room had been closed" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ message: "Joined Room" }, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Room does not Exist" }, { status: 400 });
+  }
+}

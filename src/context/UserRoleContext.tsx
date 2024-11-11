@@ -43,7 +43,7 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Function to refresh user role
+ 
   const refreshUserRole = () => {
     getUserRole();
   };

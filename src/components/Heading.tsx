@@ -14,5 +14,4 @@ const Heading = ({ heading, subheading }: HeadingProps) => {
     </div>
   );
 };
-
 export default Heading;

@@ -61,7 +61,6 @@ const defaultRoutes: { [key: string]: string } = {
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
 };
-
 const publicRoutes = [
   "/",
   "/login",

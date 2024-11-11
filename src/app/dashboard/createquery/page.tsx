@@ -48,10 +48,12 @@ import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
+import { validateAndSetDuration } from "@/util/durationValidation";
 
 interface ApiResponse {
   data: IQuery[];
   totalPages: number;
+  totalQueries: number;
 }
 interface FetchQueryParams {
   searchTerm: string;
@@ -65,9 +67,10 @@ const SalesDashboard = () => {
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
+  const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -102,7 +105,6 @@ const SalesDashboard = () => {
     priority: "",
   });
   const limit: number = 12;
-
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
       ...prevData,
@@ -110,87 +112,13 @@ const SalesDashboard = () => {
       duration: "",
     }));
   };
-
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    let durationValues = value.split("-").map(Number);
-    if (formData.bookingTerm === "Short Term") {
-      if (
-        durationValues.length === 2 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 30 &&
-        durationValues[1] <= 30
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (
-        durationValues.length === 1 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 30
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    } else if (formData.bookingTerm === "Mid Term") {
-      if (
-        durationValues.length === 2 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 3 &&
-        durationValues[1] <= 3
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (
-        durationValues.length === 1 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 3
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    } else if (formData.bookingTerm === "Long Term") {
-      if (durationValues.length === 2 && durationValues[0] >= 4) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (durationValues.length === 1 && durationValues[0] >= 4) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    }
+    validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
   };
 
   const handleSubmit = async () => {
     try {
-      // First check for empty fields
       const emptyFields: string[] = [];
-
       Object.entries(formData).forEach(([key, value]) => {
         if (
           value === "" ||
@@ -214,8 +142,6 @@ const SalesDashboard = () => {
         });
         return;
       }
-
-      // If validation passes, proceed with form submission
       setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
         method: "POST",
@@ -227,7 +153,6 @@ const SalesDashboard = () => {
       const result = await response.json();
       const newQuery = result.data;
       setQueries((prevQueries) => [newQuery, ...prevQueries]);
-      setIsDialogOpen(false);
       toast({
         description: "Query Created Successfully",
       });
@@ -262,9 +187,13 @@ const SalesDashboard = () => {
             `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}`
           );
           const data: ApiResponse = await response.json();
+
+          console.log(data);
+
           if (response.ok) {
             setQueries(data.data);
             setTotalPages(data.totalPages);
+            setTotalQueries(data.totalQueries);
           } else {
             throw new Error("Failed to fetch properties");
           }
@@ -382,7 +311,7 @@ const SalesDashboard = () => {
             <div className="w-full md:mb-0 mb-2">
               <Drawer>
                 <DrawerTrigger className=" w-full md:w-auto">
-                  <Button className="w-full">Create Query</Button>
+                  <Button className="w-full">Create Lead</Button>
                 </DrawerTrigger>
                 <DrawerContent className="">
                   <DrawerHeader>
@@ -783,9 +712,9 @@ const SalesDashboard = () => {
               <LeadTable queries={queries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
-              <div>
-                <p className="text-sm">
-                  Page {page} of {totalPages}
+              <div className="">
+                <p className="text-xs ">
+                  Page {page} of {totalPages} — {totalQuery} total results
                 </p>
               </div>
               <div>
@@ -829,8 +758,8 @@ const SalesDashboard = () => {
           <div>
             <div className="flex items-center justify-between p-2 w-full">
               <div>
-                <p className="text-sm">
-                  Page {page} of {totalPages}
+                <p className="text-xs">
+                  Page {page} of {totalPages} — {totalQuery} total results
                 </p>
               </div>
               <div>

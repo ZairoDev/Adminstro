@@ -30,6 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IQuery } from "@/util/type";
+import Link from "next/link";
+import { ScrollArea } from "./ui/scroll-area";
 
 export default function QueryCard(query: IQuery) {
   const InfoItem = ({
@@ -44,7 +46,7 @@ export default function QueryCard(query: IQuery) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex  gap-2 items-center rounded-full px-3 py-1">
+          <div className="flex  gap-2 ">
             <Icon size={18} className="text-muted-foreground" />
             <p className="text-base font-medium line-clamp-1">
               <span className="mr-2 text-base text-muted-foreground ">
@@ -132,10 +134,10 @@ export default function QueryCard(query: IQuery) {
               Full View
             </Button>
           </DialogTrigger>
-          <DialogContent className=" ">
+          <DialogContent className="p-4 ">
             <DialogHeader>
-              <DialogTitle className="lg:text-2xl text-muted-foreground md:text-xl text-lg">
-                Full Details about User
+              <DialogTitle className="text-xl p-0 font-normal">
+                Lead Details
               </DialogTitle>
             </DialogHeader>
 
@@ -149,61 +151,106 @@ export default function QueryCard(query: IQuery) {
                     {query.priority} Priority
                   </Badge>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground mt-1">
-                  <Phone size={14} className="mr-1" />
+                <div className="flex  items-center text-sm text-muted-foreground mt-1">
+                  <Link
+                    href={`https://wa.me/${query.phoneNo}?text=Hi%20${query.name}%2C%20my%20name%20is%20Myself%2C%20and%20how%20are%20you%20doing%3F`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src="https://vacationsaga.b-cdn.net/assets/wsp.png"
+                      alt="icon image"
+                      className="h-10 w-10 mr-1"
+                    />
+                  </Link>
                   {query.phoneNo}
                 </div>
               </CardHeader>
               <CardContent className="pt-2">
-                <div className="">
-                  <InfoItem icon={MapPin} label="Area" value={query.area} />
-                  <InfoItem icon={Users} label="Guests" value={query.guest} />
-                  <InfoItem
-                    icon={DollarSign}
-                    label="Budget"
-                    value={`€${query.budget}`}
-                  />
-                  <InfoItem icon={Bed} label="Beds" value={query.noOfBeds} />
-                  <InfoItem
-                    icon={Clock}
-                    label="Term"
-                    value={query.bookingTerm}
-                  />
-                </div>
-
-                <div className="">
-                  <InfoItem
-                    icon={MapPin}
-                    label="Location"
-                    value={query.location}
-                  />
-                  <InfoItem icon={ChartArea} label="Zone" value={query.zone} />
-                  <InfoItem
-                    icon={Receipt}
-                    label="Bill Status"
-                    value={query.billStatus}
-                  />
-                  <InfoItem
-                    icon={Home}
-                    label="Property Type"
-                    value={query.typeOfProperty}
-                  />
-                  <InfoItem
-                    icon={Building}
-                    label="Building Type"
-                    value={query.propertyType}
-                  />
-                  <InfoItem
-                    icon={CalendarIcon}
-                    label="Start Date"
-                    value={formattedStartDate}
-                  />
-                  <InfoItem
-                    icon={CalendarIcon}
-                    label="End Date"
-                    value={formattedEndDate}
-                  />
-                </div>
+                <ScrollArea className="md:h-[400px] h-[300px] w-full border-none rounded-md border p-4">
+                  <div className="flex flex-col gap-y-3">
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem icon={MapPin} label="Area" value={query.area} />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Users}
+                        label="Guests"
+                        value={query.guest}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={DollarSign}
+                        label="Budget"
+                        value={`€${query.budget}`}
+                      />
+                    </div>{" "}
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Bed}
+                        label="Beds"
+                        value={query.noOfBeds}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Clock}
+                        label="Term"
+                        value={query.bookingTerm}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={MapPin}
+                        label="Location"
+                        value={query.location}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={ChartArea}
+                        label="Zone"
+                        value={query.zone}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Receipt}
+                        label="Bill Status"
+                        value={query.billStatus}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Home}
+                        label="Property Type"
+                        value={query.typeOfProperty}
+                      />
+                    </div>{" "}
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={Building}
+                        label="Building Type"
+                        value={query.propertyType}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={CalendarIcon}
+                        label="Start Date"
+                        value={formattedStartDate}
+                      />
+                    </div>
+                    <div className="border px-3 py-2 rounded-lg">
+                      <InfoItem
+                        icon={CalendarIcon}
+                        label="End Date"
+                        value={formattedEndDate}
+                      />
+                    </div>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </DialogContent>

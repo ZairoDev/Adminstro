@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   title: "Adminsto Dashboard",
   description: "Created for internale use only",
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{

@@ -44,6 +44,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     setSelectedQuery(query);
     setIsDialogOpen(true);
   };
+
   const InfoItem = ({
     icon: Icon,
     label,
@@ -83,9 +84,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableHead className="">Name</TableHead>
             <TableHead className="">Guests</TableHead>
             <TableHead className="">Budget</TableHead>
-            <TableHead className="">No of Beds</TableHead>
+            <TableHead className="">Beds</TableHead>
             <TableHead className="">Location</TableHead>
-            <TableHead className="">Booking Term</TableHead>
+            <TableHead className="">Term</TableHead>
             <TableHead className="">Actions</TableHead>
           </TableRow>
         </TableHeader>

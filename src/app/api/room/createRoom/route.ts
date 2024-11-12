@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const room = await Rooms.create({
       name: lead.name,
       lead: lead._id,
-      participants: [employee.email, lead.email],
+      participants: [employee.email, lead.phoneNo.toString()],
       password: generateStrongPassword(8),
     });
     console.log('created room": ', room);

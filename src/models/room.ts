@@ -15,6 +15,9 @@ const roomSchema = new mongoose.Schema(
       required: true,
     },
     showcaseProperties: {
+      type: [Object],
+    },
+    favouriteProperties: {
       type: [String],
     },
     rejectedProperties: {

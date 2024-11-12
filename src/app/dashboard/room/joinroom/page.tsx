@@ -8,7 +8,7 @@ import { LucideLoader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-const page = () => {
+const Page = () => {
   const { toast } = useToast();
   const router = useRouter();
   const roomIdRef = useRef<HTMLInputElement>(null);
@@ -87,4 +87,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

@@ -71,7 +71,6 @@ const Page = ({ params }: PageProps) => {
         email,
       });
       toast({
-        title: "Verification Successful",
         description: "You have successfully logged in as Superadmin",
       });
       router.push("/");
@@ -80,7 +79,6 @@ const Page = ({ params }: PageProps) => {
       console.log(err.response.data.error);
       toast({
         variant: "destructive",
-        title: "Verification Failed",
         description: `${err.response.data.error}`,
       });
     }
@@ -92,13 +90,12 @@ const Page = ({ params }: PageProps) => {
     try {
       const response = await axios.post("/api/resend-otp", { email });
       toast({
-        title: "Verification otp sent",
         description: "Otp send sucessfully to your entered email address",
       });
       setRemainingTime(60);
     } catch (err: any) {
       toast({
-        title: "Verification otp sent",
+        variant: "destructive",
         description: `err`,
       });
     }

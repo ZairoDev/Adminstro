@@ -42,12 +42,9 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   };
-
- 
   const refreshUserRole = () => {
     getUserRole();
   };
-
   useEffect(() => {
     getUserRole();
   }, []);
@@ -60,7 +57,6 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
     </UserRoleContext.Provider>
   );
 };
-
 // Custom hook to use the UserRole context
 export const useUserRole = () => {
   const context = useContext(UserRoleContext);

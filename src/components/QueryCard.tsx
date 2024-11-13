@@ -59,24 +59,20 @@ export default function QueryCard(query: IQuery) {
       </Tooltip>
     </TooltipProvider>
   );
-
   const startDate =
     query.startDate && !isNaN(Date.parse(query.startDate))
       ? new Date(query.startDate)
       : null;
-
   const endDate =
     query.endDate && !isNaN(Date.parse(query.endDate))
       ? new Date(query.endDate)
       : null;
-
   const formattedStartDate = startDate
     ? format(startDate, "dd-MM-yyyy")
     : "Invalid Date";
   const formattedEndDate = endDate
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
-
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "High":
@@ -89,7 +85,6 @@ export default function QueryCard(query: IQuery) {
         return "text-gray-600 border-gray-600";
     }
   };
-
   return (
     <Card className="w-full max-w-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="pb-2 border-b">

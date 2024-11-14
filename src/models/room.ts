@@ -18,10 +18,10 @@ const roomSchema = new mongoose.Schema(
       type: [Object],
     },
     favouriteProperties: {
-      type: [String],
+      type: [Object],
     },
     rejectedProperties: {
-      type: [String],
+      type: [Object],
     },
     isActive: {
       type: Boolean,

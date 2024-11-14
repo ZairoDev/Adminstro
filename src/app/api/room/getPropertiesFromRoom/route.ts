@@ -16,9 +16,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid Room Id" }, { status: 400 });
     }
 
-    const roomProperties = room.showcaseProperties;
+    const showcaseProperties = room.showcaseProperties;
+    const rejectedProperties = room.rejectedProperties;
 
-    return NextResponse.json({ data: roomProperties }, { status: 201 });
+    return NextResponse.json(
+      {
+        showcaseProperties: showcaseProperties,
+        rejectedProperties: rejectedProperties,
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: "Error in fetching properties from room" },

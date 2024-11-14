@@ -48,7 +48,7 @@ const Page = () => {
   };
 
   return (
-    <div className=" w-full h-[93vh] border border-white flex items-center justify-center">
+    <div className=" w-full h-[93vh] flex items-center justify-center">
       <Card className=" w-80  shadow-lg rounded-lg relative overflow-hidden">
         <div className="absolute -bottom-20 -left-28 w-full h-40 bg-[url('https://vacationsaga.b-cdn.net/assets/couch.png')] bg-no-repeat bg-bottom bg-contain overflow-hidden opacity-80 pointer-events-none" />
         <div className="relative z-10">

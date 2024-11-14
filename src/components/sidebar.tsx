@@ -165,7 +165,9 @@ export function Sidebar() {
     }
 
     if (!userRole) {
-      return <li>No role assigned</li>;
+      return (
+        <li className="flex justify-center text-xl font-medium ">Visitor</li>
+      );
     }
 
     const routes = roleRoutes[userRole as keyof typeof roleRoutes];

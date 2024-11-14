@@ -68,6 +68,7 @@ const publicRoutes = [
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
   "/norole",
+  "/dashboard/room/*",
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -128,5 +129,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)",
+  ],
 };

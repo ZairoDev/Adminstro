@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       city: property?.city,
       state: property?.state,
       country: property?.country,
+      isFavourite: false,
     };
 
     console.log("property images: ", propertyObject);

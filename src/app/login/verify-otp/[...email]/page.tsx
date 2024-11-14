@@ -6,15 +6,6 @@ import { CgSpinner } from "react-icons/cg";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-
 import {
   InputOTP,
   InputOTPGroup,
@@ -23,7 +14,6 @@ import {
 } from "@/components/ui/input-otp";
 import { ArrowLeft } from "lucide-react";
 import { ModeToggle } from "@/components/themeChangeButton";
-
 interface PageProps {
   params: {
     email: string;
@@ -84,7 +74,6 @@ const Page = ({ params }: PageProps) => {
     }
     setVerifyLoading(false);
   };
-
   const handleRetryOTP = async () => {
     setVerifyLoading(true);
     try {

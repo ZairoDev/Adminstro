@@ -7,7 +7,6 @@ import {
   ReactNode,
 } from "react";
 import axios from "axios";
-
 interface UserRoleContextType {
   userRole: string | null;
   currentUser: string | null;
@@ -15,7 +14,6 @@ interface UserRoleContextType {
   userEmail: string | null;
   refreshUserRole: () => void;
 }
-
 export const UserRoleContext = createContext<UserRoleContextType | undefined>(
   undefined
 );
@@ -57,7 +55,7 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
     </UserRoleContext.Provider>
   );
 };
-// Custom hook to use the UserRole context
+
 export const useUserRole = () => {
   const context = useContext(UserRoleContext);
   if (context === undefined) {

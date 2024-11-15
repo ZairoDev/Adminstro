@@ -13,6 +13,9 @@ import Pusher from "pusher-js";
 import { useEffect, useRef, useState } from "react";
 import { FaRegStar, FaStar } from "react-icons/fa6";
 import toast, { Toaster } from "react-hot-toast";
+import debounce from "lodash.debounce";
+import { BackgroundGradient } from "@/components/ui/background-gradient";
+import { BackgroundGradientBox } from "@/components/BackgroundGradientBox";
 
 interface pageProps {
   params: {
@@ -35,8 +38,96 @@ const Page = ({ params }: pageProps) => {
   const [rejectedProperties, setRejectedProperties] = useState<
     Partial<PropertiesDataType>[]
   >([]);
+  const [favouriteProperties, setFavouriteProperties] = useState<string[]>([]);
+  const [cachedFavouriteProperties, setCachedFavouriteProperties] = useState<
+    string[]
+  >([]);
   const [removedPropertyIndex, setRemovedPropertyIndex] = useState(-1);
+  const [retractedPropertyIndex, setRetractedPropertyIndex] = useState(-1);
+  const [alreadyAddedProperty, setAlreadyAddedProperty] = useState<string>("");
   const role = "Visitor";
+
+  const addProperty = async () => {
+    if (!propertyIdRef?.current?.value) return;
+
+    if (
+      showcaseProperties.filter(
+        (item) => item._id === propertyIdRef?.current?.value
+      ).length
+    ) {
+      console.log("already added: ", propertyIdRef?.current?.value);
+      setAlreadyAddedProperty(propertyIdRef?.current?.value);
+      toast("Property Already Added", {
+        icon: "❗",
+      });
+      setTimeout(() => {
+        setAlreadyAddedProperty("");
+      }, 1000);
+      return;
+    }
+
+    try {
+      setIspropertyLoading(true);
+      const response = await axios.post("/api/room/addPropertyInRoom", {
+        propertyId: propertyIdRef?.current?.value,
+        roomId: roomId,
+      });
+      console.log("response: ", response);
+    } catch (err: any) {
+      console.log("error in adding property: ", err);
+    } finally {
+      setIspropertyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log("useEffect: ", alreadyAddedProperty);
+  }, [alreadyAddedProperty]);
+
+  const removeProperty = async (index: number, propertyId: string) => {
+    setRemovedPropertyIndex(index);
+    try {
+      const response = await axios.patch("/api/room/removePropertyFromRoom", {
+        roomId: roomId,
+        propertyId: propertyId,
+      });
+      console.log("property deleted: ", response);
+    } catch (err: any) {
+      console.log("Error in removing property: ", err);
+    }
+    setRemovedPropertyIndex(-1);
+  };
+
+  const addToFavourite = debounce(async () => {
+    if (!favouriteProperties.length) return;
+
+    try {
+      const response = await axios.patch("/api/room/addPropertyToFavourite", {
+        roomId,
+        favouriteProperties,
+      });
+      console.log("response of favourite: ", response);
+      setFavouriteProperties([]);
+      console.log("properties added to favourite");
+    } catch (err: unknown) {
+      toast.error("Error in adding to favourite");
+    }
+  }, 5000);
+
+  const retractProperty = async (index: number, propertyId: string) => {
+    setRetractedPropertyIndex(index);
+    try {
+      const response = await axios.post(
+        "/api/room/retractPropertyFromRejected",
+        { roomId, propertyId }
+      );
+      console.log("retract repsonse: ", response);
+    } catch (err: unknown) {
+      console.log("err: ", err);
+    } finally {
+      setRetractedPropertyIndex(-1);
+    }
+  };
 
   useEffect(() => {
     const roomDetails = params.id[0].split("-");
@@ -118,45 +209,25 @@ const Page = ({ params }: pageProps) => {
       toast.success("Property Removed!");
     });
 
+    channel.bind("updateFavourites", (data: any) => {
+      console.log("favourites data: ", data);
+    });
+
+    channel.bind("retractedProperty", (data: any) => {
+      console.log("retracted data: ", data);
+      setShowcaseProperties((prev) => [...prev, data]);
+      setRejectedProperties((prev) => {
+        const newRemovedProperties = prev.filter(
+          (item) => item._id! !== data._id
+        );
+        return newRemovedProperties;
+      });
+    });
+
     return () => {
       pusher.unsubscribe(`room-${roomId}`);
     };
   }, [roomId]);
-
-  const addProperty = async () => {
-    if (!propertyIdRef?.current?.value) return;
-
-    try {
-      setIspropertyLoading(true);
-      const response = await axios.post("/api/room/addPropertyInRoom", {
-        propertyId: propertyIdRef?.current?.value,
-        roomId: roomId,
-      });
-      console.log("response: ", response);
-    } catch (err: any) {
-      console.log("error in adding property: ", err);
-    } finally {
-      setIspropertyLoading(false);
-    }
-  };
-
-  const removeProperty = async (index: number, propertyId: string) => {
-    setRemovedPropertyIndex(index);
-    try {
-      const response = await axios.patch("/api/room/removePropertyFromRoom", {
-        roomId: roomId,
-        propertyId: propertyId,
-      });
-      console.log("property deleted: ", response);
-    } catch (err: any) {
-      console.log("Error in removing property: ", err);
-    }
-    setRemovedPropertyIndex(-1);
-  };
-
-  useEffect(() => {
-    console.log("show case properties: ", showcaseProperties);
-  }, [showcaseProperties]);
 
   return (
     <div className=" w-full h-full p-2">
@@ -166,7 +237,7 @@ const Page = ({ params }: pageProps) => {
           <LucideLoader2 className=" animate-spin" size={48} />
         </div>
       ) : (
-        <div>
+        <div className={``}>
           <div className=" flex gap-x-8 items-end">
             <div>
               <Label>
@@ -204,7 +275,7 @@ const Page = ({ params }: pageProps) => {
                   <div
                     className={` my-1 flex flex-col items-center ${
                       index === removedPropertyIndex && "opacity-20"
-                    }`}
+                    } `}
                     key={index}
                   >
                     <Link
@@ -216,26 +287,40 @@ const Page = ({ params }: pageProps) => {
                       <img
                         src={item?.propertyImages?.[0]}
                         alt="PropertyImage"
-                        className=" w-32 h-32 rounded-md shadow-md shadow-white/30"
+                        className={` w-32 h-32 rounded-md shadow-md shadow-white/30 ${
+                          item._id === alreadyAddedProperty &&
+                          "border-4 border-pink-600 shadow-2xl"
+                        }`}
                       />
                     </Link>
                     <div className=" flex gap-x-2 my-2">
                       <Button
                         variant={"outline"}
-                        onClick={() =>
+                        onClick={() => {
                           setShowcaseProperties((prev) => {
                             const newObject = { ...prev[index] };
                             newObject.isFavourite = !newObject.isFavourite;
                             prev[index] = newObject;
                             return [...prev];
-                          })
-                        }
+                          });
+                          if (favouriteProperties.indexOf(item._id!) === -1) {
+                            setFavouriteProperties((prev) => [
+                              ...prev,
+                              item._id!,
+                            ]);
+                          } else {
+                            setFavouriteProperties((prev) =>
+                              prev.filter((id) => id !== item._id!)
+                            );
+                          }
+                          addToFavourite();
+                        }}
                         className="shadow-md shadow-white/30"
                       >
                         {showcaseProperties[index].isFavourite ? (
-                          <FaStar className=" text-yellow-600" />
+                          <FaStar className=" text-xl text-yellow-400" />
                         ) : (
-                          <FaRegStar />
+                          <FaRegStar className=" text-xl" />
                         )}
                       </Button>
                       <Button
@@ -275,7 +360,9 @@ const Page = ({ params }: pageProps) => {
                 (item, index: number) =>
                   item?._id && (
                     <div
-                      className={` my-1 flex flex-col items-center`}
+                      className={` my-1 flex flex-col items-center ${
+                        item._id === alreadyAddedProperty && " opacity-20"
+                      } ${index === retractedPropertyIndex && "opacity-20"} `}
                       key={index}
                     >
                       <Link
@@ -293,8 +380,8 @@ const Page = ({ params }: pageProps) => {
                       <div className=" flex justify-center mt-2">
                         <Button
                           variant={"outline"}
-                          onClick={() => removeProperty(index, item._id!)}
                           className="shadow-md shadow-white/30"
+                          onClick={() => retractProperty(index, item._id!)}
                         >
                           <CustomTooltip
                             icon={<Undo2 size={18} />}

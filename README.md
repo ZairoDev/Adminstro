@@ -1,4 +1,4 @@
-<!-- 
+<!--
 
 Formated way of doing things
 
@@ -180,11 +180,6 @@ They can be assigned to variables or stored in data structures.
 
  -->
 
-
-
-
-
-
 ## JavaScript 101
 
 #### Everything in javascript happend inside execution context
@@ -285,7 +280,7 @@ Shortst javascript program is empty file of js
 
    if variable not exixts and you are trying to aceess it , then in that case that value gives you a  notdefined
 
-    
+
 
 
    Question No : 6 ===> Scop in js
@@ -301,7 +296,7 @@ Shortst javascript program is empty file of js
    where you can acess the variable it called scope meaning if variable is aceessble or not in that space
    it depends of lexical envoirment
 
-   Whenever execution context is created lexical envoirment is also created , 
+   Whenever execution context is created lexical envoirment is also created ,
    lexical envoirment ------ means private memory and lexical envoirment of the parent
    scopechanin is the chain of lexical envoirment
 
@@ -309,25 +304,25 @@ Shortst javascript program is empty file of js
 
     let , cont declration are hoisted , these are in temporal dead zone for time being
 
-    In case of var it puts into global scope but in let it make it save in seprate memmory space 
+    In case of var it puts into global scope but in let it make it save in seprate memmory space
     Since then when let variable wads hoisted and till it is inslise some value , this time called temporal deadzone
 
-    when you try to access a variable in temproral deadzone it gives a refrence error, 
+    when you try to access a variable in temproral deadzone it gives a refrence error,
 
     const ===> it will not allow you to declarec first than letter on put the value inti jst like  let
 
-    
-    Refrence error ==> when js try to find out specific variable and you can not access it in that case it gives 
+
+    Refrence error ==> when js try to find out specific variable and you can not access it in that case it gives
     a refrence error.
     console.log(a)
     let a = 10;
     consoel.log(x) also gives the refrence error !
 
-    Type Error  ==> it means you are trying to assiging the another value 
+    Type Error  ==> it means you are trying to assiging the another value
     const a =20;
     b=30;
 
-    Syntex error ==>   const b ; ==> give syntas error 
+    Syntex error ==>   const b ; ==> give syntas error
     let a 100;
     let a = 1000;  ==> gives syntax error
 
@@ -344,17 +339,17 @@ Shortst javascript program is empty file of js
    }
 
    if(true) ==> syntax error beacuse it needed a one statement.
-   
+
    if(true){
     const a = "Aman"
     const b = "Trivedi" ===> for thises things to wrap into one we create a block , so that these statement wrapedup
     console.log(a , b)
    }
 
- 
+
     {
      const a =10;
-     var b = 20;     ===> you can not access the var and cont after this block that it called block scope. 
+     var b = 20;     ===> you can not access the var and cont after this block that it called block scope.
      let c = 30;
     }
 
@@ -362,7 +357,7 @@ Shortst javascript program is empty file of js
   var a = 10;
  {
      const a =10;
-     var b = 20;    . 
+     var b = 20;    .
      let c = 30;
  }
 console.log(a) ===>10 because of shadowing
@@ -378,15 +373,15 @@ console.log(a) ===>10 because of shadowing
       y();
   }
   x();
- 
+
  A function bind togethre to it lexical scope is forms a closuers,
 
  Clouser i need to learn
 
  Question No : 8 ===> SetTimeOut()
 
- SetTime out take the function attch the function , and store time in other place after that time it print the value 
- 
+ SetTime out take the function attch the function , and store time in other place after that time it print the value
+
  Question No : 9 => What is the firstclass function
 
 a();
@@ -415,12 +410,12 @@ var b = function name(){
   console.log("Beacuse function has a name thats why its name is named function)
    name();
  }
-  
-That does not mean that you can use name after it not it only available to its scope  
+
+That does not mean that you can use name after it not it only available to its scope
 
 Argument ===> values pass inside the functiuon called argument === nameofatheFunction(1 ,2)
 
-Parameter function(params 1  , paramss 2 )  ===> this is paramenter in function 
+Parameter function(params 1  , paramss 2 )  ===> this is paramenter in function
 
 First class function ===> The ability to use function as a value is called a first class function
 
@@ -430,7 +425,7 @@ Functions are firstcall citizens ===>
    it means the samething like first class function
 
 
- Question No : 15  ===> 
+ Question No : 15  ===>
 
    function x() {
       y(); ===> Callback function
@@ -445,8 +440,8 @@ Functions are firstcall citizens ===>
      console.log("Callback function)
   }, 1000)
 
-It does not wait here to 1 sec to expire , because it does not wait for that time , 
-it runs the otherthings and clear the callkstack after given timen it again comes and perform the opration 
+It does not wait here to 1 sec to expire , because it does not wait for that time ,
+it runs the otherthings and clear the callkstack after given timen it again comes and perform the opration
 that given into the setTime out.
 
 closure along with the event listners
@@ -455,7 +450,7 @@ let count  = 0;
 
 
 
-Why we have to remove evenlistners , 
+Why we have to remove evenlistners ,
    these are heavy , it form the clouser .
 
 
@@ -479,13 +474,365 @@ setTimeout(()=>{
 
 Promises and mutation observer goes into microtask queue.
 All other things goes into call back queue.
- 
+
 
 
 Starvation problem in callback queue...
 
 
+Map filter and reduce ====>
+ These all are higher order function
+
+    Map ===>
+      When we want to transform the whole array we can use map function
+
+      const arr= [ 1 ,2 ,3 ,4  ,5];
+
+      function double(x){
+        return x * 2;
+       }
+
+     const value =  arr.map(double)
+     console.lov(value)  ===> all the value will be convert into double.
+
+
+     OR
+
+     const anotherWay  = arr.map(function (x) =>{
+        return x * 2;
+      })
+
+     console.log(anotherWay);
+
+     OR
+
+     const oneMoreWay = arra.map((x)=>{
+        return x * 2;
+      })
+
+11/15/2024  ===> Todays Reading Need to understand and learn everthing.....
+    How filter function works
+        It use to filter the value according to your logic that you defined
+
+      const filterArray = [1,2,3,4,5,6,7,8,9,10];
+
+      filter out all the odd values
+          const answer = filterArray.filter( (x)=>{
+              if(x%2===0){
+                   console.log("Odd number)
+               } else {
+                 console.log("even number)
+               }
+               return ;
+            })
+
+      function idOdd(x){
+         return x % 2;
+       }
+     
+      const anotherAnswer = arr.filter(isOdd);
+      console.log(anotherAsnwer);
+
+      const anotherAnswer = ara.map(function(x){
+           return x % 2;
+        })
+
+How Reduce works 
+   it Achually does not reduce anything.
+     It basically used in those place when you have full array and you have to comeup with the single value 
+     in that array.
+   
+
+  const arr =[ 1,2,3,4,5,6,7,8,9];
+  find the maximum number into that array
+
+
+  function findSum(arr){
+  let sum = 0;
+     for(let i=0; i <=arr.length; i++){
+           sum = sum + arr[i]; 
+       }
+     return sum;
+    }
+
+ console.log(findSum(arr));
+
+ Now how can we do it in a Reduce way.
+  
+  const output =  arr.reduce(function(acc:used to accumlate the value , curr:value of the array){
+      acc= acc + curr;
+      return acc;
+   },0) ===> any initail value that you want to put into the acc thats why i have given 0 here so that it start from the 0
+
+   console.log(arr) ;  => 17 will be printed into console 
+
+
+fins the maximum in the array
+const output = arr.reduce(function(max, curr){
+    if(curr>max){
+       max =curr
+     }
+  },0)
+  
+console.log(max);
+we have array of object 
+const output = user.reduce(function(acc, curr) {
+      if(acc[curr.age]){
+         acc[curr.age] =  ++ acc.curr[age];
+      }else{
+        acc[curr.age] =1;
+      }
+ },{})
+
+filter out firstname of the user where age is < 30 
+
+const output = users.filter((x) => x.age < 30).map((x)=> x.firstName);
+
+console.log(output);
+
+
+From Here there is a specific question for frontend interview need to know
+  
+  function Currying
+    let multiPly = function(x ,y) {
+        console.log(x * y);
+     }
+
+   let multiPly = multiply.bind(this,2);
+
+   console.log(multiply) ===> give the copy of the achualy array with the logic that you have implemented.
+
+
+   Currying , 
+   Prototype in js
+   Event Bubbling , 
+   Even capturing,
+   Event Delegation,
+   call apply and bind in js
+   debouncing,
+   Throttling in js , 
+   polyfill for bind method,
+   async and defer attributes, 
+
+
+   After that all the things that are in season two...
+
+    Callback hell ===> 
+       It basically condition when you writing function in function for long time and in form like loop pyramid like strucher in that condition , it called callback heli.
+
+
+    setTimeout(function(){
+      console.log("Hi i m here")   ====> Callback function
+    }, 5000)
+    
+    const cart = ["shoes" , "Kurta" , "Jeans"];
+
+    call back hell is like 
+       api.createOrder(cart , function (){
+         
+          api.createBill(price , function(){
+              
+              api.senEmail(text , function(){
+              })
+
+           })
+       
+       })
+
+    Whole scenarion we are trusting , that yes out createorder will work fine but in some case it can he work fine.
+
+    Promises how promises worked...
+       
+
+     const cart =  ["apple" , "Shoes" , "Tshirts"];
+
+      createOrder(cart ,  function(orderId){
+          api.proceedToPayment(orderId)
+      }) 
+ 
+     const promise = creayeOrder(cart);
+
+     This will return a promise like , async tak promise will a three things like , pending , resolve , reject 
+
+     promise.then(function(OrderId){
+        proceedToBill(orderId)
+      })
+ Above is a fake scenario 
+
+ const data = fetch(GITHUB_API);
+ it return the profime
+
+
+
+Promise are imutable can not change ===>
+Promise is a object that represent eventual completion of async operation.
+
+ data.then(function (data){
+    console.log(data)
+  })
+const handleClick = async ((e)=>{
+    try {
+       const response = await axios.post("GITHUB_URL")
+       console.log(response)
+       performa Any Opration
+    }catch(error){
+       console.log(error);
+    }
+ })
+  Above things are how to consume the promise  
+
+  Now how can you create a promise ====> How things work 
+
+  const arr= ["Kurta" , "Pyjama" , "Kurta"]
+
+
+  Producer part creating a promise
+
+  function createOrder(){
+    const pr = new Promise(function (resolve , reject){
+      Create an order things like validate card
+      call to database
+      many things with logic
+     if(vaidatCard(cart)){
+      const error = new Error("Cart is not valid");
+        reject(error)
+       }
+       const orderId = DBCALL.getOrderId;
+       if(orderId){
+          resolve(orderId);
+        }
+     })
+    return pr;
+   }
+
+  <!-- How it work with fake apiCall
+     const cart = ["Product1" , "Product2" , "Product3"];
+
+     createOrder(cart).then(function(OrderId){
+       console.log(OrderId);
+        return OrderId;
+     }).catch(function(error){
+        console.log(error)
+        return error;
+     }).then(function(orderId){
+       createaBill(orderId)
+       return createBillNumber;
+     }).catch(function(error){
+       console.log(error)
+       return error
+     }).then(function(createdBIllNumber){
+         sendEmail(CreatedBillNumber)
+         return message;
+       }).catch(function(error){
+         console.log(error)
+         return error;
+       })
+
+  Akhay homework
+
+    createOrder(orderId).then(function(orderId){
+        return proceedToPayment(orderId)
+     }).catch(function(error){
+        return error;
+       }).then(function(orderId){
+           return showOrderSummary(orderId)
+        }).catch(function(error){
+          return error
+         }).then(function(orderId){
+          return updateWallet(orderId)
+          }).catch(function(error){
+           return error;
+          }).then(function(orderId){
+            console.log("Order Created Successfully")
+          })
+
+ 
+PromiseApi         ===      
+
+Promise.all(), ===> It wait for all promise to resolve if one of them git rejeted it return 
+Promise.allSettled(), ===> It waits for all promise to happen either thet are reject ot resolve,
+Promise.race(), ===> one of them got 
+Promise.any()
+
+
+
+
+===> First important thing is async function always return a promise , eithre you return a promise , or you dont return a promise from here boolean , int , string , it take the value wrap it into a promise and retrun it thats what async function do.
+
+
+  const createdPromise = new Promise(resolve , reject) {
+      resolve("Promise Got resolved")
+      if()
+    }
+  if you returning a promise it return as it is if normal value it return the promise.
+   async function getData(){
+       return createdPromise;
+    }
+  
+  function getData() {
+     return "Nmaste";
+   }
+   
+  const dataPromise = getData();
+  dataPromise.then(res){
+     console.log(res);
+   }
+
+   async and await combo is used to handle a promises // But why we need it
+   await can be only used in async function
+     async function handlePromise() {
+         const value  = await p;   => p == Promise
+         console.log(Value)
+       }
+     handlePromise()
+  
+                                                /////Important thing //////
+
+    diffrence between async await and normal then and catch
+
+  const p  = new Promise(resolve, reject){
+       setTimeout(()=>{
+          resolve("Promise Got Resolved")
+       },5000)
+   }
+   Normal method 
+
+   function getData(){
+     p.then(function(response){
+        console.log(response)
+      })
+      console.log("Namaste Js")
+    }
+  This will not wait for you to resolve the promise and give answer then print the message it happen one after one.
+  How async handle the things
+  async function getData(){
+      const response = await p;
+      console.log("Namaste js")
+      const response2 = await p;
+      console.log("Namaste js"); 
+   }
+  It will wait for 5 sec then print the Namaste js code will wait to resolve the promise,
+  when it seen a await it suspend for the time it wait for promise to resolve then it move on
+  
+
+  
+
+  
+
+
+  
 
 
 
  -->
+  
+ 
+   
+
+
+
+
+
+
+
+

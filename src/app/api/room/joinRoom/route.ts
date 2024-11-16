@@ -1,5 +1,6 @@
 import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -10,15 +11,19 @@ export async function POST(req: NextRequest) {
     console.log("roomId: ", roomId);
     console.log("roomPassword: ", roomPassword);
 
+    let roomToken = "Visitor";
+    try {
+      const token = await getDataFromToken(req);
+      roomToken = token.role as string;
+    } catch (err: any) {}
+
     if (!roomId || !roomPassword) {
       return NextResponse.json(
         { error: "Fill the credentials" },
         { status: 400 }
       );
     }
-    console.log("before: ");
     const room = await Rooms.findById(roomId);
-    console.log("room: ", room);
 
     if (!room) {
       return NextResponse.json(
@@ -40,8 +45,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    return NextResponse.json({ message: "Joined Room" }, { status: 200 });
+    console.log('room token: ', roomToken);
+    return NextResponse.json(
+      { message: "Joined Room", role: roomToken },
+      { status: 200 }
+    );
   } catch (err: any) {
     return NextResponse.json({ error: "Room does not Exist" }, { status: 400 });
   }

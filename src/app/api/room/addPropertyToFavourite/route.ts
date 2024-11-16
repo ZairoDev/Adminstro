@@ -16,8 +16,8 @@ const pusher = new Pusher({
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { roomId, favouriteProperties } = await req.json();
-    console.log("roomId: ", roomId, favouriteProperties);
+    const { roomId, propertyIds, client } = await req.json();
+    console.log("roomId: ", roomId, propertyIds, "**", client, "**");
 
     if (!roomId) {
       return NextResponse.json(
@@ -26,43 +26,36 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    if (!favouriteProperties || !Array.isArray(favouriteProperties)) {
+    if (!propertyIds || !Array.isArray(propertyIds)) {
       return NextResponse.json(
         { error: "Array of property IDs is required" },
         { status: 400 }
       );
     }
 
-    const updateResult = await Rooms.updateOne(
-      { _id: roomId },
-      {
-        $set: {
-          "showcaseProperties.$[property].isFavourite": {
-            $cond: {
-              if: {
-                $eq: ["$showcaseProperties.$[property].isFavourite", true],
-              },
-              then: false,
-              else: true,
-            },
-          },
-        },
-      },
-      {
-        arrayFilters: [
-          {
-            "property._id": {
-              $in: favouriteProperties.map(
-                (id: string) => new mongoose.Types.ObjectId(id)
-              ),
-            },
-          },
-        ],
+    const objectIds = propertyIds.map((id) => new mongoose.Types.ObjectId(id));
+    const room = await Rooms.findById(roomId);
+
+    if (!room) {
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    }
+
+    room.showcaseProperties = room.showcaseProperties.map((property: any) => {
+      if (objectIds.some((id) => id.equals(property._id))) {
+        return {
+          ...property,
+          isFavourite: !property.isFavourite,
+        };
       }
-    );
+      return property;
+    });
+
+    // Save the updated document
+    await room.save();
 
     await pusher.trigger(`room-${roomId}`, "updateFavourites", {
-      favouriteProperties,
+      propertyIds,
+      client,
     });
 
     return NextResponse.json(

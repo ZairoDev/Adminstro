@@ -7,15 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PropertiesDataType } from "@/util/type";
 import axios from "axios";
-import { House, LucideLoader2, Star, Trash2, Undo2 } from "lucide-react";
+import { House, LucideLoader2, Plus, Star, Trash2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import Pusher from "pusher-js";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FaRegStar, FaStar } from "react-icons/fa6";
 import toast, { Toaster } from "react-hot-toast";
 import debounce from "lodash.debounce";
 import { BackgroundGradient } from "@/components/ui/background-gradient";
 import { BackgroundGradientBox } from "@/components/BackgroundGradientBox";
+import { CustomDialog } from "@/components/CustomDialog";
 
 interface pageProps {
   params: {
@@ -39,95 +40,13 @@ const Page = ({ params }: pageProps) => {
     Partial<PropertiesDataType>[]
   >([]);
   const [favouriteProperties, setFavouriteProperties] = useState<string[]>([]);
-  const [cachedFavouriteProperties, setCachedFavouriteProperties] = useState<
-    string[]
-  >([]);
   const [removedPropertyIndex, setRemovedPropertyIndex] = useState(-1);
   const [retractedPropertyIndex, setRetractedPropertyIndex] = useState(-1);
   const [alreadyAddedProperty, setAlreadyAddedProperty] = useState<string>("");
-  const role = "Visitor";
-
-  const addProperty = async () => {
-    if (!propertyIdRef?.current?.value) return;
-
-    if (
-      showcaseProperties.filter(
-        (item) => item._id === propertyIdRef?.current?.value
-      ).length
-    ) {
-      console.log("already added: ", propertyIdRef?.current?.value);
-      setAlreadyAddedProperty(propertyIdRef?.current?.value);
-      toast("Property Already Added", {
-        icon: "❗",
-      });
-      setTimeout(() => {
-        setAlreadyAddedProperty("");
-      }, 1000);
-      return;
-    }
-
-    try {
-      setIspropertyLoading(true);
-      const response = await axios.post("/api/room/addPropertyInRoom", {
-        propertyId: propertyIdRef?.current?.value,
-        roomId: roomId,
-      });
-      console.log("response: ", response);
-    } catch (err: any) {
-      console.log("error in adding property: ", err);
-    } finally {
-      setIspropertyLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    console.log("useEffect: ", alreadyAddedProperty);
-  }, [alreadyAddedProperty]);
-
-  const removeProperty = async (index: number, propertyId: string) => {
-    setRemovedPropertyIndex(index);
-    try {
-      const response = await axios.patch("/api/room/removePropertyFromRoom", {
-        roomId: roomId,
-        propertyId: propertyId,
-      });
-      console.log("property deleted: ", response);
-    } catch (err: any) {
-      console.log("Error in removing property: ", err);
-    }
-    setRemovedPropertyIndex(-1);
-  };
-
-  const addToFavourite = debounce(async () => {
-    if (!favouriteProperties.length) return;
-
-    try {
-      const response = await axios.patch("/api/room/addPropertyToFavourite", {
-        roomId,
-        favouriteProperties,
-      });
-      console.log("response of favourite: ", response);
-      setFavouriteProperties([]);
-      console.log("properties added to favourite");
-    } catch (err: unknown) {
-      toast.error("Error in adding to favourite");
-    }
-  }, 5000);
-
-  const retractProperty = async (index: number, propertyId: string) => {
-    setRetractedPropertyIndex(index);
-    try {
-      const response = await axios.post(
-        "/api/room/retractPropertyFromRejected",
-        { roomId, propertyId }
-      );
-      console.log("retract repsonse: ", response);
-    } catch (err: unknown) {
-      console.log("err: ", err);
-    } finally {
-      setRetractedPropertyIndex(-1);
-    }
-  };
+  const [favouriteUpdatedProperties, setFavouriteUpdatedProperties] = useState<
+    string[]
+  >([]);
+  const [role, setRole] = useState("");
 
   useEffect(() => {
     const roomDetails = params.id[0].split("-");
@@ -144,10 +63,11 @@ const Page = ({ params }: pageProps) => {
           roomId,
           roomPassword,
         });
-        console.log("response: ", response.data);
+        console.log("response of join room : ", response.data.role);
+        setRole(response.data.role);
         setIsLoading(false);
       } catch (err: any) {
-        console.log("error: ", err);
+        console.log("Error in verifying room credentails: ", err);
       }
       setIsLoading(false);
     };
@@ -157,8 +77,6 @@ const Page = ({ params }: pageProps) => {
         const response = await axios.post("/api/room/getPropertiesFromRoom", {
           roomId,
         });
-        console.log("response: ", response);
-        console.log("all properties: ", response.data.showcaseProperties);
         setShowcaseProperties(response.data.showcaseProperties);
         setRejectedProperties(response.data.rejectedProperties);
       } catch (err: any) {
@@ -170,6 +88,100 @@ const Page = ({ params }: pageProps) => {
     fetchRoomProperties(roomId);
   }, []);
 
+  useEffect(() => console.log("role: ", role), [role]);
+
+  const addProperty = async () => {
+    if (!propertyIdRef?.current?.value) return;
+
+    if (
+      showcaseProperties.filter(
+        (item) => item._id === propertyIdRef?.current?.value
+      ).length
+    ) {
+      console.log("already added: ", propertyIdRef?.current?.value);
+      setAlreadyAddedProperty(propertyIdRef?.current?.value);
+      toast("Property Already Added", {
+        icon: "❗",
+      });
+      setTimeout(() => {
+        setAlreadyAddedProperty("");
+      }, 3000);
+      return;
+    }
+
+    try {
+      setIspropertyLoading(true);
+      const response = await axios.post("/api/room/addPropertyInRoom", {
+        propertyId: propertyIdRef?.current?.value,
+        roomId: roomId,
+      });
+      console.log("response: ", response);
+    } catch (err: any) {
+      console.log("error in adding property: ", err);
+    } finally {
+      setIspropertyLoading(false);
+      propertyIdRef.current.value = "";
+    }
+  };
+
+  const removeProperty = async (index: number, propertyId: string) => {
+    setRemovedPropertyIndex(index);
+    try {
+      const response = await axios.patch("/api/room/removePropertyFromRoom", {
+        roomId: roomId,
+        propertyId: propertyId,
+      });
+      console.log("property deleted: ", response);
+    } catch (err: any) {
+      console.log("Error in removing property: ", err);
+    }
+    setRemovedPropertyIndex(-1);
+  };
+
+  const retractProperty = async (index: number, propertyId: string) => {
+    setRetractedPropertyIndex(index);
+    try {
+      const response = await axios.post(
+        "/api/room/retractPropertyFromRejected",
+        { roomId, propertyId }
+      );
+      console.log("retract repsonse: ", response);
+    } catch (err: unknown) {
+      console.log("err: ", err);
+    } finally {
+      setRetractedPropertyIndex(-1);
+    }
+  };
+
+  const debouncedAddToFavourite = useCallback(
+    debounce(async (favouriteProperties: string[]) => {
+      console.log("fav array: ", favouriteProperties);
+
+      try {
+        const response = await axios.patch("/api/room/addPropertyToFavourite", {
+          roomId,
+          propertyIds: favouriteProperties,
+          client: role,
+        });
+        console.log("response of favourite: ", response);
+        setFavouriteProperties([]);
+        console.log("properties added to favourite");
+      } catch (err: unknown) {
+        toast.error("Error in adding to favourite");
+      }
+    }, 5000),
+    []
+  );
+
+  useEffect(() => {
+    if (favouriteProperties.length > 0) {
+      console.log("fav prop length: ", favouriteProperties.length);
+      debouncedAddToFavourite(favouriteProperties);
+    }
+
+    return () => debouncedAddToFavourite.cancel();
+  }, [favouriteProperties]);
+
   useEffect(() => {
     const pusher = new Pusher("323cb59d9065a784e864", {
       cluster: "ap2",
@@ -178,7 +190,6 @@ const Page = ({ params }: pageProps) => {
     const channel = pusher.subscribe(`room-${roomId}`);
 
     channel.bind("showcasePropertyAdded", (data: any) => {
-      console.log("data: ", data);
       setShowcaseProperties((prev) => {
         const newProperties = [...prev];
         newProperties.push(data.data);
@@ -190,7 +201,6 @@ const Page = ({ params }: pageProps) => {
     });
 
     channel.bind("propertyRemoved", (data: any) => {
-      console.log("property removed: ", data);
       const propertyId = data._id;
       setShowcaseProperties((prev) => {
         const newProperties = prev.filter(
@@ -209,12 +219,7 @@ const Page = ({ params }: pageProps) => {
       toast.success("Property Removed!");
     });
 
-    channel.bind("updateFavourites", (data: any) => {
-      console.log("favourites data: ", data);
-    });
-
     channel.bind("retractedProperty", (data: any) => {
-      console.log("retracted data: ", data);
       setShowcaseProperties((prev) => [...prev, data]);
       setRejectedProperties((prev) => {
         const newRemovedProperties = prev.filter(
@@ -222,6 +227,34 @@ const Page = ({ params }: pageProps) => {
         );
         return newRemovedProperties;
       });
+      toast.success("Property Retracted!");
+    });
+
+    channel.bind("updateFavourites", (data: any) => {
+      console.log("data: ", data);
+      const favPropertyIds = data.propertyIds;
+      const client = data.client;
+      console.log("client: ", client, "role: ", role);
+      if (client !== role) {
+        setShowcaseProperties((prev) => {
+          const newProperties = [...prev];
+          prev.forEach((item, index: number) => {
+            if (favPropertyIds.includes(item._id!)) {
+              const propertyObject = { ...newProperties[index] };
+              propertyObject.isFavourite = !propertyObject.isFavourite;
+              newProperties.splice(index, 1, propertyObject);
+            }
+          });
+          return newProperties;
+        });
+      }
+      setFavouriteUpdatedProperties(favPropertyIds);
+      toast("Favourites Updated", {
+        icon: "🌟",
+      });
+      // setTimeout(() => {
+      //   setFavouriteUpdatedProperties([]);
+      // }, 3000);
     });
 
     return () => {
@@ -238,25 +271,27 @@ const Page = ({ params }: pageProps) => {
         </div>
       ) : (
         <div className={``}>
-          <div className=" flex gap-x-8 items-end">
-            <div>
-              <Label>
-                Enter Property Id
-                <Input
-                  type="text"
-                  ref={propertyIdRef}
-                  placeholder="Enter Property Id"
-                  className=" w-80"
-                />
-              </Label>
+          {role !== "Visitor" && (
+            <div className=" flex gap-x-8 items-end">
+              <div>
+                <Label>
+                  Enter Property Id
+                  <Input
+                    type="text"
+                    ref={propertyIdRef}
+                    placeholder="Enter Property Id"
+                    className=" w-80"
+                  />
+                </Label>
+              </div>
+              <Button
+                className=" font-semibold text-base flex items-center gap-x-2 "
+                onClick={addProperty}
+              >
+                <House /> {isPropertyLoading ? "Adding..." : "Add Property"}
+              </Button>
             </div>
-            <Button
-              className=" font-semibold text-base flex items-center gap-x-2 "
-              onClick={addProperty}
-            >
-              <House /> {isPropertyLoading ? "Adding..." : "Add Property"}
-            </Button>
-          </div>
+          )}
           {removedPropertyIndex !== -1 && (
             <div className=" mt-4 flex justify-center">
               {" "}
@@ -269,6 +304,12 @@ const Page = ({ params }: pageProps) => {
             </p>
           )}
           <div className=" flex flex-wrap gap-x-4 mt-4">
+            {role !== "Visitor" && (
+              <div className=" h-32 w-32 border-2 border-dotted border-neutral-700 hover:bg-neutral-800 cursor-pointer rounded-lg flex flex-col justify-center items-center">
+                <Plus size={32} />
+                <CustomDialog buttonText="Add Property" />
+              </div>
+            )}
             {showcaseProperties?.map(
               (item, index: number) =>
                 item?._id && (
@@ -290,6 +331,10 @@ const Page = ({ params }: pageProps) => {
                         className={` w-32 h-32 rounded-md shadow-md shadow-white/30 ${
                           item._id === alreadyAddedProperty &&
                           "border-4 border-pink-600 shadow-2xl"
+                        } ${
+                          (favouriteUpdatedProperties.includes(item._id!) ||
+                            item.isFavourite) &&
+                          "border-4 border-yellow-400 shadow-2xl"
                         }`}
                       />
                     </Link>
@@ -313,7 +358,6 @@ const Page = ({ params }: pageProps) => {
                               prev.filter((id) => id !== item._id!)
                             );
                           }
-                          addToFavourite();
                         }}
                         className="shadow-md shadow-white/30"
                       >

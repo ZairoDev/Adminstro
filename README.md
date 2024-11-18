@@ -529,7 +529,7 @@ Map filter and reduce ====>
       function idOdd(x){
          return x % 2;
        }
-     
+
       const anotherAnswer = arr.filter(isOdd);
       console.log(anotherAsnwer);
 
@@ -537,11 +537,11 @@ Map filter and reduce ====>
            return x % 2;
         })
 
-How Reduce works 
+How Reduce works
    it Achually does not reduce anything.
-     It basically used in those place when you have full array and you have to comeup with the single value 
+     It basically used in those place when you have full array and you have to comeup with the single value
      in that array.
-   
+
 
   const arr =[ 1,2,3,4,5,6,7,8,9];
   find the maximum number into that array
@@ -550,7 +550,7 @@ How Reduce works
   function findSum(arr){
   let sum = 0;
      for(let i=0; i <=arr.length; i++){
-           sum = sum + arr[i]; 
+           sum = sum + arr[i];
        }
      return sum;
     }
@@ -558,13 +558,13 @@ How Reduce works
  console.log(findSum(arr));
 
  Now how can we do it in a Reduce way.
-  
+
   const output =  arr.reduce(function(acc:used to accumlate the value , curr:value of the array){
       acc= acc + curr;
       return acc;
    },0) ===> any initail value that you want to put into the acc thats why i have given 0 here so that it start from the 0
 
-   console.log(arr) ;  => 17 will be printed into console 
+   console.log(arr) ;  => 17 will be printed into console
 
 
 fins the maximum in the array
@@ -573,9 +573,9 @@ const output = arr.reduce(function(max, curr){
        max =curr
      }
   },0)
-  
+
 console.log(max);
-we have array of object 
+we have array of object
 const output = user.reduce(function(acc, curr) {
       if(acc[curr.age]){
          acc[curr.age] =  ++ acc.curr[age];
@@ -584,7 +584,7 @@ const output = user.reduce(function(acc, curr) {
       }
  },{})
 
-filter out firstname of the user where age is < 30 
+filter out firstname of the user where age is < 30
 
 const output = users.filter((x) => x.age < 30).map((x)=> x.firstName);
 
@@ -592,7 +592,7 @@ console.log(output);
 
 
 From Here there is a specific question for frontend interview need to know
-  
+
   function Currying
     let multiPly = function(x ,y) {
         console.log(x * y);
@@ -603,61 +603,61 @@ From Here there is a specific question for frontend interview need to know
    console.log(multiply) ===> give the copy of the achualy array with the logic that you have implemented.
 
 
-   Currying , 
+   Currying ,
    Prototype in js
-   Event Bubbling , 
+   Event Bubbling ,
    Even capturing,
    Event Delegation,
    call apply and bind in js
    debouncing,
-   Throttling in js , 
+   Throttling in js ,
    polyfill for bind method,
-   async and defer attributes, 
+   async and defer attributes,
 
 
    After that all the things that are in season two...
 
-    Callback hell ===> 
+    Callback hell ===>
        It basically condition when you writing function in function for long time and in form like loop pyramid like strucher in that condition , it called callback heli.
 
 
     setTimeout(function(){
       console.log("Hi i m here")   ====> Callback function
     }, 5000)
-    
+
     const cart = ["shoes" , "Kurta" , "Jeans"];
 
-    call back hell is like 
+    call back hell is like
        api.createOrder(cart , function (){
-         
+
           api.createBill(price , function(){
-              
+
               api.senEmail(text , function(){
               })
 
            })
-       
+
        })
 
     Whole scenarion we are trusting , that yes out createorder will work fine but in some case it can he work fine.
 
     Promises how promises worked...
-       
+
 
      const cart =  ["apple" , "Shoes" , "Tshirts"];
 
       createOrder(cart ,  function(orderId){
           api.proceedToPayment(orderId)
-      }) 
- 
+      })
+
      const promise = creayeOrder(cart);
 
-     This will return a promise like , async tak promise will a three things like , pending , resolve , reject 
+     This will return a promise like , async tak promise will a three things like , pending , resolve , reject
 
      promise.then(function(OrderId){
         proceedToBill(orderId)
       })
- Above is a fake scenario 
+ Above is a fake scenario
 
  const data = fetch(GITHUB_API);
  it return the profime
@@ -679,9 +679,9 @@ const handleClick = async ((e)=>{
        console.log(error);
     }
  })
-  Above things are how to consume the promise  
+  Above things are how to consume the promise
 
-  Now how can you create a promise ====> How things work 
+  Now how can you create a promise ====> How things work
 
   const arr= ["Kurta" , "Pyjama" , "Kurta"]
 
@@ -746,12 +746,12 @@ const handleClick = async ((e)=>{
             console.log("Order Created Successfully")
           })
 
- 
-PromiseApi         ===      
 
-Promise.all(), ===> It wait for all promise to resolve if one of them git rejeted it return 
+PromiseApi         ===
+
+Promise.all(), ===> It wait for all promise to resolve if one of them git rejeted it return
 Promise.allSettled(), ===> It waits for all promise to happen either thet are reject ot resolve,
-Promise.race(), ===> one of them got 
+Promise.race(), ===> one of them got
 Promise.any()
 
 
@@ -768,11 +768,11 @@ Promise.any()
    async function getData(){
        return createdPromise;
     }
-  
+
   function getData() {
      return "Nmaste";
    }
-   
+
   const dataPromise = getData();
   dataPromise.then(res){
      console.log(res);
@@ -785,7 +785,7 @@ Promise.any()
          console.log(Value)
        }
      handlePromise()
-  
+
                                                 /////Important thing //////
 
     diffrence between async await and normal then and catch
@@ -795,7 +795,7 @@ Promise.any()
           resolve("Promise Got Resolved")
        },5000)
    }
-   Normal method 
+   Normal method
 
    function getData(){
      p.then(function(response){
@@ -809,30 +809,69 @@ Promise.any()
       const response = await p;
       console.log("Namaste js")
       const response2 = await p;
-      console.log("Namaste js"); 
+      console.log("Namaste js");
    }
   It will wait for 5 sec then print the Namaste js code will wait to resolve the promise,
   when it seen a await it suspend for the time it wait for promise to resolve then it move on
-  
-
-  
-
-  
 
 
-  
+  this leyword explanation
+
+  This in global space
+
+    It work diffrently in strict mode and non stric mode.
 
 
+  This inside the function
+  This in strict mode - (this substituion)
+
+
+  call apply and bind
+
+  const obj = {
+    firstname:"Aman",
+    lastName:"Trivedi"
+    printFullName: function(){
+         console.log(this.firstName +" "+ this.lastName)
+       }
+   }
+
+const obj2 = {
+     firstname:"Neha",
+     LastName:"Trivedi",
+  }
+
+  Working of call ===>
+  obj1.printFullName.call(firstname , lastName);
+
+  Date =======> 18/11/2024
+
+  Lexical Scope
+
+  var username = "Aman Trivedi"
+  function local() {
+      It will work because we are able to get the variable inside the function
+      console.log(username)
+    }
+
+   var name = ""
+   const normal =  "Neha Trivedi"
+
+
+   let count =0;
+   (function printCOunt() {
+      if(count ===0) {
+      let count = 1;
+      console.log(count);
+      }
+      console.log(count);
+    })
+
+First give output as a ===>1
+Another will give output as a ===>0
+
+ function (name , anothername){
+      console.log("Hello I am here !!");
+   }
 
  -->
-  
- 
-   
-
-
-
-
-
-
-
-

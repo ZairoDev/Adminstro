@@ -133,7 +133,6 @@ const SalesDashboard = () => {
           emptyFields.push(fieldName);
         }
       });
-      // If there are empty fields, show alert and return
       if (emptyFields.length > 0) {
         toast({
           description: `Please fill in the following required fields: ${emptyFields.join(
@@ -187,9 +186,6 @@ const SalesDashboard = () => {
             `/api/sales/getquery?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}`
           );
           const data: ApiResponse = await response.json();
-
-          console.log(data);
-
           if (response.ok) {
             setQueries(data.data);
             setTotalPages(data.totalPages);
@@ -271,8 +267,6 @@ const SalesDashboard = () => {
     }
     return items;
   };
-
-  // console.log(date, "Selected Date will print here");
 
   return (
     <div>
@@ -364,7 +358,6 @@ const SalesDashboard = () => {
                             />
                           </div>
                         </div>
-
                         <div>
                           <Label>Phone No</Label>
                           <Input
@@ -454,7 +447,6 @@ const SalesDashboard = () => {
                             placeholder="Enter name"
                           />
                         </div>
-
                         <div>
                           <Label>Zone</Label>
                           <Select
@@ -535,7 +527,6 @@ const SalesDashboard = () => {
                             </SelectContent>
                           </Select>
                         </div>
-
                         <div>
                           <Label>Property Type</Label>
                           <Select

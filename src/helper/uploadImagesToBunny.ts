@@ -16,14 +16,6 @@ const uploadImagesToBunny = async ({
   imageUrls,
   setImageUrls,
 }: UploadImagesToBunnyProps) => {
-  // Set loading to true for the current index
-  // setPortionPicturesLoading((prevState) => {
-  //   const newLoading = [...prevState];
-  //   newLoading[index] = true;
-  //   return newLoading;
-  // });
-  // console.log("event: ", event, propertyName, imageUrls, setImageUrls);
-
   const files = event?.target.files;
   console.log("uploaded filed: ", files);
 
@@ -33,16 +25,10 @@ const uploadImagesToBunny = async ({
       title: "No Files Selected",
       description: "Please select files to upload.",
     });
-    // Reset loading state if no files are selected
-    // setPortionPicturesLoading((prevState) => {
-    //   const newLoading = [...prevState];
-    //   newLoading[index] = false;
-    //   return newLoading;
-    // });
+
     return;
   }
 
-  // Validate file types
   for (let i = 0; i < files.length; i++) {
     if (
       !(
@@ -57,12 +43,6 @@ const uploadImagesToBunny = async ({
         description:
           "We only accept jpeg, png, webp for now. Try to upload these formats.",
       });
-      // Reset loading state if there's a type mismatch
-      // setPortionPicturesLoading((prevState) => {
-      //   const newLoading = [...prevState];
-      //   newLoading[index] = false;
-      //   return newLoading;
-      // });
       return;
     }
   }
@@ -74,7 +54,6 @@ const uploadImagesToBunny = async ({
   const formData = new FormData();
 
   const savedUrls: string[] = [...imageUrls];
-  // const newImages = [...isPortionPictures];
 
   for (let i = 0; i < files.length; i++) {
     formData.append("file", files[i]);
@@ -95,7 +74,6 @@ const uploadImagesToBunny = async ({
 
       const imageUrl = `https://vacationsaga.b-cdn.net/${propertyName}/${time}-${files[i].name}`;
 
-      // Update portionPictureUrls with new image URLs
       savedUrls[i] = imageUrl;
     } catch (error) {
       console.error("Error uploading image to Bunny CDN:", error);
@@ -108,18 +86,8 @@ const uploadImagesToBunny = async ({
       break;
     }
   }
-
-  // newImages[index] = true;
   console.log("saved Images: ", savedUrls);
   setImageUrls(savedUrls);
-  // setIsPortionPictures(newImages);
-
-  // Set loading state to false after upload completion
-  // setPortionPicturesLoading((prevState) => {
-  //   const newLoading = [...prevState];
-  //   newLoading[index] = false;
-  //   return newLoading;
-  // });
 };
 
 export default uploadImagesToBunny;

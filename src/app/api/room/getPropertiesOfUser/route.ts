@@ -17,12 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const query = {
-      name: new RegExp(userName, "i"),
-      phone: userMobile,
-    };
-
-    const user = await Users.find(query);
+    const user = await Users.find({ phone: userMobile });
 
     if (user.length === 0) {
       return NextResponse.json(
@@ -49,7 +44,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(ownerProperties, { status: 200 });
   } catch (err: unknown) {
-    console.log("error: ", err);
     if (err instanceof Error) {
       return NextResponse.json(
         { error: "Error in fetching properties of user" },

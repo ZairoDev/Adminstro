@@ -29,7 +29,6 @@ const Page = () => {
         roomId,
         roomPassword,
       });
-      console.log("response: ", response.data);
       toast({
         title: "Success",
         description: "You will be redirected to the Room",
@@ -37,7 +36,6 @@ const Page = () => {
       router.push(`/dashboard/room/${roomId}-${roomPassword}`);
       setIsLoading(false);
     } catch (err: any) {
-      console.log("error: ", err);
       toast({
         variant: "destructive",
         title: "Unable to Join Room",

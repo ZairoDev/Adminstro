@@ -236,6 +236,17 @@ export interface Property {
   isLive?: boolean;
 }
 
+export interface QuickListingInterface {
+  QID: string;
+  ownerName: string;
+  ownerMobile: string;
+  propertyName: string;
+  propertyImages: string[];
+  description: string;
+  basePrice: number;
+  address: string;
+}
+
 export const propertyTypes: string[] = [
   "Hotel",
   "Cottage",
@@ -262,7 +273,7 @@ export interface IQuery {
   _id?: string;
   name: string;
   email: string;
-  duration:string;
+  duration: string;
   startDate: string;
   endDate: string;
   phoneNo: number;

@@ -1,4 +1,5 @@
 import { Properties } from "@/models/property";
+import { quicklisting } from "@/models/quicklisting";
 import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
@@ -25,27 +26,43 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const property = await Properties.findById(propertyId);
-
-  const Images = [
-    property.propertyCoverFileUrl,
-    ...(property.pictures ? property.propertyPictures : []),
-    ...(property.propertyImages ? property.propertyImages : []),
-  ]
-    .filter((item) => item != "")
-    .slice(0, 5);
-  const propertyObject = {
-    _id: property._id,
-    propertyImages: Images,
-    VSID: property.VSID,
-    price: property.basePrice,
-    postalCode: property?.postalCode,
-    city: property?.city,
-    state: property?.state,
-    country: property?.country,
-  };
+  let quickListing = false;
 
   try {
+    let property = await Properties.findById(propertyId);
+
+    if (!property) {
+      quickListing = true;
+      property = await quicklisting.findById(propertyId);
+    }
+
+    if (!property) {
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
+    const Images = [
+      property?.propertyCoverFileUrl ? property.propertyCoverFileUrl : "",
+      ...(property.propertyImages ? property.propertyImages : []),
+      ...(property.pictures ? property.propertyPictures : []),
+    ]
+      .filter((item) => item != "")
+      .slice(0, 5);
+
+    const propertyObject = {
+      _id: property._id,
+      propertyImages: Images,
+      VSID: property?.VSID ? property.VSID : "xxxx",
+      QID: property?.QID ? property?.QID : "xxxx",
+      price: property.basePrice,
+      postalCode: property?.postalCode ? property?.postalCode : "xxxx",
+      city: property?.city ? property?.city : "xxxx",
+      state: property?.state ? property?.state : "xxxx",
+      country: property?.country ? property?.country : "xxxx",
+    };
+
     const room = await Rooms.findOneAndUpdate(
       { _id: roomId },
       {
@@ -77,13 +94,6 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (err: unknown) {
     if (err instanceof Error) {
-      console.log(
-        "Error in deleting property from room: ",
-        err.name,
-        err.message,
-        err.cause,
-        err.stack
-      );
       return NextResponse.json({ error: `${err.message}` }, { status: 400 });
     }
 

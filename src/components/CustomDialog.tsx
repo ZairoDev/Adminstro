@@ -15,8 +15,8 @@ import { Textarea } from "./ui/textarea";
 import {
   Copy,
   Image,
+  LucideLoader2,
   SquareArrowOutUpRight,
-  SquareArrowOutUpRightIcon,
 } from "lucide-react";
 import uploadImagesToBunny from "@/helper/uploadImagesToBunny";
 import { useEffect, useRef, useState } from "react";
@@ -31,14 +31,15 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu";
 import Link from "next/link";
-import { quicklisting } from "@/models/quicklisting";
 import toast from "react-hot-toast";
+import { QuickListingInterface } from "@/util/type";
 
 interface DialogProps {
-  buttonText: string;
+  roomId: string;
+  setQuickListingProp: (quickListing: QuickListingInterface) => void;
 }
 
-export function CustomDialog({ buttonText }: DialogProps) {
+export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [propertyName, setPropertyName] = useState("");
 
@@ -52,16 +53,9 @@ export function CustomDialog({ buttonText }: DialogProps) {
   const [userProperties, setUserProperties] = useState<
     { propertyId: string; propertyImages: string[] }[]
   >([]);
+  const [quickListing, setQuickListing] = useState<QuickListingInterface>();
 
   const getPropertiesOfUser = async () => {
-    console.log(
-      "userName: ",
-      ownerNameRef.current?.value,
-      "--",
-      mobile,
-      "----"
-    );
-
     if (!ownerNameRef.current?.value || !mobile) return;
     setIsLoading(true);
     try {
@@ -69,7 +63,6 @@ export function CustomDialog({ buttonText }: DialogProps) {
         userName: ownerNameRef.current?.value.trim(),
         userMobile: mobile.trim(),
       });
-      console.log("response: ", response);
       setUserProperties(response.data);
     } catch (err: unknown) {
       setUserProperties([]);
@@ -80,32 +73,41 @@ export function CustomDialog({ buttonText }: DialogProps) {
 
   const createQuickListing = async () => {
     if (
+      !roomId ||
       !ownerNameRef.current?.value ||
       !mobile ||
       !propertyName ||
       !imageUrls ||
       !propertyDescriptionRef.current?.value ||
-      !propertyPriceRef.current?.value
+      !propertyPriceRef.current?.value ||
+      !propertyAddressRef.current?.value
     )
-      try {
-        const response = await axios.post("/api/room/createQuickListing", {
-          ownerName: ownerNameRef.current?.value,
-          ownerMobile: mobile,
-          propertyName: propertyName,
-          propertyImages: imageUrls,
-          propertyDescription: propertyDescriptionRef.current?.value,
-          propertyPrice: propertyPriceRef.current?.value,
-        });
-        console.log("quick listing response: ", quicklisting);
-      } catch (err: unknown) {
-        toast.error("Unable to create quick listing");
-      }
+      return;
+    try {
+      setIsLoading(true);
+      const response = await axios.post("/api/room/createQuickListing", {
+        roomId: roomId,
+        ownerName: ownerNameRef.current?.value,
+        ownerMobile: mobile,
+        propertyName: propertyName,
+        propertyImages: imageUrls,
+        propertyDescription: propertyDescriptionRef.current?.value,
+        propertyPrice: propertyPriceRef.current?.value,
+        propertyAddress: propertyAddressRef.current?.value,
+      });
+      setQuickListing(response.data);
+      setQuickListingProp(response.data);
+    } catch (err: unknown) {
+      toast.error("Unable to create quick listing");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">{buttonText}</Button>
+        <Button variant="outline">Add Property</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
@@ -281,7 +283,15 @@ export function CustomDialog({ buttonText }: DialogProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={createQuickListing}>Save changes</Button>
+          <Button onClick={createQuickListing} disabled={!!quickListing}>
+            {quickListing ? (
+              quickListing.QID
+            ) : isLoading ? (
+              <LucideLoader2 className=" animate-spin" />
+            ) : (
+              "Save changes"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

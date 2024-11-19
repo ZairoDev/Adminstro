@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import { PropertiesDataType } from "@/util/type";
+import { PropertiesDataType, QuickListingInterface } from "@/util/type";
 import axios from "axios";
 import { House, LucideLoader2, Plus, Star, Trash2, Undo2 } from "lucide-react";
 import Link from "next/link";
@@ -28,16 +28,24 @@ interface PropertyObject extends PropertiesDataType {
   isFavourite: boolean;
 }
 
+interface quickListingShowcase extends PropertyObject {
+  QID: string;
+  ownerName: string;
+  ownerMobile: string;
+  description: string;
+  address: string;
+}
+
 const Page = ({ params }: pageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPropertyLoading, setIspropertyLoading] = useState(false);
   const roomId = params.id[0].split("-")[0];
   const propertyIdRef = useRef<HTMLInputElement>(null);
   const [showcaseProperties, setShowcaseProperties] = useState<
-    Partial<PropertyObject>[]
+    Partial<quickListingShowcase>[]
   >([]);
   const [rejectedProperties, setRejectedProperties] = useState<
-    Partial<PropertiesDataType>[]
+    Partial<quickListingShowcase>[]
   >([]);
   const [favouriteProperties, setFavouriteProperties] = useState<string[]>([]);
   const [removedPropertyIndex, setRemovedPropertyIndex] = useState(-1);
@@ -47,6 +55,8 @@ const Page = ({ params }: pageProps) => {
     string[]
   >([]);
   const [role, setRole] = useState("");
+  const [quickListingProp, setQuickListingProp] =
+    useState<QuickListingInterface>();
 
   useEffect(() => {
     const roomDetails = params.id[0].split("-");
@@ -63,7 +73,6 @@ const Page = ({ params }: pageProps) => {
           roomId,
           roomPassword,
         });
-        console.log("response of join room : ", response.data.role);
         setRole(response.data.role);
         setIsLoading(false);
       } catch (err: any) {
@@ -88,8 +97,6 @@ const Page = ({ params }: pageProps) => {
     fetchRoomProperties(roomId);
   }, []);
 
-  useEffect(() => console.log("role: ", role), [role]);
-
   const addProperty = async () => {
     if (!propertyIdRef?.current?.value) return;
 
@@ -98,7 +105,6 @@ const Page = ({ params }: pageProps) => {
         (item) => item._id === propertyIdRef?.current?.value
       ).length
     ) {
-      console.log("already added: ", propertyIdRef?.current?.value);
       setAlreadyAddedProperty(propertyIdRef?.current?.value);
       toast("Property Already Added", {
         icon: "❗",
@@ -115,9 +121,8 @@ const Page = ({ params }: pageProps) => {
         propertyId: propertyIdRef?.current?.value,
         roomId: roomId,
       });
-      console.log("response: ", response);
     } catch (err: any) {
-      console.log("error in adding property: ", err);
+      toast.error("Unable to add property");
     } finally {
       setIspropertyLoading(false);
       propertyIdRef.current.value = "";
@@ -131,7 +136,6 @@ const Page = ({ params }: pageProps) => {
         roomId: roomId,
         propertyId: propertyId,
       });
-      console.log("property deleted: ", response);
     } catch (err: any) {
       console.log("Error in removing property: ", err);
     }
@@ -145,7 +149,6 @@ const Page = ({ params }: pageProps) => {
         "/api/room/retractPropertyFromRejected",
         { roomId, propertyId }
       );
-      console.log("retract repsonse: ", response);
     } catch (err: unknown) {
       console.log("err: ", err);
     } finally {
@@ -155,17 +158,13 @@ const Page = ({ params }: pageProps) => {
 
   const debouncedAddToFavourite = useCallback(
     debounce(async (favouriteProperties: string[]) => {
-      console.log("fav array: ", favouriteProperties);
-
       try {
         const response = await axios.patch("/api/room/addPropertyToFavourite", {
           roomId,
           propertyIds: favouriteProperties,
           client: role,
         });
-        console.log("response of favourite: ", response);
         setFavouriteProperties([]);
-        console.log("properties added to favourite");
       } catch (err: unknown) {
         toast.error("Error in adding to favourite");
       }
@@ -175,7 +174,6 @@ const Page = ({ params }: pageProps) => {
 
   useEffect(() => {
     if (favouriteProperties.length > 0) {
-      console.log("fav prop length: ", favouriteProperties.length);
       debouncedAddToFavourite(favouriteProperties);
     }
 
@@ -231,10 +229,8 @@ const Page = ({ params }: pageProps) => {
     });
 
     channel.bind("updateFavourites", (data: any) => {
-      console.log("data: ", data);
       const favPropertyIds = data.propertyIds;
       const client = data.client;
-      console.log("client: ", client, "role: ", role);
       if (client !== role) {
         setShowcaseProperties((prev) => {
           const newProperties = [...prev];
@@ -307,7 +303,12 @@ const Page = ({ params }: pageProps) => {
             {role !== "Visitor" && (
               <div className=" h-32 w-32 border-2 border-dotted border-neutral-700 hover:bg-neutral-800 cursor-pointer rounded-lg flex flex-col justify-center items-center">
                 <Plus size={32} />
-                <CustomDialog buttonText="Add Property" />
+                {roomId && (
+                  <CustomDialog
+                    roomId={roomId}
+                    setQuickListingProp={setQuickListingProp}
+                  />
+                )}
               </div>
             )}
             {showcaseProperties?.map(

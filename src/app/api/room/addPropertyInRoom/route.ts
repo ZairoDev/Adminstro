@@ -47,8 +47,6 @@ export async function POST(req: NextRequest) {
       isFavourite: false,
     };
 
-    console.log("property images: ", propertyObject);
-
     const room = await Rooms.findByIdAndUpdate(
       { _id: roomId },
       { $push: { showcaseProperties: propertyObject } }
@@ -57,10 +55,8 @@ export async function POST(req: NextRequest) {
     await pusher.trigger(`room-${roomId}`, "showcasePropertyAdded", {
       data: propertyObject,
     });
-    console.log("pusher triggered");
     return NextResponse.json({ message: "Property Added " }, { status: 201 });
   } catch (err: any) {
-    console.log("err: ", err);
     return NextResponse.json(
       { error: "Unable to add Property in Room" },
       { status: 400 }

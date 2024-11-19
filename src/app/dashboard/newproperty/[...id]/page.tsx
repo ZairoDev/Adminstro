@@ -38,7 +38,7 @@ interface PageProps {
   params: {
     id: string;
   };
-  generalAmenities: GeneralAmenities;
+  // generalAmenities: GeneralAmenities;
 }
 
 const PortionDetailsPage = ({ params }: PageProps) => {

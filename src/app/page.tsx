@@ -1,5 +1,4 @@
 "use client";
-
 import { Navbar } from "@/components/navbar";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import FadeInBlur from "@/components/FadeInBlur";
@@ -34,18 +33,6 @@ export default function HomePage() {
       name: "Vikas Gurele",
       designation: "H.O.S",
       image: "https://github.com/shadcn.png",
-    },
-    {
-      id: 5,
-      name: "Aviral Mishra",
-      designation: "Web Developer",
-      image: "https://vacationsaga.b-cdn.net/assets/aviral.jpg",
-    },
-    {
-      id: 6,
-      name: "Aman Trivedi",
-      designation: "Web Developer",
-      image: "https://vacationsaga.b-cdn.net/assets/aman.png",
     },
   ];
 

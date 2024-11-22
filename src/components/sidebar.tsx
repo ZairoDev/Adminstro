@@ -166,7 +166,7 @@ export function Sidebar() {
 
     if (!userRole) {
       return (
-        <li className="flex justify-center text-xl font-medium ">Visitor</li>
+        <li className="flex justify-center text-xl font-medium text-[#F7951D]">Visitor</li>
       );
     }
 

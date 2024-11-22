@@ -295,7 +295,7 @@ const Page = ({ params }: pageProps) => {
             </div>
           )}{" "}
           {showcaseProperties?.length > 0 && (
-            <p className=" dark:text-white text-2xl font-medium mt-2">
+            <p className=" dark:text-white text-2xl font-medium mt-2 text-[#F7951D]">
               Property Showcase
             </p>
           )}
@@ -322,7 +322,9 @@ const Page = ({ params }: pageProps) => {
                   >
                     <Link
                       href={{
-                        pathname: `https://www.vacationsaga.com/listing-stay-detail/${item._id}`,
+                        pathname: item?.VSID === "xxxx"
+                          ? `http://localhost:3001/roomListing/${item._id}`
+                          : `https://www.vacationsaga.com/listing-stay-detail/${item._id}`,
                       }}
                       target="_blank"
                     >
@@ -338,6 +340,9 @@ const Page = ({ params }: pageProps) => {
                           "border-4 border-yellow-400 shadow-2xl"
                         }`}
                       />
+                      <p>{item?.QID}</p>
+                      <p>{item?.basePrice}</p>
+                      <p>{item?.VSID}</p>
                     </Link>
                     <div className=" flex gap-x-2 my-2">
                       <Button
@@ -396,7 +401,7 @@ const Page = ({ params }: pageProps) => {
           <div className=" my-2 h-1 bg-neutral-400 dark:bg-neutral-800 rounded-lg "></div>
           <div className=" mt-2">
             {rejectedProperties?.length > 0 && (
-              <p className=" dark:text-white text-2xl font-medium">
+              <p className=" dark:text-white text-2xl font-medium text-[#F7951D]">
                 Rejected Properties
               </p>
             )}

@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
       state: property?.state,
       country: property?.country,
       isFavourite: false,
+      isVisit: false,
+      visitSchedule: "",
     };
 
     const room = await Rooms.findByIdAndUpdate(

@@ -13,7 +13,9 @@ import {
   MessageCircleQuestion,
   NotebookPen,
   PencilLine,
+  PersonStanding,
   ScanEye,
+  Speech,
   User2Icon,
   Users,
 } from "lucide-react";
@@ -123,6 +125,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Created Lead",
       Icon: <CalendarPlus size={18} />,
     },
+    {
+      path: "/dashboard/candidatePortal",
+      label: "Candidate Portal",
+      Icon: <Speech size={18} />,
+    },
+    {
+      path: "/dashboard/hrPortal",
+      label: "Hr Portal",
+      Icon: <PersonStanding size={18} />,
+    },
   ],
 };
 
@@ -165,7 +177,11 @@ export function Sidebar() {
     }
 
     if (!userRole) {
-      return <li>No role assigned</li>;
+      return (
+        <li className="flex justify-center text-xl font-medium text-[#F7951D]">
+          Visitor
+        </li>
+      );
     }
 
     const routes = roleRoutes[userRole as keyof typeof roleRoutes];

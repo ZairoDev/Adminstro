@@ -34,6 +34,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { IQuery } from "@/util/type";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import axios from "axios";
 import Link from "next/link";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
@@ -76,6 +86,18 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const formattedEndDate = endDate
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
+
+  const handleCreateRoom = async (index: number) => {
+    try {
+      const response = await axios.post("/api/room/createRoom", {
+        lead: queries[index],
+      });
+      console.log("response: ", response.data);
+    } catch (err: unknown) {
+      console.log("err: ", err);
+    }
+  };
+
   return (
     <div className="">
       <Table className="">
@@ -91,7 +113,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {queries?.map((query) => (
+          {queries?.map((query, index) => (
             <TableRow key={query._id}>
               <TableCell>{query.name}</TableCell>
               <TableCell>{query.guest}</TableCell>
@@ -100,9 +122,30 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableCell>{query.location}</TableCell>
               <TableCell>{query.bookingTerm}</TableCell>
               <TableCell>
-                <Button variant="ghost" onClick={() => openDialog(query)}>
-                  <Ellipsis size={18} />
-                </Button>
+                {/* <button onClick={() => openDialog(query)}>...</button> */}
+                {/* <Button variant={'ghost'} >
+                  <Ellipsis size={18}/>
+                </Button> */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Ellipsis size={18} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className=" cursor-pointer">
+                      <span onClick={() => openDialog(query)}>Full View</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className=" cursor-pointer">
+                      <span onClick={() => handleCreateRoom(index)}>
+                        Create Room
+                      </span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

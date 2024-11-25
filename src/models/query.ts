@@ -14,6 +14,10 @@ const querySchema = new Schema(
       type: String,
       require: [true, "Name must be provided"],
     },
+    email: {
+      type: String,
+      require: [true, "Email must be provided"],
+    },
     phoneNo: {
       type: Number,
       require: [true, "Phone number must be provided"],

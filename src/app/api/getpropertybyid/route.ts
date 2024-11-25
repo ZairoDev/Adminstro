@@ -1,28 +1,3 @@
-// import { Property } from "@/models/listing";
-// import { connectDb } from "@/util/db";
-// import { NextRequest, NextResponse } from "next/server";
-// connectDb();
-
-// export async function POST(request: NextRequest) {
-//   try {
-//     const body = await request.json();
-//     console.log(body, "Body will print here");
-//     const { userId } = body;
-//     console.log(userId, "Property id will print here");
-//     const property = await Property.findOne({ userId: userId });
-//     if (!property) {
-//       return NextResponse.json({ error: "Property not found", status: 404 });
-//     }
-//     return NextResponse.json({ property, status: 200 });
-//   } catch (error: any) {
-//     return NextResponse.json({
-//       error: "An error occurred",
-//       message: error.message,
-//       status: 500,
-//     });
-//   }
-// }
-
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";

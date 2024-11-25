@@ -1,17 +1,13 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
-
 connectDb();
-
 interface Employee {
   _id: string;
 }
-
 export async function POST(request: NextRequest) {
   const reqBody: Employee = await request.json();
   const { _id } = reqBody;
-
   try {
     if (!_id) {
       return NextResponse.json(
@@ -19,7 +15,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
     const employee = await Employees.findById(_id);
     if (!employee) {
       return NextResponse.json(
@@ -27,7 +22,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
     if (employee.role === "SuperAdmin") {
       return NextResponse.json(
         { error: "You can not delete the superadmin" },

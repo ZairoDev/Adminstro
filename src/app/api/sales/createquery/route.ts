@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const {
       date,
       name,
+      email,
       phoneNo,
       duration,
       startDate,
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     } = await req.json();
     const newQuery = await Query.create({
       name,
+      email,
       date,
       startDate,
       endDate,
@@ -61,7 +63,7 @@ export async function POST(req: Request) {
       startDate: newQuery.startDate,
       endDate: newQuery.endDate,
       phoneNo: newQuery.phoneNo,
-      duration:newQuery.duration,
+      duration: newQuery.duration,
       area: newQuery.area,
       guest: newQuery.guest,
       budget: newQuery.budget,

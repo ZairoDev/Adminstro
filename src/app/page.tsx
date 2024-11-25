@@ -50,7 +50,7 @@ export default function HomePage() {
         <p className="max-w-3xl m-auto p-2 md:text-base text-center text-sm">
           Oh, you think you belong here? If you&apos;re one of us here at Zairo,
           congrats! Otherwise, feel free to close this window...or try to get in
-          if you dare. If you're actually an employee, tap the button below,
+          if you dare. If you&apos;re actually an employee, tap the button below,
           enter your credentials, and we&apos;ll route you to your designated
           workspace.
         </p>

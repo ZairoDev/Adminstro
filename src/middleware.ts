@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
-interface tokenInterface {
-  role: string;
-  email: string;
-  name: string;
-  id: string;
-  iat: number;
-  exp: number;
-}
-//Role based access
+
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
@@ -67,6 +59,7 @@ const publicRoutes = [
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
   "/norole",
+  "/dashboard/room/*",
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -127,5 +120,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)",
+  ],
 };

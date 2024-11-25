@@ -48,6 +48,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
+import { DatePicker } from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
 
 interface ApiResponse {
@@ -62,7 +63,6 @@ interface FetchQueryParams {
   customDays: string;
   customDateRange: { start: string; end: string };
 }
-
 const SalesDashboard = () => {
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -77,6 +77,8 @@ const SalesDashboard = () => {
     from: new Date(),
     to: addDays(new Date(), 10),
   });
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(new Date());
   const [customDateRange, setCustomDateRange] = useState({
     start: "",
     end: "",
@@ -91,6 +93,7 @@ const SalesDashboard = () => {
     duration: "",
     endDate: "",
     name: "",
+    email: "",
     phoneNo: 0,
     area: "",
     guest: 0,
@@ -204,7 +207,7 @@ const SalesDashboard = () => {
     ),
     [searchType, page, limit]
   );
-  console.log(page, "Page will print here ");
+
   const handleSearch = () => {
     fetchQuery({
       searchTerm,
@@ -214,6 +217,7 @@ const SalesDashboard = () => {
       customDateRange,
     });
   };
+
   useEffect(() => {
     fetchQuery({
       searchTerm,
@@ -267,6 +271,16 @@ const SalesDashboard = () => {
     }
     return items;
   };
+
+  // console.log(date, "Selected Date will print here");
+
+  useEffect(() => {
+    setFormData((prevData) => ({
+      ...prevData,
+      startDate: startDate.toLocaleDateString(),
+      endDate: endDate.toLocaleDateString(),
+    }));
+  }, [startDate, endDate]);
 
   return (
     <div>
@@ -331,31 +345,14 @@ const SalesDashboard = () => {
                         <div className="flex w-full gap-x-2">
                           <div className="w-full">
                             <Label>Start Date</Label>
-                            <Input
-                              type="date"
-                              value={formData.startDate}
-                              onChange={(e) =>
-                                setFormData((prevData) => ({
-                                  ...prevData,
-                                  startDate: e.target.value,
-                                }))
-                              }
-                              placeholder="Start Date"
+                            <DatePicker
+                              date={startDate}
+                              setDate={setStartDate}
                             />
                           </div>
                           <div className="w-full">
                             <Label>End Date</Label>
-                            <Input
-                              type="date"
-                              value={formData.endDate}
-                              onChange={(e) =>
-                                setFormData((prevData) => ({
-                                  ...prevData,
-                                  endDate: e.target.value,
-                                }))
-                              }
-                              placeholder="End Date"
-                            />
+                            <DatePicker date={endDate} setDate={setEndDate} />
                           </div>
                         </div>
                         <div>
@@ -378,13 +375,13 @@ const SalesDashboard = () => {
                           />
                         </div>
                         <div>
-                          <Label>Guest</Label>
+                          <Label>Email</Label>
                           <Input
-                            type="number"
-                            name="guest"
-                            value={formData.guest}
+                            type="email"
+                            name="email"
+                            value={formData.email}
                             onChange={handleInputChange}
-                            placeholder="Enter name"
+                            placeholder="Enter email"
                           />
                         </div>
                         <div>
@@ -428,15 +425,27 @@ const SalesDashboard = () => {
                             placeholder="Enter name"
                           />
                         </div>
-                        <div>
-                          <Label>No Of Beds</Label>
-                          <Input
-                            type="number"
-                            name="noOfBeds"
-                            value={formData.noOfBeds}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
+                        <div className="flex gap-x-2">
+                          <div>
+                            <Label>Guest</Label>
+                            <Input
+                              type="number"
+                              name="guest"
+                              value={formData.guest}
+                              onChange={handleInputChange}
+                              placeholder="Enter name"
+                            />
+                          </div>
+                          <div>
+                            <Label>No Of Beds</Label>
+                            <Input
+                              type="number"
+                              name="noOfBeds"
+                              value={formData.noOfBeds}
+                              onChange={handleInputChange}
+                              placeholder="Enter name"
+                            />
+                          </div>
                         </div>
                         <div>
                           <Label>Location</Label>
@@ -726,6 +735,7 @@ const SalesDashboard = () => {
                 <div key={query._id}>
                   <QueryCard
                     name={query.name}
+                    email={query.email}
                     duration={query.duration}
                     startDate={query.startDate}
                     endDate={query.endDate}

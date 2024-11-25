@@ -7,7 +7,7 @@ connectDb();
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const token = await getDataFromToken(request);
-    console.log(token);
+    console.log("token: ", token);
 
     if (!token) {
       return NextResponse.json({
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         message: "No token found",
       });
     } else {
-        console.log(token);
+      console.log("token: ", token);
       return NextResponse.json({
         success: true,
         message: "User found",

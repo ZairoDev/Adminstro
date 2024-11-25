@@ -36,12 +36,12 @@ interface Otheramenities {
 }
 interface PageProps {
   params: {
-    id: string[];
+    id: string;
   };
-  generalAmenities: GeneralAmenities;
+  // generalAmenities: GeneralAmenities;
 }
 
-const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
+const PortionDetailsPage = ({ params }: PageProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [propertyData, setPropertyData] = useState<any[]>([]);
   const [selectedPortion, setSelectedPortion] = useState<number | null>(null);
@@ -81,8 +81,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
   const [propertyLoading, setPropertyLoading] = useState(false);
 
   // Handle nearby location code started from here
-
-
 
   // Amenties handling here...
 
@@ -154,8 +152,6 @@ const PortionDetailsPage: React.FC<PageProps> = ({ params }) => {
     setPropertyData(updatedData);
   };
 
-
-  
   // Edit property api call
   const editproperty = async () => {
     if (selectedPortion === null) return;

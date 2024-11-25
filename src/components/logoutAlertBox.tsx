@@ -23,7 +23,7 @@ import {
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { CircleHelp, FileQuestion } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 
 export function LogoutButton() {
   const [open, setOpen] = useState(false);
@@ -61,7 +61,6 @@ export function LogoutButton() {
         <DropdownMenuContent>
           <DropdownMenuLabel>User Menu</DropdownMenuLabel>
           <DropdownMenuSeparator />
-
           {/* Sign Out Option */}
           <DropdownMenuItem
             className="cursor-pointer"

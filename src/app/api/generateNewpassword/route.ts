@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
-import { sendEmail } from "@/util/mailer";
+// import { sendEmail } from "@/util/mailer";
 
 connectDb();
 
@@ -35,12 +35,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await employee.save();
 
     // Send email with new password
-    await sendEmail({
-      email: employee.email,
-      emailType: "NEWPASSWORD",
-      userId: employee._id,
-      newPassword: newPassword,
-    });
+    // await sendEmail({
+    //   email: employee.email,
+    //   emailType: "NEWPASSWORD",
+    //   userId: employee._id,
+    //   newPassword: newPassword,
+    // });
+
     return NextResponse.json(
       {
         message: "New password generated and sent to employee",

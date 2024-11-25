@@ -13,7 +13,6 @@
   grid-row-end: span 1;
 }
 
-
 .scrollbar-hide {
   -ms-overflow-style: none; /* for Internet Explorer, Edge */
   scrollbar-width: none; /* for Firefox */
@@ -22,8 +21,6 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* for Chrome, Safari, and Opera */
 }
-
-
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -66,8 +63,12 @@
   @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-.hidden-date{
+.hidden-date {
   display: none !important;
+}
+
+.custom-phone .PhoneInputCountryIcon {
+  @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @media (prefers-color-scheme: dark) {

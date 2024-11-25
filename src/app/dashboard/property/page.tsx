@@ -103,6 +103,8 @@ const PropertyPage: React.FC = () => {
     [page, searchType, limit]
   );
 
+  console.log(properties);
+
   useEffect(() => {
     fetchProperties(searchTerm);
   }, [fetchProperties, searchTerm]);
@@ -353,8 +355,7 @@ const PropertyPage: React.FC = () => {
                               onClick={() =>
                                 setSelectedPropertyId(property?._id)
                               }
-                              disabled={isSubmitting}
-                            >
+                              disabled={isSubmitting}>
                               <EyeIcon size={18} />
                             </Button>
                           ) : null}
@@ -380,7 +381,6 @@ const PropertyPage: React.FC = () => {
                         </DrawerContent>
                       </Drawer>
                     )}
-
                     {property?.isLive && (
                       <Drawer>
                         <DrawerTrigger asChild>
@@ -420,7 +420,6 @@ const PropertyPage: React.FC = () => {
                         </DrawerContent>
                       </Drawer>
                     )}
-
                     <div className="absolute  right-0 top-0 ">
                       {userRole === "SuperAdmin" && (
                         <div>
@@ -433,7 +432,6 @@ const PropertyPage: React.FC = () => {
                           </Button>
                         </div>
                       )}
-
                       {userRole === "Advert" && (
                         <div className="w-full">
                           <Button

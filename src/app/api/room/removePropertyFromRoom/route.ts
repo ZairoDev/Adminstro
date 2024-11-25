@@ -62,6 +62,7 @@ export async function PATCH(req: NextRequest) {
       state: property?.state ? property?.state : "xxxx",
       country: property?.country ? property?.country : "xxxx",
       isVisit: property?.isVisit ? property?.isVisit : false,
+      isViewed: property?.isViewed ? property.isViewed : false,
       visitSchedule: property?.visitSchedule ? property?.visitSchedule : "",
     };
 

@@ -9,6 +9,7 @@ import {
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  House,
   LoaderCircle,
   MessageCircleQuestion,
   NotebookPen,
@@ -123,6 +124,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Created Lead",
       Icon: <CalendarPlus size={18} />,
     },
+    {
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
+    },
   ],
 };
 
@@ -166,7 +172,9 @@ export function Sidebar() {
 
     if (!userRole) {
       return (
-        <li className="flex justify-center text-xl font-medium text-[#F7951D]">Visitor</li>
+        <li className="flex justify-center text-xl font-medium text-[#F7951D]">
+          Visitor
+        </li>
       );
     }
 

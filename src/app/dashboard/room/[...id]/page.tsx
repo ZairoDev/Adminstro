@@ -44,6 +44,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface pageProps {
   params: {
@@ -63,6 +72,7 @@ interface quickListingShowcase extends PropertyObject {
   address: string;
   isVisit: boolean;
   visitSchedule: string;
+  isViewed: boolean;
 }
 
 const Page = ({ params }: pageProps) => {
@@ -90,6 +100,7 @@ const Page = ({ params }: pageProps) => {
 
   const [dt, setDt] = useState<Date | undefined>(undefined);
   const visitTimeRef = useRef<HTMLInputElement>(null);
+  const [visitType, setVisitType] = useState("Physical");
 
   useEffect(() => {
     const roomDetails = params.id[0].split("-");
@@ -223,7 +234,7 @@ const Page = ({ params }: pageProps) => {
   };
 
   const updateVisit = async (index: number, propertyId: string) => {
-    if (!visitTimeRef?.current?.value || !dt) return;
+    if (!visitTimeRef?.current?.value || !dt || !visitType) return;
     setIsUpdateVisitLoading(true);
     try {
       const response = await axios.post("/api/room/updateVisit", {
@@ -231,6 +242,7 @@ const Page = ({ params }: pageProps) => {
         propertyId,
         visitTime: visitTimeRef?.current?.value,
         visitDate: dt,
+        visitType,
         client: role,
       });
     } catch (err: any) {
@@ -240,16 +252,15 @@ const Page = ({ params }: pageProps) => {
     }
   };
 
-  const propertyViewCount = async (index: number, propertyId: string) => {
-    console.log("click on property");
+  const addSeenToProperty = async (index: number, propertyId: string) => {
     try {
-      const response = await axios.post("/api/room/propertyViewCount", {
+      const response = await axios.post("/api/room/addSeenToProperty", {
+        roomId,
         propertyId,
         client: role,
       });
-      console.log("view count response: ", response);
     } catch (err: any) {
-      console.log("error in property view count: ", err);
+      console.log("error in updating seen: ", err);
     }
   };
 
@@ -365,6 +376,22 @@ const Page = ({ params }: pageProps) => {
       toast.success("Visit Updated");
     });
 
+    channel.bind("addedSeenToProperty", (data: any) => {
+      const client = data.client;
+      const seenPropertyId = data.data._id;
+      setShowcaseProperties((prev) => {
+        const newProperties = [...prev];
+        prev.forEach((item, index: number) => {
+          if (item._id === seenPropertyId) {
+            const propertyObject = { ...newProperties[index] };
+            propertyObject.isViewed = true;
+            newProperties.splice(index, 1, propertyObject);
+          }
+        });
+        return newProperties;
+      });
+    });
+
     return () => {
       pusher.unsubscribe(`room-${roomId}`);
     };
@@ -426,7 +453,7 @@ const Page = ({ params }: pageProps) => {
                           className=" rounded-lg w-24 h-24"
                         />
                         <div className=" text-base">
-                          <div className=" flex items-center gap-x-2">
+                          <div className=" flex items-center flex-wrap gap-x-2">
                             <div className=" flex flex-col justify-center text-sm sm:text-md ">
                               <p className=" text-xs whitespace-nowrap">
                                 <span className=" text-sm">Visit Date: </span>{" "}
@@ -435,6 +462,10 @@ const Page = ({ params }: pageProps) => {
                               <p className=" text-xs whitespace-nowrap">
                                 <span className=" text-sm">Visit Time: </span>{" "}
                                 {item?.visitSchedule?.split("-")[1]}
+                              </p>
+                              <p className=" text-xs whitespace-nowrap">
+                                <span className=" text-sm">Visit Type: </span>{" "}
+                                {item?.visitSchedule?.split("-")[2]}
                               </p>
                             </div>
                             <Dialog>
@@ -467,6 +498,25 @@ const Page = ({ params }: pageProps) => {
                                     ref={visitTimeRef}
                                     id="visitTime"
                                   />
+                                </div>
+                                <div className=" flex gap-x-2 items-center">
+                                  <p className=" text-sm">Type of Visit :</p>{" "}
+                                  <Select onValueChange={setVisitType}>
+                                    <SelectTrigger className="w-[180px]">
+                                      <SelectValue placeholder="Select Interaction" />
+                                    </SelectTrigger>
+                                    <SelectContent id="interaction">
+                                      <SelectGroup>
+                                        <SelectLabel>Visit Medium</SelectLabel>
+                                        <SelectItem value="Physical">
+                                          Physical
+                                        </SelectItem>
+                                        <SelectItem value="Virtual">
+                                          Virtual
+                                        </SelectItem>
+                                      </SelectGroup>
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                                 <DialogFooter>
                                   <Button
@@ -536,7 +586,7 @@ const Page = ({ params }: pageProps) => {
                       }}
                       target="_blank"
                       className=" relative"
-                      onClick={() => propertyViewCount(index, item?._id!)}
+                      onClick={() => addSeenToProperty(index, item._id!)}
                     >
                       <img
                         src={item?.propertyImages?.[0]}
@@ -561,7 +611,9 @@ const Page = ({ params }: pageProps) => {
                       <div className=" absolute left-1 bottom-1 p-1 rounded-full bg-white/60 flex justify-center items-center">
                         <CheckCheck
                           size={22}
-                          className="  font-semibold text-orange-600"
+                          className={`font-semibold ${
+                            item?.isViewed ? "text-orange-600" : "text-blue-500"
+                          }`}
                         />
                       </div>
                     </Link>
@@ -609,7 +661,7 @@ const Page = ({ params }: pageProps) => {
                             )
                           }
                           desc={
-                            item?.isVisit
+                            showcaseProperties?.[index]?.isViewed
                               ? "Already Applied"
                               : "Apply for Visit"
                           }

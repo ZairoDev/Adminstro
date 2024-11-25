@@ -15,7 +15,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   try {
-    const { roomId, propertyId, visitTime, visitDate, client } =
+    const { roomId, propertyId, visitTime, visitDate, visitType, client } =
       await req.json();
 
     if (!roomId || !propertyId) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       if (property._id.toString() === propertyId) {
         return {
           ...property,
-          visitSchedule: `${date}-${visitTime}`,
+          visitSchedule: `${date}-${visitTime}-${visitType}`,
         };
       } else {
         return property;
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     await pusher.trigger(`room-${roomId}`, "visitUpdated", {
       propertyId,
-      visitSchedule: `${date}-${visitTime}`,
+      visitSchedule: `${date}-${visitTime}-${visitType}`,
       client,
     });
 

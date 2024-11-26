@@ -98,7 +98,6 @@ export function LogoutButton() {
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            {/* Cancel button */}
             <AlertDialogCancel asChild>
               <Button
                 variant="ghost"

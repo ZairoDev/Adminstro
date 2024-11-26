@@ -3,7 +3,7 @@ import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
 
 connectDb();
-   
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -11,14 +11,17 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get("search") || "";
     const limit = 11;
     const skip = (page - 1) * limit;
-    const searchQuery = search
-      ? {
-          $or: [
-            { email: { $regex: search, $options: "i" } },
-            { name: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
+
+    const searchQuery = {
+      status: "waiting", 
+      ...(search && {
+        $or: [
+          { email: { $regex: search, $options: "i" } },
+          { name: { $regex: search, $options: "i" } },
+        ],
+      }),
+    };
+
     const totalCandidates = await Candidate.countDocuments(searchQuery);
     const totalPages = Math.ceil(totalCandidates / limit);
     const candidates = await Candidate.find(searchQuery)

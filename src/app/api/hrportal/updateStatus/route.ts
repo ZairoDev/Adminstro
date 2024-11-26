@@ -12,7 +12,6 @@ export async function PUT(req: NextRequest) {
       { status: "Called" },
       { new: true }
     );
-
     if (!updatedCandidate) {
       return NextResponse.json(
         { error: "Candidate not found" },

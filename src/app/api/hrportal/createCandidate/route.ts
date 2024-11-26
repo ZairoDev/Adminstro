@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
     const existingCandidate = await Candidate.findOne({
       $or: [{ email }, { phone }],
     });
-
     if (existingCandidate) {
       return NextResponse.json(
         {

@@ -71,7 +71,12 @@ interface quickListingShowcase extends PropertyObject {
   description: string;
   address: string;
   isVisit: boolean;
-  visitSchedule: string;
+  visitSchedule: {
+    visitDate: string;
+    visitTime: string;
+    visitType: string;
+    visitAgentName: string;
+  };
   isViewed: boolean;
 }
 
@@ -100,6 +105,7 @@ const Page = ({ params }: pageProps) => {
 
   const [dt, setDt] = useState<Date | undefined>(undefined);
   const visitTimeRef = useRef<HTMLInputElement>(null);
+  const agentNameRef = useRef<HTMLInputElement>(null);
   const [visitType, setVisitType] = useState("Physical");
 
   useEffect(() => {
@@ -243,6 +249,7 @@ const Page = ({ params }: pageProps) => {
         visitTime: visitTimeRef?.current?.value,
         visitDate: dt,
         visitType,
+        agentName: agentNameRef?.current?.value,
         client: role,
       });
     } catch (err: any) {
@@ -457,21 +464,25 @@ const Page = ({ params }: pageProps) => {
                             <div className=" flex flex-col justify-center text-sm sm:text-md ">
                               <p className=" text-xs whitespace-nowrap">
                                 <span className=" text-sm">Visit Date: </span>{" "}
-                                {item?.visitSchedule?.split("-")[0]}
+                                {item?.visitSchedule?.visitDate}
                               </p>
                               <p className=" text-xs whitespace-nowrap">
                                 <span className=" text-sm">Visit Time: </span>{" "}
-                                {item?.visitSchedule?.split("-")[1]}
+                                {item?.visitSchedule?.visitTime}
                               </p>
                               <p className=" text-xs whitespace-nowrap">
                                 <span className=" text-sm">Visit Type: </span>{" "}
-                                {item?.visitSchedule?.split("-")[2]}
+                                {item?.visitSchedule?.visitType}
+                              </p>
+                              <p className=" text-xs whitespace-nowrap">
+                                <span className=" text-sm">Agent Name: </span>{" "}
+                                {item?.visitSchedule?.visitAgentName}
                               </p>
                             </div>
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button variant="ghost">
-                                  <CalendarDays />
+                                  {role !== "Visitor" && <CalendarDays />}
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[350px]">
@@ -492,9 +503,7 @@ const Page = ({ params }: pageProps) => {
                                 <div>
                                   <Label htmlFor="visitTime">Enter Time</Label>
                                   <Input
-                                    placeholder={
-                                      item?.visitSchedule?.split("-")[1]
-                                    }
+                                    placeholder={item?.visitSchedule?.visitTime}
                                     ref={visitTimeRef}
                                     id="visitTime"
                                   />
@@ -517,6 +526,16 @@ const Page = ({ params }: pageProps) => {
                                       </SelectGroup>
                                     </SelectContent>
                                   </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="agentName">Agent Name</Label>
+                                  <Input
+                                    placeholder={
+                                      item?.visitSchedule?.visitAgentName
+                                    }
+                                    ref={agentNameRef}
+                                    id="agentName"
+                                  />
                                 </div>
                                 <DialogFooter>
                                   <Button
@@ -612,7 +631,7 @@ const Page = ({ params }: pageProps) => {
                         <CheckCheck
                           size={22}
                           className={`font-semibold ${
-                            item?.isViewed ? "text-orange-600" : "text-blue-500"
+                            item?.isViewed && "text-orange-600"
                           }`}
                         />
                       </div>
@@ -731,7 +750,10 @@ const Page = ({ params }: pageProps) => {
                         <div className=" absolute left-1 bottom-1 p-1 rounded-full bg-white/60 flex justify-center items-center">
                           <CheckCheck
                             size={22}
-                            className="  font-semibold text-orange-600"
+                            className={`  font-semibold ${
+                              rejectedProperties?.[index]?.isViewed &&
+                              "text-orange-600"
+                            } `}
                           />
                         </div>
                       </Link>

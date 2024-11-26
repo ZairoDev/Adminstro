@@ -15,8 +15,15 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   try {
-    const { roomId, propertyId, visitTime, visitDate, visitType, client } =
-      await req.json();
+    const {
+      roomId,
+      propertyId,
+      visitTime,
+      visitDate,
+      visitType,
+      agentName,
+      client,
+    } = await req.json();
 
     if (!roomId || !propertyId) {
       return NextResponse.json(
@@ -33,11 +40,19 @@ export async function POST(req: NextRequest) {
 
     const date = new Date(visitDate).toLocaleDateString("en-GB");
 
+    const visitScheduleObject = {
+      visitDate: date,
+      visitTime: visitTime,
+      visitType: visitType,
+      visitAgentName: agentName,
+    };
+
     room.showcaseProperties = room.showcaseProperties.map((property: any) => {
       if (property._id.toString() === propertyId) {
         return {
           ...property,
-          visitSchedule: `${date}-${visitTime}-${visitType}`,
+          // visitSchedule: `${date}-${visitTime}-${visitType}`,
+          visitSchedule: visitScheduleObject,
         };
       } else {
         return property;
@@ -48,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     await pusher.trigger(`room-${roomId}`, "visitUpdated", {
       propertyId,
-      visitSchedule: `${date}-${visitTime}-${visitType}`,
+      visitSchedule: visitScheduleObject,
       client,
     });
 

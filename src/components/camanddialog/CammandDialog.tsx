@@ -12,6 +12,8 @@ import {
   PencilLine,
   Speech,
   PersonStanding,
+  Tally1Icon,
+  PersonStandingIcon,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -58,11 +60,20 @@ const routes = [
   { name: "Read Blogs", icon: BookPlus, path: "/dashboard/allblogs" },
   { name: "Create Blog", icon: PackagePlus, path: "/dashboard/createblog" },
   {
-    name: "Candidate Portal",
+    name: "Register Candidate",
     icon: Speech,
     path: "/dashboard/candidatePortal",
   },
-  { name: "Hr Portal", icon: PersonStanding, path: "/dashboard/hrPortal" },
+  {
+    name: "Attended Candidate",
+    icon: PersonStandingIcon,
+    path: "/dashboard/attendedCandidate",
+  },
+  {
+    name: "Leftover Candidate",
+    icon: PersonStanding,
+    path: "/dashboard/leftoverCandidate",
+  },
 ];
 
 export function CommandDialogDemo() {

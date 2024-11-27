@@ -10,21 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CircleHelp, Loader2 } from "lucide-react";
+
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
 import { useDebounce } from "use-debounce";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 const HrPortal = () => {
   const { toast } = useToast();
-  const [candidates, setCandidates] = useState([]);
+  const [candidates, setCandidates] = useState<{ _id: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,15 +30,13 @@ const HrPortal = () => {
     totalCandidates: 0,
     hasMore: false,
   });
-  const [debouncedSearchTerm] = useDebounce(searchTerm, 2000);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
 
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 2000);
   const fetchCandidates = async (page = 1, search = "") => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `/api/hrportal/getCandidate?page=${page}&search=${search}`
+        `/api/hrportal/finalCandidate?page=${page}&search=${search}`
       );
       setCandidates(response.data.candidates);
       setPagination(response.data.pagination);
@@ -58,10 +52,12 @@ const HrPortal = () => {
   useEffect(() => {
     fetchCandidates(currentPage, debouncedSearchTerm);
   }, [currentPage, debouncedSearchTerm]);
+
   const handleSearch = (e: any) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
+
   const handleNextPage = () => {
     if (pagination.hasMore) {
       setCurrentPage((prev) => prev + 1);
@@ -74,44 +70,6 @@ const HrPortal = () => {
     }
   };
 
-  const handleStatusToggle = async () => {
-    if (!selectedCandidate) return;
-    const { _id, status } = selectedCandidate;
-    try {
-      const newStatus = status === "waiting" ? "called" : "waiting";
-      const response = await axios.patch("/api/hrportal/changeState", {
-        id: _id,
-        status: newStatus,
-      });
-      toast({
-        title: "Success",
-        description: "Candidate status updated successfully.",
-      });
-      setCandidates((prev: any) =>
-        prev.map((candidate: any) =>
-          candidate._id === _id
-            ? { ...candidate, status: response.data.candidate.status }
-            : candidate
-        )
-      );
-      setDialogOpen(false);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description:
-          "Failed to update candidate status. Please try again later.",
-      });
-      setDialogOpen(false);
-    }
-  };
-  const openConfirmationDialog = (candidate: any) => {
-    setSelectedCandidate(candidate);
-    setDialogOpen(true);
-  };
-
-  
-
   return (
     <>
       {loading ? (
@@ -122,8 +80,8 @@ const HrPortal = () => {
         <div className="w-full space-y-4">
           <div className="flex md:items-center flex-col md:flex-row w-full justify-between">
             <Heading
-              heading="HR Portal"
-              subheading="Candidates in queue are shown below. Take the required actions."
+              heading="Attended Candidates"
+              subheading="Candidates who have been done with the interview process"
             />
             <div className="md:w-1/3">
               <Input
@@ -146,7 +104,7 @@ const HrPortal = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Position</TableHead>
-                      <TableHead>Queue Number</TableHead>
+                      {/* <TableHead>Queue Number</TableHead> */}
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -158,17 +116,16 @@ const HrPortal = () => {
                         <TableCell>{candidate?.email}</TableCell>
                         <TableCell>{candidate?.phone}</TableCell>
                         <TableCell>{candidate?.position}</TableCell>
-                        <TableCell>{candidate?.queueNumber}</TableCell>
+                        {/* <TableCell>{candidate?.queueNumber}</TableCell> */}
                         <TableCell>{candidate?.status}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            onClick={() => openConfirmationDialog(candidate)}
+                          <Link
+                            href={`/dashboard/attendedCandidate/${candidate?._id}`}
                           >
-                            {candidate.status === "waiting"
-                              ? "Mark as Called"
-                              : "Revert to Waiting"}
-                          </Button>
+                            <Button variant={"outline"} className="text-xs">
+                              View
+                            </Button>
+                          </Link>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -176,7 +133,7 @@ const HrPortal = () => {
                 </Table>
               </div>
               <div className="flex items-center justify-between px-2">
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   Total Candidates: {pagination.totalCandidates}
                 </div>
                 <div className="flex items-center gap-4">
@@ -203,25 +160,6 @@ const HrPortal = () => {
           )}
         </div>
       )}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <div className="flex items-center sm:items-start  justify-center sm:justify-start">
-              <div className="h-14   relative w-14 rounded-lg bg-primary/50 flex items-center justify-center">
-                <CircleHelp className="text-foreground h-8 w-8" />
-              </div>
-            </div>
-            <DialogTitle>Change Candidate Status</DialogTitle>
-          </DialogHeader>
-          <p>Are you sure you want to change the status?</p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleStatusToggle}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

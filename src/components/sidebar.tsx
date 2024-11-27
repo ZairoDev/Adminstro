@@ -127,12 +127,17 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/candidatePortal",
-      label: "Candidate Portal",
+      label: "Register Candidate",
       Icon: <Speech size={18} />,
     },
     {
-      path: "/dashboard/hrPortal",
-      label: "Hr Portal",
+      path: "/dashboard/leftoverCandidate",
+      label: "Leftover Candidate",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/attendedCandidate",
+      label: "Attended Candidate",
       Icon: <PersonStanding size={18} />,
     },
   ],

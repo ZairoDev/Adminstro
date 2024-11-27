@@ -104,6 +104,7 @@ const CandidatePortal: React.FC = () => {
               type="email"
               value={formData.email}
               onChange={handleChange}
+              pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
               placeholder="Candidate Email"
               required
             />
@@ -116,6 +117,7 @@ const CandidatePortal: React.FC = () => {
               type="tel"
               value={formData.phone}
               onChange={handleChange}
+              pattern="^\+?[0-9]{10,15}$"
               placeholder="Candidate Phone Number"
               required
             />

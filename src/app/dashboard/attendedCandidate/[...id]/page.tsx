@@ -9,9 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import React from "react";
-
 interface PageProps {
   params: {
     id: string;
@@ -19,8 +17,9 @@ interface PageProps {
 }
 
 const CandidateDetails = ({ params }: PageProps) => {
-  const id = params.id;
 
+  const id = params.id;
+  
   return (
     <>
       <div>
@@ -30,7 +29,7 @@ const CandidateDetails = ({ params }: PageProps) => {
           employee with their assigned  role"
         />
         <div className="border rounded-lg p-4">
-          <div className="grid  md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
+          <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
             <div>
               <Label>Name</Label>
               <Input placeholder="Name" />
@@ -57,8 +56,8 @@ const CandidateDetails = ({ params }: PageProps) => {
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="light">Male</SelectItem>
-                  <SelectItem value="dark">Female</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -70,7 +69,6 @@ const CandidateDetails = ({ params }: PageProps) => {
               <Label>Country</Label>
               <Input placeholder="Country" />
             </div>
-
             <div>
               <Label>Address</Label>
               <Input placeholder="Address" />

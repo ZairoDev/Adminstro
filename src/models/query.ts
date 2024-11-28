@@ -64,6 +64,13 @@ const querySchema = new Schema(
       type: String,
       enum: ["With Bill", "Without Bill"],
     },
+
+    leadQuality: {
+      type: String,
+      enum: ["Good", "Very Good", "Average", "Below Average"],
+      default: "",
+    },
+
     typeOfProperty: {
       type: String,
       enum: [

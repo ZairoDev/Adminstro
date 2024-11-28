@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/pagination";
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
-import LeadTable from "@/components/LeadTable";
+import LeadTable from "@/components/leadTable/LeadTable";
 import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";

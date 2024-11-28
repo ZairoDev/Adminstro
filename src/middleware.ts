@@ -65,6 +65,7 @@ const defaultRoutes: { [key: string]: string } = {
 const publicRoutes = [
   "/",
   "/login",
+  "/dashboard/candidatePortal",
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
   "/norole",

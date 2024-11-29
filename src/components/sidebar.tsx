@@ -14,7 +14,9 @@ import {
   MessageCircleQuestion,
   NotebookPen,
   PencilLine,
+  PersonStanding,
   ScanEye,
+  Speech,
   User2Icon,
   Users,
 } from "lucide-react";
@@ -125,9 +127,19 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CalendarPlus size={18} />,
     },
     {
-      path: "/dashboard/room/joinroom",
-      label: "Join Room",
-      Icon: <House size={18} />,
+      path: "/dashboard/candidatePortal",
+      label: "Register Candidate",
+      Icon: <Speech size={18} />,
+    },
+    {
+      path: "/dashboard/leftoverCandidate",
+      label: "Leftover Candidate",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/attendedCandidate",
+      label: "Attended Candidate",
+      Icon: <PersonStanding size={18} />,
     },
   ],
 };

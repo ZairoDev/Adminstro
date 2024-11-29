@@ -113,14 +113,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     ]);
 
-    const totalProperties = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalProperties / limit);
+    const totalQueries = await Query.countDocuments(query);
+    const totalPages = Math.ceil(totalQueries / limit);
 
     return NextResponse.json({
       data: allquery,
       page,
       totalPages,
-      totalProperties,
+      totalQueries,
     });
   } catch (error: any) {
     console.error("Error in GET request:", error);

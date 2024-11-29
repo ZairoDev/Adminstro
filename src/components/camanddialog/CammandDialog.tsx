@@ -10,8 +10,11 @@ import {
   BadgeCheck,
   CalendarPlus,
   PencilLine,
+  Speech,
+  PersonStanding,
+  Tally1Icon,
+  PersonStandingIcon,
 } from "lucide-react";
-
 import {
   CommandDialog,
   CommandEmpty,
@@ -56,6 +59,21 @@ const routes = [
 
   { name: "Read Blogs", icon: BookPlus, path: "/dashboard/allblogs" },
   { name: "Create Blog", icon: PackagePlus, path: "/dashboard/createblog" },
+  {
+    name: "Register Candidate",
+    icon: Speech,
+    path: "/dashboard/candidatePortal",
+  },
+  {
+    name: "Attended Candidate",
+    icon: PersonStandingIcon,
+    path: "/dashboard/attendedCandidate",
+  },
+  {
+    name: "Leftover Candidate",
+    icon: PersonStanding,
+    path: "/dashboard/leftoverCandidate",
+  },
 ];
 
 export function CommandDialogDemo() {
@@ -78,12 +96,11 @@ export function CommandDialogDemo() {
     router.push(path);
     setOpen(false);
   };
-
   return (
     <>
       <div className="border px-3 py-1 rounded-lg">
         <p className="text-sm text-muted-foreground">
-          Press{" "}
+          Press
           <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
             <span className="text-xs">⌘/Ctrl</span> + k
           </kbd>

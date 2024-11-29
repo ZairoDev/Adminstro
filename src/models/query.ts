@@ -75,7 +75,7 @@ const querySchema = new Schema(
       type: String,
       enum: [
         "Studio",
-        "Aprtment",
+        "Apartment",
         "Villa",
         "Pent House",
         "Detached House",

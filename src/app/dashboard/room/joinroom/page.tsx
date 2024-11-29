@@ -19,10 +19,8 @@ const Page = () => {
     if (!roomIdRef.current?.value || !roomPasswordRef.current?.value) {
       return;
     }
-
     const roomId = roomIdRef?.current.value;
     const roomPassword = roomPasswordRef?.current.value;
-
     try {
       setIsLoading(true);
       const response = await axios.post("/api/room/joinRoom", {
@@ -44,7 +42,6 @@ const Page = () => {
     }
     setIsLoading(false);
   };
-
   return (
     <div className=" w-full h-[93vh] flex items-center justify-center">
       <Card className=" w-80  shadow-lg rounded-lg relative overflow-hidden">

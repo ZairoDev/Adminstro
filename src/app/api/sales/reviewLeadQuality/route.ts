@@ -6,13 +6,11 @@ connectDb();
 
 export async function POST(req: Request) {
   try {
-    const { id, leadQuality } = await req.json();
+    const { id, leadQualityByReviwer } = await req.json();
+    
+    console.log("id: ", id);
 
-    console.log(id , leadQuality , "Everything gonna print here")
- 
-    const _id=id[0];
-
-    if (!_id || !leadQuality) {
+    if (!id || !leadQualityByReviwer) {
       return NextResponse.json(
         { success: false, message: "ID and leadQuality are required" },
         { status: 400 }
@@ -25,7 +23,7 @@ export async function POST(req: Request) {
       "Average",
       "Below Average",
     ];
-    if (!validLeadQualities.includes(leadQuality)) {
+    if (!validLeadQualities.includes(leadQualityByReviwer)) {
       return NextResponse.json(
         { success: false, message: "Invalid leadQuality value" },
         { status: 400 }
@@ -33,8 +31,8 @@ export async function POST(req: Request) {
     }
 
     const updatedQuery = await Query.findByIdAndUpdate(
-        _id,
-      { leadQuality },
+      id,
+      { leadQualityByReviwer },
       { new: true }
     );
 

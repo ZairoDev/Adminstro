@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
@@ -37,6 +36,7 @@ import {
   Check,
   BookX,
   Star,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
@@ -47,7 +47,7 @@ import axios from "axios";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import CustomTooltip from "../CustomToolTip";
-import { Separator } from "../ui/separator";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,22 +56,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const openDialog = (query: IQuery) => {
-    setSelectedQuery(query);
-    setIsDialogOpen(true);
-  };
-
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const InfoItem = ({
     icon: Icon,
     label,
@@ -115,17 +111,44 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  const handleQualityChange = async (
+    leadQualityByReviwer: string,
+    id: any,
+    index: number
+  ) => {
+    setLoading(true);
+    try {
+      const response = axios.post("/api/sales/reviewLeadQuality", {
+        id,
+        leadQualityByReviwer,
+      });
+      toast({
+        description: "Status updated succefully",
+      });
+      queries[index].leadQualityByReviwer = leadQualityByReviwer;
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        description: "Error occurred while updating status",
+      });
+    }
+  };
+
+  console.log(queries, "Data will print here");
+
   return (
     <div className="">
       <Table className="">
         <TableHeader>
           <TableRow>
-            <TableHead className="">Name</TableHead>
-            <TableHead className="">Guests</TableHead>
-            <TableHead className="">Budget</TableHead>
-            <TableHead className="">Location</TableHead>
-            <TableHead className="">Lead Quality</TableHead>
-            <TableHead className="">Actions</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Guests</TableHead>
+            <TableHead>Budget</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Lead Quality</TableHead>
+            <TableHead>Contact</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -234,7 +257,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   {/* <CustomTooltip text={query?.area} desc={"Customer area"} /> */}
                   <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
-                    desc={`Location - ${query?.area}`}
+                    desc={`Area - ${query?.area}`}
                   />
                   <div>|</div>
                   <Badge className=" bg-white">
@@ -268,23 +291,69 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableCell className=" flex gap-x-0.5">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">Quality</Button>
+                    {loading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Button variant="ghost">
+                        {query.leadQualityByReviwer || "Review"}
+                      </Button>
+                    )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">
                     <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className=" cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Good", query?._id, index)
+                      }
+                    >
                       Good
                     </DropdownMenuItem>
-                    <DropdownMenuItem className=" cursor-pointer">
-                      Bad
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Very Good", query?._id, index)
+                      }
+                    >
+                      Very Good
                     </DropdownMenuItem>
-                    <DropdownMenuItem className=" cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Average", query?._id, index)
+                      }
+                    >
                       Average
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Below Average</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Below Average", query?._id, index)
+                      }
+                    >
+                      Below Average
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </TableCell>
+              <TableCell>
+                <Link
+                  className=""
+                  href={`https://wa.me/${
+                    query?.phoneNo
+                  }?text=${encodeURIComponent(
+                    `Hello, ${query?.name}, how are you doing?`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src="https://vacationsaga.b-cdn.net/assets/wsp.png"
+                    alt="icon image"
+                    className="h-8 w-8"
+                  />
+                </Link>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -349,21 +418,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <Badge variant="outline" className="text-sm font-normal">
                       {selectedQuery?.priority} Priority
                     </Badge>
-                  </div>
-                  <div className="flex items-center text-muted-foreground ">
-                    <Link
-                      href={`https://wa.me/${selectedQuery.phoneNo}?text=Hi%20${selectedQuery.name}%2C%20my%20name%20is%20Myself%2C%20and%20how%20are%20you%20doing%3F`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <img
-                        src="https://vacationsaga.b-cdn.net/assets/wsp.png"
-                        alt="icon image"
-                        className="h-10 w-10 mr-1 "
-                      />
-                    </Link>
-
-                    {selectedQuery?.phoneNo}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2 ">

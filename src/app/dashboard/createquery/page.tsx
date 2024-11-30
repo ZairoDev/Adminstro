@@ -48,6 +48,7 @@ import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
+import { CustomLeadTable } from "./lead-table";
 import { validateAndSetDuration } from "@/util/durationValidation";
 
 interface ApiResponse {
@@ -104,6 +105,10 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
+    roomDetails: {
+      roomId: "",
+      roomPassword: "",
+    },
   });
   const limit: number = 12;
   const handleBookingTermChange = (value: string) => {
@@ -180,6 +185,10 @@ const SalesDashboard = () => {
         typeOfProperty: "",
         propertyType: "",
         priority: "",
+        roomDetails: {
+          roomId: "",
+          roomPassword: "",
+        },
       });
     } catch (error) {
       console.error("Error:", error);
@@ -823,6 +832,7 @@ const SalesDashboard = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    roomDetails={query.roomDetails}
                   />
                 </div>
               ))}

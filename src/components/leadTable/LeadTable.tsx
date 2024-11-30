@@ -43,7 +43,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { IQuery } from "@/util/type";
 import { Button } from "../ui/button";
 
-import axios from "axios";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import CustomTooltip from "../CustomToolTip";
@@ -62,6 +61,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
@@ -542,7 +542,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                 )
                               }
                             >
-                              Didn't like the option
+                              Didn&apos;t like the option
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>

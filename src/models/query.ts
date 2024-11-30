@@ -64,18 +64,36 @@ const querySchema = new Schema(
       type: String,
       enum: ["With Bill", "Without Bill"],
     },
-
-    leadQuality: {
+    leadQualityByReviwer: {
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
-      default: "",
+      default: null,
     },
-
+    leadQualityByCreator: {
+      type: String,
+      enum: ["Good", "Very Good", "Average", "Below Average"],
+    },
+    rejectionReason: {
+      type: String,
+      enum: [
+        "Late Response",
+        "Delayed the Traveling",
+        "Allready got it",
+        "Didn't like the option",
+        "Low Budget",
+        "Number of people exceeded",
+        "Off Location",
+        "Blocked on whatsapp",
+        "Not on whatsapp",
+        "Not Replying",
+      ],
+      default: null,
+    },
     typeOfProperty: {
       type: String,
       enum: [
         "Studio",
-        "Aprtment",
+        "Apartment",
         "Villa",
         "Pent House",
         "Detached House",
@@ -94,6 +112,9 @@ const querySchema = new Schema(
       type: String,
       enum: ["High", "Low", "Medium"],
       require: [true, "Priority must be provided"],
+    },
+    roomDetails: {
+      type: Object,
     },
   },
   { timestamps: true }

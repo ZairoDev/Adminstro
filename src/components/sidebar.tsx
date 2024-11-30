@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
-  CalendarPlus,
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
@@ -14,7 +13,9 @@ import {
   MessageCircleQuestion,
   NotebookPen,
   PencilLine,
+  PersonStanding,
   ScanEye,
+  Speech,
   User2Icon,
   Users,
 } from "lucide-react";
@@ -119,10 +120,25 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
+    // {
+    //   path: "/dashboard/createdQuery",
+    //   label: "Created Lead",
+    //   Icon: <CalendarPlus size={18} />,
+    // },
     {
-      path: "/dashboard/createdQuery",
-      label: "Created Lead",
-      Icon: <CalendarPlus size={18} />,
+      path: "/dashboard/candidatePortal",
+      label: "Register Candidate",
+      Icon: <Speech size={18} />,
+    },
+    {
+      path: "/dashboard/leftoverCandidate",
+      label: "Leftover Candidate",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/attendedCandidate",
+      label: "Attended Candidate",
+      Icon: <PersonStanding size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",

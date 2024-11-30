@@ -9,26 +9,21 @@ import {
   Bed,
   Building,
   Calendar,
+  Copy,
   DollarSign,
+  Euro,
   Flag,
   Home,
+  IdCard,
+  KeyRound,
   Loader2,
+  Mail,
   MapPin,
   User,
   Users,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 
 interface PageProps {
   params: {
@@ -40,31 +35,12 @@ const QueryDetails = ({ params }: PageProps) => {
   const id = params.id;
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [leadQuality, setLeadQuality] = useState<string>("");
-  const [saveLoading, setSaveLoading] = useState(false);
-  const handleSave = async () => {
-    try {
-      setSaveLoading(true);
-      await axios.post("/api/sales/reviewLeadQuality", {
-        id,
-        leadQuality,
-      });
-      alert("Lead quality updated successfully.");
-    } catch (err) {
-      alert("Failed to update lead quality. Please try again.");
-    } finally {
-      setSaveLoading(false);
-    }
-  };
 
   const response = async () => {
     try {
       setLoading(true);
       const data = await axios.post("/api/sales/getQuerybyId", { id });
       setApiData(data.data.data);
-      console.log(data.data.data);
-      console.log(data.data.data.area);
       setLoading(false);
     } catch (error: any) {
       console.log(error);
@@ -132,30 +108,51 @@ const QueryDetails = ({ params }: PageProps) => {
                       </div>
                     </div>
                     <Badge
-                      variant={
-                        apiData?.priority === "Medium Priority"
-                          ? "secondary"
-                          : "destructive"
-                      }
+                      className={`${
+                        apiData?.priority === "High"
+                          ? "bg-green-500 hover:bg-green-500 text-white"
+                          : apiData?.priority === "Medium"
+                          ? "bg-yellow-500 text-black hover:bg-yellow-500"
+                          : "bg-red-500 text-white hover:bg-red-500"
+                      }`}
                     >
-                      {apiData?.priority}
+                      {apiData?.priority} Priority
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InfoItem
+                      icon={Mail}
+                      label="Email"
+                      value={apiData?.email ?? " "}
+                    />
+                    <InfoItem
                       icon={MapPin}
                       label="Area"
                       value={apiData?.area ?? ""}
                     />
+                    <InfoItem
+                      icon={MapPin}
+                      label="Duration"
+                      value={
+                        apiData?.duration
+                          ? `${apiData.duration} ${
+                              apiData.bookingTerm === "Short Term"
+                                ? "days"
+                                : "months"
+                            }`
+                          : ""
+                      }
+                    />
+
                     <InfoItem
                       icon={Users}
                       label="Guests"
                       value={apiData?.guest ?? " "}
                     />
                     <InfoItem
-                      icon={DollarSign}
+                      icon={Euro}
                       label="Budget"
                       value={`€${apiData?.budget}`}
                     />
@@ -186,7 +183,7 @@ const QueryDetails = ({ params }: PageProps) => {
                     />
                     <InfoItem
                       icon={Building}
-                      label="Building Type"
+                      label="Type of Property"
                       value={apiData?.typeOfProperty ?? " "}
                     />
                     <InfoItem
@@ -204,45 +201,49 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="End Date"
                       value={apiData?.endDate ?? " "}
                     />
+                    <InfoItem
+                      icon={Mail}
+                      label="Creator Rating"
+                      value={apiData?.leadQualityByCreator ?? " "}
+                    />
+                    <InfoItem
+                      icon={Mail}
+                      label="Reviewer Rating"
+                      value={apiData?.leadQualityByReviwer ?? " "}
+                    />
+                    <div className=" flex items-center gap-x-4 border rounded-xl ">
+                      <InfoItem
+                        icon={IdCard}
+                        label="Room ID"
+                        value={apiData?.roomDetails?.roomId ?? " "}
+                      />
+                      <Copy
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            apiData?.roomDetails?.roomId ?? ""
+                          );
+                        }}
+                        className=" cursor-pointer hover:text-slate-500"
+                      />
+                    </div>
+                    <div className=" flex items-center gap-x-4  border rounded-xl">
+                      <InfoItem
+                        icon={KeyRound}
+                        label="Room Password"
+                        value={apiData?.roomDetails?.roomPassword ?? " "}
+                      />
+                      <Copy
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            apiData?.roomDetails?.roomPassword ?? ""
+                          );
+                        }}
+                        className=" cursor-pointer hover:text-slate-500"
+                      />
+                    </div>
                   </div>
                 </CardContent>
                 <Separator />
-                <div className="p-4">
-                  <p>Choose the quality of the lead</p>
-                  <div className="flex items-center sm:flex-row gap-x-2 flex-col justify-between">
-                    <div className="w-full sm:w-1/2 md:w-1/3">
-                      <Select
-                        value={leadQuality}
-                        onValueChange={setLeadQuality}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Lead Quality" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Bad">Bad</SelectItem>
-                          <SelectItem value="Average">Average</SelectItem>
-                          <SelectItem value="Below Average">
-                            Below Average
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-full flex items-center justify-end sm:mt-0 mt-2">
-                      <Button
-                        className="w-full sm:w-auto"
-                        onClick={handleSave}
-                        disabled={saveLoading}
-                      >
-                        {saveLoading ? (
-                          <Loader2 className="animate-spin w-4 h-4" />
-                        ) : (
-                          "Save"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </Card>
             </div>
           </div>

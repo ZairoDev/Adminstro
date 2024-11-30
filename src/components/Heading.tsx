@@ -1,9 +1,8 @@
-import React from "react";
+import React, { memo } from "react";
 interface HeadingProps {
   heading: string;
   subheading: string;
 }
-
 const Heading = ({ heading, subheading }: HeadingProps) => {
   return (
     <div className="border-l-4 border-primary pl-2 mb-2 bg-primary/10 sm:inline-block rounded-r-sm ">
@@ -14,5 +13,4 @@ const Heading = ({ heading, subheading }: HeadingProps) => {
     </div>
   );
 };
-
-export default Heading;
+export default memo(Heading);

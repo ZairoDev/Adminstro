@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { LucideLoader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 
 const Page = () => {
@@ -14,15 +14,14 @@ const Page = () => {
   const roomIdRef = useRef<HTMLInputElement>(null);
   const roomPasswordRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const params = useSearchParams();
 
   const handleJoinRoom = async () => {
     if (!roomIdRef.current?.value || !roomPasswordRef.current?.value) {
       return;
     }
-
     const roomId = roomIdRef?.current.value;
     const roomPassword = roomPasswordRef?.current.value;
-
     try {
       setIsLoading(true);
       const response = await axios.post("/api/room/joinRoom", {
@@ -44,7 +43,6 @@ const Page = () => {
     }
     setIsLoading(false);
   };
-
   return (
     <div className=" w-full h-[93vh] flex items-center justify-center">
       <Card className=" w-80  shadow-lg rounded-lg relative overflow-hidden">

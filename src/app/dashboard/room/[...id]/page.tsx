@@ -1,5 +1,4 @@
 "use client";
-
 import CustomTooltip from "@/components/CustomToolTip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 
 interface pageProps {
   params: {
@@ -107,6 +107,7 @@ const Page = ({ params }: pageProps) => {
   const visitTimeRef = useRef<HTMLInputElement>(null);
   const agentNameRef = useRef<HTMLInputElement>(null);
   const [visitType, setVisitType] = useState("Physical");
+  const router = useRouter();
 
   useEffect(() => {
     const roomDetails = params.id[0].split("-");
@@ -126,6 +127,7 @@ const Page = ({ params }: pageProps) => {
         setRole(response.data.role);
         setIsLoading(false);
       } catch (err: any) {
+        router.push("/dashboard/room/joinroom");
         console.log("Error in verifying room credentails: ", err);
       }
       setIsLoading(false);
@@ -600,7 +602,7 @@ const Page = ({ params }: pageProps) => {
                       href={{
                         pathname:
                           item?.VSID === "xxxx"
-                            ? `http://www.vacationsaga.com/roomListing/${item._id}`
+                            ? `http://localhost:3001/roomListing/${item._id}`
                             : `https://www.vacationsaga.com/listing-stay-detail/${item._id}`,
                       }}
                       target="_blank"

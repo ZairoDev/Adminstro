@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -10,19 +11,15 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Phone,
-  User,
   MapPin,
   Users,
-  Calendar,
   DollarSign,
   Bed,
   Clock,
@@ -30,7 +27,6 @@ import {
   Home,
   Building,
   Calendar as DateIcon,
-  Flag,
   ChartArea,
   Ellipsis,
   User,
@@ -40,6 +36,7 @@ import {
   Check,
   BookX,
   Star,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
@@ -50,7 +47,7 @@ import axios from "axios";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import CustomTooltip from "../CustomToolTip";
-import { Separator } from "../ui/separator";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,23 +56,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import axios from "axios";
+} from "../ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const openDialog = (query: IQuery) => {
-    setSelectedQuery(query);
-    setIsDialogOpen(true);
-  };
-
+  const [loading, setLoading] = useState(false);
+  const [roomId, setRoomId] = useState("");
+  const [roomPassword, setRoomPassword] = useState("");
+  const { toast } = useToast();
   const InfoItem = ({
     icon: Icon,
     label,
@@ -85,7 +79,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     label: string;
     value: string | number;
   }) => (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 ">
       <Icon size={18} className="text-muted-foreground" />
       <p className="text-base">
         <span className="text-base text-muted-foreground mr-2">{label}:</span>
@@ -93,17 +87,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       </p>
     </div>
   );
-
   const startDate =
     selectedQuery?.startDate && !isNaN(Date.parse(selectedQuery?.startDate))
       ? new Date(selectedQuery?.startDate)
       : null;
-
   const endDate =
     selectedQuery?.endDate && !isNaN(Date.parse(selectedQuery.endDate))
       ? new Date(selectedQuery.endDate)
       : null;
-
   const formattedStartDate = startDate
     ? format(startDate, "dd-MM-yyyy")
     : "Invalid Date";
@@ -117,8 +108,61 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
         lead: queries[index],
       });
       console.log("response: ", response.data);
+      setRoomId(response.data.room._id);
+      setRoomPassword(response.data.room.password);
+      alert(
+        `Room created successfully with id: ${response.data.room._id} and password: ${response.data.room.password}`
+      );
     } catch (err: unknown) {
       console.log("err: ", err);
+    }
+  };
+
+  const handleQualityChange = async (
+    leadQualityByReviwer: string,
+    id: any,
+    index: number
+  ) => {
+    setLoading(true);
+    try {
+      const response = axios.post("/api/sales/reviewLeadQuality", {
+        id,
+        leadQualityByReviwer,
+      });
+      toast({
+        description: "Status updated succefully",
+      });
+      queries[index].leadQualityByReviwer = leadQualityByReviwer;
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        description: "Error occurred while updating status",
+      });
+    }
+  };
+
+  const handleRejectionReason = async (
+    rejectionReason: string,
+    id: any,
+    index: number
+  ) => {
+    setLoading(true);
+    try {
+      const response = axios.post("/api/sales/rejectionReason", {
+        id,
+        rejectionReason,
+      });
+      toast({
+        description: "Rejection reason saved succefully",
+      });
+      queries[index].rejectionReason = rejectionReason;
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        description: "Error occurred while updating status",
+      });
     }
   };
 
@@ -127,13 +171,13 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       <Table className="">
         <TableHeader>
           <TableRow>
-            <TableHead className="">Name</TableHead>
-            <TableHead className="">Guests</TableHead>
-            <TableHead className="">Budget</TableHead>
-            <TableHead className="">No of Beds</TableHead>
-            <TableHead className="">Location</TableHead>
-            <TableHead className="">Booking Term</TableHead>
-            <TableHead className="">Actions</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Guests</TableHead>
+            <TableHead>Budget</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Lead Quality</TableHead>
+            <TableHead>Contact</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -242,7 +286,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   {/* <CustomTooltip text={query?.area} desc={"Customer area"} /> */}
                   <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
-                    desc={`Location - ${query?.area}`}
+                    desc={`Area - ${query?.area}`}
                   />
                   <div>|</div>
                   <Badge className=" bg-white">
@@ -276,23 +320,69 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableCell className=" flex gap-x-0.5">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">Quality</Button>
+                    {loading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Button variant="ghost">
+                        {query.leadQualityByReviwer || "Review"}
+                      </Button>
+                    )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">
                     <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className=" cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Good", query?._id, index)
+                      }
+                    >
                       Good
                     </DropdownMenuItem>
-                    <DropdownMenuItem className=" cursor-pointer">
-                      Bad
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Very Good", query?._id, index)
+                      }
+                    >
+                      Very Good
                     </DropdownMenuItem>
-                    <DropdownMenuItem className=" cursor-pointer">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Average", query?._id, index)
+                      }
+                    >
                       Average
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Below Average</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Below Average", query?._id, index)
+                      }
+                    >
+                      Below Average
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </TableCell>
+              <TableCell>
+                <Link
+                  className=""
+                  href={`https://wa.me/${
+                    query?.phoneNo
+                  }?text=${encodeURIComponent(
+                    `Hello, ${query?.name}, how are you doing?`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src="https://vacationsaga.b-cdn.net/assets/wsp.png"
+                    alt="icon image"
+                    className="h-8 w-8"
+                  />
+                </Link>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -305,8 +395,21 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem>Create Room</DropdownMenuItem>
-                      <DropdownMenuItem>Join Room</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCreateRoom(index)}>
+                        Create Room
+                      </DropdownMenuItem>
+                      <Link
+                        href={{
+                          pathname: `/dashboard/room/joinroom`,
+                          query: {
+                            roomId: roomId,
+                            roomPassword: roomPassword,
+                          },
+                        }}
+                        target="_blank"
+                      >
+                        <DropdownMenuItem>Join Room</DropdownMenuItem>
+                      </Link>
                       <Link href={`/dashboard/createquery/${query?._id}`}>
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
@@ -314,18 +417,132 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          Reject Lead
+                        <DropdownMenuSubTrigger className="w-40 truncate">
+                          Rej re:{" "}
+                          <span className="ml-2">{query.rejectionReason}</span>
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
-                            <DropdownMenuItem>Achi nhi lgi</DropdownMenuItem>
-                            <DropdownMenuItem>Mja nhi aya</DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Bilkul Bakwas thi
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Not Replying",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Not Replying
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Customer bekar tha
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Blocked on whatsapp",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Blocked on whatsapp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Not on whatsapp",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Not on whatsapp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Late Response",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Late Response
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Delayed the Traveling",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Delayed the Traveling
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Off Location",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Off Location
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Number of people exceeded",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Number of people exceeded
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Low Budget
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Allready got it",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Allready got it
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Low Budget
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Didn't like the option",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Didn't like the option
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
@@ -341,10 +558,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       {/* Dialog for Full Details */}
       {selectedQuery && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="lg:text-2xl text-muted-foreground md:text-xl text-xl">
-                Full details about the user
+          <DialogContent className="p-4">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-xl p-0 font-normal">
+                Lead Details
               </DialogTitle>
             </DialogHeader>
             <DialogDescription>
@@ -358,76 +575,96 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       {selectedQuery?.priority} Priority
                     </Badge>
                   </div>
-                  <div className="flex items-center text-sm text-muted-foreground mt-1">
-                    <Phone size={14} className="mr-1" />
-                    {selectedQuery.phoneNo}
-                  </div>
                 </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="">
-                    <InfoItem
-                      icon={MapPin}
-                      label="Area"
-                      value={selectedQuery.area}
-                    />
-                    <InfoItem
-                      icon={Users}
-                      label="Guests"
-                      value={selectedQuery.guest}
-                    />
-                    <InfoItem
-                      icon={DollarSign}
-                      label="Budget"
-                      value={`€${selectedQuery.budget}`}
-                    />
-                    <InfoItem
-                      icon={Bed}
-                      label="Beds"
-                      value={selectedQuery.noOfBeds}
-                    />
-                    <InfoItem
-                      icon={Clock}
-                      label="Term"
-                      value={selectedQuery.bookingTerm}
-                    />
-                  </div>
-                  <div className="">
-                    <InfoItem
-                      icon={MapPin}
-                      label="Location"
-                      value={selectedQuery.location}
-                    />
-                    <InfoItem
-                      icon={ChartArea}
-                      label="Zone"
-                      value={selectedQuery.zone}
-                    />
-                    <InfoItem
-                      icon={Receipt}
-                      label="Bill Status"
-                      value={selectedQuery.billStatus}
-                    />
-                    <InfoItem
-                      icon={Home}
-                      label="Property Type"
-                      value={selectedQuery.typeOfProperty}
-                    />
-                    <InfoItem
-                      icon={Building}
-                      label="Building Type"
-                      value={selectedQuery.propertyType}
-                    />
-                    <InfoItem
-                      icon={DateIcon}
-                      label="Start Date"
-                      value={formattedStartDate}
-                    />
-                    <InfoItem
-                      icon={DateIcon}
-                      label="End Date"
-                      value={formattedEndDate}
-                    />
-                  </div>
+                <CardContent className="pt-2 ">
+                  <ScrollArea className="md:h-[400px] h-[300px] w-full border-none rounded-md border p-4">
+                    <div className="flex flex-col gap-y-3">
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={MapPin}
+                          label="Area"
+                          value={selectedQuery?.area}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Users}
+                          label="Guests"
+                          value={selectedQuery?.guest}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={DollarSign}
+                          label="Budget"
+                          value={`€${selectedQuery?.budget}`}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Bed}
+                          label="Beds"
+                          value={selectedQuery?.noOfBeds}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Clock}
+                          label="Term"
+                          value={selectedQuery?.bookingTerm}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={MapPin}
+                          label="Location"
+                          value={selectedQuery?.location}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={ChartArea}
+                          label="Zone"
+                          value={selectedQuery?.zone}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Receipt}
+                          label="Bill Status"
+                          value={selectedQuery?.billStatus}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Home}
+                          label="Property Type"
+                          value={selectedQuery?.typeOfProperty}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={Building}
+                          label="Building Type"
+                          value={selectedQuery?.propertyType}
+                        />
+                      </div>
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={DateIcon}
+                          label="Start Date"
+                          value={formattedStartDate}
+                        />
+                      </div>{" "}
+                      <div className="border px-3 py-2 rounded-lg">
+                        <InfoItem
+                          icon={DateIcon}
+                          label="End Date"
+                          value={formattedEndDate}
+                        />
+                      </div>
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </DialogDescription>

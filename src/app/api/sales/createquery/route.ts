@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       typeOfProperty,
       propertyType,
       priority,
+      leadQualityByCreator,
     } = await req.json();
     const newQuery = await Query.create({
       name,
@@ -54,9 +55,9 @@ export async function POST(req: Request) {
       typeOfProperty,
       propertyType,
       priority,
+      leadQualityByCreator,
     });
 
-    // Trigger the Pusher event
     await pusher.trigger("queries", "new-query", {
       date: newQuery.date,
       name: newQuery.name,
@@ -75,8 +76,8 @@ export async function POST(req: Request) {
       typeOfProperty: newQuery.typeOfProperty,
       propertyType: newQuery.propertyType,
       priority: newQuery.priority,
+      leadQualityByCreator: newQuery.leadQualityByCreator,
     });
-
     return NextResponse.json(
       { success: true, data: newQuery },
       { status: 201 }

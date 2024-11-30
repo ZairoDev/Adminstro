@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
-interface tokenInterface {
-  role: string;
-  email: string;
-  name: string;
-  id: string;
-  iat: number;
-  exp: number;
-}
-//Role based access
+
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
@@ -61,7 +53,6 @@ const defaultRoutes: { [key: string]: string } = {
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
 };
-
 const publicRoutes = [
   "/",
   "/login",

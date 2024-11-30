@@ -6,15 +6,6 @@ import { CgSpinner } from "react-icons/cg";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-
 import {
   InputOTP,
   InputOTPGroup,
@@ -23,7 +14,6 @@ import {
 } from "@/components/ui/input-otp";
 import { ArrowLeft } from "lucide-react";
 import { ModeToggle } from "@/components/themeChangeButton";
-
 interface PageProps {
   params: {
     email: string;
@@ -71,7 +61,6 @@ const Page = ({ params }: PageProps) => {
         email,
       });
       toast({
-        title: "Verification Successful",
         description: "You have successfully logged in as Superadmin",
       });
       router.push("/");
@@ -80,25 +69,22 @@ const Page = ({ params }: PageProps) => {
       console.log(err.response.data.error);
       toast({
         variant: "destructive",
-        title: "Verification Failed",
         description: `${err.response.data.error}`,
       });
     }
     setVerifyLoading(false);
   };
-
   const handleRetryOTP = async () => {
     setVerifyLoading(true);
     try {
       const response = await axios.post("/api/resend-otp", { email });
       toast({
-        title: "Verification otp sent",
         description: "Otp send sucessfully to your entered email address",
       });
       setRemainingTime(60);
     } catch (err: any) {
       toast({
-        title: "Verification otp sent",
+        variant: "destructive",
         description: `err`,
       });
     }

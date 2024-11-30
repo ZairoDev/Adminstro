@@ -5,15 +5,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetClose,
@@ -49,11 +48,12 @@ import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
-import { CustomLeadTable } from "./lead-table";
+import { validateAndSetDuration } from "@/util/durationValidation";
 
 interface ApiResponse {
   data: IQuery[];
   totalPages: number;
+  totalQueries: number;
 }
 interface FetchQueryParams {
   searchTerm: string;
@@ -66,9 +66,9 @@ const SalesDashboard = () => {
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
+  const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -106,7 +106,6 @@ const SalesDashboard = () => {
     priority: "",
   });
   const limit: number = 12;
-
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
       ...prevData,
@@ -114,94 +113,17 @@ const SalesDashboard = () => {
       duration: "",
     }));
   };
-
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    let durationValues = value.split("-").map(Number);
-    if (formData.bookingTerm === "Short Term") {
-      if (
-        durationValues.length === 2 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 30 &&
-        durationValues[1] <= 30
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (
-        durationValues.length === 1 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 30
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    } else if (formData.bookingTerm === "Mid Term") {
-      if (
-        durationValues.length === 2 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 3 &&
-        durationValues[1] <= 3
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (
-        durationValues.length === 1 &&
-        durationValues[0] >= 1 &&
-        durationValues[0] <= 3
-      ) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    } else if (formData.bookingTerm === "Long Term") {
-      if (durationValues.length === 2 && durationValues[0] >= 4) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: value,
-        }));
-      } else if (durationValues.length === 1 && durationValues[0] >= 4) {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: `${durationValues[0]}-${durationValues[0]}`,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          duration: "",
-        }));
-      }
-    }
+    validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
   };
 
   const handleSubmit = async () => {
     try {
-      // First check for empty fields
       const emptyFields: string[] = [];
-
+      const { budgetFrom, budgetTo, ...otherFields } = formData;
+      const budget = `${budgetFrom} to ${budgetTo}`;
       Object.entries(formData).forEach(([key, value]) => {
-        if (
-          value === "" ||
-          value === null ||
-          value === undefined ||
-          value === 0
-        ) {
+        if (value === "" || value === null || value === undefined) {
           const fieldName = key
             .replace(/([A-Z])/g, " $1")
             .replace(/^./, (str) => str.toUpperCase())
@@ -209,7 +131,7 @@ const SalesDashboard = () => {
           emptyFields.push(fieldName);
         }
       });
-      // If there are empty fields, show alert and return
+
       if (emptyFields.length > 0) {
         toast({
           description: `Please fill in the following required fields: ${emptyFields.join(
@@ -218,22 +140,46 @@ const SalesDashboard = () => {
         });
         return;
       }
-
-      // If validation passes, proceed with form submission
+      const formDataToSubmit = {
+        ...otherFields,
+        budget,
+      };
       setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formDataToSubmit),
       });
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to create query");
+      }
       const newQuery = result.data;
       setQueries((prevQueries) => [newQuery, ...prevQueries]);
-      setIsDialogOpen(false);
       toast({
         description: "Query Created Successfully",
+      });
+
+      setFormData({
+        startDate: "",
+        duration: "",
+        endDate: "",
+        name: "",
+        email: "",
+        phoneNo: 0,
+        area: "",
+        guest: 0,
+        budget: 0,
+        noOfBeds: 0,
+        location: "",
+        bookingTerm: "",
+        zone: "",
+        billStatus: "",
+        typeOfProperty: "",
+        propertyType: "",
+        priority: "",
       });
     } catch (error) {
       console.error("Error:", error);
@@ -241,15 +187,21 @@ const SalesDashboard = () => {
         variant: "destructive",
         description: "Some error occurred while creating query",
       });
+    } finally {
       setSubmitQuery(false);
     }
   };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
   };
+
   const fetchQuery = useCallback(
     debounce(
       async ({
@@ -269,6 +221,7 @@ const SalesDashboard = () => {
           if (response.ok) {
             setQueries(data.data);
             setTotalPages(data.totalPages);
+            setTotalQueries(data.totalQueries);
           } else {
             throw new Error("Failed to fetch properties");
           }
@@ -347,9 +300,6 @@ const SalesDashboard = () => {
     }
     return items;
   };
-
-  // console.log(date, "Selected Date will print here");
-
   useEffect(() => {
     setFormData((prevData) => ({
       ...prevData,
@@ -367,7 +317,6 @@ const SalesDashboard = () => {
             subheading="You will get the list of leads that created till now"
           />
         </div>
-        {/* Need to manage the code below this */}
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             <div className="">
@@ -391,298 +340,341 @@ const SalesDashboard = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex md:w-auto w-full justify-between  gap-x-2">
-            <div className="w-full md:mb-0 mb-2">
-              <Drawer>
-                <DrawerTrigger className=" w-full md:w-auto">
-                  <Button className="w-full">Create Query</Button>
-                </DrawerTrigger>
-                <DrawerContent className="">
-                  <DrawerHeader>
-                    <DrawerTitle className="text-2xl">
-                      Details about lead
-                    </DrawerTitle>
-                    <DrawerDescription>
-                      Fill all the details about lead after that tap on submit
-                    </DrawerDescription>
-                  </DrawerHeader>
+          <Dialog>
+            <DialogTrigger className=" w-[400px]">
+              <Button>Create Lead</Button>
+            </DialogTrigger>
+            <DialogContent className="p-4 w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Create Lead</DialogTitle>
+                <DialogDescription>
+                  Please provide accurate and complete information.
+                </DialogDescription>
+              </DialogHeader>
+              <div>
+                <ScrollArea className="h-[400px] p-4">
                   <div className="">
-                    <ScrollArea className="lg:h-full h-[400px]  w-full   border-y p-4">
-                      <div className="grid p-2 lg:grid-cols-3 lg:mx-20  md:grid-cols-2 grid-cols-1 gap-x-2">
-                        <div className="w-full">
-                          <Label>Name</Label>
-                          <Input
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
-                        </div>
-                        <div className="flex w-full gap-x-2">
-                          <div className="w-full">
-                            <Label>Start Date</Label>
-                            <DatePicker
-                              date={startDate}
-                              setDate={setStartDate}
-                            />
-                          </div>
-                          <div className="w-full">
-                            <Label>End Date</Label>
-                            <DatePicker date={endDate} setDate={setEndDate} />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label>Phone No</Label>
-                          <Input
-                            type="number"
-                            name="phoneNo"
-                            value={formData.phoneNo}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
-                        </div>
-                        <div>
-                          <Label>Area</Label>
-                          <Input
-                            name="area"
-                            value={formData.area}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
-                        </div>
-                        <div>
-                          <Label>Email</Label>
-                          <Input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            placeholder="Enter email"
-                          />
-                        </div>
-                        <div>
-                          <Label>Booking Term</Label>
-                          <Select onValueChange={handleBookingTermChange}>
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Term" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Short Term">
-                                Short Term
-                              </SelectItem>
-                              <SelectItem value="Mid Term">Mid Term</SelectItem>
-                              <SelectItem value="Long Term">
-                                Long Term
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Duration</Label>
-                          <Input
-                            name="duration"
-                            value={formData.duration}
-                            onChange={handleDurationChange}
-                            placeholder={
-                              formData.bookingTerm === "Short Term"
-                                ? "Enter range in days (1-30) or single value"
-                                : formData.bookingTerm === "Mid Term"
-                                ? "Enter range in months (1-3) or single value"
-                                : "Enter range (min 4-) or any value at the end"
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label>Budget</Label>
-                          <Input
-                            name="budget"
-                            value={formData.budget}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
-                        </div>
-                        <div className="flex gap-x-2">
-                          <div>
-                            <Label>Guest</Label>
-                            <Input
-                              type="number"
-                              name="guest"
-                              value={formData.guest}
-                              onChange={handleInputChange}
-                              placeholder="Enter name"
-                            />
-                          </div>
-                          <div>
-                            <Label>No Of Beds</Label>
-                            <Input
-                              type="number"
-                              name="noOfBeds"
-                              value={formData.noOfBeds}
-                              onChange={handleInputChange}
-                              placeholder="Enter name"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Location</Label>
-                          <Input
-                            name="location"
-                            value={formData.location}
-                            onChange={handleInputChange}
-                            placeholder="Enter name"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Zone</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                zone: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Zone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="North">North</SelectItem>
-                              <SelectItem value="South">South</SelectItem>
-                              <SelectItem value="East">East</SelectItem>
-                              <SelectItem value="West">West</SelectItem>
-                              <SelectItem value="Centre">Centre</SelectItem>
-                              <SelectItem value="Anywhere">Anywhere</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Bill Status</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                billStatus: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="With Bill">
-                                With Bill
-                              </SelectItem>
-                              <SelectItem value="Without Bill">
-                                Without Bill
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Type of Property</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                typeOfProperty: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Studio">Studio</SelectItem>
-                              <SelectItem value="Aprtment">Aprtment</SelectItem>
-                              <SelectItem value="Villa">Villa</SelectItem>
-                              <SelectItem value="Pent House">
-                                Pent House
-                              </SelectItem>
-                              <SelectItem value="Detached House">
-                                Detached House
-                              </SelectItem>
-                              <SelectItem value="Loft">Loft</SelectItem>
-                              <SelectItem value="Shared Apartment">
-                                Shared Apartment
-                              </SelectItem>
-                              <SelectItem value="Maisotte">Maisotte</SelectItem>
-                              <SelectItem value="Studio / 1 bedroom">
-                                Studio / 1 bedroom
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label>Property Type</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                propertyType: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Property Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Furnished">
-                                Furnished
-                              </SelectItem>
-                              <SelectItem value="Un - furnished">
-                                Un - furnished
-                              </SelectItem>
-                              <SelectItem value="Semi-furnished">
-                                Semi-furnished
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Priority</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setFormData((prevData) => ({
-                                ...prevData,
-                                priority: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="">
-                              <SelectValue placeholder="Select Priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="High">High</SelectItem>
-                              <SelectItem value="Low">Low</SelectItem>
-                              <SelectItem value="Medium">Medium</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <h3 className="text-lg font-semibold border-b pb-1 mt-4">
+                      Personal Details
+                    </h3>
+                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      {/* Section one 1 */}
+                      <div className="ml-1">
+                        <Label>Name</Label>
+                        <Input
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          placeholder="Enter full name"
+                        />
                       </div>
-                    </ScrollArea>
-                  </div>
-                  <DrawerFooter>
-                    <div className="flex sm:items-end sm:justify-end sm:flex-row flex-col items-center justify-center gap-y-2 gap-x-2">
-                      <Button
-                        className="sm:w-auto w-full"
-                        disabled={submitQuery}
-                        onClick={handleSubmit}
-                      >
-                        Submit Query
-                      </Button>
-                      <DrawerClose>
-                        <Button className="sm:w-auto w-full" variant="outline">
-                          Cancel
-                        </Button>
-                      </DrawerClose>
+                      <div className="ml-1">
+                        <Label>Phone No</Label>
+                        <Input
+                          type="number"
+                          name="phoneNo"
+                          value={formData.phoneNo}
+                          onChange={handleInputChange}
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                      <div className="ml-1">
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="Enter email"
+                        />
+                      </div>
+                      <div>
+                        <Label>Location</Label>
+                        <Input
+                          name="location"
+                          value={formData.location}
+                          onChange={handleInputChange}
+                          placeholder="Enter location"
+                        />
+                      </div>
                     </div>
-                  </DrawerFooter>
-                </DrawerContent>
-              </Drawer>
-            </div>
+                  </div>
+                  {/* Section 2: Booking Details */}
+                  <div className="">
+                    <h3 className="text-lg font-semibold border-b mb-1 mt-4">
+                      Booking Details
+                    </h3>
+                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      <div>
+                        <Label>Start Date</Label>
+                        <DatePicker date={startDate} setDate={setStartDate} />
+                      </div>
+                      <div>
+                        <Label>End Date</Label>
+                        <DatePicker date={endDate} setDate={setEndDate} />
+                      </div>
+                      <div className="ml-1">
+                        <Label>Booking Term</Label>
+                        <Select onValueChange={handleBookingTermChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select term" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Short Term">
+                              Short Term
+                            </SelectItem>
+                            <SelectItem value="Mid Term">Mid Term</SelectItem>
+                            <SelectItem value="Long Term">Long Term</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Duration</Label>
+                        <Input
+                          name="duration"
+                          value={formData.duration}
+                          onChange={handleDurationChange}
+                          placeholder="Enter duration based on term"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Section 3: Budget Details */}
+                  <div className="mt-2 ml-1">
+                    <h3 className="text-lg font-semibold border-b  mt-4 mb-1">
+                      Budget Details
+                    </h3>
+                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      <div>
+                        <Label>Budget (From)</Label>
+                        <Input
+                          name="budgetFrom"
+                          value={formData.budgetFrom || ""}
+                          onChange={handleInputChange}
+                          placeholder="Enter minimum budget"
+                        />
+                      </div>
+                      <div>
+                        <Label>Budget (To)</Label>
+                        <Input
+                          name="budgetTo"
+                          value={formData.budgetTo || ""}
+                          onChange={handleInputChange}
+                          placeholder="Enter maximum budget"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Section three */}
+                  <div className="ml-1">
+                    <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
+                      Guest Details
+                    </h3>
+                    <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                      <div>
+                        <Label>Guest</Label>
+                        <Input
+                          type="number"
+                          name="guest"
+                          value={formData.guest}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                      <div>
+                        <Label>No Of Beds</Label>
+                        <Input
+                          type="number"
+                          name="noOfBeds"
+                          value={formData.noOfBeds}
+                          onChange={handleInputChange}
+                          placeholder="Enter name"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Section fourn  */}
+                  <div>
+                    <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
+                      Recomdation
+                    </h3>
+                    <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                      <div className="ml-1">
+                        <Label>Bill Status</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              billStatus: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="With Bill">With Bill</SelectItem>
+                            <SelectItem value="Without Bill">
+                              Without Bill
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Priority</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              priority: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="">
+                    <h3 className="text-lg font-semibold border-b pb-1 pt-4">
+                      Property Details
+                    </h3>
+                    <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      <div className="ml-1">
+                        <Label>Type of Property</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              typeOfProperty: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Studio">Studio</SelectItem>
+                            <SelectItem value="Apartment">Apartment</SelectItem>
+                            <SelectItem value="Villa">Villa</SelectItem>
+                            <SelectItem value="Pent House">
+                              Pent House
+                            </SelectItem>
+                            <SelectItem value="Detached House">
+                              Detached House
+                            </SelectItem>
+                            <SelectItem value="Loft">Loft</SelectItem>
+                            <SelectItem value="Shared Apartment">
+                              Shared Apartment
+                            </SelectItem>
+                            <SelectItem value="Maisotte">Maisotte</SelectItem>
+                            <SelectItem value="Studio / 1 bedroom">
+                              Studio / 1 bedroom
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Lead Quality</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              leadQualityByCreator: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="">
+                            <SelectValue placeholder="Select Priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Very Good">Very Good</SelectItem>
+                            <SelectItem value="Average">Average</SelectItem>
+                            <SelectItem value="Below Average">
+                              Below Average
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="ml-1">
+                        <Label>Property Type</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              propertyType: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Furnished">Furnished</SelectItem>
+                            <SelectItem value="Un - furnished">
+                              Un - furnished
+                            </SelectItem>
+                            <SelectItem value="Semi-furnished">
+                              Semi-furnished
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Zone</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              zone: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select zone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="North">North</SelectItem>
+                            <SelectItem value="South">South</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="w-full mt-2 ml-1 mb-2">
+                      <Label>Area</Label>
+                      <Input
+                        name="area"
+                        value={formData.area}
+                        onChange={handleInputChange}
+                        placeholder="Enter name"
+                      />
+                    </div>
+                  </div>
+                </ScrollArea>
+                <div>
+                  <DialogFooter>
+                    <Button
+                      className="mt-4"
+                      disabled={submitQuery}
+                      onClick={handleSubmit}
+                    >
+                      Submit Query
+                    </Button>
+                  </DialogFooter>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
               <Sheet>
                 <SheetTrigger>
@@ -788,13 +780,12 @@ const SalesDashboard = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              {/* <LeadTable queries={queries} /> */}
-              <CustomLeadTable />
+              <LeadTable queries={queries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
-              <div>
-                <p className="text-sm">
-                  Page {page} of {totalPages}
+              <div className="">
+                <p className="text-xs ">
+                  Page {page} of {totalPages} — {totalQuery} total results
                 </p>
               </div>
               <div>
@@ -815,6 +806,7 @@ const SalesDashboard = () => {
                 <div key={query._id}>
                   <QueryCard
                     name={query.name}
+                    leadQualityByReviwer={query.leadQualityByReviwer}
                     email={query.email}
                     duration={query.duration}
                     startDate={query.startDate}
@@ -839,8 +831,8 @@ const SalesDashboard = () => {
           <div>
             <div className="flex items-center justify-between p-2 w-full">
               <div>
-                <p className="text-sm">
-                  Page {page} of {totalPages}
+                <p className="text-xs">
+                  Page {page} of {totalPages} — {totalQuery} total results
                 </p>
               </div>
               <div>

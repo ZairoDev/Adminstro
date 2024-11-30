@@ -64,7 +64,6 @@ const querySchema = new Schema(
       type: String,
       enum: ["With Bill", "Without Bill"],
     },
-
     leadQualityByReviwer: {
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
@@ -74,7 +73,22 @@ const querySchema = new Schema(
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
     },
-
+    rejectionReason: {
+      type: String,
+      enum: [
+        "Late Response",
+        "Delayed the Traveling",
+        "Allready got it",
+        "Didn't like the option",
+        "Low Budget",
+        "Number of people exceeded",
+        "Off Location",
+        "Blocked on whatsapp",
+        "Not on whatsapp",
+        "Not Replying",
+      ],
+      default: null,
+    },
     typeOfProperty: {
       type: String,
       enum: [

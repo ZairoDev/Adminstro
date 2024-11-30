@@ -135,6 +135,30 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  const handleRejectionReason = async (
+    rejectionReason: string,
+    id: any,
+    index: number
+  ) => {
+    setLoading(true);
+    try {
+      const response = axios.post("/api/sales/rejectionReason", {
+        id,
+        rejectionReason,
+      });
+      toast({
+        description: "Rejection reason saved succefully",
+      });
+      queries[index].rejectionReason = rejectionReason;
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        description: "Error occurred while updating status",
+      });
+    }
+  };
+
   console.log(queries, "Data will print here");
 
   return (
@@ -375,18 +399,131 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          Reject Lead
+                        <DropdownMenuSubTrigger className="w-40 truncate">
+                          Rej re: <span className="ml-2">{query.rejectionReason}</span>
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
-                            <DropdownMenuItem>Achi nhi lgi</DropdownMenuItem>
-                            <DropdownMenuItem>Mja nhi aya</DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Bilkul Bakwas thi
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Not Replying",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Not Replying
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Customer bekar tha
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Blocked on whatsapp",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Blocked on whatsapp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Not on whatsapp",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Not on whatsapp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Late Response",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Late Response
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Delayed the Traveling",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Delayed the Traveling
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Off Location",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Off Location
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Number of people exceeded",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Number of people exceeded
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Low Budget
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Allready got it",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Allready got it
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Low Budget
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Didn't like the option",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              Didn't like the option
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>

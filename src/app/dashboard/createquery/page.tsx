@@ -5,18 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -24,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
 import {
   Sheet,
   SheetClose,
@@ -81,7 +69,6 @@ const SalesDashboard = () => {
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
-
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -173,6 +160,26 @@ const SalesDashboard = () => {
       setQueries((prevQueries) => [newQuery, ...prevQueries]);
       toast({
         description: "Query Created Successfully",
+      });
+
+      setFormData({
+        startDate: "",
+        duration: "",
+        endDate: "",
+        name: "",
+        email: "",
+        phoneNo: 0,
+        area: "",
+        guest: 0,
+        budget: 0,
+        noOfBeds: 0,
+        location: "",
+        bookingTerm: "",
+        zone: "",
+        billStatus: "",
+        typeOfProperty: "",
+        propertyType: "",
+        priority: "",
       });
     } catch (error) {
       console.error("Error:", error);
@@ -293,7 +300,6 @@ const SalesDashboard = () => {
     }
     return items;
   };
-
   useEffect(() => {
     setFormData((prevData) => ({
       ...prevData,
@@ -487,7 +493,7 @@ const SalesDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Section four */}
+                  {/* Section fourn  */}
                   <div>
                     <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
                       Recomdation
@@ -655,15 +661,13 @@ const SalesDashboard = () => {
                 </ScrollArea>
                 <div>
                   <DialogFooter>
-                    <DialogClose>
-                      <Button
-                        className="mt-4"
-                        disabled={submitQuery}
-                        onClick={handleSubmit}
-                      >
-                        Submit Query
-                      </Button>
-                    </DialogClose>
+                    <Button
+                      className="mt-4"
+                      disabled={submitQuery}
+                      onClick={handleSubmit}
+                    >
+                      Submit Query
+                    </Button>
                   </DialogFooter>
                 </div>
               </div>

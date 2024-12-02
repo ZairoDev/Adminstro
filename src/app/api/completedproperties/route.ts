@@ -92,9 +92,6 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Employees from "@/models/employee";
 
-
-// export const revalidate = 0;
-
 connectDb();
 
 export async function GET(request: NextRequest) {
@@ -129,14 +126,12 @@ export async function GET(request: NextRequest) {
       _id: 1,
     };
 
-
     const allProperties = searchTerm
       ? await Property.find(query, projection).sort({ _id: -1 })
       : await Property.find(query, projection)
           .skip(skip)
           .limit(limit)
           .sort({ _id: -1 });
-
 
     const completedProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(completedProperties / limit);
@@ -147,7 +142,6 @@ export async function GET(request: NextRequest) {
 
     const totalCount = await Property.countDocuments();
 
-  
     if (allProperties.length === 0) {
       console.log("Total properties in database:", totalCount);
     }

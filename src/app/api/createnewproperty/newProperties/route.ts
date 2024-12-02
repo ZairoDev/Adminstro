@@ -171,15 +171,6 @@ export async function POST(request: Request) {
       console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
       propertyIds.push(newProperty.VSID);
     }
-
-    // await sendUserDetailsToCompany({
-    //   email: email || " ",
-    //   phone: phone,
-    //   name: name,
-    //   VSID: VSID,
-    //   Link: `https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`,
-    // });
-
     return NextResponse.json({ propertyIds }, { status: 200 });
   } catch (error) {
     console.error("Error:", error);

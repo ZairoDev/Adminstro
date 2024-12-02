@@ -24,7 +24,7 @@ function getISTStartOfDay(date: Date): Date {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const url = new URL(request.url);
+    const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
     const limit = Number(url.searchParams.get("limit")) || 12;
     const skip = (page - 1) * limit;

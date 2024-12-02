@@ -17,7 +17,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Phone,
   MapPin,
   Users,
   DollarSign,
@@ -29,15 +28,13 @@ import {
   Calendar as DateIcon,
   ChartArea,
   Ellipsis,
-  User,
   BedSingle,
   Euro,
   ReceiptText,
-  Check,
   BookX,
-  Star,
   Loader2,
 } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 import { IQuery } from "@/util/type";
@@ -100,16 +97,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
 
-  const handleCreateRoom = async (index: number) => {
-    try {
-      const response = await axios.post("/api/room/createRoom", {
-        lead: queries[index],
-      });
-      console.log("response: ", response.data);
-    } catch (err: unknown) {
-      console.log("err: ", err);
-    }
-  };
 
   const handleQualityChange = async (
     leadQualityByReviwer: string,
@@ -523,7 +510,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                 )
                               }
                             >
-                              Didn't like the option
+                              Didn&apos;t like the option
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>

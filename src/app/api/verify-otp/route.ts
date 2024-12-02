@@ -1,8 +1,5 @@
-import Users from "@/models/user";
 import { NextRequest, NextResponse } from "next/server";
-import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { NextURL } from "next/dist/server/web/next-url";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 
@@ -11,7 +8,6 @@ connectDb();
 export async function POST(request: NextRequest) {
   const referer = request.headers.get("referer");
   const email = referer?.split("otp/")[1];
-
   try {
     const reqBody = await request.json();
     const { otp } = reqBody;
@@ -43,7 +39,6 @@ export async function POST(request: NextRequest) {
       role: savedUser[0].role,
     };
 
-    // Create token
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET!, {
       expiresIn: "1d",
     });
@@ -52,7 +47,7 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
       success: true,
       token,
-      status: 200, // Include the token in the response data
+      status: 200, 
     });
     response.cookies.set("token", token, {
       httpOnly: true,
@@ -61,10 +56,6 @@ export async function POST(request: NextRequest) {
 
     return response;
 
-    // return NextResponse.json(
-    //   { message: "OTP verified successfully" },
-    //   { status: 200 }
-    // );
   } catch (error) {
     console.log(error);
     return NextResponse.json(

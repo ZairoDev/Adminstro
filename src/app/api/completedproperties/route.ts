@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
@@ -7,9 +6,9 @@ import Employees from "@/models/employee";
 
 connectDb();
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest) {
   try {
-    const url = request.nextUrl; 
+    const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
     const limit = Number(url.searchParams.get("limit")) || 12;
     const skip = (page - 1) * limit;

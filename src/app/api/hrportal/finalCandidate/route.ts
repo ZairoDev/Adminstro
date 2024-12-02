@@ -4,9 +4,9 @@ import Candidate from "@/models/candidate";
 
 connectDb();
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const url = new URL(req.url);
+    const url = request.nextUrl; 
     const page = parseInt(url.searchParams.get("page") || "1");
     const search = url.searchParams.get("search") || "";
     const limit = 11;

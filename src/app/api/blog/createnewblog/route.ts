@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
     const newBlog = new Blog({
       title,
       content,
@@ -38,12 +39,14 @@ export async function POST(req: NextRequest) {
       author,
       totalWords: wordCount,
     });
+
     await newBlog.save();
 
     return NextResponse.json(
       { success: true, message: "Blog saved successfully" },
       { status: 200 }
     );
+    
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message },

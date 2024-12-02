@@ -208,7 +208,6 @@ const Page = ({ params }: pageProps) => {
       setRetractedPropertyIndex(-1);
     }
   };
-
   const debouncedAddToFavourite = useCallback(
     debounce(async (favouriteProperties: string[]) => {
       try {
@@ -424,7 +423,7 @@ const Page = ({ params }: pageProps) => {
                     type="text"
                     ref={propertyIdRef}
                     placeholder="Enter Property Id"
-                    className=" w-80"
+                    className="w-80"
                   />
                 </Label>
               </div>
@@ -568,7 +567,6 @@ const Page = ({ params }: pageProps) => {
           </div>
           {removedPropertyIndex !== -1 && (
             <div className=" mt-4 flex justify-center">
-              {" "}
               Removing Property <LucideLoader2 className=" animate-spin" />
             </div>
           )}{" "}

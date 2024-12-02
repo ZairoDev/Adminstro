@@ -17,7 +17,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Phone,
   MapPin,
   Users,
   DollarSign,
@@ -29,15 +28,13 @@ import {
   Calendar as DateIcon,
   ChartArea,
   Ellipsis,
-  User,
   BedSingle,
   Euro,
   ReceiptText,
-  Check,
   BookX,
-  Star,
   Loader2,
 } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 import { IQuery } from "@/util/type";
@@ -117,7 +114,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       console.log("err: ", err);
     }
   };
-
   const handleQualityChange = async (
     leadQualityByReviwer: string,
     id: any,

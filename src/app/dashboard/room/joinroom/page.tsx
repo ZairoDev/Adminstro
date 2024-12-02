@@ -70,7 +70,7 @@ const Page = () => {
                 onClick={handleJoinRoom}
               >
                 {isLoading ? (
-                  <LucideLoader2 size={18} className=" animate-spin" />
+                  <LucideLoader2 size={18} className="animate-spin" />
                 ) : (
                   "Join Room"
                 )}

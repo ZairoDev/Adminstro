@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { LucideLoader2 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 const Page = () => {
@@ -14,7 +14,6 @@ const Page = () => {
   const roomIdRef = useRef<HTMLInputElement>(null);
   const roomPasswordRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const params = useSearchParams();
 
   const handleJoinRoom = async () => {
     if (!roomIdRef.current?.value || !roomPasswordRef.current?.value) {

@@ -4,16 +4,16 @@
 
 // connectDb();
 
-// export async function GET(request: NextRequest) {
+// export async function GET(req: NextRequest) {
 //   try {
-//     const url = request.nextUrl; 
+//     const url = new URL(req.url);
 //     const page = parseInt(url.searchParams.get("page") || "1");
 //     const search = url.searchParams.get("search") || "";
 //     const limit = 11;
 //     const skip = (page - 1) * limit;
 
 //     const searchQuery = {
-//       status: "called", 
+//       status: "called",
 //       ...(search && {
 //         $or: [
 //           { email: { $regex: search, $options: "i" } },
@@ -44,26 +44,24 @@
 //   }
 // }
 
-
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
 
-connectDb();
+export const dynamic = "force-dynamic";
 
-
-
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Safely extract search parameters
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const search = searchParams.get("search") || "";
+    await connectDb(); // Ensure db connection is awaited
+
+    const url = new URL(req.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const search = url.searchParams.get("search") || "";
     const limit = 11;
     const skip = (page - 1) * limit;
 
     const searchQuery = {
-      status: "called", 
+      status: "called",
       ...(search && {
         $or: [
           { email: { $regex: search, $options: "i" } },

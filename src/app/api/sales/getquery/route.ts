@@ -12,6 +12,10 @@ import {
 
 connectDb();
 
+
+export const dynamic = 'force-dynamic';
+
+
 // Helper function to convert UTC date to IST (UTC+5:30)
 function convertToIST(date: Date): Date {
   return addHours(date, 5.5);

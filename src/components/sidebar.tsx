@@ -146,6 +146,18 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <House size={18} />,
     },
   ],
+  Sales: [
+    {
+      path: "/dashboard/createquery",
+      label: "Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
+    },
+  ],
 };
 
 export function Sidebar() {

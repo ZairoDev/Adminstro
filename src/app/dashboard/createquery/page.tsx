@@ -50,6 +50,7 @@ import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
 import { CustomLeadTable } from "./lead-table";
 import { validateAndSetDuration } from "@/util/durationValidation";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface ApiResponse {
   data: IQuery[];
@@ -64,6 +65,7 @@ interface FetchQueryParams {
   customDateRange: { start: string; end: string };
 }
 const SalesDashboard = () => {
+  const { userRole } = useUserRole();
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
@@ -351,7 +353,7 @@ const SalesDashboard = () => {
           </div>
           <Dialog>
             <DialogTrigger className=" w-[400px]">
-              <Button>Create Lead</Button>
+              {userRole !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
             <DialogContent className="p-4 w-[500px]">
               <DialogHeader>

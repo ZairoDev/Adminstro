@@ -50,9 +50,9 @@ export default function HomePage() {
         <p className="max-w-3xl m-auto p-2 md:text-base text-center text-sm">
           Oh, you think you belong here? If you&apos;re one of us here at Zairo,
           congrats! Otherwise, feel free to close this window...or try to get in
-          if you dare. If you&apos;re actually an employee, tap the button below,
-          enter your credentials, and we&apos;ll route you to your designated
-          workspace.
+          if you dare. If you&apos;re actually an employee, tap the button
+          below, enter your credentials, and we&apos;ll route you to your
+          designated workspace.
         </p>
       </FadeInBlur>
       <FadeInBlur>
@@ -67,11 +67,19 @@ export default function HomePage() {
       <div className="flex items-center mt-2 justify-center">
         <>
           {userRole ? (
-            <Link href="/dashboard/user">
-              <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Dashboard
-              </RainbowButton>
-            </Link>
+            userRole === "Sales" ? (
+              <Link href="/dashboard/createquery">
+                <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Dashboard
+                </RainbowButton>
+              </Link>
+            ) : (
+              <Link href="/dashboard/user">
+                <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Dashboard
+                </RainbowButton>
+              </Link>
+            )
           ) : (
             <Link href="/login">
               <RainbowButton>Login if you can</RainbowButton>
@@ -80,10 +88,7 @@ export default function HomePage() {
         </>
       </div>
       <div className="max-w-5xl m-auto mt-4 p-2">
-        <div
-          className=" relative flex  w-full flex-col items-center justify-center overflow-hidden
-         rounded-lg  border-[10px]  md:shadow-xl"
-        >
+        <div className=" relative flex  w-full flex-col items-center justify-center overflow-hidden rounded-lg  border-[10px]  md:shadow-xl">
           <FadeInBlur>
             <img
               src="https://vacationsaga.b-cdn.net/assets/dashboard.PNG"

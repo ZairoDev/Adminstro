@@ -14,6 +14,7 @@ import {
   Euro,
   Flag,
   Home,
+  House,
   IdCard,
   KeyRound,
   Loader2,
@@ -33,6 +34,7 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface PageProps {
   params: {
@@ -42,6 +44,7 @@ interface PageProps {
 
 const QueryDetails = ({ params }: PageProps) => {
   const id = params.id;
+  const { userRole } = useUserRole();
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,45 +209,85 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="End Date"
                       value={apiData?.endDate ?? " "}
                     />
+                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                      <div className=" flex items-center justify-between border rounded-lg">
+                        <InfoItem
+                          icon={House}
+                          label="Room Id"
+                          value={apiData?.roomDetails?.roomId ?? " "}
+                        />
+                        <p>
+                          <Copy
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                apiData?.roomDetails?.roomId ?? ""
+                              )
+                            }
+                            className=" cursor-pointer mr-4"
+                          />
+                        </p>
+                      </div>
+                    )}
+                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                      <div className=" flex items-center justify-between border rounded-lg">
+                        <InfoItem
+                          icon={KeyRound}
+                          label="Room Password"
+                          value={apiData?.roomDetails?.roomPassword ?? " "}
+                        />
+                        <p>
+                          <Copy
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                apiData?.roomDetails?.roomPassword ?? " "
+                              )
+                            }
+                            className=" cursor-pointer mr-4"
+                          />
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 <Separator />
-                <div className="p-4">
-                  <p>Choose the quality of the lead</p>
-                  <div className="flex items-center sm:flex-row gap-x-2 flex-col justify-between">
-                    <div className="w-full sm:w-1/2 md:w-1/3">
-                      <Select
-                        value={leadQuality}
-                        onValueChange={setLeadQuality}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Lead Quality" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Bad">Bad</SelectItem>
-                          <SelectItem value="Average">Average</SelectItem>
-                          <SelectItem value="Below Average">
-                            Below Average
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-full flex items-center justify-end sm:mt-0 mt-2">
-                      <Button
-                        className="w-full sm:w-auto"
-                        onClick={handleSave}
-                        disabled={saveLoading}
-                      >
-                        {saveLoading ? (
-                          <Loader2 className="animate-spin w-4 h-4" />
-                        ) : (
-                          "Save"
-                        )}
-                      </Button>
+                {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                  <div className="p-4">
+                    <p>Choose the quality of the lead</p>
+                    <div className="flex items-center sm:flex-row gap-x-2 flex-col justify-between">
+                      <div className="w-full sm:w-1/2 md:w-1/3">
+                        <Select
+                          value={leadQuality}
+                          onValueChange={setLeadQuality}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Lead Quality" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Bad">Bad</SelectItem>
+                            <SelectItem value="Average">Average</SelectItem>
+                            <SelectItem value="Below Average">
+                              Below Average
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-full flex items-center justify-end sm:mt-0 mt-2">
+                        <Button
+                          className="w-full sm:w-auto"
+                          onClick={handleSave}
+                          disabled={saveLoading}
+                        >
+                          {saveLoading ? (
+                            <Loader2 className="animate-spin w-4 h-4" />
+                          ) : (
+                            "Save"
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </Card>
             </div>
           </div>

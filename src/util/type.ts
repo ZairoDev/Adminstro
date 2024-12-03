@@ -58,6 +58,7 @@ export interface nearbyLocationInterface {
   nearbyLocationName: string[];
   nearbyLocationDistance: number[];
   nearbyLocationTag: string[];
+  nearbyLocationUrl?: string[];
 }
 
 export interface Property {

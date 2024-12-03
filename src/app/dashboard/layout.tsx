@@ -46,7 +46,5 @@ export default function DashboardLayout({
       </main>
       <ScrollToTopButton />
     </div>
-
-   
   );
 }

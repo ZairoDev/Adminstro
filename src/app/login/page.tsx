@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
 import { useUserRole } from "@/context/UserRoleContext";
 import FadeInAnimation from "@/components/fadeinAnimation";
+
 interface LoginResponse {
   message?: string;
   token?: string;
   error?: string;
 }
+
 const PageLogin: React.FC = () => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -37,7 +39,6 @@ const PageLogin: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoggingIn(true);
-
     try {
       const response: AxiosResponse<LoginResponse> = await axios.post(
         "/api/employeelogin",
@@ -46,7 +47,6 @@ const PageLogin: React.FC = () => {
           password,
         }
       );
-
       if (response?.data?.message === "Verification OTP sent") {
         router.push(`/login/verify-otp/${email}`);
         return;
@@ -75,7 +75,7 @@ const PageLogin: React.FC = () => {
   };
   return (
     <FadeInAnimation>
-      <div className=" h-dvh flex">
+      <div className="h-dvh flex">
         <div className="absolute top-4 right-4">
           <ModeToggle />
         </div>

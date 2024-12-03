@@ -11,9 +11,9 @@ import {
   CalendarPlus,
   PencilLine,
   Speech,
-  PersonStanding,
-  Tally1Icon,
-  PersonStandingIcon,
+  Check,
+  MousePointerBan,
+  ArrowUpLeft,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -38,7 +38,7 @@ const routes = [
 
   {
     name: "Leftover Task",
-    icon: CornerLeftUp,
+    icon: ArrowUpLeft,
     path: "/dashboard/remainingproperties",
   },
   {
@@ -65,14 +65,14 @@ const routes = [
     path: "/dashboard/candidatePortal",
   },
   {
-    name: "Attended Candidate",
-    icon: PersonStandingIcon,
-    path: "/dashboard/attendedCandidate",
+    name: "Leftover Candidate",
+    icon: ArrowUpLeft,
+    path: "/dashboard/leftoverCandidate",
   },
   {
-    name: "Leftover Candidate",
-    icon: PersonStanding,
-    path: "/dashboard/leftoverCandidate",
+    name: "Attended Candidate",
+    icon: Check,
+    path: "/dashboard/attendedCandidate",
   },
 ];
 

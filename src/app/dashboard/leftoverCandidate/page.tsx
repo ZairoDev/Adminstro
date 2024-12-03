@@ -2,6 +2,7 @@
 import Heading from "@/components/Heading";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+
 import {
   Table,
   TableBody,
@@ -14,6 +15,7 @@ import {
 import { CircleHelp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
 import {
   Dialog,
   DialogContent,
@@ -21,14 +23,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import { useDebounce } from "use-debounce";
 import { useToast } from "@/hooks/use-toast";
+
 const HrPortal = () => {
   const { toast } = useToast();
   const [candidates, setCandidates] = useState<{ _id: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -95,7 +100,6 @@ const HrPortal = () => {
       setCandidates((prev) =>
         prev.filter((candidate) => candidate._id !== _id)
       );
-
       setDialogOpen(false);
     } catch (error) {
       toast({

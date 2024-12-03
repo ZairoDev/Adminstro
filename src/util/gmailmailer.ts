@@ -6,7 +6,6 @@ interface EmailParams {
   text: string;
   price?: string;
 }
-
 // Define an interface for the user details
 interface UserDetails {
   email: string;
@@ -46,7 +45,6 @@ export const sendEmail = async ({
 
     // Send email
     await transporter.sendMail(mailOptions);
-
     console.log("No-reply email sent successfully");
   } catch (error) {
     console.error("Error sending no-reply email:", error);

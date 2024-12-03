@@ -2,17 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
-import { AlertCircle, Loader, Mail } from "lucide-react";
+import { AlertCircle, Loader } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ModeToggle } from "@/components/themeChangeButton";
 
 export default function NoRolePage() {
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const router = useRouter();
-
   const handleLogout = async () => {
     try {
       setLoading(true);
@@ -26,19 +23,17 @@ export default function NoRolePage() {
       alert("An error occurred. Please try again.");
     }
   };
-
   return (
     <>
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
-
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/10 to-primary/65">
         <Card className="w-full max-w-md mx-4 overflow-hidden shadow-xl">
           <CardContent className="p-6 sm:p-8">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="rounded-full bg-red-600/20  p-3 ">
-                <AlertCircle className="w-8 h-8 text-red-600 " />
+              <div className="rounded-full bg-red-600/20 p-3">
+                <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold ">
                 Session Expired!

@@ -7,7 +7,6 @@ connectDb();
 export async function POST(req: NextRequest) {
   const reqBody = await req.json();
   const { propertyId, portion, price, dateRange } = reqBody;
-  // console.log(propertyId, portion, price, dateRange);
 
   if (!propertyId || !portion || !price) {
     return NextResponse.json(

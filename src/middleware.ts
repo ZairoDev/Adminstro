@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
-interface tokenInterface {
-  role: string;
-  email: string;
-  name: string;
-  id: string;
-  iat: number;
-  exp: number;
-}
-// Define the role-based access control
+
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
@@ -20,6 +12,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/property\/.*$/,
   ],
   Admin: [
+    "/",
     "/admin",
     "/dashboard",
     /^\/dashboard\/user$/,
@@ -31,6 +24,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/edituserdetails\/.*$/,
   ],
   Advert: [
+    "/",
     "/admin",
     "/dashboard",
     /^\/dashboard\/user$/,
@@ -42,7 +36,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/edituserdetails\/.*$/,
   ],
   Content: [
-    // "/dashboard/property",
+    "/",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
@@ -51,24 +45,34 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/allblogs$/,
     /^\/dashboard\/allblogs\/.*$/,
   ],
+  Sales: [
+    "/",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery\/.*$/,
+    /^\/dashboard\/room\/.*$/,
+  ],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
   Admin: "/dashboard/user",
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
+  Sales: "/dashboard/createquery",
 };
-
 const publicRoutes = [
+  "/",
   "/login",
+  "/dashboard/candidatePortal",
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
   "/norole",
+  "/dashboard/room/*",
 ];
-
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
+
+  console.log("path and token: ", path, token);
 
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
@@ -76,16 +80,13 @@ export async function middleware(request: NextRequest) {
       typeof pattern === "string" ? path === pattern : pattern.test(path)
     );
   };
-
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)
   );
-
   if (token) {
     try {
       const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
-
       if (path === "/login") {
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/", request.url)
@@ -128,5 +129,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)",
+  ],
 };

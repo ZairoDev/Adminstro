@@ -10,7 +10,6 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useRouter } from "next/navigation";
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,7 +49,6 @@ const PropertyPage: React.FC = () => {
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
     null
@@ -59,7 +57,6 @@ const PropertyPage: React.FC = () => {
   const router = useRouter();
 
   const [userRole, setUserRole] = useState<string | null>(null);
-
   const getUserRole = async () => {
     try {
       const response = await axios.get("/api/user/getloggedinuser");

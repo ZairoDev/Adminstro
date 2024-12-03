@@ -59,7 +59,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       if (response.status == 404) {
         toast({
           variant: "destructive",
-          title: "Uh oh! Something went wrong.",
+          title: "Uh oh! Error",
           description: "Looks like the user doesn't exist.",
         });
         setLoadinguserDetails(false);
@@ -124,10 +124,6 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     }
   };
   const [open, setOpen] = useState(false);
-
-  // const handleGenerateClick = () => {
-  //   setOpen(true);
-  // };
 
   const handleConfirm = () => {
     setOpen(false);

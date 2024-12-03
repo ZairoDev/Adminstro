@@ -13,22 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
 import { useUserRole } from "@/context/UserRoleContext";
-
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-
 import FadeInAnimation from "@/components/fadeinAnimation";
 interface LoginResponse {
   message?: string;
   token?: string;
   error?: string;
 }
-
 const PageLogin: React.FC = () => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -36,9 +26,7 @@ const PageLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
   const { toast } = useToast();
-
   const { refreshUserRole } = useUserRole();
-
   useEffect(() => {
     const { token } = parseCookies();
     if (token) {
@@ -63,12 +51,9 @@ const PageLogin: React.FC = () => {
         router.push(`/login/verify-otp/${email}`);
         return;
       }
-
       if (response.status === 200 && response.data.token) {
         Cookies.set("token", response.data.token, { expires: 1 });
         router.push("/");
-
-        // Call refreshUserRole after successful login and token setting
         refreshUserRole();
       }
     } catch (err) {
@@ -88,7 +73,6 @@ const PageLogin: React.FC = () => {
       setIsLoggingIn(false);
     }
   };
-
   return (
     <FadeInAnimation>
       <div className=" h-dvh flex">
@@ -104,7 +88,6 @@ const PageLogin: React.FC = () => {
             Your browser does not support the video tag.
           </video>
         </div>
-
         <div className="md:w-1/2 w-full flex items-center justify-center ">
           <div className="w-full max-w-sm px-6 py-8 border  rounded-lg shadow-lg">
             <h1 className="text-3xl font-semibold text-center mb-6">

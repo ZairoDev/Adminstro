@@ -138,9 +138,7 @@ export async function POST(request: Request) {
       energyClass,
       heatingType,
       constructionYear,
-
       nearbyLocations,
-
       hostedBy,
       hostedFrom: host,
       rentalType,

@@ -1,21 +1,30 @@
 import Link from "next/link";
 
 import { ModeToggle } from "./themeChangeButton";
+import FadeInBlur from "./FadeInBlur";
+import { LogoutButton } from "./logoutAlertBox";
+import { useUserRole } from "@/context/UserRoleContext";
 
 export function Navbar() {
+  const { userRole, currentUser, userEmail, isLoading, refreshUserRole } =
+    useUserRole();
+
   return (
     <div className="  ">
-      <div className="max-w-7xl m-auto">
-        <div className="flex items-center justify-between p-4 ">
+      <div className="max-w-7xl m-auto px-2">
+        <div className="flex items-center justify-between ">
           <Link href="/" className="flex z-50 items-center gap-2">
-            <img
-              src="https://www.vacationsaga.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flogo2.1244b764.png&w=640&q=75"
-              alt="/"
-              className="max-w-[170px]"
-            />
+            <FadeInBlur>
+              <h1 className="font-semibold py-4 px-2">Adminstro.in</h1>
+            </FadeInBlur>
           </Link>
           <div className="flex items-center gap-4">
             <ModeToggle />
+            {userRole && (
+              <>
+                <LogoutButton />
+              </>
+            )}
           </div>
         </div>
       </div>

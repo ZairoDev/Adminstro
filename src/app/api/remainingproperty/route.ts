@@ -61,15 +61,19 @@
 //   }
 // }
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
 
-connectDb();
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const url = new URL(request.url);
+    await connectDb(); // Ensure database connection is awaited
+
+    const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
     const limit = Number(url.searchParams.get("limit")) || 12;
     const skip = (page - 1) * limit;

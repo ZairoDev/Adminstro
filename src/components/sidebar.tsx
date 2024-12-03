@@ -5,15 +5,17 @@ import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
-  CalendarPlus,
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  House,
   LoaderCircle,
   MessageCircleQuestion,
   NotebookPen,
   PencilLine,
+  PersonStanding,
   ScanEye,
+  Speech,
   User2Icon,
   Users,
 } from "lucide-react";
@@ -36,6 +38,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/property",
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
+    },
+    {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
     },
   ],
   Admin: [
@@ -88,7 +95,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
     },
-
+    {
+      path: "/dashboard/newproperty",
+      label: "Manage Newtask",
+      Icon: <Users size={18} />,
+    },
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",
@@ -114,10 +125,42 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
+    // {
+    //   path: "/dashboard/createdQuery",
+    //   label: "Created Lead",
+    //   Icon: <CalendarPlus size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/candidatePortal",
+    //   label: "Register Candidate",
+    //   Icon: <Speech size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/leftoverCandidate",
+    //   label: "Leftover Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/attendedCandidate",
+    //   label: "Attended Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
     {
-      path: "/dashboard/createdQuery",
-      label: "Created Lead",
-      Icon: <CalendarPlus size={18} />,
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
+    },
+  ],
+  Sales: [
+    {
+      path: "/dashboard/createquery",
+      label: "Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
     },
   ],
 };
@@ -161,7 +204,11 @@ export function Sidebar() {
     }
 
     if (!userRole) {
-      return <li>No role assigned</li>;
+      return (
+        <li className="flex justify-center text-xl font-medium text-[#F7951D]">
+          Visitor
+        </li>
+      );
     }
 
     const routes = roleRoutes[userRole as keyof typeof roleRoutes];
@@ -174,13 +221,13 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? "bg-primary text-primary-foreground rounded-lg"
+            ? "bg-primary/40  rounded-l-sm border-r-4 border-primary"
             : ""
         }`}
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 hover:bg-primary/5 rounded-lg px-4 py-2 "
+          className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "
         >
           {route.Icon && route.Icon}
           {showText && <span className="">{route.label}</span>}

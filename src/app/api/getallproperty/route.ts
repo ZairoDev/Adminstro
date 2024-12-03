@@ -60,20 +60,19 @@
 //   }
 // }
 
-
 import { NextRequest, NextResponse } from "next/server";
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
 
-connectDb();
-
 // Add these lines to handle dynamic rendering
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    await connectDb(); // Ensure database connection is awaited
+
     // Safely extract search parameters
     const searchParams = request.nextUrl.searchParams;
     const page = Number(searchParams.get("page") || "1");

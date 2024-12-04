@@ -173,7 +173,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
             <TableHead>Location</TableHead>
-            {userRole === "Sales" && <TableHead>Lead Quality</TableHead>}
+            {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              <TableHead>Lead Quality</TableHead>
+            )}
             <TableHead>Contact</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -315,7 +317,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-              {userRole === "Sales" && (
+              {(userRole === "Sales" || userRole === "SuperAdmin") && (
                 <TableCell className=" flex gap-x-0.5">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -399,7 +401,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {userRole === "Sales" && (
+                      {(userRole === "Sales" || userRole === "SuperAdmin") && (
                         <>
                           {" "}
                           <DropdownMenuItem
@@ -427,7 +429,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {userRole === "Sales" && (
+                      {(userRole === "Sales" || userRole === "SuperAdmin") && (
                         <DropdownMenuSub>
                           <DropdownMenuSubTrigger className="w-40 truncate">
                             Rej re:{" "}

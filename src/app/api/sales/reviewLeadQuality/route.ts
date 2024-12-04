@@ -7,9 +7,6 @@ connectDb();
 export async function POST(req: Request) {
   try {
     const { id, leadQualityByReviwer } = await req.json();
-    
-    console.log("id: ", id);
-
     if (!id || !leadQualityByReviwer) {
       return NextResponse.json(
         { success: false, message: "ID and leadQuality are required" },
@@ -29,20 +26,17 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
     const updatedQuery = await Query.findByIdAndUpdate(
-      id,
+        id,
       { leadQualityByReviwer },
       { new: true }
     );
-
     if (!updatedQuery) {
       return NextResponse.json(
         { success: false, message: "Query not found" },
         { status: 404 }
       );
     }
-
     return NextResponse.json(
       { success: true, data: updatedQuery },
       { status: 200 }

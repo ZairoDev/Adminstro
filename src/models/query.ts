@@ -113,6 +113,9 @@ const querySchema = new Schema(
       enum: ["High", "Low", "Medium"],
       require: [true, "Priority must be provided"],
     },
+    roomDetails: {
+      type: Object,
+    },
   },
   { timestamps: true }
 );

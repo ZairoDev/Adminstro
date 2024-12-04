@@ -11,6 +11,7 @@ import {
   CircleCheckBig,
   CornerLeftUp,
   FileSpreadsheet,
+  House,
   LoaderCircle,
   NotebookPen,
   PencilLine,
@@ -38,6 +39,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/property",
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
+    },
+    {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
     },
   ],
   Admin: [
@@ -121,20 +127,42 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
+    // {
+    //   path: "/dashboard/createdQuery",
+    //   label: "Created Lead",
+    //   Icon: <CalendarPlus size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/candidatePortal",
+    //   label: "Register Candidate",
+    //   Icon: <Speech size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/leftoverCandidate",
+    //   label: "Leftover Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/attendedCandidate",
+    //   label: "Attended Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
     {
-      path: "/dashboard/candidatePortal",
-      label: "Register Candidate",
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
+    },
+  ],
+  Sales: [
+    {
+      path: "/dashboard/createquery",
+      label: "Leads",
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/leftoverCandidate",
-      label: "Leftover Candidate",
-      Icon: <ArrowUpLeft size={18} />,
-    },
-    {
-      path: "/dashboard/attendedCandidate",
-      label: "Attended Candidate",
-      Icon: <Check size={18} />,
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
     },
   ],
 };
@@ -184,7 +212,6 @@ export function Sidebar() {
         </li>
       );
     }
-
     const routes = roleRoutes[userRole as keyof typeof roleRoutes];
     if (!routes) {
       return <li>Invalid role</li>;

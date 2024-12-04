@@ -17,6 +17,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   const { roomId, propertyId } = await req.json();
+  console.log("rroomId: ", roomId, propertyId);
 
   try {
     const property = await Properties.findById(propertyId);
@@ -47,24 +48,35 @@ export async function POST(req: NextRequest) {
       country: property?.country,
       isFavourite: false,
       isVisit: false,
-      isViewed: false,
+      isViewed: true,
       visitSchedule: "",
     };
 
-    const increaseViewCountOfProperty = await Properties.findByIdAndUpdate(
-      { _id: new mongoose.Types.ObjectId(propertyId) },
-      { $inc: { views: 1 } }
-    );
+    const room = await Rooms.findById(roomId);
+    if (!room) {
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    }
 
-    const room = await Rooms.findByIdAndUpdate(
-      { _id: roomId },
-      { $push: { showcaseProperties: propertyObject } }
-    );
+    room.showcaseProperties = room.showcaseProperties.map((property: any) => {
+      if (property._id.toString() === propertyId) {
+        return {
+          ...property,
+          isViewed: true,
+        };
+      } else {
+        return property;
+      }
+    });
 
-    await pusher.trigger(`room-${roomId}`, "showcasePropertyAdded", {
+    room.save();
+
+    await pusher.trigger(`room-${roomId}`, "addedSeenToProperty", {
       data: propertyObject,
     });
-    return NextResponse.json({ message: "Property Added " }, { status: 201 });
+    return NextResponse.json(
+      { message: "Added seen to property" },
+      { status: 201 }
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: "Unable to add Property in Room" },

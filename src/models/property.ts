@@ -123,6 +123,8 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
       of: Schema.Types.Mixed,
     },
 
+    views: Number,
+
     hostedFrom: String,
     hostedBy: String,
     listedOn: {

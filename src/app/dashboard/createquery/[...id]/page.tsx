@@ -9,17 +9,32 @@ import {
   Bed,
   Building,
   Calendar,
+  Copy,
   DollarSign,
+  Euro,
   Flag,
   Home,
+  House,
+  IdCard,
+  KeyRound,
   Loader2,
-  Mail,
   MapPin,
   User,
   Users,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface PageProps {
   params: {
@@ -29,16 +44,32 @@ interface PageProps {
 
 const QueryDetails = ({ params }: PageProps) => {
   const id = params.id;
+  const { userRole } = useUserRole();
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [leadQuality, setLeadQuality] = useState<string>("");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const handleSave = async () => {
+    try {
+      setSaveLoading(true);
+      await axios.post("/api/sales/reviewLeadQuality", {
+        id,
+        leadQuality,
+      });
+      alert("Lead quality updated successfully.");
+    } catch (err) {
+      alert("Failed to update lead quality. Please try again.");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   const response = async () => {
     try {
       setLoading(true);
       const data = await axios.post("/api/sales/getQuerybyId", { id });
       setApiData(data.data.data);
-      console.log(data.data.data);
-      console.log(data.data.data.area);
       setLoading(false);
     } catch (error: any) {
       console.log(error);
@@ -106,51 +137,30 @@ const QueryDetails = ({ params }: PageProps) => {
                       </div>
                     </div>
                     <Badge
-                      className={`${
-                        apiData?.priority === "High"
-                          ? "bg-green-500 hover:bg-green-500 text-white"
-                          : apiData?.priority === "Medium"
-                          ? "bg-yellow-500 text-black hover:bg-yellow-500"
-                          : "bg-red-500 text-white hover:bg-red-500"
-                      }`}
+                      variant={
+                        apiData?.priority === "Medium Priority"
+                          ? "secondary"
+                          : "destructive"
+                      }
                     >
-                      {apiData?.priority} Priority
+                      {apiData?.priority}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InfoItem
-                      icon={Mail}
-                      label="Email"
-                      value={apiData?.email ?? " "}
-                    />
-                    <InfoItem
                       icon={MapPin}
                       label="Area"
                       value={apiData?.area ?? ""}
                     />
-                    <InfoItem
-                      icon={MapPin}
-                      label="Duration"
-                      value={
-                        apiData?.duration
-                          ? `${apiData.duration} ${
-                              apiData.bookingTerm === "Short Term"
-                                ? "days"
-                                : "months"
-                            }`
-                          : ""
-                      }
-                    />
-
                     <InfoItem
                       icon={Users}
                       label="Guests"
                       value={apiData?.guest ?? " "}
                     />
                     <InfoItem
-                      icon={DollarSign}
+                      icon={Euro}
                       label="Budget"
                       value={`€${apiData?.budget}`}
                     />
@@ -181,7 +191,7 @@ const QueryDetails = ({ params }: PageProps) => {
                     />
                     <InfoItem
                       icon={Building}
-                      label="Type of Property"
+                      label="Building Type"
                       value={apiData?.typeOfProperty ?? " "}
                     />
                     <InfoItem
@@ -199,16 +209,44 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="End Date"
                       value={apiData?.endDate ?? " "}
                     />
-                    <InfoItem
-                      icon={Mail}
-                      label="Creator Rating"
-                      value={apiData?.leadQualityByCreator ?? " "}
-                    />
-                    <InfoItem
-                      icon={Mail}
-                      label="Reviewer Rating"
-                      value={apiData?.leadQualityByReviwer ?? " "}
-                    />
+                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                      <div className=" flex items-center justify-between border rounded-lg">
+                        <InfoItem
+                          icon={House}
+                          label="Room Id"
+                          value={apiData?.roomDetails?.roomId ?? " "}
+                        />
+                        <p>
+                          <Copy
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                apiData?.roomDetails?.roomId ?? ""
+                              )
+                            }
+                            className=" cursor-pointer mr-4"
+                          />
+                        </p>
+                      </div>
+                    )}
+                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                      <div className=" flex items-center justify-between border rounded-lg">
+                        <InfoItem
+                          icon={KeyRound}
+                          label="Room Password"
+                          value={apiData?.roomDetails?.roomPassword ?? " "}
+                        />
+                        <p>
+                          <Copy
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                apiData?.roomDetails?.roomPassword ?? " "
+                              )
+                            }
+                            className=" cursor-pointer mr-4"
+                          />
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 <Separator />

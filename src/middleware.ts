@@ -27,6 +27,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/dashboard",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
     /^\/dashboard\/property$/,
@@ -45,12 +47,19 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/allblogs$/,
     /^\/dashboard\/allblogs\/.*$/,
   ],
+  Sales: [
+    "/",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery\/.*$/,
+    /^\/dashboard\/room\/.*$/,
+  ],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
   Admin: "/dashboard/user",
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
+  Sales: "/dashboard/createquery",
 };
 const publicRoutes = [
   "/",
@@ -64,6 +73,8 @@ const publicRoutes = [
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
+
+  console.log("path and token: ", path, token);
 
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];

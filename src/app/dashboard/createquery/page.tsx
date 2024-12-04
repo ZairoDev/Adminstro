@@ -49,6 +49,7 @@ import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
+import { useUserRole } from "@/context/UserRoleContext";
 
 interface ApiResponse {
   data: IQuery[];
@@ -63,6 +64,7 @@ interface FetchQueryParams {
   customDateRange: { start: string; end: string };
 }
 const SalesDashboard = () => {
+  const { userRole } = useUserRole();
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
@@ -104,6 +106,10 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
+    roomDetails: {
+      roomId: "",
+      roomPassword: "",
+    },
   });
   const limit: number = 12;
   const handleBookingTermChange = (value: string) => {
@@ -180,6 +186,10 @@ const SalesDashboard = () => {
         typeOfProperty: "",
         propertyType: "",
         priority: "",
+        roomDetails: {
+          roomId: "",
+          roomPassword: "",
+        },
       });
     } catch (error) {
       console.error("Error:", error);
@@ -342,9 +352,9 @@ const SalesDashboard = () => {
           </div>
           <Dialog>
             <DialogTrigger>
-              <Button>Create Lead</Button>
+              {userRole !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
-            <DialogContent className="p-4">
+            <DialogContent className="p-4 w-[400px] md:min-w-[650px]">
               <DialogHeader>
                 <DialogTitle>Create Lead</DialogTitle>
                 <DialogDescription>
@@ -352,14 +362,14 @@ const SalesDashboard = () => {
                 </DialogDescription>
               </DialogHeader>
               <div>
-                <ScrollArea className="h-[400px] ">
+                <ScrollArea className="h-[400px] p-4">
                   <div className="">
                     <h3 className="text-lg font-semibold border-b pb-1 mt-4">
                       Personal Details
                     </h3>
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
                       {/* Section one 1 */}
-                      <div>
+                      <div className="ml-1">
                         <Label>Name</Label>
                         <Input
                           name="name"
@@ -368,7 +378,7 @@ const SalesDashboard = () => {
                           placeholder="Enter full name"
                         />
                       </div>
-                      <div>
+                      <div className="ml-1">
                         <Label>Phone No</Label>
                         <Input
                           type="number"
@@ -378,7 +388,7 @@ const SalesDashboard = () => {
                           placeholder="Enter phone number"
                         />
                       </div>
-                      <div>
+                      <div className="ml-1">
                         <Label>Email</Label>
                         <Input
                           type="email"
@@ -413,7 +423,7 @@ const SalesDashboard = () => {
                         <Label>End Date</Label>
                         <DatePicker date={endDate} setDate={setEndDate} />
                       </div>
-                      <div>
+                      <div className="ml-1">
                         <Label>Booking Term</Label>
                         <Select onValueChange={handleBookingTermChange}>
                           <SelectTrigger>
@@ -440,7 +450,7 @@ const SalesDashboard = () => {
                     </div>
                   </div>
                   {/* Section 3: Budget Details */}
-                  <div className="mt-2">
+                  <div className="mt-2 ml-1">
                     <h3 className="text-lg font-semibold border-b  mt-4 mb-1">
                       Budget Details
                     </h3>
@@ -466,7 +476,7 @@ const SalesDashboard = () => {
                     </div>
                   </div>
                   {/* Section three */}
-                  <div>
+                  <div className="ml-1">
                     <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
                       Guest Details
                     </h3>
@@ -499,7 +509,7 @@ const SalesDashboard = () => {
                       Recomdation
                     </h3>
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
-                      <div>
+                      <div className="ml-1">
                         <Label>Bill Status</Label>
                         <Select
                           onValueChange={(value) =>
@@ -547,7 +557,7 @@ const SalesDashboard = () => {
                       Property Details
                     </h3>
                     <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                      <div>
+                      <div className="ml-1">
                         <Label>Type of Property</Label>
                         <Select
                           onValueChange={(value) =>
@@ -604,7 +614,7 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
+                      <div className="ml-1">
                         <Label>Property Type</Label>
                         <Select
                           onValueChange={(value) =>
@@ -648,7 +658,7 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                     </div>
-                    <div className="w-full mt-2">
+                    <div className="w-full mt-2 ml-1 mb-2">
                       <Label>Area</Label>
                       <Input
                         name="area"
@@ -823,6 +833,7 @@ const SalesDashboard = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    roomDetails={query.roomDetails}
                   />
                 </div>
               ))}

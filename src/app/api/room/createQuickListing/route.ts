@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
       state: "xxxxx",
       country: "xxxxx",
       isFavourite: newQuickListing.isFavourite,
+      isVisit: false,
+      isViewed: false,
+      visitSchedule: "",
     };
 
     const room = await Rooms.findByIdAndUpdate(

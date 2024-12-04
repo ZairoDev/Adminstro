@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 export async function GET(request: NextRequest) {

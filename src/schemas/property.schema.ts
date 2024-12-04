@@ -11,7 +11,7 @@ const propertyValidationSchema = z.object({
   rentalType: z.string().optional(),
   isInstantBooking: z.boolean().default(false),
   propertyType: z.string().optional(),
-	propertyName: z.string().optional(),
+  propertyName: z.string().optional(),
   placeName: z.string().optional(),
   newPlaceName: z.string().optional(),
   rentalForm: z.string().optional(),
@@ -26,7 +26,7 @@ const propertyValidationSchema = z.object({
       lng: z.number().optional(),
     })
     .optional(),
-	size: z.number().optional(),
+  size: z.number().optional(),
   guests: z.number().optional(),
   bedrooms: z.number().optional(),
   beds: z.number().optional(),
@@ -38,7 +38,7 @@ const propertyValidationSchema = z.object({
   pricePerDay: z.array(z.array(z.number())).optional(),
   icalLinks: z.string().optional(),
   weekendPrice: z.number().optional(),
-	weeklyDiscount: z.number().optional(),
+  weeklyDiscount: z.number().optional(),
   monthlyDiscount: z.number().optional(),
   currency: z.string().optional(),
   generalAmenities: z.record(z.boolean()).optional(),
@@ -91,7 +91,7 @@ const propertyValidationSchema = z.object({
       ])
     )
     .optional(),
-
+  views: z.number().default(0),
   hostedFrom: z.string().optional(),
   hostedBy: z.string().optional(),
   listedOn: z

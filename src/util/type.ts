@@ -272,7 +272,7 @@ export const propertyTypes: string[] = [
 export interface IQuery {
   _id?: string;
   leadQualityByReviwer?: string;
-  rejectionReason?:string;
+  rejectionReason?: string;
   budgetFrom?: string;
   budgetTo?: string;
   leadQualityByCreator?: string;
@@ -293,6 +293,10 @@ export interface IQuery {
   typeOfProperty: string;
   propertyType: string;
   priority: string;
+  roomDetails: {
+    roomId: string;
+    roomPassword: string;
+  };
 }
 
 export interface imageInterface {

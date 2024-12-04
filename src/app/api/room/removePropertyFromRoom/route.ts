@@ -61,7 +61,12 @@ export async function PATCH(req: NextRequest) {
       city: property?.city ? property?.city : "xxxx",
       state: property?.state ? property?.state : "xxxx",
       country: property?.country ? property?.country : "xxxx",
+      isVisit: property?.isVisit ? property?.isVisit : false,
+      isViewed: property?.isViewed ? property.isViewed : false,
+      visitSchedule: property?.visitSchedule ? property?.visitSchedule : "",
     };
+
+    console.log("property object: ", propertyObject);
 
     const room = await Rooms.findOneAndUpdate(
       { _id: roomId },

@@ -48,7 +48,6 @@ import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
-import { CustomLeadTable } from "./lead-table";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useUserRole } from "@/context/UserRoleContext";
 

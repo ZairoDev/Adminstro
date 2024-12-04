@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import React from "react";
 import { FC } from "react";
-
+ 
 export interface FormItemProps {
   className?: string;
   label?: string;
@@ -9,11 +9,7 @@ export interface FormItemProps {
   children?: React.ReactNode;
 }
 
-const FormItem: FC<FormItemProps> = ({
-  children,
-  label,
-  desc,
-}) => {
+const FormItem: FC<FormItemProps> = ({ children, label, desc }) => {
   return (
     <div className="ml-2">
       {Label && <Label>{label}</Label>}

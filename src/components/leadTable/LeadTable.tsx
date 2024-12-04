@@ -123,6 +123,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   ) => {
     setLoading(true);
     try {
+      console.log(id , leadQualityByReviwer);
       const response = axios.post("/api/sales/reviewLeadQuality", {
         id,
         leadQualityByReviwer,
@@ -403,7 +404,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuGroup>
                       {(userRole === "Sales" || userRole === "SuperAdmin") && (
                         <>
-                          {" "}
                           <DropdownMenuItem
                             onClick={() => handleCreateRoom(index)}
                           >
@@ -427,6 +427,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                     </DropdownMenuGroup>
+
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       {(userRole === "Sales" || userRole === "SuperAdmin") && (

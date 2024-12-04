@@ -244,7 +244,6 @@ export function CustomLeadTable() {
       return serialNumber;
     },
   };
-
   const table = useReactTable({
     data,
     columns,

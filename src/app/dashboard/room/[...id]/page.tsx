@@ -128,7 +128,6 @@ const Page = ({ params }: pageProps) => {
         setIsLoading(false);
       } catch (err: any) {
         router.push("/dashboard/room/joinroom");
-        console.log("Error in verifying room credentails: ", err);
       }
       setIsLoading(false);
     };
@@ -188,7 +187,6 @@ const Page = ({ params }: pageProps) => {
         roomId: roomId,
         propertyId: propertyId,
       });
-      console.log("rejected response: ", response.data);
     } catch (err: any) {
       console.log("Error in removing property: ", err);
     }
@@ -232,7 +230,6 @@ const Page = ({ params }: pageProps) => {
         propertyId,
         client: role,
       });
-      console.log("visit response: ", response);
     } catch (err: any) {
       console.log("error in scheduling visit: ", err);
     } finally {
@@ -281,7 +278,7 @@ const Page = ({ params }: pageProps) => {
   }, [favouriteProperties]);
 
   useEffect(() => {
-    const pusher = new Pusher("323cb59d9065a784e864", {
+    const pusher = new Pusher("1725fd164206c8aa520b", {
       cluster: "ap2",
     });
 

@@ -50,6 +50,8 @@ import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useUserRole } from "@/context/UserRoleContext";
+import Pusher from "pusher-js";
+import { Toaster } from "@/components/ui/toaster";
 
 interface ApiResponse {
   data: IQuery[];
@@ -93,7 +95,7 @@ const SalesDashboard = () => {
     duration: "",
     endDate: "",
     name: "",
-    email: "",
+    email: "-",
     phoneNo: 0,
     area: "",
     guest: 0,
@@ -163,7 +165,6 @@ const SalesDashboard = () => {
         throw new Error(result.message || "Failed to create query");
       }
       const newQuery = result.data;
-      setQueries((prevQueries) => [newQuery, ...prevQueries]);
       toast({
         description: "Query Created Successfully",
       });
@@ -318,8 +319,28 @@ const SalesDashboard = () => {
     }));
   }, [startDate, endDate]);
 
+  useEffect(() => {
+    const pusher = new Pusher("1725fd164206c8aa520b", {
+      cluster: "ap2",
+    });
+
+    const channel = pusher.subscribe("queries");
+
+    channel.bind("new-query", (data: any) => {
+      setQueries((prevQueries) => [...prevQueries, data]);
+    });
+    toast({
+      title: "Query Created Successfully",
+    });
+
+    return () => {
+      pusher.unsubscribe("queries");
+    };
+  }, [queries]);
+
   return (
     <div>
+      <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
           <Heading
@@ -652,8 +673,11 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select zone" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="East">East</SelectItem>
+                            <SelectItem value="West">West</SelectItem>
                             <SelectItem value="North">North</SelectItem>
                             <SelectItem value="South">South</SelectItem>
+                            <SelectItem value="Center">Center</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -59,6 +59,7 @@ export async function POST(req: Request) {
     });
 
     await pusher.trigger("queries", "new-query", {
+      _id: newQuery._id,
       date: newQuery.date,
       name: newQuery.name,
       startDate: newQuery.startDate,

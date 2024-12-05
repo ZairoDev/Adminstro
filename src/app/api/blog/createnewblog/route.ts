@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     });
 
     await newBlog.save();
-
+    
     return NextResponse.json(
       { success: true, message: "Blog saved successfully" },
       { status: 200 }

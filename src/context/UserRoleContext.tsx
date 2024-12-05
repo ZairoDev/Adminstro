@@ -14,9 +14,11 @@ interface UserRoleContextType {
   userEmail: string | null;
   refreshUserRole: () => void;
 }
+
 export const UserRoleContext = createContext<UserRoleContextType | undefined>(
   undefined
 );
+
 export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     getUserRole();
   }, []);
-
+  
   return (
     <UserRoleContext.Provider
       value={{ userRole, currentUser, isLoading, userEmail, refreshUserRole }}

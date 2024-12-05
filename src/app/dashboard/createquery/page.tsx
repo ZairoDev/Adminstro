@@ -525,10 +525,7 @@ const SalesDashboard = () => {
                     </div>
                   </div>
                   {/* Section fourn  */}
-                  <div>
-                    <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
-                      Recomdation
-                    </h3>
+                  <div className=" mt-2">
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
                       <div className="ml-1">
                         <Label>Bill Status</Label>
@@ -678,6 +675,7 @@ const SalesDashboard = () => {
                             <SelectItem value="North">North</SelectItem>
                             <SelectItem value="South">South</SelectItem>
                             <SelectItem value="Center">Center</SelectItem>
+                            <SelectItem value="Anywhere">Anywhere</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

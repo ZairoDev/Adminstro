@@ -57,7 +57,7 @@ const querySchema = new Schema(
     },
     zone: {
       type: String,
-      enum: ["North", "South", "East", "West", "Centre", "Anywhere"],
+      enum: ["North", "South", "East", "West", "Center", "Anywhere"],
       require: [true, "Zone shoule be provided"],
     },
     billStatus: {

@@ -9,6 +9,7 @@ import {
   Check,
   CheckCheck,
   CircleCheckBig,
+  CircleX,
   CornerLeftUp,
   FileSpreadsheet,
   House,
@@ -127,6 +128,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/rejectedleads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
+    },
     // {
     //   path: "/dashboard/createdQuery",
     //   label: "Created Lead",
@@ -164,6 +170,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
+    {
+      path: "/dashboard/rejectedleads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
+    },
   ],
 };
 
@@ -172,6 +183,7 @@ export function Sidebar() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState("");
   const currentPath = usePathname();
+  console.log("current Path: ", currentPath);
 
   const getUserRole = async () => {
     try {

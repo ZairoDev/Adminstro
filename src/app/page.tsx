@@ -82,7 +82,7 @@ export default function HomePage() {
             )
           ) : (
             <Link href="/login">
-              <RainbowButton>Login if you can</RainbowButton>
+              <RainbowButton>Login</RainbowButton>
             </Link>
           )}
         </>

@@ -176,6 +176,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleX size={18} />,
     },
   ],
+  HR: [
+    {
+      path: "/dashboard/employee",
+      label: "Leads",
+      Icon: <PencilLine size={18} />,
+    },
+  ],
 };
 
 export function Sidebar() {

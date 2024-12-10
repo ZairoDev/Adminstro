@@ -47,7 +47,7 @@ const QueryDetails = ({ params }: PageProps) => {
   const { userRole } = useUserRole();
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [retrieveLeadLoading, setRetrieveLeadLoading] = useState(false);
   const [leadQuality, setLeadQuality] = useState<string>("");
   const [saveLoading, setSaveLoading] = useState(false);
   const handleSave = async () => {
@@ -79,6 +79,25 @@ const QueryDetails = ({ params }: PageProps) => {
   useEffect(() => {
     response();
   }, []);
+
+  const retrieveLead = async (leadId: string) => {
+    setRetrieveLeadLoading(true);
+    try {
+      const response = await axios.post("/api/sales/retrieveLead", { leadId });
+      console.log("response: ", response);
+    } catch (err: any) {
+      console.log("err: ", err);
+    } finally {
+      setRetrieveLeadLoading(false);
+      if (apiData) {
+        setApiData((prev: any) => {
+          const newData = { ...prev };
+          newData.rejectionReason = null;
+          return newData;
+        });
+      }
+    }
+  };
 
   const InfoItem = ({
     icon: Icon,
@@ -247,9 +266,21 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     )}
-                    {apiData?.rejectionReason && (
-                      <p>Reason for Rejection: &nbsp;&nbsp; {apiData?.rejectionReason}</p>
-                    )}
+                    <div className=" flex gap-x-4 items-center">
+                      {apiData?.rejectionReason && (
+                        <p>
+                          Reason for Rejection: &nbsp;&nbsp;{" "}
+                          {apiData?.rejectionReason}
+                        </p>
+                      )}
+                      {apiData?.rejectionReason && (
+                        <Button onClick={() => retrieveLead(apiData?._id!)}>
+                          {retrieveLeadLoading
+                            ? "Retreiving..."
+                            : "Retreive Lead"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
                 <Separator />

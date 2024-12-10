@@ -54,6 +54,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
   ],
+  HR: ["/", /^\/dashboard\/employee\/.*$/],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",

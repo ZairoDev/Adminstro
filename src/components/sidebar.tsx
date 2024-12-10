@@ -15,10 +15,10 @@ import {
   LoaderCircle,
   NotebookPen,
   PencilLine,
+  PersonStanding,
   ScanEye,
   Speech,
   User2Icon,
-  Users,
 } from "lucide-react";
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -121,32 +121,26 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Read Blogs",
       Icon: <FileSpreadsheet size={18} />,
     },
-
     {
       path: "/dashboard/createquery",
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
-    // {
-    //   path: "/dashboard/createdQuery",
-    //   label: "Created Lead",
-    //   Icon: <CalendarPlus size={18} />,
-    // },
-    // {
-    //   path: "/dashboard/candidatePortal",
-    //   label: "Register Candidate",
-    //   Icon: <Speech size={18} />,
-    // },
-    // {
-    //   path: "/dashboard/leftoverCandidate",
-    //   label: "Leftover Candidate",
-    //   Icon: <PersonStanding size={18} />,
-    // },
-    // {
-    //   path: "/dashboard/attendedCandidate",
-    //   label: "Attended Candidate",
-    //   Icon: <PersonStanding size={18} />,
-    // },
+    {
+      path: "/dashboard/candidatePortal",
+      label: "Register Candidate",
+      Icon: <Speech size={18} />,
+    },
+    {
+      path: "/dashboard/leftoverCandidate",
+      label: "Leftover Candidate",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/attendedCandidate",
+      label: "Attended Candidate",
+      Icon: <PersonStanding size={18} />,
+    },
     {
       path: "/dashboard/room/joinroom",
       label: "Join Room",
@@ -160,9 +154,21 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <User2Icon size={18} />,
+    },
+    {
       path: "/dashboard/room/joinroom",
       label: "Join Room",
       Icon: <House size={18} />,
+    },
+  ],
+  HR: [
+    {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <User2Icon size={18} />,
     },
   ],
 };
@@ -170,7 +176,7 @@ const roleRoutes: Record<string, Route[]> = {
 export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState("");
+  // const [currentUser, setCurrentUser] = useState("");
   const currentPath = usePathname();
 
   const getUserRole = async () => {
@@ -247,7 +253,7 @@ export function Sidebar() {
           <div className="mr-1">
             <ModeToggle />
           </div>
-        </div>
+        </div>     
         <div>
           <nav className="flex flex-col  justify-between ">
             <ul>

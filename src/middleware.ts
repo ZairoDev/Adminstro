@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
 
-const roleAccess: { [key: string]: (string | RegExp)[] } = {
+const roleAccess: { [key: string]: (string | RegExp)[] } = {     
   SuperAdmin: [
     "/",
     "/admin",
@@ -74,8 +74,6 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
 
-  console.log("path and token: ", path, token);
-
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
     return patterns.some((pattern) =>
@@ -94,13 +92,10 @@ export async function middleware(request: NextRequest) {
           new URL(defaultRoutes[role] || "/", request.url)
         );
       }
-
       if (!role || role.trim() === "") {
-        // Redirect to /norole if not already there
         if (path !== "/norole") {
           return NextResponse.redirect(new URL("/norole", request.url));
         }
-        // If already on /norole, allow access
         return NextResponse.next();
       }
 
@@ -126,7 +121,6 @@ export async function middleware(request: NextRequest) {
   } else if (!isPublicRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-
   return NextResponse.next();
 }
 

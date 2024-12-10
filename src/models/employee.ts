@@ -81,7 +81,6 @@ const employeeSchema = new Schema<IEmployee>(
       type: Map,
       of: Schema.Types.Mixed,
     },
-
     passwordExpiresAt: {
       type: Date,
       default: () => {

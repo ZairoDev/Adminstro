@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table,
   TableBody,
@@ -55,6 +56,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { useUserRole } from "@/context/UserRoleContext";
@@ -98,6 +100,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const formattedEndDate = endDate
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
+
+
+
+  
 
   const handleQualityChange = async (
     leadQualityByReviwer: string,
@@ -164,8 +170,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
   return (
-    <div className="">
-      <Table className="">
+    <div>
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
@@ -273,7 +279,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-
               <TableCell>
                 <div className=" flex gap-x-1">
                   <CustomTooltip
@@ -287,7 +292,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     desc={`Area - ${query?.area}`}
                   />
                   <div>|</div>
-                  <Badge className=" bg-white">
+                  <Badge className="  ">
                     <CustomTooltip
                       text={
                         query?.zone === "East"
@@ -372,7 +377,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               )}
               <TableCell>
                 <Link
-                  className=""
                   href={`https://wa.me/${
                     query?.phoneNo
                   }?text=${encodeURIComponent(
@@ -566,7 +570,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-      {/* Dialog for Full Details */}
       {selectedQuery && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="p-4">

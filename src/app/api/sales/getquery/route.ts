@@ -11,16 +11,12 @@ import {
 } from "date-fns";
 
 connectDb();
+export const dynamic = "force-dynamic";
 
-
-export const dynamic = 'force-dynamic';
-
-
-// Helper function to convert UTC date to IST (UTC+5:30)
 function convertToIST(date: Date): Date {
   return addHours(date, 5.5);
 }
-// Helper function to get start of day in Indian Standard Time
+
 function getISTStartOfDay(date: Date): Date {
   const istDate = convertToIST(date);
   return setMilliseconds(setSeconds(setMinutes(setHours(istDate, 0), 0), 0), 0);
@@ -39,16 +35,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
 
-    // Define the regex for the search term (case-insensitive)
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
-    // Conditionally add search criteria based on the searchType
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = searchTerm; // Exact match for phone numbers
+        query.phoneNo = searchTerm;
       } else {
-        query[searchType] = regex; // Partial match for name or email
+        query[searchType] = regex;
       }
     }
 

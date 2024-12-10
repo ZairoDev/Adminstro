@@ -323,16 +323,13 @@ const SalesDashboard = () => {
     const pusher = new Pusher("1725fd164206c8aa520b", {
       cluster: "ap2",
     });
-
     const channel = pusher.subscribe("queries");
-
     channel.bind("new-query", (data: any) => {
       setQueries((prevQueries) => [...prevQueries, data]);
     });
     toast({
       title: "Query Created Successfully",
     });
-
     return () => {
       pusher.unsubscribe("queries");
     };
@@ -365,6 +362,7 @@ const SalesDashboard = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <Input
               placeholder="Search..."
               value={searchTerm}
@@ -385,11 +383,11 @@ const SalesDashboard = () => {
               <div>
                 <ScrollArea className="h-[400px] p-4">
                   <div className="">
-                    <h3 className="text-lg font-semibold border-b pb-1 mt-4">
+                    <h3 className="text-lg font-semibold border-b pb-1 mt-4 ">
                       Personal Details
                     </h3>
+                    {/* Section 1 : Booking Details */}
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                      {/* Section one 1 */}
                       <div className="ml-1">
                         <Label>Name</Label>
                         <Input
@@ -803,7 +801,6 @@ const SalesDashboard = () => {
           </div>
         </div>
       </div>
-      {/* Need to manaeg the code above this  */}
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
           <Loader />

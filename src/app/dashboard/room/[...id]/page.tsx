@@ -597,7 +597,7 @@ const Page = ({ params }: pageProps) => {
                       href={{
                         pathname:
                           item?.VSID === "xxxx"
-                            ? `http://localhost:3001/roomListing/${item._id}`
+                            ? `https://www.vacationsaga.com/roomListing/${item._id}`
                             : `https://www.vacationsaga.com/listing-stay-detail/${item._id}`,
                       }}
                       target="_blank"

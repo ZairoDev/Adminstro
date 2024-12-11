@@ -21,6 +21,7 @@ import {
   User2Icon,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
 
@@ -190,13 +191,11 @@ export function Sidebar() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState("");
   const currentPath = usePathname();
-  console.log("current Path: ", currentPath);
 
   const getUserRole = async () => {
     try {
       setIsLoading(true);
       const response = await axios.get("/api/user/getloggedinuser");
-      console.log("API response:", response.data.user.role);
       if (response.data && response.data.user && response.data.user.role) {
         setUserRole(response.data.user.role);
         // setCurrentUser(response.data.user.name);
@@ -227,7 +226,10 @@ export function Sidebar() {
     if (!userRole) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
-          Visitor
+          <img
+            src="https://vacationsaga.b-cdn.net/assets/logo2.webp"
+            className=" w-40 md:w-4/5"
+          />
         </li>
       );
     }

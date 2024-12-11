@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    room.save();
+    await room.save();
 
     await pusher.trigger(`room-${roomId}`, "addedSeenToProperty", {
       data: propertyObject,

@@ -4,6 +4,7 @@ export const employeeSchema = z.object({
   name: z.string().min(1, "Please enter your name"),
   email: z.string().email("Please enter a valid email address"),
   profilePic: z.string().optional().default(""),
+  allotedArea: z.string().optional(),
   nationality: z.string().min(1, "Please enter your nationality"),
   gender: z.enum(["Male", "Female", "Other"]),
   spokenLanguage: z.string().min(1, "Please Enter the language "),

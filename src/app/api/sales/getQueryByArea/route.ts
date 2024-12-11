@@ -34,9 +34,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const customDays = Number(url.searchParams.get("customDays")) || 0;
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
+    const allotedArea = url.searchParams.get("allotedArea") || "";
+
+    console.log(allotedArea, "Alloted area will print here in backend...");
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
+
 
     if (searchTerm) {
       if (searchType === "phoneNo") {
@@ -46,6 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Add date filtering
     let dateQuery: any = {};
     const istToday = getISTStartOfDay(new Date());
     const istYesterday = getISTStartOfDay(subDays(new Date(), 1));
@@ -91,7 +96,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       default:
         break;
     }
+
+    // Combine search term, date filters, and allotedArea
     query = { ...query, ...dateQuery };
+    if (allotedArea) {
+      query.location = allotedArea; // Filter by allotedArea
+    }
+
+    // Perform the query
     const allquery = await Query.aggregate([
       { $match: query },
       { $sort: { _id: -1 } },
@@ -105,6 +117,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               format: "%Y-%m-%d %H:%M:%S",
               timezone: "UTC",
             },
+            
           },
         },
       },

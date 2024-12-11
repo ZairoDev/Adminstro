@@ -13,6 +13,7 @@ interface Employee {
   email: string;
   password: string;
   isVerified: boolean;
+  allotedArea: string;
   role: string;
   passwordExpiresAt: Date;
 }
@@ -63,7 +64,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // If the user is a SuperAdmin, send OTP and skip expiration check
     if (temp.role === "SuperAdmin") {
       await sendEmail({
         email,
@@ -76,8 +76,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 200 }
       );
     }
-
-    // Update password expiration date
     const newExpiryDate = new Date();
     newExpiryDate.setHours(newExpiryDate.getHours() + 24);
 
@@ -91,7 +89,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name: temp.name,
       email: temp.email,
       role: temp.role,
+      allotedArea: temp.allotedArea,
     };
+
+console.log(tokenData , "Token Data ")
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
       expiresIn: "1d",

@@ -1,5 +1,4 @@
 "use client";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -97,6 +95,7 @@ const NewUser = () => {
       email: "",
       nationality: "Indian",
       gender: undefined,
+      allotedArea: "",
       spokenLanguage: "Hindi",
       accountNo: "",
       ifsc: "",
@@ -122,13 +121,11 @@ const NewUser = () => {
     if (userData.password !== confirmPasswordRef.current?.value) {
       toast({
         variant: "destructive",
-        title: "Passwords do not match",
-        description: "Please try again.",
+        description: "Passwords do not match please try again.",
       });
       setLoading(false);
       return;
     }
-
     console.log(userData);
     try {
       const response = await axios.post(
@@ -137,15 +134,13 @@ const NewUser = () => {
       );
       console.log("Inside Api call", response.data);
       toast({
-        title: "Employee created successfully",
-        description: "Please check your email for verification link",
+        description: "Employee created successfully",
       });
       reset();
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast({
         variant: "destructive",
-        title: "Uh oh! Something went wrong.",
         description: error.response?.data?.error || "An error occurred.",
       });
       setLoading(false);
@@ -154,12 +149,15 @@ const NewUser = () => {
     }
     setPhone("");
   };
-
+  const selectedArea = watch("allotedArea");
   const selectedRole = watch("role");
   const selectedGender = watch("gender");
-  useEffect(() => {
-    console.log(selectedRole);
-  }, [watch]);
+
+  // useEffect(() => {
+  //   console.log(selectedRole);
+  //   console.log(selectedArea);
+  //   console.log(selectedGender);
+  // }, [watch]);
 
   return (
     <>
@@ -245,8 +243,8 @@ const NewUser = () => {
                             | "Content"
                             | "HR"
                         )
-                      } // Update the form value manually
-                      value={selectedRole} // Bind the selected value to the form state
+                      }
+                      value={selectedRole}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Role" />
@@ -260,11 +258,28 @@ const NewUser = () => {
                         <SelectItem value="Developer">Developer</SelectItem>
                       </SelectContent>
                     </Select>
-                    {/* {errors.role && (
-                    <p className="text-red-500 text-xs">
-                      {errors.role.message}
-                    </p>
-                  )} */}
+                  </div>
+                  <div className="w-full">
+                    <Label htmlFor="role">Alloted Area</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setValue(
+                          "allotedArea",
+                          value as "Chania" | "Chalkidiki" | "Athens" | "Corfu"
+                        )
+                      }
+                      value={selectedArea}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="chania">chania</SelectItem>
+                        <SelectItem value="chalkidiki">chalkidiki</SelectItem>
+                        <SelectItem value="athens">athens</SelectItem>
+                        <SelectItem value="corfu">corfu</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

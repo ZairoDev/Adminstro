@@ -13,7 +13,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
     const validLeadQualities = [
       "Good",
       "Very Good",

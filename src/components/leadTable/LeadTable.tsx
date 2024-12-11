@@ -10,6 +10,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
+
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+
 import {
   MapPin,
   Users,
@@ -100,10 +102,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const formattedEndDate = endDate
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
-
-
-
-  
 
   const handleQualityChange = async (
     leadQualityByReviwer: string,

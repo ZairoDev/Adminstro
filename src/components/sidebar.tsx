@@ -123,7 +123,12 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/createquery",
-      label: "Create Lead",
+      label: "Create Lead(Lead)",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/rolebaseLead",
+      label: "Leads(Sales)",
       Icon: <PencilLine size={18} />,
     },
     {
@@ -149,8 +154,8 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   Sales: [
     {
-      path: "/dashboard/createquery",
-      label: "Leads",
+      path: "/dashboard/rolebaseLead",
+      label: "Lead(Sales)",
       Icon: <PencilLine size={18} />,
     },
     {
@@ -253,7 +258,7 @@ export function Sidebar() {
           <div className="mr-1">
             <ModeToggle />
           </div>
-        </div>     
+        </div>
         <div>
           <nav className="flex flex-col  justify-between ">
             <ul>

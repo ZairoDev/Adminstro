@@ -151,6 +151,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
+    {
+      path: "/dashboard/manageQuestion",
+      label: "Create Qa",
+      Icon: <User2Icon size={18} />,
+    },
   ],
   Sales: [
     {

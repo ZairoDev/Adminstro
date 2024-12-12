@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
   Table,
@@ -10,15 +9,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-
 import {
   MapPin,
   Users,
@@ -38,7 +28,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { IQuery } from "@/util/type";
 import { Button } from "../ui/button";
 import Link from "next/link";
@@ -66,7 +55,6 @@ import { useUserRole } from "@/context/UserRoleContext";
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { userRole } = useUserRole();
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
@@ -128,6 +116,20 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  const IsView = async (id: any, index: any) => {
+    try {
+      const ApiRespone = await axios.post("/api/sales/queryStatusUpdate", {
+        id,
+      });
+      toast({
+        description: "Status updated succefully",
+      });
+      queries[index].isViewed = true;
+    } catch (error: any) {
+      console.log(error);
+    }
+  };
+
   const handleRejectionReason = async (
     rejectionReason: string,
     id: any,
@@ -185,7 +187,16 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
         </TableHeader>
         <TableBody>
           {queries?.map((query, index) => (
-            <TableRow key={query?._id}>
+            <TableRow
+              key={query?._id}
+              className={`
+              ${
+                query?.isViewed
+                  ? "bg-transparent hover:bg-transparent"
+                  : "bg-primary-foreground"
+              }
+            `}
+            >
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
@@ -422,11 +433,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           </Link>
                         </>
                       )}
-                      <Link href={`/dashboard/createquery/${query?._id}`}>
+                      <Link
+                        onClick={() => IsView(query?._id, index)}
+                        target="_blank"
+                        href={`/dashboard/createquery/${query?._id}`}
+                      >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                     </DropdownMenuGroup>
-
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
@@ -568,7 +582,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-      {selectedQuery && (
+      {/* {selectedQuery && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="p-4">
             <DialogHeader className="p-0">
@@ -682,7 +696,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             </DialogDescription>
           </DialogContent>
         </Dialog>
-      )}
+      )} */}
     </div>
   );
 }

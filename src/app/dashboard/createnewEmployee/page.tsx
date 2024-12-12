@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -43,7 +43,6 @@ const NewUser = () => {
       setPreviewImage(event.target?.result as string);
     };
     reader.readAsDataURL(file);
-
     toast({
       title: "Processing..",
       description: "Your image is being uploaded.",
@@ -54,7 +53,6 @@ const NewUser = () => {
       if (error) {
         toast({
           variant: "destructive",
-          title: "Upload failed",
           description:
             "There was an error uploading your image. Please try again.",
         });

@@ -90,6 +90,7 @@ const SalesDashboard = () => {
   const [page, setPage] = useState<number>(1);
   const [view, setView] = useState("Table View");
   const { toast } = useToast();
+  const [normalInput, setNormalInput] = useState(false);
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -121,8 +122,18 @@ const SalesDashboard = () => {
       duration: "",
     }));
   };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNormalInput(e.target.checked);
+  };
+
+  // Handle input changes
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
+    if (normalInput) {
+      setFormData((prev) => ({ ...prev, duration: e.target.value }));
+    } else {
+      validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
+    }
   };
 
   const handleSubmit = async () => {
@@ -362,7 +373,6 @@ const SalesDashboard = () => {
                 </SelectContent>
               </Select>
             </div>
-
             <Input
               placeholder="Search..."
               value={searchTerm}
@@ -389,7 +399,7 @@ const SalesDashboard = () => {
                     {/* Section 1 : Booking Details */}
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
                       <div className="ml-1">
-                        <Label>Name</Label>
+                        <Label>Name*</Label>
                         <Input
                           name="name"
                           value={formData.name}
@@ -398,7 +408,7 @@ const SalesDashboard = () => {
                         />
                       </div>
                       <div className="ml-1">
-                        <Label>Phone No</Label>
+                        <Label>Phone No*</Label>
                         <Input
                           type="number"
                           name="phoneNo"
@@ -418,7 +428,7 @@ const SalesDashboard = () => {
                         />
                       </div>
                       <div>
-                        <Label>Location</Label>
+                        <Label>Location*</Label>
                         <Input
                           name="location"
                           value={formData.location}
@@ -435,15 +445,15 @@ const SalesDashboard = () => {
                     </h3>
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
                       <div>
-                        <Label>Start Date</Label>
+                        <Label>Start Date*</Label>
                         <DatePicker date={startDate} setDate={setStartDate} />
                       </div>
                       <div>
-                        <Label>End Date</Label>
+                        <Label>End Date*</Label>
                         <DatePicker date={endDate} setDate={setEndDate} />
                       </div>
                       <div className="ml-1">
-                        <Label>Booking Term</Label>
+                        <Label>Booking Term*</Label>
                         <Select onValueChange={handleBookingTermChange}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select term" />
@@ -457,14 +467,27 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <Label>Duration</Label>
-                        <Input
-                          name="duration"
-                          value={formData.duration}
-                          onChange={handleDurationChange}
-                          placeholder="Enter duration based on term"
-                        />
+                      <div className="flex  items-center gap-x-1 w-full">
+                        <div className="">
+                          <label>
+                            <input
+                              className="rounded-full"
+                              type="checkbox"
+                              checked={normalInput}
+                              onChange={handleCheckboxChange}
+                            />
+                          </label>
+                        </div>
+                        <div className="w-full">
+                          <Label>Duration*</Label>
+                          <Input
+                            name="duration"
+                            className="w-full"
+                            value={formData.duration}
+                            onChange={handleDurationChange}
+                            placeholder="Enter duration based on term"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -475,7 +498,7 @@ const SalesDashboard = () => {
                     </h3>
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
                       <div>
-                        <Label>Budget (From)</Label>
+                        <Label>Budget (From)*</Label>
                         <Input
                           name="budgetFrom"
                           value={formData.budgetFrom || ""}
@@ -484,7 +507,7 @@ const SalesDashboard = () => {
                         />
                       </div>
                       <div>
-                        <Label>Budget (To)</Label>
+                        <Label>Budget (To)*</Label>
                         <Input
                           name="budgetTo"
                           value={formData.budgetTo || ""}
@@ -501,7 +524,7 @@ const SalesDashboard = () => {
                     </h3>
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
                       <div>
-                        <Label>Guest</Label>
+                        <Label>Guest*</Label>
                         <Input
                           type="number"
                           name="guest"
@@ -511,7 +534,7 @@ const SalesDashboard = () => {
                         />
                       </div>
                       <div>
-                        <Label>No Of Beds</Label>
+                        <Label>No Of Beds*</Label>
                         <Input
                           type="number"
                           name="noOfBeds"
@@ -526,7 +549,7 @@ const SalesDashboard = () => {
                   <div className=" mt-2">
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
                       <div className="ml-1">
-                        <Label>Bill Status</Label>
+                        <Label>Bill Status*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -539,7 +562,9 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select Status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="With Bill">With Bill</SelectItem>
+                            <SelectItem value="With Bill">
+                              With Bill*
+                            </SelectItem>
                             <SelectItem value="Without Bill">
                               Without Bill
                             </SelectItem>
@@ -547,7 +572,7 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label>Priority</Label>
+                        <Label>Priority*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -574,7 +599,7 @@ const SalesDashboard = () => {
                     </h3>
                     <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
                       <div className="ml-1">
-                        <Label>Type of Property</Label>
+                        <Label>Type of Property*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -608,7 +633,7 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label>Lead Quality</Label>
+                        <Label>Lead Quality*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -631,7 +656,7 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                       <div className="ml-1">
-                        <Label>Property Type</Label>
+                        <Label>Property Type*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -655,7 +680,7 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label>Zone</Label>
+                        <Label>Zone*</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -679,7 +704,7 @@ const SalesDashboard = () => {
                       </div>
                     </div>
                     <div className="w-full mt-2 ml-1 mb-2">
-                      <Label>Area</Label>
+                      <Label>Area*</Label>
                       <Input
                         name="area"
                         value={formData.area}

@@ -41,7 +41,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
-
     if (searchTerm) {
       if (searchType === "phoneNo") {
         query.phoneNo = searchTerm;
@@ -97,10 +96,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         break;
     }
 
-    // Combine search term, date filters, and allotedArea
-    query = { ...query, ...dateQuery };
+    query = { ...query, rejectionReason: null, ...dateQuery };
     if (allotedArea) {
-      query.location = allotedArea; // Filter by allotedArea
+      query.location = allotedArea;
     }
 
     // Perform the query
@@ -117,7 +115,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               format: "%Y-%m-%d %H:%M:%S",
               timezone: "UTC",
             },
-            
           },
         },
       },

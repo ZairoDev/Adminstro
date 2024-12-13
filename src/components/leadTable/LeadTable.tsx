@@ -569,7 +569,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                 )
                               }
                             >
-                              Didn't like the option
+                              Didn&apos;t like the option
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>

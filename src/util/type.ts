@@ -273,7 +273,7 @@ export interface IQuery {
   _id?: string;
   isViewed?: boolean;
   leadQualityByReviwer?: string;
-  rejectionReason?: string;
+  rejectionReason?: string | null;
   budgetFrom?: string;
   budgetTo?: string;
   leadQualityByCreator?: string;

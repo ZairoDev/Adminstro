@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table,
   TableBody,
@@ -9,13 +9,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   MapPin,
   Users,
@@ -35,11 +28,8 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-
 import { IQuery } from "@/util/type";
 import { Button } from "../ui/button";
-
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import CustomTooltip from "../CustomToolTip";
@@ -57,12 +47,14 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
+import { useUserRole } from "@/context/UserRoleContext";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
+  const { userRole } = useUserRole();
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
@@ -99,21 +91,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     ? format(endDate, "dd-MM-yyyy")
     : "Invalid Date";
 
-  const handleCreateRoom = async (index: number) => {
-    try {
-      const response = await axios.post("/api/room/createRoom", {
-        lead: queries[index],
-      });
-      console.log("response: ", response.data);
-      setRoomId(response.data.room._id);
-      setRoomPassword(response.data.room.password);
-      alert(
-        `Room created successfully with id: ${response.data.room._id} and password: ${response.data.room.password}`
-      );
-    } catch (err: unknown) {
-      console.log("err: ", err);
-    }
-  };
   const handleQualityChange = async (
     leadQualityByReviwer: string,
     id: any,
@@ -121,6 +98,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   ) => {
     setLoading(true);
     try {
+      console.log(id, leadQualityByReviwer);
       const response = axios.post("/api/sales/reviewLeadQuality", {
         id,
         leadQualityByReviwer,
@@ -135,6 +113,20 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       toast({
         description: "Error occurred while updating status",
       });
+    }
+  };
+
+  const IsView = async (id: any, index: any) => {
+    try {
+      const ApiRespone = await axios.post("/api/sales/queryStatusUpdate", {
+        id,
+      });
+      toast({
+        description: "Status updated succefully",
+      });
+      queries[index].isViewed = true;
+    } catch (error: any) {
+      console.log(error);
     }
   };
 
@@ -162,23 +154,49 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  const handleCreateRoom = async (index: number) => {
+    try {
+      const response = await axios.post("/api/room/createRoom", {
+        lead: queries[index],
+      });
+      console.log("response: ", response.data);
+      setRoomId(response.data.room._id);
+      setRoomPassword(response.data.room.password);
+      alert(
+        `Room created successfully with id: ${response.data.room._id} and password: ${response.data.room.password}`
+      );
+    } catch (err: unknown) {
+      console.log("err: ", err);
+    }
+  };
   return (
-    <div className="">
-      <Table className="">
+    <div>
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
             <TableHead>Location</TableHead>
-            <TableHead>Lead Quality</TableHead>
+            {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              <TableHead>Lead Quality</TableHead>
+            )}
             <TableHead>Contact</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {queries?.map((query, index) => (
-            <TableRow key={query?._id}>
+            <TableRow
+              key={query?._id}
+              className={`
+              ${
+                query?.isViewed
+                  ? "bg-transparent hover:bg-transparent"
+                  : "bg-primary-foreground"
+              }
+            `}
+            >
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
@@ -210,7 +228,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </Badge>
               </TableCell>
-
               <TableCell className="">
                 <div className="flex gap-x-2">
                   <CustomTooltip
@@ -271,7 +288,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-
               <TableCell>
                 <div className=" flex gap-x-1">
                   <CustomTooltip
@@ -285,7 +301,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     desc={`Area - ${query?.area}`}
                   />
                   <div>|</div>
-                  <Badge className=" bg-white">
+                  <Badge className="  ">
                     <CustomTooltip
                       text={
                         query?.zone === "East"
@@ -313,58 +329,63 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-              <TableCell className=" flex gap-x-0.5">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {loading ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Button variant="ghost">
-                        {query.leadQualityByReviwer || "Review"}
-                      </Button>
-                    )}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-40">
-                    <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Good", query?._id, index)
-                      }
-                    >
-                      Good
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Very Good", query?._id, index)
-                      }
-                    >
-                      Very Good
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Average", query?._id, index)
-                      }
-                    >
-                      Average
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Below Average", query?._id, index)
-                      }
-                    >
-                      Below Average
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
+              {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                <TableCell className=" flex gap-x-0.5">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      {loading ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Button variant="ghost">
+                          {query.leadQualityByReviwer || "Review"}
+                        </Button>
+                      )}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-40">
+                      <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handleQualityChange("Good", query?._id, index)
+                        }
+                      >
+                        Good
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handleQualityChange("Very Good", query?._id, index)
+                        }
+                      >
+                        Very Good
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handleQualityChange("Average", query?._id, index)
+                        }
+                      >
+                        Average
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handleQualityChange(
+                            "Below Average",
+                            query?._id,
+                            index
+                          )
+                        }
+                      >
+                        Below Average
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
               <TableCell>
                 <Link
-                  className=""
                   href={`https://wa.me/${
                     query?.phoneNo
                   }?text=${encodeURIComponent(
@@ -391,22 +412,32 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => handleCreateRoom(index)}>
-                        Create Room
-                      </DropdownMenuItem>
+                      {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => handleCreateRoom(index)}
+                          >
+                            Create Room
+                          </DropdownMenuItem>
+                          <Link
+                            href={{
+                              pathname: `/dashboard/room/joinroom`,
+                              query: {
+                                roomId: roomId,
+                                roomPassword: roomPassword,
+                              },
+                            }}
+                            target="_blank"
+                          >
+                            <DropdownMenuItem>Join Room</DropdownMenuItem>
+                          </Link>
+                        </>
+                      )}
                       <Link
-                        href={{
-                          pathname: `/dashboard/room/joinroom`,
-                          query: {
-                            roomId: roomId,
-                            roomPassword: roomPassword,
-                          },
-                        }}
+                        onClick={() => IsView(query?._id, index)}
                         target="_blank"
+                        href={`/dashboard/createquery/${query?._id}`}
                       >
-                        <DropdownMenuItem>Join Room</DropdownMenuItem>
-                      </Link>
-                      <Link href={`/dashboard/createquery/${query?._id}`}>
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                     </DropdownMenuGroup>
@@ -551,8 +582,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-      {/* Dialog for Full Details */}
-      {selectedQuery && (
+      {/* {selectedQuery && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="p-4">
             <DialogHeader className="p-0">
@@ -651,7 +681,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           label="Start Date"
                           value={formattedStartDate}
                         />
-                      </div>{" "}
+                      </div>
                       <div className="border px-3 py-2 rounded-lg">
                         <InfoItem
                           icon={DateIcon}
@@ -666,7 +696,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             </DialogDescription>
           </DialogContent>
         </Dialog>
-      )}
+      )} */}
     </div>
   );
 }

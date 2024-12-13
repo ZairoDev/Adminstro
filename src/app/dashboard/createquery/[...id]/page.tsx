@@ -250,44 +250,6 @@ const QueryDetails = ({ params }: PageProps) => {
                   </div>
                 </CardContent>
                 <Separator />
-                {(userRole === "Sales" || userRole === "SuperAdmin") && (
-                  <div className="p-4">
-                    <p>Choose the quality of the lead</p>
-                    <div className="flex items-center sm:flex-row gap-x-2 flex-col justify-between">
-                      <div className="w-full sm:w-1/2 md:w-1/3">
-                        <Select
-                          value={leadQuality}
-                          onValueChange={setLeadQuality}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Lead Quality" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Good">Good</SelectItem>
-                            <SelectItem value="Bad">Bad</SelectItem>
-                            <SelectItem value="Average">Average</SelectItem>
-                            <SelectItem value="Below Average">
-                              Below Average
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="w-full flex items-center justify-end sm:mt-0 mt-2">
-                        <Button
-                          className="w-full sm:w-auto"
-                          onClick={handleSave}
-                          disabled={saveLoading}
-                        >
-                          {saveLoading ? (
-                            <Loader2 className="animate-spin w-4 h-4" />
-                          ) : (
-                            "Save"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </Card>
             </div>
           </div>

@@ -44,16 +44,18 @@
 //   }
 // }
 
+
+
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
 
 export const dynamic = "force-dynamic";
 
+connectDb();
+
 export async function GET(req: NextRequest) {
   try {
-    await connectDb(); // Ensure db connection is awaited
-
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
     const search = url.searchParams.get("search") || "";

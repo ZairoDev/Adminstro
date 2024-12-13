@@ -12,25 +12,32 @@ interface UserRoleContextType {
   currentUser: string | null;
   isLoading: boolean;
   userEmail: string | null;
+  allotedArea: string | null;
   refreshUserRole: () => void;
 }
+
 export const UserRoleContext = createContext<UserRoleContextType | undefined>(
   undefined
 );
+
 export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [allData, setAllData] = useState<string | null>();
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [allotedArea, setAllotedArea] = useState<string | null>(null);
 
   const getUserRole = async () => {
     try {
       setIsLoading(true);
       const response = await axios.get("/api/user/getloggedinuser");
       if (response.data && response.data.user && response.data.user.role) {
+        setAllData(response.data.user);
         setUserRole(response.data.user.role);
         setCurrentUser(response.data.user.name);
         setUserEmail(response.data.user.email);
+        setAllotedArea(response.data.user.allotedArea);
       } else {
         console.error("No role found in the response.");
       }
@@ -40,6 +47,7 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   };
+  console.log(allData, "Alloted Area gonna print here");
   const refreshUserRole = () => {
     getUserRole();
   };
@@ -49,7 +57,14 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <UserRoleContext.Provider
-      value={{ userRole, currentUser, isLoading, userEmail, refreshUserRole }}
+      value={{
+        userRole,
+        currentUser,
+        isLoading,
+        userEmail,
+        allotedArea,
+        refreshUserRole,
+      }}
     >
       {children}
     </UserRoleContext.Provider>

@@ -55,7 +55,6 @@ interface PageProps {
     id: string;
   };
 }
-
 // TODO : Generate Lat-Lng from pincode
 const getCoordinatesFromPincode = async (pincode: any) => {
   const url = `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&format=json&limit=1`;
@@ -74,7 +73,6 @@ const getCoordinatesFromPincode = async (pincode: any) => {
     return null;
   }
 };
-
 const EditPropertyPage = ({ params }: PageProps) => {
   const { toast } = useToast();
   let portions = 0;

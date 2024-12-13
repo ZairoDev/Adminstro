@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       name: savedUser[0].name,
       email: savedUser[0].email,
       role: savedUser[0].role,
+      allotedArea: savedUser[0].allotedArea,
     };
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET!, {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
       success: true,
       token,
-      status: 200, 
+      status: 200,
     });
     response.cookies.set("token", token, {
       httpOnly: true,
@@ -55,7 +56,6 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-
   } catch (error) {
     console.log(error);
     return NextResponse.json(

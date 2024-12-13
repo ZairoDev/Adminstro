@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PhoneInput from "react-phone-number-input";
-import { ArrowLeft, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
 
 interface PageProps {
@@ -27,7 +27,6 @@ interface PageProps {
 const AccountPage = ({ params }: PageProps) => {
   const userId = params.id[0];
   const { toast } = useToast();
-
   const [name, setName] = useState("");
   const [gender, setGender] = useState<string>("");
   const [language, setLanguage] = useState("");
@@ -40,9 +39,7 @@ const AccountPage = ({ params }: PageProps) => {
   const [profilePic, setProfilePic] = useState("");
   const [profilePicLoading, setProfilePicLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
-
   const [loading, setLoading] = useState(false);
-
   const [user, setUser] = useState<any>();
 
   const gettheUserdetails = async () => {
@@ -128,7 +125,6 @@ const AccountPage = ({ params }: PageProps) => {
     setProfilePicLoading(true);
     setPreviewImage(e?.target?.files[0]?.name);
     const file = e?.target?.files[0];
-
     if (
       !file ||
       !(
@@ -140,7 +136,6 @@ const AccountPage = ({ params }: PageProps) => {
       alert("Error: Only PNG and JPEG files are allowed.");
       return;
     }
-
     const reader = new FileReader();
     reader.onload = function (e: any) {
       setPreviewImage(e.target.result);
@@ -150,10 +145,8 @@ const AccountPage = ({ params }: PageProps) => {
     const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
     const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
     const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
     const formData = new FormData();
     formData.append("file", file);
-
     try {
       const randomNumberToAddInImageName = randomNumber(7);
       const response = await axios.put(
@@ -166,7 +159,6 @@ const AccountPage = ({ params }: PageProps) => {
           },
         }
       );
-
       const imageUrl = `https://vacationsaga.b-cdn.net/ProfilePictures/${randomNumberToAddInImageName}${file.name}`;
       setProfilePic(imageUrl);
       setProfilePicLoading(false);
@@ -182,7 +174,6 @@ const AccountPage = ({ params }: PageProps) => {
         heading="Edit details"
         subheading="You can edit user details from here."
       />
-
       <div className=" border rounded-lg p-4  ">
         <div className="flex items-center mb-8 justify-center">
           <div className="relative rounded-full overflow-hidden flex">
@@ -265,6 +256,7 @@ const AccountPage = ({ params }: PageProps) => {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:flex-row flex-col">
+
           <div className="w-full">
             <Label>Email</Label>
             <Input className="mt-1.5" value={email} readOnly />
@@ -273,7 +265,7 @@ const AccountPage = ({ params }: PageProps) => {
           <div className="w-full">
             <Label>Address</Label>
             <Input
-              className="mt-1.5"
+              className="mt-1.5"    
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
@@ -293,7 +285,6 @@ const AccountPage = ({ params }: PageProps) => {
               />
             </div>
           </div>
-
           <div className="w-full">
             <Label>Bank Details</Label>
             <Input

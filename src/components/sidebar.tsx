@@ -5,19 +5,20 @@ import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
+  ArrowUpLeft,
+  Check,
   CheckCheck,
   CircleCheckBig,
   CornerLeftUp,
+  FileSpreadsheet,
   House,
   LoaderCircle,
-  MessageCircleQuestion,
   NotebookPen,
   PencilLine,
   PersonStanding,
   ScanEye,
   Speech,
   User2Icon,
-  Users,
 } from "lucide-react";
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -38,6 +39,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/property",
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,
+    },
+    {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
     },
   ],
   Admin: [
@@ -78,7 +84,7 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/employee",
       label: "Manage Employee",
-      Icon: <Users size={18} />,
+      Icon: <User2Icon size={18} />,
     },
     {
       path: "/dashboard/user",
@@ -88,43 +94,43 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/property",
       label: "Manage Task",
-      Icon: <CircleCheckBig size={18} />,
+      Icon: <Check size={18} />,
     },
     {
       path: "/dashboard/newproperty",
       label: "Manage Newtask",
-      Icon: <Users size={18} />,
+      Icon: <Check size={18} />,
     },
     {
       path: "/dashboard/remainingproperties",
       label: "Leftover Task",
-      Icon: <CornerLeftUp size={18} />,
+      Icon: <ArrowUpLeft size={18} />,
     },
     {
       path: "/dashboard/completedproperties",
       label: "Completed Task",
-      Icon: <CheckCheck size={18} />,
-    },
-    {
-      path: "/dashboard/allblogs",
-      label: "Read Blogs",
-      Icon: <ScanEye size={18} />,
+      Icon: <Check size={18} />,
     },
     {
       path: "/dashboard/createblog",
       label: "Create Blog",
-      Icon: <NotebookPen size={18} />,
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/allblogs",
+      label: "Read Blogs",
+      Icon: <FileSpreadsheet size={18} />,
     },
     {
       path: "/dashboard/createquery",
-      label: "Create Lead",
+      label: "Create Lead(Lead)",
       Icon: <PencilLine size={18} />,
     },
-    // {
-    //   path: "/dashboard/createdQuery",
-    //   label: "Created Lead",
-    //   Icon: <CalendarPlus size={18} />,
-    // },
+    {
+      path: "/dashboard/rolebaseLead",
+      label: "Leads(Sales)",
+      Icon: <PencilLine size={18} />,
+    },
     {
       path: "/dashboard/candidatePortal",
       label: "Register Candidate",
@@ -145,12 +151,22 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
+    {
+      path: "/dashboard/manageQuestion",
+      label: "Create Qa",
+      Icon: <User2Icon size={18} />,
+    },
   ],
   Sales: [
     {
-      path: "/dashboard/createquery",
-      label: "Leads",
+      path: "/dashboard/rolebaseLead",
+      label: "Lead(Sales)",
       Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <User2Icon size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",
@@ -158,12 +174,19 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <House size={18} />,
     },
   ],
+  HR: [
+    {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <User2Icon size={18} />,
+    },
+  ],
 };
 
 export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState("");
+  // const [currentUser, setCurrentUser] = useState("");
   const currentPath = usePathname();
 
   const getUserRole = async () => {
@@ -173,7 +196,7 @@ export function Sidebar() {
       console.log("API response:", response.data.user.role);
       if (response.data && response.data.user && response.data.user.role) {
         setUserRole(response.data.user.role);
-        setCurrentUser(response.data.user.name);
+        // setCurrentUser(response.data.user.name);
       } else {
         console.error("No role found in the response.");
       }
@@ -205,7 +228,6 @@ export function Sidebar() {
         </li>
       );
     }
-
     const routes = roleRoutes[userRole as keyof typeof roleRoutes];
     if (!routes) {
       return <li>Invalid role</li>;
@@ -216,7 +238,7 @@ export function Sidebar() {
         key={route.path}
         className={`${
           isActive(currentPath, route.path)
-            ? "bg-primary/40  rounded-l-sm border-r-4 border-primary"
+            ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
             : ""
         }`}
       >

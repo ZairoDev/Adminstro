@@ -23,6 +23,7 @@ export default function NoRolePage() {
       alert("An error occurred. Please try again.");
     }
   };
+  
   return (
     <>
       <div className="absolute top-4 right-4">

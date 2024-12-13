@@ -66,13 +66,10 @@ import { connectDb } from "@/util/db";
 
 export const dynamic = "force-dynamic";
 
-
-
 connectDb();
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
     const limit = Number(url.searchParams.get("limit")) || 12;

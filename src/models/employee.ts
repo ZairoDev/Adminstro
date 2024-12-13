@@ -68,6 +68,10 @@ const employeeSchema = new Schema<IEmployee>(
       type: String,
       required: [true, "Password is required"],
     },
+    allotedArea: {
+      type: String,
+      required: false,
+    },
     isVerified: {
       type: Boolean,
       default: true,
@@ -81,7 +85,6 @@ const employeeSchema = new Schema<IEmployee>(
       type: Map,
       of: Schema.Types.Mixed,
     },
-
     passwordExpiresAt: {
       type: Date,
       default: () => {

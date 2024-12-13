@@ -271,6 +271,7 @@ export const propertyTypes: string[] = [
 
 export interface IQuery {
   _id?: string;
+  isViewed?: boolean;
   leadQualityByReviwer?: string;
   rejectionReason?: string;
   budgetFrom?: string;

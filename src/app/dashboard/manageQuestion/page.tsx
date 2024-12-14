@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-
 function Page() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,7 +23,6 @@ function Page() {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
     null
   );
-
   const handleSearch = async (term: string) => {
     setLoading(true);
     setError("");
@@ -39,9 +37,7 @@ function Page() {
       setLoading(false);
     }
   };
-
   const [deleting, setDeleting] = useState(false);
-
   const handleDelete = async () => {
     if (!selectedQuestionId) return;
     setLoading(true);
@@ -74,7 +70,6 @@ function Page() {
       setSelectedQuestionId(null);
     }
   };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
     setSearchTerm(term);
@@ -88,7 +83,6 @@ function Page() {
   useEffect(() => {
     handleSearch("");
   }, []);
-
   return (
     <div className="">
       <div className="w-full mt-2 flex items-center justify-between">
@@ -143,14 +137,13 @@ function Page() {
               </div>
             )}
       </div>
-
       {/* Confirmation Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Question</DialogTitle>
           </DialogHeader>
-          <p>
+          <p className="text-sm">
             Are you sure you want to delete this question? This action cannot be
             undone.
           </p>

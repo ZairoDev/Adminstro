@@ -32,7 +32,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       password,
       profilePic,
     } = parsedBody;
-
     const existingUser = await Employees.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
@@ -40,13 +39,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         { status: 400 }
       );
     }
-
     const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(password, salt); 
-
-    // const passwordExpiresAt = new Date();
-    // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
-
+    const hashedPassword = await bcryptjs.hash(password, salt);
     const newUser = new Employees({
       name,
       email,
@@ -68,8 +62,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       profilePic,
     });
     const createUser = await newUser.save();
-    console.log(newUser);
-    console.log(createUser);
 
     return NextResponse.json({
       message: "Employee created successfully.",
@@ -80,7 +72,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       const errorMessages = error.errors.map((err) => err.message);
       return NextResponse.json({ errors: errorMessages }, { status: 400 });
     }
-
     console.error("Error while creating Employee:", error);
     return NextResponse.json(
       { error: "Error while creating user" },

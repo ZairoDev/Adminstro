@@ -43,7 +43,7 @@ import {
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/leadTable/LeadTable";
-import { SlidersHorizontal } from "lucide-react";
+import { PhoneCall, SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
@@ -75,10 +75,10 @@ const SalesDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 10),
-  });
+  // const [date, setDate] = React.useState<DateRange | undefined>({
+  //   from: new Date(),
+  //   to: addDays(new Date(), 10),
+  // });
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [customDateRange, setCustomDateRange] = useState({
@@ -492,6 +492,15 @@ const SalesDashboard = () => {
                     </div>
                   </div>
                   {/* Section 3: Budget Details */}
+
+                  <div>
+                      <h1>
+                        <h2>
+                          
+                        </h2>
+                      </h1>
+                  </div>
+
                   <div className="mt-2 ml-1">
                     <h3 className="text-lg font-semibold border-b  mt-4 mb-1">
                       Budget Details
@@ -679,6 +688,7 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
                       <div>
                         <Label>Zone*</Label>
                         <Select

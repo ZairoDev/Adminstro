@@ -196,7 +196,6 @@ export function Sidebar() {
       console.log("API response:", response.data.user.role);
       if (response.data && response.data.user && response.data.user.role) {
         setUserRole(response.data.user.role);
-        // setCurrentUser(response.data.user.name);
       } else {
         console.error("No role found in the response.");
       }
@@ -215,12 +214,11 @@ export function Sidebar() {
       return (
         <>
           <div className="flex items-center justify-center">
-            <LoaderCircle className="animate-spin " size={18} />
+            <LoaderCircle className="animate-spin" size={18} />
           </div>
         </>
       );
     }
-
     if (!userRole) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
@@ -232,7 +230,6 @@ export function Sidebar() {
     if (!routes) {
       return <li>Invalid role</li>;
     }
-
     return routes.map((route) => (
       <li
         key={route.path}
@@ -255,32 +252,33 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="hidden lg:block w-60 border-r fixed h-screen">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-primary p-4">
-            <Link href="/">Adminstro</Link>
-          </h2>
-          <div className="mr-1">
-            <ModeToggle />
+      <div>
+        <div className="hidden lg:block w-60 border-r fixed h-screen">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-primary p-4">
+              <Link href="/">Adminstro</Link>
+            </h2>
+            <div className="mr-1">
+              <ModeToggle />
+            </div>
+          </div>
+          <div>
+            <nav className="flex flex-col  justify-between ">
+              <ul>
+                <li className="flex-grow">{renderRoutes(true)}</li>
+              </ul>
+            </nav>
           </div>
         </div>
-        <div>
-          <nav className="flex flex-col  justify-between ">
-            <ul>
-              <li className="flex-grow">{renderRoutes(true)}</li>
+        <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
+          <nav className="mx-auto ">
+            <ul className="">
+              <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
+                {renderRoutes(false)}
+              </li>
             </ul>
           </nav>
         </div>
-      </div>
-
-      <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
-        <nav className="mx-auto ">
-          <ul className="">
-            <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
-              {renderRoutes(false)}
-            </li>
-          </ul>
-        </nav>
       </div>
     </>
   );

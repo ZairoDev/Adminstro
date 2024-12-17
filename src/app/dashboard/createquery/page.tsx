@@ -43,7 +43,7 @@ import {
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/leadTable/LeadTable";
-import { SlidersHorizontal } from "lucide-react";
+import { Divide, SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
@@ -68,6 +68,9 @@ interface FetchQueryParams {
 const SalesDashboard = () => {
   const { userRole } = useUserRole();
   const [queries, setQueries] = useState<IQuery[]>([]);
+  // const [selectedTerm, setSelectedTerm] = useState(""); // State to store the selected term
+  // const [formData, setFormData] = useState({ duration: "" });
+  // const [selectedTerm, setSelectedTerm] = useState("");
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
@@ -115,6 +118,9 @@ const SalesDashboard = () => {
     },
   });
   const limit: number = 12;
+  
+ 
+
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
       ...prevData,
@@ -129,7 +135,7 @@ const SalesDashboard = () => {
 
   // Handle input changes
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (normalInput) {
+    if (!normalInput) {
       setFormData((prev) => ({ ...prev, duration: e.target.value }));
     } else {
       validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
@@ -364,7 +370,7 @@ const SalesDashboard = () => {
                 value={searchType}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Type" />
+                  <SelectValue placeholder="Select Type"/>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
@@ -479,7 +485,17 @@ const SalesDashboard = () => {
                           </label>
                         </div>
                         <div className="w-full">
-                          <Label>Duration*</Label>
+                          <Label className="flex gap-4">Duration* {formData.bookingTerm ? (
+                            formData.bookingTerm === "Short Term" ? (
+                              <div className="text-xs "> Fill in days from 1-28</div>
+                            ) : formData.bookingTerm === "Mid Term" ? (
+                              <div className="text-xs "> Fill in months from 1-3</div>
+                            ) : formData.bookingTerm === "Long Term" ? (
+                              <div className="text-xs "> Fill in months from 4-12</div>
+                            ) : null
+                          ) : null}
+                          </Label>
+
                           <Input
                             name="duration"
                             className="w-full"
@@ -488,6 +504,7 @@ const SalesDashboard = () => {
                             placeholder="Enter duration based on term"
                           />
                         </div>
+
                       </div>
                     </div>
                   </div>
@@ -528,6 +545,8 @@ const SalesDashboard = () => {
                         <Input
                           type="number"
                           name="guest"
+                          min={1}
+                          defaultValue={1}
                           value={formData.guest}
                           onChange={handleInputChange}
                           placeholder="Enter name"
@@ -538,6 +557,8 @@ const SalesDashboard = () => {
                         <Input
                           type="number"
                           name="noOfBeds"
+                          min={1}
+                          defaultValue={1}
                           value={formData.noOfBeds}
                           onChange={handleInputChange}
                           placeholder="Enter name"

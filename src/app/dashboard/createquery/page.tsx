@@ -529,6 +529,7 @@ const SalesDashboard = () => {
                           type="number"
                           name="guest"
                           value={formData.guest}
+                          min={1}
                           onChange={handleInputChange}
                           placeholder="Enter name"
                         />
@@ -539,6 +540,7 @@ const SalesDashboard = () => {
                           type="number"
                           name="noOfBeds"
                           value={formData.noOfBeds}
+                          min={0}
                           onChange={handleInputChange}
                           placeholder="Enter name"
                         />

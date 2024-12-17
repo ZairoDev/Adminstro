@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { jwtVerify } from "jose";
+import { redirect } from "next/navigation";
 
 export const getDataFromToken = async (request: NextRequest) => {
   try {
@@ -10,6 +11,10 @@ export const getDataFromToken = async (request: NextRequest) => {
     console.log(payload, "PayLoad gonna print here");
     return payload;
   } catch (error: any) {
-    throw new Error(error.message);
+    console.log("errrrrror: ", error);
+    if (error instanceof Error) {
+      if ((error.name = "JWTExpired")) redirect("/norole");
+    }
+    throw new Error("Token Expired");
   }
 };

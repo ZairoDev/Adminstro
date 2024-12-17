@@ -6,9 +6,11 @@ import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
   ArrowUpLeft,
+  CalendarPlus,
   Check,
   CheckCheck,
   CircleCheckBig,
+  CircleX,
   CornerLeftUp,
   FileSpreadsheet,
   House,
@@ -20,6 +22,7 @@ import {
   Speech,
   User2Icon,
 } from "lucide-react";
+
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
 
@@ -121,15 +124,27 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Read Blogs",
       Icon: <FileSpreadsheet size={18} />,
     },
+
     {
       path: "/dashboard/createquery",
-      label: "Create Lead(Lead)",
+      label: "Create Lead",
       Icon: <PencilLine size={18} />,
+    },
+
+    {
+      path: "/dashboard/createdQuery",
+      label: "Created Lead",
+      Icon: <CalendarPlus size={18} />,
     },
     {
       path: "/dashboard/rolebaseLead",
-      label: "Leads(Sales)",
+      label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/rejectedleads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
       path: "/dashboard/candidatePortal",
@@ -151,22 +166,17 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
-    {
-      path: "/dashboard/manageQuestion",
-      label: "Create Qa",
-      Icon: <User2Icon size={18} />,
-    },
   ],
   Sales: [
     {
       path: "/dashboard/rolebaseLead",
-      label: "Lead(Sales)",
+      label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/employee",
-      label: "Manage Employee",
-      Icon: <User2Icon size={18} />,
+      path: "/dashboard/rejectedleads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",
@@ -177,8 +187,8 @@ const roleRoutes: Record<string, Route[]> = {
   HR: [
     {
       path: "/dashboard/employee",
-      label: "Manage Employee",
-      Icon: <User2Icon size={18} />,
+      label: "Employees",
+      Icon: <PencilLine size={18} />,
     },
   ],
 };
@@ -186,14 +196,12 @@ const roleRoutes: Record<string, Route[]> = {
 export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // const [currentUser, setCurrentUser] = useState("");
   const currentPath = usePathname();
 
   const getUserRole = async () => {
     try {
       setIsLoading(true);
       const response = await axios.get("/api/user/getloggedinuser");
-      console.log("API response:", response.data.user.role);
       if (response.data && response.data.user && response.data.user.role) {
         setUserRole(response.data.user.role);
       } else {
@@ -222,7 +230,10 @@ export function Sidebar() {
     if (!userRole) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
-          Visitor
+          <img
+            src="https://vacationsaga.b-cdn.net/assets/logo2.webp"
+            className=" w-40 md:w-4/5"
+          />
         </li>
       );
     }

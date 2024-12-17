@@ -10,29 +10,18 @@ import {
   Building,
   Calendar,
   Copy,
-  DollarSign,
   Euro,
   Flag,
   Home,
   House,
-  IdCard,
   KeyRound,
   Loader2,
   MapPin,
   User,
   Users,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/context/UserRoleContext";
 
@@ -47,7 +36,7 @@ const QueryDetails = ({ params }: PageProps) => {
   const { userRole } = useUserRole();
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [retrieveLeadLoading, setRetrieveLeadLoading] = useState(false);
   const [leadQuality, setLeadQuality] = useState<string>("");
   const [saveLoading, setSaveLoading] = useState(false);
   const handleSave = async () => {
@@ -80,6 +69,25 @@ const QueryDetails = ({ params }: PageProps) => {
     response();
   }, []);
 
+  const retrieveLead = async (leadId: string) => {
+    setRetrieveLeadLoading(true);
+    try {
+      const response = await axios.post("/api/sales/retrieveLead", { leadId });
+      console.log("response: ", response);
+    } catch (err: any) {
+      console.log("err: ", err);
+    } finally {
+      setRetrieveLeadLoading(false);
+      if (apiData) {
+        setApiData((prev: any) => {
+          const newData = { ...prev };
+          newData.rejectionReason = null;
+          return newData;
+        });
+      }
+    }
+  };
+
   const InfoItem = ({
     icon: Icon,
     label,
@@ -102,7 +110,7 @@ const QueryDetails = ({ params }: PageProps) => {
         heading="Lead Details"
         subheading="Details about the leads , please rate it according to your experience"
       />
-      <div>
+      <div className=" relative">
         {loading ? (
           <div className="flex items-center justify-center">
             <Loader2 size={18} className="animate-spin" />
@@ -247,11 +255,33 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     )}
+                    <div className=" flex gap-x-4 items-center">
+                      {apiData?.rejectionReason && (
+                        <p>
+                          Reason for Rejection: &nbsp;&nbsp;{" "}
+                          {apiData?.rejectionReason}
+                        </p>
+                      )}
+                      {apiData?.rejectionReason && (
+                        <Button onClick={() => retrieveLead(apiData?._id!)}>
+                          {retrieveLeadLoading
+                            ? "Retreiving..."
+                            : "Retreive Lead"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
                 <Separator />
               </Card>
             </div>
+          </div>
+        )}
+        {apiData?.rejectionReason && (
+          <div>
+            <p className=" text-red-500 opacity-30 text-7xl font-bold rotate-315 absolute top-1/2 left-1/3">
+              REJECTED
+            </p>
           </div>
         )}
       </div>

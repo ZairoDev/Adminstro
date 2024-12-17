@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
 
-const roleAccess: { [key: string]: (string | RegExp)[] } = {     
+const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
     "/admin",
@@ -49,17 +49,20 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Sales: [
     "/",
-    "/dashboard/createquery",
+    "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
+    "/dashboard/rolebaseLead",
   ],
+  HR: ["/", /^\/dashboard\/employee\/.*$/, "/dashboard/employee"],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
   Admin: "/dashboard/user",
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
-  Sales: "/dashboard/createquery",
+  Sales: "/dashboard/rolebaseLead",
+  HR: "/dashboard/employee",
 };
 const publicRoutes = [
   "/",
@@ -113,7 +116,7 @@ export async function middleware(request: NextRequest) {
       }
     } catch (error: any) {
       console.error("Error getting role from token:", error);
-      if (error.response.error === "Token Expired") {
+      if (error.message === "Token Expired") {
         return NextResponse.redirect(new URL("/norole", request.url));
       }
       return NextResponse.redirect(new URL("/login", request.url));

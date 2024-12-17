@@ -68,7 +68,19 @@ export default function HomePage() {
         <>
           {userRole ? (
             userRole === "Sales" ? (
-              <Link href="/dashboard/createquery">
+              <Link href="/dashboard/rolebaseLead">
+                <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Dashboard
+                </RainbowButton>
+              </Link>
+            ) : userRole === "Content" ? (
+              <Link href="/dashboard/remainingproperties">
+                <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Dashboard
+                </RainbowButton>
+              </Link>
+            ) : userRole === "HR" ? (
+              <Link href="/dashboard/employee">
                 <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Dashboard
                 </RainbowButton>
@@ -82,7 +94,7 @@ export default function HomePage() {
             )
           ) : (
             <Link href="/login">
-              <RainbowButton>Login if you can</RainbowButton>
+              <RainbowButton>Login</RainbowButton>
             </Link>
           )}
         </>

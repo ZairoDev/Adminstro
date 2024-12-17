@@ -31,10 +31,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const temp: Employee = Employee[0];
-    const validPassword: boolean = await bcryptjs.compare(
-      password,
-      temp.password
-    );
+    // const validPassword: boolean = await bcryptjs.compare(
+    //   password,
+    //   temp.password
+    // );
+
+    console.log("temp: ", temp, temp.password, password);
+
+    const validPassword: boolean = temp.password === password;
     if (!validPassword) {
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       allotedArea: temp.allotedArea,
     };
 
-console.log(tokenData , "Token Data ")
+    console.log(tokenData, "Token Data ");
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
       expiresIn: "1d",

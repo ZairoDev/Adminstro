@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CiViewColumn } from "react-icons/ci";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,9 @@ import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
 import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
+import axios from "axios";
+import { toast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
@@ -73,9 +76,11 @@ export function DataTable({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
+  const [isPasswordGenerating, setIsPasswordGenerating] = React.useState(false);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const router = useRouter();
 
   // Serial number column definition
   const serialNumberColumn: ColumnDef<UserInterface, any> = {
@@ -123,6 +128,21 @@ export function DataTable({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  const ResetAllPasswords = async () => {
+    try {
+      setIsPasswordGenerating(true);
+      const response = await axios.get("/api/resetAllPasswords");
+      window.location.reload();
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        description: "Error in resetting password",
+      });
+    } finally {
+      setIsPasswordGenerating(false);
+    }
+  };
 
   return (
     <>
@@ -178,6 +198,13 @@ export function DataTable({
             </Link>
           </div>
         </div>
+
+        <Button
+          className=" hidden md:block mb-2"
+          onClick={() => ResetAllPasswords()}
+        >
+          {isPasswordGenerating ? "Generating ..." : "Generate Passwords"}
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -1,5 +1,6 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -23,10 +24,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
   }
-  console.log(
-    `currentPage: ${currentPage}, queryType: ${queryType}, userInput: ${EmployeeInput}`
-  );
-  const query: UserQuery = {};
+  const token = await getDataFromToken(request);
+  const role = token.role;
+
+  // const query: UserQuery = {};
+  const query: UserQuery & { role?: { $nin: string[] } } = {};
 
   const validQueryTypes = ["name", "email", "phone"];
   if (queryType && validQueryTypes.includes(queryType)) {
@@ -39,6 +41,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const skip = (currentPage - 1) * 20;
+
+  if (role === "HR") {
+    query.role = { $nin: ["SuperAdmin", "Developer"] };
+  }
 
   try {
     console.log(`Query: ${JSON.stringify(query)}`);
@@ -58,5 +64,3 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 }
-
-// TODO Above code is working fine

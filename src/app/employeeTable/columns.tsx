@@ -41,14 +41,19 @@ export const columns: ColumnDef<UserInterface>[] = [
     ),
     cell: ({ getValue }) => renderCell(getValue()),
   },
-  {
-    accessorKey: "nationality",
-    header: "Nationality",
-    cell: ({ getValue }) => renderCell(getValue()),
-  },
+  // {
+  //   accessorKey: "nationality",
+  //   header: "Nationality",
+  //   cell: ({ getValue }) => renderCell(getValue()),
+  // },
   {
     accessorKey: "role",
     header: "Role",
+    cell: ({ getValue }) => renderCell(getValue()),
+  },
+  {
+    accessorKey: "password",
+    header: "Passwords",
     cell: ({ getValue }) => renderCell(getValue()),
   },
   {
@@ -79,7 +84,9 @@ export const columns: ColumnDef<UserInterface>[] = [
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href={`/dashboard/employeedetails/${user._id}`}>Actions</Link>
+              <Link href={`/dashboard/employeedetails/${user._id}`}>
+                Actions
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

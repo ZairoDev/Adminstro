@@ -41,6 +41,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const salt = await bcryptjs.genSalt(10);
     const hashedPassword = await bcryptjs.hash(password, salt);
+
+    // const passwordExpiresAt = new Date();
+    // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
+
     const newUser = new Employees({
       name,
       email,
@@ -58,7 +62,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       dateOfJoining,
       experience,
       phone,
-      password: hashedPassword,
+      // password: hashedPassword,
+      password,
       profilePic,
     });
     const createUser = await newUser.save();

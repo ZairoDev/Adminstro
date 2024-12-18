@@ -43,15 +43,17 @@ import {
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/leadTable/LeadTable";
-import { Divide, SlidersHorizontal } from "lucide-react";
+import { CheckCheckIcon, SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
-import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useUserRole } from "@/context/UserRoleContext";
 import Pusher from "pusher-js";
 import { Toaster } from "@/components/ui/toaster";
+import { useForm } from "react-hook-form";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+import axios from "axios";
 
 interface ApiResponse {
   data: IQuery[];
@@ -74,14 +76,11 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
+  const [phone, setPhone] = useState<string>("");
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 10),
-  });
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [customDateRange, setCustomDateRange] = useState({
@@ -94,6 +93,7 @@ const SalesDashboard = () => {
   const [view, setView] = useState("Table View");
   const { toast } = useToast();
   const [normalInput, setNormalInput] = useState(false);
+  const [numberStatus, setNumberStatus] = useState("");
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -118,8 +118,12 @@ const SalesDashboard = () => {
     },
   });
   const limit: number = 12;
-  
- 
+
+  const {
+    register,
+    formState: { errors },
+  } = useForm();
+
 
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
@@ -133,6 +137,37 @@ const SalesDashboard = () => {
     setNormalInput(e.target.checked);
   };
 
+  const [checking, setChecking] = useState(false);
+
+  const handleNumberSearch = async () => {
+    try {
+      if (!phone) {
+        setNumberStatus("Please enter a phone number.");
+        return;
+      }
+      setChecking(true);
+      const response = await axios.post("/api/sales/checkNumber", {
+        phoneNo: phone,
+      });
+      if (response.data.success) {
+        if (response.data.exists) {
+          setNumberStatus("❌ Phone number already exists.");
+        } else {
+          setNumberStatus("✅ Phone number is available.");
+
+        }
+        setChecking(false);
+      } else {
+        setNumberStatus("Error checking the phone number. Try again.");
+      }
+      setChecking(false);
+    } catch (error) {
+      console.error("Error:", error);
+      setNumberStatus("Server error. Please try again later.");
+      setChecking(false);
+    }
+  };
+
   // Handle input changes
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!normalInput) {
@@ -142,10 +177,12 @@ const SalesDashboard = () => {
     }
   };
 
+
   const handleSubmit = async () => {
     try {
       const emptyFields: string[] = [];
       const { budgetFrom, budgetTo, ...otherFields } = formData;
+
       const budget = `${budgetFrom} to ${budgetTo}`;
       Object.entries(formData).forEach(([key, value]) => {
         if (value === "" || value === null || value === undefined) {
@@ -168,6 +205,7 @@ const SalesDashboard = () => {
       const formDataToSubmit = {
         ...otherFields,
         budget,
+        phoneNo: phone
       };
       setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
@@ -370,7 +408,7 @@ const SalesDashboard = () => {
                 value={searchType}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Type"/>
+                  <SelectValue placeholder="Select Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
@@ -413,15 +451,37 @@ const SalesDashboard = () => {
                           placeholder="Enter full name"
                         />
                       </div>
-                      <div className="ml-1">
-                        <Label>Phone No*</Label>
-                        <Input
-                          type="number"
-                          name="phoneNo"
-                          value={formData.phoneNo}
-                          onChange={handleInputChange}
-                          placeholder="Enter phone number"
-                        />
+                      {/* <div className="w-full ">
+                        
+
+                      </div> */}
+                      <div className="flex justify-between ">
+                        <div className="w-full">
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <PhoneInput
+                            {...register("phone")}
+                            className="phone-input border-red-500"
+                            placeholder="Enter phone number"
+                            type="text"
+                            value={phone}
+                            international
+                            countryCallingCodeEditable={false}
+                            error={"Phone number required"}
+                            onChange={(value) => setPhone(value || "")}
+                          />
+                          {numberStatus && (
+                            <div className="mt-2 text-sm">{numberStatus}</div>
+                          )}
+                        </div>
+                        <div className="mt-6 ml-1">
+                          <Button
+                            type="button"
+                            onClick={handleNumberSearch}
+                            disabled={!phone || checking}
+                          >
+                            <CheckCheckIcon size={18} />
+                          </Button>
+                        </div>
                       </div>
                       <div className="ml-1">
                         <Label>Email</Label>
@@ -465,9 +525,7 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Short Term">
-                              Short Term
-                            </SelectItem>
+                            <SelectItem value="Short Term">Short Term</SelectItem>
                             <SelectItem value="Mid Term">Mid Term</SelectItem>
                             <SelectItem value="Long Term">Long Term</SelectItem>
                           </SelectContent>
@@ -475,19 +533,19 @@ const SalesDashboard = () => {
                       </div>
                       <div className="flex  items-center gap-x-1 w-full">
                         <div className="">
-                          
+
                         </div>
                         <div className="w-full">
-                        <Label className="flex gap-3 m-1">
-                          Duration* 
-                          <p className="text-xs">Tick this to fill in Number</p>
-                          <input
+                          <Label className="flex gap-3 m-1">
+                            Duration*
+                            <p className="text-xs">Tick this to fill in Number</p>
+                            <input
                               className="rounded-full"
                               type="checkbox"
                               checked={normalInput}
                               onChange={handleCheckboxChange}
                             />
-                        </Label>                          
+                          </Label>
                           <Input
                             name="duration"
                             className="w-full"
@@ -496,10 +554,10 @@ const SalesDashboard = () => {
                             placeholder={formData.bookingTerm === "Short Term"
                               ? "Fill in days from 1-28"
                               : formData.bookingTerm === "Mid Term"
-                              ? "Fill in months from 1-3"
-                              : formData.bookingTerm === "Long Term"
-                              ? "Fill in months from 4-12"
-                              : "Enter duration based on term"}
+                                ? "Fill in months from 1-3"
+                                : formData.bookingTerm === "Long Term"
+                                  ? "Fill in months from 4-12"
+                                  : "Enter duration based on term"}
                           />
                         </div>
 
@@ -690,7 +748,7 @@ const SalesDashboard = () => {
                           <SelectContent>
                             <SelectItem value="Furnished">Furnished</SelectItem>
                             <SelectItem value="Un - furnished">
-                              Un - furnished
+                              Un- furnished
                             </SelectItem>
                             <SelectItem value="Semi-furnished">
                               Semi-furnished
@@ -698,6 +756,7 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
                       <div>
                         <Label>Zone*</Label>
                         <Select

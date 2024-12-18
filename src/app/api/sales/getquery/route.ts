@@ -9,7 +9,6 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
-
 connectDb();
 export const dynamic = "force-dynamic";
 

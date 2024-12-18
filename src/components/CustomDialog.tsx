@@ -22,6 +22,7 @@ import uploadImagesToBunny from "@/helper/uploadImagesToBunny";
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import {
 	ContextMenu,
@@ -123,8 +124,8 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
 						available in the database
 					</DialogDescription>
 				</DialogHeader>
-				<div className="flex justify-between items-end">
-					<div className="">
+				<div className="flex gap-x-2 justify-between w-full items-end">
+					<div className=" ">
 						<Label htmlFor="name" className="text-right">
 							Owner&apos; Name
 						</Label>
@@ -135,10 +136,12 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
 							ref={ownerNameRef}
 						/>
 					</div>
-					<div className="w-full">
+					
+					<div className="w-full  ">
 						<Label htmlFor="phone">Phone Number</Label>
+						<div className="flex items-center gap-2">
 						<PhoneInput
-							className="custom-phone PhoneInputCountryIcon"
+							className="phone-input w-full border-red-500"
 							placeholder="Enter phone number"
 							international
 							countryCallingCodeEditable={false}
@@ -147,14 +150,19 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
 								setMobile(value?.toString() || "");
 							}}
 						/>
-					</div>
-					<Button onClick={getPropertiesOfUser}>
+						<Button onClick={getPropertiesOfUser}>
 						{isLoading
 							? "Verifying..."
 							: !isLoading && userProperties.length > 0
 							? "✔"
 							: "Verify"}
 					</Button>
+						</div>
+						
+					</div>
+					
+					
+					
 				</div>
 				{userProperties?.length > 0 && (
 					<ScrollArea className="whitespace-nowrap rounded-md border w-full">

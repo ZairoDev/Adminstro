@@ -3,6 +3,8 @@ import React, { useState, ChangeEvent, FormEvent } from "react";
 import Heading from "@/components/Heading";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import {
   Select,
   SelectContent,
@@ -31,13 +33,24 @@ const CandidatePortal: React.FC = () => {
     position: "",
   });
   const [loading, setLoading] = useState(false);
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+
+  // Handler for regular input fields (name, email, position)
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
+
+  // Handler for PhoneInput, which expects E164Number or undefined
+  const handlePhoneChange = (value: string | undefined) => {
+    setFormData((prev) => ({
+      ...prev,
+      phone: value || "", // Ensure that phone is always a string
+    }));
+  };
+
   const handleSelectChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -74,16 +87,14 @@ const CandidatePortal: React.FC = () => {
       setLoading(false);
     }
   };
+
   return (
     <div className="">
       <Heading
         heading="Candidate Portal"
         subheading="Fill in the candidate details below to register."
       />
-      <form
-        onSubmit={handleSubmit}
-        className="border p-4 rounded-md  shadow-md"
-      >
+      <form onSubmit={handleSubmit} className="border p-4 rounded-md shadow-md">
         <div className="gap-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           <div>
             <Label htmlFor="name">Name</Label>
@@ -91,7 +102,7 @@ const CandidatePortal: React.FC = () => {
               id="name"
               name="name"
               value={formData.name}
-              onChange={handleChange}
+              onChange={handleInputChange}
               placeholder="Candidate Name"
               required
             />
@@ -103,25 +114,25 @@ const CandidatePortal: React.FC = () => {
               name="email"
               type="email"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleInputChange}
               pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
               placeholder="Candidate Email"
               required
             />
           </div>
-          <div>
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
+          <div className="w-full ">
+            <Label htmlFor="phone">Phone Number</Label>
+            <PhoneInput
+              className="phone-input border-red-500"
+              placeholder="Enter phone number"
               value={formData.phone}
-              onChange={handleChange}
-              pattern="^\+?[0-9]{10,15}$"
-              placeholder="Candidate Phone Number"
-              required
+              international
+              countryCallingCodeEditable={false}
+              error={"Phone number required"}
+              onChange={handlePhoneChange} // Use the correct handler here
             />
           </div>
+
           <div>
             <Label htmlFor="position">Position</Label>
             <Select

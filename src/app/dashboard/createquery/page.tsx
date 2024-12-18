@@ -475,33 +475,31 @@ const SalesDashboard = () => {
                       </div>
                       <div className="flex  items-center gap-x-1 w-full">
                         <div className="">
-                          <label>
-                            <input
+                          
+                        </div>
+                        <div className="w-full">
+                        <Label className="flex gap-3 m-1">
+                          Duration* 
+                          <p className="text-xs">Tick this to fill in Number</p>
+                          <input
                               className="rounded-full"
                               type="checkbox"
                               checked={normalInput}
                               onChange={handleCheckboxChange}
                             />
-                          </label>
-                        </div>
-                        <div className="w-full">
-                          <Label className="flex gap-4">Duration* {formData.bookingTerm ? (
-                            formData.bookingTerm === "Short Term" ? (
-                              <div className="text-xs "> Fill in days from 1-28</div>
-                            ) : formData.bookingTerm === "Mid Term" ? (
-                              <div className="text-xs "> Fill in months from 1-3</div>
-                            ) : formData.bookingTerm === "Long Term" ? (
-                              <div className="text-xs "> Fill in months from 4-12</div>
-                            ) : null
-                          ) : null}
-                          </Label>
-
+                        </Label>                          
                           <Input
                             name="duration"
                             className="w-full"
                             value={formData.duration}
                             onChange={handleDurationChange}
-                            placeholder="Enter duration based on term"
+                            placeholder={formData.bookingTerm === "Short Term"
+                              ? "Fill in days from 1-28"
+                              : formData.bookingTerm === "Mid Term"
+                              ? "Fill in months from 1-3"
+                              : formData.bookingTerm === "Long Term"
+                              ? "Fill in months from 4-12"
+                              : "Enter duration based on term"}
                           />
                         </div>
 

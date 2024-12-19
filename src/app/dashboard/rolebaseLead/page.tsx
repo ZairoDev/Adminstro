@@ -208,7 +208,7 @@ const RolebasedLead = () => {
   }, [queries, allotedArea]);
 
   return (
-    <div>
+    <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
@@ -406,6 +406,7 @@ const RolebasedLead = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    salesPriority={query.salesPriority}
                     roomDetails={query.roomDetails}
                   />
                 </div>

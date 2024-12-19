@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 
 import {
@@ -26,6 +26,10 @@ import {
   ReceiptText,
   BookX,
   Loader2,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+  Circle,
+  CircleDot,
 } from "lucide-react";
 
 import { IQuery } from "@/util/type";
@@ -51,14 +55,20 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { useUserRole } from "@/context/UserRoleContext";
+import debounce from "lodash.debounce";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { userRole } = useUserRole();
+  const { toast } = useToast();
+
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
-  const { toast } = useToast();
+  const [salesPriority, setSalesPriority] = useState<
+    ("Low" | "High" | "None")[]
+  >(Array.from({ length: queries.length }, () => "None"));
+
   const InfoItem = ({
     icon: Icon,
     label,
@@ -169,11 +179,44 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       console.log("err: ", err);
     }
   };
+
+  const handleSalesPriority = (leadId: string | undefined, index: number) => {
+    if (!leadId) return;
+    const newSalesPriorities = [...salesPriority];
+    const newSalesPriority = newSalesPriorities[index];
+    if (newSalesPriority === "None") {
+      newSalesPriorities[index] = "Low";
+    } else if (newSalesPriorities[index] === "Low") {
+      newSalesPriorities[index] = "High";
+    } else {
+      newSalesPriorities[index] = "None";
+    }
+
+    setSalesPriority(newSalesPriorities);
+
+    changeSalesPriority(leadId, newSalesPriorities[index]);
+  };
+
+  const changeSalesPriority = useCallback(
+    debounce(async (leadId: string, priority: string) => {
+      const response = await axios.post("/api/sales/updateSalesPriority", {
+        leadId,
+        changedPriority: priority,
+      });
+    }, 2000),
+    []
+  );
+
+  useEffect(() => {
+    console.log("sales priority: ", salesPriority);
+  });
+
   return (
-    <div>
+    <div className=" w-full">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Priority</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -197,6 +240,18 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               }
             `}
             >
+              <TableCell
+                className=" cursor-pointer"
+                onClick={() => handleSalesPriority(query?._id, index)}
+              >
+                {salesPriority[index] === "High" ? (
+                  <ArrowBigUpDash />
+                ) : salesPriority[index] === "Low" ? (
+                  <ArrowBigDownDash />
+                ) : (
+                  <CircleDot />
+                )}
+              </TableCell>
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${

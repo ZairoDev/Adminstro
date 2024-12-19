@@ -117,6 +117,12 @@ const querySchema = new Schema(
       enum: ["High", "Low", "Medium"],
       require: [true, "Priority must be provided"],
     },
+    salesPriority: {
+      type: String,
+      enum: ["High", "Low", "Medium", "None"],
+      require: [true, "Priority must be provided"],
+      default: "None",
+    },
     roomDetails: {
       type: Object,
     },

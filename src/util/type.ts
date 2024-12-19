@@ -294,6 +294,7 @@ export interface IQuery {
   typeOfProperty: string;
   propertyType: string;
   priority: string;
+  salesPriority: string;
   roomDetails: {
     roomId: string;
     roomPassword: string;

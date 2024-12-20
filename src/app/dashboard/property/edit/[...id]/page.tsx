@@ -1182,7 +1182,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
-                      {propertyTypes.map((type) => (
+                      {propertyTypes?.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
                         </SelectItem>
@@ -1403,10 +1403,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
               <div>
                 <p className=" text-2xl mt-4">Nearby Locations</p>
-                {property?.nearbyLocations?.nearbyLocationName.map(
+                {property?.nearbyLocations?.nearbyLocationName?.map(
                   (item, index) =>
                     item != "" && (
-                      <div key={index} className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full my-2">
+                      <div
+                        key={index}
+                        className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full my-2"
+                      >
                         <div className="flex items-center sm:flex-row flex-col justify-between gap-x-2 w-full border border-neutral-700 rounded-lg p-2">
                           <div className=" w-1/4">
                             {
@@ -1821,7 +1824,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
               {numberOfPortions > 1 &&
                 Array.from({
                   length: numberOfPortions,
-                }).map((item, index) => {
+                })?.map((item, index) => {
                   return (
                     <div className=" flex  flex-col space-y-4 my-4" key={index}>
                       <div

@@ -6,6 +6,7 @@ import { ModeToggle } from "./themeChangeButton";
 import axios from "axios";
 import {
   ArrowUpLeft,
+  BellDot,
   CalendarPlus,
   Check,
   CheckCheck,
@@ -143,6 +144,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
+    },
+    {
       path: "/dashboard/rejectedleads",
       label: "Rejected Leads",
       Icon: <CircleX size={18} />,
@@ -173,6 +179,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/rolebaseLead",
       label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
     },
     {
       path: "/dashboard/rejectedleads",

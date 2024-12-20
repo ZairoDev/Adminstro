@@ -123,6 +123,9 @@ const querySchema = new Schema(
       require: [true, "Priority must be provided"],
       default: "None",
     },
+    reminder: {
+      type: Date,
+    },
     roomDetails: {
       type: Object,
     },

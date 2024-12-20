@@ -111,6 +111,7 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
+    salesPriority: "",
     roomDetails: {
       roomId: "",
       roomPassword: "",
@@ -201,6 +202,7 @@ const SalesDashboard = () => {
         typeOfProperty: "",
         propertyType: "",
         priority: "",
+        salesPriority: "",
         roomDetails: {
           roomId: "",
           roomPassword: "",
@@ -920,6 +922,7 @@ const SalesDashboard = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    salesPriority={query.salesPriority}
                     roomDetails={query.roomDetails}
                   />
                 </div>

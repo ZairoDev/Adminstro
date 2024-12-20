@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 
 import {
@@ -56,6 +56,14 @@ import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { useUserRole } from "@/context/UserRoleContext";
 import debounce from "lodash.debounce";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
+import { Calendar } from "../ui/calendar";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { userRole } = useUserRole();
@@ -68,6 +76,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
   >(Array.from({ length: queries.length }, () => "None"));
+  const [reminderDate, setReminderDate] = useState<Date | undefined>(
+    new Date(Date.now())
+  );
+  const ellipsisRef = useRef<HTMLButtonElement>(null);
 
   const InfoItem = ({
     icon: Icon,
@@ -186,10 +198,13 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     const newSalesPriority = newSalesPriorities[index];
     if (newSalesPriority === "None") {
       newSalesPriorities[index] = "Low";
+      queries[index].salesPriority = "Low";
     } else if (newSalesPriorities[index] === "Low") {
       newSalesPriorities[index] = "High";
+      queries[index].salesPriority = "High";
     } else {
       newSalesPriorities[index] = "None";
+      queries[index].salesPriority = "None";
     }
 
     setSalesPriority(newSalesPriorities);
@@ -203,20 +218,18 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
         leadId,
         changedPriority: priority,
       });
-    }, 2000),
+    }, 1000),
     []
   );
-
-  useEffect(() => {
-    console.log("sales priority: ", salesPriority);
-  });
 
   return (
     <div className=" w-full">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Priority</TableHead>
+            {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              <TableHead>Priority</TableHead>
+            )}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -244,12 +257,21 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 className=" cursor-pointer"
                 onClick={() => handleSalesPriority(query?._id, index)}
               >
-                {salesPriority[index] === "High" ? (
-                  <ArrowBigUpDash />
-                ) : salesPriority[index] === "Low" ? (
-                  <ArrowBigDownDash />
+                {query.salesPriority === "High" ? (
+                  <CustomTooltip
+                    icon={<ArrowBigUpDash fill="green" color="green" />}
+                    desc="High Priority"
+                  />
+                ) : query.salesPriority === "Low" ? (
+                  <CustomTooltip
+                    icon={<ArrowBigDownDash fill="red" color="red" />}
+                    desc="Low Priority"
+                  />
                 ) : (
-                  <CircleDot />
+                  <CustomTooltip
+                    icon={<CircleDot fill="" color="gray" />}
+                    desc="No Priority"
+                  />
                 )}
               </TableCell>
               <TableCell className="flex gap-x-1">
@@ -345,15 +367,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               </TableCell>
               <TableCell>
                 <div className=" flex gap-x-1">
-                  <CustomTooltip
+                  {/* <CustomTooltip
                     text={`${query?.location?.slice(0, 8)}...`}
                     desc={`Location - ${query?.location}`}
                   />
-                  <div>|</div>
+                  <div>|</div> */}
                   {/* <CustomTooltip text={query?.area} desc={"Customer area"} /> */}
                   <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
-                    desc={`Area - ${query?.area}`}
+                    desc={`Location - ${query?.location} / Area - ${query?.area}`}
                   />
                   <div>|</div>
                   <Badge className="  ">
@@ -459,7 +481,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">
+                    <Button
+                      variant="ghost"
+                      ref={ellipsisRef}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Ellipsis size={18} />
                     </Button>
                   </DropdownMenuTrigger>
@@ -486,6 +512,53 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           >
                             <DropdownMenuItem>Join Room</DropdownMenuItem>
                           </Link>
+
+                          <DropdownMenuItem>
+                            <AlertDialog
+                              onOpenChange={(isOpen) => {
+                                if (!isOpen) ellipsisRef.current?.focus();
+                              }}
+                            >
+                              <AlertDialogTrigger
+                                onClick={(e) => e.stopPropagation()}
+                                asChild
+                              >
+                                <p>Set Reminder</p>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent
+                                className=" flex flex-col items-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className=" z-10">
+                                  <Calendar
+                                    mode="single"
+                                    selected={reminderDate}
+                                    onSelect={(date) => {
+                                      setReminderDate(date);
+                                      console.log(date);
+                                    }}
+                                    className="rounded-md border shadow"
+                                  />
+                                  <div className=" flex justify-between w-full gap-x-4 mt-2">
+                                    <AlertDialogCancel className=" w-1/2">
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className=" w-1/2"
+                                      onClick={() => {
+                                        console.log(
+                                          "Date selected:",
+                                          reminderDate
+                                        );
+                                      }}
+                                    >
+                                      Continue
+                                    </AlertDialogAction>
+                                  </div>
+                                </div>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuItem>
                         </>
                       )}
                       <Link

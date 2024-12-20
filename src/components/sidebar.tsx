@@ -18,6 +18,7 @@ import {
   NotebookPen,
   PencilLine,
   PersonStanding,
+  Plus,
   ScanEye,
   Speech,
   User2Icon,
@@ -166,6 +167,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
+    {
+      path: "/dashboard/reminder",
+      label: "Reminder",
+      Icon: <Plus size={18} />,
+    },
   ],
   Sales: [
     {
@@ -274,7 +280,7 @@ export function Sidebar() {
             </div>
           </div>
           <div>
-            <nav className="flex flex-col  justify-between ">
+            <nav className="flex flex-col  justify-between">
               <ul>
                 <li className="flex-grow">{renderRoutes(true)}</li>
               </ul>

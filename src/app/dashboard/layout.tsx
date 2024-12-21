@@ -5,13 +5,31 @@ import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { LogoutButton } from "@/components/logoutAlertBox";
 import { Notifications } from "@/components/Notifications/Notifications";
 import { Sidebar } from "@/components/sidebar";
+import axios from "axios";
 import { BellDot } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [token, setToken] = useState<any>();
+
+  const getToken = async () => {
+    try {
+      const response = await axios.get("/api/user/getloggedinuser");
+      console.log("response of token in layout:  ", response.data.user);
+      setToken(response.data.user);
+    } catch (err: any) {
+      console.log("No token found in layout");
+    }
+  };
+
+  useEffect(() => {
+    getToken();
+  }, []);
+
   return (
     <div className="flex">
       <Sidebar />
@@ -21,7 +39,9 @@ export default function DashboardLayout({
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
-            <Notifications />
+            {(token?.role === "SuperAdmin" || token?.role === "Sales") && (
+              <Notifications />
+            )}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className="">
                 <CommandDialogDemo />

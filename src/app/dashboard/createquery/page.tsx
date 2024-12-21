@@ -112,6 +112,7 @@ const SalesDashboard = () => {
     propertyType: "",
     priority: "",
     salesPriority: "",
+    reminder: new Date(),
     roomDetails: {
       roomId: "",
       roomPassword: "",
@@ -203,6 +204,7 @@ const SalesDashboard = () => {
         propertyType: "",
         priority: "",
         salesPriority: "",
+        reminder: new Date(),
         roomDetails: {
           roomId: "",
           roomPassword: "",
@@ -922,6 +924,7 @@ const SalesDashboard = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    reminder={query.reminder}
                     salesPriority={query.salesPriority}
                     roomDetails={query.roomDetails}
                   />

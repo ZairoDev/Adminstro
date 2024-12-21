@@ -35,7 +35,7 @@ const ReminderPage = () => {
   }, []);
 
   return (
-    <div className=" w-full h-full flex">
+    <div className=" w-full h-[90vh] flex justify-center items-center">
       {reminderLoading ? (
         <LucideLoader2 className=" animate-spin" />
       ) : (

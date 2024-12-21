@@ -30,6 +30,7 @@ import {
   ArrowBigDownDash,
   Circle,
   CircleDot,
+  LucideLoader2,
 } from "lucide-react";
 
 import { IQuery } from "@/util/type";
@@ -75,7 +76,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [roomPassword, setRoomPassword] = useState("");
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
-  >(Array.from({ length: queries.length }, () => "None"));
+  >(Array.from({ length: queries?.length }, () => "None"));
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
     new Date(Date.now())
   );
@@ -222,6 +223,32 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
+  const addReminder = async (leadId: string | undefined) => {
+    if (!leadId) return;
+    try {
+      const response = await axios.post("/api/sales/reminders/addReminder", {
+        leadId,
+        reminderDate,
+      });
+      console.log("response: ", response.data.reminderDate);
+      toast({
+        variant: "default",
+        title: "Reminder Added",
+        description: `Reminder addded for ${new Date(
+          response.data.reminderDate
+        ).toLocaleDateString("en-GB")} (${new Date(
+          response.data.reminderDate
+        ).toLocaleDateString("en-GB", { weekday: "long" })})`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unable to add Reminder!",
+      });
+    }
+  };
+
   return (
     <div className=" w-full">
       <Table>
@@ -251,12 +278,20 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   ? "bg-transparent hover:bg-transparent"
                   : "bg-primary-foreground"
               }
+              relative
             `}
             >
               <TableCell
-                className=" cursor-pointer"
+                className=" cursor-pointer relative "
                 onClick={() => handleSalesPriority(query?._id, index)}
               >
+                {query?.reminder === null && (
+                  <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
+                    <p className=" rotate-90 text-xs font-semibold mt-1">
+                      Reminder
+                    </p>
+                  </div>
+                )}
                 {query.salesPriority === "High" ? (
                   <CustomTooltip
                     icon={<ArrowBigUpDash fill="green" color="green" />}
@@ -282,7 +317,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       : query.priority === "Medium"
                       ? "bg-yellow-500"
                       : "bg-red-500"
-                  }`}
+                  } relative`}
                 >
                   <p className="text-white">{query?.name}</p>
                 </Badge>
@@ -535,7 +570,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                     selected={reminderDate}
                                     onSelect={(date) => {
                                       setReminderDate(date);
-                                      console.log(date);
                                     }}
                                     className="rounded-md border shadow"
                                   />
@@ -545,12 +579,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                     </AlertDialogCancel>
                                     <AlertDialogAction
                                       className=" w-1/2"
-                                      onClick={() => {
-                                        console.log(
-                                          "Date selected:",
-                                          reminderDate
-                                        );
-                                      }}
+                                      onClick={() => addReminder(query?._id)}
                                     >
                                       Continue
                                     </AlertDialogAction>

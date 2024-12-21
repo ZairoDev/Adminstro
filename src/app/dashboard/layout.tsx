@@ -3,7 +3,9 @@ import BreadCrumb from "@/components/BreadCrumb";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { LogoutButton } from "@/components/logoutAlertBox";
+import { Notifications } from "@/components/Notifications/Notifications";
 import { Sidebar } from "@/components/sidebar";
+import { BellDot } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -13,12 +15,13 @@ export default function DashboardLayout({
   return (
     <div className="flex">
       <Sidebar />
-      <main className=" lg:ml-60 p-2 w-full">
-        <div className=" xs:flex  hidden items-center xs:justify-between  justify-end">
+      <main className=" lg:ml-60 p-2 w-full ">
+        <div className=" xs:flex  hidden items-center xs:justify-between  justify-end ">
           <div className="xs:block hidden">
             <BreadCrumb />
           </div>
-          <div>
+          <div className=" flex items-center gap-x-2">
+            <Notifications />
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className="">
                 <CommandDialogDemo />

@@ -43,6 +43,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
+    query = {
+      $or: [
+        { reminder: { $exists: false } }, // reminder field does not exist
+        { reminder: { $eq: null } }, // reminder field exists but is an empty string
+      ],
+    };
+
     if (searchTerm) {
       if (searchType === "phoneNo") {
         query.phoneNo = searchTerm;

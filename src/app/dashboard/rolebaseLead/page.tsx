@@ -407,6 +407,7 @@ const RolebasedLead = () => {
                     propertyType={query.propertyType}
                     priority={query.priority}
                     salesPriority={query.salesPriority}
+                    reminder={query.reminder}
                     roomDetails={query.roomDetails}
                   />
                 </div>

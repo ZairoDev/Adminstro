@@ -183,6 +183,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   // This api will craete the note
   const [note, setNote] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
+
   const handleNote = async (id: any, note: string, index: number) => {
     try {
       setCreatingNote(true);
@@ -477,7 +478,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           </DropdownMenuItem>
                           <Link
                             href={{
-                              pathname:`/dashboard/room/joinroom`,
+                              pathname: `/dashboard/room/joinroom`,
                               query: {
                                 roomId: roomId,
                                 roomPassword: roomPassword,

@@ -4,6 +4,7 @@ import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { LogoutButton } from "@/components/logoutAlertBox";
 import { Sidebar } from "@/components/sidebar";
+import { Bell } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -20,7 +21,11 @@ export default function DashboardLayout({
           </div>
           <div>
             <nav className="flex  justify-between items-center  gap-x-2">
-              <div className="">
+              <div className=" flex  items-center gap-x-2 ">
+                <div className="bg-muted-foreground p-2 rounded-full">
+                  <Bell size={18} />
+                </div>
+
                 <CommandDialogDemo />
               </div>
               <div className=" ">

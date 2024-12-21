@@ -452,7 +452,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                               >
                                 Add Note
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <DialogHeader>
                                   <DialogTitle>Add Note</DialogTitle>
                                   <Textarea

@@ -149,7 +149,6 @@ const BlogList = () => {
           )}
         </div>
       )}
-
       {/* Pagination */}
       <div>
         <p className="text-xs">

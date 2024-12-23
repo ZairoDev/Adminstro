@@ -10,6 +10,7 @@ import {
   setMilliseconds,
 } from "date-fns";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { IQuery } from "@/util/type";
 
 connectDb();
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "name";
     const dateFilter = url.searchParams.get("dateFilter") || "";
+    const sortingField = url.searchParams.get("sortingField") || "";
     const customDays = Number(url.searchParams.get("customDays")) || 0;
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
@@ -128,6 +130,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       },
     ]);
+
+    const priorityMap = {
+      None: 1,
+      Low: 2,
+      High: 3,
+    };
+
+    if (sortingField && sortingField !== "None") {
+      allquery.sort((a, b) => {
+        const priorityA =
+          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
+        const priorityB =
+          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
+
+        if (sortingField === "Asc") {
+          return priorityA - priorityB;
+        } else {
+          return priorityB - priorityA;
+        }
+      });
+    }
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / limit);

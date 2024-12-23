@@ -14,10 +14,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-
+  
   try {
     const property = await Property.findById(propertyId);
-
     if (!property) {
       return NextResponse.json(
         { error: "Invalid Property Id" },

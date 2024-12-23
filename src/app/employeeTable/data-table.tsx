@@ -10,6 +10,15 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -35,11 +44,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BadgePlus, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
-import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
 import axios from "axios";
 import { toast } from "@/hooks/use-toast";
@@ -69,7 +77,6 @@ export function DataTable({
   queryType,
   currentPage,
   totalPages,
-  totalUser,
   loading,
 }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -80,6 +87,7 @@ export function DataTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
 
   // Serial number column definition
@@ -121,9 +129,7 @@ export function DataTable({
         searchInputRef.current?.focus();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -198,49 +204,83 @@ export function DataTable({
             </Link>
           </div>
         </div>
-
-        <Button
-          className=" hidden md:block mb-2"
-          onClick={() => ResetAllPasswords()}
-        >
-          {isPasswordGenerating ? "Generating ..." : "Generate Passwords"}
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="ml-auto mb-2 hidden sm:block"
-              >
-                Column
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="ml-auto mb-2 sm:hidden"
-              >
-                <CiViewColumn />
-              </Button>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  className="capitalize"
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
+        <div className="flex gap-x-2 items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="ml-auto mb-2 hidden sm:block"
                 >
-                  {column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                  Column
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="ml-auto mb-2 sm:hidden"
+                >
+                  <CiViewColumn />
+                </Button>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    className="capitalize"
+                    checked={column.getIsVisible()}
+                    onCheckedChange={(value) =>
+                      column.toggleVisibility(!!value)
+                    }
+                  >
+                    {column.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div>
+            <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button className="hidden md:block mb-2">
+                  {isPasswordGenerating
+                    ? "Generating ..."
+                    : "Generate Passwords"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Confirm Password Generation
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to generate new passwords for all
+                    users? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      ResetAllPasswords();
+                    }}
+                  >
+                    Yes, Generate
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-md border">

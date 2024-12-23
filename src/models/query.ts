@@ -10,6 +10,10 @@ const querySchema = new Schema(
       type: Boolean,
       default: false,
     },
+    note: {
+      type: String,
+      require: false,
+    },
     duration: {
       type: String,
       require: [true, "Duration is Required"],
@@ -24,7 +28,8 @@ const querySchema = new Schema(
     },
     phoneNo: {
       type: Number,
-      require: [true, "Phone number must be provided"],
+      required: [true, "Phone number must be provided"],
+      unique: true, 
     },
     area: {
       type: String,

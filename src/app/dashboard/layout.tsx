@@ -6,7 +6,7 @@ import { LogoutButton } from "@/components/logoutAlertBox";
 import { Notifications } from "@/components/Notifications/Notifications";
 import { Sidebar } from "@/components/sidebar";
 import axios from "axios";
-import { BellDot } from "lucide-react";
+import { Bell, BellDot } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function DashboardLayout({
@@ -43,7 +43,11 @@ export default function DashboardLayout({
               <Notifications />
             )}
             <nav className="flex  justify-between items-center  gap-x-2">
-              <div className="">
+              <div className=" flex  items-center gap-x-2 ">
+                <div className="bg-muted-foreground p-2 rounded-full">
+                  <Bell size={18} />
+                </div>
+
                 <CommandDialogDemo />
               </div>
               <div className=" ">

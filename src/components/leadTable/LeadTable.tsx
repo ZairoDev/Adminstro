@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import {
   Table,
@@ -65,6 +73,7 @@ import {
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
 import { Calendar } from "../ui/calendar";
+import { Textarea } from "../ui/textarea";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { userRole } = useUserRole();
@@ -249,6 +258,28 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+
+  // This api will craete the note
+  const [note, setNote] = useState("");
+  const [creatingNote, setCreatingNote] = useState(false);
+
+  const handleNote = async (id: any, note: string, index: number) => {
+    try {
+      setCreatingNote(true);
+      const response = await axios.post("/api/sales/createNote", {
+        id,
+        note,
+      });
+      console.log(response.data, "The response from the API to save note");
+      setCreatingNote(false);
+      queries[index].note = note;
+      setNote("");
+    } catch (error: any) {
+      console.error("Error saving note:", error.message || error);
+      setCreatingNote(false);
+    }
+  };
+
   return (
     <div className=" w-full">
       <Table>
@@ -402,18 +433,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               </TableCell>
               <TableCell>
                 <div className=" flex gap-x-1">
-                  {/* <CustomTooltip
-                    text={`${query?.location?.slice(0, 8)}...`}
-                    desc={`Location - ${query?.location}`}
-                  />
-                  <div>|</div> */}
-                  {/* <CustomTooltip text={query?.area} desc={"Customer area"} /> */}
                   <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
-                    desc={`Location - ${query?.location} / Area - ${query?.area}`}
+                    desc={`Location ->${query?.location} Area ->${query?.area}`}
                   />
                   <div>|</div>
-                  <Badge className="  ">
+                  <Badge>
                     <CustomTooltip
                       text={
                         query?.zone === "East"
@@ -535,6 +560,39 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           >
                             Create Room
                           </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Dialog>
+                              <DialogTrigger
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Add Note
+                              </DialogTrigger>
+                              <DialogContent
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DialogHeader>
+                                  <DialogTitle>Add Note</DialogTitle>
+                                  <Textarea
+                                    className="h-20"
+                                    placeholder="Write a note here..."
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                  />
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <Button
+                                    onClick={() =>
+                                      handleNote(query._id, note, index)
+                                    }
+                                    className="w-auto"
+                                    disabled={!note.trim() || creatingNote}
+                                  >
+                                    Save
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </DropdownMenuItem>
                           <Link
                             href={{
                               pathname: `/dashboard/room/joinroom`,
@@ -602,7 +660,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger className="w-40 truncate">
-                          Rej re:{" "}
+                          Rej re:
                           <span className="ml-2">{query.rejectionReason}</span>
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
@@ -739,121 +797,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-      {/* {selectedQuery && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="p-4">
-            <DialogHeader className="p-0">
-              <DialogTitle className="text-xl p-0 font-normal">
-                Lead Details
-              </DialogTitle>
-            </DialogHeader>
-            <DialogDescription>
-              <Card className="">
-                <CardHeader className="border-b ">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl font-semibold truncate">
-                      {selectedQuery?.name}
-                    </CardTitle>
-                    <Badge variant="outline" className="text-sm font-normal">
-                      {selectedQuery?.priority} Priority
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-2 ">
-                  <ScrollArea className="md:h-[400px] h-[300px] w-full border-none rounded-md border p-4">
-                    <div className="flex flex-col gap-y-3">
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={MapPin}
-                          label="Area"
-                          value={selectedQuery?.area}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Users}
-                          label="Guests"
-                          value={selectedQuery?.guest}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={DollarSign}
-                          label="Budget"
-                          value={`€${selectedQuery?.budget}`}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Bed}
-                          label="Beds"
-                          value={selectedQuery?.noOfBeds}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Clock}
-                          label="Term"
-                          value={selectedQuery?.bookingTerm}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={MapPin}
-                          label="Location"
-                          value={selectedQuery?.location}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={ChartArea}
-                          label="Zone"
-                          value={selectedQuery?.zone}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Receipt}
-                          label="Bill Status"
-                          value={selectedQuery?.billStatus}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Home}
-                          label="Property Type"
-                          value={selectedQuery?.typeOfProperty}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={Building}
-                          label="Building Type"
-                          value={selectedQuery?.propertyType}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={DateIcon}
-                          label="Start Date"
-                          value={formattedStartDate}
-                        />
-                      </div>
-                      <div className="border px-3 py-2 rounded-lg">
-                        <InfoItem
-                          icon={DateIcon}
-                          label="End Date"
-                          value={formattedEndDate}
-                        />
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </DialogDescription>
-          </DialogContent>
-        </Dialog>
-      )} */}
     </div>
   );
 }

@@ -21,13 +21,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const queryType = request.nextUrl.searchParams.get("queryType");
   let EmployeeInput = request.nextUrl.searchParams.get("userInput");
 
+  console.log(
+    `currentPage: ${currentPage}, queryType: ${queryType}, EmployeeInput: ${EmployeeInput}`
+  );
+
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
   }
   const token = await getDataFromToken(request);
   const role = token.role;
 
-  // const query: UserQuery = {};
   const query: UserQuery & { role?: { $nin: string[] } } = {};
 
   const validQueryTypes = ["name", "email", "phone"];
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log("Invalid queryType");
   }
 
-  const skip = (currentPage - 1) * 20;
+  const skip = (currentPage - 1) * 10;
 
   if (role === "HR") {
     query.role = { $nin: ["SuperAdmin", "Developer"] };

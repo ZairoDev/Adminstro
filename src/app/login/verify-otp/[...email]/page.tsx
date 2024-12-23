@@ -51,7 +51,6 @@ const Page = ({ params }: PageProps) => {
       setVerifyLoading(false);
 
       return toast({
-        title: "Verify error",
         description: "Please enter a valid OTP",
       });
     }
@@ -63,6 +62,7 @@ const Page = ({ params }: PageProps) => {
       toast({
         description: "You have successfully logged in as Superadmin",
       });
+      window.location.reload();
       router.push("/");
     } catch (err: any) {
       console.log(err);
@@ -138,7 +138,6 @@ const Page = ({ params }: PageProps) => {
               "Submit"
             )}
           </Button>
-
           {verifyClick && (
             <div className="text-center text-sm sm:text-base mt-4">
               <p className="">

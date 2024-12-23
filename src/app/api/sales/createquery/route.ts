@@ -16,7 +16,6 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
-
   try {
     const {
       date,
@@ -39,6 +38,17 @@ export async function POST(req: NextRequest) {
       priority,
       leadQualityByCreator,
     } = await req.json();
+
+    // Check if a query with the same phone number already exists
+    const existingQuery = await Query.findOne({ phoneNo });
+    if (existingQuery) {
+      return NextResponse.json(
+        { success: false, error: "Phone number already exists" },
+        { status: 400 }
+      );
+    }
+
+    // Create a new query if phone number is unique
     const newQuery = await Query.create({
       name,
       email,
@@ -64,6 +74,7 @@ export async function POST(req: NextRequest) {
 
     const triggerQuery = `new-query-${location.trim().toLowerCase()}`;
 
+    // Trigger Pusher event
     await pusher.trigger("queries", triggerQuery, {
       _id: newQuery._id,
       date: newQuery.date,
@@ -85,12 +96,21 @@ export async function POST(req: NextRequest) {
       priority: newQuery.priority,
       leadQualityByCreator: newQuery.leadQualityByCreator,
     });
+
     return NextResponse.json(
       { success: true, data: newQuery },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
+
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { success: false, error: "Phone number already exists" },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

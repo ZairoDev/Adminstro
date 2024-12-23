@@ -43,10 +43,8 @@ import {
 import Loader from "@/components/loader";
 import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/leadTable/LeadTable";
-import { Divide, SlidersHorizontal } from "lucide-react";
+import { CheckCheckIcon, Divide, SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
-import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
 import { DatePicker } from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useUserRole } from "@/context/UserRoleContext";
@@ -79,10 +77,6 @@ const SalesDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
   const [customDays, setCustomDays] = useState("");
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 10),
-  });
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [customDateRange, setCustomDateRange] = useState({
@@ -96,6 +90,7 @@ const SalesDashboard = () => {
   const [view, setView] = useState("Table View");
   const { toast } = useToast();
   const [normalInput, setNormalInput] = useState(false);
+  const [numberStatus, setNumberStatus] = useState("");
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -133,6 +128,36 @@ const SalesDashboard = () => {
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNormalInput(e.target.checked);
+  };
+
+  const [checking, setChecking] = useState(false);
+
+  const handleNumberSearch = async () => {
+    try {
+      if (!formData.phoneNo) {
+        setNumberStatus("Please enter a phone number.");
+        return;
+      }
+      setChecking(true);
+      const response = await axios.post("/api/sales/checkNumber", {
+        phoneNo: formData.phoneNo,
+      });
+      if (response.data.success) {
+        if (response.data.exists) {
+          setNumberStatus("❌ Phone number already exists.");
+        } else {
+          setNumberStatus("✅ Phone number is available.");
+        }
+        setChecking(false);
+      } else {
+        setNumberStatus("Error checking the phone number. Try again.");
+      }
+      setChecking(false);
+    } catch (error) {
+      console.error("Error:", error);
+      setNumberStatus("Server error. Please try again later.");
+      setChecking(false);
+    }
   };
 
   // Handle input changes
@@ -434,7 +459,7 @@ const SalesDashboard = () => {
                           placeholder="Enter full name"
                         />
                       </div>
-                      <div className="ml-1">
+                      {/* <div className="ml-1">
                         <Label>Phone No*</Label>
                         <Input
                           type="number"
@@ -443,6 +468,30 @@ const SalesDashboard = () => {
                           onChange={handleInputChange}
                           placeholder="Enter phone number"
                         />
+                      </div> */}
+                      <div className="flex justify-between ">
+                        <div className="w-full">
+                          <Label>Phone No*</Label>
+                          <Input
+                            type="number"
+                            name="phoneNo"
+                            value={formData.phoneNo}
+                            onChange={handleInputChange}
+                            placeholder="Enter phone number"
+                          />
+                          {numberStatus && (
+                            <div className="mt-2 text-sm">{numberStatus}</div>
+                          )}
+                        </div>
+                        <div className="mt-6 ml-1">
+                          <Button
+                            type="button"
+                            onClick={handleNumberSearch}
+                            disabled={!formData.phoneNo || checking}
+                          >
+                            <CheckCheckIcon size={18} />
+                          </Button>
+                        </div>
                       </div>
                       <div className="ml-1">
                         <Label>Email</Label>
@@ -732,6 +781,7 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
                       <div>
                         <Label>Zone*</Label>
                         <Select

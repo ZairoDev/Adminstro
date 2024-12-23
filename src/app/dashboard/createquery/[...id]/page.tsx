@@ -10,29 +10,18 @@ import {
   Building,
   Calendar,
   Copy,
-  DollarSign,
   Euro,
   Flag,
   Home,
   House,
-  IdCard,
   KeyRound,
   Loader2,
   MapPin,
   User,
   Users,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/context/UserRoleContext";
 

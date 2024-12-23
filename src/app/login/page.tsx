@@ -106,15 +106,6 @@ const PageLogin: React.FC = () => {
                 />
               </Label>
               <Label className="mt-4">
-                <span className="flex mt-2 justify-between">
-                  Password
-                  <Link
-                    href="/authentication/forgotpassword"
-                    className="font-semibold underline"
-                  >
-                    Forgot Password
-                  </Link>
-                </span>
                 <div className="relative mt-2">
                   <Input
                     type={showPassword ? "text" : "password"}

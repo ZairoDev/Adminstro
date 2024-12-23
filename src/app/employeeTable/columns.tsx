@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
+import { toast } from "@/hooks/use-toast";
 
 const renderCell = (value: any) => {
   return value ? value : "NA";
@@ -41,11 +42,6 @@ export const columns: ColumnDef<UserInterface>[] = [
     ),
     cell: ({ getValue }) => renderCell(getValue()),
   },
-  // {
-  //   accessorKey: "nationality",
-  //   header: "Nationality",
-  //   cell: ({ getValue }) => renderCell(getValue()),
-  // },
   {
     accessorKey: "role",
     header: "Role",
@@ -73,9 +69,21 @@ export const columns: ColumnDef<UserInterface>[] = [
             <DropdownMenuLabel className="">Options</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(user._id)}
+              onClick={() => {
+                const textToCopy = `${user.email} ${user.password}`;
+                navigator.clipboard
+                  .writeText(textToCopy)
+                  .then(() => {
+                    toast({
+                      description: "Credentials copied to clipboard",
+                    });
+                  })
+                  .catch((err) => {
+                    console.error("Error copying text: ", err);
+                  });
+              }}
             >
-              Copy Id
+              Copy Credentials
             </DropdownMenuItem>
             {/* <DropdownMenuSeparator /> */}
             <DropdownMenuItem>

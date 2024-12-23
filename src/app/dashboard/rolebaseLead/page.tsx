@@ -34,8 +34,6 @@ import QueryCard from "@/components/QueryCard";
 import LeadTable from "@/components/leadTable/LeadTable";
 import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
-import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
 import { useUserRole } from "@/context/UserRoleContext";
 import Pusher from "pusher-js";
 import { Toaster } from "@/components/ui/toaster";
@@ -92,9 +90,7 @@ const RolebasedLead = () => {
           const response = await fetch(
             `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}`
           );
-
           const data: ApiResponse = await response.json();
-
           setQueries(data.data);
           setTotalPages(data.totalPages);
           setTotalQueries(data.totalQueries);
@@ -119,7 +115,6 @@ const RolebasedLead = () => {
       customDateRange,
     });
   };
-
   useEffect(() => {
     fetchQuery({
       searchTerm,

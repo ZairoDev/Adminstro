@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
+
 import {
   MapPin,
   Users,
@@ -275,6 +277,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </div>
               </TableCell>
+
               <TableCell>
                 <div className="flex gap-x-2">
                   <CustomTooltip
@@ -427,7 +430,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </Link>
               </TableCell>
-              <TableCell>
+              <TableCell className="flex items-center justify-center gap-x-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost">
@@ -445,39 +448,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           >
                             Create Room
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Dialog>
-                              <DialogTrigger
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                Add Note
-                              </DialogTrigger>
-                              <DialogContent
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <DialogHeader>
-                                  <DialogTitle>Add Note</DialogTitle>
-                                  <Textarea
-                                    className="h-20"
-                                    placeholder="Write a note here..."
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                  />
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <Button
-                                    onClick={() =>
-                                      handleNote(query._id, note, index)
-                                    }
-                                    className="w-auto"
-                                    disabled={!note.trim() || creatingNote}
-                                  >
-                                    Save
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </DropdownMenuItem>
+
                           <Link
                             href={{
                               pathname: `/dashboard/room/joinroom`,
@@ -636,6 +607,40 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <div>|</div>
+                <div>
+                  <Dialog>
+                    <DialogTrigger onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost">
+                        <Plus size={18} />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
+                      <DialogHeader>
+                        <DialogTitle>Add Note</DialogTitle>
+                        <Textarea
+                          className="h-20"
+                          placeholder="Write a note here..."
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                        />
+                        <p className="text-xl text-foreground font-bold">
+                          Previous Note
+                        </p>
+                        <p className="text-sm">{query?.note || "Nothing to show"}</p>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button
+                          onClick={() => handleNote(query._id, note, index)}
+                          className="w-auto"
+                          disabled={!note.trim() || creatingNote}
+                        >
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </TableCell>
             </TableRow>
           ))}

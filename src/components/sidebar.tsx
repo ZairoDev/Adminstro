@@ -23,6 +23,7 @@ import {
   Speech,
   User2Icon,
 } from "lucide-react";
+import CustomTooltip from "./CustomToolTip";
 
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -131,12 +132,6 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
-
-    {
-      path: "/dashboard/createdQuery",
-      label: "Created Lead",
-      Icon: <CalendarPlus size={18} />,
-    },
     {
       path: "/dashboard/rolebaseLead",
       label: "Lead (Sales)",
@@ -166,11 +161,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/room/joinroom",
       label: "Join Room",
       Icon: <House size={18} />,
-    },
-    {
-      path: "/dashboard/reminder",
-      label: "Reminder",
-      Icon: <Plus size={18} />,
     },
   ],
   Sales: [
@@ -256,6 +246,7 @@ export function Sidebar() {
             : ""
         }`}
       >
+        {" "}
         <Link
           href={route.path}
           className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "

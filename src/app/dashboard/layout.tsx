@@ -22,10 +22,6 @@ export default function DashboardLayout({
           <div>
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
-                <div className="bg-muted-foreground p-2 rounded-full">
-                  <Bell size={18} />
-                </div>
-
                 <CommandDialogDemo />
               </div>
               <div className=" ">

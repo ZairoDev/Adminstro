@@ -80,7 +80,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     label: string;
     value: string | number;
   }) => (
-    <div className="flex gap-2 ">
+    <div className="flex gap-2">
       <Icon size={18} className="text-muted-foreground" />
       <p className="text-base">
         <span className="text-base text-muted-foreground mr-2">{label}:</span>
@@ -88,6 +88,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       </p>
     </div>
   );
+
   const startDate =
     selectedQuery?.startDate && !isNaN(Date.parse(selectedQuery?.startDate))
       ? new Date(selectedQuery?.startDate)
@@ -182,7 +183,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
-  // This api will craete the note
+  // TODO I am not sure about the type of the Id
   const [note, setNote] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
 
@@ -216,7 +217,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableHead>Lead Quality</TableHead>
             )}
             <TableHead>Contact</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>Actions </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -610,12 +611,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 <div>|</div>
                 <div>
                   <Dialog>
-                    <DialogTrigger onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost">
-                        <Plus size={18} />
-                      </Button>
+                    <DialogTrigger>
+                      <button className="flex flex-col items-center bg-primary text-secondary px-1 rounded-md ">
+                        <span className="text-xs -mb-1">N</span>
+                        <span className="text-xs -mb-1">O</span>
+                        <span className="text-xs -mb-1">T</span>
+                        <span className="text-xs">E</span>
+                      </button>
                     </DialogTrigger>
-                    <DialogContent onClick={(e) => e.stopPropagation()}>
+                    <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Add Note</DialogTitle>
                         <Textarea
@@ -627,7 +631,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         <p className="text-xl text-foreground font-bold">
                           Previous Note
                         </p>
-                        <p className="text-sm">{query?.note || "Nothing to show"}</p>
+                        <p className="text-sm">
+                          {query?.note || "Nothing to show"}
+                        </p>
                       </DialogHeader>
                       <DialogFooter>
                         <Button

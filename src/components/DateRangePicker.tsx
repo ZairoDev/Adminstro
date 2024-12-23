@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { addDays, format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { SelectRangeEventHandler } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,25 +15,47 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+
 interface DateRangeProps {
   className?: string;
   date: DateRange | undefined;
   setDate: (date: DateRange | undefined) => void;
+  isDrawerOpen?: boolean;
 }
 
-export function DateRangePicker({ className, date, setDate }: DateRangeProps) {
-  // const [date, setDate] = React.useState<DateRange | undefined>({
-  //   from: new Date(2024, 0, 20),
-  //   to: addDays(new Date(2024, 0, 20), 20),
-  // });
+
+export function DateRangePicker({
+  className,
+  date,
+  setDate,
+  isDrawerOpen = true,
+}: DateRangeProps) {
+  const [isCalendarOpen, setIsCalendarOpen] = React.useState(false);
+
+  // Reset calendar state when drawer closes
+  React.useEffect(() => {
+    if (!isDrawerOpen) {
+      setIsCalendarOpen(false);
+    }
+  }, [isDrawerOpen]);
+
+  const handleSelect: SelectRangeEventHandler = (
+    selectedDate: DateRange | undefined
+  ) => {
+    setDate(selectedDate);
+  };
 
   return (
     <div className={cn("grid gap-2", className)}>
-      <Popover>
+      <Popover
+        open={isCalendarOpen}
+        onOpenChange={setIsCalendarOpen}
+        modal={true}
+      >
         <PopoverTrigger asChild>
           <Button
             id="date"
-            variant={"outline"}
+            variant="outline"
             className={cn(
               "w-[300px] justify-start text-left font-normal",
               !date && "text-muted-foreground"
@@ -53,13 +76,18 @@ export function DateRangePicker({ className, date, setDate }: DateRangeProps) {
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent
+          className="w-auto p-0"
+          align="start"
+          side="bottom"
+          sideOffset={4}
+        >
           <Calendar
             initialFocus
             mode="range"
             defaultMonth={date?.from}
             selected={date}
-            onSelect={setDate}
+            onSelect={handleSelect}
             numberOfMonths={2}
           />
         </PopoverContent>

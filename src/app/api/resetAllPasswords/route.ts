@@ -19,19 +19,40 @@ export const GET = async (req: NextRequest) => {
     const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content"];
 
     const employees = await Employees.find({ role: { $nin: excludedRoles } });
-    console.log("employees: ", employees);
+
+    // const updatedPassword = await Promise.all(
+    //   employees.map(async (employee) => {
+    //     const newPassword = generatePassword();
+    //     employee.password = newPassword;
+    //     employee.passwordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    //     await employee.save();
+    //   })
+    // );
 
     const updatedPassword = await Promise.all(
       employees.map(async (employee) => {
-        const newPassword = generatePassword();
-        employee.password = newPassword;
-        employee.passwordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await employee.save();
+        try {
+          const newPassword = generatePassword();
+          employee.password = newPassword;
+          employee.passwordExpiresAt = new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+          );
+          await employee.save();
+          return true;
+        } catch (error) {
+          console.error(`Error updating employee ${employee.email}:`, error);
+          return false;
+        }
       })
     );
 
+    const successCount = updatedPassword.filter(Boolean).length;
+
     return NextResponse.json(
-      { message: "Passwords reset successfully" },
+      {
+        message: "Passwords reset successfully",
+        updatedEmployees: successCount,
+      },
       { status: 200 }
     );
   } catch (err: any) {

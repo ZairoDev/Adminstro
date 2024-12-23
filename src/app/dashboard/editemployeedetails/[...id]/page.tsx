@@ -54,8 +54,6 @@ const AccountPage = ({ params }: PageProps) => {
       const response = await axios.post("/api/employee/getEmployeeDetails", {
         userId,
       });
-      console.log(response.data.data);
-      console.log("Data will be print here...");
       if (response.status === 404) {
         toast({
           title: "Uh oh! Something went wrong.",

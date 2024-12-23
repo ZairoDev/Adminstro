@@ -19,7 +19,6 @@ export default function DashboardLayout({
   const getToken = async () => {
     try {
       const response = await axios.get("/api/user/getloggedinuser");
-      console.log("response of token in layout:  ", response.data.user);
       setToken(response.data.user);
     } catch (err: any) {
       console.log("No token found in layout");
@@ -44,10 +43,6 @@ export default function DashboardLayout({
             )}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
-                <div className="bg-muted-foreground p-2 rounded-full">
-                  <Bell size={18} />
-                </div>
-
                 <CommandDialogDemo />
               </div>
               <div className=" ">

@@ -528,8 +528,8 @@ const Page = ({ params }: pageProps) => {
 																<Button variant="ghost">
 																	{role !==
 																		"Visitor" && (
-																		<CalendarDays />
-																	)}
+																			<CalendarDays />
+																		)}
 																</Button>
 															</DialogTrigger>
 															<DialogContent className="sm:max-w-[350px]">
@@ -682,10 +682,9 @@ const Page = ({ params }: pageProps) => {
 							(item, index: number) =>
 								item?._id && (
 									<div
-										className={` my-1 flex flex-col items-center relative ${
-											index === removedPropertyIndex &&
+										className={` my-1 flex flex-col items-center relative ${index === removedPropertyIndex &&
 											"opacity-20"
-										} `}
+											} `}
 										key={index}
 									>
 										<Link
@@ -707,17 +706,15 @@ const Page = ({ params }: pageProps) => {
 											<img
 												src={item?.propertyImages?.[0]}
 												alt="PropertyImage"
-												className={` h-44 w-44  md:w-36 md:h-36 rounded-md border border-neutral-700 ${
-													item._id ===
-														alreadyAddedProperty &&
+												className={` h-44 w-44  md:w-36 md:h-36 rounded-md border border-neutral-700 ${item._id ===
+													alreadyAddedProperty &&
 													"border-2 border-pink-600 shadow-2xl"
-												} ${
-													(favouriteUpdatedProperties.includes(
+													} ${(favouriteUpdatedProperties.includes(
 														item._id!
 													) ||
 														item.isFavourite) &&
 													"border-2 border-yellow-400 shadow-2xl"
-												}`}
+													}`}
 											/>
 											<div
 												className=" badge w-full flex justify-end mt-2 absolute right-1 bottom-1"
@@ -734,10 +731,9 @@ const Page = ({ params }: pageProps) => {
 											<div className=" absolute left-1 bottom-1 p-1 rounded-full bg-white/60 flex justify-center items-center">
 												<CheckCheck
 													size={22}
-													className={`font-semibold ${
-														item?.isViewed &&
+													className={`font-semibold ${item?.isViewed &&
 														"text-orange-600"
-													}`}
+														}`}
 												/>
 											</div>
 										</Link>
@@ -858,15 +854,13 @@ const Page = ({ params }: pageProps) => {
 								(item, index: number) =>
 									item?._id && (
 										<div
-											className={` my-1 flex flex-col items-center ${
-												item._id ===
-													alreadyAddedProperty &&
+											className={` my-1 flex flex-col items-center ${item._id ===
+												alreadyAddedProperty &&
 												" opacity-20"
-											} ${
-												index ===
-													retractedPropertyIndex &&
+												} ${index ===
+												retractedPropertyIndex &&
 												"opacity-20"
-											} `}
+												} `}
 											key={index}
 										>
 											<Link
@@ -899,12 +893,11 @@ const Page = ({ params }: pageProps) => {
 												<div className=" absolute left-1 bottom-1 p-1 rounded-full bg-white/60 flex justify-center items-center">
 													<CheckCheck
 														size={22}
-														className={`  font-semibold ${
-															rejectedProperties?.[
+														className={`  font-semibold ${rejectedProperties?.[
 																index
 															]?.isViewed &&
 															"text-orange-600"
-														} `}
+															} `}
 													/>
 												</div>
 											</Link>

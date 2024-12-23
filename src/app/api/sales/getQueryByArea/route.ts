@@ -9,6 +9,7 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 export const dynamic = "force-dynamic";
@@ -24,6 +25,9 @@ function getISTStartOfDay(date: Date): Date {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const token = await getDataFromToken(request);
+    const assignedArea = token.allotedArea;
+
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
     const limit = Number(url.searchParams.get("limit")) || 12;
@@ -34,12 +38,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const customDays = Number(url.searchParams.get("customDays")) || 0;
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
-    const allotedArea = url.searchParams.get("allotedArea") || "";
-
-    console.log(allotedArea, "Alloted area will print here in backend...");
+    const allotedArea = url.searchParams.get("allotedArea") || assignedArea;
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
+
+    query = {
+      $or: [
+        { reminder: { $exists: false } }, // reminder field does not exist
+        { reminder: { $eq: null } }, // reminder field exists but is an empty string
+      ],
+    };
 
     if (searchTerm) {
       if (searchType === "phoneNo") {

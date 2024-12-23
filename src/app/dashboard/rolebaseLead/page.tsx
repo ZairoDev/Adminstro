@@ -39,6 +39,7 @@ import { addDays } from "date-fns";
 import { useUserRole } from "@/context/UserRoleContext";
 import Pusher from "pusher-js";
 import { Toaster } from "@/components/ui/toaster";
+import axios from "axios";
 
 interface ApiResponse {
   data: IQuery[];
@@ -53,7 +54,7 @@ interface FetchQueryParams {
   customDateRange: { start: string; end: string };
 }
 const RolebasedLead = () => {
-  const { allotedArea } = useUserRole();
+  // const { allotedArea } = useUserRole();
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
@@ -72,6 +73,7 @@ const RolebasedLead = () => {
   const [view, setView] = useState("Table View");
   const { toast } = useToast();
   const limit: number = 12;
+  const [allotedArea, setAllotedArea] = useState("");
 
   //   console.log(area, "Alloted area Gonna Print Here");
 
@@ -131,6 +133,19 @@ const RolebasedLead = () => {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
+  useEffect(() => {
+    const getAllotedArea = async () => {
+      try {
+        const response = await axios.get("/api/getAreaFromToken");
+        setAllotedArea(response.data.area);
+      } catch (err: any) {
+        console.log("error in getting area: ", err);
+      }
+    };
+    getAllotedArea();
+  }, []);
+
   const renderPaginationItems = () => {
     let items = [];
     const maxVisiblePages = 5;
@@ -176,19 +191,24 @@ const RolebasedLead = () => {
       cluster: "ap2",
     });
     const channel = pusher.subscribe("queries");
-    channel.bind("new-query", (data: any) => {
-      setQueries((prevQueries) => [...prevQueries, data]);
+    // channel.bind("new-query", (data: any) => {
+    //   setQueries((prevQueries) => [data, ...prevQueries]);
+    // });
+    channel.bind(`new-query-${allotedArea}`, (data: any) => {
+      setQueries((prevQueries) => [data, ...prevQueries]);
     });
     toast({
       title: "Query Created Successfully",
     });
     return () => {
+      channel.unbind(`new-query-${allotedArea}`);
       pusher.unsubscribe("queries");
+      pusher.disconnect();
     };
-  }, [queries]);
+  }, [queries, allotedArea]);
 
   return (
-    <div>
+    <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
@@ -386,6 +406,8 @@ const RolebasedLead = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    salesPriority={query.salesPriority}
+                    reminder={query.reminder}
                     roomDetails={query.roomDetails}
                   />
                 </div>

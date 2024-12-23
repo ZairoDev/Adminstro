@@ -47,7 +47,7 @@ export const UserRoleProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   };
-  console.log(allData, "Alloted Area gonna print here");
+  // console.log(allData, "Alloted Area gonna print here");
   const refreshUserRole = () => {
     getUserRole();
   };

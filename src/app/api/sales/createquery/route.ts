@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -13,7 +14,9 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const token = await getDataFromToken(req);
+
   try {
     const {
       date,
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
       guest,
       budget,
       noOfBeds,
-      location,
+      location: location.toLowerCase(),
       bookingTerm,
       zone,
       billStatus,
@@ -56,9 +59,12 @@ export async function POST(req: Request) {
       propertyType,
       priority,
       leadQualityByCreator,
+      createdBy: token.email,
     });
 
-    await pusher.trigger("queries", "new-query", {
+    const triggerQuery = `new-query-${location.trim().toLowerCase()}`;
+
+    await pusher.trigger("queries", triggerQuery, {
       _id: newQuery._id,
       date: newQuery.date,
       name: newQuery.name,

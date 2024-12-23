@@ -25,6 +25,7 @@ export const GET = async (req: NextRequest) => {
       employees.map(async (employee) => {
         const newPassword = generatePassword();
         employee.password = newPassword;
+        employee.passwordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
         await employee.save();
       })
     );

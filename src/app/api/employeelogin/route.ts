@@ -36,8 +36,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   temp.password
     // );
 
-    console.log("temp: ", temp, temp.password, password);
-
     const validPassword: boolean = temp.password === password;
     if (!validPassword) {
       return NextResponse.json(
@@ -47,9 +45,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (
-      temp.role !== "SuperAdmin" &&
+      temp.role !== ("SuperAdmin" as Employee["role"]) &&
+      temp.role !== ("HR" as Employee["role"]) &&
       temp.email !== "aishakhatoon03@gmail.com"
     ) {
+      console.log("inside if");
+
       const currentDate = new Date();
       const passwordExpiryDate = new Date(temp.passwordExpiresAt);
 

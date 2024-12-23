@@ -52,6 +52,7 @@ import { validateAndSetDuration } from "@/util/durationValidation";
 import { useUserRole } from "@/context/UserRoleContext";
 import Pusher from "pusher-js";
 import { Toaster } from "@/components/ui/toaster";
+import axios from "axios";
 
 interface ApiResponse {
   data: IQuery[];
@@ -88,6 +89,7 @@ const SalesDashboard = () => {
     start: "",
     end: "",
   });
+  const [allotedArea, setAllotedArea] = useState("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("name");
   const [page, setPage] = useState<number>(1);
@@ -112,14 +114,14 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
+    salesPriority: "",
+    reminder: new Date(),
     roomDetails: {
       roomId: "",
       roomPassword: "",
     },
   });
   const limit: number = 12;
-  
- 
 
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
@@ -204,6 +206,8 @@ const SalesDashboard = () => {
         typeOfProperty: "",
         propertyType: "",
         priority: "",
+        salesPriority: "",
+        reminder: new Date(),
         roomDetails: {
           roomId: "",
           roomPassword: "",
@@ -337,20 +341,37 @@ const SalesDashboard = () => {
   }, [startDate, endDate]);
 
   useEffect(() => {
+    const getAllotedArea = async () => {
+      try {
+        const response = await axios.get("/api/getAreaFromToken");
+        setAllotedArea(response.data.area);
+      } catch (err: any) {
+        console.log("error in getting area: ", err);
+      }
+    };
+    getAllotedArea();
+  }, []);
+
+  useEffect(() => {
     const pusher = new Pusher("1725fd164206c8aa520b", {
       cluster: "ap2",
     });
     const channel = pusher.subscribe("queries");
-    channel.bind("new-query", (data: any) => {
-      setQueries((prevQueries) => [...prevQueries, data]);
+    // channel.bind("new-query", (data: any) => {
+    //   setQueries((prevQueries) => [data, ...prevQueries]);
+    // });
+    channel.bind(`new-query-${allotedArea}`, (data: any) => {
+      setQueries((prevQueries) => [data, ...prevQueries]);
     });
     toast({
       title: "Query Created Successfully",
     });
     return () => {
+      channel.unbind(`new-query-${allotedArea}`);
       pusher.unsubscribe("queries");
+      pusher.disconnect();
     };
-  }, [queries]);
+  }, [queries, allotedArea]);
 
   return (
     <div>
@@ -485,15 +506,26 @@ const SalesDashboard = () => {
                           </label>
                         </div>
                         <div className="w-full">
-                          <Label className="flex gap-4">Duration* {formData.bookingTerm ? (
-                            formData.bookingTerm === "Short Term" ? (
-                              <div className="text-xs "> Fill in days from 1-28</div>
-                            ) : formData.bookingTerm === "Mid Term" ? (
-                              <div className="text-xs "> Fill in months from 1-3</div>
-                            ) : formData.bookingTerm === "Long Term" ? (
-                              <div className="text-xs "> Fill in months from 4-12</div>
-                            ) : null
-                          ) : null}
+                          <Label className="flex gap-4">
+                            Duration*{" "}
+                            {formData.bookingTerm ? (
+                              formData.bookingTerm === "Short Term" ? (
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in days from 1-28
+                                </div>
+                              ) : formData.bookingTerm === "Mid Term" ? (
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in months from 1-3
+                                </div>
+                              ) : formData.bookingTerm === "Long Term" ? (
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in months from 4-12
+                                </div>
+                              ) : null
+                            ) : null}
                           </Label>
 
                           <Input
@@ -898,6 +930,8 @@ const SalesDashboard = () => {
                     typeOfProperty={query.typeOfProperty}
                     propertyType={query.propertyType}
                     priority={query.priority}
+                    reminder={query.reminder}
+                    salesPriority={query.salesPriority}
                     roomDetails={query.roomDetails}
                   />
                 </div>

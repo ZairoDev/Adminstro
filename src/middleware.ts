@@ -55,7 +55,12 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/rolebaseLead",
     "/dashboard/reminders",
   ],
-  HR: ["/", "/dashboard/employee", /^\/dashboard\/employeedetails\/.*$/],
+  HR: [
+    "/",
+    "/dashboard/employee",
+    // /^\/dashboard\/editemployeedetails\/.*$/,
+    /^\/dashboard\/employeedetails\/.*$/,
+  ],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",

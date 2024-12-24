@@ -49,8 +49,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       temp.role !== ("HR" as Employee["role"]) &&
       temp.email !== "aishakhatoon03@gmail.com"
     ) {
-      console.log("inside if");
-
       const currentDate = new Date();
       const passwordExpiryDate = new Date(temp.passwordExpiresAt);
 
@@ -82,7 +80,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
     const newExpiryDate = new Date();
-    newExpiryDate.setHours(newExpiryDate.getHours() + 24);
+
+    if (temp.role === "HR") {
+      newExpiryDate.setHours(newExpiryDate.getHours() + 72);
+    } else {
+      newExpiryDate.setHours(newExpiryDate.getHours() + 24);
+    }
 
     await Employees.updateOne(
       { _id: temp._id },
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log(tokenData, "Token Data ");
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
-      expiresIn: "1d",
+      expiresIn: "3d",
     });
 
     const response = NextResponse.json({

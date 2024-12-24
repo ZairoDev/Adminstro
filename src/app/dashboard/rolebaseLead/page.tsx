@@ -47,7 +47,8 @@ interface ApiResponse {
 interface FetchQueryParams {
   searchTerm: string;
   searchType?: string;
-  dateFilter: string;
+  dateFilter?: string;
+  sortingField?: string;
   customDays: string;
   customDateRange: { start: string; end: string };
 }
@@ -59,6 +60,7 @@ const RolebasedLead = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
+  const [sortingField, setSortingField] = useState("");
   const [customDays, setCustomDays] = useState("");
   const [area, setArea] = useState("");
   const [customDateRange, setCustomDateRange] = useState({
@@ -81,14 +83,17 @@ const RolebasedLead = () => {
         searchTerm,
         searchType,
         dateFilter,
+        sortingField,
         customDays,
         customDateRange,
       }: FetchQueryParams) => {
         setLoading(true);
         setError(null);
         try {
+          if (!dateFilter && !sortingField) return;
+
           const response = await fetch(
-            `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}`
+            `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
           );
           const data: ApiResponse = await response.json();
           setQueries(data.data);
@@ -111,6 +116,7 @@ const RolebasedLead = () => {
       searchTerm,
       searchType,
       dateFilter,
+      sortingField,
       customDays,
       customDateRange,
     });
@@ -120,6 +126,7 @@ const RolebasedLead = () => {
       searchTerm,
       searchType,
       dateFilter,
+      sortingField,
       customDays,
       customDateRange,
     });
@@ -256,7 +263,7 @@ const RolebasedLead = () => {
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
               <Sheet>
-                <SheetTrigger>
+                <SheetTrigger asChild>
                   <Button variant="outline">
                     <SlidersHorizontal size={18} />
                   </Button>
@@ -316,15 +323,50 @@ const RolebasedLead = () => {
                           />
                         </div>
                       )}
-                      <SheetClose asChild>
+                      {/* <SheetClose asChild>
                         <Button
                           className="sm:w-auto w-full"
                           onClick={handleSearch}
                         >
                           Apply
                         </Button>
+                      </SheetClose> */}
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  <SheetHeader className=" mt-4">
+                    <SheetTitle className="text-start">Sort By</SheetTitle>
+                    <SheetDescription className="flex flex-col gap-y-2">
+                      <Select
+                        onValueChange={(value) => setSortingField(value)}
+                        value={sortingField}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Priority Order" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="None">None</SelectItem>
+                          <SelectItem value="Asc">
+                            {" "}
+                            Priority : &nbsp; Low To High
+                          </SelectItem>
+                          <SelectItem value="Desc">
+                            {" "}
+                            Priority : &nbsp; High To Low
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <SheetClose asChild>
+                        <Button
+                          className="sm:w-auto w-full mt-4"
+                          onClick={handleSearch}
+                        >
+                          Apply
+                        </Button>
                       </SheetClose>
                     </SheetDescription>
+                    <SheetDescription></SheetDescription>
                   </SheetHeader>
                   <SheetFooter className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
                     <div className="flex flex-col gap-y-2">

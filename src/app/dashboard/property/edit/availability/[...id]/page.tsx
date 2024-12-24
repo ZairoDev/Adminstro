@@ -67,6 +67,7 @@ const EditDates = ({ params }: PageProps) => {
   const [refreshEditPriceState, setRefreshEditPriceState] =
     useState<boolean>(false);
   const [validRange, setValidRange] = useState({});
+  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
 
   //! method called when only date is clicked and not the event - adds the date to the alreadyBookedDates array
   const handleDateClick = (arg: any) => {
@@ -156,7 +157,7 @@ const EditDates = ({ params }: PageProps) => {
     //   inputRef.current.value = "";
     // }
 
-    const url = icalLinks["Airbnb"];
+    const url = icalLinks?.["Airbnb"];
     console.log("url: ", url);
     setIcalLinks((prev) => [...prev, url]);
     const bookedDatesinAirbnb = await fetchAndParseICal(url);
@@ -232,10 +233,10 @@ const EditDates = ({ params }: PageProps) => {
 
   const renderPriceEditDrawer = () => {
     return (
-      <Drawer>
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerTrigger asChild>
-          <Button variant="outline" className=" flex gap-x-1">
-            Edit Prices <Pencil size={16} className=" text-xs" />
+          <Button variant="outline" className="flex gap-x-1">
+            Edit Prices <Pencil size={16} className="text-xs" />
           </Button>
         </DrawerTrigger>
         <DrawerContent>
@@ -248,9 +249,14 @@ const EditDates = ({ params }: PageProps) => {
             </DrawerHeader>
             <div className="p-4 pb-0">
               <div className="flex items-center justify-center space-x-2">
-                <DateRangePicker date={date} setDate={setDate} />
+                <DateRangePicker
+                  date={date}
+                  setDate={setDate}
+                  className="relative z-50"
+                  isDrawerOpen={isDrawerOpen}
+                />
               </div>
-              <div className="mt-3 ">
+              <div className="mt-3">
                 <Label htmlFor="price" className="text-right">
                   Enter Price
                 </Label>
@@ -264,10 +270,7 @@ const EditDates = ({ params }: PageProps) => {
               </div>
             </div>
             <DrawerFooter>
-              <Button
-                onClick={handleChangePrice}
-                className=" hover:bg-white/60"
-              >
+              <Button onClick={handleChangePrice} className="hover:bg-white/60">
                 Submit
               </Button>
               <DrawerClose asChild>
@@ -305,24 +308,6 @@ const EditDates = ({ params }: PageProps) => {
 
   return (
     <div>
-      {/* <div className=" flex gap-x-2 my-4">
-        <Input
-          type="text"
-          placeholder="Enter the Url from Airbnb & Booking.com"
-          ref={inputRef}
-        />
-        <Button onClick={handleUrlSubmit}>Submit</Button>
-      </div> */}
-      {/* {icalLink && (
-        <div className=" p-2 text-gray-600">iCal Url: {icalLink}</div>
-        
-      )} */}
-      {/* {icalLinks &&
-        icalLinks.map((link, index) => (
-          <div key={index} className=" p-2 text-muted-foreground">
-            iCal Url: {icalLinks[index]}
-          </div>
-        ))} */}
       <div className="flex items-center justify-between">
         <Heading
           heading="Set availability"

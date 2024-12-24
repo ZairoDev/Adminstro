@@ -139,11 +139,20 @@ export function DataTable({
     try {
       setIsPasswordGenerating(true);
       const response = await axios.get("/api/resetAllPasswords");
-      window.location.reload();
+      console.log("response of reset password: ", response);
+      if (response.status === 200) {
+        toast({
+          variant: "default",
+          title: "Passwords Changed !",
+          description: "Please refresh the window to get the new passwords.",
+        });
+      } else {
+        throw new Error("Error in resetting password");
+      }
     } catch (err: any) {
       toast({
         variant: "destructive",
-        description: "Error in resetting password",
+        description: "Error in resetting password toast",
       });
     } finally {
       setIsPasswordGenerating(false);
@@ -270,8 +279,8 @@ export function DataTable({
                   </Button>
                   <Button
                     onClick={() => {
-                      setIsDialogOpen(false);
                       ResetAllPasswords();
+                      setIsDialogOpen(false);
                     }}
                   >
                     Yes, Generate

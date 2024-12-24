@@ -27,7 +27,6 @@ export default function TablePage() {
             userInput: search,
           },
         });
-        console.log(response.data);
         setData(response.data.allEmployees);
         setTotalUser(response.data.totalEmployee);
         setTotalPages(Math.ceil(response.data.totalEmployee / 10));

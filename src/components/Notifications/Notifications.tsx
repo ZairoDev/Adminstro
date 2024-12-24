@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { BellDot, ExternalLink } from "lucide-react";
+import { BellDot, ExternalLink, LucideLoader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { IQuery } from "@/util/type";
@@ -18,15 +18,19 @@ import Link from "next/link";
 
 export function Notifications() {
   const [threeDaysReminders, setThreeDaysReminders] = useState<IQuery[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchReminderOfThreeDays = async () => {
     try {
+      setLoading(true);
       const response = await axios.get(
         "/api/sales/reminders/getThreeDaysReminders"
       );
       setThreeDaysReminders(response.data.allReminders);
     } catch (err: any) {
       console.log("No Reminders");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,34 +66,43 @@ export function Notifications() {
             Thsese are the Upcoming Reminders of 3 days
           </DialogDescription>
         </DialogHeader>
-        <div className=" flex flex-col gap-y-2">
-          {threeDaysReminders?.map((reminder, index) => (
-            <div key={index} className=" border border-neutral-700 rounded-xl flex justify-between items-center gap-x-2 p-2">
-              <p>
-                Name - <span className=" text-xs">{reminder?.name}</span>
-              </p>
-              <Separator orientation="vertical" className="" />
-              <p>
-                Budget - <span className=" text-xs">{reminder?.budget}</span>
-              </p>
-              <Separator orientation="vertical" className="" />
-              <p>
-                Area -{" "}
-                <span className=" text-xs">
-                  {reminder?.location} / {reminder?.area}
-                </span>
-              </p>
-              <Separator orientation="vertical" className="" />
-              <p className=" text-sm">{remainingDays(reminder?.reminder)}&nbsp; Days To Go</p>
-              <Link
-                href={`/dashboard/createquery/${reminder?._id}`}
-                target="_blank"
+        {loading ? (
+          <LucideLoader2 className=" animate-spin mx-auto w-full" />
+        ) : (
+          <div className=" flex flex-col  gap-y-2">
+            {threeDaysReminders?.map((reminder, index) => (
+              <div
+                key={index}
+                className=" border border-neutral-700 rounded-xl flex justify-between items-center gap-x-2 p-2"
               >
-                <ExternalLink size={18}/>
-              </Link>
-            </div>
-          ))}
-        </div>
+                <p>
+                  Name - <span className=" text-xs">{reminder?.name}</span>
+                </p>
+                <Separator orientation="vertical" className="" />
+                <p>
+                  Budget - <span className=" text-xs">{reminder?.budget}</span>
+                </p>
+                <Separator orientation="vertical" className="" />
+                <p>
+                  Area -{" "}
+                  <span className=" text-xs">
+                    {reminder?.location} / {reminder?.area}
+                  </span>
+                </p>
+                <Separator orientation="vertical" className="" />
+                <p className=" text-sm">
+                  {remainingDays(reminder?.reminder)}&nbsp; Days To Go
+                </p>
+                <Link
+                  href={`/dashboard/createquery/${reminder?._id}`}
+                  target="_blank"
+                >
+                  <ExternalLink size={18} />
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

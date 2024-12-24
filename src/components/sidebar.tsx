@@ -132,12 +132,6 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Lead",
       Icon: <PencilLine size={18} />,
     },
-
-    {
-      path: "/dashboard/createdQuery",
-      label: "Created Lead",
-      Icon: <CalendarPlus size={18} />,
-    },
     {
       path: "/dashboard/rolebaseLead",
       label: "Lead (Sales)",
@@ -172,11 +166,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/room/joinroom",
       label: "Join Room",
       Icon: <House size={18} />,
-    },
-    {
-      path: "/dashboard/reminder",
-      label: "Reminder",
-      Icon: <Plus size={18} />,
     },
   ],
   Sales: [

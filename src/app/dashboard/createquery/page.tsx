@@ -113,7 +113,7 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
-    salesPriority: "",
+    salesPriority: "-",
     reminder: new Date(),
     roomDetails: {
       roomId: "",

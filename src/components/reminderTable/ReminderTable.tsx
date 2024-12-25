@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { format, toDate } from "date-fns";
+import axios from "axios";
+import Link from "next/link";
+import debounce from "lodash.debounce";
+import { useCallback, useRef, useState } from "react";
 
+import { IQuery } from "@/util/type";
+import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/AuthStore";
 import {
   Table,
   TableBody,
@@ -22,10 +27,8 @@ import {
   CircleDot,
 } from "lucide-react";
 
-import { IQuery } from "@/util/type";
-import { Button } from "../ui/button";
-import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import CustomTooltip from "../CustomToolTip";
 
 import {
@@ -38,14 +41,9 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
-import { useUserRole } from "@/context/UserRoleContext";
-import debounce from "lodash.debounce";
-
 export default function ReminderTable({ queries }: { queries: IQuery[] }) {
-  const { userRole } = useUserRole();
   const { toast } = useToast();
+  const { token } = useAuthStore();
 
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
   const [salesPriority, setSalesPriority] = useState<
@@ -61,12 +59,6 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
     selectedQuery?.endDate && !isNaN(Date.parse(selectedQuery.endDate))
       ? new Date(selectedQuery.endDate)
       : null;
-  const formattedStartDate = startDate
-    ? format(startDate, "dd-MM-yyyy")
-    : "Invalid Date";
-  const formattedEndDate = endDate
-    ? format(endDate, "dd-MM-yyyy")
-    : "Invalid Date";
 
   const IsView = async (id: any, index: any) => {
     try {
@@ -147,14 +139,14 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                 <TableHead>Priority</TableHead>
               )}
               <TableHead>Name</TableHead>
               <TableHead>Guests</TableHead>
               <TableHead>Budget</TableHead>
               <TableHead>Location</TableHead>
-              {/* {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              {/* {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
               <TableHead>Lead Quality</TableHead>
             )} */}
               {/* <TableHead>Contact</TableHead> */}

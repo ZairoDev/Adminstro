@@ -1,8 +1,20 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+
+import axios from "axios";
+import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
+import { SlidersHorizontal } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+
+import { IQuery } from "@/util/type";
+import Loader from "@/components/loader";
+import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
+import LeadTable from "@/components/leadTable/LeadTable";
 import {
   Sheet,
   SheetClose,
@@ -13,8 +25,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import Heading from "@/components/Heading";
 import {
   Select,
   SelectContent,
@@ -29,15 +39,6 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import Loader from "@/components/loader";
-import QueryCard from "@/components/QueryCard";
-import LeadTable from "@/components/leadTable/LeadTable";
-import { SlidersHorizontal } from "lucide-react";
-import { IQuery } from "@/util/type";
-import { useUserRole } from "@/context/UserRoleContext";
-import Pusher from "pusher-js";
-import { Toaster } from "@/components/ui/toaster";
-import axios from "axios";
 
 interface ApiResponse {
   data: IQuery[];
@@ -53,7 +54,6 @@ interface FetchQueryParams {
   customDateRange: { start: string; end: string };
 }
 const RolebasedLead = () => {
-  // const { allotedArea } = useUserRole();
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
@@ -74,8 +74,6 @@ const RolebasedLead = () => {
   const { toast } = useToast();
   const limit: number = 12;
   const [allotedArea, setAllotedArea] = useState("");
-
-  //   console.log(area, "Alloted area Gonna Print Here");
 
   const fetchQuery = useCallback(
     debounce(

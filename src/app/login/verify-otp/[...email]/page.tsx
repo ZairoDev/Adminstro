@@ -1,49 +1,79 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Timer } from "lucide-react";
 import { CgSpinner } from "react-icons/cg";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+
+import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { ModeToggle } from "@/components/themeChangeButton";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { ArrowLeft } from "lucide-react";
-import { ModeToggle } from "@/components/themeChangeButton";
 interface PageProps {
   params: {
     email: string;
   };
 }
 const Page = ({ params }: PageProps) => {
+  const { setToken } = useAuthStore();
+
   const { toast } = useToast();
   const router = useRouter();
   const [otpInput, setOtpInput] = useState("");
   const email = params.email;
-  console.log(email);
-  const [remainingTime, setRemainingTime] = useState(60);
+  console.log("email in verify otp page: ", email);
+  const [remainingTime, setRemainingTime] = useState(10);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [disabledButton, setDisabledButton] = useState(true);
   const [verifyClick, setVerifyClick] = useState(true);
 
-  useEffect(() => {
-    if (remainingTime > 0) {
-      const timerId = setTimeout(() => {
-        setRemainingTime((prev) => prev - 1);
-      }, 1000);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const timerRef = useRef<number | null>(null);
+  const timeRef = useRef(10);
 
-      return () => {
-        clearTimeout(timerId);
-      };
+  useEffect(() => {
+    // Start the interval when the component mounts
+    timerRef.current = window.setInterval(() => {
+      if (timeRef.current > 0) {
+        timeRef.current -= 1;
+        setTimeLeft(timeRef.current);
+      } else {
+        clearTimer();
+      }
+    }, 1000);
+
+    return () => clearTimer();
+  }, []);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-    if (remainingTime == 0) {
-      setDisabledButton(false);
-    }
-  }, [remainingTime]);
+  };
+
+  // useEffect(() => {
+  //   if (remainingTime > 0) {
+  //     const timerId = setTimeout(() => {
+  //       setRemainingTime((prev) => prev - 1);
+  //     }, 1000);
+
+  //     return () => {
+  //       clearTimeout(timerId);
+  //     };
+  //   }
+  //   if (remainingTime == 0) {
+  //     setDisabledButton(false);
+  //   }
+  // }, [remainingTime]);
 
   const handleOTPverification = async () => {
     setVerifyLoading(true);
@@ -59,14 +89,15 @@ const Page = ({ params }: PageProps) => {
         otp: otpInput,
         email,
       });
+      setToken(response.data.tokenData);
       toast({
         description: "You have successfully logged in as Superadmin",
       });
-      window.location.reload();
+      // window.location.reload();
+      router.refresh();
       router.push("/");
     } catch (err: any) {
       console.log(err);
-      console.log(err.response.data.error);
       toast({
         variant: "destructive",
         description: `${err.response.data.error}`,
@@ -81,7 +112,7 @@ const Page = ({ params }: PageProps) => {
       toast({
         description: "Otp send sucessfully to your entered email address",
       });
-      setRemainingTime(60);
+      setRemainingTime(10);
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -107,27 +138,31 @@ const Page = ({ params }: PageProps) => {
       </div>
       <div className="md:w-1/2 w-full flex-col flex items-center justify-center">
         <div className="w-full max-w-sm px-6 py-8 border rounded-lg shadow-lg">
-          <h1>Enter OTP</h1>
+          <h1>Verify OTP</h1>
+          <p className=" text-neutral-700 text-sm mb-4">
+            Enter the 6-digit code sent to your Email
+          </p>
 
-          {/* shadcn OTP input */}
-          <InputOTP maxLength={6} onChange={setOtpInput}>
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-            </InputOTPGroup>
-            <InputOTPSeparator />
-            <InputOTPGroup>
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
+          <div className=" w-full flex justify-center">
+            <InputOTP maxLength={6} onChange={setOtpInput}>
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
 
           <Button
             disabled={verifyLoading}
             onClick={handleOTPverification}
-            className=" mt-4 mb-4"
+            className=" mt-4 mb-4 w-full"
           >
             {verifyLoading ? (
               <div className="flex items-center gap-x-2">
@@ -140,20 +175,20 @@ const Page = ({ params }: PageProps) => {
           </Button>
           {verifyClick && (
             <div className="text-center text-sm sm:text-base mt-4">
-              <p className="">
-                Didn’t receive the OTP?{" "}
-                <Button
-                  variant="link"
-                  disabled={disabledButton}
-                  onClick={handleRetryOTP}
-                >
-                  Resend OTP
-                </Button>
-              </p>
-              <p className=" mt-1">
-                {disabledButton
-                  ? `You can retry after ${remainingTime} seconds.`
-                  : "You can now resend the OTP."}
+              <p className="">Didn’t receive the OTP ? </p>
+              <p className=" mt-1 flex w-full justify-center items-center gap-x-2 text-sm text-gray-400">
+                <Timer size={18} />
+                {timeLeft != 0 && `You can retry after ${timeLeft} seconds.`}
+                {!timeLeft && (
+                  <Button
+                    variant="link"
+                    disabled={timeLeft != 0}
+                    onClick={handleRetryOTP}
+                    className=" text-sm"
+                  >
+                    Resend OTP
+                  </Button>
+                )}
               </p>
             </div>
           )}

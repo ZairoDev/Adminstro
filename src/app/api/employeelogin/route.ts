@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { NextRequest, NextResponse } from "next/server";
+
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
     const { email, password } = reqBody;
+
     const Employee = (await Employees.find({ email })) as Employee[];
     if (!Employee || Employee.length === 0) {
       return NextResponse.json(
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   temp.password
     // );
 
-    const validPassword: boolean = temp.password === password;
+    const validPassword: boolean = temp.password === password.trim();
     if (!validPassword) {
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -100,16 +101,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       allotedArea: temp.allotedArea,
     };
 
-    console.log(tokenData, "Token Data ");
-
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
-      expiresIn: "3d",
+      expiresIn: "2d",
     });
 
     const response = NextResponse.json({
       message: "Login successful",
       success: true,
       token,
+      tokenData: tokenData,
     });
 
     response.cookies.set("token", token, {

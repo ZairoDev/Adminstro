@@ -1,33 +1,19 @@
 "use client";
-import BreadCrumb from "@/components/BreadCrumb";
-import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
-import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
-import { LogoutButton } from "@/components/logoutAlertBox";
-import { Notifications } from "@/components/Notifications/Notifications";
+
+import { useAuthStore } from "@/AuthStore";
 import { Sidebar } from "@/components/sidebar";
-import axios from "axios";
-import { Bell, BellDot } from "lucide-react";
-import { useEffect, useState } from "react";
+import BreadCrumb from "@/components/BreadCrumb";
+import { LogoutButton } from "@/components/logoutAlertBox";
+import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
+import { Notifications } from "@/components/Notifications/Notifications";
+import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [token, setToken] = useState<any>();
-
-  const getToken = async () => {
-    try {
-      const response = await axios.get("/api/user/getloggedinuser");
-      setToken(response.data.user);
-    } catch (err: any) {
-      console.log("No token found in layout");
-    }
-  };
-
-  useEffect(() => {
-    getToken();
-  }, []);
+  const { token } = useAuthStore();
 
   return (
     <div className="flex">

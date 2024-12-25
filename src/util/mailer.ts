@@ -119,7 +119,7 @@ export const sendEmail = async ({
       return { success: false, message: "Email does not exist." };
     }
 
-    console.log("Email sent successfully:", mailResponse);
+    console.log("Email sent successfully");
     return { success: true, message: "Email sent successfully." };
   } catch (error: any) {
     console.error("Error sending email:", error);

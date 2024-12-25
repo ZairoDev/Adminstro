@@ -24,6 +24,8 @@ import {
   Speech,
   User2Icon,
 } from "lucide-react";
+import CustomTooltip from "./CustomToolTip";
+import { useAuthStore } from "@/AuthStore";
 
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -200,40 +202,20 @@ const roleRoutes: Record<string, Route[]> = {
 };
 
 export function Sidebar() {
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { token } = useAuthStore();
   const currentPath = usePathname();
 
-  const getUserRole = async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get("/api/user/getloggedinuser");
-      if (response.data && response.data.user && response.data.user.role) {
-        setUserRole(response.data.user.role);
-      } else {
-        console.error("No role found in the response.");
-      }
-    } catch (error: any) {
-      console.error("Error fetching user role:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  useEffect(() => {
-    getUserRole();
-  }, []);
-
   const renderRoutes = (showText: boolean) => {
-    if (isLoading) {
-      return (
-        <>
-          <div className="flex items-center justify-center">
-            <LoaderCircle className="animate-spin" size={18} />
-          </div>
-        </>
-      );
-    }
-    if (!userRole) {
+    // if (isLoading) {
+    //   return (
+    //     <>
+    //       <div className="flex items-center justify-center">
+    //         <LoaderCircle className="animate-spin" size={18} />
+    //       </div>
+    //     </>
+    //   );
+    // }
+    if (!token) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
           <img
@@ -243,7 +225,7 @@ export function Sidebar() {
         </li>
       );
     }
-    const routes = roleRoutes[userRole as keyof typeof roleRoutes];
+    const routes = roleRoutes[token?.role as keyof typeof roleRoutes];
     if (!routes) {
       return <li>Invalid role</li>;
     }
@@ -256,6 +238,7 @@ export function Sidebar() {
             : ""
         }`}
       >
+        {" "}
         <Link
           href={route.path}
           className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "

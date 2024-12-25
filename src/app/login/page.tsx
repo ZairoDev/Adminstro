@@ -1,40 +1,48 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { CgSpinner } from "react-icons/cg";
-import axios, { AxiosResponse } from "axios";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
+
 import Cookies from "js-cookie";
 import { parseCookies } from "nookies";
+import { CgSpinner } from "react-icons/cg";
+import { useRouter } from "next/navigation";
+import axios, { AxiosResponse } from "axios";
+import React, { useState, useEffect } from "react";
+import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
+
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+import { TokenInterface } from "@/util/type";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
-import { useUserRole } from "@/context/UserRoleContext";
 import FadeInAnimation from "@/components/fadeinAnimation";
 
 interface LoginResponse {
   message?: string;
   token?: string;
+  tokenData: TokenInterface;
   error?: string;
 }
 
 const PageLogin: React.FC = () => {
+  const { token, setToken } = useAuthStore();
+  const { toast } = useToast();
+  const router = useRouter();
+
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const router = useRouter();
-  const { toast } = useToast();
-  const { refreshUserRole } = useUserRole();
   useEffect(() => {
     const { token } = parseCookies();
     if (token) {
       router.push("/");
     }
   }, [router]);
+
+  useEffect(() => {
+    router.refresh();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -51,10 +59,10 @@ const PageLogin: React.FC = () => {
         router.push(`/login/verify-otp/${email}`);
         return;
       }
+      setToken(response.data.tokenData);
       if (response.status === 200 && response.data.token) {
         Cookies.set("token", response.data.token, { expires: 1 });
         router.push("/");
-        refreshUserRole();
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {

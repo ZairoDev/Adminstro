@@ -1,33 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { format } from "date-fns";
+import axios from "axios";
+import Link from "next/link";
+import debounce from "lodash.debounce";
+import { useCallback, useRef, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  MapPin,
   Users,
-  DollarSign,
-  Bed,
-  Clock,
-  Receipt,
-  Home,
-  Building,
-  Calendar as DateIcon,
-  ChartArea,
   Ellipsis,
   BedSingle,
   Euro,
@@ -36,17 +12,34 @@ import {
   Loader2,
   ArrowBigUpDash,
   ArrowBigDownDash,
-  Circle,
   CircleDot,
-  LucideLoader2,
 } from "lucide-react";
 
 import { IQuery } from "@/util/type";
-import { Button } from "../ui/button";
-import Link from "next/link";
-import { Badge } from "../ui/badge";
-import CustomTooltip from "../CustomToolTip";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Calendar } from "../ui/calendar";
+import { Textarea } from "../ui/textarea";
+import CustomTooltip from "../CustomToolTip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,11 +53,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-
-import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
-import { useUserRole } from "@/context/UserRoleContext";
-import debounce from "lodash.debounce";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,56 +60,24 @@ import {
   AlertDialogContent,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
-  const { userRole } = useUserRole();
   const { toast } = useToast();
+  const { token } = useAuthStore();
 
-  const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [roomId, setRoomId] = useState("");
-  const [roomPassword, setRoomPassword] = useState("");
+  const ellipsisRef = useRef<HTMLButtonElement>(null);
+
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
+  const [loading, setLoading] = useState(false);
+  const [roomId, setRoomId] = useState("");
+  const [roomPassword, setRoomPassword] = useState("");
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
     new Date(Date.now())
   );
-  const ellipsisRef = useRef<HTMLButtonElement>(null);
-
-  const InfoItem = ({
-    icon: Icon,
-    label,
-    value,
-  }: {
-    icon: React.ElementType;
-    label: string;
-    value: string | number;
-  }) => (
-    <div className="flex gap-2 ">
-      <Icon size={18} className="text-muted-foreground" />
-      <p className="text-base">
-        <span className="text-base text-muted-foreground mr-2">{label}:</span>
-        {value}
-      </p>
-    </div>
-  );
-  const startDate =
-    selectedQuery?.startDate && !isNaN(Date.parse(selectedQuery?.startDate))
-      ? new Date(selectedQuery?.startDate)
-      : null;
-  const endDate =
-    selectedQuery?.endDate && !isNaN(Date.parse(selectedQuery.endDate))
-      ? new Date(selectedQuery.endDate)
-      : null;
-  const formattedStartDate = startDate
-    ? format(startDate, "dd-MM-yyyy")
-    : "Invalid Date";
-  const formattedEndDate = endDate
-    ? format(endDate, "dd-MM-yyyy")
-    : "Invalid Date";
+  const [noteValue, setNoteValue] = useState("");
+  const [creatingNote, setCreatingNote] = useState(false);
 
   const handleQualityChange = async (
     leadQualityByReviwer: string,
@@ -130,7 +86,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   ) => {
     setLoading(true);
     try {
-      console.log(id, leadQualityByReviwer);
       const response = axios.post("/api/sales/reviewLeadQuality", {
         id,
         leadQualityByReviwer,
@@ -191,7 +146,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       const response = await axios.post("/api/room/createRoom", {
         lead: queries[index],
       });
-      console.log("response: ", response.data);
       setRoomId(response.data.room._id);
       setRoomPassword(response.data.room.password);
       alert(
@@ -239,7 +193,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
         leadId,
         reminderDate,
       });
-      console.log("response: ", response.data.reminderDate);
       toast({
         variant: "default",
         title: "Reminder Added",
@@ -258,22 +211,22 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  // Creating Note
+  const handleNote = async (
+    id: any,
+    noteValue: string | undefined,
+    index: number
+  ) => {
+    if (!noteValue) return;
 
-  // This api will craete the note
-  const [note, setNote] = useState("");
-  const [creatingNote, setCreatingNote] = useState(false);
-
-  const handleNote = async (id: any, note: string, index: number) => {
     try {
       setCreatingNote(true);
       const response = await axios.post("/api/sales/createNote", {
         id,
-        note,
+        note: noteValue,
       });
-      console.log(response.data, "The response from the API to save note");
       setCreatingNote(false);
-      queries[index].note = note;
-      setNote("");
+      queries[index] = response.data.data;
     } catch (error: any) {
       console.error("Error saving note:", error.message || error);
       setCreatingNote(false);
@@ -285,18 +238,18 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            {(userRole === "Sales" || userRole === "SuperAdmin") && (
+            {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
               <TableHead>Priority</TableHead>
             )}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
             <TableHead>Location</TableHead>
-            {(userRole === "Sales" || userRole === "SuperAdmin") && (
+            {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
               <TableHead>Lead Quality</TableHead>
             )}
             <TableHead>Contact</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>Actions </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -312,34 +265,37 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               relative
             `}
             >
-              <TableCell
-                className=" cursor-pointer relative "
-                onClick={() => handleSalesPriority(query?._id, index)}
-              >
-                {query?.reminder === null && (
-                  <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                    <p className=" rotate-90 text-xs font-semibold mt-1">
-                      Reminder
-                    </p>
-                  </div>
-                )}
-                {query.salesPriority === "High" ? (
-                  <CustomTooltip
-                    icon={<ArrowBigUpDash fill="green" color="green" />}
-                    desc="High Priority"
-                  />
-                ) : query.salesPriority === "Low" ? (
-                  <CustomTooltip
-                    icon={<ArrowBigDownDash fill="red" color="red" />}
-                    desc="Low Priority"
-                  />
-                ) : (
-                  <CustomTooltip
-                    icon={<CircleDot fill="" color="gray" />}
-                    desc="No Priority"
-                  />
-                )}
-              </TableCell>
+              {token?.role === "Sales" ||
+                (token?.role === "SuperAdmin" && (
+                  <TableCell
+                    className=" cursor-pointer relative "
+                    onClick={() => handleSalesPriority(query?._id, index)}
+                  >
+                    {query?.reminder === null && (
+                      <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
+                        <p className=" rotate-90 text-xs font-semibold mt-1">
+                          Reminder
+                        </p>
+                      </div>
+                    )}
+                    {query.salesPriority === "High" ? (
+                      <CustomTooltip
+                        icon={<ArrowBigUpDash fill="green" color="green" />}
+                        desc="High Priority"
+                      />
+                    ) : query.salesPriority === "Low" ? (
+                      <CustomTooltip
+                        icon={<ArrowBigDownDash fill="red" color="red" />}
+                        desc="Low Priority"
+                      />
+                    ) : (
+                      <CustomTooltip
+                        icon={<CircleDot fill="" color="gray" />}
+                        desc="No Priority"
+                      />
+                    )}
+                  </TableCell>
+                ))}
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
@@ -386,6 +342,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </div>
               </TableCell>
+
               <TableCell>
                 <div className="flex gap-x-2">
                   <CustomTooltip
@@ -466,7 +423,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-              {(userRole === "Sales" || userRole === "SuperAdmin") && (
+              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                 <TableCell className=" flex gap-x-0.5">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -553,7 +510,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                      {(token?.role === "Sales" ||
+                        token?.role === "SuperAdmin") && (
                         <>
                           <DropdownMenuItem
                             onClick={() => handleCreateRoom(index)}
@@ -575,17 +533,19 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                   <Textarea
                                     className="h-20"
                                     placeholder="Write a note here..."
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
+                                    value={noteValue}
+                                    onChange={(e) =>
+                                      setNoteValue(e.target.value)
+                                    }
                                   />
                                 </DialogHeader>
                                 <DialogFooter>
                                   <Button
                                     onClick={() =>
-                                      handleNote(query._id, note, index)
+                                      handleNote(query._id, noteValue, index)
                                     }
                                     className="w-auto"
-                                    disabled={!note.trim() || creatingNote}
+                                    disabled={!noteValue.trim() || creatingNote}
                                   >
                                     Save
                                   </Button>
@@ -792,6 +752,62 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <div className=" absolute right-0 top-1.5">
+                  <Dialog>
+                    <DialogTrigger>
+                      <p
+                        className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
+                          query?.note
+                            ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
+                            : "bg-white/20 text-white"
+                        } text-sm font-bold `}
+                      >
+                        {/* <span>N</span>
+                        <span>O</span>
+                        <span>T</span>
+                        <span>E</span> */}
+                        <p className=" rotate-90">Note</p>
+                      </p>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Note</DialogTitle>
+                        <Textarea
+                          className="h-20"
+                          placeholder="Write a note here..."
+                          value={noteValue}
+                          onChange={(e) => {
+                            setNoteValue(e.target.value);
+                          }}
+                        />
+                        <p className="text-xl text-foreground font-bold">
+                          Previous Notes
+                        </p>
+                        {query?.note?.map((note, index) => (
+                          <p
+                            key={index}
+                            className=" text-sm flex justify-between items-center w-full "
+                          >
+                            {" "}
+                            <span>{note.noteData}</span>
+                            <span className=" text-xs">{note.createOn}</span>
+                          </p>
+                        ))}
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button
+                          onClick={() =>
+                            handleNote(query._id, noteValue, index)
+                          }
+                          className="w-auto"
+                          disabled={!noteValue.trim() || creatingNote}
+                        >
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </TableCell>
             </TableRow>
           ))}

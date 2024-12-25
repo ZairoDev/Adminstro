@@ -6,8 +6,11 @@ import { DataTable } from "./data-table";
 import debounce from "lodash.debounce";
 import axios from "axios";
 import { UserInterface } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
 
 export default function TablePage() {
+  const { token } = useAuthStore();
+
   const [data, setData] = useState<UserInterface[]>([]);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -25,6 +28,7 @@ export default function TablePage() {
             currentPage: page,
             queryType: queryType,
             userInput: search,
+            role: token?.role,
           },
         });
         setData(response.data.allEmployees);

@@ -1,6 +1,11 @@
 "use client";
-import { useState } from "react";
-import { Button } from "./ui/button";
+
+import axios from "axios";
+import { useRef, useState } from "react";
+import { CircleHelp } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { useAuthStore } from "@/AuthStore";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,37 +25,42 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { useRouter } from "next/navigation";
-import axios from "axios";
+import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { CircleHelp } from "lucide-react";
 
 export function LogoutButton() {
+  const { clearToken } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
 
-  // Function to handle logout
   const handleLogout = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await axios.get("/api/employeelogout", {
         withCredentials: true,
       });
-      console.log("response: ", response);
-      setLoading(false);
+      clearToken();
       setOpen(false);
+      setDropdownOpen(false);
       router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      setLoading(false);
       alert("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleCancel = () => {
+    setOpen(false);
+    setDropdownOpen(false);
+  };
+
   return (
-    <div>
-      <DropdownMenu>
+    <div className="relative">
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Avatar className="cursor-pointer">
             <AvatarImage src="https://github.com/shadcn.png" />
@@ -61,10 +71,12 @@ export function LogoutButton() {
         <DropdownMenuContent>
           <DropdownMenuLabel>User Menu</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {/* Sign Out Option */}
           <DropdownMenuItem
             className="cursor-pointer"
-            onSelect={() => setOpen(true)}
+            onSelect={() => {
+              setOpen(true);
+              setDropdownOpen(false);
+            }}
           >
             Sign out
           </DropdownMenuItem>
@@ -81,29 +93,24 @@ export function LogoutButton() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Alert Dialog for Logout Confirmation */}
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[1050]">
           <AlertDialogHeader>
-            <div className="flex items-center sm:items-start  justify-center sm:justify-start">
-              <div className="h-14   relative w-14 rounded-lg bg-primary/50 flex items-center justify-center">
+            <div className="flex items-center sm:items-start justify-center sm:justify-start">
+              <div className="h-14 relative w-14 rounded-lg bg-primary/50 flex items-center justify-center">
                 <CircleHelp className="text-foreground h-8 w-8" />
               </div>
             </div>
 
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout ? this action cannot be undone.
+              Are you sure you want to logout? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button
-                variant="ghost"
-                onClick={() => setOpen(false)}
-                disabled={loading}
-              >
+              <Button variant="ghost" onClick={handleCancel} disabled={loading}>
                 Cancel
               </Button>
             </AlertDialogCancel>

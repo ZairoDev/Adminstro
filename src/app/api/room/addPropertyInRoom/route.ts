@@ -1,4 +1,5 @@
 import { Properties } from "@/models/property";
+import { quicklisting } from "@/models/quicklisting";
 import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
@@ -18,20 +19,26 @@ const pusher = new Pusher({
 export async function POST(req: NextRequest) {
   const { roomId, propertyId } = await req.json();
 
+  console.log("room: ", roomId, propertyId);
+
   try {
-    const property = await Properties.findById(propertyId);
+    let property = await Properties.findById(propertyId);
+
+    if (!property) {
+      property = await quicklisting.findById(propertyId);
+    }
 
     if (!property) {
       return NextResponse.json(
-        { error: "Property does not exist" },
-        { status: 400 }
+        { error: "Property not found" },
+        { status: 404 }
       );
     }
 
     const Images = [
-      property.propertyCoverFileUrl,
-      ...(property.pictures ? property.propertyPictures : []),
+      property?.propertyCoverFileUrl ? property.propertyCoverFileUrl : "",
       ...(property.propertyImages ? property.propertyImages : []),
+      ...(property.pictures ? property.propertyPictures : []),
     ]
       .filter((item) => item != "")
       .slice(0, 5);
@@ -39,22 +46,17 @@ export async function POST(req: NextRequest) {
     const propertyObject = {
       _id: property._id,
       propertyImages: Images,
-      VSID: property.VSID,
+      VSID: property?.VSID ? property.VSID : "xxxx",
+      QID: property?.QID ? property?.QID : "xxxx",
       price: property.basePrice,
-      postalCode: property?.postalCode,
-      city: property?.city,
-      state: property?.state,
-      country: property?.country,
-      isFavourite: false,
-      isVisit: false,
-      isViewed: false,
-      visitSchedule: "",
+      postalCode: property?.postalCode ? property?.postalCode : "xxxx",
+      city: property?.city ? property?.city : "xxxx",
+      state: property?.state ? property?.state : "xxxx",
+      country: property?.country ? property?.country : "xxxx",
+      isVisit: property?.isVisit ? property?.isVisit : false,
+      isViewed: property?.isViewed ? property.isViewed : false,
+      visitSchedule: property?.visitSchedule ? property?.visitSchedule : "",
     };
-
-    const increaseViewCountOfProperty = await Properties.findByIdAndUpdate(
-      { _id: new mongoose.Types.ObjectId(propertyId) },
-      { $inc: { views: 1 } }
-    );
 
     const room = await Rooms.findByIdAndUpdate(
       { _id: roomId },

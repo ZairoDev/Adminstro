@@ -1,6 +1,5 @@
 import { ViewTransitions } from "next-view-transitions";
 import type { Metadata } from "next";
-import { UserRoleProvider } from "@/context/UserRoleContext";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
@@ -45,7 +44,7 @@ export default function RootLayout({
             ]}
             disableTransitionOnChange
           >
-            <UserRoleProvider>{children}</UserRoleProvider>
+            {children}
           </ThemeProvider>
           <Toaster />
         </body>

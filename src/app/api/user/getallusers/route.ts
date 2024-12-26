@@ -23,9 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (userInput) {
     userInput = userInput.trim();
   }
-  console.log(
-    `currentPage: ${currentPage}, queryType: ${queryType}, userInput: ${userInput}`
-  );
+
   const query: UserQuery = {};
 
   const validQueryTypes = ["name", "email", "phone"];
@@ -41,7 +39,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const skip = (currentPage - 1) * 20;
 
   try {
-    console.log(`Query: ${JSON.stringify(query)}`);
     const allUsers: User[] = await Users.find(query)
       .limit(20)
       .skip(skip)
@@ -49,7 +46,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const totalUsers: number = await Users.countDocuments(query);
 
-    console.log(`Found ${totalUsers} users`);
     return NextResponse.json({ allUsers, totalUsers });
   } catch (error) {
     console.error("Error fetching users:", error);

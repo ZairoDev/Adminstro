@@ -1,10 +1,8 @@
 "use client";
-import Heading from "@/components/Heading";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { IQuery } from "@/util/type";
+
 import axios from "axios";
+import Link from "next/link";
+import React, { useEffect, useState } from "react";
 import {
   Bed,
   Building,
@@ -20,10 +18,14 @@ import {
   User,
   Users,
 } from "lucide-react";
-import Link from "next/link";
-import React, { useEffect, useState } from "react";
+
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import Heading from "@/components/Heading";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useUserRole } from "@/context/UserRoleContext";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface PageProps {
   params: {
@@ -33,12 +35,14 @@ interface PageProps {
 
 const QueryDetails = ({ params }: PageProps) => {
   const id = params.id;
-  const { userRole } = useUserRole();
+  const { token } = useAuthStore();
+
   const [apiData, setApiData] = useState<IQuery>();
   const [loading, setLoading] = useState(false);
   const [retrieveLeadLoading, setRetrieveLeadLoading] = useState(false);
   const [leadQuality, setLeadQuality] = useState<string>("");
   const [saveLoading, setSaveLoading] = useState(false);
+
   const handleSave = async () => {
     try {
       setSaveLoading(true);
@@ -217,7 +221,8 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="End Date"
                       value={apiData?.endDate ?? " "}
                     />
-                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                    {(token?.role === "Sales" ||
+                      token?.role === "SuperAdmin") && (
                       <div className=" flex items-center justify-between border rounded-lg">
                         <InfoItem
                           icon={House}
@@ -236,7 +241,8 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     )}
-                    {(userRole === "Sales" || userRole === "SuperAdmin") && (
+                    {(token?.role === "Sales" ||
+                      token?.role === "SuperAdmin") && (
                       <div className=" flex items-center justify-between border rounded-lg">
                         <InfoItem
                           icon={KeyRound}

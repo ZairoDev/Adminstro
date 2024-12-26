@@ -1,12 +1,14 @@
 "use client";
-import { Navbar } from "@/components/navbar";
-import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
-import FadeInBlur from "@/components/FadeInBlur";
-import { RainbowButton } from "@/components/ui/rainbow-button";
+
 import Link from "next/link";
-import { useUserRole } from "@/context/UserRoleContext";
-import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
+
+import { useAuthStore } from "@/AuthStore";
+import { Navbar } from "@/components/navbar";
+import FadeInBlur from "@/components/FadeInBlur";
 import DashboardCard from "@/components/DashBoardCard";
+import { RainbowButton } from "@/components/ui/rainbow-button";
+import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
+import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 
 export default function HomePage() {
   const people = [
@@ -36,7 +38,7 @@ export default function HomePage() {
     },
   ];
 
-  const { userRole } = useUserRole();
+  const { token } = useAuthStore();
 
   return (
     <>
@@ -66,20 +68,20 @@ export default function HomePage() {
 
       <div className="flex items-center mt-2 justify-center">
         <>
-          {userRole ? (
-            userRole === "Sales" ? (
+          {token ? (
+            token.role === "Sales" ? (
               <Link href="/dashboard/rolebaseLead">
                 <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Dashboard
                 </RainbowButton>
               </Link>
-            ) : userRole === "Content" ? (
+            ) : token.role === "Content" ? (
               <Link href="/dashboard/remainingproperties">
                 <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Dashboard
                 </RainbowButton>
               </Link>
-            ) : userRole === "HR" ? (
+            ) : token.role === "HR" ? (
               <Link href="/dashboard/employee">
                 <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Dashboard

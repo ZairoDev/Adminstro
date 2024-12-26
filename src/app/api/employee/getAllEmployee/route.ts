@@ -1,6 +1,5 @@
-import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
-import { getDataFromToken } from "@/util/getDataFromToken";
+import Employees from "@/models/employee";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -21,15 +20,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const queryType = request.nextUrl.searchParams.get("queryType");
   let EmployeeInput = request.nextUrl.searchParams.get("userInput");
 
-  console.log(
-    `currentPage: ${currentPage}, queryType: ${queryType}, EmployeeInput: ${EmployeeInput}`
-  );
-
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
   }
-  const token = await getDataFromToken(request);
-  const role = token.role;
+  const role = request.nextUrl.searchParams.get("role");
 
   const query: UserQuery & { role?: { $nin: string[] } } = {};
 
@@ -50,7 +44,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    console.log(`Query: ${JSON.stringify(query)}`);
     const allEmployees: Employee[] = await Employees.find(query)
       .limit(20)
       .skip(skip)
@@ -58,7 +51,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const totalEmployee: number = await Employees.countDocuments(query);
 
-    console.log(`Found ${totalEmployee} users`);
     return NextResponse.json({ allEmployees, totalEmployee });
   } catch (error) {
     console.error("Error fetching Employee:", error);

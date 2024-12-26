@@ -1,18 +1,20 @@
 "use client";
+
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import { Loader2, Plus, Upload, X } from "lucide-react";
 import React, { useRef, useState, useEffect } from "react";
+
+import Heading from "@/components/Heading";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Editor from "@/components/editor/editor";
-import axios from "axios";
-import { Loader2, Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
-import { useUserRole } from "@/context/UserRoleContext";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
 
-import Heading from "@/components/Heading";
 const defaultValue = {
   type: "doc",
   content: [
@@ -28,6 +30,10 @@ const defaultValue = {
   ],
 };
 const BlogPage = () => {
+  const { toast } = useToast();
+  const router = useRouter();
+  const { token } = useAuthStore();
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>(defaultValue);
   const [tags, setTags] = useState<string[]>([]);
@@ -38,16 +44,6 @@ const BlogPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
-  const { userRole, currentUser, isLoading, userEmail } = useUserRole();
-  const { toast } = useToast();
-  const router = useRouter();
-  console.log(
-    userRole,
-    currentUser,
-    userEmail,
-    isLoading,
-    "Things will print here"
-  );
 
   const handleAddTag = () => {
     if (tagInput && !tags.includes(tagInput)) {
@@ -91,7 +87,7 @@ const BlogPage = () => {
         banner,
         maintext,
         wordCount,
-        author: userEmail,
+        author: token?.email,
       });
       toast({
         title: "Success",
@@ -233,7 +229,7 @@ const BlogPage = () => {
             </div>
           </div>
           <Button
-            disabled={isLoading || uploading || !isFormValid()}
+            disabled={uploading || !isFormValid()}
             onClick={handleSubmit}
             className="sm:w-auto w-full"
           >

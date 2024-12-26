@@ -1,4 +1,19 @@
 "use client";
+
+import axios from "axios";
+import Link from "next/link";
+import debounce from "lodash.debounce";
+import { useRouter } from "next/navigation";
+import { Edit, EyeIcon, EyeOff } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+
+import { Property } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import Heading from "@/components/Heading";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import CardLoader from "@/components/CardLoader";
+import CustomTooltip from "@/components/CustomToolTip";
 import {
   Drawer,
   DrawerClose,
@@ -9,9 +24,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { useRouter } from "next/navigation";
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -26,15 +38,6 @@ import {
   PaginationLink,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
-import debounce from "lodash.debounce";
-import { Button } from "@/components/ui/button";
-import { Edit, EyeIcon, EyeOff } from "lucide-react";
-import axios from "axios";
-import { Property } from "@/util/type";
-import Link from "next/link";
-import CustomTooltip from "@/components/CustomToolTip";
-import Heading from "@/components/Heading";
-import CardLoader from "@/components/CardLoader";
 
 interface ApiResponse {
   data: Property[];
@@ -56,24 +59,7 @@ const PropertyPage: React.FC = () => {
   const limit: number = 12;
   const router = useRouter();
 
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const getUserRole = async () => {
-    try {
-      const response = await axios.get("/api/user/getloggedinuser");
-      console.log("API response:", response.data.user.role);
-      if (response.data && response.data.user && response.data.user.role) {
-        setUserRole(response.data.user.role);
-      } else {
-        console.error("No role found in the response.");
-      }
-    } catch (error: any) {
-      console.error("Error fetching user role:", error);
-    } finally {
-    }
-  };
-  useEffect(() => {
-    getUserRole();
-  }, []);
+  const { token } = useAuthStore();
 
   const handleEditClick = (propertyId: string) => {
     router.push(`/dashboard/property/edit/${propertyId}`);
@@ -347,15 +333,16 @@ const PropertyPage: React.FC = () => {
                     {!property?.isLive && (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          {userRole === "SuperAdmin" ||
-                          userRole === "Advert" ? (
+                          {token?.role === "SuperAdmin" ||
+                          token?.role === "Advert" ? (
                             <Button
                               className=" absolute top-0 text-green-700 left-0"
                               variant="link"
                               onClick={() =>
                                 setSelectedPropertyId(property?._id)
                               }
-                              disabled={isSubmitting}>
+                              disabled={isSubmitting}
+                            >
                               <EyeIcon size={18} />
                             </Button>
                           ) : null}
@@ -384,8 +371,8 @@ const PropertyPage: React.FC = () => {
                     {property?.isLive && (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          {(userRole === "SuperAdmin" ||
-                            userRole === "Advert") &&
+                          {(token?.role === "SuperAdmin" ||
+                            token?.role === "Advert") &&
                           property?.isLive ? (
                             <Button
                               className="absolute text-red-700 left-0 top-0"
@@ -421,7 +408,7 @@ const PropertyPage: React.FC = () => {
                       </Drawer>
                     )}
                     <div className="absolute  right-0 top-0 ">
-                      {userRole === "SuperAdmin" && (
+                      {token?.role === "SuperAdmin" && (
                         <div>
                           <Button
                             variant="link"
@@ -432,7 +419,7 @@ const PropertyPage: React.FC = () => {
                           </Button>
                         </div>
                       )}
-                      {userRole === "Advert" && (
+                      {token?.role === "Advert" && (
                         <div className="w-full">
                           <Button
                             variant="link"

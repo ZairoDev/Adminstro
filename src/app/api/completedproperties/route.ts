@@ -143,7 +143,6 @@ export async function GET(request: NextRequest) {
 
     if (allProperties.length === 0) {
       const totalCount = await Property.countDocuments();
-      console.log("Total properties in database:", totalCount);
     }
 
     const completedProperties = await Property.countDocuments(query);

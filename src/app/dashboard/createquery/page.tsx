@@ -1,9 +1,28 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+
+import axios from "axios";
+import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
+import { useForm } from "react-hook-form";
+import "react-phone-number-input/style.css";
 import { useToast } from "@/hooks/use-toast";
+import PhoneInput from "react-phone-number-input";
+import React, { useCallback, useEffect, useState } from "react";
+import { CheckCheckIcon, SlidersHorizontal } from "lucide-react";
+
+import { IQuery } from "@/util/type";
+import Loader from "@/components/loader";
+import Heading from "@/components/Heading";
+import { useAuthStore } from "@/AuthStore";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
+import { DatePicker } from "@/components/DatePicker";
+import LeadTable from "@/components/leadTable/LeadTable";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { validateAndSetDuration } from "@/util/durationValidation";
 import {
   Dialog,
   DialogContent,
@@ -23,9 +42,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Heading from "@/components/Heading";
 import {
   Select,
   SelectContent,
@@ -40,20 +56,6 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import Loader from "@/components/loader";
-import QueryCard from "@/components/QueryCard";
-import LeadTable from "@/components/leadTable/LeadTable";
-import { CheckCheckIcon, Divide, SlidersHorizontal } from "lucide-react";
-import { IQuery } from "@/util/type";
-import { DatePicker } from "@/components/DatePicker";
-import { validateAndSetDuration } from "@/util/durationValidation";
-import { useUserRole } from "@/context/UserRoleContext";
-import Pusher from "pusher-js";
-import { Toaster } from "@/components/ui/toaster";
-import { useForm } from "react-hook-form";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
-import axios from "axios";
 
 interface ApiResponse {
   data: IQuery[];
@@ -68,11 +70,10 @@ interface FetchQueryParams {
   customDateRange: { start: string; end: string };
 }
 const SalesDashboard = () => {
-  const { userRole } = useUserRole();
+  const { toast } = useToast();
+  const { token } = useAuthStore();
+
   const [queries, setQueries] = useState<IQuery[]>([]);
-  // const [selectedTerm, setSelectedTerm] = useState(""); // State to store the selected term
-  // const [formData, setFormData] = useState({ duration: "" });
-  // const [selectedTerm, setSelectedTerm] = useState("");
   const [loading, setLoading] = useState<boolean>(false);
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
@@ -83,18 +84,17 @@ const SalesDashboard = () => {
   const [customDays, setCustomDays] = useState("");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
-  const [customDateRange, setCustomDateRange] = useState({
-    start: "",
-    end: "",
-  });
   const [allotedArea, setAllotedArea] = useState("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("name");
   const [page, setPage] = useState<number>(1);
   const [view, setView] = useState("Table View");
-  const { toast } = useToast();
   const [normalInput, setNormalInput] = useState(false);
   const [numberStatus, setNumberStatus] = useState("");
+  const [customDateRange, setCustomDateRange] = useState({
+    start: "",
+    end: "",
+  });
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -113,7 +113,7 @@ const SalesDashboard = () => {
     typeOfProperty: "",
     propertyType: "",
     priority: "",
-    salesPriority: "-",
+    salesPriority: "None",
     reminder: new Date(),
     roomDetails: {
       roomId: "",
@@ -126,7 +126,6 @@ const SalesDashboard = () => {
     register,
     formState: { errors },
   } = useForm();
-
 
   const handleBookingTermChange = (value: string) => {
     setFormData((prevData) => ({
@@ -157,7 +156,6 @@ const SalesDashboard = () => {
           setNumberStatus("❌ Phone number already exists.");
         } else {
           setNumberStatus("✅ Phone number is available.");
-
         }
         setChecking(false);
       } else {
@@ -179,7 +177,6 @@ const SalesDashboard = () => {
       validateAndSetDuration(e.target.value, formData.bookingTerm, setFormData);
     }
   };
-
 
   const handleSubmit = async () => {
     try {
@@ -208,7 +205,7 @@ const SalesDashboard = () => {
       const formDataToSubmit = {
         ...otherFields,
         budget,
-        phoneNo: phone
+        phoneNo: phone,
       };
       setSubmitQuery(true);
       const response = await fetch("/api/sales/createquery", {
@@ -446,8 +443,8 @@ const SalesDashboard = () => {
             />
           </div>
           <Dialog>
-            <DialogTrigger>
-              {userRole !== "Sales" && <Button>Create Lead</Button>}
+            <DialogTrigger asChild>
+              {token?.role !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
             <DialogContent className="p-4 w-[400px] md:min-w-[650px]">
               <DialogHeader>
@@ -547,20 +544,22 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Short Term">Short Term</SelectItem>
+                            <SelectItem value="Short Term">
+                              Short Term
+                            </SelectItem>
                             <SelectItem value="Mid Term">Mid Term</SelectItem>
                             <SelectItem value="Long Term">Long Term</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="flex  items-center gap-x-1 w-full">
-                        <div className="">
-
-                        </div>
+                        <div className=""></div>
                         <div className="w-full">
                           <Label className="flex gap-3 m-1">
                             Duration*
-                            <p className="text-xs">Tick this to fill in Number</p>
+                            <p className="text-xs">
+                              Tick this to fill in Number
+                            </p>
                             <input
                               className="rounded-full"
                               type="checkbox"
@@ -596,16 +595,17 @@ const SalesDashboard = () => {
                             className="w-full"
                             value={formData.duration}
                             onChange={handleDurationChange}
-                            placeholder={formData.bookingTerm === "Short Term"
-                              ? "Fill in days from 1-28"
-                              : formData.bookingTerm === "Mid Term"
+                            placeholder={
+                              formData.bookingTerm === "Short Term"
+                                ? "Fill in days from 1-28"
+                                : formData.bookingTerm === "Mid Term"
                                 ? "Fill in months from 1-3"
                                 : formData.bookingTerm === "Long Term"
-                                  ? "Fill in months from 4-12"
-                                  : "Enter duration based on term"}
+                                ? "Fill in months from 4-12"
+                                : "Enter duration based on term"
+                            }
                           />
                         </div>
-
                       </div>
                     </div>
                   </div>

@@ -6,7 +6,7 @@ connectDb();
 
 interface UpdatedData {
   lastUpdatedBy?: string[];
-  [key: string]: any; 
+  [key: string]: any;
 }
 interface RequestBody {
   propertyId: string;
@@ -16,25 +16,17 @@ interface RequestBody {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const host = request.headers.get("host");
-  console.log('host');
   try {
     const reqBody: RequestBody = await request.json();
     const { propertyId, updatedData, userEmail } = reqBody;
-    console.log(userEmail, propertyId, updatedData);
     let { lastUpdatedBy } = updatedData;
-    console.log(lastUpdatedBy);
 
     if (lastUpdatedBy) {
       lastUpdatedBy.push(userEmail);
-      console.log(lastUpdatedBy);
       updatedData.lastUpdatedBy = lastUpdatedBy;
-    } else {
-      console.log('else');
     }
 
-    console.log(updatedData);
-    delete updatedData.VSID; 
-    console.log(updatedData);
+    delete updatedData.VSID;
 
     if (!propertyId || !updatedData) {
       return new NextResponse(
@@ -45,8 +37,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    console.log("here");
-
     const property = await Property.findOneAndUpdate(
       { _id: propertyId },
       { $set: updatedData },
@@ -54,10 +44,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!property) {
-      return new NextResponse(JSON.stringify({ message: "Property not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new NextResponse(
+        JSON.stringify({ message: "Property not found" }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     return new NextResponse(JSON.stringify({ property }), {

@@ -1702,10 +1702,13 @@ const EditPropertyPage = ({ params }: PageProps) => {
               </div>
 
               <AlertDialog>
-                <AlertDialogTrigger className="flex px-3 py-2 bg-background  rounded-lg border items-start">
-                  <div className="flex items-center justify-between gap-2">
+                <AlertDialogTrigger
+                  asChild
+                  className="flex px-3 py-2 bg-background  rounded-lg border items-start"
+                >
+                  <Button className="flex items-center justify-between gap-2">
                     Edit the amenties <MdAdsClick />
-                  </div>
+                  </Button>
                 </AlertDialogTrigger>
 
                 <AlertDialogContent className="w-full ">

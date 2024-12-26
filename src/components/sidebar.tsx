@@ -1,13 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
-import axios from "axios";
 import {
   ArrowUpLeft,
   BellDot,
-  CalendarPlus,
   Check,
   CheckCheck,
   CircleCheckBig,
@@ -15,15 +12,14 @@ import {
   CornerLeftUp,
   FileSpreadsheet,
   House,
-  LoaderCircle,
   NotebookPen,
   PencilLine,
   PersonStanding,
-  Plus,
   ScanEye,
   Speech,
   User2Icon,
 } from "lucide-react";
+import { useAuthStore } from "@/AuthStore";
 
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -200,40 +196,11 @@ const roleRoutes: Record<string, Route[]> = {
 };
 
 export function Sidebar() {
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { token } = useAuthStore();
   const currentPath = usePathname();
 
-  const getUserRole = async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get("/api/user/getloggedinuser");
-      if (response.data && response.data.user && response.data.user.role) {
-        setUserRole(response.data.user.role);
-      } else {
-        console.error("No role found in the response.");
-      }
-    } catch (error: any) {
-      console.error("Error fetching user role:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  useEffect(() => {
-    getUserRole();
-  }, []);
-
   const renderRoutes = (showText: boolean) => {
-    if (isLoading) {
-      return (
-        <>
-          <div className="flex items-center justify-center">
-            <LoaderCircle className="animate-spin" size={18} />
-          </div>
-        </>
-      );
-    }
-    if (!userRole) {
+    if (!token) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
           <img
@@ -243,7 +210,7 @@ export function Sidebar() {
         </li>
       );
     }
-    const routes = roleRoutes[userRole as keyof typeof roleRoutes];
+    const routes = roleRoutes[token?.role as keyof typeof roleRoutes];
     if (!routes) {
       return <li>Invalid role</li>;
     }
@@ -280,19 +247,21 @@ export function Sidebar() {
             </div>
           </div>
           <div>
-            <nav className="flex flex-col  justify-between">
+            <nav className="flex flex-col justify-between">
               <ul>
-                <li className="flex-grow">{renderRoutes(true)}</li>
+                {/* <li className="flex-grow"> */}
+                {renderRoutes(true)}
+                {/* </li> */}
               </ul>
             </nav>
           </div>
         </div>
         <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
           <nav className="mx-auto ">
-            <ul className="">
-              <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
-                {renderRoutes(false)}
-              </li>
+            <ul className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
+              {/* <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide"> */}
+              {renderRoutes(false)}
+              {/* </li> */}
             </ul>
           </nav>
         </div>

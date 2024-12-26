@@ -271,7 +271,6 @@ export const propertyTypes: string[] = [
 
 export interface IQuery {
   _id?: string;
-  note?: string;
   isViewed?: boolean;
   leadQualityByReviwer?: string;
   rejectionReason?: string | null;
@@ -296,6 +295,7 @@ export interface IQuery {
   propertyType: string;
   priority: string;
   salesPriority: string;
+  note?: NotesInterface[];
   reminder: Date;
   roomDetails: {
     roomId: string;
@@ -308,6 +308,20 @@ export interface imageInterface {
   propertyPictureUrls: number[];
   portionCoverFileUrls: number[];
   portionPictureUrls: string[];
+}
+
+export interface NotesInterface {
+  noteData: string;
+  createdBy: string;
+  createOn: string;
+}
+
+export interface TokenInterface {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  allotedArea?: string;
 }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

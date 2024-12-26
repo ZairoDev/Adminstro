@@ -1,13 +1,14 @@
+"use client";
 import Link from "next/link";
 
-import { ModeToggle } from "./themeChangeButton";
+import { useAuthStore } from "@/AuthStore";
+
 import FadeInBlur from "./FadeInBlur";
 import { LogoutButton } from "./logoutAlertBox";
-import { useUserRole } from "@/context/UserRoleContext";
+import { ModeToggle } from "./themeChangeButton";
 
 export function Navbar() {
-  const { userRole, currentUser, userEmail, isLoading, refreshUserRole } =
-    useUserRole();
+  const { token } = useAuthStore();
 
   return (
     <div className="  ">
@@ -20,11 +21,7 @@ export function Navbar() {
           </Link>
           <div className="flex items-center gap-4">
             <ModeToggle />
-            {userRole && (
-              <>
-                <LogoutButton />
-              </>
-            )}
+            {token && <LogoutButton />}
           </div>
         </div>
       </div>

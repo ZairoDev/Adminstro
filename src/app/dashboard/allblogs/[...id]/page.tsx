@@ -1,10 +1,16 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
 import axios from "axios";
 import { format } from "date-fns";
-import Loader from "@/components/loader";
-import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { BookOpen, CalendarFold, CircleUser, Trash2 } from "lucide-react";
+
+import Loader from "@/components/loader";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,10 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BookOpen, CalendarFold, CircleUser, Trash2 } from "lucide-react";
-import { useUserRole } from "@/context/UserRoleContext";
 
 interface PageProps {
   params: {
@@ -27,6 +29,10 @@ interface PageProps {
   };
 }
 const BlogPage = ({ params }: PageProps) => {
+  const { toast } = useToast();
+  const router = useRouter();
+  const { token } = useAuthStore();
+
   const id = params.id;
   const [blog, setBlog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -35,18 +41,11 @@ const BlogPage = ({ params }: PageProps) => {
   const [confirmationText, setConfirmationText] = useState("");
   const requiredConfirmationText = "I have to delete";
 
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const { userRole, currentUser, isLoading, refreshUserRole, userEmail } =
-    useUserRole();
-
   const fetchBlog = async () => {
     if (id) {
       setLoading(true);
       try {
         const response = await axios.post("/api/blog/readblog", { id });
-        console.log(response.data.data);
         setBlog(response.data.data);
       } catch (err: any) {
         setError(err.message);
@@ -155,7 +154,7 @@ const BlogPage = ({ params }: PageProps) => {
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
 
-          {(userRole === "Content" || userRole === "SuperAdmin") && (
+          {(token?.role === "Content" || token?.role === "SuperAdmin") && (
             <div className="flex  mt-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild className="">

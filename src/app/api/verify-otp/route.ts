@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
+import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
 
@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
     const savedUser = await Employees.find({ email: email });
 
     if (savedUser[0].otpTokenExpiry < Date.now()) {
-      console.log("otp expired");
       return NextResponse.json(
         { error: "Your OTP has expired" },
         { status: 400 }
@@ -23,7 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (savedUser[0].otpToken != otp) {
-      return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
+      return NextResponse.json(
+        { error: "You have entered wrong OTP" },
+        { status: 400 }
+      );
     }
 
     await Employees.updateOne(
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
       success: true,
       token,
+      tokenData: tokenData,
       status: 200,
     });
     response.cookies.set("token", token, {

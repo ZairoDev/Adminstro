@@ -18,13 +18,10 @@ export async function POST(req: NextRequest) {
       .sort({
         createdAt: -1,
       });
-    console.log("rejected leads: ", rejectedLeads);
 
     const totalRejectedLeads = await Query.countDocuments({
       rejectionReason: { $ne: null },
     });
-
-    console.log("totalDocuments: ", totalRejectedLeads);
 
     if (!rejectedLeads) {
       return NextResponse.json(

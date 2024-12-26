@@ -22,7 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (savedUser[0].otpToken != otp) {
-      return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
+      return NextResponse.json(
+        { error: "You have entered wrong OTP" },
+        { status: 400 }
+      );
     }
 
     await Employees.updateOne(

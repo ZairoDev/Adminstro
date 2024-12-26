@@ -21,23 +21,6 @@ const RejectedLeads = () => {
   const [skip, setSkip] = useState(0);
   const [page, setPage] = useState<number>(1);
 
-  // const fetchRejectedLeads = useCallback(async () => {
-  //   try {
-  //     const response = await axios.post("/api/sales/getRejectedLeads", {
-  //       page,
-  //       skip,
-  //     });
-  //     console.log("rejected lead response: ", response.data);
-  //     setRejectedLeads(response.data.rejectedLeads);
-  //     setTotalPages(Math.ceil(response.data.totalRejectedLeads / 10));
-  //   } catch (err: any) {
-  //     toast({
-  //       variant: "destructive",
-  //       description: err.message,
-  //     });
-  //   }
-  // }, [page]);
-
   const fetchRejectedLeads = async () => {
     try {
       const response = await axios.post("/api/sales/getRejectedLeads", {

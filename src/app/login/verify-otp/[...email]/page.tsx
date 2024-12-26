@@ -2,78 +2,79 @@
 
 import axios from "axios";
 import Link from "next/link";
-import { ArrowLeft, Timer } from "lucide-react";
 import { CgSpinner } from "react-icons/cg";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Timer } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { ModeToggle } from "@/components/themeChangeButton";
+import { useAuthStore } from "@/AuthStore";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+
 interface PageProps {
   params: {
     email: string;
   };
 }
+
 const Page = ({ params }: PageProps) => {
   const { setToken } = useAuthStore();
-
   const { toast } = useToast();
   const router = useRouter();
+
   const [otpInput, setOtpInput] = useState("");
   const email = params.email;
-  console.log("email in verify otp page: ", email);
-  const [remainingTime, setRemainingTime] = useState(10);
   const [verifyLoading, setVerifyLoading] = useState(false);
-  const [disabledButton, setDisabledButton] = useState(true);
-  const [verifyClick, setVerifyClick] = useState(true);
 
-  const [timeLeft, setTimeLeft] = useState(30);
-  const timerRef = useRef<number | null>(null);
-  const timeRef = useRef(10);
+  const timerRef = useRef<any>(null);
+  const timeLeftRef = useRef(30);
+  const timerDisplayRef = useRef<HTMLDivElement | null>(null);
+  const isResendDisabledRef = useRef(true);
+  const [isResendDisabled, setIsResendDisabled] = useState(true);
 
-  useEffect(() => {
-    // Start the interval when the component mounts
-    timerRef.current = window.setInterval(() => {
-      if (timeRef.current > 0) {
-        timeRef.current -= 1;
-        setTimeLeft(timeRef.current);
+  const updateTimerDisplay = () => {
+    if (timerDisplayRef.current) {
+      if (timeLeftRef.current > 0) {
+        timerDisplayRef.current.textContent = `Resend OTP in ${timeLeftRef.current} seconds`;
       } else {
-        clearTimer();
+        timerDisplayRef.current.textContent = `${timeLeftRef.current}`;
       }
-    }, 1000);
-
-    return () => clearTimer();
-  }, []);
-
-  const clearTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
     }
   };
 
-  // useEffect(() => {
-  //   if (remainingTime > 0) {
-  //     const timerId = setTimeout(() => {
-  //       setRemainingTime((prev) => prev - 1);
-  //     }, 1000);
+  const startTimer = () => {
+    timeLeftRef.current = 30;
+    isResendDisabledRef.current = true;
+    updateTimerDisplay();
 
-  //     return () => {
-  //       clearTimeout(timerId);
-  //     };
-  //   }
-  //   if (remainingTime == 0) {
-  //     setDisabledButton(false);
-  //   }
-  // }, [remainingTime]);
+    timerRef.current = setInterval(() => {
+      timeLeftRef.current -= 1;
+      updateTimerDisplay();
+
+      if (timeLeftRef.current <= 0) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        isResendDisabledRef.current = false;
+        setIsResendDisabled(false);
+      }
+    }, 1000);
+  };
+
+  useEffect(() => {
+    startTimer();
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleOTPverification = async () => {
     setVerifyLoading(true);
@@ -93,13 +94,13 @@ const Page = ({ params }: PageProps) => {
       toast({
         description: "You have successfully logged in as Superadmin",
       });
-      // window.location.reload();
+
       router.refresh();
       router.push("/");
     } catch (err: any) {
-      console.log(err);
       toast({
         variant: "destructive",
+        title: "Invalid OTP",
         description: `${err.response.data.error}`,
       });
     }
@@ -110,9 +111,11 @@ const Page = ({ params }: PageProps) => {
     try {
       const response = await axios.post("/api/resend-otp", { email });
       toast({
-        description: "Otp send sucessfully to your entered email address",
+        title: "OTP Resend",
+        description: "OTP resend sucessfully to your entered email address",
       });
-      setRemainingTime(10);
+      // setRemainingTime(30);
+      timeLeftRef.current = 30;
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -173,25 +176,24 @@ const Page = ({ params }: PageProps) => {
               "Submit"
             )}
           </Button>
-          {verifyClick && (
-            <div className="text-center text-sm sm:text-base mt-4">
-              <p className="">Didn’t receive the OTP ? </p>
-              <p className=" mt-1 flex w-full justify-center items-center gap-x-2 text-sm text-gray-400">
-                <Timer size={18} />
-                {timeLeft != 0 && `You can retry after ${timeLeft} seconds.`}
-                {!timeLeft && (
-                  <Button
-                    variant="link"
-                    disabled={timeLeft != 0}
-                    onClick={handleRetryOTP}
-                    className=" text-sm"
-                  >
-                    Resend OTP
-                  </Button>
-                )}
-              </p>
+          <div className="text-center text-sm sm:text-base mt-4">
+            <p className="">Didn’t receive the OTP ? </p>
+            <div className=" mt-1 flex w-full justify-center items-center gap-x-2 text-sm text-gray-400">
+              <Timer size={18} />
+              {isResendDisabled && (
+                <span ref={timerDisplayRef}>Resend OTP in 30 seconds</span>
+              )}
+              {!isResendDisabled && (
+                <Button
+                  variant="link"
+                  onClick={handleRetryOTP}
+                  className=" text-sm "
+                >
+                  Resend OTP
+                </Button>
+              )}
             </div>
-          )}
+          </div>
           <Link
             className=" flex items-center justify-center gap-x-1"
             href="/login"

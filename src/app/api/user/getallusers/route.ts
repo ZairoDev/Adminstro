@@ -23,9 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (userInput) {
     userInput = userInput.trim();
   }
-  console.log(
-    `currentPage: ${currentPage}, queryType: ${queryType}, userInput: ${userInput}`
-  );
+
   const query: UserQuery = {};
 
   const validQueryTypes = ["name", "email", "phone"];

@@ -1,13 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ModeToggle } from "./themeChangeButton";
-import axios from "axios";
 import {
   ArrowUpLeft,
   BellDot,
-  CalendarPlus,
   Check,
   CheckCheck,
   CircleCheckBig,
@@ -15,16 +12,13 @@ import {
   CornerLeftUp,
   FileSpreadsheet,
   House,
-  LoaderCircle,
   NotebookPen,
   PencilLine,
   PersonStanding,
-  Plus,
   ScanEye,
   Speech,
   User2Icon,
 } from "lucide-react";
-import CustomTooltip from "./CustomToolTip";
 import { useAuthStore } from "@/AuthStore";
 
 const isActive = (currentPath: string, path: string): boolean =>
@@ -206,15 +200,6 @@ export function Sidebar() {
   const currentPath = usePathname();
 
   const renderRoutes = (showText: boolean) => {
-    // if (isLoading) {
-    //   return (
-    //     <>
-    //       <div className="flex items-center justify-center">
-    //         <LoaderCircle className="animate-spin" size={18} />
-    //       </div>
-    //     </>
-    //   );
-    // }
     if (!token) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
@@ -238,7 +223,6 @@ export function Sidebar() {
             : ""
         }`}
       >
-        {" "}
         <Link
           href={route.path}
           className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "
@@ -263,19 +247,21 @@ export function Sidebar() {
             </div>
           </div>
           <div>
-            <nav className="flex flex-col  justify-between">
+            <nav className="flex flex-col justify-between">
               <ul>
-                <li className="flex-grow">{renderRoutes(true)}</li>
+                {/* <li className="flex-grow"> */}
+                {renderRoutes(true)}
+                {/* </li> */}
               </ul>
             </nav>
           </div>
         </div>
         <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
           <nav className="mx-auto ">
-            <ul className="">
-              <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
-                {renderRoutes(false)}
-              </li>
+            <ul className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
+              {/* <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide"> */}
+              {renderRoutes(false)}
+              {/* </li> */}
             </ul>
           </nav>
         </div>

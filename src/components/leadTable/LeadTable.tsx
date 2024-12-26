@@ -791,6 +791,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             {" "}
                             <span>{note.noteData}</span>
                             <span className=" text-xs">{note.createOn}</span>
+                            <span className=" text-xs w-20 truncate">{note.createdBy}</span>
                           </p>
                         ))}
                       </DialogHeader>

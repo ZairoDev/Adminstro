@@ -53,7 +53,7 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
 
   const [isLoading, setIsLoading] = useState(false);
   const [userProperties, setUserProperties] = useState<
-    { propertyId: string; propertyImages: string[] }[]
+    { propertyId: string; propertyImages: string[]; isQuickListing: boolean }[]
   >([]);
   const [quickListing, setQuickListing] = useState<QuickListingInterface>();
 
@@ -91,15 +91,15 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
       setIsLoading(true);
       const response = await axios.post("/api/room/createQuickListing", {
         roomId: roomId,
-        ownerName: ownerNameRef.current?.value,
-        ownerMobile: mobile,
-        propertyName: propertyName,
+        ownerName: ownerNameRef.current?.value.trim(),
+        ownerMobile: mobile.trim(),
+        propertyName: propertyName.trim(),
         propertyImages: imageUrls,
         propertyDescription: propertyDescriptionRef.current?.value,
         propertyPrice: propertyPriceRef.current?.value,
         propertyCity: propertyCityRef.current?.value,
         propertyCountry: propertyCountryRef.current?.value,
-        propertyAddress: propertyAddressRef.current?.value,
+        propertyAddress: propertyAddressRef.current?.value.trim(),
       });
       setQuickListing(response.data);
       setQuickListingProp(response.data);
@@ -177,7 +177,9 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
                         <ContextMenuContent>
                           <Link
                             href={{
-                              pathname: `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`,
+                              pathname: property.isQuickListing
+                                ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
+                                : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`,
                             }}
                             target="_blank"
                           >

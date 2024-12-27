@@ -301,6 +301,8 @@ export interface IQuery {
     roomId: string;
     roomPassword: string;
   };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface imageInterface {

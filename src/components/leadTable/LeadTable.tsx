@@ -265,37 +265,36 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               relative
             `}
             >
-              {token?.role === "Sales" ||
-                (token?.role === "SuperAdmin" && (
-                  <TableCell
-                    className=" cursor-pointer relative "
-                    onClick={() => handleSalesPriority(query?._id, index)}
-                  >
-                    {query?.reminder === null && (
-                      <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                        <p className=" rotate-90 text-xs font-semibold mt-1">
-                          Reminder
-                        </p>
-                      </div>
-                    )}
-                    {query.salesPriority === "High" ? (
-                      <CustomTooltip
-                        icon={<ArrowBigUpDash fill="green" color="green" />}
-                        desc="High Priority"
-                      />
-                    ) : query.salesPriority === "Low" ? (
-                      <CustomTooltip
-                        icon={<ArrowBigDownDash fill="red" color="red" />}
-                        desc="Low Priority"
-                      />
-                    ) : (
-                      <CustomTooltip
-                        icon={<CircleDot fill="" color="gray" />}
-                        desc="No Priority"
-                      />
-                    )}
-                  </TableCell>
-                ))}
+              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+                <TableCell
+                  className=" cursor-pointer relative "
+                  onClick={() => handleSalesPriority(query?._id, index)}
+                >
+                  {query?.reminder === null && (
+                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
+                      <p className=" rotate-90 text-xs font-semibold mt-1">
+                        Reminder
+                      </p>
+                    </div>
+                  )}
+                  {query.salesPriority === "High" ? (
+                    <CustomTooltip
+                      icon={<ArrowBigUpDash fill="green" color="green" />}
+                      desc="High Priority"
+                    />
+                  ) : query.salesPriority === "Low" ? (
+                    <CustomTooltip
+                      icon={<ArrowBigDownDash fill="red" color="red" />}
+                      desc="Low Priority"
+                    />
+                  ) : (
+                    <CustomTooltip
+                      icon={<CircleDot fill="" color="gray" />}
+                      desc="No Priority"
+                    />
+                  )}
+                </TableCell>
+              )}
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
@@ -518,41 +517,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           >
                             Create Room
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Dialog>
-                              <DialogTrigger
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                Add Note
-                              </DialogTrigger>
-                              <DialogContent
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <DialogHeader>
-                                  <DialogTitle>Add Note</DialogTitle>
-                                  <Textarea
-                                    className="h-20"
-                                    placeholder="Write a note here..."
-                                    value={noteValue}
-                                    onChange={(e) =>
-                                      setNoteValue(e.target.value)
-                                    }
-                                  />
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <Button
-                                    onClick={() =>
-                                      handleNote(query._id, noteValue, index)
-                                    }
-                                    className="w-auto"
-                                    disabled={!noteValue.trim() || creatingNote}
-                                  >
-                                    Save
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </DropdownMenuItem>
+
                           <Link
                             href={{
                               pathname: `/dashboard/room/joinroom`,
@@ -757,7 +722,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DialogTrigger>
                       <p
                         className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
-                          query?.note
+                          query?.note && query?.note?.length > 0
                             ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
                             : "bg-white/20 text-white"
                         } text-sm font-bold `}
@@ -791,7 +756,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             {" "}
                             <span>{note.noteData}</span>
                             <span className=" text-xs">{note.createOn}</span>
-                            <span className=" text-xs w-20 truncate">{note.createdBy}</span>
+                            <span className=" text-xs w-20 truncate">
+                              {note.createdBy}
+                            </span>
                           </p>
                         ))}
                       </DialogHeader>

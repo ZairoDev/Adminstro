@@ -119,6 +119,7 @@ const RolebasedLead = () => {
       customDateRange,
     });
   };
+
   useEffect(() => {
     fetchQuery({
       searchTerm,
@@ -232,7 +233,7 @@ const RolebasedLead = () => {
                 <SelectContent>
                   <SelectItem value="chania">Chania</SelectItem>
                   <SelectItem value="athens">Athens</SelectItem>
-                  <SelectItem value="chalkitiki">Chalkitiki</SelectItem>
+                  <SelectItem value="chalkidiki">Chalkitiki</SelectItem>
                   <SelectItem value="corfu">Corfu</SelectItem>
                 </SelectContent>
               </Select>

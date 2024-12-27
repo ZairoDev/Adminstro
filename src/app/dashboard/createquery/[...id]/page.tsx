@@ -148,15 +148,23 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     </div>
-                    <Badge
-                      variant={
-                        apiData?.priority === "Medium Priority"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      {apiData?.priority}
-                    </Badge>
+                    <div className=" flex flex-col">
+                      <Badge
+                        variant={
+                          apiData?.priority === "Medium Priority"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className=" w-16 mx-auto flex justify-center"
+                      >
+                        {apiData?.priority}
+                      </Badge>
+                      <div className="text-muted-foreground text-sm mt-2">
+                        {new Date(apiData?.createdAt ?? "")?.toLocaleString(
+                          "en-GB"
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">

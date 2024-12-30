@@ -37,6 +37,7 @@ import Heading from "@/components/Heading";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
 import { useAuthStore } from "@/AuthStore";
+import { Toaster } from "@/components/ui/toaster";
 
 export interface FetchQueryParams {
   searchTerm: string;
@@ -193,6 +194,7 @@ const RejectedLeads = () => {
 
   return (
     <div className="mt-2 border rounded-lg min-h-[90vh]">
+      <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
           <Heading

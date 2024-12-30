@@ -38,10 +38,6 @@ export async function POST(request: NextRequest) {
     } = await request.json();
     const skip = (page - 1) * limit;
 
-    console.log(`data in query: page: ${page}, skip: ${skip}, searchTerm: ${searchTerm}, searchType: ${searchType},
-    dateFilter: ${dateFilter}, sortingField: ${sortingField}, customDays: ${customDays}, allotedArea: ${allotedArea},
-    limit: ${limit}, startDate: ${startDate}, endDate: ${endDate}`);
-
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
@@ -112,17 +108,6 @@ export async function POST(request: NextRequest) {
       query.location = allotedArea;
     }
 
-    console.log("query: ", query);
-
-    if (searchType === "phoneNo") {
-      const lead = await Query.aggregate([
-        { $match: query },
-        { $skip: skip },
-        { $limit: limit },
-      ]);
-      console.log("inside search Term: ", lead);
-    }
-
     const allquery = await Query.aggregate([
       { $match: query },
       { $sort: { _id: -1 } },
@@ -164,8 +149,6 @@ export async function POST(request: NextRequest) {
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / limit);
-
-    console.log("query result: ", allquery);
 
     return NextResponse.json({
       data: allquery,

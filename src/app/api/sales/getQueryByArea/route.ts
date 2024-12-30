@@ -54,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = searchTerm;
+        query.phoneNo = Number(searchTerm);
       } else {
         query[searchType] = regex;
       }

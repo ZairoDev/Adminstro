@@ -63,7 +63,7 @@ export function Notifications() {
         <DialogHeader>
           <DialogTitle>Reminders</DialogTitle>
           <DialogDescription>
-            Thsese are the Upcoming Reminders of 3 days
+            These are the Upcoming Reminders of 3 days
           </DialogDescription>
         </DialogHeader>
         {loading ? (

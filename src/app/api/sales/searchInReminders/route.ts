@@ -38,19 +38,18 @@ export async function POST(request: NextRequest) {
     } = await request.json();
     const skip = (page - 1) * limit;
 
-    // console.log(`data in query: page: ${page}, skip: ${skip}, searchTerm: ${searchTerm}, searchType: ${searchType},
-    // dateFilter: ${dateFilter}, sortingField: ${sortingField}, customDays: ${customDays}, allotedArea: ${allotedArea},
-    // limit: ${limit}, startDate: ${startDate}, endDate: ${endDate}`);
+    console.log(`data in reminder: page: ${page}, skip: ${skip}, searchTerm: ${searchTerm}, searchType: ${searchType},
+    dateFilter: ${dateFilter}, sortingField: ${sortingField}, customDays: ${customDays}, allotedArea: ${allotedArea},
+    limit: ${limit}, startDate: ${startDate}, endDate: ${endDate}`);
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
     query = {
-      $or: [
-        { reminder: { $exists: false } }, // reminder field does not exist
-        { reminder: { $eq: null } }, // reminder field exists but is an empty string
-      ],
+      $or: [{ reminder: { $exists: true } }, { reminder: { $ne: null } }],
     };
+
+    const temp = await Query.find(query);
 
     if (searchTerm) {
       if (searchType === "phoneNo") {
@@ -107,21 +106,10 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    query = { ...query, rejectionReason: { $ne: null }, ...dateQuery };
+    query = { ...query, rejectionReason: { $eq: null }, ...dateQuery };
     if (allotedArea) {
       query.location = allotedArea;
     }
-
-    // console.log("query: ", query);
-
-    // if (searchType === "phoneNo") {
-    //   const lead = await Query.aggregate([
-    //     { $match: query },
-    //     { $skip: skip },
-    //     { $limit: limit },
-    //   ]);
-    //   console.log("inside search Term: ", lead);
-    // }
 
     const allquery = await Query.aggregate([
       { $match: query },
@@ -168,7 +156,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: allquery,
       page,
-      totalPages,
+      totalPages: 100,
       totalQueries,
     });
   } catch (error: any) {

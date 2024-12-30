@@ -36,6 +36,7 @@ import { IQuery } from "@/util/type";
 import ReminderTable from "@/components/reminderTable/ReminderTable";
 import debounce from "lodash.debounce";
 import { Input } from "@/components/ui/input";
+import { Toaster } from "@/components/ui/toaster";
 
 export interface FetchQueryParams {
   searchTerm: string;
@@ -67,27 +68,27 @@ const ReminderPage = () => {
   const [allReminders, setAllReminders] = useState<IQuery[]>([]);
   const [reminderLoading, setReminderLoading] = useState(false);
 
-  const fetchReminderLeads = async () => {
-    try {
-      setReminderLoading(true);
-      const response = await axios.get("/api/sales/reminders/getAllReminders");
-      setAllReminders(response.data.allReminders);
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      });
-    } finally {
-      setReminderLoading(false);
-    }
-  };
+  // const fetchReminderLeads = async () => {
+  //   try {
+  //     setReminderLoading(true);
+  //     const response = await axios.post("/api/sales/searchInReminders");
+  //     setAllReminders(response.data.allReminders);
+  //   } catch (err: any) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "Error",
+  //       description: err.message,
+  //     });
+  //   } finally {
+  //     setReminderLoading(false);
+  //   }
+  // };
 
-  useEffect(() => {
-    fetchReminderLeads();
-  }, []);
+  // useEffect(() => {
+  //   fetchReminderLeads();
+  // }, []);
 
-  const fetchFilteredRejectedLeads = useCallback(
+  const fetchFilteredReminders = useCallback(
     debounce(
       async ({
         searchTerm,
@@ -127,7 +128,7 @@ const ReminderPage = () => {
   );
 
   const handleSearch = () => {
-    fetchFilteredRejectedLeads({
+    fetchFilteredReminders({
       searchTerm,
       searchType,
       dateFilter,
@@ -138,7 +139,7 @@ const ReminderPage = () => {
   };
 
   useEffect(() => {
-    fetchFilteredRejectedLeads({
+    fetchFilteredReminders({
       searchTerm,
       searchType,
       dateFilter,
@@ -192,7 +193,8 @@ const ReminderPage = () => {
   };
 
   return (
-    <div className=" w-full h-[90vh] flex flex-col justify-center items-center">
+    <div className="mt-2 border rounded-lg min-h-[90vh]">
+      <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
           <Heading

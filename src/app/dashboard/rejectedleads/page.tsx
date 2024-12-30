@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/sheet";
 import Heading from "@/components/Heading";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal } from "lucide-react";
+import { LucideLoader, SlidersHorizontal } from "lucide-react";
 import { useAuthStore } from "@/AuthStore";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -68,6 +68,7 @@ const RejectedLeads = () => {
   });
 
   const [rejectedLeads, setRejectedLeads] = useState<IQuery[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // const fetchRejectedLeads = async () => {
   //   try {
@@ -96,6 +97,7 @@ const RejectedLeads = () => {
         customDateRange,
       }: FetchQueryParams) => {
         try {
+          setIsLoading(true);
           const response = await axios.post(
             "/api/sales/searchInRejectedLeads",
             {
@@ -120,6 +122,8 @@ const RejectedLeads = () => {
             title: "Error in fetching leads",
             description: err.message,
           });
+        } finally {
+          setIsLoading(false);
         }
       },
       2000
@@ -379,12 +383,23 @@ const RejectedLeads = () => {
           </div>
         </div>
       </div>
-      {rejectedLeads.length > 0 && <LeadTable queries={rejectedLeads} />}
-      <Pagination className="flex items-center">
-        <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
-          {renderPaginationItems()}
-        </PaginationContent>
-      </Pagination>
+
+      {rejectedLeads.length > 0 ? (
+        <>
+          <LeadTable queries={rejectedLeads} />
+          <Pagination className="flex items-center">
+            <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
+              {renderPaginationItems()}
+            </PaginationContent>
+          </Pagination>
+        </>
+      ) : isLoading ? (
+        <div className=" w-full h-[80vh] flex justify-center items-center">
+          <LucideLoader className=" animate-spin" />
+        </div>
+      ) : (
+        <div className=" w-full flex justify-center mt-8">No Leads</div>
+      )}
     </div>
   );
 };

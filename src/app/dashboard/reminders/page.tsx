@@ -1,8 +1,11 @@
 "use client";
 
 import axios from "axios";
+import debounce from "lodash.debounce";
+import { SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { LucideLoader2 } from "lucide-react";
+import { LucideLoader, LucideLoader2 } from "lucide-react";
+
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -29,14 +32,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import Heading from "@/components/Heading";
-import { Button } from "@/components/ui/button";
-import { SlidersHorizontal } from "lucide-react";
 import { IQuery } from "@/util/type";
-import ReminderTable from "@/components/reminderTable/ReminderTable";
-import debounce from "lodash.debounce";
+import Heading from "@/components/Heading";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
+import ReminderTable from "@/components/reminderTable/ReminderTable";
 
 export interface FetchQueryParams {
   searchTerm: string;
@@ -66,27 +67,7 @@ const ReminderPage = () => {
   });
 
   const [allReminders, setAllReminders] = useState<IQuery[]>([]);
-  const [reminderLoading, setReminderLoading] = useState(false);
-
-  // const fetchReminderLeads = async () => {
-  //   try {
-  //     setReminderLoading(true);
-  //     const response = await axios.post("/api/sales/searchInReminders");
-  //     setAllReminders(response.data.allReminders);
-  //   } catch (err: any) {
-  //     toast({
-  //       variant: "destructive",
-  //       title: "Error",
-  //       description: err.message,
-  //     });
-  //   } finally {
-  //     setReminderLoading(false);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchReminderLeads();
-  // }, []);
+  const [reminderLoading, setReminderLoading] = useState(true);
 
   const fetchFilteredReminders = useCallback(
     debounce(
@@ -99,6 +80,7 @@ const ReminderPage = () => {
         customDateRange,
       }: FetchQueryParams) => {
         try {
+          setReminderLoading(true);
           const response = await axios.post("/api/sales/searchInReminders", {
             page,
             limit,
@@ -120,6 +102,8 @@ const ReminderPage = () => {
             title: "Error in fetching leads",
             description: err.message,
           });
+        } finally {
+          setReminderLoading(false);
         }
       },
       2000
@@ -379,9 +363,7 @@ const ReminderPage = () => {
           </div>
         </div>
       </div>
-      {reminderLoading ? (
-        <LucideLoader2 className=" animate-spin" />
-      ) : (
+      {allReminders.length > 0 ? (
         <>
           {allReminders.length > 0 && <ReminderTable queries={allReminders} />}
           <Pagination className="flex items-center">
@@ -390,6 +372,12 @@ const ReminderPage = () => {
             </PaginationContent>
           </Pagination>
         </>
+      ) : reminderLoading ? (
+        <div className=" w-full h-[80vh] flex justify-center items-center">
+          <LucideLoader className=" animate-spin" />
+        </div>
+      ) : (
+        <div className=" w-full flex justify-center"> No Leads</div>
       )}
     </div>
   );

@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: allquery,
       page,
-      totalPages: 100,
+      totalPages,
       totalQueries,
     });
   } catch (error: any) {

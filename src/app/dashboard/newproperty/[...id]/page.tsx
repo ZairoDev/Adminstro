@@ -38,7 +38,6 @@ interface PageProps {
   params: {
     id: string;
   };
-  // generalAmenities: GeneralAmenities;
 }
 
 const PortionDetailsPage = ({ params }: PageProps) => {
@@ -53,7 +52,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
       const response = await axios.post("/api/property/gerPropertyByCommonId", {
         commonId: params.id[0],
       });
-      console.log(response.data.commonIdProperties);
+
       setPropertyData(response.data.commonIdProperties);
       setLoading(false);
     } catch (error) {
@@ -162,7 +161,6 @@ const PortionDetailsPage = ({ params }: PageProps) => {
         PropertyId,
         propertyData: propertyData[selectedPortion],
       });
-      console.log("Property updated successfully:", response.data);
       toast({
         description: "Property updated successfully",
       });
@@ -248,7 +246,9 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                       </div>
                       <div>
                         <p>Manage Calender</p>
-                        <Link href="/">
+                        <Link
+                          href={`/dashboard/newproperty/editPortionAvailability/${propertyData[selectedPortion]._id}`}
+                        >
                           <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring  focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50">
                             <CalendarDaysIcon className="mr-2 h-4 w-4" /> Tap to
                             open portion calender

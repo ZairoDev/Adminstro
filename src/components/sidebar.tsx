@@ -42,6 +42,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleCheckBig size={18} />,
     },
     {
+      path: "/dashboard/newproperty",
+      label: "Manage Newtask",
+      Icon: <Check size={18} />,
+    },
+    {
       path: "/dashboard/createquery",
       label: "Lead",
       Icon: <PencilLine size={18} />,

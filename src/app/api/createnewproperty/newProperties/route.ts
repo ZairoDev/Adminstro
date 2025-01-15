@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         reviews: reviews?.[i],
         newReviews: "",
         propertyImages: [propertyCoverFileUrl, ...(propertyPictureUrls || [])],
-        propertyCoverFileUrl: portionCoverFileUrls?.[i] || "",
+        propertyCoverFileUrl: portionCoverFileUrls?.[i] || propertyCoverFileUrl,
         propertyPictureUrls: portionPictureUrls?.[i] || [],
         night,
         time,

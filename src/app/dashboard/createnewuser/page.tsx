@@ -1,28 +1,28 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
+import { useForm } from "react-hook-form";
+import "react-phone-number-input/style.css";
+import { Loader, Plus } from "lucide-react";
+import PhoneInput from "react-phone-number-input";
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectTrigger,
+  SelectContent,
 } from "@/components/ui/select";
-import { Loader, Plus } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
+import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { userSchema } from "@/schemas/user.schema";
 import { UserSchema } from "@/schemas/user.schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
-import GotoUserPage from "@/components/GotoUserPage";
-import Heading from "@/components/Heading";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -111,14 +111,12 @@ const NewUser = () => {
   }, [watch]);
 
   const onSubmit = async (data: UserSchema) => {
-    console.log(data, "I am submitting");
     setLoading(true);
     const userData = {
       ...data,
       profilePic,
     };
 
-    console.log(userData);
     try {
       const response = await axios.post("/api/user/createnewuser", userData);
       console.log("Inside Api call", response.data);
@@ -127,6 +125,7 @@ const NewUser = () => {
         description: "Please check your email for verification link",
       });
       reset();
+      window.location.reload();
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast({
@@ -204,11 +203,11 @@ const NewUser = () => {
                     className="w-full"
                     placeholder="Enter email"
                   />
-                  {errors.email && (
+                  {/* {errors.email && (
                     <p className="text-red-500 text-xs">
                       {errors.email.message}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
 

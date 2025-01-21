@@ -10,7 +10,7 @@ import crypto from "crypto";
 
 const generateRandomPassword = (length: number): string => {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
-}; 
+};
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
@@ -20,7 +20,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       name,
       email,
       role,
-      sendDetails,     
+      sendDetails,
       phone,
       gender,
       nationality,
@@ -30,7 +30,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       profilePic,
     } = parsedBody;
 
-    const existingUser = await Users.findOne({ email });
+    const phoneArray = phone.toString().split(" ");
+    const phoneNumber = `${phoneArray[0]} ${phoneArray.slice(1).join("")}`;
+
+    const query: Record<string, any> = {};
+    if (email && email !== "") {
+      query.email = email;
+    } else if (phone) {
+      query.phone = phoneNumber;
+    }
+
+    const existingUser = await Users.findOne(query);
     if (existingUser) {
       return NextResponse.json(
         { error: "User already exists" },
@@ -46,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       email,
       password: hashedPassword,
       role,
-      phone,
+      phone: phoneNumber,
       gender,
       nationality,
       spokenLanguage,
@@ -56,7 +66,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
     const savedUser = await newUser.save();
 
-    if (sendDetails) {
+    if (sendDetails && email) {
       await sendEmail({
         email,
         emailType: "VERIFY",

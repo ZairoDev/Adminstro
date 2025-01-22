@@ -5,7 +5,7 @@ const propertyValidationSchema = z.object({
     .string()
     .length(7, "VSID must be exactly 7 characters long")
     .regex(/^[A-Za-z0-9]+$/, "VSID must contain only alphanumeric characters"),
-  email: z.string().email(),
+  email: z.string().email().optional(),
   rentalType: z.string().optional(),
   userId: z.string(),
   propertyType: z.string().optional(),

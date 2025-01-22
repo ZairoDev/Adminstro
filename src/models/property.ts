@@ -17,7 +17,7 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     commonId: String,
     email: {
       type: String,
-      required: true,
+      // required: true,
     },
     userId: {
       type: String,

@@ -95,7 +95,7 @@ const PropertySchema: Schema = new Schema(
     },
     email: {
       type: String,
-      required: true,
+      // required: true,
     },
     rentalType: {
       type: String,

@@ -126,7 +126,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
 
   const [goLiveState, setGoLiveState] = useState<boolean>(false);
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
@@ -176,7 +175,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   });
 
   const createPricePerDayArray = (portions: number) => {
-    console.log("number of portions: ", portions);
     const pricePerDayArray = Array.from({ length: portions }, () =>
       Array.from({ length: 12 }, () => Array.from({ length: 31 }, () => 1))
     );
@@ -233,7 +231,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     };
 
     const data = fetchDataFromLocalStorage();
-    console.log(data, "Hello I am here");
   }, []);
 
   const [propertyId, setPropertyId] = useState<string>();
@@ -251,12 +248,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           userId: userId,
         });
         if (user) {
-          console.log("user data", user.data.data.email);
           setuser(user.data.data);
           setLoggedInUserEmail(user.data.loggedInUserEmail);
         }
         setLoading(false);
-        console.log(user);
       } catch (error) {
         console.log(error);
         setLoading(false);
@@ -264,8 +259,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     };
     fetchuser();
   }, []);
-
-  console.log(user?.email, "At line number 222");
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
@@ -359,15 +352,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         "/api/createnewproperty/newProperties",
         data
       );
-      console.log("Multiple Properties: ", response2.data.propertyIds);
-      console.log(data, "Hello i am here look at me ");
       if (response.status === 200) {
-        console.log("Property is now live");
         setIsLiveDisabled(true);
         setPropertyVSID(response.data.VSID);
         setPropertyId(response.data._id);
-        console.log(data, "The whole data that going to be livel");
-        console.log("response: ", response.data);
         toast({
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
@@ -382,7 +370,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           "There are some issues with your request. Please try again.",
       });
       console.log(error);
-      console.log(data);
     } finally {
       setIsLoading(false);
     }

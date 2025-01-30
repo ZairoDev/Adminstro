@@ -108,7 +108,6 @@ import {
     const activeItem = items.filter(item => item.isActive(editor)).pop() ?? {
       name: 'Multiple'
     }
-    console.log('commandsss: ', editor.commands)
   
     return (
       <Popover modal={true} open={open} onOpenChange={onOpenChange}>

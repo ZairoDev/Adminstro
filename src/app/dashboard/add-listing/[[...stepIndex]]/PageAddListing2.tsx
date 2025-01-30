@@ -827,6 +827,10 @@ const PageAddListing2: FC = () => {
                   <SelectItem value="West-Facing">West-Facing</SelectItem>
                   <SelectItem value="Nort-Facing">Nort-Facing</SelectItem>
                   <SelectItem value="South-Facing">South-Facing</SelectItem>
+                  <SelectItem value="North-East">North-East</SelectItem>
+                  <SelectItem value="North-West">North-West</SelectItem>
+                  <SelectItem value="South-East">South-East</SelectItem>
+                  <SelectItem value="South-West">South-West</SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>

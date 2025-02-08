@@ -1,54 +1,55 @@
 "use client";
-import { useState, useEffect, ChangeEvent, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { MdAdsClick, MdCancel } from "react-icons/md";
-import axios from "axios";
-import { HiArrowNarrowLeft } from "react-icons/hi";
-import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
-import { imageInterface, Property, propertyTypes } from "@/util/type";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { IoRemoveSharp } from "react-icons/io5";
+
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import Link from "next/link";
-import Loader from "@/components/loader";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  CheckCheck,
-  CircleX,
-  ExternalLink,
   Plus,
   Trash2,
+  CircleX,
+  CheckCheck,
   UploadIcon,
+  ExternalLink,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import ScreenLoader from "@/components/ScreenLoader";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import Img from "@/components/Img";
-import CustomTooltip from "@/components/CustomToolTip";
-import { FaBath, FaEuroSign, FaUser } from "react-icons/fa6";
+import axios from "axios";
+import Link from "next/link";
 import { IoIosBed } from "react-icons/io";
-import { SlSizeFullscreen } from "react-icons/sl";
+import { MdAdsClick } from "react-icons/md";
 import { FaCalendarAlt } from "react-icons/fa";
-import { Label } from "@/components/ui/label";
+import { IoRemoveSharp } from "react-icons/io5";
+import { SlSizeFullscreen } from "react-icons/sl";
+import { FaBath, FaEuroSign, FaUser } from "react-icons/fa6";
+import { MdArrowDropDown, MdArrowRight } from "react-icons/md";
+import { useState, useEffect, ChangeEvent, useRef } from "react";
+
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogTrigger,
+  AlertDialogContent,
+} from "@/components/ui/alert-dialog";
+import Img from "@/components/Img";
+import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import ScreenLoader from "@/components/ScreenLoader";
+import CustomTooltip from "@/components/CustomToolTip";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { imageInterface, Property, propertyTypes } from "@/util/type";
 
 interface PageProps {
   params: {
@@ -180,7 +181,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
           const response = await axios.post("/api/singleproperty/getproperty", {
             propertyId: params.id,
           });
-          console.log(response.data);
           setProperty(response.data);
           setNumberOfPortions(response.data.numberOfPortions);
           setPropertyPictureUrls(response.data.propertyPictureUrls);
@@ -308,7 +308,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
   }, [propertyPictureUrls]);
 
   useEffect(() => {
-    console.log("use effect");
     localStorage.setItem(
       "portionCoverFileUrls",
       JSON.stringify(portionCoverFileUrls)
@@ -728,7 +727,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
         return;
       }
     }
-    console.log("files: ", files);
     // * intitalizing Bunny
     const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
     const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
@@ -742,7 +740,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
     for (const file of fileArr) {
       formData.append("file", file);
-      console.log("formdata: ", formData);
       try {
         const dt = Date.now();
 
@@ -756,14 +753,10 @@ const EditPropertyPage = ({ params }: PageProps) => {
             },
           }
         );
-        console.log("response: ", response);
 
         const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${dt}${file.name}`;
-        console.log("savedUrls: ", savedUrls);
         savedUrls.push(imageUrl);
-        console.log("savedUrls: ", savedUrls);
       } catch (error) {
-        console.error("Error uploading image to Bunny CDN:", error);
         toast({
           variant: "destructive",
           title: "Upload Error",

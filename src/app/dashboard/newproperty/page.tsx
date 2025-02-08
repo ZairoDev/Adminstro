@@ -17,6 +17,7 @@ import { Edit } from "lucide-react";
 
 const PropertyPage: React.FC = () => {
   const [property, setProperty] = useState<PropertiesDataType[]>();
+<<<<<<< Updated upstream
   const response = async () => {
     try {
       const propertyData = await axios.get("/api/property/getAllProperty");
@@ -24,11 +25,75 @@ const PropertyPage: React.FC = () => {
       console.log(propertyData.data.properties);
     } catch (error: any) {
       console.log(error);
+=======
+  const [properties, setProperties] = useState<Property[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [searchType, setSearchType] = useState<string>("email");
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const limit: number = 12;
+
+  const fetchProperties = useCallback(
+    debounce(async (searchTerm: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/property/getAllProperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
+        );
+        const data = await response.json();
+        if (response.ok) {
+          setProperties(data.data);
+          setProperty(data.data);
+          setTotalPages(data.totalPages);
+        } else {
+          throw new Error("Failed to fetch properties");
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }, 500),
+    [page, searchType, limit]
+  );
+
+  const renderPaginationItems = () => {
+    let items = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+>>>>>>> Stashed changes
     }
   };
   useEffect(() => {
+<<<<<<< Updated upstream
     response();
   }, []);
+=======
+    fetchProperties(searchTerm);
+  }, [searchTerm, page]);
+
+  // const response = async () => {
+  //   try {
+  //     const propertyData = await axios.get("/api/property/getAllProperty");
+  //     setProperty(propertyData.data.properties);
+  //     console.log(propertyData.data.properties);
+  //   } catch (error: any) {
+  //     console.log(error);
+  //   }
+  // };
+  // useEffect(() => {
+  //   response();
+  // }, []);
+>>>>>>> Stashed changes
 
   return (
     <>

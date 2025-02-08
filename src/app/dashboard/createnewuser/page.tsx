@@ -32,6 +32,7 @@ const NewUser = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [phone, setPhone] = useState<string | undefined>(undefined);
+  const [password, setPassword] = useState("");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -126,7 +127,12 @@ const NewUser = () => {
         title: "User created successfully",
         description: "Please check your email for verification link",
       });
+      setPassword(response.data.password);
       reset();
+<<<<<<< Updated upstream
+=======
+      // window.location.reload();
+>>>>>>> Stashed changes
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast({
@@ -379,7 +385,7 @@ const NewUser = () => {
                 </Label>
               </div>
 
-              <div className="flex  items-end justify-start">
+              <div className="flex justify-between items-center">
                 <Button type="submit" className="w-full sm:w-2/6">
                   {loading ? (
                     <>
@@ -390,6 +396,12 @@ const NewUser = () => {
                     "Continue"
                   )}
                 </Button>
+                {password && (
+                  <div className=" flex gap-x-2">
+                    <p>Password : </p>
+                    <p>{password}</p>
+                  </div>
+                )}
               </div>
             </form>
           </div>

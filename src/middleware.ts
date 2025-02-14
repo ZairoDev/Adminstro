@@ -3,14 +3,7 @@ import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
-  SuperAdmin: [
-    "/",
-    "/admin",
-    "/superadmin",
-    "/dashboard",
-    /^\/dashboard\/.*$/,
-    /^\/property\/.*$/,
-  ],
+  SuperAdmin: ["/", "/admin", "/superadmin", "/dashboard", /^\/dashboard\/.*$/, /^\/property\/.*$/],
   Admin: [
     "/",
     "/admin",
@@ -64,6 +57,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     // /^\/dashboard\/editemployeedetails\/.*$/,
     /^\/dashboard\/employeedetails\/.*$/,
   ],
+  Agent: ["/", "/dashboard/sales-offer"],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
@@ -72,6 +66,7 @@ const defaultRoutes: { [key: string]: string } = {
   Advert: "/dashboard/user",
   Sales: "/dashboard/rolebaseLead",
   HR: "/dashboard/employee",
+  Agent: "/dashboard/sales-offer",
 };
 const publicRoutes = [
   "/",
@@ -88,9 +83,7 @@ export async function middleware(request: NextRequest) {
 
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
-    return patterns.some((pattern) =>
-      typeof pattern === "string" ? path === pattern : pattern.test(path)
-    );
+    return patterns.some((pattern) => (typeof pattern === "string" ? path === pattern : pattern.test(path)));
   };
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)
@@ -100,9 +93,7 @@ export async function middleware(request: NextRequest) {
       const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
       if (path === "/login") {
-        return NextResponse.redirect(
-          new URL(defaultRoutes[role] || "/", request.url)
-        );
+        return NextResponse.redirect(new URL(defaultRoutes[role] || "/", request.url));
       }
       if (!role || role.trim() === "") {
         if (path !== "/norole") {
@@ -118,9 +109,7 @@ export async function middleware(request: NextRequest) {
         if (previousUrl && matchesRolePattern(role, previousUrl.pathname)) {
           return NextResponse.redirect(previousUrl);
         } else {
-          return NextResponse.redirect(
-            new URL(defaultRoutes[role] || "/", request.url)
-          );
+          return NextResponse.redirect(new URL(defaultRoutes[role] || "/", request.url));
         }
       }
     } catch (error: any) {
@@ -137,7 +126,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)"],
 };

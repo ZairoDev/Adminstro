@@ -50,11 +50,9 @@ export default function HomePage() {
       </FadeInBlur>
       <FadeInBlur>
         <p className="max-w-3xl m-auto p-2 md:text-base text-center text-sm">
-          Oh, you think you belong here? If you&apos;re one of us here at Zairo,
-          congrats! Otherwise, feel free to close this window...or try to get in
-          if you dare. If you&apos;re actually an employee, tap the button
-          below, enter your credentials, and we&apos;ll route you to your
-          designated workspace.
+          Oh, you think you belong here? If you&apos;re one of us here at Zairo, congrats! Otherwise, feel
+          free to close this window...or try to get in if you dare. If you&apos;re actually an employee, tap
+          the button below, enter your credentials, and we&apos;ll route you to your designated workspace.
         </p>
       </FadeInBlur>
       <FadeInBlur>
@@ -83,6 +81,12 @@ export default function HomePage() {
               </Link>
             ) : token.role === "HR" ? (
               <Link href="/dashboard/employee">
+                <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Dashboard
+                </RainbowButton>
+              </Link>
+            ) : token.role === "Agent" ? (
+              <Link href={"/dashboard/sales-offer"}>
                 <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Dashboard
                 </RainbowButton>

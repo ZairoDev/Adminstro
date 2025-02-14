@@ -21,6 +21,14 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/api/employee/deleteEmploye", "src/createSuggestionItems.js"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "src/app/api/employee/deleteEmploye",
+    "src/createSuggestionItems.js",
+    "src/models/offersts"
+  ],
   "exclude": ["node_modules"]
 }

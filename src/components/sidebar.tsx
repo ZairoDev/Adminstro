@@ -1,28 +1,30 @@
 "use client";
-import { usePathname } from "next/navigation";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ModeToggle } from "./themeChangeButton";
 import {
-  ArrowUpLeft,
-  BellDot,
-  Check,
-  CheckCheck,
-  CircleCheckBig,
-  CircleX,
-  CornerLeftUp,
-  FileSpreadsheet,
   House,
-  NotebookPen,
-  PencilLine,
-  PersonStanding,
-  ScanEye,
+  Check,
   Speech,
+  ScanEye,
+  CircleX,
+  BellDot,
   User2Icon,
+  BadgeEuro,
+  CheckCheck,
+  PencilLine,
+  NotebookPen,
+  ArrowUpLeft,
+  CornerLeftUp,
+  PersonStanding,
+  CircleCheckBig,
+  FileSpreadsheet,
 } from "lucide-react";
+
 import { useAuthStore } from "@/AuthStore";
 
-const isActive = (currentPath: string, path: string): boolean =>
-  currentPath.startsWith(path);
+const isActive = (currentPath: string, path: string): boolean => currentPath.startsWith(path);
 
 type Route = {
   path: string;
@@ -198,6 +200,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
   ],
+  Agent: [
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <BadgeEuro size={18} />,
+    },
+  ],
 };
 
 export function Sidebar() {
@@ -208,10 +217,7 @@ export function Sidebar() {
     if (!token) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
-          <img
-            src="https://vacationsaga.b-cdn.net/assets/logo2.webp"
-            className=" w-40 md:w-4/5"
-          />
+          <img src="https://vacationsaga.b-cdn.net/assets/logo2.webp" className=" w-40 md:w-4/5" />
         </li>
       );
     }
@@ -223,9 +229,7 @@ export function Sidebar() {
       <li
         key={route.path}
         className={`${
-          isActive(currentPath, route.path)
-            ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
-            : ""
+          isActive(currentPath, route.path) ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary" : ""
         }`}
       >
         <Link

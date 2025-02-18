@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import axios from "axios";
-import { useEffect, useState } from "react";
-import { Check, CircleX, RotateCw, Save } from "lucide-react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { Check, CircleX, RotateCw, Save } from "lucide-react";
 
 import {
   Select,
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectContent,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,8 +24,9 @@ import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
 import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
-import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
+import { getSalesOfferStoreData, leadStatuses } from "./sales-offer-utils";
+import { Toaster } from "@/components/ui/toaster";
 
 const FormSchema = z.object({
   phone: z
@@ -37,48 +39,22 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 
 const SalesOffer = () => {
-  const [phone, setPhone] = useState("");
+  const { toast } = useToast();
+
   const [showAvailability, setShowAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState({
-    VacationSaga: false,
     TechTunes: false,
+    VacationSaga: false,
   });
-  const [leadStatus, setLeadStatus] = useState<(typeof leadStatuses)[number]>();
 
-  const {
-    name,
-    propertyName,
-    relation,
-    email,
-    propertyUrl,
-    country,
-    state,
-    city,
-    plan,
-    discount,
-    effectivePrice,
-    expiryDate,
-    callBackDate,
-    callBackTime,
-    // leadStatus
-  } = useSalesOfferStore();
-
-  // useEffect(() => {
-  //   console.log(city, state, country, plan, discount, effectivePrice);
-  // }, [city, state, country, plan, discount, effectivePrice]);
-
-  useEffect(() => {
-    console.log(name, propertyName, relation, email, propertyUrl);
-  }, [name, propertyName, relation, email, propertyUrl]);
+  const { leadStatus, setField } = useSalesOfferStore();
 
   // Select Lead Status
   const leadStatusSelector = () => {
     return (
       <div>
         <Label htmlFor="leadStatus">Lead Status</Label>
-        <Select
-          onValueChange={(value) => setLeadStatus(value as (typeof leadStatuses)[number])}
-        >
+        <Select onValueChange={(value) => setField("leadStatus", value)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select Lead Status" />
           </SelectTrigger>
@@ -87,6 +63,33 @@ const SalesOffer = () => {
               <SelectLabel>Status</SelectLabel>
               {leadStatuses.map((status, index) => (
                 <SelectItem key={index} value={status}>
+                  <div>{status}</div>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
+
+  const platformSelector = () => {
+    return (
+      <div>
+        <Label htmlFor="platform">Select Platform</Label>
+        <Select onValueChange={(value) => setField("availableOn", value)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select Platform" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Platform</SelectLabel>
+              {["VacationSaga", "TechTunes"].map((status, index) => (
+                <SelectItem
+                  key={index}
+                  value={status}
+                  disabled={!isAvailable[status as keyof typeof isAvailable]}
+                >
                   <div>{status}</div>
                 </SelectItem>
               ))}
@@ -109,7 +112,9 @@ const SalesOffer = () => {
   // check number for availbility in database
   const checkNumber = async (phone: string) => {
     try {
-      const response = await axios.post("/api/checkNumberInOffers", { phoneNo: phone });
+      const response = await axios.post("/api/sales-offer/checkNumberInOffers", {
+        phoneNumber: phone,
+      });
       setIsAvailable((prev) => {
         const avail = { ...prev };
         avail.TechTunes = !response.data.availableOnTT;
@@ -124,10 +129,30 @@ const SalesOffer = () => {
 
   const onSubmit = (data: FormData) => {
     checkNumber(data.phone);
+    setField("phoneNumber", data.phone);
+  };
+
+  {
+    /*Save Offer*/
+  }
+  const offerData = getSalesOfferStoreData();
+  const handleSaveOffer = async () => {
+    console.log("called save offer");
+    try {
+      const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
+    } catch (error: any) {
+      console.log("error in frontend: ", error.response.data.error);
+      toast({
+        title: "Error in saving Offer",
+        description: error.response.data.error,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <div className="mt-4 flex flex-col gap-y-4">
+      <Toaster />
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="flex items-center gap-x-4 space-y-3 p-2 border border-neutral-600 rounded-md"
@@ -192,15 +217,19 @@ const SalesOffer = () => {
         )}
       </form>
 
-      <div>{leadStatusSelector()}</div>
+      <div className=" flex gap-x-4">
+        {platformSelector()}
+        {(isAvailable.VacationSaga || isAvailable.TechTunes) && leadStatusSelector()}
+      </div>
+      {leadStatusSelector()}
       <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
       <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
 
-      <div className="flex gap-x-4 mx-auto">
+      <div className={`flex gap-x-4 mx-auto`}>
         <Button>
           Reset <RotateCw className=" ml-1" size={16} />
         </Button>
-        <Button>
+        <Button onClick={handleSaveOffer}>
           Save <Save className=" ml-1" size={16} />
         </Button>
       </div>

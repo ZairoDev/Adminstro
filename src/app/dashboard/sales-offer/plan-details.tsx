@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 
 import {
@@ -25,12 +25,15 @@ import { useSalesOfferStore } from "./useSalesOfferStore";
 
 const PlanDetails = () => {
   const [selectedPlanPrice, setSelectedPlanPrice] = useState<number>(0);
-  const [discount, setDiscount] = useState<number>(0);
-  const [effectivePrice, setEffectivePrice] = useState(0);
   const [expiryDate, setExpiryDate] = useState<Date>();
   const [callbackDate, setCallbackDate] = useState<Date>();
 
-  const { setField } = useSalesOfferStore();
+  const { discount, effectivePrice, setField } = useSalesOfferStore();
+
+  useEffect(() => {
+    setField("expiryDate", expiryDate);
+    setField("callBackDate", callbackDate);
+  }, [expiryDate, callbackDate]);
 
   return (
     <div className="border border-neutral-600 rounded-md p-2">
@@ -42,9 +45,11 @@ const PlanDetails = () => {
           <Label>Plan</Label>
           <Select
             onValueChange={(value) => {
+              const val = parseInt(value.split("-")[2], 10);
               setSelectedPlanPrice(parseInt(value.split("-")[2], 10));
-              setDiscount(0);
-              setEffectivePrice(parseInt(value.split("-")[2], 10));
+              setField("plan", value);
+              setField("discount", 0);
+              setField("effectivePrice", val);
             }}
           >
             <SelectTrigger>
@@ -56,10 +61,10 @@ const PlanDetails = () => {
                 {plans?.map((plan, index) => (
                   <SelectItem
                     key={index}
-                    value={`${plan.planName}-${plan.duration}-${plan.price}${plan.currency}`}
+                    value={`${plan.planName}-${plan.duration}-${plan.price}-${plan.currency}`}
                   >
                     <div>
-                      {plan.planName} {plan.duration} - {plan.price} €
+                      {plan.planName} {plan.duration} - {plan.price} {plan.currency}
                     </div>
                   </SelectItem>
                 ))}
@@ -75,13 +80,11 @@ const PlanDetails = () => {
             type="number"
             min={0}
             max={selectedPlanPrice}
-            defaultValue={0}
-            value={discount}
+            value={!discount ? 0 : discount}
             onChange={(e) => {
-              const minValue = Math.min(parseInt(e.target.value), selectedPlanPrice);
-              setDiscount(minValue);
+              let minValue = Math.min(parseInt(e.target.value), selectedPlanPrice);
+              minValue = !minValue ? 0 : minValue;
               setField("discount", minValue);
-              setEffectivePrice(selectedPlanPrice - minValue);
               setField("effectivePrice", selectedPlanPrice - minValue);
             }}
           />
@@ -150,7 +153,7 @@ const PlanDetails = () => {
         {/* Callback Time */}
         <div className=" flex flex-col gap-y-1">
           <Label>Call Back Time</Label>
-          <Input type="time" />
+          <Input type="time" onChange={(e) => setField("callBackTime", e.target.value)} />
         </div>
       </div>
     </div>

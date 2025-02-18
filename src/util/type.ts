@@ -326,4 +326,26 @@ export interface TokenInterface {
   allotedArea?: string;
 }
 
+export interface SalesOfferInterface {
+  phoneNumber: string;
+  leadStatus: string;
+  name: string;
+  propertyName: string;
+  relation: string;
+  email: string;
+  propertyUrl: string;
+  country: string;
+  state: string;
+  city: string;
+  plan: string;
+  discount: number;
+  effectivePrice: number;
+  expiryDate: Date | null;
+  callBackDate: Date | null;
+  callBackTime: string | null;
+  availableOn?: ("VacationSaga" | "TechTunes")[] | [];
+  setField: (field: keyof SalesOfferInterface, value: any) => void;
+  resetForm: () => void;
+}
+
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

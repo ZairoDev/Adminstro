@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -9,10 +7,6 @@ import AddressDetails from "./address-details";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 
 export default function SendOffer() {
-  const [selectedCity, setSelectedCity] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("");
-
   const { setField } = useSalesOfferStore();
 
   return (
@@ -21,6 +15,7 @@ export default function SendOffer() {
 
       {/* Offer Details */}
       <div className=" grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-x-4">
+        {/* Name */}
         <div>
           <Label htmlFor="name">Name</Label>
           <Input
@@ -30,6 +25,8 @@ export default function SendOffer() {
             onChange={(e) => setField("name", e.target.value)}
           />
         </div>
+
+        {/* Property Name */}
         <div>
           <Label htmlFor="propertyName">Property Name</Label>
           <Input
@@ -39,6 +36,8 @@ export default function SendOffer() {
             onChange={(e) => setField("propertyName", e.target.value)}
           />
         </div>
+
+        {/* Relation */}
         <div>
           <Label htmlFor="relation">Relation</Label>
           <Input
@@ -48,6 +47,8 @@ export default function SendOffer() {
             onChange={(e) => setField("relation", e.target.value)}
           />
         </div>
+
+        {/* Email */}
         <div>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -57,6 +58,8 @@ export default function SendOffer() {
             onChange={(e) => setField("email", e.target.value)}
           />
         </div>
+
+        {/* URL */}
         <div>
           <Label htmlFor="propertyUrl">URL</Label>
           <Input

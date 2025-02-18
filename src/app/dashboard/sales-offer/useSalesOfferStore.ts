@@ -1,29 +1,10 @@
 import { create } from "zustand";
 
-interface SalesOfferState {
-  phoneNumber: string;
-  leadStatus: string;
-  name: string;
-  propertyName: string;
-  relation: string;
-  email: string;
-  propertyUrl: string;
-  country: string;
-  state: string;
-  city: string;
-  plan: string;
-  discount: number;
-  effectivePrice: number;
-  expiryDate: string | null;
-  callBackDate: string | null;
-  callBackTime: string | null;
-  setField: (field: keyof SalesOfferState, value: any) => void;
-  resetForm: () => void;
-}
+import { SalesOfferInterface } from "@/util/type";
 
-export const useSalesOfferStore = create<SalesOfferState>((set) => ({
+export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   phoneNumber: "",
-  leadStatus: "Send Offer",
+  leadStatus: "",
   name: "",
   propertyName: "",
   relation: "",
@@ -38,11 +19,12 @@ export const useSalesOfferStore = create<SalesOfferState>((set) => ({
   expiryDate: null,
   callBackDate: null,
   callBackTime: null,
+  availableOn: [],
   setField: (field, value) => set((state) => ({ ...state, [field]: value })),
   resetForm: () =>
     set({
       phoneNumber: "",
-      leadStatus: "Send Offer",
+      leadStatus: "",
       name: "",
       propertyName: "",
       relation: "",
@@ -57,5 +39,6 @@ export const useSalesOfferStore = create<SalesOfferState>((set) => ({
       expiryDate: null,
       callBackDate: null,
       callBackTime: null,
+      availableOn: [],
     }),
 }));

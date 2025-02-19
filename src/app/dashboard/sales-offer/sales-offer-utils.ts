@@ -17,7 +17,7 @@ export const plans = [
   { planName: "Game Plan", duration: "18M", price: 599, currency: "EUR" },
 ] as const;
 
-export const getSalesOfferStoreData = () => {
+const getSalesOfferStoreData = () => {
   const {
     phoneNumber,
     leadStatus,
@@ -60,3 +60,5 @@ export const getSalesOfferStoreData = () => {
 
   return formData;
 };
+
+export default getSalesOfferStoreData;

@@ -19,14 +19,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
 import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
+import { leadStatuses } from "./sales-offer-utils";
+import getSalesOfferStoreData from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
-import { getSalesOfferStoreData, leadStatuses } from "./sales-offer-utils";
-import { Toaster } from "@/components/ui/toaster";
 
 const FormSchema = z.object({
   phone: z
@@ -137,7 +138,7 @@ const SalesOffer = () => {
   }
   const offerData = getSalesOfferStoreData();
   const handleSaveOffer = async () => {
-    console.log("called save offer");
+    // console.log("called save offer", offerData);
     try {
       const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
     } catch (error: any) {

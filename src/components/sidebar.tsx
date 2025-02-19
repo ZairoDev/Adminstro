@@ -12,6 +12,7 @@ import {
   BellDot,
   User2Icon,
   BadgeEuro,
+  Warehouse,
   CheckCheck,
   PencilLine,
   NotebookPen,
@@ -24,7 +25,8 @@ import {
 
 import { useAuthStore } from "@/AuthStore";
 
-const isActive = (currentPath: string, path: string): boolean => currentPath.startsWith(path);
+const isActive = (currentPath: string, path: string): boolean =>
+  currentPath.startsWith(path);
 
 type Route = {
   path: string;
@@ -192,6 +194,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Join Room",
       Icon: <House size={18} />,
     },
+    {
+      path: "/dashboard/room/roomlist",
+      label: "Room List",
+      Icon: <Warehouse size={18} />,
+    },
   ],
   HR: [
     {
@@ -217,7 +224,10 @@ export function Sidebar() {
     if (!token) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
-          <img src="https://vacationsaga.b-cdn.net/assets/logo2.webp" className=" w-40 md:w-4/5" />
+          <img
+            src="https://vacationsaga.b-cdn.net/assets/logo2.webp"
+            className=" w-40 md:w-4/5"
+          />
         </li>
       );
     }
@@ -229,7 +239,9 @@ export function Sidebar() {
       <li
         key={route.path}
         className={`${
-          isActive(currentPath, route.path) ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary" : ""
+          isActive(currentPath, route.path)
+            ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
+            : ""
         }`}
       >
         <Link

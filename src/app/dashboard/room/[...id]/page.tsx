@@ -96,12 +96,11 @@ const Page = ({ params }: pageProps) => {
   const [removedPropertyIndex, setRemovedPropertyIndex] = useState(-1);
   const [retractedPropertyIndex, setRetractedPropertyIndex] = useState(-1);
   const [alreadyAddedProperty, setAlreadyAddedProperty] = useState<string>("");
-  const [favouriteUpdatedProperties, setFavouriteUpdatedProperties] = useState<
-    string[]
-  >([]);
+  const [favouriteUpdatedProperties, setFavouriteUpdatedProperties] = useState<string[]>(
+    []
+  );
   const [role, setRole] = useState("");
-  const [quickListingProp, setQuickListingProp] =
-    useState<QuickListingInterface>();
+  const [quickListingProp, setQuickListingProp] = useState<QuickListingInterface>();
 
   const [dt, setDt] = useState<Date | undefined>(undefined);
   const visitTimeRef = useRef<HTMLInputElement>(null);
@@ -111,20 +110,20 @@ const Page = ({ params }: pageProps) => {
   const router = useRouter();
 
   useEffect(() => {
+    console.log("params: ", params.id);
     const roomDetails = params.id[0].split("-");
     const roomId = roomDetails[0];
     const roomPassword = roomDetails[1];
 
-    const checkRoomCredentials = async (
-      roomId: string,
-      roomPassword: string
-    ) => {
+    const checkRoomCredentials = async (roomId: string, roomPassword: string) => {
       try {
         setIsLoading(true);
+        console.log("roomId: ", roomId, "roomPassword: ", roomPassword);
         const response = await axios.post("/api/room/joinRoom", {
           roomId,
           roomPassword,
         });
+        console.log("room join response: ", response);
         setRole(response.data.role);
         setCustomerName(response.data.customerName);
         setIsLoading(false);
@@ -154,9 +153,8 @@ const Page = ({ params }: pageProps) => {
     if (!propertyIdRef?.current?.value) return;
 
     if (
-      showcaseProperties.filter(
-        (item) => item._id === propertyIdRef?.current?.value
-      ).length
+      showcaseProperties.filter((item) => item._id === propertyIdRef?.current?.value)
+        .length
     ) {
       setAlreadyAddedProperty(propertyIdRef?.current?.value);
       toast("Property Already Added", {
@@ -198,10 +196,10 @@ const Page = ({ params }: pageProps) => {
   const retractProperty = async (index: number, propertyId: string) => {
     setRetractedPropertyIndex(index);
     try {
-      const response = await axios.post(
-        "/api/room/retractPropertyFromRejected",
-        { roomId, propertyId }
-      );
+      const response = await axios.post("/api/room/retractPropertyFromRejected", {
+        roomId,
+        propertyId,
+      });
     } catch (err: unknown) {
       console.log("err: ", err);
     } finally {
@@ -300,9 +298,7 @@ const Page = ({ params }: pageProps) => {
     channel.bind("propertyRemoved", (data: any) => {
       const propertyId = data._id;
       setShowcaseProperties((prev) => {
-        const newProperties = prev.filter(
-          (property) => property._id !== propertyId
-        );
+        const newProperties = prev.filter((property) => property._id !== propertyId);
         return newProperties;
       });
       setRejectedProperties((prev) => {
@@ -319,9 +315,7 @@ const Page = ({ params }: pageProps) => {
     channel.bind("retractedProperty", (data: any) => {
       setShowcaseProperties((prev) => [...prev, data]);
       setRejectedProperties((prev) => {
-        const newRemovedProperties = prev.filter(
-          (item) => item._id! !== data._id
-        );
+        const newRemovedProperties = prev.filter((item) => item._id! !== data._id);
         return newRemovedProperties;
       });
       toast.success("Property Retracted!");
@@ -442,9 +436,7 @@ const Page = ({ params }: pageProps) => {
               <SheetContent className="overflow-y-auto">
                 <SheetHeader>
                   <SheetTitle>Scheduled Visits</SheetTitle>
-                  <SheetDescription>
-                    The list of scheduled visits
-                  </SheetDescription>
+                  <SheetDescription>The list of scheduled visits</SheetDescription>
                 </SheetHeader>
                 <div className="grid gap-4 py-4 overflow-auto">
                   {showcaseProperties
@@ -517,12 +509,8 @@ const Page = ({ params }: pageProps) => {
                                     <SelectContent id="interaction">
                                       <SelectGroup>
                                         <SelectLabel>Visit Medium</SelectLabel>
-                                        <SelectItem value="Physical">
-                                          Physical
-                                        </SelectItem>
-                                        <SelectItem value="Virtual">
-                                          Virtual
-                                        </SelectItem>
+                                        <SelectItem value="Physical">Physical</SelectItem>
+                                        <SelectItem value="Virtual">Virtual</SelectItem>
                                       </SelectGroup>
                                     </SelectContent>
                                   </Select>
@@ -530,9 +518,7 @@ const Page = ({ params }: pageProps) => {
                                 <div>
                                   <Label htmlFor="agentName">Agent Name</Label>
                                   <Input
-                                    placeholder={
-                                      item?.visitSchedule?.visitAgentName
-                                    }
+                                    placeholder={item?.visitSchedule?.visitAgentName}
                                     ref={agentNameRef}
                                     id="agentName"
                                   />
@@ -540,9 +526,7 @@ const Page = ({ params }: pageProps) => {
                                 <DialogFooter>
                                   <Button
                                     type="submit"
-                                    onClick={() =>
-                                      updateVisit(index, item._id!)
-                                    }
+                                    onClick={() => updateVisit(index, item._id!)}
                                   >
                                     {isUpdateVisitLoading
                                       ? "Updating..."
@@ -649,10 +633,7 @@ const Page = ({ params }: pageProps) => {
                           return [...prev];
                         });
                         if (favouriteProperties.indexOf(item._id!) === -1) {
-                          setFavouriteProperties((prev) => [
-                            ...prev,
-                            item._id!,
-                          ]);
+                          setFavouriteProperties((prev) => [...prev, item._id!]);
                         } else {
                           setFavouriteProperties((prev) =>
                             prev.filter((id) => id !== item._id!)
@@ -754,8 +735,7 @@ const Page = ({ params }: pageProps) => {
                           <CheckCheck
                             size={22}
                             className={`  font-semibold ${
-                              rejectedProperties?.[index]?.isViewed &&
-                              "text-orange-600"
+                              rejectedProperties?.[index]?.isViewed && "text-orange-600"
                             } `}
                           />
                         </div>

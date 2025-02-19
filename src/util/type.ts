@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 export interface MiddlweareInterface {
   name: string;
   email: string;
@@ -301,6 +303,7 @@ export interface IQuery {
     roomId: string;
     roomPassword: string;
   };
+  createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -346,6 +349,20 @@ export interface SalesOfferInterface {
   availableOn?: ("VacationSaga" | "TechTunes")[] | [];
   setField: (field: keyof SalesOfferInterface, value: any) => void;
   resetForm: () => void;
+}
+
+export interface RoomInterface {
+  _id: string;
+  name: string;
+  lead: mongoose.Types.ObjectId;
+  participants: [string];
+  showcaseProperties: [];
+  favouriteProperties: [];
+  rejectedProperties: [];
+  isActive: boolean;
+  password: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

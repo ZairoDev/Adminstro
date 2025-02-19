@@ -19,14 +19,12 @@ function generateStrongPassword(length = 8) {
 export async function POST(req: NextRequest) {
   try {
     const { lead } = await req.json();
-    console.log("lead--: ", lead);
 
     if (!lead) {
       return NextResponse.json({ error: "Invalid lead" }, { status: 400 });
     }
 
     const employee = await getDataFromToken(req);
-    console.log("employee: ", employee);
 
     const room = await Rooms.create({
       name: lead.name,
@@ -34,7 +32,6 @@ export async function POST(req: NextRequest) {
       participants: [employee.email, lead.phoneNo.toString()],
       password: generateStrongPassword(4),
     });
-    console.log('created room": ', room);
 
     await Query.findByIdAndUpdate(
       { _id: new mongoose.Types.ObjectId(lead._id) },

@@ -160,35 +160,17 @@ const QueryDetails = ({ params }: PageProps) => {
                         {apiData?.priority}
                       </Badge>
                       <div className="text-muted-foreground text-sm mt-2">
-                        {new Date(apiData?.createdAt ?? "")?.toLocaleString(
-                          "en-GB"
-                        )}
+                        {new Date(apiData?.createdAt ?? "")?.toLocaleString("en-GB")}
                       </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoItem
-                      icon={MapPin}
-                      label="Area"
-                      value={apiData?.area ?? ""}
-                    />
-                    <InfoItem
-                      icon={Users}
-                      label="Guests"
-                      value={apiData?.guest ?? " "}
-                    />
-                    <InfoItem
-                      icon={Euro}
-                      label="Budget"
-                      value={`€${apiData?.budget}`}
-                    />
-                    <InfoItem
-                      icon={Bed}
-                      label="Beds"
-                      value={apiData?.noOfBeds ?? " "}
-                    />
+                    <InfoItem icon={MapPin} label="Area" value={apiData?.area ?? ""} />
+                    <InfoItem icon={Users} label="Guests" value={apiData?.guest ?? " "} />
+                    <InfoItem icon={Euro} label="Budget" value={`€${apiData?.budget}`} />
+                    <InfoItem icon={Bed} label="Beds" value={apiData?.noOfBeds ?? " "} />
                     <InfoItem
                       icon={Calendar}
                       label="Term"
@@ -199,11 +181,7 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="Location"
                       value={apiData?.location ?? " "}
                     />
-                    <InfoItem
-                      icon={Flag}
-                      label="Zone"
-                      value={apiData?.zone ?? " "}
-                    />
+                    <InfoItem icon={Flag} label="Zone" value={apiData?.zone ?? " "} />
                     <InfoItem
                       icon={Home}
                       label="Property Type"
@@ -229,8 +207,7 @@ const QueryDetails = ({ params }: PageProps) => {
                       label="End Date"
                       value={apiData?.endDate ?? " "}
                     />
-                    {(token?.role === "Sales" ||
-                      token?.role === "SuperAdmin") && (
+                    {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                       <div className=" flex items-center justify-between border rounded-lg">
                         <InfoItem
                           icon={House}
@@ -249,8 +226,7 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     )}
-                    {(token?.role === "Sales" ||
-                      token?.role === "SuperAdmin") && (
+                    {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                       <div className=" flex items-center justify-between border rounded-lg">
                         <InfoItem
                           icon={KeyRound}
@@ -269,18 +245,20 @@ const QueryDetails = ({ params }: PageProps) => {
                         </p>
                       </div>
                     )}
+                    {token?.email == "harshit2003gtm@gmail.com" && (
+                      <div className=" text-gray-500 text-sm">
+                        Created By : {apiData?.createdBy}
+                      </div>
+                    )}
                     <div className=" flex gap-x-4 items-center">
                       {apiData?.rejectionReason && (
                         <p>
-                          Reason for Rejection: &nbsp;&nbsp;{" "}
-                          {apiData?.rejectionReason}
+                          Reason for Rejection: &nbsp;&nbsp; {apiData?.rejectionReason}
                         </p>
                       )}
                       {apiData?.rejectionReason && (
                         <Button onClick={() => retrieveLead(apiData?._id!)}>
-                          {retrieveLeadLoading
-                            ? "Retreiving..."
-                            : "Retreive Lead"}
+                          {retrieveLeadLoading ? "Retreiving..." : "Retreive Lead"}
                         </Button>
                       )}
                     </div>

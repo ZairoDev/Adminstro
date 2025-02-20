@@ -60,16 +60,18 @@ import {
   AlertDialogContent,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
+import { useRouter } from "next/navigation";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { toast } = useToast();
   const { token } = useAuthStore();
+  const router = useRouter();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
-  const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "None")[]
-  >(Array.from({ length: queries?.length }, () => "None"));
+  const [salesPriority, setSalesPriority] = useState<("Low" | "High" | "None")[]>(
+    Array.from({ length: queries?.length }, () => "None")
+  );
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
@@ -212,11 +214,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   };
 
   // Creating Note
-  const handleNote = async (
-    id: any,
-    noteValue: string | undefined,
-    index: number
-  ) => {
+  const handleNote = async (id: any, noteValue: string | undefined, index: number) => {
     if (!noteValue) return;
 
     try {
@@ -258,9 +256,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               key={query?._id}
               className={`
               ${
-                query?.isViewed
-                  ? "bg-transparent hover:bg-transparent"
-                  : "bg-primary-foreground"
+                query?.isViewed ? "bg-transparent hover:bg-transparent" : "bg-neutral-700"
               }
               relative
             `}
@@ -272,9 +268,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 >
                   {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">
-                        Reminder
-                      </p>
+                      <p className=" rotate-90 text-xs font-semibold mt-1">Reminder</p>
                     </div>
                   )}
                   {query.salesPriority === "High" ? (
@@ -439,9 +433,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Good", query?._id, index)
-                        }
+                        onClick={() => handleQualityChange("Good", query?._id, index)}
                       >
                         Good
                       </DropdownMenuItem>
@@ -455,20 +447,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Average", query?._id, index)
-                        }
+                        onClick={() => handleQualityChange("Average", query?._id, index)}
                       >
                         Average
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onClick={() =>
-                          handleQualityChange(
-                            "Below Average",
-                            query?._id,
-                            index
-                          )
+                          handleQualityChange("Below Average", query?._id, index)
                         }
                       >
                         Below Average
@@ -478,7 +464,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 </TableCell>
               )}
               <TableCell>
-                <Link
+                {/* <Link
                   href={`https://wa.me/${
                     query?.phoneNo
                   }?text=${encodeURIComponent(
@@ -492,7 +478,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     alt="icon image"
                     className="h-8 w-8"
                   />
-                </Link>
+                </Link> */}
+                <p
+                  className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer"
+                  onClick={() =>
+                    navigator.clipboard.writeText(`${query?.name} ${query?.phoneNo}`)
+                  }
+                >
+                  Details
+                </p>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -509,27 +503,25 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {(token?.role === "Sales" ||
-                        token?.role === "SuperAdmin") && (
+                      {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                         <>
-                          <DropdownMenuItem
-                            onClick={() => handleCreateRoom(index)}
-                          >
+                          <DropdownMenuItem onClick={() => handleCreateRoom(index)}>
                             Create Room
                           </DropdownMenuItem>
 
-                          <Link
-                            href={{
-                              pathname: `/dashboard/room/joinroom`,
-                              query: {
-                                roomId: roomId,
-                                roomPassword: roomPassword,
-                              },
+                          <DropdownMenuItem
+                            onClick={() => {
+                              sessionStorage.setItem(
+                                "previousPath",
+                                window.location.pathname
+                              );
+                              router.push(
+                                `${process.env.NEXT_PUBLIC_URL}/dashboard/room/${query?.roomDetails?.roomId}-${query?.roomDetails?.roomPassword}`
+                              );
                             }}
-                            target="_blank"
                           >
-                            <DropdownMenuItem>Join Room</DropdownMenuItem>
-                          </Link>
+                            Join Room
+                          </DropdownMenuItem>
 
                           <DropdownMenuItem>
                             <AlertDialog
@@ -575,7 +567,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       )}
                       <Link
                         onClick={() => IsView(query?._id, index)}
-                        target="_blank"
+                        // target="_blank"
                         href={`/dashboard/createquery/${query?._id}`}
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
@@ -592,11 +584,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           <DropdownMenuSubContent>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason(
-                                  "Not Replying",
-                                  query?._id,
-                                  index
-                                )
+                                handleRejectionReason("Not Replying", query?._id, index)
                               }
                             >
                               Not Replying
@@ -625,11 +613,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason(
-                                  "Late Response",
-                                  query?._id,
-                                  index
-                                )
+                                handleRejectionReason("Late Response", query?._id, index)
                               }
                             >
                               Late Response
@@ -647,11 +631,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason(
-                                  "Off Location",
-                                  query?._id,
-                                  index
-                                )
+                                handleRejectionReason("Off Location", query?._id, index)
                               }
                             >
                               Off Location
@@ -669,11 +649,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
+                                handleRejectionReason("Low Budget", query?._id, index)
                               }
                             >
                               Low Budget
@@ -691,11 +667,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
+                                handleRejectionReason("Low Budget", query?._id, index)
                               }
                             >
                               Low Budget
@@ -764,9 +736,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       </DialogHeader>
                       <DialogFooter>
                         <Button
-                          onClick={() =>
-                            handleNote(query._id, noteValue, index)
-                          }
+                          onClick={() => handleNote(query._id, noteValue, index)}
                           className="w-auto"
                           disabled={!noteValue.trim() || creatingNote}
                         >

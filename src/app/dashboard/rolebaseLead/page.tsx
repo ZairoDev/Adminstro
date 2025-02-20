@@ -6,15 +6,6 @@ import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
-import { IQuery } from "@/util/type";
-import Loader from "@/components/loader";
-import Heading from "@/components/Heading";
-import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import QueryCard from "@/components/QueryCard";
-import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/toaster";
-import LeadTable from "@/components/leadTable/LeadTable";
 import {
   Sheet,
   SheetClose,
@@ -39,6 +30,15 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
+import { IQuery } from "@/util/type";
+import Loader from "@/components/loader";
+import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import QueryCard from "@/components/QueryCard";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
+import LeadTable from "@/components/leadTable/LeadTable";
 
 interface ApiResponse {
   data: IQuery[];
@@ -58,7 +58,6 @@ const RolebasedLead = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
   const [sortingField, setSortingField] = useState("");
   const [customDays, setCustomDays] = useState("");
@@ -86,9 +85,23 @@ const RolebasedLead = () => {
         customDateRange,
       }: FetchQueryParams) => {
         setLoading(true);
-        setError(null);
         try {
           if (!dateFilter && !sortingField) return;
+
+          const cachedQueries = sessionStorage.getItem("queries");
+          const cachedTotalPages = sessionStorage.getItem("totalPages");
+          const cachedTotalQueries = sessionStorage.getItem("totalQueries");
+          const cachedPageNumber = JSON.parse(
+            sessionStorage.getItem("currentPage") || "1"
+          );
+
+          const samePage = cachedPageNumber === page;
+          if (cachedQueries && cachedTotalPages && cachedTotalQueries && samePage) {
+            setQueries(JSON.parse(cachedQueries));
+            setTotalPages(JSON.parse(cachedTotalPages));
+            setTotalQueries(JSON.parse(cachedTotalQueries));
+            return;
+          }
 
           const response = await fetch(
             `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
@@ -97,9 +110,12 @@ const RolebasedLead = () => {
           setQueries(data.data);
           setTotalPages(data.totalPages);
           setTotalQueries(data.totalQueries);
+          sessionStorage.setItem("queries", JSON.stringify(data.data));
+          sessionStorage.setItem("totalPages", JSON.stringify(data.totalPages));
+          sessionStorage.setItem("totalQueries", JSON.stringify(data.totalQueries));
+          sessionStorage.setItem("currentPage", JSON.stringify(page));
         } catch (err: any) {
           setLoading(false);
-          setError(err.message);
         } finally {
           setLoading(false);
         }
@@ -283,9 +299,7 @@ const RolebasedLead = () => {
                           <SelectItem value="today">Today</SelectItem>
                           <SelectItem value="yesterday">Yesterday</SelectItem>
                           <SelectItem value="lastDays">Last X Days</SelectItem>
-                          <SelectItem value="customRange">
-                            Custom Date Range
-                          </SelectItem>
+                          <SelectItem value="customRange">Custom Date Range</SelectItem>
                         </SelectContent>
                       </Select>
                       {dateFilter === "lastDays" && (
@@ -357,10 +371,7 @@ const RolebasedLead = () => {
                       </Select>
 
                       <SheetClose asChild>
-                        <Button
-                          className="sm:w-auto w-full mt-4"
-                          onClick={handleSearch}
-                        >
+                        <Button className="sm:w-auto w-full mt-4" onClick={handleSearch}>
                           Apply
                         </Button>
                       </SheetClose>
@@ -379,9 +390,9 @@ const RolebasedLead = () => {
                         </SelectContent>
                       </Select>
                       <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
+                        Fill in your search details, apply custom filters, and let us
+                        bring you the most relevant results with just a click of the Apply
+                        button !
                       </p>
                     </div>
                   </SheetFooter>

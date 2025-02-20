@@ -110,29 +110,14 @@ const Page = ({ params }: pageProps) => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("params: ", params.id);
+    // console.log("params: ", params.id);
     const roomDetails = params.id[0].split("-");
     const roomId = roomDetails[0];
     const roomPassword = roomDetails[1];
 
-    const checkRoomCredentials = async (roomId: string, roomPassword: string) => {
-      try {
-        setIsLoading(true);
-        console.log("roomId: ", roomId, "roomPassword: ", roomPassword);
-        const response = await axios.post("/api/room/joinRoom", {
-          roomId,
-          roomPassword,
-        });
-        console.log("room join response: ", response);
-        setRole(response.data.role);
-        setCustomerName(response.data.customerName);
-        setIsLoading(false);
-      } catch (err: any) {
-        router.push("/dashboard/room/joinroom");
-      }
-      setIsLoading(false);
-    };
-
+    {
+      /*Room Properties*/
+    }
     const fetchRoomProperties = async (roomId: string) => {
       try {
         const response = await axios.post("/api/room/getPropertiesFromRoom", {
@@ -141,12 +126,38 @@ const Page = ({ params }: pageProps) => {
         setShowcaseProperties(response.data.showcaseProperties);
         setRejectedProperties(response.data.rejectedProperties);
       } catch (err: any) {
-        console.log("Error in fetching room properties: ", err);
+        console.error("Error in fetching room properties: ", err);
       }
     };
 
+    {
+      /*Verify Room Credentials*/
+    }
+    const checkRoomCredentials = async (roomId: string, roomPassword: string) => {
+      try {
+        setIsLoading(true);
+        // console.log("roomId: ", roomId, "roomPassword: ", roomPassword);
+        const response = await axios.post("/api/room/joinRoom", {
+          roomId,
+          roomPassword,
+        });
+        // console.log("room join response: ", response);
+        setRole(response.data.role);
+        setCustomerName(response.data.customerName);
+        setIsLoading(false);
+        fetchRoomProperties(roomId);
+      } catch (err: any) {
+        const previousPath = sessionStorage.getItem("previousPath");
+        if (previousPath) {
+          router.push(previousPath);
+        } else {
+          router.push("/dashboard/room/joinroom");
+        }
+      }
+      setIsLoading(false);
+    };
+
     checkRoomCredentials(roomId, roomPassword);
-    fetchRoomProperties(roomId);
   }, []);
 
   const addProperty = async () => {
@@ -188,7 +199,7 @@ const Page = ({ params }: pageProps) => {
         propertyId: propertyId,
       });
     } catch (err: any) {
-      console.log("Error in removing property: ", err);
+      console.error("Error in removing property: ", err);
     }
     setRemovedPropertyIndex(-1);
   };

@@ -134,7 +134,7 @@ const RoomList = () => {
                   Copy Room Link
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <Link href={leadLink} target="_blank">
+                <Link href={leadLink}>
                   <DropdownMenuItem>View Lead</DropdownMenuItem>
                 </Link>
                 <Link href={roomLink} target="_blank">

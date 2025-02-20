@@ -1,6 +1,6 @@
 "use client";
 import React, { FC } from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import NcInputNumber from "@/components/NcInputNumber";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -144,16 +144,7 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
     };
     setPage3(newPage3);
     localStorage.setItem("page3", JSON.stringify(newPage3));
-  }, [
-    portionName,
-    portionSize,
-    guests,
-    bedrooms,
-    beds,
-    bathroom,
-    kitchen,
-    childrenAge,
-  ]);
+  }, [portionName, portionSize, guests, bedrooms, beds, bathroom, kitchen, childrenAge]);
 
   const isFormValid = () => {
     const allFieldsFilled = [
@@ -173,16 +164,7 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
 
   useEffect(() => {
     setIsValidForm(isFormValid());
-  }, [
-    portionName,
-    portionSize,
-    guests,
-    bedrooms,
-    beds,
-    bathroom,
-    kitchen,
-    childrenAge,
-  ]);
+  }, [portionName, portionSize, guests, bedrooms, beds, bathroom, kitchen, childrenAge]);
 
   return (
     <>
@@ -192,10 +174,7 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
       />
       <div className=" grid  grid-cols-1 md:grid-cols-2  mt-3  gap-x-8 gap-y-8">
         {myArray.map((item, index) => (
-          <div
-            key={index}
-            className=" border mb-4 relative  rounded-lg sm:p-4 p-2 "
-          >
+          <div key={index} className=" border mb-4 relative  rounded-lg sm:p-4 p-2 ">
             <h2 className="text-sm font-semibold mt-2 ml-2">
               Name of {myArray.length > 1 ? `Portion ${index + 1}` : `Property`}{" "}
             </h2>

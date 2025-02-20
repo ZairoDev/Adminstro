@@ -26,7 +26,6 @@ import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
 import { leadStatuses } from "./sales-offer-utils";
-import getSalesOfferStoreData from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 
 const FormSchema = z.object({
@@ -136,11 +135,16 @@ const SalesOffer = () => {
   {
     /*Save Offer*/
   }
-  const offerData = getSalesOfferStoreData();
+  // const offerData = getSalesOfferStoreData();
   const handleSaveOffer = async () => {
-    // console.log("called save offer", offerData);
+    const offerData = useSalesOfferStore.getState();
+    console.log("called save offer", offerData);
     try {
       const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
+      toast({
+        title: "Success",
+        description: "Offer saved successfully",
+      });
     } catch (error: any) {
       console.log("error in frontend: ", error.response.data.error);
       toast({

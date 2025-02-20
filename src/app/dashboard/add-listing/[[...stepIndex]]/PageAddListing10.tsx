@@ -1,44 +1,44 @@
 "use client";
 
-import React, { FC, useEffect, useState } from "react";
-import Link from "next/link";
 import axios from "axios";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Copy, Pencil } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
+import React, { FC, useEffect, useState } from "react";
+
+import Heading from "@/components/Heading";
 import { UserInterface } from "@/util/type";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { sub } from "date-fns";
-import Heading from "@/components/Heading";
 
 export interface PageAddListing10Props {}
 
 interface Page3State {
+  beds: number[];
+  guests: number[];
+  kitchen: number[];
+  bedrooms: number[];
+  bathroom: number[];
   portionName: string[];
   portionSize: number[];
-  guests: number[];
-  bedrooms: number[];
-  beds: number[];
-  bathroom: number[];
-  kitchen: number[];
 }
 
 interface Page2State {
-  country: string;
-  street: string;
-  roomNumber: string;
   city: string;
   state: string;
+  street: string;
+  country: string;
+  roomNumber: string;
   postalCode: string;
 }
 
 interface nearbyLocationInterface {
-  nearbyLocationName: string[];
-  nearbyLocationDistance: number[];
   nearbyLocationTag: string[];
   nearbyLocationUrl: string[];
+  nearbyLocationName: string[];
+  nearbyLocationDistance: number[];
 }
 
 interface CombinedData {
@@ -118,16 +118,11 @@ interface CombinedData {
   isLive?: boolean;
 }
 
-interface checkBoxState {
-  [key: string]: any;
-}
-
 const PageAddListing10: FC<PageAddListing10Props> = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
 
-  const [goLiveState, setGoLiveState] = useState<boolean>(false);
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loggedInUserEmail, setLoggedInUserEmail] = useState<string>("");
@@ -151,12 +146,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     localStorage.removeItem("isPropertyPictures");
   };
 
-  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(
-    () => {
-      const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
-      return savedPage || "";
-    }
-  );
+  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(() => {
+    const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
+    return savedPage || "";
+  });
 
   const [page3, setPage3] = useState<Page3State>(() => {
     const savedPage = localStorage.getItem("page3") || "";
@@ -262,7 +255,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
-    setGoLiveState(true);
     setIsLoading(true);
     const data = {
       userId: userId,
@@ -348,10 +340,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
-      const response2 = await axios.post(
-        "/api/createnewproperty/newProperties",
-        data
-      );
+      const response2 = await axios.post("/api/createnewproperty/newProperties", data);
       if (response.status === 200) {
         setIsLiveDisabled(true);
         setPropertyVSID(response.data.VSID);
@@ -366,8 +355,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       toast({
         variant: "destructive",
         title: "Some error occurred",
-        description:
-          "There are some issues with your request. Please try again.",
+        description: "There are some issues with your request. Please try again.",
       });
       console.log(error);
     } finally {
@@ -429,9 +417,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                     <Button
                       className="w-full"
                       onClick={handleGoLive}
-                      disabled={
-                        isLiveDisabled || !combinedData?.placeName || loading
-                      }
+                      disabled={isLiveDisabled || !combinedData?.placeName || loading}
                     >
                       Go live 🚀
                     </Button>

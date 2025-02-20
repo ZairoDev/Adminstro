@@ -1,31 +1,31 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import { formatDate } from "@fullcalendar/core";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import ical from "ical";
+
 import axios from "axios";
-import { useToast } from "@/hooks/use-toast";
-import dateParser from "@/helper/dateParser";
+import { addDays } from "date-fns";
 import { Pencil } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   Drawer,
   DrawerClose,
-  DrawerContent,
-  DrawerDescription,
+  DrawerTitle,
   DrawerFooter,
   DrawerHeader,
-  DrawerTitle,
+  DrawerContent,
   DrawerTrigger,
+  DrawerDescription,
 } from "@/components/ui/drawer";
-import { Label } from "@/components/ui/label";
-import { DateRangePicker } from "@/components/DateRangePicker";
-import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import dateParser from "@/helper/dateParser";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import FullCalendar from "@fullcalendar/react";
+import { Button } from "@/components/ui/button";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 interface PageProps {
   params: {
@@ -64,9 +64,8 @@ const EditDates = ({ params }: PageProps) => {
     from: new Date(),
     to: addDays(new Date(), 10),
   });
-  const [refreshEditPriceState, setRefreshEditPriceState] =
-    useState<boolean>(false);
-  const [validRange, setValidRange] = useState({});
+  const [refreshEditPriceState, setRefreshEditPriceState] = useState<boolean>(false);
+  const [, setValidRange] = useState({});
   const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
 
   //! method called when only date is clicked and not the event - adds the date to the alreadyBookedDates array
@@ -211,11 +210,7 @@ const EditDates = ({ params }: PageProps) => {
   useEffect(() => {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(
-      today.getFullYear(),
-      today.getMonth() + 1,
-      0
-    );
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
     // Set valid range to only allow dates within the current month
     setValidRange({

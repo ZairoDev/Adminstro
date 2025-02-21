@@ -115,7 +115,7 @@ const querySchema = new Schema(
     },
     priority: {
       type: String,
-      enum: ["High", "Low", "Medium"],
+      enum: ["ASAP", "High", "Low", "Medium"],
       require: [true, "Priority must be provided"],
     },
     salesPriority: {

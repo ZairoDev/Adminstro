@@ -10,8 +10,8 @@ const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 export const metadata: Metadata = {
-  title: "Adminsto Dashboard",
-  description: "Created for internale use only",
+  title: "VacationSaga Dashboard",
+  description: "Created for internal use only",
 };
 export default function RootLayout({
   children,

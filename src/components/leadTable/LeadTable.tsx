@@ -292,7 +292,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
-                    query.priority === "High"
+                    query.priority === "ASAP"
+                      ? "bg-green-950"
+                      : query.priority === "High"
                       ? "bg-green-500"
                       : query.priority === "Medium"
                       ? "bg-yellow-500"
@@ -480,7 +482,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </Link> */}
                 <p
-                  className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer"
+                  className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
                   onClick={() =>
                     navigator.clipboard.writeText(`${query?.name} ${query?.phoneNo}`)
                   }

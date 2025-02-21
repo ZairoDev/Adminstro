@@ -134,6 +134,7 @@ const RolebasedLead = () => {
       customDays,
       customDateRange,
     });
+    sessionStorage.clear();
   };
 
   useEffect(() => {

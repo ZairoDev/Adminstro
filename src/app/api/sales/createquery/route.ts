@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
+import { NextRequest, NextResponse } from "next/server";
+
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";

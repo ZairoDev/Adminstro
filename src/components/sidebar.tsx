@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ModeToggle } from "./themeChangeButton";
 import {
   House,
   Check,
@@ -10,6 +7,7 @@ import {
   ScanEye,
   CircleX,
   BellDot,
+  Notebook,
   User2Icon,
   BadgeEuro,
   Warehouse,
@@ -21,9 +19,14 @@ import {
   PersonStanding,
   CircleCheckBig,
   FileSpreadsheet,
+  SlidersHorizontal,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { useAuthStore } from "@/AuthStore";
+
+import { ModeToggle } from "./themeChangeButton";
 
 const isActive = (currentPath: string, path: string): boolean =>
   currentPath.startsWith(path);
@@ -110,6 +113,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/newproperty",
       label: "Manage Newtask",
       Icon: <Check size={18} />,
+    },
+    {
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
     },
     {
       path: "/dashboard/remainingproperties",
@@ -203,6 +211,16 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/room/roomlist",
       label: "Room List",
       Icon: <Warehouse size={18} />,
+    },
+    {
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
+    },
+    {
+      path: "/dashboard/catalogue",
+      label: "Manage Catalogue",
+      Icon: <Notebook size={18} />,
     },
   ],
   HR: [

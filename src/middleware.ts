@@ -3,7 +3,14 @@ import type { NextRequest } from "next/server";
 import { getDataFromToken } from "./util/getDataFromToken";
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
-  SuperAdmin: ["/", "/admin", "/superadmin", "/dashboard", /^\/dashboard\/.*$/, /^\/property\/.*$/],
+  SuperAdmin: [
+    "/",
+    "/admin",
+    "/superadmin",
+    "/dashboard",
+    /^\/dashboard\/.*$/,
+    /^\/property\/.*$/,
+  ],
   Admin: [
     "/",
     "/admin",
@@ -50,6 +57,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/room\/.*$/,
     "/dashboard/rolebaseLead",
     "/dashboard/reminders",
+    "/dashboard/catalogue",
+    "/dashboard/newproperty/filteredProperties",
   ],
   HR: [
     "/",
@@ -83,7 +92,9 @@ export async function middleware(request: NextRequest) {
 
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
-    return patterns.some((pattern) => (typeof pattern === "string" ? path === pattern : pattern.test(path)));
+    return patterns.some((pattern) =>
+      typeof pattern === "string" ? path === pattern : pattern.test(path)
+    );
   };
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)

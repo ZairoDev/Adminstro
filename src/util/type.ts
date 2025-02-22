@@ -351,6 +351,11 @@ export interface SalesOfferInterface {
   resetForm: () => void;
 }
 
+export interface CatalogueInterface {
+  addCatalogueModal: boolean;
+  setField: (field: keyof CatalogueInterface, value: any) => void;
+}
+
 export interface RoomInterface {
   _id: string;
   name: string;

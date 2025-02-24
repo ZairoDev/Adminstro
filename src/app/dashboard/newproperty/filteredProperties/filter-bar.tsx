@@ -1,3 +1,6 @@
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+
 import {
   Select,
   SelectItem,
@@ -7,6 +10,7 @@ import {
   SelectTrigger,
   SelectContent,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuLabel,
@@ -17,8 +21,12 @@ import { propertyTypes } from "@/util/type";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { FiltersInterface } from "./page";
+import { DateRange } from "react-day-picker";
 
 interface PageProps {
   filters: FiltersInterface;
@@ -27,9 +35,30 @@ interface PageProps {
   handleClear: () => void;
 }
 
+const filterCount = (filters: FiltersInterface) => {
+  return Object.entries(filters).filter(([key, value]) => value).length;
+};
+
 const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps) => {
+  const longTermDateSelect = (value: DateRange | undefined) => {
+    const from = value?.from;
+    const to = value?.to;
+    if (from && to) {
+      const numberOfDays = Math.floor(
+        (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (numberOfDays < 28 && filters.rentalType === "Long Term") {
+        alert("Minimum stay for long term rentals is 28 days.");
+        return;
+      }
+    }
+    setFilters({ ...filters, dateRange: value });
+  };
+
+  console.log("filters: ", filterCount(filters), filters);
+
   return (
-    <div className="p-2 flex flex-wrap justify-between items-center gap-x-2 gap-y-2">
+    <div className="p-2 flex flex-wrap justify-between items-center  gap-y-2">
       {/* Search Type */}
       <div className=" flex gap-x-2">
         <Select
@@ -66,8 +95,8 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
         <Select
           onValueChange={(value) => setFilters({ ...filters, propertyType: value })}
         >
-          <SelectTrigger className=" border border-neutral-700 w-52">
-            <SelectValue placeholder="Select Property Type" />
+          <SelectTrigger className=" border border-neutral-700 w-36">
+            <SelectValue placeholder="Property Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -82,13 +111,76 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
         </Select>
       </div>
 
+      {/* Rental Type */}
+      <div className=" flex flex-col items-center gap-y-1">
+        <Switch
+          id="airplane-mode"
+          checked={filters.rentalType === "Long Term"}
+          onCheckedChange={(checked) =>
+            setFilters({ ...filters, rentalType: checked ? "Long Term" : "Short Term" })
+          }
+        />
+        <Label htmlFor="airplane-mode">{filters.rentalType}</Label>
+      </div>
+
+      {/* Availability */}
+      <div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              id="date"
+              variant={"outline"}
+              className={cn(
+                "justify-start text-left font-normal gap-x-2",
+                !filters.dateRange && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon />
+              {filters.dateRange?.from ? (
+                filters.dateRange.to ? (
+                  <>
+                    {format(filters.dateRange.from, "LLL dd, y")} -{" "}
+                    {format(filters.dateRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(filters.dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                <span>Pick a date</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={filters.dateRange?.from}
+              selected={filters.dateRange}
+              // onSelect={(value) => setFilters({ ...filters, dateRange: value })}
+              onSelect={(value) => longTermDateSelect(value)}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Location */}
+      <div>
+        <Input
+          type="text"
+          placeholder="Enter place"
+          onChange={(e) => setFilters({ ...filters, place: e.target.value })}
+          value={filters.place}
+        />
+      </div>
+
       {/* Price & Beds */}
-      <div className=" w-44 flex justify-between">
+      <div className=" w-28 gap-x-1 flex justify-between">
         {/* Price */}
         <div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className=" px-6 font-semibold">Price</Button>
+              <Button className=" px-6 font-bold">P</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className=" w-56">
               <DropdownMenuLabel>Price Range</DropdownMenuLabel>
@@ -120,11 +212,11 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
         <div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className=" px-6 font-semibold">Beds</Button>
+              <Button className=" px-6 font-bold">B</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className=" w-72">
               <div className=" px-2">
-                {["beds", "bedrooms", "bathrooms"].map((item, index) => (
+                {["beds", "bedrooms", "bathroom"].map((item, index) => (
                   <div className=" flex items-center justify-between my-2" key={index}>
                     <p className=" capitalize">{item}</p>
                     <div className=" flex items-center gap-x-2 w-2/3 justify-end">
@@ -139,15 +231,9 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
                       >
                         -
                       </Button>
-                      {/* <p className=" w-3">{filters[item as keyof typeof filters]}</p> */}
-                      <Input
-                        type="number"
-                        // defaultValue={filters[item as keyof typeof filters]}
-                        value={filters[item as keyof typeof filters]}
-                        min={1}
-                        // disabled
-                        className="w-16"
-                      />
+                      <p className=" w-3">
+                        {Number(filters[item as keyof typeof filters])}
+                      </p>
                       <Button
                         className=" rounded-full p-3.5 font-semibold text-xl "
                         onClick={() =>
@@ -169,15 +255,15 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
       </div>
 
       {/* Apply & Clear Filters */}
-      <div className=" flex gap-x-8 justify-around border border-neutral-700 py-2 px-4 rounded-full">
+      <div className=" w-1/3 flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">
         <Button
-          className=" rounded-3xl px-5 font-semibold"
+          className=" rounded-lg font-semibold w-20 md:w-32"
           onClick={() => handleSubmit()}
         >
-          Apply
+          Apply ({filterCount(filters)})
         </Button>
         <Button
-          className=" rounded-3xl px-5 font-semibold"
+          className=" rounded-lg font-semibold w-20 md:w-32"
           onClick={() => handleClear()}
           variant={"outline"}
         >

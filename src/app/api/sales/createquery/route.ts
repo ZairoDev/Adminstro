@@ -42,7 +42,18 @@ export async function POST(req: NextRequest) {
 
     // Check if a query with the same phone number already exists
     const existingQuery = await Query.findOne({ phoneNo });
+
+    let numberOfDays = 61;
     if (existingQuery) {
+      const today = new Date();
+      const leadCreatedDate = existingQuery.createdAt;
+
+      numberOfDays = Math.floor(
+        (today.getTime() - leadCreatedDate.getTime()) / (24 * 60 * 60 * 1000)
+      );
+    }
+
+    if (existingQuery && numberOfDays < 60) {
       return NextResponse.json(
         { success: false, error: "Phone number already exists" },
         { status: 400 }
@@ -98,10 +109,7 @@ export async function POST(req: NextRequest) {
       leadQualityByCreator: newQuery.leadQualityByCreator,
     });
 
-    return NextResponse.json(
-      { success: true, data: newQuery },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: newQuery }, { status: 201 });
   } catch (error: any) {
     console.error(error);
 
@@ -112,9 +120,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }

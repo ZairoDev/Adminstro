@@ -88,20 +88,20 @@ const RolebasedLead = () => {
         try {
           if (!dateFilter && !sortingField) return;
 
-          const cachedQueries = sessionStorage.getItem("queries");
-          const cachedTotalPages = sessionStorage.getItem("totalPages");
-          const cachedTotalQueries = sessionStorage.getItem("totalQueries");
-          const cachedPageNumber = JSON.parse(
-            sessionStorage.getItem("currentPage") || "1"
-          );
+          // const cachedQueries = sessionStorage.getItem("queries");
+          // const cachedTotalPages = sessionStorage.getItem("totalPages");
+          // const cachedTotalQueries = sessionStorage.getItem("totalQueries");
+          // const cachedPageNumber = JSON.parse(
+          //   sessionStorage.getItem("currentPage") || "1"
+          // );
 
-          const samePage = cachedPageNumber === page;
-          if (cachedQueries && cachedTotalPages && cachedTotalQueries && samePage) {
-            setQueries(JSON.parse(cachedQueries));
-            setTotalPages(JSON.parse(cachedTotalPages));
-            setTotalQueries(JSON.parse(cachedTotalQueries));
-            return;
-          }
+          // const samePage = cachedPageNumber === page;
+          // if (cachedQueries && cachedTotalPages && cachedTotalQueries && samePage) {
+          //   setQueries(JSON.parse(cachedQueries));
+          //   setTotalPages(JSON.parse(cachedTotalPages));
+          //   setTotalQueries(JSON.parse(cachedTotalQueries));
+          //   return;
+          // }
 
           const response = await fetch(
             `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
@@ -110,10 +110,10 @@ const RolebasedLead = () => {
           setQueries(data.data);
           setTotalPages(data.totalPages);
           setTotalQueries(data.totalQueries);
-          sessionStorage.setItem("queries", JSON.stringify(data.data));
-          sessionStorage.setItem("totalPages", JSON.stringify(data.totalPages));
-          sessionStorage.setItem("totalQueries", JSON.stringify(data.totalQueries));
-          sessionStorage.setItem("currentPage", JSON.stringify(page));
+          // sessionStorage.setItem("queries", JSON.stringify(data.data));
+          // sessionStorage.setItem("totalPages", JSON.stringify(data.totalPages));
+          // sessionStorage.setItem("totalQueries", JSON.stringify(data.totalQueries));
+          // sessionStorage.setItem("currentPage", JSON.stringify(page));
         } catch (err: any) {
           setLoading(false);
         } finally {

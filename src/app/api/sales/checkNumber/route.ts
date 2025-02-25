@@ -8,7 +8,6 @@ connectDb();
 export async function POST(req: Request) {
   try {
     const { phoneNo } = await req.json();
-
     if (!phoneNo) {
       return NextResponse.json(
         { success: false, error: "Phone number is required" },
@@ -18,8 +17,18 @@ export async function POST(req: Request) {
 
     const existingQuery = await Query.findOne({ phoneNo });
 
-    if (existingQuery) {
+    let numberOfDays = 61;
 
+    if (existingQuery) {
+      const today = new Date();
+      const leadCreatedDate = existingQuery.createdAt;
+
+      numberOfDays = Math.floor(
+        (today.getTime() - leadCreatedDate.getTime()) / (24 * 60 * 60 * 1000)
+      );
+    }
+
+    if (existingQuery && numberOfDays < 60) {
       return NextResponse.json(
         {
           success: true,
@@ -41,9 +50,6 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("Error checking phone number:", error);
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }

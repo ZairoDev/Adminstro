@@ -134,6 +134,14 @@ const querySchema = new Schema(
     roomDetails: {
       type: Object,
     },
+    updatedBy: {
+      type: [String],
+      default: [],
+    },
+    updates: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

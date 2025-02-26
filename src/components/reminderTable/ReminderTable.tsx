@@ -46,9 +46,9 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
   const { token } = useAuthStore();
 
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
-  const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "None")[]
-  >(Array.from({ length: queries?.length ?? 0 }, () => "None"));
+  const [salesPriority, setSalesPriority] = useState<("Low" | "High" | "None")[]>(
+    Array.from({ length: queries?.length ?? 0 }, () => "None")
+  );
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
   const startDate =
@@ -237,7 +237,7 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                   <div className="flex gap-x-2">
                     <CustomTooltip
                       icon={<Euro size={18} />}
-                      content={query?.budget}
+                      text={query?.budget}
                       desc="Guest Budget"
                     />
                     <div>|</div>
@@ -286,10 +286,7 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                     />
                     <div>|</div>
                     <Badge className="  ">
-                      <CustomTooltip
-                        text={query?.zone?.charAt(0)}
-                        desc={query?.zone}
-                      />
+                      <CustomTooltip text={query?.zone?.charAt(0)} desc={query?.zone} />
                     </Badge>
                   </div>
                 </TableCell>
@@ -311,9 +308,7 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                       <DropdownMenuLabel>My Account</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          onClick={() => addBackToLeads(query?._id)}
-                        >
+                        <DropdownMenuItem onClick={() => addBackToLeads(query?._id)}>
                           Add Back To Leads
                         </DropdownMenuItem>
                         <Link
@@ -338,9 +333,7 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
             alt="Temporary Image"
             className=" w-96 h-96 opacity-30"
           />
-          <h3 className=" text-4xl font-semibold uppercase opacity-30">
-            No Reminders
-          </h3>
+          <h3 className=" text-4xl font-semibold uppercase opacity-30">No Reminders</h3>
         </div>
       )}
     </div>

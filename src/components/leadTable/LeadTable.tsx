@@ -342,7 +342,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 <div className="flex gap-x-2">
                   <CustomTooltip
                     icon={<Euro size={18} />}
-                    content={query?.budget}
+                    text={query?.budget}
                     desc="Guest Budget"
                   />
                   <div>|</div>

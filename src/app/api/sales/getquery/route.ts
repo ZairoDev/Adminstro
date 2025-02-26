@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import {
@@ -39,11 +40,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = searchTerm;
+        query.phoneNo = Number(searchTerm);
       } else {
         query[searchType] = regex;
       }
     }
+
+    // console.log("search query: ", query);
 
     let dateQuery: any = {};
     const istToday = getISTStartOfDay(new Date());

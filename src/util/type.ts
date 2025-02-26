@@ -287,7 +287,7 @@ export interface IQuery {
   phoneNo: number;
   area: string;
   guest: number;
-  budget: number;
+  budget: string;
   noOfBeds: number;
   location: string;
   bookingTerm: string;

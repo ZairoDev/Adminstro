@@ -53,11 +53,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (existingQuery && numberOfDays < 60) {
-      return NextResponse.json(
-        { success: false, error: "Phone number already exists" },
-        { status: 400 }
-      );
+    // console.log("number of days: ", numberOfDays, area, existingQuery.area);
+
+    if (existingQuery && numberOfDays < 60 && existingQuery.area === area) {
+      return NextResponse.json({ error: "Phone number already exists" }, { status: 400 });
     }
 
     // Create a new query if phone number is unique
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: newQuery }, { status: 201 });
   } catch (error: any) {
-    console.error(error);
+    console.log(error);
 
     if (error.code === 11000) {
       return NextResponse.json(

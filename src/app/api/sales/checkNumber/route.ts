@@ -17,18 +17,7 @@ export async function POST(req: Request) {
 
     const existingQuery = await Query.findOne({ phoneNo });
 
-    let numberOfDays = 61;
-
     if (existingQuery) {
-      const today = new Date();
-      const leadCreatedDate = existingQuery.createdAt;
-
-      numberOfDays = Math.floor(
-        (today.getTime() - leadCreatedDate.getTime()) / (24 * 60 * 60 * 1000)
-      );
-    }
-
-    if (existingQuery && numberOfDays < 60) {
       return NextResponse.json(
         {
           success: true,

@@ -104,7 +104,7 @@ const SalesDashboard = () => {
     phoneNo: 0,
     area: "",
     guest: 0,
-    budget: 0,
+    budget: "",
     noOfBeds: 0,
     location: "",
     bookingTerm: "",
@@ -208,18 +208,7 @@ const SalesDashboard = () => {
         phoneNo: phone,
       };
       setSubmitQuery(true);
-      const response = await fetch("/api/sales/createquery", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formDataToSubmit),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to create query");
-      }
-      const newQuery = result.data;
+      const response = await axios.post("/api/sales/createquery", formDataToSubmit);
       toast({
         description: "Query Created Successfully",
       });
@@ -233,7 +222,7 @@ const SalesDashboard = () => {
         phoneNo: 0,
         area: "",
         guest: 0,
-        budget: 0,
+        budget: "",
         noOfBeds: 0,
         location: "",
         bookingTerm: "",
@@ -249,11 +238,11 @@ const SalesDashboard = () => {
           roomPassword: "",
         },
       });
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (error: any) {
+      console.error("Error:", error.response.data.error);
       toast({
         variant: "destructive",
-        description: "Some error occurred while creating query",
+        description: `${error.response.data.error}`,
       });
     } finally {
       setSubmitQuery(false);

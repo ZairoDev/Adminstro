@@ -61,6 +61,8 @@ const QueryDetails = ({ params }: PageProps) => {
   const [leadQuality, setLeadQuality] = useState<string>("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [editDisabled, setEditDisabled] = useState(true);
+  const [budgetTo, setBudgetTo] = useState(0);
+  const [budgetFrom, setBudgetFrom] = useState(0);
 
   const handleSave = async () => {
     try {
@@ -108,6 +110,8 @@ const QueryDetails = ({ params }: PageProps) => {
   };
 
   useEffect(() => {
+    setBudgetFrom(Number(apiData?.budget?.split(" to ")[0] ?? 0));
+    setBudgetTo(Number(apiData?.budget?.split(" to ")[1] ?? 0));
     getQueryByPhoneNumber();
   }, [apiData]);
 
@@ -132,7 +136,7 @@ const QueryDetails = ({ params }: PageProps) => {
 
   const handleUpdate = async () => {
     const newData = { ...apiData };
-    newData.budget = `${apiData?.budgetFrom} to ${apiData?.budgetTo}`;
+    newData.budget = `${budgetFrom} to ${budgetTo}`;
     try {
       setEditDisabled(true);
       await axios.post("/api/sales/editquery", newData);
@@ -262,41 +266,27 @@ const QueryDetails = ({ params }: PageProps) => {
                   <Euro size={20} />
                   <Label>Budget:</Label>
                   <div>
-                    <Label>Budget (From)*</Label>
+                    <Label>Budget (From)</Label>
                     <Input
                       name="budgetFrom"
                       type="number"
                       // value={apiData?.budget?.split(" to ")[0] || ""}
-                      value={apiData?.budgetFrom || 0}
-                      onChange={(e) =>
-                        setApiData(
-                          (prev) =>
-                            ({
-                              ...prev,
-                              budgetFrom: e.target.value,
-                            } as IQuery)
-                        )
-                      }
+                      // value={apiData?.budgetFrom || 0}
+                      value={budgetFrom}
+                      onChange={(e) => setBudgetFrom(Number(e.target.value))}
                       placeholder="Enter minimum budget"
                       disabled={editDisabled}
                     />
                   </div>
                   <div>
-                    <Label>Budget (To)*</Label>
+                    <Label>Budget (To)</Label>
                     <Input
                       name="budgetTo"
                       type="number"
                       // value={apiData?.budget?.split(" to ")[1] || ""}
-                      value={apiData?.budgetTo || 0}
-                      onChange={(e) =>
-                        setApiData(
-                          (prev) =>
-                            ({
-                              ...prev,
-                              budgetTo: e.target.value,
-                            } as IQuery)
-                        )
-                      }
+                      // value={apiData?.budgetTo || 0}
+                      value={budgetTo}
+                      onChange={(e) => setBudgetTo(Number(e.target.value))}
                       placeholder="Enter maximum budget"
                       disabled={editDisabled}
                     />
@@ -430,6 +420,10 @@ const QueryDetails = ({ params }: PageProps) => {
                   </div>
                 )}
               </div>
+              {(token?.email === "harshit2003gtm@gmail.com" ||
+                token?.role === "SuperAdmin") && (
+                <p className=" text-gray-500">Created By: {apiData?.createdBy}</p>
+              )}
             </Card>
           </div>
         )}

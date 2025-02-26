@@ -115,7 +115,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Perform the query
     const allquery = await Query.aggregate([
       { $match: query },
-      { $sort: { _id: -1 } },
+      { $sort: { updatedAt: -1 } }, // last updated lead will come first
       { $skip: skip },
       { $limit: limit },
       {

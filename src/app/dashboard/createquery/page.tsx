@@ -184,6 +184,7 @@ const SalesDashboard = () => {
       const { budgetFrom, budgetTo, ...otherFields } = formData;
 
       const budget = `${budgetFrom} to ${budgetTo}`;
+      formData.budget = budget;
       Object.entries(formData).forEach(([key, value]) => {
         if (value === "" || value === null || value === undefined) {
           const fieldName = key
@@ -626,8 +627,7 @@ const SalesDashboard = () => {
                           type="number"
                           name="guest"
                           min={1}
-                          defaultValue={1}
-                          value={formData.guest}
+                          value={formData?.guest}
                           onChange={handleInputChange}
                           placeholder="Enter name"
                         />
@@ -638,8 +638,7 @@ const SalesDashboard = () => {
                           type="number"
                           name="noOfBeds"
                           min={1}
-                          defaultValue={1}
-                          value={formData.noOfBeds}
+                          value={formData?.noOfBeds}
                           onChange={handleInputChange}
                           placeholder="Enter name"
                         />

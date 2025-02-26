@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
     const updatedBy = [...(updatedLead.updatedBy ?? []), loggedInUser];
     updatedLead.updatedBy = updatedBy;
+    updatedLead.isViewed = false;
 
     const existingQuery = await Query.findByIdAndUpdate({ _id }, { ...updatedLead });
 

@@ -39,10 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const validPassword: boolean = temp.password === password.trim();
     if (!validPassword) {
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
     }
 
     if (
@@ -54,8 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const passwordExpiryDate = new Date(temp.passwordExpiresAt);
 
       const timeDifference =
-        (currentDate.getTime() - passwordExpiryDate.getTime()) /
-        (1000 * 60 * 60);
+        (currentDate.getTime() - passwordExpiryDate.getTime()) / (1000 * 60 * 60);
 
       if (timeDifference > 24) {
         return NextResponse.json(
@@ -75,15 +71,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userId: temp._id,
       });
 
-      return NextResponse.json(
-        { message: "Verification OTP sent" },
-        { status: 200 }
-      );
+      return NextResponse.json({ message: "Verification OTP sent" }, { status: 200 });
     }
     const newExpiryDate = new Date();
 
-    if (temp.role === "HR") {
-      newExpiryDate.setHours(newExpiryDate.getHours() + 72);
+    if (temp.role === "HR" || temp.role === "Sales") {
+      newExpiryDate.setHours(newExpiryDate.getHours() + 96);
     } else {
       newExpiryDate.setHours(newExpiryDate.getHours() + 24);
     }

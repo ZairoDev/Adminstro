@@ -5,20 +5,18 @@ const catalogueSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  location: {
+    type: String,
+  },
   description: {
     type: String,
   },
   categories: {
-    type: [
-      {
-        categoryName: String,
-        properties: [String],
-      },
-    ],
+    type: [Object],
   },
 });
 
 const Catalogue =
-  mongoose.models?.category || mongoose.model("catalogue", catalogueSchema);
+  mongoose.models?.catalogues || mongoose.model("catalogues", catalogueSchema);
 
 export default Catalogue;

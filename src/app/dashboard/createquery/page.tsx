@@ -448,14 +448,16 @@ const SalesDashboard = () => {
               </DialogHeader>
               <div>
                 <ScrollArea className="h-[400px] p-4">
+                  {/* Section 1 : Personal Details */}
                   <div className="">
                     <h3 className="text-lg font-semibold border-b pb-1 mt-4 ">
                       Personal Details
                     </h3>
-                    {/* Section 1 : Booking Details */}
+
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      {/* Name */}
                       <div className="ml-1">
-                        <Label>Name*</Label>
+                        <Label>Name</Label>
                         <Input
                           name="name"
                           value={formData.name}
@@ -463,10 +465,8 @@ const SalesDashboard = () => {
                           placeholder="Enter full name"
                         />
                       </div>
-                      {/* <div className="w-full ">
-                        
 
-                      </div> */}
+                      {/* Phone Number */}
                       <div className="flex justify-between ">
                         <div className="w-full">
                           <Label htmlFor="phone">Phone Number</Label>
@@ -495,6 +495,8 @@ const SalesDashboard = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Email */}
                       <div className="ml-1">
                         <Label>Email</Label>
                         <Input
@@ -505,31 +507,50 @@ const SalesDashboard = () => {
                           placeholder="Enter email"
                         />
                       </div>
-                      <div>
-                        <Label>Location*</Label>
-                        <Input
-                          name="location"
-                          value={formData.location}
-                          onChange={handleInputChange}
-                          placeholder="Enter location"
-                        />
+
+                      {/* Location */}
+                      <div className="w-full ml-1 mb-2">
+                        <Label>Location</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              location: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="athens">Athens</SelectItem>
+                            <SelectItem value="chania">Chania</SelectItem>
+                            <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
+
                   {/* Section 2: Booking Details */}
                   <div className="">
                     <h3 className="text-lg font-semibold border-b mb-1 mt-4">
                       Booking Details
                     </h3>
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      {/*Start Date */}
                       <div>
-                        <Label>Start Date*</Label>
+                        <Label>Start Date</Label>
                         <DatePicker date={startDate} setDate={setStartDate} />
                       </div>
+
+                      {/* End Date */}
                       <div>
-                        <Label>End Date*</Label>
+                        <Label>End Date</Label>
                         <DatePicker date={endDate} setDate={setEndDate} />
                       </div>
+
+                      {/* Booking Term */}
                       <div className="ml-1">
                         <Label>Booking Term*</Label>
                         <Select onValueChange={handleBookingTermChange}>
@@ -543,8 +564,9 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Duration */}
                       <div className="flex  items-center gap-x-1 w-full">
-                        <div className=""></div>
                         <div className="w-full">
                           <Label className="flex gap-3 m-1">
                             Duration*
@@ -589,14 +611,17 @@ const SalesDashboard = () => {
                       </div>
                     </div>
                   </div>
+
                   {/* Section 3: Budget Details */}
                   <div className="mt-2 ml-1">
                     <h3 className="text-lg font-semibold border-b  mt-4 mb-1">
                       Budget Details
                     </h3>
+
                     <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      {/* Budget From */}
                       <div>
-                        <Label>Budget (From)*</Label>
+                        <Label>Budget (From)</Label>
                         <Input
                           name="budgetFrom"
                           value={formData.budgetFrom || ""}
@@ -604,8 +629,10 @@ const SalesDashboard = () => {
                           placeholder="Enter minimum budget"
                         />
                       </div>
+
+                      {/* Budget To */}
                       <div>
-                        <Label>Budget (To)*</Label>
+                        <Label>Budget (To)</Label>
                         <Input
                           name="budgetTo"
                           value={formData.budgetTo || ""}
@@ -615,14 +642,17 @@ const SalesDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Section three */}
+
+                  {/* Section 4: Guest Details */}
                   <div className="ml-1">
                     <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
                       Guest Details
                     </h3>
+
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                      {/* Guest */}
                       <div>
-                        <Label>Guest*</Label>
+                        <Label>Guest</Label>
                         <Input
                           type="number"
                           name="guest"
@@ -632,8 +662,10 @@ const SalesDashboard = () => {
                           placeholder="Enter name"
                         />
                       </div>
+
+                      {/* No Of Beds */}
                       <div>
-                        <Label>No Of Beds*</Label>
+                        <Label>No Of Beds</Label>
                         <Input
                           type="number"
                           name="noOfBeds"
@@ -644,12 +676,12 @@ const SalesDashboard = () => {
                         />
                       </div>
                     </div>
-                  </div>
-                  {/* Section fourn  */}
-                  <div className=" mt-2">
+
+                    {/* Bill Status & Priority */}
                     <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                      {/* Bill Status */}
                       <div className="ml-1">
-                        <Label>Bill Status*</Label>
+                        <Label>Bill Status</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -667,8 +699,10 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Priority */}
                       <div>
-                        <Label>Priority*</Label>
+                        <Label>Priority</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -690,13 +724,18 @@ const SalesDashboard = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Section 5: Property Details */}
                   <div className="">
                     <h3 className="text-lg font-semibold border-b pb-1 pt-4">
                       Property Details
                     </h3>
+
+                    {/* Type of Property & Lead Quality */}
                     <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                      {/* Type of Property */}
                       <div className="ml-1">
-                        <Label>Type of Property*</Label>
+                        <Label>Type of Property</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -725,8 +764,10 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Lead Quality */}
                       <div>
-                        <Label>Lead Quality*</Label>
+                        <Label>Lead Quality</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -746,8 +787,10 @@ const SalesDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Property Type */}
                       <div className="ml-1">
-                        <Label>Property Type*</Label>
+                        <Label>Property Type</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -767,8 +810,9 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
 
+                      {/* Zone */}
                       <div>
-                        <Label>Zone*</Label>
+                        <Label>Zone</Label>
                         <Select
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
@@ -791,13 +835,15 @@ const SalesDashboard = () => {
                         </Select>
                       </div>
                     </div>
+
+                    {/* Area */}
                     <div className="w-full mt-2 ml-1 mb-2">
-                      <Label>Area*</Label>
+                      <Label>Area</Label>
                       <Input
                         name="area"
                         value={formData.area}
-                        onChange={handleInputChange}
-                        placeholder="Enter name"
+                        placeholder="Enter Area"
+                        onChange={(e) => handleInputChange(e)}
                       />
                     </div>
                   </div>

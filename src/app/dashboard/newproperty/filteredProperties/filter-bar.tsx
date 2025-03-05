@@ -168,7 +168,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
       <div>
         <Input
           type="text"
-          placeholder="Enter place"
+          placeholder="Enter location"
           onChange={(e) => setFilters({ ...filters, place: e.target.value })}
           value={filters.place}
         />

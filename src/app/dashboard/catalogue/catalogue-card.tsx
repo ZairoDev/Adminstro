@@ -19,19 +19,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import PropertyBadge from "./property-badge";
+import { CatalogueInterface } from "./page";
 
 // Using the provided interfaces
 interface CategoryInterface {
   name: string;
   description: string;
   properties: string[];
-}
-
-interface CatalogueInterface {
-  name: string;
-  location: string;
-  description: string;
-  categories: CategoryInterface[];
 }
 
 interface CatalogueCardProps {
@@ -100,12 +94,13 @@ export default function CatalogueCard({ catalogue }: CatalogueCardProps) {
                   <div className="border-t p-4">
                     <h5 className="mb-2 text-sm font-medium">Properties:</h5>
                     <div className="flex flex-wrap gap-2">
-                      {category.properties.map((property, propIndex) => (
-                        // <Badge key={propIndex} variant="secondary">
-                        //   {/* {property} */}
-                        //   <PropertyBadge property={property} />
-                        // </Badge>
-                        <PropertyBadge key={propIndex} property={property} />
+                      {category.properties.map((property: any, propIndex) => (
+                        <PropertyBadge
+                          key={propIndex}
+                          property={property.VSID}
+                          bookedMonths={property.bookedMonths}
+                          catalogueId={catalogue._id!}
+                        />
                       ))}
                     </div>
                   </div>

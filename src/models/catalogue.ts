@@ -11,9 +11,19 @@ const catalogueSchema = new mongoose.Schema({
   description: {
     type: String,
   },
-  categories: {
-    type: [Object],
-  },
+  categories: [
+    // type: [Object],
+    {
+      name: { type: String, required: true },
+      description: { type: String, required: true },
+      properties: [
+        {
+          VSID: { type: String, required: true },
+          bookedMonths: { type: [String], default: [] },
+        },
+      ],
+    },
+  ],
 });
 
 const Catalogue =

@@ -185,6 +185,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Room List",
       Icon: <Warehouse size={18} />,
     },
+    {
+      path: "/dashboard/catalogue",
+      label: "Manage Catalogue",
+      Icon: <Notebook size={18} />,
+    },
   ],
   Sales: [
     {
@@ -265,7 +270,7 @@ export function Sidebar() {
           isActive(currentPath, route.path)
             ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
             : ""
-        }`}
+        } text-sm`}
       >
         <Link
           href={route.path}

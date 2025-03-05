@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import CatalogueList from "./catalogue-list";
+import { FormValidator } from "@/util/formValidator";
 
 export interface CategoryInterface {
   name: string;
@@ -22,6 +23,7 @@ export interface CategoryInterface {
 }
 
 export interface CatalogueInterface {
+  _id?: string;
   name: string;
   location: string;
   description: string;
@@ -41,7 +43,7 @@ export default function AddCatalogue() {
   const getAllCatalogues = async () => {
     try {
       const response = await axios.get("/api/catalogue/getAllCatalogues");
-      console.log("response of catalogue: ", response.data.allCatalogues);
+      // console.log("response of catalogue: ", response.data.allCatalogues);
       setCatalogues(response.data.allCatalogues);
     } catch (err: any) {
       toast({
@@ -107,9 +109,10 @@ export default function AddCatalogue() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newCatalogue = { ...catalogue, categories: categories };
+    const val = FormValidator(newCatalogue);
+    if (val) return;
     try {
       const response = await axios.post("/api/catalogue/addCatalogue", newCatalogue);
-      // console.log("response of catalogue:", response.data);
       toast({
         title: "Success",
         description: "Catalogue added successfully",
@@ -251,6 +254,7 @@ export default function AddCatalogue() {
         </Button>
       </form>
 
+      {/* All Catalogues */}
       <CatalogueList catalogues={catalogues} />
     </div>
   );

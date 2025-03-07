@@ -2,8 +2,8 @@
 
 import axios from "axios";
 import type React from "react";
-import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { toast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { Textarea } from "@/components/ui/textarea";
+import { FormValidator } from "@/util/formValidator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import CatalogueList from "./catalogue-list";
-import { FormValidator } from "@/util/formValidator";
 
 export interface CategoryInterface {
   name: string;
@@ -43,7 +43,6 @@ export default function AddCatalogue() {
   const getAllCatalogues = async () => {
     try {
       const response = await axios.get("/api/catalogue/getAllCatalogues");
-      // console.log("response of catalogue: ", response.data.allCatalogues);
       setCatalogues(response.data.allCatalogues);
     } catch (err: any) {
       toast({

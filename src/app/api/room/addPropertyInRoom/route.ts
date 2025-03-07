@@ -19,20 +19,17 @@ const pusher = new Pusher({
 export async function POST(req: NextRequest) {
   const { roomId, propertyId } = await req.json();
 
-  console.log("room: ", roomId, propertyId);
-
   try {
-    let property = await Properties.findById(propertyId);
+    // let property = await Properties.findById(propertyId);
+    let property = await Properties.findOne({ VSID: propertyId });
 
     if (!property) {
-      property = await quicklisting.findById(propertyId);
+      // property = await quicklisting.findById(propertyId);
+      property = await quicklisting.findOne({ QID: propertyId });
     }
 
     if (!property) {
-      return NextResponse.json(
-        { error: "Property not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
     const Images = [

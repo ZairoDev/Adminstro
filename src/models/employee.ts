@@ -78,7 +78,7 @@ const employeeSchema = new Schema<IEmployee>(
     },
     role: {
       type: String,
-      enum: ["Admin", "Advert", "Content", "Sales", "HR", "Developer"],
+      enum: ["Admin", "Advert", "Content", "Sales", "HR", "Developer", "Guest"],
       default: "Advert",
     },
     extras: {
@@ -104,6 +104,5 @@ const employeeSchema = new Schema<IEmployee>(
 );
 
 const Employees =
-  mongoose.models.Employees ||
-  mongoose.model<IEmployee>("Employees", employeeSchema);
+  mongoose.models.Employees || mongoose.model<IEmployee>("Employees", employeeSchema);
 export default Employees;

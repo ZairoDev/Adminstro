@@ -20,6 +20,7 @@ import {
   CircleCheckBig,
   FileSpreadsheet,
   SlidersHorizontal,
+  CircleHelp,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -241,6 +242,13 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer",
       label: "Sales Offer",
       Icon: <BadgeEuro size={18} />,
+    },
+  ],
+  Guest: [
+    {
+      path: "/dashboard/guest-window",
+      label: "Guest Window",
+      Icon: <CircleHelp size={18} />,
     },
   ],
 };

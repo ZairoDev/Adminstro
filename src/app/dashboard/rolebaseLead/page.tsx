@@ -30,7 +30,7 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import { IQuery } from "@/util/type";
+import { FilterInterface, IQuery } from "@/util/type";
 import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import LeadTable from "@/components/leadTable/LeadTable";
+import LeadFilter from "@/components/lead-component/LeadFilter";
 
 interface ApiResponse {
   data: IQuery[];
@@ -73,6 +74,16 @@ const RolebasedLead = () => {
   const { toast } = useToast();
   const limit: number = 12;
   const [allotedArea, setAllotedArea] = useState("");
+  // const [filters, setFilters] = useState<FilterInterface>({
+  //   beds: 0,
+  //   guest: 0,
+  //   billStatus: "",
+  //   furnished: "Un-furnished",
+  //   budgetFrom: 0,
+  //   budgetTo: 0,
+  //   // leadQuality: ""
+  // });
+  const [filters, setFilters] = useState({});
 
   const fetchQuery = useCallback(
     debounce(
@@ -125,6 +136,23 @@ const RolebasedLead = () => {
     [area, searchType, page, limit]
   );
 
+  const FilteredLeadSearch = async () => {
+    if (Object.keys(filters).length === 0) return;
+    try {
+      const response = await axios.post("/api/leads", {
+        filters,
+      });
+      console.log("filtered data: ", response.data);
+      setQueries(response.data);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong while filtering data",
+      });
+    }
+  };
+
   const handleSearch = () => {
     fetchQuery({
       searchTerm,
@@ -150,6 +178,32 @@ const RolebasedLead = () => {
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
+  };
+
+  const handlePriorityChange = () => {
+    const priorityMap = {
+      None: 1,
+      Low: 2,
+      High: 3,
+    };
+    // const sortedQueries = { ...queries };
+    console.log("sorting field: ", queries);
+
+    if (sortingField && sortingField !== "None") {
+      queries.sort((a, b) => {
+        const priorityA =
+          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
+        const priorityB =
+          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
+
+        if (sortingField === "Asc") {
+          return priorityA - priorityB;
+        } else {
+          return priorityB - priorityA;
+        }
+      });
+    }
+    // setQueries(sortedQueries);
   };
 
   useEffect(() => {
@@ -337,14 +391,11 @@ const RolebasedLead = () => {
                           />
                         </div>
                       )}
-                      {/* <SheetClose asChild>
-                        <Button
-                          className="sm:w-auto w-full"
-                          onClick={handleSearch}
-                        >
+                      <SheetClose asChild>
+                        <Button className="sm:w-auto w-full" onClick={handleSearch}>
                           Apply
                         </Button>
-                      </SheetClose> */}
+                      </SheetClose>
                     </SheetDescription>
                   </SheetHeader>
 
@@ -352,7 +403,14 @@ const RolebasedLead = () => {
                     <SheetTitle className="text-start">Sort By</SheetTitle>
                     <SheetDescription className="flex flex-col gap-y-2">
                       <Select
-                        onValueChange={(value) => setSortingField(value)}
+                        // onValueChange={(value) => {
+                        // setSortingField(value);
+                        //   queries.sort((a: IQuery, b:IQuery) => )
+                        // }}
+                        onValueChange={(value) => {
+                          handlePriorityChange();
+                          setSortingField(value);
+                        }}
                         value={sortingField}
                       >
                         <SelectTrigger>
@@ -370,15 +428,28 @@ const RolebasedLead = () => {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-
-                      <SheetClose asChild>
-                        <Button className="sm:w-auto w-full mt-4" onClick={handleSearch}>
-                          Apply
-                        </Button>
-                      </SheetClose>
                     </SheetDescription>
                     <SheetDescription></SheetDescription>
                   </SheetHeader>
+
+                  {/* <Button className="w-full mb-4" onClick={handleSearch}>
+                    Apply
+                  </Button> */}
+
+                  {/* Lead Filters */}
+                  <div>
+                    <h2 className=" font-semibold text-lg">Filters</h2>
+                    <LeadFilter filters={filters} setFilters={setFilters} />
+                  </div>
+
+                  <SheetFooter>
+                    <SheetClose asChild>
+                      <Button className="w-full mt-4" onClick={FilteredLeadSearch}>
+                        Apply
+                      </Button>
+                    </SheetClose>
+                  </SheetFooter>
+
                   <SheetFooter className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
                     <div className="flex flex-col gap-y-2">
                       <Select onValueChange={(value) => setView(value)}>

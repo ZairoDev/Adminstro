@@ -484,7 +484,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 <p
                   className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
                   onClick={() =>
-                    navigator.clipboard.writeText(`${query?.name} ${query?.phoneNo}`)
+                    navigator.clipboard.writeText(`${query?.phoneNo}`)
                   }
                 >
                   Details

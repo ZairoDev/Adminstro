@@ -370,4 +370,14 @@ export interface RoomInterface {
   updatedAt: Date;
 }
 
+export interface FilterInterface {
+  guest: number;
+  noOfBeds: number;
+  propertyType: "Un-furnished" | "Semi-furnished" | "Furnished";
+  billStatus: "With Bill" | "Without Bill";
+  budgetFrom: number;
+  budgetTo: number;
+  leadQualityByCreator?: "Very Good" | "Good" | "Average" | "Below Average";
+}
+
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

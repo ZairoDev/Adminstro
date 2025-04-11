@@ -40,6 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import LeadTable from "@/components/leadTable/LeadTable";
 import LeadFilter from "@/components/lead-component/LeadFilter";
+import { useAuthStore } from "@/AuthStore";
 
 interface ApiResponse {
   data: IQuery[];
@@ -279,6 +280,8 @@ const RolebasedLead = () => {
     };
   }, [queries, allotedArea]);
 
+  const { token } = useAuthStore();
+
   return (
     <div className=" w-full">
       <Toaster />
@@ -291,24 +294,28 @@ const RolebasedLead = () => {
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
-            <div className="w-[200px]">
-              <Select
-                onValueChange={(value: string) => {
-                  setArea(value);
-                }}
-                value={area}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Area" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="chania">Chania</SelectItem>
-                  <SelectItem value="athens">Athens</SelectItem>
-                  <SelectItem value="chalkidiki">Chalkitiki</SelectItem>
-                  <SelectItem value="corfu">Corfu</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {(token?.role == "SuperAdmin" ||
+              token?.email == "vikas@vacationsaga.com" ||
+              token?.email == "harshit2003gtm@gmail.com") && (
+              <div className="w-[200px]">
+                <Select
+                  onValueChange={(value: string) => {
+                    setArea(value);
+                  }}
+                  value={area}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chania">Chania</SelectItem>
+                    <SelectItem value="athens">Athens</SelectItem>
+                    <SelectItem value="chalkidiki">Chalkitiki</SelectItem>
+                    <SelectItem value="corfu">Corfu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="">
               <Select
                 onValueChange={(value: string) => setSearchType(value)}

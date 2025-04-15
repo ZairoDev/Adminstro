@@ -132,6 +132,13 @@ const offerSchema: Schema = new Schema(
       },
       default: [],
     },
+    sentBy: {
+      type: {
+        name: String,
+        email: String,
+        aliasName: String,
+      },
+    },
   },
   {
     timestamps: true,

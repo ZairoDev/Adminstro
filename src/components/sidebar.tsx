@@ -21,6 +21,8 @@ import {
   FileSpreadsheet,
   SlidersHorizontal,
   CircleHelp,
+  ClipboardPaste,
+  UserRoundCog,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -153,6 +155,16 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
+      path: "/dashboard/aliases",
+      label: "Aliases",
+      Icon: <UserRoundCog size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
+    },
+    {
       path: "/dashboard/reminders",
       label: "Reminders",
       Icon: <BellDot size={18} />,
@@ -283,7 +295,7 @@ export function Sidebar() {
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 hover:bg-primary/5  rounded-l-sm px-4 py-2 "
+          className="flex items-center gap-x-2 hover:bg-primary/50 rounded-l-sm px-4 py-2"
         >
           {route.Icon && route.Icon}
           {showText && <span className="">{route.label}</span>}

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
 
 export interface MiddlweareInterface {
   name: string;
@@ -356,6 +356,14 @@ export interface CatalogueInterface {
   setField: (field: keyof CatalogueInterface, value: any) => void;
 }
 
+export interface AliasInterface {
+  aliasName: string;
+  aliasEmail: string;
+  aliasEmailPassword: string;
+  status: "Active" | "Inactive";
+  assignedTo: string;
+  createdAt: Date;
+}
 export interface RoomInterface {
   _id: string;
   name: string;

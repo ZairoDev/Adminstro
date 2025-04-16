@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { Offer } from "@/models/offer";
 import { SalesOfferInterface } from "@/util/type";
+import { sendOfferMail } from "@/util/offerMail";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
   try {
     const offerData = (await req.json()) as SalesOfferInterface;
+    const data = await getDataFromToken(req);
+    const employeeEmail = data.email;
+
+    console.log("token data in offer; ", data, employeeEmail);
 
     const { phoneNumber, availableOn } = offerData;
 
@@ -28,6 +34,16 @@ export async function POST(req: NextRequest) {
     const offer = await Offer.create(newOffer);
 
     await Offer.updateMany({ phoneNumber }, { $push: { availableOn: availableOn } });
+
+    if (offerData.platform === "TechTunes") {
+      await sendOfferMail({
+        email: offer.email,
+        emailType: "TECHTUNEOFFER",
+        // employeeEmail: employeeEmail || "",
+        employeeEmail: "pandeynamit515@gmail.com",
+        data: { plan: offerData.plan },
+      });
+    }
 
     return NextResponse.json({ message: "offer added successfully" }, { status: 201 });
   } catch (error: any) {

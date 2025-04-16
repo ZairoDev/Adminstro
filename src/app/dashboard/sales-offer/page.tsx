@@ -47,7 +47,7 @@ const SalesOffer = () => {
     VacationSaga: false,
   });
 
-  const { leadStatus, setField } = useSalesOfferStore();
+  const { leadStatus, setField, resetForm } = useSalesOfferStore();
 
   // Select Lead Status
   const leadStatusSelector = () => {
@@ -77,7 +77,12 @@ const SalesOffer = () => {
     return (
       <div>
         <Label htmlFor="platform">Select Platform</Label>
-        <Select onValueChange={(value) => setField("availableOn", value)}>
+        <Select
+          onValueChange={(value) => {
+            setField("availableOn", value);
+            setField("platform", value);
+          }}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select Platform" />
           </SelectTrigger>
@@ -226,16 +231,15 @@ const SalesOffer = () => {
         {platformSelector()}
         {(isAvailable.VacationSaga || isAvailable.TechTunes) && leadStatusSelector()}
       </div>
-      {leadStatusSelector()}
       <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
       <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
 
       <div className={`flex gap-x-4 mx-auto`}>
-        <Button>
+        <Button onClick={resetForm}>
           Reset <RotateCw className=" ml-1" size={16} />
         </Button>
         <Button onClick={handleSaveOffer}>
-          Save <Save className=" ml-1" size={16} />
+          Send Offer <Save className=" ml-1" size={16} />
         </Button>
       </div>
     </div>

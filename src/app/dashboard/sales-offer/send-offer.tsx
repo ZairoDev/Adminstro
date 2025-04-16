@@ -5,9 +5,18 @@ import { Label } from "@/components/ui/label";
 
 import AddressDetails from "./address-details";
 import { useSalesOfferStore } from "./useSalesOfferStore";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SendOffer() {
-  const { setField } = useSalesOfferStore();
+  const { setField, platform } = useSalesOfferStore();
 
   return (
     <div className=" border border-neutral-600 rounded-md p-2">
@@ -69,6 +78,26 @@ export default function SendOffer() {
             onChange={(e) => setField("propertyUrl", e.target.value)}
           />
         </div>
+
+        {/* Service */}
+        {platform === "TechTunes" && (
+          <div>
+            <Label htmlFor="service">Services</Label>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a Service" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Services</SelectLabel>
+                  {["Web Development", "SEO services"].map((service, index) => (
+                    <SelectItem value={service}>{service}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Address Details */}

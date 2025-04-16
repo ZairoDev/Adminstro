@@ -337,6 +337,7 @@ export interface SalesOfferInterface {
   relation: string;
   email: string;
   propertyUrl: string;
+  services: string;
   country: string;
   state: string;
   city: string;
@@ -346,6 +347,7 @@ export interface SalesOfferInterface {
   expiryDate: Date | null;
   callBackDate: Date | null;
   callBackTime: string | null;
+  platform: "VacationSaga" | "TechTunes";
   availableOn?: ("VacationSaga" | "TechTunes")[] | [];
   setField: (field: keyof SalesOfferInterface, value: any) => void;
   resetForm: () => void;

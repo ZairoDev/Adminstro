@@ -132,6 +132,9 @@ const offerSchema: Schema = new Schema(
       },
       default: [],
     },
+    services: {
+      type: String,
+    },
     sentBy: {
       type: {
         name: String,

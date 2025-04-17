@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       phoneNumber,
     })) as SalesOfferInterface[];
 
-    console.log("phoneNumber in try: ", phoneNumber, existingPhone);
+    console.log("phoneNumber in try: ", phoneNumber, !!existingPhone);
 
     if (existingPhone.length > 0) {
       let onVS = false;

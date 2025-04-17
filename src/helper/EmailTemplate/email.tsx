@@ -2161,9 +2161,20 @@ export const OtpTemplate = (otp: number) => {
 	  `;
 };
 
-export const TheTechTuneTemplate = (plan: string) => {
+export const TheTechTuneTemplate = ({
+  plan,
+  discount,
+  effectivePrice,
+}: {
+  plan: string;
+  discount: number;
+  effectivePrice: number;
+}) => {
+  const planName = plan.split("-")[0];
+  const planDuration = plan.split("-")[1];
+  const planPrice = plan.split("-")[2];
+
   return `
-	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 	<!--[if (gte mso 9)|(IE)]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
@@ -3268,12 +3279,46 @@ export const TheTechTuneTemplate = (plan: string) => {
 												<tr>
 													<td  style="font-size:30px;height:30px;line-height:30px;">&nbsp;</td>
 												</tr>
+                        
 												<tr>
 													<td align="center" valign="middle">
 														<!--[if (gte mso 9)|(IE)]><table border="0" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
 														<table width="200" border="0" cellpadding="0" cellspacing="0" align="right" class="row" style="width:200px;max-width:200px;">
-															<tr>
-																<td align="center" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #191919; font-size: 38px; line-height: 48px; font-weight: 600; letter-spacing: 0px; padding: 0px 0px 20px;">€299</td>
+															                              <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">6 Month SSL Free</td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                                                            <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">6 Month Hosting Free</td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                                                            <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">1st Year Domain Free</td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                              <tr>
+																<td align="center" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #191919; font-size: 38px; line-height: 48px; font-weight: 600; letter-spacing: 0px; padding: 0px 0px 20px;">€ <span style="text-decoration: line-through">${planPrice}</span>&nbsp;&nbsp;<span>${effectivePrice}</span></td>
 															</tr>
 															<tr>
 																<td align="center" valign="middle">
@@ -3314,7 +3359,7 @@ export const TheTechTuneTemplate = (plan: string) => {
 																		<tr>
 																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
 																			<td width="10">&nbsp;</td>
-																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Technical Support</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Customisation of theme</td>
 																		</tr>
 																	</table>
 																</td>
@@ -3325,7 +3370,7 @@ export const TheTechTuneTemplate = (plan: string) => {
 																		<tr>
 																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
 																			<td width="10">&nbsp;</td>
-																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Free Domain &amp; Hosting server</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Mobile Responsive</td>
 																		</tr>
 																	</table>
 																</td>
@@ -3336,7 +3381,40 @@ export const TheTechTuneTemplate = (plan: string) => {
 																		<tr>
 																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
 																			<td width="10">&nbsp;</td>
-																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Free SSL Certificate<br></td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Social Media Integration<br></td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                              <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Contact Form</td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                              <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">6 Month Technical support</td>
+																		</tr>
+																	</table>
+																</td>
+															</tr>
+                              <tr>
+																<td align="center" valign="middle" style="padding:0px;padding-bottom:5px;">
+																	<table align="left" border="0" cellpadding="0" cellspacing="0" class="center-float">
+																		<tr>
+																			<td align="center" valign="middle"><img width="16" border="0" alt="icon" style="width:16px;border:0px;display:inline-block !important;" src="https://editor.maool.com/images/agency/icon@img-5.png"></td>
+																			<td width="10">&nbsp;</td>
+																			<td align="left" valign="middle" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #595959; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">2 Revisions</td>
 																		</tr>
 																	</table>
 																</td>
@@ -3400,7 +3478,7 @@ export const TheTechTuneTemplate = (plan: string) => {
 																<td align="left" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #000000; font-size: 16px; line-height: 26px; font-weight: 600; letter-spacing: 0px; padding: 0px 0px 20px;">Contact Info</td>
 															</tr>
 															<tr>
-																<td align="left" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #000000; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Call us: <br>+91 8604-123492&nbsp;<br>E-mail us: <br>info@thetechtune.com</td>
+																<td align="left" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #000000; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">Call us: <br>+91 89229 38639‬&nbsp;<br>E-mail us: <br>info@thetechtune.com</td>
 															</tr>
 														</table>
 														<!--[if (gte mso 9)|(IE)]></td><td><![endif]-->
@@ -3435,7 +3513,7 @@ export const TheTechTuneTemplate = (plan: string) => {
 														<!--[if (gte mso 9)|(IE)]><table border="0" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
 														<table width="320" border="0" cellpadding="0" cellspacing="0" align="left" class="row" style="width:320px;max-width:320px;">
 															<tr>
-																<td align="left" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #000000; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">@2024 The tech tune All Rights Reserved.</td>
+																<td align="left" valign="middle" class="center-text" style="font-family: Poppins, DejaVu Sans, Verdana, sans-serif; color: #000000; font-size: 14px; line-height: 24px; font-weight: 400; letter-spacing: 0px;">@2025 The tech tune All Rights Reserved.</td>
 															</tr>
 														</table>
 														<!--[if (gte mso 9)|(IE)]></td><td><![endif]-->
@@ -3469,5 +3547,5 @@ export const TheTechTuneTemplate = (plan: string) => {
 	</center>
 </body>
 </html>
-	`;
+`;
 };

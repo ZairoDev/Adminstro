@@ -9,13 +9,13 @@ export async function POST(req: NextRequest) {
   try {
     const offerData = (await req.json()) as SalesOfferInterface;
     const data = await getDataFromToken(req);
-    const employeeEmail = data.email;
+    const employeeEmail = data.email as string;
 
-    console.log("token data in offer; ", data, employeeEmail);
+    // console.log("token data in offer; ", data, employeeEmail);
 
     const { phoneNumber, availableOn } = offerData;
 
-    console.log("offerData in backend: ", offerData);
+    // console.log("offerData in backend: ", offerData);
 
     const existingPhone = (await Offer.findOne({ phoneNumber })) as SalesOfferInterface;
 
@@ -23,26 +23,31 @@ export async function POST(req: NextRequest) {
       if (
         existingPhone.availableOn?.includes(
           availableOn as keyof typeof offerData.availableOn
-        )
+        ) &&
+        existingPhone.platform === offerData.platform
       ) {
         return NextResponse.json({ error: "Offer already exists" }, { status: 400 });
       }
     }
 
-    const newOffer = { ...offerData, availableOn: [], platform: availableOn };
-    console.log("newOffer: ", newOffer);
+    const newOffer = { ...offerData, availableOn: [] };
+    // console.log("newOffer: ", newOffer);
     const offer = await Offer.create(newOffer);
 
     await Offer.updateMany({ phoneNumber }, { $push: { availableOn: availableOn } });
-
+    // console.log("offer data");
     if (offerData.platform === "TechTunes") {
-      await sendOfferMail({
+      const mailResponse = await sendOfferMail({
         email: offer.email,
         emailType: "TECHTUNEOFFER",
-        // employeeEmail: employeeEmail || "",
-        employeeEmail: "pandeynamit515@gmail.com",
-        data: { plan: offerData.plan },
+        employeeEmail: employeeEmail || "",
+        data: {
+          plan: offerData.plan,
+          discount: offerData.discount,
+          effectivePrice: offerData.effectivePrice,
+        },
       });
+      console.log("mail respones: ", mailResponse);
     }
 
     return NextResponse.json({ message: "offer added successfully" }, { status: 201 });

@@ -19,7 +19,7 @@ export const sendOfferMail = async ({
   data = { plan: "" },
 }: OfferMailParams): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log("inside sendEmail");
+    // console.log("inside sendEmail");
 
     let aliasEmail;
     let aliasEmailPassword;
@@ -31,7 +31,7 @@ export const sendOfferMail = async ({
         })) as AliasInterface;
         aliasEmail = alias.aliasEmail;
         aliasEmailPassword = alias.aliasEmailPassword;
-        console.log("alias Email: ", aliasEmail, aliasEmailPassword);
+      // console.log("alias Email: ", aliasEmail, aliasEmailPassword);
     }
 
     // Prepare email template and subject based on the type of email
@@ -40,7 +40,11 @@ export const sendOfferMail = async ({
 
     switch (emailType) {
       case "TECHTUNEOFFER":
-        templateContent = TheTechTuneTemplate(data.plan);
+        templateContent = TheTechTuneTemplate({
+          plan: data.plan,
+          discount: data.discount,
+          effectivePrice: data.effectivePrice,
+        });
         subject = "TechTune Offer";
         break;
       default:
@@ -58,9 +62,8 @@ export const sendOfferMail = async ({
     let transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "zairo.developer@gmail.com",
-        // pass: aliasEmailPassword,
-        pass: process.env.GMAIL_APP_PASSWORD,
+        user: aliasEmail,
+        pass: aliasEmailPassword,
       },
     });
 
@@ -70,7 +73,7 @@ export const sendOfferMail = async ({
     // Check if the email was rejected
     if (mailResponse.rejected.length > 0) {
       console.log("Email rejected:", mailResponse.rejected);
-      return { success: false, message: "Email does not exist." };
+      return { success: false, message: "Unable to send mail" };
     }
 
     console.log("Email sent successfully");

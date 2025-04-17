@@ -165,6 +165,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/all-offers",
+      label: "All Offers",
+      Icon: <ClipboardPaste size={18} />,
+    },
+    {
       path: "/dashboard/reminders",
       label: "Reminders",
       Icon: <BellDot size={18} />,
@@ -240,6 +245,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/catalogue",
       label: "Manage Catalogue",
       Icon: <Notebook size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
     },
   ],
   HR: [

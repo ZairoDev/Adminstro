@@ -91,7 +91,9 @@ export default function SendOffer() {
                 <SelectGroup>
                   <SelectLabel>Services</SelectLabel>
                   {["Web Development", "SEO services"].map((service, index) => (
-                    <SelectItem value={service}>{service}</SelectItem>
+                    <SelectItem key={index} value={service}>
+                      {service}
+                    </SelectItem>
                   ))}
                 </SelectGroup>
               </SelectContent>

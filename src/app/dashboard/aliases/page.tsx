@@ -40,6 +40,7 @@ import { useEmployees } from "@/hooks/employee/useEmployees";
 import { useFetchAliases } from "@/hooks/alias/useFetchAliases";
 import { SelectLabel } from "@radix-ui/react-select";
 import { useDeleteAliases } from "@/hooks/alias/useDeleteAliases";
+import { useEditAliases } from "@/hooks/alias/useEditAliases";
 
 export default function AliasManagement() {
   // Fetching all aliases
@@ -48,6 +49,7 @@ export default function AliasManagement() {
   const { employees } = useEmployees();
   // Fetching add alias function
   const { addAlias, isPending: addAliasPending, error: addAliasError } = useAddAliases();
+  const { editAlias, isPending: editAliasPending } = useEditAliases();
   const { deleteAlias, isPending: deleteAliasPending } = useDeleteAliases();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Active" | "Inactive" | "All">("All");
@@ -64,6 +66,7 @@ export default function AliasManagement() {
   } = useForm<{
     aliasName: string;
     aliasEmail: string;
+    aliasEmailPassword: string;
     agentEmail: string;
     status: "Active" | "Inactive";
   }>();
@@ -115,7 +118,7 @@ export default function AliasManagement() {
     setCurrentAlias(alias);
     setValue("aliasName", alias.aliasName);
     setValue("aliasEmail", alias.aliasEmail);
-    // setValue("agentEmail", alias.assignedTo);
+    setValue("aliasEmailPassword", alias.aliasEmailPassword);
     setValue("status", alias.status);
     setIsModalOpen(true);
   };
@@ -129,6 +132,14 @@ export default function AliasManagement() {
   // Form submission
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const newAlias: AliasInterface = {
+        aliasName: data.aliasName,
+        aliasEmail: data.aliasEmail,
+        aliasEmailPassword: data.aliasEmailPassword,
+        status: data.status,
+        assignedTo: data.agentEmail,
+        createdAt: new Date(),
+      };
       if (currentAlias) {
         // Update existing alias
         setAliases((prev) =>
@@ -140,16 +151,11 @@ export default function AliasManagement() {
           title: "Alias updated",
           description: `${data.aliasEmail} has been updated successfully.`,
         });
+        console.log("updated data: ", newAlias);
+        editAlias(newAlias);
       } else {
         // Create new alias
-        const newAlias: AliasInterface = {
-          aliasName: data.aliasName,
-          aliasEmail: data.aliasEmail,
-          aliasEmailPassword: "--",
-          status: data.status,
-          assignedTo: data.agentEmail,
-          createdAt: new Date(),
-        };
+
         setAliases((prev) => [...prev, newAlias]);
         toast({
           title: "Alias created",
@@ -306,9 +312,9 @@ export default function AliasManagement() {
           <form onSubmit={onSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Alias Name</Label>
+                <Label htmlFor="aliasName">Alias Name</Label>
                 <Input
-                  id="email"
+                  id="aliasName"
                   placeholder="John Doe"
                   {...register("aliasName", {
                     required: "Name is required",
@@ -334,6 +340,22 @@ export default function AliasManagement() {
                 />
                 {errors.aliasEmail && (
                   <p className="text-sm text-red-500">{errors.aliasEmail.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="email">Alias Email Password</Label>
+                <Input
+                  id="emailPassword"
+                  placeholder="Enter password"
+                  {...register("aliasEmailPassword", {
+                    required: "Passowrd is required",
+                  })}
+                />
+                {errors.aliasEmailPassword && (
+                  <p className="text-sm text-red-500">
+                    {errors.aliasEmailPassword.message}
+                  </p>
                 )}
               </div>
 

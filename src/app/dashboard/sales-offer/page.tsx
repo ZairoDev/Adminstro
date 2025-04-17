@@ -27,6 +27,7 @@ import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
 import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
+import { SalesOfferInterface } from "@/util/type";
 
 const FormSchema = z.object({
   phone: z
@@ -48,6 +49,7 @@ const SalesOffer = () => {
   });
 
   const { leadStatus, setField, resetForm } = useSalesOfferStore();
+  const [saveOfferLoading, setSaveOfferLoading] = useState(false);
 
   // Select Lead Status
   const leadStatusSelector = () => {
@@ -143,13 +145,36 @@ const SalesOffer = () => {
   // const offerData = getSalesOfferStoreData();
   const handleSaveOffer = async () => {
     const offerData = useSalesOfferStore.getState();
-    console.log("called save offer", offerData);
+    // console.log("offer Data: ", offerData);
+    let emptyFieldsCount = 0;
+    let emptyFields = "";
+    for (const key in offerData) {
+      if (
+        offerData[key as keyof SalesOfferInterface] == "" ||
+        offerData[key as keyof SalesOfferInterface] == null ||
+        offerData[key as keyof SalesOfferInterface] == undefined
+      ) {
+        emptyFields += `${key}, `;
+        emptyFieldsCount++;
+      }
+    }
+    if (emptyFieldsCount > 0 && offerData.leadStatus === "Send Offer") {
+      toast({
+        variant: "destructive",
+        title: "Error in saving Offer",
+        description: "Please fill all the fields - " + emptyFields,
+      });
+      return;
+    }
+
     try {
+      setSaveOfferLoading(true);
       const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
       toast({
         title: "Success",
-        description: "Offer saved successfully",
+        description: "Offer sent successfully",
       });
+      resetForm();
     } catch (error: any) {
       console.log("error in frontend: ", error.response.data.error);
       toast({
@@ -157,6 +182,8 @@ const SalesOffer = () => {
         description: error.response.data.error,
         variant: "destructive",
       });
+    } finally {
+      setSaveOfferLoading(false);
     }
   };
 
@@ -238,8 +265,9 @@ const SalesOffer = () => {
         <Button onClick={resetForm}>
           Reset <RotateCw className=" ml-1" size={16} />
         </Button>
-        <Button onClick={handleSaveOffer}>
-          Send Offer <Save className=" ml-1" size={16} />
+        <Button onClick={handleSaveOffer} disabled={saveOfferLoading}>
+          {saveOfferLoading ? "Saving..." : "Send Offer"}{" "}
+          <Save className=" ml-1" size={16} />
         </Button>
       </div>
     </div>

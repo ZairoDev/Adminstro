@@ -12,12 +12,12 @@ export const useFetchAliases = () => {
     const getAllAliases = async () => {
       setIsPending(true);
       try {
-        console.log("getting aliases");
+        // console.log("getting aliases");
         const response = await axios.get("/api/alias/getAllAliases");
-        console.log("response of aliases: ", response);
+        // console.log("response of aliases: ", response);
         setAliases(response.data.aliases);
       } catch (err) {
-        console.log("error in getting aliases: ", err);
+        // console.log("error in getting aliases: ", err);
         setError(err as string);
       } finally {
         setIsPending(false);

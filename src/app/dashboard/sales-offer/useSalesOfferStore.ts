@@ -3,8 +3,8 @@ import { create } from "zustand";
 import { SalesOfferInterface } from "@/util/type";
 
 export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
-  phoneNumber: "+91",
-  leadStatus: "Not Interested",
+  phoneNumber: "",
+  leadStatus: "",
   name: "-",
   propertyName: "-",
   relation: "-",
@@ -25,8 +25,8 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   setField: (field, value) => set((state) => ({ ...state, [field]: value })),
   resetForm: () =>
     set({
-      phoneNumber: "+91",
-      leadStatus: "Not Interested",
+      phoneNumber: "",
+      leadStatus: "",
       name: "-",
       propertyName: "-",
       relation: "-",

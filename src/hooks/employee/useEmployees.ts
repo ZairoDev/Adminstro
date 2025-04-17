@@ -13,6 +13,7 @@ export const useEmployees = () => {
       setIsPending(true);
       try {
         const response = await axios.get("/api/employee/getAllEmployee");
+        // console.log("all employees: ", response.data.allEmployees.length);
         setEmployees(response.data.allEmployees);
       } catch (err) {
         console.log("error in getting aliases: ", err);

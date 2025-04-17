@@ -45,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const allEmployees: Employee[] = await Employees.find(query)
-      .limit(20)
+      // .limit(20)
       .skip(skip)
       .sort({ _id: -1 });
 

@@ -6,7 +6,6 @@ export const leadStatuses = [
   "Call Back",
   "Not Connected",
   "Send Offer",
-  "Reject Lead",
   "Blacklist Lead",
 ] as const;
 

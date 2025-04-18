@@ -332,6 +332,7 @@ export interface TokenInterface {
 export interface SalesOfferInterface {
   phoneNumber: string;
   leadStatus: string;
+  note: string;
   name: string;
   propertyName: string;
   relation: string;

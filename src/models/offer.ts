@@ -27,6 +27,9 @@ const offerSchema: Schema = new Schema(
         message: "{VALUE} is not a valid lead status",
       },
     },
+    note: {
+      type: String,
+    },
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -55,11 +58,9 @@ const offerSchema: Schema = new Schema(
     },
     state: {
       type: String,
-      required: [true, "State is required"],
     },
     city: {
       type: String,
-      required: [true, "City is required"],
     },
     plan: {
       type: String,
@@ -67,7 +68,6 @@ const offerSchema: Schema = new Schema(
     },
     discount: {
       type: Number,
-      required: [true, "Discount is required"],
       min: [0, "Discount cannot be negative"],
     },
     effectivePrice: {
@@ -140,6 +140,7 @@ const offerSchema: Schema = new Schema(
         name: String,
         email: String,
         aliasName: String,
+        aliasEmail: String,
       },
     },
   },

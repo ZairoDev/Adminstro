@@ -20,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
+import { SalesOfferInterface } from "@/util/type";
+import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
@@ -27,7 +29,7 @@ import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
 import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
-import { SalesOfferInterface } from "@/util/type";
+import { useRouter } from "next/navigation";
 
 const FormSchema = z.object({
   phone: z
@@ -41,7 +43,7 @@ type FormData = z.infer<typeof FormSchema>;
 
 const SalesOffer = () => {
   const { toast } = useToast();
-
+  const router = useRouter();
   const [showAvailability, setShowAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState({
     TechTunes: false,
@@ -111,6 +113,7 @@ const SalesOffer = () => {
     control,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<FormData>({
     resolver: zodResolver(FormSchema),
     defaultValues: { phone: "" },
@@ -148,11 +151,13 @@ const SalesOffer = () => {
     // console.log("offer Data: ", offerData);
     let emptyFieldsCount = 0;
     let emptyFields = "";
+    const canBeEmptyField = ["discount", "expiryDate"];
     for (const key in offerData) {
       if (
-        offerData[key as keyof SalesOfferInterface] == "" ||
-        offerData[key as keyof SalesOfferInterface] == null ||
-        offerData[key as keyof SalesOfferInterface] == undefined
+        (offerData[key as keyof SalesOfferInterface] == "" ||
+          offerData[key as keyof SalesOfferInterface] == null ||
+          offerData[key as keyof SalesOfferInterface] == undefined) &&
+        !canBeEmptyField.includes(key) // check if the key can be empty then leave it
       ) {
         emptyFields += `${key}, `;
         emptyFieldsCount++;
@@ -172,7 +177,8 @@ const SalesOffer = () => {
       const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
       toast({
         title: "Success",
-        description: "Offer sent successfully",
+        description:
+          leadStatus === "Send Offer" ? "Offer sent successfully" : "Offer submitted",
       });
       resetForm();
     } catch (error: any) {
@@ -184,6 +190,10 @@ const SalesOffer = () => {
       });
     } finally {
       setSaveOfferLoading(false);
+      reset({
+        phone: "",
+      });
+      setShowAvailability(false);
     }
   };
 
@@ -254,9 +264,15 @@ const SalesOffer = () => {
         )}
       </form>
 
-      <div className=" flex gap-x-4">
+      <div className=" flex gap-x-4 items-center">
         {platformSelector()}
         {(isAvailable.VacationSaga || isAvailable.TechTunes) && leadStatusSelector()}
+        {leadStatus && leadStatus != "Send Offer" && (
+          <Textarea
+            placeholder="Enter the reason"
+            onChange={(e) => setField("note", e.target.value)}
+          />
+        )}
       </div>
       <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
       <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
@@ -266,8 +282,7 @@ const SalesOffer = () => {
           Reset <RotateCw className=" ml-1" size={16} />
         </Button>
         <Button onClick={handleSaveOffer} disabled={saveOfferLoading}>
-          {saveOfferLoading ? "Saving..." : "Send Offer"}{" "}
-          <Save className=" ml-1" size={16} />
+          {saveOfferLoading ? "Saving..." : "Submit"} <Save className=" ml-1" size={16} />
         </Button>
       </div>
     </div>

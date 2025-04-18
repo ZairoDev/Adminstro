@@ -5,6 +5,7 @@ import { SalesOfferInterface } from "@/util/type";
 export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   phoneNumber: "",
   leadStatus: "",
+  note: "-",
   name: "-",
   propertyName: "-",
   relation: "-",
@@ -27,6 +28,7 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
     set({
       phoneNumber: "",
       leadStatus: "",
+      note: "-",
       name: "-",
       propertyName: "-",
       relation: "-",

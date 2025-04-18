@@ -78,7 +78,16 @@ const employeeSchema = new Schema<IEmployee>(
     },
     role: {
       type: String,
-      enum: ["Admin", "Advert", "Content", "Sales", "HR", "Developer", "Guest"],
+      enum: [
+        "Admin",
+        "Advert",
+        "Content",
+        "Sales",
+        "HR",
+        "Developer",
+        "Guest",
+        "Subscription-Sales",
+      ],
       default: "Advert",
     },
     extras: {

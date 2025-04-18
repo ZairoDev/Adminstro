@@ -9,6 +9,8 @@ interface OfferMailParams {
   email: string;
   emailType: "TECHTUNEOFFER";
   employeeEmail: string;
+  aliasEmail: string;
+  aliasEmailPassword: string;
   data?: { plan: string; [key: string]: any };
 }
 
@@ -16,24 +18,11 @@ export const sendOfferMail = async ({
   email,
   emailType,
   employeeEmail,
+  aliasEmail,
+  aliasEmailPassword,
   data = { plan: "" },
 }: OfferMailParams): Promise<{ success: boolean; message: string }> => {
   try {
-    // console.log("inside sendEmail");
-
-    let aliasEmail;
-    let aliasEmailPassword;
-
-    switch (emailType) {
-      case "TECHTUNEOFFER":
-        const alias = (await Aliases.findOne({
-          assignedTo: employeeEmail,
-        })) as AliasInterface;
-        aliasEmail = alias.aliasEmail;
-        aliasEmailPassword = alias.aliasEmailPassword;
-      // console.log("alias Email: ", aliasEmail, aliasEmailPassword);
-    }
-
     // Prepare email template and subject based on the type of email
     let templateContent: string;
     let subject: string;

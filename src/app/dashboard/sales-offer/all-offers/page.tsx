@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 
 import { useFetchOffers } from "@/hooks/offers/useFetchOffers";
-
-import { OfferTable } from "../components/Offer-table";
+// import { OfferTable } from "../components/offer-table";
 
 const AllOffers = () => {
   const { offers, getAllOffers, isPending } = useFetchOffers();
@@ -16,15 +15,7 @@ const AllOffers = () => {
   return (
     <div>
       All Offers
-      {isPending ? (
-        <p>Loading...</p>
-      ) : (
-        // offers?.map((offer, index) => (
-        //   <div key={index}>
-        <OfferTable />
-        // </div>
-        // ))
-      )}
+      {/* {isPending ? <p>Loading...</p> : <OfferTable />} */}
     </div>
   );
 };

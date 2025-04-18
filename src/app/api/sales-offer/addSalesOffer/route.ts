@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { Offer } from "@/models/offer";
-import { SalesOfferInterface } from "@/util/type";
+import { AliasInterface, SalesOfferInterface } from "@/util/type";
 import { sendOfferMail } from "@/util/offerMail";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import Aliases from "@/models/alias";
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,17 +31,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const newOffer = { ...offerData, availableOn: [] };
+    //get alias data
+    const alias = (await Aliases.findOne({
+      assignedTo: employeeEmail,
+    })) as AliasInterface;
+    const aliasName = alias.aliasName;
+    const aliasEmail = alias.aliasEmail;
+    const aliasEmailPassword = alias.aliasEmailPassword;
+
+    const newOffer = {
+      ...offerData,
+      availableOn: [],
+      sentBy: {
+        name: data.name,
+        email: data.email,
+        aliasName: aliasName,
+        aliasEmail: aliasEmail,
+      },
+    };
     // console.log("newOffer: ", newOffer);
     const offer = await Offer.create(newOffer);
 
     await Offer.updateMany({ phoneNumber }, { $push: { availableOn: availableOn } });
     // console.log("offer data");
-    if (offerData.platform === "TechTunes") {
+    if (offerData.platform === "TechTunes" && offerData.leadStatus === "Send Offer") {
       const mailResponse = await sendOfferMail({
         email: offer.email,
         emailType: "TECHTUNEOFFER",
         employeeEmail: employeeEmail || "",
+        aliasEmail,
+        aliasEmailPassword,
         data: {
           plan: offerData.plan,
           discount: offerData.discount,

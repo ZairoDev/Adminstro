@@ -273,6 +273,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleHelp size={18} />,
     },
   ],
+  "Subscription-Sales": [
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
+    },
+  ],
 };
 
 export function Sidebar() {

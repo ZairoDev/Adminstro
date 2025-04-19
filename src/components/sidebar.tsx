@@ -2,27 +2,32 @@
 
 import {
   House,
+  Frown,
   Check,
   Speech,
   ScanEye,
   CircleX,
   BellDot,
   Notebook,
+  PhoneOff,
+  Languages,
   User2Icon,
   BadgeEuro,
   Warehouse,
   CheckCheck,
   PencilLine,
+  CircleHelp,
+  ShieldAlert,
   NotebookPen,
   ArrowUpLeft,
   CornerLeftUp,
+  UserRoundCog,
+  PhoneIncoming,
+  ClipboardPaste,
   PersonStanding,
   CircleCheckBig,
   FileSpreadsheet,
   SlidersHorizontal,
-  CircleHelp,
-  ClipboardPaste,
-  UserRoundCog,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -165,9 +170,9 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/all-offers",
-      label: "All Offers",
-      Icon: <ClipboardPaste size={18} />,
+      path: "/dashboard/sales-offer/send-offer",
+      label: "Sent Offer",
+      Icon: <BadgeEuro size={18} />,
     },
     {
       path: "/dashboard/reminders",
@@ -279,6 +284,36 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Sales Offer",
       Icon: <ClipboardPaste size={18} />,
     },
+    {
+      path: "/dashboard/sales-offer/send-offer",
+      label: "Sent Offer",
+      Icon: <BadgeEuro size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-connected",
+      label: "Not Connected",
+      Icon: <PhoneOff size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-interested",
+      label: "Not Interested",
+      Icon: <Frown size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/call-back",
+      label: "Call Back",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/language-barrier",
+      label: "Language Barrier",
+      Icon: <Languages size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklist",
+      label: "Blacklist Lead",
+      Icon: <ShieldAlert size={18} />,
+    },
   ],
 };
 
@@ -312,7 +347,7 @@ export function Sidebar() {
       >
         <Link
           href={route.path}
-          className="flex items-center gap-x-2 hover:bg-primary/50 rounded-l-sm px-4 py-2"
+          className="flex items-center gap-x-2 hover:bg-primary/50 rounded-l-sm px-4 py-1.5"
         >
           {route.Icon && route.Icon}
           {showText && <span className="">{route.label}</span>}
@@ -334,8 +369,8 @@ export function Sidebar() {
             </div>
           </div>
           <div>
-            <nav className="flex flex-col justify-between">
-              <ul>
+            <nav className="flex flex-col justify-between overflow-y-auto">
+              <ul className=" overflow-y-auto">
                 {/* <li className="flex-grow"> */}
                 {renderRoutes(true)}
                 {/* </li> */}
@@ -344,8 +379,8 @@ export function Sidebar() {
           </div>
         </div>
         <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
-          <nav className="mx-auto ">
-            <ul className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide">
+          <nav className="mx-auto flex-1 overflow-y-auto">
+            <ul className=" items-center justify-around overflow-x-scroll h-14 scrollbar-hide ">
               {/* <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide"> */}
               {renderRoutes(false)}
               {/* </li> */}

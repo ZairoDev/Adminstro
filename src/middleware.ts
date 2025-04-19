@@ -70,7 +70,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Agent: ["/", "/dashboard/sales-offer"],
   Guest: ["/dashboard/guest-window"],
-  "Subscription-Sales": ["/", "/dashboard/sales-offer"],
+  "Subscription-Sales": ["/", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
 };
 const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",

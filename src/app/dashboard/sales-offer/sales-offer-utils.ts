@@ -1,5 +1,3 @@
-import { useSalesOfferStore } from "./useSalesOfferStore";
-
 export const leadStatuses = [
   "Not Interested",
   "Language Barrier",
@@ -8,6 +6,8 @@ export const leadStatuses = [
   "Send Offer",
   "Blacklist Lead",
 ] as const;
+
+export type LeadStatus = (typeof leadStatuses)[number];
 
 export const plans = [
   { planName: "Basic", duration: "6M", price: 399, currency: "EUR" },

@@ -357,12 +357,15 @@ export interface SalesOfferInterface {
 export interface OwnerInterface {
   _id?: string;
   phoneNumber: number;
+  email?: string;
   propertyName: string;
   propertyUrl: string;
   country: string;
   state: string;
   city: string;
   area: string;
+  disposition?: string;
+  note?: string;
 }
 
 export interface CatalogueInterface {

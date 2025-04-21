@@ -6,6 +6,9 @@ const ownerSchema = new Schema(
       type: Number,
       required: true,
     },
+    email: {
+      type: String,
+    },
     propertyName: {
       type: String,
       required: true,
@@ -29,6 +32,12 @@ const ownerSchema = new Schema(
     area: {
       type: String,
       required: true,
+    },
+    disposition: {
+      type: String,
+    },
+    note: {
+      type: String,
     },
   },
   { timestamps: true }

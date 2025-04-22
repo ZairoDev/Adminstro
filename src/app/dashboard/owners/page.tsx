@@ -61,12 +61,14 @@ const OwnerPage = () => {
 
     let emptyFields = "";
     let emptyFieldsCount = 0;
+    const canBeEmptyField = ["email", "disposition", "note"];
 
     for (const key in ownerData) {
       if (
-        ownerData[key as keyof OwnerInterface] == "" ||
-        ownerData[key as keyof OwnerInterface] == null ||
-        ownerData[key as keyof OwnerInterface] == undefined
+        (ownerData[key as keyof OwnerInterface] == "" ||
+          ownerData[key as keyof OwnerInterface] == null ||
+          ownerData[key as keyof OwnerInterface] == undefined) &&
+        !canBeEmptyField.includes(key)
       ) {
         emptyFields += `${key}, `;
         emptyFieldsCount++;

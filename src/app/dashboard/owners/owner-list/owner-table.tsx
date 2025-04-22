@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCopyToClipboard } from "@/hooks/component-hooks/useCopyToClipboard";
+import { addDisposition, addEmail } from "../ownerActions";
 
 export const columns: ColumnDef<OwnerInterface>[] = [
   {
@@ -103,7 +104,24 @@ export const columns: ColumnDef<OwnerInterface>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       // const payment = row.original;
+      const [isPending, startTransition] = React.useTransition();
       const owner = row.original;
+      const handleDisposition = (ownerId: string, disposition: string) => {
+        startTransition(() => {
+          addDisposition(ownerId, disposition);
+        });
+      };
+      const handleEmail = (ownerId: string, email: string) => {
+        startTransition(() => {
+          addEmail(ownerId, email);
+        });
+      };
+
+      const handleNote = (ownerId: string, note: string) => {
+        startTransition(() => {
+          addEmail(ownerId, note);
+        });
+      };
 
       return (
         <DropdownMenu>
@@ -117,8 +135,16 @@ export const columns: ColumnDef<OwnerInterface>[] = [
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Send Contract</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Not Interested</DropdownMenuItem>
-            <DropdownMenuItem>Not Connected</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleDisposition(owner._id!, "Not Interested")}
+            >
+              Not Interested
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleDisposition(owner._id!, "Not Connected")}
+            >
+              Not Connected
+            </DropdownMenuItem>
             <DropdownMenuItem>Callback</DropdownMenuItem>
             <DropdownMenuItem>Note</DropdownMenuItem>
           </DropdownMenuContent>

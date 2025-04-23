@@ -354,6 +354,17 @@ export interface SalesOfferInterface {
   resetForm: () => void;
 }
 
+export interface OwnerInterface {
+  _id?: string;
+  phoneNumber: number;
+  propertyName: string;
+  propertyUrl: string;
+  country: string;
+  state: string;
+  city: string;
+  area: string;
+}
+
 export interface CatalogueInterface {
   addCatalogueModal: boolean;
   setField: (field: keyof CatalogueInterface, value: any) => void;

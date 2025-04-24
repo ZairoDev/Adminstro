@@ -24,3 +24,21 @@ export async function FetchOwners(page?: number) {
 
   return { owners, totalPages, totalOwners };
 }
+
+export async function fetchOwnerById(id: string) {
+  const ownerDoc = (await Owners.findById(id).lean()) as OwnerInterface;
+  const owner: OwnerInterface = {
+    _id: ownerDoc?._id?.toString(),
+    phoneNumber: ownerDoc.phoneNumber,
+    propertyUrl: ownerDoc.propertyUrl,
+    propertyName: ownerDoc.propertyName,
+    country: ownerDoc.country,
+    state: ownerDoc.state,
+    city: ownerDoc.city,
+    area: ownerDoc.area,
+  };
+  if (!ownerDoc) {
+    throw new Error("Owner not found");
+  }
+  return owner;
+}

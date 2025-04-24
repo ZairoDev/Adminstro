@@ -36,6 +36,9 @@ const ownerSchema = new Schema(
     disposition: {
       type: String,
     },
+    callback: {
+      type: String,
+    },
     note: {
       type: String,
     },

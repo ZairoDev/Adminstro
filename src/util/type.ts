@@ -366,6 +366,7 @@ export interface OwnerInterface {
   area: string;
   disposition?: string;
   note?: string;
+  callback?: string;
 }
 
 export interface CatalogueInterface {

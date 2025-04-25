@@ -44,7 +44,6 @@ export const addCallback = async (id: string, callback: string) => {
 };
 
 export const editOwnerDetails = async (id: string, data: OwnerInterface) => {
-  console.log("data in editOwnerDetails: ", data);
   try {
     await Owners.findByIdAndUpdate({ _id: id }, { $set: { ...data } });
     console.log("Owner details updated successfully");

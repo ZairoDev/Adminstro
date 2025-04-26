@@ -56,6 +56,175 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
 
+function OwnerActionsCell({ owner }: { owner: OwnerInterface }) {
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = React.useState(false);
+  const [isContractDialogOpen, setIsContractDialogOpen] = React.useState(false);
+  const [isCallbackDialogOpen, setIsCallbackDialogOpen] = React.useState(false);
+  const noteRef = React.useRef<HTMLTextAreaElement>(null);
+  const [isPending, startTransition] = React.useTransition();
+  const [callBackDate, setCallBackDate] = React.useState<Date | undefined>(undefined);
+  const [callBackTime, setCallBackTime] = React.useState<string | null>(null);
+
+  const handleDisposition = (ownerId: string, disposition: string) => {
+    startTransition(() => {
+      addDisposition(ownerId, disposition);
+    });
+  };
+  const handleEmail = (ownerId: string, email: string) => {
+    startTransition(() => {
+      addEmail(ownerId, email);
+    });
+  };
+  const handleNote = (ownerId: string, note: string) => {
+    if (!note.trim()) return;
+    startTransition(() => {
+      addNote(ownerId, note.trim());
+    });
+  };
+  const handleCallback = (ownerId: string) => {
+    const callback = `${format(callBackDate!, "yyyy-MM-dd")} ${callBackTime}`;
+    startTransition(() => {
+      addCallback(ownerId, callback);
+    });
+  };
+
+  return (
+    <>
+      {/* Note Dialog */}
+      <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Note</DialogTitle>
+            <DialogDescription>Add a note to the owner.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea ref={noteRef} placeholder="Enter the note" />
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={isPending}
+              onClick={() => handleNote(owner._id!, noteRef.current?.value!)}
+            >
+              {isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contract Dialog */}
+      <Dialog open={isContractDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Send Contract</DialogTitle>
+            <DialogDescription>Send a contract to the owner via email.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input id="name" value="Pedro Duarte" className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="username" className="text-right">
+                Username
+              </Label>
+              <Input id="username" value="@peduarte" className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Callback Dialog */}
+      <Dialog open={isCallbackDialogOpen} onOpenChange={setIsCallbackDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Callback Date & Time</DialogTitle>
+            <DialogDescription>Add a time to contact the owner</DialogDescription>
+          </DialogHeader>
+          <div className=" mx-auto">
+            <h4 className=" font-semibold">Callback Date</h4>
+            <Calendar
+              mode="single"
+              selected={callBackDate}
+              onSelect={setCallBackDate}
+              className="rounded-md border shadow"
+            />
+            <h4 className=" mt-4 font-semibold">Callback Time</h4>
+            <Input type="time" onChange={(e) => setCallBackTime(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={isPending}
+              onClick={() => handleCallback(owner._id!)}
+            >
+              {isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Dropdown */}
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => setIsDropdownOpen(true)}
+          >
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem>
+            <Link href={`/dashboard/owners/owner-list/${owner._id}`} target="_blank">
+              Edit Details
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsContractDialogOpen(true)}>
+            Send Contract
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => handleDisposition(owner._id!, "Not Interested")}
+          >
+            Not Interested
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => handleDisposition(owner._id!, "Not Connected")}
+          >
+            Not Connected
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              setIsDropdownOpen(false);
+              setIsCallbackDialogOpen(true);
+            }}
+          >
+            Callback
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              setIsDropdownOpen(false);
+              setIsNoteDialogOpen(true);
+            }}
+          >
+            Note
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
 export const columns: ColumnDef<OwnerInterface>[] = [
   {
     id: "select",
@@ -88,14 +257,15 @@ export const columns: ColumnDef<OwnerInterface>[] = [
     accessorKey: "phoneNumber",
     header: () => <div className=" flex justify-center">Phone Number</div>,
     cell: ({ row }) => {
-      const { copy, isCopied } = useCopyToClipboard();
       return (
         <div className=" flex justify-center relative">
           <Phone
             className=" cursor-pointer"
-            onClick={() => copy(row.getValue("phoneNumber") as string)}
+            onClick={() =>
+              navigator.clipboard.writeText(row.getValue("phoneNumber") as string)
+            }
           />
-          {isCopied && <span className=" absolute bottom-6 bg-black/30">Copied!</span>}
+          {/* {isCopied && <span className=" absolute bottom-6 bg-black/30">Copied!</span>} */}
         </div>
       );
     },
@@ -116,181 +286,7 @@ export const columns: ColumnDef<OwnerInterface>[] = [
     id: "actions",
     header: () => <div>Actions</div>,
     enableHiding: false,
-    cell: ({ row }) => {
-      // const payment = row.original;
-      const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-      const [isNoteDialogOpen, setIsNoteDialogOpen] = React.useState(false);
-      const [isContractDialogOpen, setIsContractDialogOpen] = React.useState(false);
-      const [isCallbackDialogOpen, setIsCallbackDialogOpen] = React.useState(false);
-      const noteRef = React.useRef<HTMLTextAreaElement>(null);
-      const [isPending, startTransition] = React.useTransition();
-      const [callBackDate, setCallBackDate] = React.useState<Date | undefined>(undefined);
-      const [callBackTime, setCallBackTime] = React.useState<string | null>(null);
-
-      const owner = row.original;
-
-      const handleDisposition = (ownerId: string, disposition: string) => {
-        startTransition(() => {
-          addDisposition(ownerId, disposition);
-        });
-      };
-      const handleEmail = (ownerId: string, email: string) => {
-        startTransition(() => {
-          addEmail(ownerId, email);
-        });
-      };
-
-      const handleNote = (ownerId: string, note: string) => {
-        if (!note.trim()) return;
-        startTransition(() => {
-          addNote(ownerId, note.trim());
-        });
-      };
-
-      const handleCallback = (ownerId: string) => {
-        const callback = `${format(callBackDate!, "yyyy-MM-dd")} ${callBackTime}`;
-        startTransition(() => {
-          addCallback(ownerId, callback);
-        });
-      };
-
-      return (
-        <>
-          {/* Note Dialog */}
-          <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add Note</DialogTitle>
-                <DialogDescription>Add a note to the owner.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <Textarea ref={noteRef} placeholder="Enter the note" />
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  onClick={() => handleNote(owner._id!, noteRef.current?.value!)}
-                >
-                  {isPending ? "Saving..." : "Save changes"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Contract Dialog */}
-          <Dialog open={isContractDialogOpen} onOpenChange={setIsNoteDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Send Contract</DialogTitle>
-                <DialogDescription>
-                  Send a contract to the owner via email.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name
-                  </Label>
-                  <Input id="name" value="Pedro Duarte" className="col-span-3" />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="username" className="text-right">
-                    Username
-                  </Label>
-                  <Input id="username" value="@peduarte" className="col-span-3" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Save changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Callback Dialog */}
-          <Dialog open={isCallbackDialogOpen} onOpenChange={setIsCallbackDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add Callback Date & Time</DialogTitle>
-                <DialogDescription>Add a time to contact the owner</DialogDescription>
-              </DialogHeader>
-              <div className=" mx-auto">
-                <h4 className=" font-semibold">Callback Date</h4>
-                <Calendar
-                  mode="single"
-                  selected={callBackDate}
-                  onSelect={setCallBackDate}
-                  className="rounded-md border shadow"
-                />
-                <h4 className=" mt-4 font-semibold">Callback Time</h4>
-                <Input type="time" onChange={(e) => setCallBackTime(e.target.value)} />
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  onClick={() => handleCallback(owner._id!)}
-                >
-                  {isPending ? "Saving..." : "Save changes"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Action Dropdown */}
-          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-8 w-8 p-0"
-                onClick={() => setIsDropdownOpen(true)}
-              >
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>
-                <Link href={`/dashboard/owners/owner-list/${owner._id}`} target="_blank">
-                  Edit Details
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsContractDialogOpen(true)}>
-                Send Contract
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleDisposition(owner._id!, "Not Interested")}
-              >
-                Not Interested
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDisposition(owner._id!, "Not Connected")}
-              >
-                Not Connected
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  setIsCallbackDialogOpen(true);
-                }}
-              >
-                Callback
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  setIsNoteDialogOpen(true);
-                }}
-              >
-                Note
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      );
-    },
+    cell: ({ row }) => <OwnerActionsCell owner={row.original} />,
   },
 ];
 

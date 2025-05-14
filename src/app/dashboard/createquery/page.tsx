@@ -525,7 +525,10 @@ const SalesDashboard = () => {
                           <SelectContent>
                             <SelectItem value="athens">Athens</SelectItem>
                             <SelectItem value="chania">Chania</SelectItem>
+                            {/* <SelectItem value="corfu">Corfu</SelectItem> */}
+                            {/* <SelectItem value="chalkidiki">Chalkidiki</SelectItem> */}
                             <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+
                           </SelectContent>
                         </Select>
                       </div>
@@ -601,10 +604,10 @@ const SalesDashboard = () => {
                               formData.bookingTerm === "Short Term"
                                 ? "Fill in days from 1-28"
                                 : formData.bookingTerm === "Mid Term"
-                                ? "Fill in months from 1-3"
-                                : formData.bookingTerm === "Long Term"
-                                ? "Fill in months from 4-12"
-                                : "Enter duration based on term"
+                                  ? "Fill in months from 1-3"
+                                  : formData.bookingTerm === "Long Term"
+                                    ? "Fill in months from 4-12"
+                                    : "Enter duration based on term"
                             }
                           />
                         </div>

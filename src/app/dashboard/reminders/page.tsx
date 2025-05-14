@@ -2,38 +2,38 @@
 
 import axios from "axios";
 import debounce from "lodash.debounce";
+import { LucideLoader } from "lucide-react";
 import { SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { LucideLoader, LucideLoader2 } from "lucide-react";
-
-import { useToast } from "@/hooks/use-toast";
 
 import {
   Pagination,
+  PaginationLink,
+  PaginationItem,
   PaginationContent,
   PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
 } from "@/components/ui/pagination";
 import {
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectTrigger,
+  SelectContent,
 } from "@/components/ui/select";
 import {
   Sheet,
+  SheetTitle,
   SheetClose,
-  SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
-  SheetTitle,
+  SheetContent,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { IQuery } from "@/util/type";
 import Heading from "@/components/Heading";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
@@ -50,12 +50,13 @@ export interface FetchQueryParams {
 
 const ReminderPage = () => {
   const { toast } = useToast();
+  const { token } = useAuthStore();
 
-  const [page, setPage] = useState(1);
   const limit = 12;
+  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  const [area, setArea] = useState("");
+  const [area, setArea] = useState(token?.allotedArea ?? "");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState("name");
   const [dateFilter, setDateFilter] = useState("all");
@@ -189,23 +190,28 @@ const ReminderPage = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             <div className="w-[200px]">
-              <Select
-                onValueChange={(value: string) => {
-                  setArea(value);
-                  setSearchTerm("");
-                }}
-                value={area}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Area" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="chania">Chania</SelectItem>
-                  <SelectItem value="athens">Athens</SelectItem>
-                  <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                  <SelectItem value="corfu">Corfu</SelectItem>
-                </SelectContent>
-              </Select>
+              {(token?.role == "SuperAdmin" ||
+                token?.email == "vikas@vacationsaga.com" ||
+                token?.email == "harshit2003gtm@gmail.com") && (
+                  <Select
+                    onValueChange={(value: string) => {
+                      setArea(value);
+                      setSearchTerm("");
+                    }}
+                    value={area}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chania">Chania</SelectItem>
+                      <SelectItem value="athens">Athens</SelectItem>
+                      <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
+                      <SelectItem value="corfu">Corfu</SelectItem>
+                      <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
             </div>
             <div className="">
               <Select

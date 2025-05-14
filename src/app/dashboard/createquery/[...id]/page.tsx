@@ -116,6 +116,7 @@ const QueryDetails = ({ params }: PageProps) => {
   }, [apiData]);
 
   const retrieveLead = async (leadId: string) => {
+    if (!leadId) return;
     setRetrieveLeadLoading(true);
     try {
       const response = await axios.post("/api/sales/retrieveLead", { leadId });
@@ -186,10 +187,10 @@ const QueryDetails = ({ params }: PageProps) => {
                       onChange={(e) =>
                         setApiData(
                           (prev) =>
-                            ({
-                              ...prev,
-                              phoneNo: Number(e.target.value),
-                            } as IQuery)
+                          ({
+                            ...prev,
+                            phoneNo: Number(e.target.value),
+                          } as IQuery)
                         )
                       }
                       disabled={editDisabled}
@@ -199,9 +200,8 @@ const QueryDetails = ({ params }: PageProps) => {
                     {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
                       <div>
                         <Pencil
-                          className={`p-2 border rounded-md cursor-pointer ${
-                            editDisabled ? " text-gray-700" : "text-white"
-                          }`}
+                          className={`p-2 border rounded-md cursor-pointer ${editDisabled ? " text-gray-700" : "text-white"
+                            }`}
                           size={44}
                           onClick={() => setEditDisabled((prev) => !prev)}
                         />
@@ -235,10 +235,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onChange={(e) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            area: e.target.value,
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          area: e.target.value,
+                        } as IQuery)
                       )
                     }
                   />
@@ -254,10 +254,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onChange={(e) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            guest: Number(e.target.value),
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          guest: Number(e.target.value),
+                        } as IQuery)
                       )
                     }
                   />
@@ -303,10 +303,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onChange={(e) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            noOfBeds: Number(e.target.value),
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          noOfBeds: Number(e.target.value),
+                        } as IQuery)
                       )
                     }
                   />
@@ -321,10 +321,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onChange={(e) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            location: e.target.value,
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          location: e.target.value,
+                        } as IQuery)
                       )
                     }
                   />
@@ -336,10 +336,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onValueChange={(value) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            propertyType: value,
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          propertyType: value,
+                        } as IQuery)
                       )
                     }
                   >
@@ -362,10 +362,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     onValueChange={(value) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            billStatus: value,
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          billStatus: value,
+                        } as IQuery)
                       )
                     }
                   >
@@ -386,10 +386,10 @@ const QueryDetails = ({ params }: PageProps) => {
                     setDate={(date) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            startDate: date.toLocaleString(),
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          startDate: date.toLocaleString(),
+                        } as IQuery)
                       )
                     }
                     disabled={editDisabled}
@@ -403,15 +403,27 @@ const QueryDetails = ({ params }: PageProps) => {
                     setDate={(date) =>
                       setApiData(
                         (prev) =>
-                          ({
-                            ...prev,
-                            endDate: date.toLocaleString(),
-                          } as IQuery)
+                        ({
+                          ...prev,
+                          endDate: date.toLocaleString(),
+                        } as IQuery)
                       )
                     }
                     disabled={editDisabled}
                   />
                 </div>
+                {apiData?.rejectionReason &&
+                  (
+                    <div>
+                      <div className=" flex items-center gap-x-2 text-neutral-500">
+                        <p className=" font-medium text-lg">Rejection Reason:</p>
+                        <p>{apiData.rejectionReason}</p>
+                      </div>
+                      <Button onClick={() => retrieveLead(apiData?._id ?? "")}>
+                        Remove Lead from Rejected
+                      </Button>
+                    </div>
+                  )}
                 {!editDisabled && (
                   <div className=" flex justify-end">
                     <Button className=" px-8" onClick={handleUpdate}>
@@ -422,8 +434,8 @@ const QueryDetails = ({ params }: PageProps) => {
               </div>
               {(token?.email === "harshit2003gtm@gmail.com" ||
                 token?.role === "SuperAdmin") && (
-                <p className=" text-gray-500">Created By: {apiData?.createdBy}</p>
-              )}
+                  <p className=" text-gray-500">Created By: {apiData?.createdBy}</p>
+                )}
             </Card>
           </div>
         )}

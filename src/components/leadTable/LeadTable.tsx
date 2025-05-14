@@ -107,7 +107,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
 
   const IsView = async (id: any, index: any) => {
     try {
-      const ApiRespone = await axios.post("/api/sales/queryStatusUpdate", {
+      await axios.post("/api/sales/queryStatusUpdate", {
         id,
       });
       toast({
@@ -255,9 +255,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableRow
               key={query?._id}
               className={`
-              ${
-                query?.isViewed ? "bg-transparent hover:bg-transparent" : "bg-neutral-700"
-              }
+              ${query?.isViewed ? "bg-transparent hover:bg-transparent" : "bg-neutral-700"
+                }
               relative
             `}
             >
@@ -291,15 +290,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               )}
               <TableCell className="flex gap-x-1">
                 <Badge
-                  className={` ${
-                    query.priority === "ASAP"
-                      ? "bg-green-950"
-                      : query.priority === "High"
+                  className={` ${query.priority === "ASAP"
+                    ? "bg-green-950"
+                    : query.priority === "High"
                       ? "bg-green-500"
                       : query.priority === "Medium"
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
-                  } relative`}
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    } relative`}
                 >
                   <p className="text-white">{query?.name}</p>
                 </Badge>
@@ -309,15 +307,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       query?.bookingTerm === "Long Term"
                         ? "L"
                         : query?.bookingTerm === "Mid Term"
-                        ? "M"
-                        : "S"
+                          ? "M"
+                          : "S"
                     }
                     desc={
                       query?.bookingTerm === "Long Term"
                         ? "Long Term"
                         : query?.bookingTerm === "Mid Term"
-                        ? "Mid Term"
-                        : "Short Term"
+                          ? "Mid Term"
+                          : "Short Term"
                     }
                   />
                 </Badge>
@@ -352,15 +350,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         query?.propertyType === "Furnished"
                           ? "F"
                           : query?.propertyType === "Semi-furnished"
-                          ? "SF"
-                          : "UF"
+                            ? "SF"
+                            : "UF"
                       }
                       desc={
                         query?.propertyType === "Furnished"
                           ? "Furnished"
                           : query?.propertyType === "Semi-furnished"
-                          ? "Semi Furnished"
-                          : "Un Furnished"
+                            ? "Semi Furnished"
+                            : "Un Furnished"
                       }
                     />
                   </Badge>
@@ -396,23 +394,23 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         query?.zone === "East"
                           ? "E"
                           : query?.zone === "West"
-                          ? "W"
-                          : query?.zone === "North"
-                          ? "N"
-                          : query?.zone === "South"
-                          ? "S"
-                          : "C"
+                            ? "W"
+                            : query?.zone === "North"
+                              ? "N"
+                              : query?.zone === "South"
+                                ? "S"
+                                : "C"
                       }
                       desc={
                         query?.zone === "East"
                           ? "East"
                           : query?.zone === "West"
-                          ? "West"
-                          : query?.zone === "North"
-                          ? "North"
-                          : query?.zone === "South"
-                          ? "South"
-                          : "Center"
+                            ? "West"
+                            : query?.zone === "North"
+                              ? "North"
+                              : query?.zone === "South"
+                                ? "South"
+                                : "Center"
                       }
                     />
                   </Badge>
@@ -685,6 +683,26 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             >
                               Didn&apos;t like the option
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() =>
+                              handleRejectionReason(
+                                "Defferent Area",
+                                query?._id,
+                                index
+                              )
+                            }>
+                              Different Area
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={() =>
+                              handleRejectionReason(
+                                "Agency Fees",
+                                query?._id,
+                                index
+                              )
+                            }>
+                              Agency Fees
+                            </DropdownMenuItem>
+
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -695,11 +713,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   <Dialog>
                     <DialogTrigger>
                       <p
-                        className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
-                          query?.note && query?.note?.length > 0
-                            ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
-                            : "bg-white/20 text-white"
-                        } text-sm font-bold `}
+                        className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${query?.note && query?.note?.length > 0
+                          ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
+                          : "bg-white/20 text-white"
+                          } text-sm font-bold `}
                       >
                         {/* <span>N</span>
                         <span>O</span>
@@ -753,6 +770,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </div >
   );
 }

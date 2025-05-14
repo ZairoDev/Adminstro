@@ -3,41 +3,41 @@
 import axios from "axios";
 import debounce from "lodash.debounce";
 import { useCallback, useEffect, useState } from "react";
+import { LucideLoader, SlidersHorizontal } from "lucide-react";
 
-import { useToast } from "@/hooks/use-toast";
 
-import { IQuery } from "@/util/type";
-import { Input } from "@/components/ui/input";
-import LeadTable from "@/components/leadTable/LeadTable";
 import {
   Pagination,
+  PaginationLink,
+  PaginationItem,
   PaginationContent,
   PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
 } from "@/components/ui/pagination";
 import {
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectTrigger,
+  SelectContent,
 } from "@/components/ui/select";
 import {
   Sheet,
+  SheetTitle,
   SheetClose,
-  SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
-  SheetTitle,
+  SheetContent,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet";
+import { IQuery } from "@/util/type";
 import Heading from "@/components/Heading";
-import { Button } from "@/components/ui/button";
-import { LucideLoader, SlidersHorizontal } from "lucide-react";
 import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
+import LeadTable from "@/components/leadTable/LeadTable";
 
 export interface FetchQueryParams {
   searchTerm: string;
@@ -56,7 +56,7 @@ const RejectedLeads = () => {
   const limit = 12;
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  const [area, setArea] = useState("");
+  const [area, setArea] = useState(token?.allotedArea ?? "");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState("name");
   const [dateFilter, setDateFilter] = useState("all");
@@ -209,23 +209,28 @@ const RejectedLeads = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             <div className="w-[200px]">
-              <Select
-                onValueChange={(value: string) => {
-                  setArea(value);
-                  setSearchTerm("");
-                }}
-                value={area}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Area" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="chania">Chania</SelectItem>
-                  <SelectItem value="athens">Athens</SelectItem>
-                  <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                  <SelectItem value="corfu">Corfu</SelectItem>
-                </SelectContent>
-              </Select>
+              {(token?.role == "SuperAdmin" ||
+                token?.email == "vikas@vacationsaga.com" ||
+                token?.email == "harshit2003gtm@gmail.com") && (
+                  <Select
+                    onValueChange={(value: string) => {
+                      setArea(value);
+                      setSearchTerm("");
+                    }}
+                    value={area}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chania">Chania</SelectItem>
+                      <SelectItem value="athens">Athens</SelectItem>
+                      <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
+                      <SelectItem value="corfu">Corfu</SelectItem>
+                      <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
             </div>
             <div className="">
               <Select

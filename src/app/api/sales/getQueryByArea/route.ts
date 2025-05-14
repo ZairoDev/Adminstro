@@ -28,6 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const token = await getDataFromToken(request);
     const assignedArea = token.allotedArea;
+    console.log("assignedArea", assignedArea);
 
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;

@@ -11,23 +11,18 @@ export async function POST(request: NextRequest) {
     const { id } = body;
 
     if (!id) {
-      return NextResponse.json(
-        { message: "Query ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Query ID is required" }, { status: 400 });
     }
 
     if (!Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { message: "Invalid query ID format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid query ID format" }, { status: 400 });
     }
 
     const updatedQuery = await Query.findByIdAndUpdate(
       id,
       { isViewed: true },
-      { new: true }
+      { timestamps: false },
+      // { new: true }
     );
 
     if (!updatedQuery) {

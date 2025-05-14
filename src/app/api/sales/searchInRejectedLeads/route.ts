@@ -1,6 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-import Query from "@/models/query";
-import { connectDb } from "@/util/db";
 import {
   subDays,
   addHours,
@@ -9,7 +6,10 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
-import { FetchQueryParams } from "@/app/dashboard/rejectedleads/page";
+import { NextRequest, NextResponse } from "next/server";
+
+import Query from "@/models/query";
+import { connectDb } from "@/util/db";
 
 connectDb();
 
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       endDate,
       allocatedArea: allotedArea,
     } = await request.json();
+
     const skip = (page - 1) * limit;
 
     const regex = new RegExp(searchTerm, "i");

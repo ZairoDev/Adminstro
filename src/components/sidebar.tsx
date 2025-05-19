@@ -68,6 +68,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
   ],
+  LeadGen: [
+    {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
+    },
+  ],
   Admin: [
     {
       path: "/dashboard/user",
@@ -339,11 +346,10 @@ export function Sidebar() {
     return routes.map((route) => (
       <li
         key={route.path}
-        className={`${
-          isActive(currentPath, route.path)
-            ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
-            : ""
-        } text-sm`}
+        className={`${isActive(currentPath, route.path)
+          ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
+          : ""
+          } text-sm`}
       >
         <Link
           href={route.path}

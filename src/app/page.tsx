@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { useAuthStore } from "@/AuthStore";
 import { Navbar } from "@/components/navbar";
+import { defaultRoutes } from "@/middleware";
 import FadeInBlur from "@/components/FadeInBlur";
 import DashboardCard from "@/components/DashBoardCard";
 import { RainbowButton } from "@/components/ui/rainbow-button";
@@ -40,6 +41,7 @@ export default function HomePage() {
 
   const { token } = useAuthStore();
 
+
   return (
     <>
       <Navbar />
@@ -66,7 +68,7 @@ export default function HomePage() {
       </FadeInBlur>
 
       <div className="flex items-center mt-2 justify-center">
-        <>
+        {/* <>
           {token ? (
             token.role === "Sales" ? (
               <Link href="/dashboard/rolebaseLead">
@@ -110,8 +112,24 @@ export default function HomePage() {
               <RainbowButton>Login</RainbowButton>
             </Link>
           )}
+        </> */}
+
+        <>
+          {token ? (
+            <Link href={`${defaultRoutes[token?.role || "Default"]}`}>
+              <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Dashboard
+              </RainbowButton>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <RainbowButton>Login</RainbowButton>
+            </Link>
+          )}
         </>
-      </div>
+
+      </div >
+
       <div className="max-w-5xl m-auto mt-4 p-2">
         <div className=" relative flex  w-full flex-col items-center justify-center overflow-hidden rounded-lg  border-[10px]  md:shadow-xl">
           <FadeInBlur>
@@ -123,7 +141,7 @@ export default function HomePage() {
           </FadeInBlur>
           <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background to-transparent"></div>
         </div>
-      </div>
+      </div >
       <div className="max-w-7xl m-auto p-2">
         <DashboardCard />
       </div>

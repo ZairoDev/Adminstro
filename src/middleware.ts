@@ -40,6 +40,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/newproperty\/.*$/,
     /^\/dashboard\/newproperty\/editPortionAvailability\/.*$/,
   ],
+  LeadGen: ["/", "/dashboard/createquery"],
   Content: [
     "/",
     /^\/dashboard\/createblog$/,
@@ -72,9 +73,10 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Guest: ["/dashboard/guest-window"],
   "Subscription-Sales": ["/", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
 };
-const defaultRoutes: { [key: string]: string } = {
+export const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
   Admin: "/dashboard/user",
+  LeadGen: "/dashboard/createquery",
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
   Sales: "/dashboard/rolebaseLead",
@@ -82,6 +84,7 @@ const defaultRoutes: { [key: string]: string } = {
   Agent: "/dashboard/sales-offer",
   Guest: "/dashboard/guest-window",
   "Subscription-Sales": "/dashboard/sales-offer",
+  Default: "/dashboard",
 };
 const publicRoutes = [
   "/",

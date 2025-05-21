@@ -5,6 +5,7 @@ import { getDataFromToken } from "./util/getDataFromToken";
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
     "/",
+    /^\/.*$/,
     "/admin",
     "/superadmin",
     "/dashboard",

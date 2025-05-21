@@ -150,3 +150,87 @@ export const getLeadsByAgent = async (
 
   return { serializedLeads, totalLeads };
 };
+
+export const getDashboardData = async () => {
+  const tempData = await Query.aggregate([
+    {
+      $group: {
+        _id: "$createdBy",
+        totalLeads: { $sum: 1 },
+        byQuality: {
+          $push: "$leadQualityByReviewer",
+        },
+        athensCount: {
+          $sum: {
+            $cond: [{ $eq: ["$location", "athens"] }, 1, 0],
+          },
+        },
+        chaniaCount: {
+          $sum: {
+            $cond: [{ $eq: ["$location", "chania"] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+  console.log("temp Data: ", tempData);
+
+  const dashboardData = await Query.aggregate([
+    {
+      $group: {
+        _id: "$createdBy",
+        totalLeads: { $sum: 1 },
+        byQuality: {
+          // $push: "$leadQualityByReviewer",
+          $push: {
+            $cond: [
+              { $ne: ["$leadQualityByReviewer", null] },
+              "$leadQualityByReviewer",
+              "$$REMOVE",
+            ],
+          },
+        },
+        athensCount: {
+          $sum: {
+            $cond: [{ $eq: ["$location", "athens"] }, 1, 0],
+          },
+        },
+        chaniaCount: {
+          $sum: {
+            $cond: [{ $eq: ["$location", "chania"] }, 1, 0],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        employee: "$_id",
+        totalLeads: 1,
+        leadQualityCounts: {
+          $arrayToObject: {
+            $map: {
+              input: { $setUnion: ["$byQuality"] },
+              as: "quality",
+              in: {
+                k: "$$quality",
+                v: {
+                  $size: {
+                    $filter: {
+                      input: "$byQuality",
+                      as: "q",
+                      cond: { $eq: ["$$q", "$$quality"] },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        athensCount: 1,
+        chaniaCount: 1,
+      },
+    },
+  ]);
+
+  return { dashboardData };
+};

@@ -82,7 +82,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const [creatingNote, setCreatingNote] = useState(false);
 
   const handleQualityChange = async (
-    leadQualityByReviwer: string,
+    leadQualityByReviewer: string,
     id: any,
     index: number
   ) => {
@@ -90,12 +90,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     try {
       const response = axios.post("/api/sales/reviewLeadQuality", {
         id,
-        leadQualityByReviwer,
+        leadQualityByReviewer,
       });
       toast({
         description: "Status updated succefully",
       });
-      queries[index].leadQualityByReviwer = leadQualityByReviwer;
+      queries[index].leadQualityByReviewer = leadQualityByReviewer;
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -424,7 +424,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         <Loader2 size={18} className="animate-spin" />
                       ) : (
                         <Button variant="ghost">
-                          {query.leadQualityByReviwer || "Review"}
+                          {query.leadQualityByReviewer || "Review"}
                         </Button>
                       )}
                     </DropdownMenuTrigger>

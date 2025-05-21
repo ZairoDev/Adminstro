@@ -13,12 +13,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const validLeadQualities = [
-      "Good",
-      "Very Good",
-      "Average",
-      "Below Average",
-    ];
+    const validLeadQualities = ["Good", "Very Good", "Average", "Below Average"];
     if (!validLeadQualities.includes(leadQualityByReviwer)) {
       return NextResponse.json(
         { success: false, message: "Invalid leadQuality value" },
@@ -26,9 +21,10 @@ export async function POST(req: Request) {
       );
     }
     const updatedQuery = await Query.findByIdAndUpdate(
-        id,
+      id,
       { leadQualityByReviwer },
-      { new: true }
+      { timestamps: false }
+      // { new: true },
     );
     if (!updatedQuery) {
       return NextResponse.json(
@@ -36,15 +32,9 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
-    return NextResponse.json(
-      { success: true, data: updatedQuery },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, data: updatedQuery }, { status: 200 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }

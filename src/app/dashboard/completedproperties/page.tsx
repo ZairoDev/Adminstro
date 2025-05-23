@@ -22,7 +22,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Property } from "@/util/type";
 import Link from "next/link";
 import CustomTooltip from "@/components/CustomToolTip";
-import { DonutChart } from "@/components/charts/DonutChart";
+// import { DonutChart } from "@/components/charts/DonutChart";
 import Heading from "@/components/Heading";
 import CardLoader from "@/components/CardLoader";
 
@@ -193,14 +193,14 @@ const CompletedProperties: React.FC = () => {
         ) : (
           <div className=" mb-4">
             <div className=" ">       
-              <DonutChart
+              {/* <DonutChart
                 title="Total Properties"
                 data={chartData}
                 totalCount={totalProperties}
                 totalCountTitle="Properties"
                 footerText1={`Total Words: ${totalWords}`}
                 footerText2={`Total Properties: ${totalNumberOfProperties}`}
-              />
+              /> */}
             </div>
             <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
               {properties.map((property) => (

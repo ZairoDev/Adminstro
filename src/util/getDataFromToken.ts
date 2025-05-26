@@ -10,9 +10,9 @@ export const getDataFromToken = async (request: NextRequest) => {
     return payload;
   } catch (error: any) {
     console.log("errrrrror: ", error);
-    if (error instanceof Error) {
-      if ((error.name = "JWTExpired")) redirect("/norole");
-    }
+    // if (error instanceof Error) {
+    //   if (error.name === "JWTExpired") redirect("/norole");
+    // }
     throw new Error("Token Expired");
   }
 };

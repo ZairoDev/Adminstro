@@ -16,7 +16,7 @@ const useDashboardData = () => {
     setError("");
     try {
       const response = await getDashboardData();
-      console.log("dathboard data: ", response);
+      // console.log("dathboard data: ", response);
       setDashboardData(response.dashboardData);
     } catch (err: any) {
       const error = new Error(err);

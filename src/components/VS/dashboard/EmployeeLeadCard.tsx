@@ -2,7 +2,9 @@ import { Mail, MapPin } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Chart, ChartContainer, ChartBar, ChartGroup } from "@/components/ui/chart"
+import { CustomBarChart } from "@/components/charts/BarChart"
+import { CustomLabelledBarChart } from "@/components/charts/LabelledBarChart"
+// import { Chart, ChartContainer, ChartBar, ChartGroup } from "@/components/ui/chart"
 
 interface LeadQualityCounts {
   Average: number
@@ -23,9 +25,10 @@ interface EmployeeLeadData {
 export function EmployeeLeadCard({ data }: { data: EmployeeLeadData }) {
   // Transform lead quality data for the chart
   const qualityData = Object.entries(data.leadQualityCounts).map(([quality, count]) => ({
-    name: quality,
-    value: count,
+    label: quality,
+    count: count,
   }))
+  console.log("qualityData: ", qualityData);
 
   // Calculate percentages for Athens and Chania
   const athensPercentage = Math.round((data.athensCount / data.totalLeads) * 100) || 0
@@ -34,6 +37,8 @@ export function EmployeeLeadCard({ data }: { data: EmployeeLeadData }) {
   // Calculate other leads (if any)
   const otherLeads = data.totalLeads - (data.athensCount + data.chaniaCount)
   const otherPercentage = Math.round((otherLeads / data.totalLeads) * 100) || 0
+
+  const totalReviewedLeads = qualityData.reduce((acc, item) => acc + item.count, 0)
 
   return (
     <Card className="overflow-hidden">
@@ -96,40 +101,32 @@ export function EmployeeLeadCard({ data }: { data: EmployeeLeadData }) {
                   </div>
                 </div>
               )}
+
+              <div className=" text-xs">
+                <h3>Reviewed: {totalReviewedLeads.toLocaleString()}</h3>
+                <h3>UnReviewed: {(data.totalLeads - totalReviewedLeads).toLocaleString()}</h3>
+              </div>
+
             </div>
           </div>
 
           {/* Lead quality visualization */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Lead Quality</h3>
-            <div className="h-[120px]">
-              <ChartContainer>
-                <Chart>
-                  <ChartGroup>
-                    {qualityData.map((item) => (
-                      <ChartBar
-                        key={item.name}
-                        data={[item]}
-                        dataKey="value"
-                        nameKey="name"
-                        fill={getQualityColor(item.name)}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    ))}
-                  </ChartGroup>
-                </Chart>
-              </ChartContainer>
-            </div>
+            {/* <h3 className="text-sm font-medium text-muted-foreground">Lead Quality</h3> */}
             <div className="flex flex-wrap gap-2 mt-2">
               {qualityData.map((item) => (
-                <div key={item.name} className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getQualityColor(item.name) }} />
+                <div key={item.label} className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getQualityColor(item.label) }} />
                   <span className="text-xs">
-                    {item.name}: {item.value}
+                    {item.label}: {item.count}
                   </span>
                 </div>
               ))}
             </div>
+            <div>
+              {qualityData.length > 0 && <CustomLabelledBarChart heading="Lead Quality" subHeading="Quality Breakdown" chartData={qualityData} />}
+            </div>
+
           </div>
         </div>
       </CardContent>

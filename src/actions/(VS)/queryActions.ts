@@ -1,8 +1,10 @@
 "use server";
 
+import { DateRange } from "react-day-picker";
+
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
-import { DateRange } from "react-day-picker";
+import Employees from "@/models/employee";
 
 connectDb();
 
@@ -173,7 +175,6 @@ export const getDashboardData = async () => {
       },
     },
   ]);
-  console.log("temp Data: ", tempData);
 
   const dashboardData = await Query.aggregate([
     {
@@ -233,4 +234,66 @@ export const getDashboardData = async () => {
   ]);
 
   return { dashboardData };
+};
+
+export const getTodayLeads = async () => {
+  const today = new Date();
+  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+  const pipeline = [
+    {
+      $match: {
+        createdAt: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          agent: "$createdBy",
+          location: "$location",
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.agent",
+        locations: {
+          $push: {
+            location: "$_id.location",
+            count: "$count",
+          },
+        },
+        total: { $sum: "$count" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        agent: "$_id",
+        total: 1,
+        locations: 1,
+      },
+    },
+  ];
+
+  const todayLeads = await Query.aggregate(pipeline);
+
+  const leadsByAgentName = await Promise.all(
+    todayLeads.map(async (lead) => {
+      const employee = await Employees.findOne({ email: lead.agent });
+      return {
+        ...lead,
+        createdBy: employee?.name,
+      };
+    })
+  );
+
+  const totalLeads = todayLeads.reduce((acc, lead) => acc + lead.total, 0);
+
+  return { serializedLeads: leadsByAgentName, totalLeads };
 };

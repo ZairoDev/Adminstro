@@ -1,37 +1,19 @@
 "use client";
 
+import {
+  Bed,
+  Euro,
+  Users,
+  Pencil,
+  MapPin,
+  Loader2,
+  FileText,
+  CalendarIcon,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import {
-  Bed,
-  Copy,
-  Euro,
-  Flag,
-  Home,
-  User,
-  Users,
-  House,
-  MapPin,
-  Loader2,
-  KeyRound,
-  Building,
-  Calendar,
-  CalendarIcon,
-  HomeIcon,
-  FileText,
-  Pencil,
-} from "lucide-react";
 
-import { IQuery } from "@/util/type";
-import { useAuthStore } from "@/AuthStore";
-import Heading from "@/components/Heading";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -39,10 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import DatePicker from "@/components/DatePicker";
+import { IQuery } from "@/util/type";
 import { toast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/AuthStore";
+import Heading from "@/components/Heading";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/DatePicker";
 import { Toaster } from "@/components/ui/toaster";
-import { preventContextMenu } from "@fullcalendar/core/internal";
 
 interface PageProps {
   params: {
@@ -58,26 +47,27 @@ const QueryDetails = ({ params }: PageProps) => {
   const [leadsOfSameCustomer, setLeadsOfSameCustomer] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState(false);
   const [retrieveLeadLoading, setRetrieveLeadLoading] = useState(false);
-  const [leadQuality, setLeadQuality] = useState<string>("");
-  const [saveLoading, setSaveLoading] = useState(false);
+  // const [leadQuality, setLeadQuality] = useState<string>("");
+  // const [saveLoading, setSaveLoading] = useState(false);
   const [editDisabled, setEditDisabled] = useState(true);
   const [budgetTo, setBudgetTo] = useState(0);
   const [budgetFrom, setBudgetFrom] = useState(0);
+  const [createdByEmail, setCreatedByEmail] = useState<string>("");
 
-  const handleSave = async () => {
-    try {
-      setSaveLoading(true);
-      await axios.post("/api/sales/reviewLeadQuality", {
-        id,
-        leadQuality,
-      });
-      alert("Lead quality updated successfully.");
-    } catch (err) {
-      alert("Failed to update lead quality. Please try again.");
-    } finally {
-      setSaveLoading(false);
-    }
-  };
+  // const handleSave = async () => {
+  //   try {
+  //     setSaveLoading(true);
+  //     await axios.post("/api/sales/reviewLeadQuality", {
+  //       id,
+  //       leadQuality,
+  //     });
+  //     alert("Lead quality updated successfully.");
+  //   } catch (err) {
+  //     alert("Failed to update lead quality. Please try again.");
+  //   } finally {
+  //     setSaveLoading(false);
+  //   }
+  // };
 
   const response = async () => {
     try {
@@ -113,6 +103,7 @@ const QueryDetails = ({ params }: PageProps) => {
     setBudgetFrom(Number(apiData?.budget?.split(" to ")[0] ?? 0));
     setBudgetTo(Number(apiData?.budget?.split(" to ")[1] ?? 0));
     getQueryByPhoneNumber();
+    fetchEmployeeDetails();
   }, [apiData]);
 
   const retrieveLead = async (leadId: string) => {
@@ -147,6 +138,18 @@ const QueryDetails = ({ params }: PageProps) => {
       });
     } catch (err: any) {
       console.log("error in updating lead: ", err);
+    }
+  };
+
+  const fetchEmployeeDetails = async () => {
+    if (!apiData?.createdBy) return;
+    try {
+      const response = await axios.post("/api/employee/getEmployeeByEmail", {
+        email: apiData.createdBy,
+      });
+      setCreatedByEmail(response.data.data.name);
+    } catch (err: any) {
+      console.log("error in fetching employee details: ", err);
     }
   };
 
@@ -434,7 +437,7 @@ const QueryDetails = ({ params }: PageProps) => {
               </div>
               {(token?.email === "harshit2003gtm@gmail.com" ||
                 token?.role === "SuperAdmin") && (
-                  <p className=" text-gray-500">Created By: {apiData?.createdBy}</p>
+                  <p className=" text-gray-500">Created By: {createdByEmail}</p>
                 )}
             </Card>
           </div>

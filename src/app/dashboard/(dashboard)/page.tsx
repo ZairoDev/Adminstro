@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
 import useLeads from "@/hooks/(VS)/useLeads";
@@ -10,6 +10,8 @@ import { LeadsByAgent } from "@/components/VS/dashboard/lead-by-agents";
 import { DatePickerWithRange } from "@/components/Date-picker-with-range";
 import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
+import useTodayLeads from "@/hooks/(VS)/useTodayLead";
 
 // import { getRandomColor } from "@/lib/utils";
 // import { LabelledPieChart } from "@/components/charts/LabelledPieChart";
@@ -22,6 +24,21 @@ const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   const { leads, isLoading, isError, error, refetch } = useLeads({ date });
+  const {
+    leads: todayLeads,
+    totalLeads: totalTodayLeads,
+    refetch: refetchTodayLeads,
+    isLoading: isLoadingTodayLeads
+  } = useTodayLeads();
+
+
+  const todaysLeadChartData = todayLeads?.map((lead) => {
+    const label = lead.createdBy;
+    const categories = lead.locations.map((location) => ({ field: location.location, count: location.count }));
+    return { label, categories }
+  })
+
+  // console.log("today leads by agent: ", todayLeadsByAgent)
 
   if (isLoading) {
     return (
@@ -43,12 +60,6 @@ const Dashboard = () => {
     return null;
   }
 
-  // const chartData = leads.leadsByLocation.map((item) => ({
-  //   label: item._id,
-  //   count: item.count,
-  //   fill: getRandomColor(),
-  // }));
-
   return (
 
     <div className="container mx-auto p-4 md:p-6">
@@ -58,6 +69,20 @@ const Dashboard = () => {
       <div className="flex justify-end gap-x-4">
         <DatePickerWithRange date={date} setDate={setDate} />
         <Button onClick={refetch}>Refresh</Button>
+      </div>
+
+      {/* Daily Leads by Agent */}
+      <div className=" w-full flex justify-center relative">
+        <CustomStackBarChart
+          heading={`Today Leads - ${totalTodayLeads}`}
+          subHeading="Leads by Agent"
+          chartData={todaysLeadChartData ? todaysLeadChartData : []} />
+        <Button
+          size={"sm"}
+          onClick={refetchTodayLeads}
+          className="absolute top-2 right-60">
+          <RotateCw className={`${isLoadingTodayLeads ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
 

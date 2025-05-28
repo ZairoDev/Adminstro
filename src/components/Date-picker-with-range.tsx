@@ -26,6 +26,8 @@ export function DatePickerWithRange({ date, setDate, className }: DatePickerWith
   //   to: addDays(new Date(2022, 0, 20), 20),
   // });
 
+  console.log("date: ", date);
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>

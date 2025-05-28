@@ -1,7 +1,7 @@
 "use client"
 
 import { TrendingUp } from "lucide-react"
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts"
 
 import {
   Card,
@@ -33,24 +33,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-interface LabelledBarChartProps {
-  heading: string;
-  subHeading?: string;
-  chartData: {
-    label: string;
-    count: number;
-  }[];
-  footer?: string;
-}
-
-export function CustomLabelledBarChart({ heading, subHeading, chartData, footer }: LabelledBarChartProps) {
+export function CustomBarChart() {
   return (
     <Card>
-      <CardHeader className="p-1">
-        <CardTitle className=" text-base ">{heading}</CardTitle>
-        <CardDescription className=" text-xs">{subHeading}</CardDescription>
+      <CardHeader>
+        <CardTitle>Bar Chart - Label</CardTitle>
+        <CardDescription>January - June 2024</CardDescription>
       </CardHeader>
-      <CardContent className="">
+      <CardContent>
         <ChartContainer config={chartConfig}>
           <BarChart
             accessibilityLayer
@@ -61,7 +51,7 @@ export function CustomLabelledBarChart({ heading, subHeading, chartData, footer 
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="label"
+              dataKey="month"
               tickLine={false}
               tickMargin={10}
               axisLine={false}
@@ -71,12 +61,8 @@ export function CustomLabelledBarChart({ heading, subHeading, chartData, footer 
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
             />
-            <Bar dataKey="count" radius={8}>
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getQualityColor(entry.label)} />
-              ))}
+            <Bar dataKey="desktop" fill="var(--color-desktop)" radius={8}>
               <LabelList
-                dataKey={"count"}
                 position="top"
                 offset={12}
                 className="fill-foreground"
@@ -87,28 +73,13 @@ export function CustomLabelledBarChart({ heading, subHeading, chartData, footer 
         </ChartContainer>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className=" w-full flex justify-center gap-2 text-sm font-medium leading-none">
-          {footer}
+        <div className="flex gap-2 font-medium leading-none">
+          Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+        </div>
+        <div className="leading-none text-muted-foreground">
+          Showing total visitors for the last 6 months
         </div>
       </CardFooter>
     </Card>
   )
-}
-
-
-
-// Helper function to get color based on quality
-function getQualityColor(quality: string): string {
-  switch (quality) {
-    case "Very Good":
-      return "#10b981" // green-500
-    case "Good":
-      return "#60a5fa" // blue-400
-    case "Average":
-      return "#f59e0b" // amber-500
-    case "Below Average":
-      return "#ef4444" // red-500
-    default:
-      return "#94a3b8" // slate-400
-  }
 }

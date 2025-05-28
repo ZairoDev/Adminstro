@@ -69,7 +69,7 @@ const querySchema = new Schema(
       type: String,
       enum: ["With Bill", "Without Bill"],
     },
-    leadQualityByReviwer: {
+    leadQualityByReviewer: {
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
       default: null,

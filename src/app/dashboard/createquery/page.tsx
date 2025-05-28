@@ -992,7 +992,7 @@ const SalesDashboard = () => {
                 <div key={query._id}>
                   <QueryCard
                     name={query.name}
-                    leadQualityByReviwer={query.leadQualityByReviwer}
+                    leadQualityByReviewer={query.leadQualityByReviewer}
                     email={query.email}
                     duration={query.duration}
                     startDate={query.startDate}

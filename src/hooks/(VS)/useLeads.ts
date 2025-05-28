@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { DateRange } from "react-day-picker";
 
 import { getGroupedLeads } from "@/actions/(VS)/queryActions";
-import { DateRange } from "react-day-picker";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -21,7 +21,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [error, setError] = useState("");
 
   // Fetch Leads
-  const fetchLeads = async () => {
+  const fetchLeads = async ({ date }: { date: DateRange | undefined }) => {
     setIsLoading(true);
     setIsError(false);
     setError("");
@@ -38,10 +38,11 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   };
 
   useEffect(() => {
-    fetchLeads();
+    fetchLeads({ date });
   }, []);
 
-  const refetch = () => fetchLeads();
+  const refetch = () => fetchLeads({ date });
+  const reset = () => fetchLeads({ date: undefined });
 
   return {
     leads,
@@ -49,6 +50,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     isError,
     error,
     refetch,
+    reset,
   };
 };
 

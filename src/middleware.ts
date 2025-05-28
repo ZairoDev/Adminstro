@@ -134,9 +134,12 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch (error: any) {
-      console.error("Error getting role from token:", error);
+      console.error("Error getting role from token:", error, error.message);
       if (error.message === "Token Expired") {
-        return NextResponse.redirect(new URL("/norole", request.url));
+        const response = NextResponse.redirect(new URL("/login", request.url));
+        response.cookies.delete("token");
+        return response;
+        // return NextResponse.redirect(new URL("/norole", request.url));
       }
       return NextResponse.redirect(new URL("/login", request.url));
     }

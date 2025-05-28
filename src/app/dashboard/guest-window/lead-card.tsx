@@ -99,7 +99,7 @@ export function LeadCard({ lead }: LeadCardProps) {
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500 dark:text-white" />
                     <p className=" text-gray-500 dark:text-white">{lead.name}</p>
-                    {lead.leadQualityByReviwer && (
+                    {lead.leadQualityByReviewer && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>

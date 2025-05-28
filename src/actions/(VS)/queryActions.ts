@@ -153,30 +153,12 @@ export const getLeadsByAgent = async (
   return { serializedLeads, totalLeads };
 };
 
-export const getDashboardData = async () => {
-  const tempData = await Query.aggregate([
+export const getDashboardData = async ({ date }: { date: DateRange | undefined }) => {
+  const filters = date ? { createdAt: { $gte: date.from, $lte: date.to } } : {};
+  const dashboardLeads = await Query.aggregate([
     {
-      $group: {
-        _id: "$createdBy",
-        totalLeads: { $sum: 1 },
-        byQuality: {
-          $push: "$leadQualityByReviewer",
-        },
-        athensCount: {
-          $sum: {
-            $cond: [{ $eq: ["$location", "athens"] }, 1, 0],
-          },
-        },
-        chaniaCount: {
-          $sum: {
-            $cond: [{ $eq: ["$location", "chania"] }, 1, 0],
-          },
-        },
-      },
+      $match: filters,
     },
-  ]);
-
-  const dashboardData = await Query.aggregate([
     {
       $group: {
         _id: "$createdBy",
@@ -232,6 +214,16 @@ export const getDashboardData = async () => {
       },
     },
   ]);
+
+  const dashboardData = await Promise.all(
+    dashboardLeads.map(async (lead) => {
+      const employee = await Employees.findOne({ email: lead._id });
+      return {
+        ...lead,
+        employee: employee?.name,
+      };
+    })
+  );
 
   return { dashboardData };
 };

@@ -1,0 +1,16 @@
+name: Linting and Formatting on push Request
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+
+  Continuous-Integration:
+
+    name: Performs linting, formatting on the Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3

@@ -1,29 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, RotateCw } from "lucide-react";
 import { DateRange } from "react-day-picker";
+import { Loader2, RotateCw } from "lucide-react";
 
 import useLeads from "@/hooks/(VS)/useLeads";
 import { Button } from "@/components/ui/button";
+import useTodayLeads from "@/hooks/(VS)/useTodayLead";
 import { LeadsByAgent } from "@/components/VS/dashboard/lead-by-agents";
 import { DatePickerWithRange } from "@/components/Date-picker-with-range";
+import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
-import useTodayLeads from "@/hooks/(VS)/useTodayLead";
-
-// import { getRandomColor } from "@/lib/utils";
-// import { LabelledPieChart } from "@/components/charts/LabelledPieChart";
-// import { LabelledBarChart } from "@/components/charts/LabelledBarChart";
-// import useLeadsGroupedByAgents from "@/hooks/(VS)/useLeadsGroupedByAgents";
-// import useLeadsGroupedByLocation from "@/hooks/(VS)/useLeadsGroupedByLocation";
 
 const Dashboard = () => {
 
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
-  const { leads, isLoading, isError, error, refetch } = useLeads({ date });
+  const { leads, isLoading, isError, error, refetch, reset } = useLeads({ date });
   const {
     leads: todayLeads,
     totalLeads: totalTodayLeads,
@@ -37,8 +31,6 @@ const Dashboard = () => {
     const categories = lead.locations.map((location) => ({ field: location.location, count: location.count }));
     return { label, categories }
   })
-
-  // console.log("today leads by agent: ", todayLeadsByAgent)
 
   if (isLoading) {
     return (
@@ -65,27 +57,34 @@ const Dashboard = () => {
     <div className="container mx-auto p-4 md:p-6">
       <h1 className="text-3xl font-bold mb-6">Lead Generation Dashboard</h1>
 
-      {/* Date Filter */}
-      <div className="flex justify-end gap-x-4">
-        <DatePickerWithRange date={date} setDate={setDate} />
-        <Button onClick={refetch}>Refresh</Button>
-      </div>
-
       {/* Daily Leads by Agent */}
-      <div className=" w-full flex justify-center relative">
-        <CustomStackBarChart
-          heading={`Today Leads - ${totalTodayLeads}`}
-          subHeading="Leads by Agent"
-          chartData={todaysLeadChartData ? todaysLeadChartData : []} />
-        <Button
-          size={"sm"}
-          onClick={refetchTodayLeads}
-          className="absolute top-2 right-60">
-          <RotateCw className={`${isLoadingTodayLeads ? "animate-spin" : ""}`} />
-        </Button>
+      <div className=" w-full flex justify-center ">
+        <div className=" w-2/3 flex justify-center relative">
+          <CustomStackBarChart
+            heading={`Today Leads - ${totalTodayLeads}`}
+            subHeading="Leads by Agent"
+            chartData={todaysLeadChartData ? todaysLeadChartData : []}
+          />
+          <Button
+            size={"sm"}
+            onClick={refetchTodayLeads}
+            className="absolute top-0 right-0"
+          >
+            <RotateCw className={`${isLoadingTodayLeads ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
 
+      {/* Date Filter */}
+      <div className="flex justify-end gap-4 mt-4">
+        <DatePickerWithRange date={date} setDate={setDate} />
+        <Button onClick={refetch}>Apply</Button>
+        <Button onClick={reset}>Reset</Button>
+      </div>
+
+
+      {/* Leads by Location and Agent */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         {/* Left Column */}
         <Card className="shadow-md">

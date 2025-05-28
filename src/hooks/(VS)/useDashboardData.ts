@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
-// import { DateRange } from "react-day-picker";
+import { DateRange } from "react-day-picker";
 
 import { getDashboardData } from "@/actions/(VS)/queryActions";
 
-const useDashboardData = () => {
+const useDashboardData = ({ date }: { date: DateRange | undefined }) => {
   const [dashboardData, setDashboardData] = useState<any[]>();
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
 
   // Fetch Dashboard Data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async ({ date }: { date: DateRange | undefined }) => {
     setIsLoading(true);
     setIsError(false);
     setError("");
     try {
-      const response = await getDashboardData();
+      const response = await getDashboardData({ date });
       // console.log("dathboard data: ", response);
       setDashboardData(response.dashboardData);
     } catch (err: any) {
@@ -28,10 +28,11 @@ const useDashboardData = () => {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData({ date });
   }, []);
 
-  const refetch = () => fetchDashboardData();
+  const refetch = () => fetchDashboardData({ date });
+  const reset = () => fetchDashboardData({ date: undefined });
 
   return {
     dashboardData,
@@ -39,6 +40,7 @@ const useDashboardData = () => {
     isError,
     error,
     refetch,
+    reset,
   };
 };
 

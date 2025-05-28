@@ -1,5 +1,5 @@
 "use client"
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts"
 
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   ChartLegendContent,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { Avatar, AvatarImage } from "../ui/avatar"
 
 
 const chartConfig = {
@@ -60,17 +61,28 @@ export function CustomStackBarChart({
       return acc;
     }, {} as Record<string, number>);
 
+    const total = Object.values(flattenedCategories).reduce((acc, curr) => curr + acc, 0);
+
     return {
       label: item.label,
-      ...flattenedCategories
+      ...flattenedCategories,
+      total
     };
   })
 
   // sort in ascending order according to the label
   newChartData.sort((a, b) => a.label.localeCompare(b.label));
+  let locationKeys: string[] = [];
+  for (const key in newChartData) {
+    Object.keys(newChartData[key]).forEach((location) => {
+      if (location !== "label" && location !== "total") {
+        if (!locationKeys.includes(location)) locationKeys.push(location);
+      }
+    });
+  }
 
   return (
-    <Card className=" w-2/3 relative">
+    <Card className=" w-full">
       <CardHeader>
         <CardTitle>{heading}</CardTitle>
         <CardDescription>{subHeading}</CardDescription>
@@ -84,12 +96,11 @@ export function CustomStackBarChart({
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              // tickFormatter={(value) => value.slice(0, 8)}
               tickFormatter={(value) => `${value.split(" ")[0]?.trim()} ${value.split(" ")[1]?.slice(0, 1)}.`}
             />
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar
+            {/* <Bar
               dataKey="athens"
               stackId="a"
               fill="var(--color-athens)"
@@ -106,8 +117,34 @@ export function CustomStackBarChart({
               stackId="a"
               fill="var(--color-chania)"
               radius={[4, 4, 0, 0]}
-            />
-
+            >
+              <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }}
+              // content={({ x, y, index }) => {
+              //   if (typeof x !== 'number' || typeof y !== 'number') return null;
+              //   const profile = "https://vacationsaga.b-cdn.net/ProfilePictures/59380681000000452.jpg"
+              //   return (
+              //     <image
+              //       href={profile}
+              //       x={x - 12}
+              //       y={y - 40}
+              //       width="24"
+              //       height="24"
+              //       style={{ borderRadius: "100%", }}
+              //     />
+              //   );
+              // }}
+              />
+            </Bar> */}
+            {locationKeys.map((location, index) => (
+              <Bar
+                key={location}
+                dataKey={location}
+                stackId="a"
+                fill={`var(--color-${location})`}
+                radius={[4, 4, 0, 0]} >
+                <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }} />
+              </Bar>
+            ))}
           </BarChart>
         </ChartContainer>
       </CardContent>

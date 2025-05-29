@@ -27,6 +27,7 @@ export interface EmployeeInterface {
   country: string;
   address: string;
   isVerified: boolean;
+  isActive?: boolean;
   role: [string];
   createdAt: string;
   updatedAt: string;

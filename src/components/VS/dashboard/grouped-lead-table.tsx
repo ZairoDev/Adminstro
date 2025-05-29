@@ -23,7 +23,7 @@ const GroupedLeadTable = ({ location, agent, date }: PageProps) => {
 
   const { leads, totalLeads, isError, isLoading, error } = useAgentLeads(agent, location, date, page);
 
-  console.log("leads in grouped-lead-table: ", leads);
+  // console.log("leads in grouped-lead-table: ", leads);
 
   if (isLoading) {
     return (

@@ -1,27 +1,30 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+
+import axios from "axios";
+import { Plus } from "lucide-react";
+import { useForm } from "react-hook-form";
+import "react-phone-number-input/style.css";
+import React, { useRef, useState } from "react";
+import PhoneInput from "react-phone-number-input";
+
 import {
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectTrigger,
+  SelectContent,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
-import React, { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
 import Loader from "@/components/loader";
-import { useBunnyUpload } from "@/hooks/useBunnyUpload";
-import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
-import { CustomDatePicker } from "@/components/CustomDatePicker";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { CustomDatePicker } from "@/components/CustomDatePicker";
+import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
+
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -235,11 +238,11 @@ const NewUser = () => {
                         setValue(
                           "role",
                           value as
-                            | "Admin"
-                            | "Advert"
-                            | "Sales"
-                            | "Content"
-                            | "HR"
+                          | "Admin"
+                          | "Advert"
+                          | "Sales"
+                          | "Content"
+                          | "HR"
                         )
                       }
                       value={selectedRole}
@@ -250,6 +253,7 @@ const NewUser = () => {
                       <SelectContent>
                         <SelectItem value="Admin">Admin</SelectItem>
                         <SelectItem value="Advert">Advert</SelectItem>
+                        <SelectItem value="LeadGen">LeadGen</SelectItem>
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
                         <SelectItem value="HR">Human Resource(HR)</SelectItem>

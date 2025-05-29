@@ -12,6 +12,7 @@ import { DatePickerWithRange } from "@/components/Date-picker-with-range";
 import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
 
 const Dashboard = () => {
 
@@ -58,7 +59,7 @@ const Dashboard = () => {
       <h1 className="text-3xl font-bold mb-6">Lead Generation Dashboard</h1>
 
       {/* Daily Leads by Agent */}
-      <div className=" w-full flex justify-center ">
+      <div className=" w-full flex justify-between gap-x-2 h-[350px] lg:h-[520px]">
         <div className=" w-2/3 flex justify-center relative">
           <CustomStackBarChart
             heading={`Today Leads - ${totalTodayLeads}`}
@@ -72,6 +73,14 @@ const Dashboard = () => {
           >
             <RotateCw className={`${isLoadingTodayLeads ? "animate-spin" : ""}`} />
           </Button>
+        </div>
+
+        {/* Active Employees */}
+        <div className=" h-full overflow-hidden overflow-y-scroll border rounded-md w-72">
+          <h2 className=" font-semibold text-lg p-2 ">Active Employees
+            <span className=" text-sm">{" "}(Lead Gen)</span>
+          </h2>
+          <ActiveEmployeeList />
         </div>
       </div>
 

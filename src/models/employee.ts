@@ -1,6 +1,20 @@
 import mongoose, { Schema, Document } from "mongoose";
+
 import { EmployeeSchema } from "@/schemas/employee.schema";
+
 interface IEmployee extends Document, EmployeeSchema {}
+export const employeeRoles = [
+  "HR",
+  "Admin",
+  "Sales",
+  "Guest",
+  "Advert",
+  "LeadGen",
+  "Content",
+  "Developer",
+  "Subscription-Sales",
+] as const;
+
 const employeeSchema = new Schema<IEmployee>(
   {
     name: {
@@ -81,6 +95,7 @@ const employeeSchema = new Schema<IEmployee>(
       enum: [
         "Admin",
         "Advert",
+        "LeadGen",
         "Content",
         "Sales",
         "HR",
@@ -89,6 +104,10 @@ const employeeSchema = new Schema<IEmployee>(
         "Subscription-Sales",
       ],
       default: "Advert",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     extras: {
       type: Map,

@@ -10,6 +10,7 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
+import { getDataFromToken } from "@/util/getDataFromToken";
 connectDb();
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ function getISTStartOfDay(date: Date): Date {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const token = await getDataFromToken(request);
   try {
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
@@ -94,6 +96,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         break;
     }
     query = { ...query, ...dateQuery };
+
+    if (token.role != "SuperAdmin") query.createdBy = token.email;
+
     const allquery = await Query.aggregate([
       { $match: query },
       { $sort: { _id: -1 } },

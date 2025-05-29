@@ -141,7 +141,9 @@ export function CustomStackBarChart({
                 dataKey={location}
                 stackId="a"
                 fill={`var(--color-${location})`}
-                radius={[4, 4, 0, 0]} >
+                radius={[4, 4, 0, 0]}
+                className="border-red-600"
+              >
                 <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }} />
               </Bar>
             ))}
@@ -153,6 +155,6 @@ export function CustomStackBarChart({
           {footer}
         </div>
       </CardFooter>
-    </Card>
+    </Card >
   )
 }

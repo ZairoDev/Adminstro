@@ -10,7 +10,7 @@ const useAgentLeads = (
   date: DateRange | undefined,
   page: number
 ) => {
-  console.log("params agent & location: ", agentEmail, location, page);
+  // console.log("params agent & location: ", agentEmail, location, page);
   const [leads, setLeads] = useState<IQuery[]>();
   const [totalLeads, setTotalLeads] = useState(0);
   const [isLoading, setIsLoading] = useState(false);

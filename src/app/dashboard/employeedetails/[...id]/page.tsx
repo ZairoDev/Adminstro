@@ -1,54 +1,68 @@
 "use client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import {
-  ArrowUp01,
-  BookUser,
   Copy,
   Loader2,
+  BookUser,
+  ArrowUp01,
   LucideIcon,
   ShieldPlus,
 } from "lucide-react";
+import axios from "axios";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmployeeInterface } from "@/util/type";
+import { motion } from "framer-motion"
 import React, { useEffect, useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+
 import {
+  User,
+  Flag,
+  Home,
+  Phone,
+  Globe,
   AtSign,
   Calendar,
-  Flag,
-  Globe,
-  Home,
   Languages,
-  Phone,
-  User,
 } from "lucide-react";
-import axios from "axios";
-import Heading from "@/components/Heading";
-import { Button } from "@/components/ui/button";
-import Loader from "@/components/loader";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogHeader,
+  AlertDialogCancel,
+  AlertDialogAction,
+  AlertDialogFooter,
+  AlertDialogContent,
   AlertDialogTrigger,
+  AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
+import Loader from "@/components/loader";
+import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { EmployeeInterface } from "@/util/type";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 interface PageProps {
   params: {
     id: string[];
   };
 }
+
+const statusVariants = {
+  inactive: { x: 3 },
+  active: { x: 48 },
+};
+
+
 export default function EmployeeProfilePage({ params }: PageProps) {
+
   const userId = params.id[0];
   const { toast } = useToast();
   const [user, setUser] = useState<EmployeeInterface>();
   const [loadinguserDetails, setLoadinguserDetails] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+
   const getUserDetails = async () => {
     try {
       setLoadinguserDetails(true);
@@ -56,6 +70,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         userId,
       });
       console.log(response.data.data);
+      setIsActive(response.data.data.isActive);
       if (response.status == 404) {
         toast({
           variant: "destructive",
@@ -131,6 +146,17 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     passwordGeneration();
   };
 
+  const handleStatusChange = async (active: boolean) => {
+    setIsActive(active);
+    try {
+      const statusResponse = await axios.put("/api/employee/editEmployee",
+        { _id: user?._id, isActive: active });
+    } catch (error) {
+      setIsActive(!active);
+      alert("Status cannot be changed");
+    }
+  }
+
   return (
     <>
       {loadinguserDetails ? (
@@ -178,9 +204,24 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   </div>
                 </div>
               </div>
-              <Badge variant="secondary" className="ml-auto sm:block hidden">
-                {user?.role}
-              </Badge>
+              <div className="ml-auto flex flex-col gap-y-2">
+                <Badge variant="secondary" >
+                  {user?.role}
+                </Badge>
+                <div
+                  className=" h-8 w-20 border rounded-3xl flex items-center cursor-pointer relative"
+                  onClick={() => handleStatusChange(!isActive)}
+                >
+                  <motion.div
+                    className={`${isActive ? "bg-green-600" : "bg-red-600"} h-7 w-7 rounded-full flex items-center justify-center font-bold text-lg`}
+                    variants={statusVariants}
+                    initial={isActive ? "active" : "inactive"}
+                    animate={isActive ? "active" : "inactive"}
+                  >
+                    {isActive ? "A" : "I"}
+                  </motion.div>
+                </div>
+              </div>
               {/* <Link className="sm:hidden" href={`/dashboard/edituserdetails/${userId}`}>
           <Button variant="link">Edit </Button>
         </Link> */}

@@ -1,8 +1,11 @@
-import Employees from "@/models/employee";
-import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+
+import { connectDb } from "@/util/db";
+import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+
 connectDb();
+
 interface RequestBody {
   _id: string;
   profilePic?: string;
@@ -10,6 +13,7 @@ interface RequestBody {
   name?: string;
   gender?: string;
   spokenLanguage?: string;
+  isActive?: boolean;
   phone?: string;
   address?: string;
   aadhar?: string;
@@ -25,7 +29,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
     const data = await getDataFromToken(request);
 
-    if (data.role != "SuperAdmin") {
+    if (data.role != "SuperAdmin" && data.role != "HR") {
       return NextResponse.json(
         { error: "Unauthorized. Only SuperAdmin can edit employees." },
         { status: 403 }
@@ -36,18 +40,16 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     const { _id, ...updateFields } = body;
     if (!_id) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
     const updateData: Partial<RequestBody> = {};
 
-    if (updateFields.profilePic)
-      updateData.profilePic = updateFields.profilePic;
-    if (updateFields.nationality)
-      updateData.nationality = updateFields.nationality;
+    if (Object.keys(updateFields).includes("isActive")) {
+      updateData.isActive = updateFields.isActive;
+    }
+    if (updateFields.profilePic) updateData.profilePic = updateFields.profilePic;
+    if (updateFields.nationality) updateData.nationality = updateFields.nationality;
     if (updateFields.name) updateData.name = updateFields.name;
     if (updateFields.gender) updateData.gender = updateFields.gender;
     if (updateFields.spokenLanguage)
@@ -58,12 +60,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.accountNo) updateData.accountNo = updateFields.accountNo;
     if (updateFields.alias) updateData.alias = updateFields.alias;
     if (updateFields.country) updateData.country = updateFields.country;
-    if (updateFields.experience)
-      updateData.experience = updateFields.experience;
+    if (updateFields.experience) updateData.experience = updateFields.experience;
     if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
     if (updateFields.role) updateData.role = updateFields.role;
 
-    console.log("Update data:", updateData);
+    // console.log("Update data:", updateData);
     const user = await Employees.findOneAndUpdate(
       { _id },
       { $set: updateData },

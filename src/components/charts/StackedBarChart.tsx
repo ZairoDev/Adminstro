@@ -1,4 +1,5 @@
 "use client"
+
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts"
 
 import {
@@ -14,10 +15,9 @@ import {
   ChartConfig,
   ChartTooltip,
   ChartContainer,
-  ChartLegendContent,
+  // ChartLegendContent,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { Avatar, AvatarImage } from "../ui/avatar"
 
 
 const chartConfig = {
@@ -81,6 +81,36 @@ export function CustomStackBarChart({
     });
   }
 
+  const categoryTotals: Record<string, number> = {};
+  for (const data of newChartData) {
+    for (const key of locationKeys) {
+      if (!categoryTotals[key]) categoryTotals[key] = 0;
+      categoryTotals[key] += (data as any)[key] ?? 0;
+    }
+  }
+
+  function CustomLegend({ config, categoryTotals }: {
+    config: ChartConfig;
+    categoryTotals: Record<string, number>;
+  }) {
+    return (
+      <div className="flex gap-4 pt-4 justify-center">
+        {Object.keys(config).map((key) => (
+          <div key={key} className="flex items-center gap-2">
+            <span
+              className="inline-block w-3 h-3 rounded-full"
+              style={{ backgroundColor: config[key].color }}
+            />
+            <span className="text-sm text-muted-foreground">
+              {config[key].label}: {categoryTotals[key] ?? 0}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+
   return (
     <Card className=" w-full">
       <CardHeader>
@@ -99,42 +129,6 @@ export function CustomStackBarChart({
               tickFormatter={(value) => `${value.split(" ")[0]?.trim()} ${value.split(" ")[1]?.slice(0, 1)}.`}
             />
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            {/* <Bar
-              dataKey="athens"
-              stackId="a"
-              fill="var(--color-athens)"
-              radius={[0, 0, 4, 4]}
-            />
-            <Bar
-              dataKey="thessaloniki"
-              stackId="a"
-              fill="var(--color-thessaloniki)"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              dataKey="chania"
-              stackId="a"
-              fill="var(--color-chania)"
-              radius={[4, 4, 0, 0]}
-            >
-              <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }}
-              // content={({ x, y, index }) => {
-              //   if (typeof x !== 'number' || typeof y !== 'number') return null;
-              //   const profile = "https://vacationsaga.b-cdn.net/ProfilePictures/59380681000000452.jpg"
-              //   return (
-              //     <image
-              //       href={profile}
-              //       x={x - 12}
-              //       y={y - 40}
-              //       width="24"
-              //       height="24"
-              //       style={{ borderRadius: "100%", }}
-              //     />
-              //   );
-              // }}
-              />
-            </Bar> */}
             {locationKeys.map((location, index) => (
               <Bar
                 key={location}
@@ -147,6 +141,8 @@ export function CustomStackBarChart({
                 <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }} />
               </Bar>
             ))}
+            {/* <ChartLegend content={<ChartLegendContent />} /> */}
+            <ChartLegend content={<CustomLegend config={chartConfig} categoryTotals={categoryTotals} />} />
           </BarChart>
         </ChartContainer>
       </CardContent>

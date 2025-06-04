@@ -9,8 +9,12 @@ interface FilterParams {
   role?: (typeof employeeRoles)[number];
 }
 
+interface EmployeeWithLeads extends EmployeeInterface {
+  leads: number;
+}
+
 export const useActiveEmployees = () => {
-  const [employees, setEmployees] = useState<EmployeeInterface[]>([]);
+  const [employees, setEmployees] = useState<EmployeeWithLeads[]>([]);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);

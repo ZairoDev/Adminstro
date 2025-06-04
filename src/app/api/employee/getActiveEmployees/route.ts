@@ -1,23 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 
 connectDb();
 
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-}
-
 export async function POST(request: NextRequest) {
   const filters = await request.json();
 
-  console.log("filters: ", filters);
-
   try {
-    const activeEmployees: Employee[] = await Employees.find(filters);
+    const tempActiveEmployees = await Employees.find(filters).lean();
+
+    const current = new Date();
+    const day = current.getDay();
+
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const startOfWeek = new Date(current.setDate(current.getDate() + diffToMonday));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    endOfWeek.setMilliseconds(-1);
+
+    const activeEmployees: any[] = [];
+    for (let i = 0; i < tempActiveEmployees.length; i++) {
+      const employee = tempActiveEmployees[i];
+      const leadCount = await Query.countDocuments({
+        createdBy: employee.email,
+        createdAt: { $gte: startOfWeek, $lt: endOfWeek },
+      });
+      activeEmployees.push({ ...employee, leads: leadCount });
+    }
 
     const totalEmployee: number = await Employees.countDocuments({ isActive: true });
 

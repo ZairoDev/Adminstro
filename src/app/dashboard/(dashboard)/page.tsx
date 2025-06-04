@@ -4,6 +4,15 @@ import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectTrigger,
+  SelectContent,
+} from "@/components/ui/select"
 import useLeads from "@/hooks/(VS)/useLeads";
 import { Button } from "@/components/ui/button";
 import useTodayLeads from "@/hooks/(VS)/useTodayLead";
@@ -13,6 +22,7 @@ import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
+
 
 const Dashboard = () => {
 
@@ -53,6 +63,16 @@ const Dashboard = () => {
     return null;
   }
 
+  const handleDateFilter = (value: string) => {
+    const days = Number(value.split(" ")[0]);
+
+    const today = new Date();
+    const startDate = new Date(today.setDate(today.getDate() - days));
+    const endDate = new Date();
+    
+    setDate({ from: startDate, to: endDate });
+  }
+
   return (
 
     <div className="container mx-auto p-4 md:p-6">
@@ -76,10 +96,7 @@ const Dashboard = () => {
         </div>
 
         {/* Active Employees */}
-        <div className=" h-full overflow-hidden overflow-y-scroll border rounded-md w-72">
-          <h2 className=" font-semibold text-lg p-2 ">Active Employees
-            <span className=" text-sm">{" "}(Lead Gen)</span>
-          </h2>
+        <div className=" h-full border rounded-md w-72">
           <ActiveEmployeeList />
         </div>
       </div>
@@ -87,7 +104,23 @@ const Dashboard = () => {
 
       {/* Date Filter */}
       <div className="flex justify-end gap-4 mt-4">
-        <DatePickerWithRange date={date} setDate={setDate} />
+        <Select onValueChange={(value) => handleDateFilter(value)}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue placeholder="Select filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Fruits</SelectLabel>
+              <SelectItem value="7 days">7 days</SelectItem>
+              <SelectItem value="10 days">10 days</SelectItem>
+              <SelectItem value="15 days">15 days</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <div>
+          <DatePickerWithRange date={date} setDate={setDate} className="" />
+        </div>
+
         <Button onClick={refetch}>Apply</Button>
         <Button onClick={reset}>Reset</Button>
       </div>

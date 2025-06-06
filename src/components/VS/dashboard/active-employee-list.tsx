@@ -32,9 +32,16 @@ const ActiveEmployeeList = () => {
         ))}
       </div>
 
-      <Button onClick={() => refetch({ isActive: true, role: "LeadGen" })} className=" w-full ">
-        <RotateCw className={`${isLoading ? "animate-spin" : ""}`} />
-      </Button>
+      <div className=" flex flex-col gap-y-2">
+        <Button onClick={() => refetch({ isActive: true, role: "LeadGen" })} className=" w-full ">
+          <RotateCw className={`${isLoading ? "animate-spin" : ""}`} />
+        </Button>
+        <Button className=" w-full" asChild>
+          <Link href={"/dashboard/agent-data"} target="_blank">
+            Detailed View
+          </Link>
+        </Button>
+      </div>
 
     </div>
   )

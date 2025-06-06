@@ -16,11 +16,12 @@ import {
 import useLeads from "@/hooks/(VS)/useLeads";
 import { Button } from "@/components/ui/button";
 import useTodayLeads from "@/hooks/(VS)/useTodayLead";
-import { LeadsByAgent } from "@/components/VS/dashboard/lead-by-agents";
+// import { LeadsByAgent } from "@/components/VS/dashboard/lead-by-agents";
+import { LabelledPieChart } from "@/components/charts/LabelledPieChart";
 import { DatePickerWithRange } from "@/components/Date-picker-with-range";
 import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
-import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
 
 
@@ -41,6 +42,10 @@ const Dashboard = () => {
     const label = lead.createdBy;
     const categories = lead.locations.map((location) => ({ field: location.location, count: location.count }));
     return { label, categories }
+  })
+
+  const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
+    return { label: lead._id, count: lead.count }
   })
 
   if (isLoading) {
@@ -69,9 +74,10 @@ const Dashboard = () => {
     const today = new Date();
     const startDate = new Date(today.setDate(today.getDate() - days));
     const endDate = new Date();
-    
+
     setDate({ from: startDate, to: endDate });
   }
+
 
   return (
 
@@ -104,7 +110,7 @@ const Dashboard = () => {
 
       {/* Date Filter */}
       <div className="flex justify-end gap-4 mt-4">
-        <Select onValueChange={(value) => handleDateFilter(value)}>
+        {/* <Select onValueChange={(value) => handleDateFilter(value)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Select filter" />
           </SelectTrigger>
@@ -116,37 +122,46 @@ const Dashboard = () => {
               <SelectItem value="15 days">15 days</SelectItem>
             </SelectGroup>
           </SelectContent>
-        </Select>
-        <div>
-          <DatePickerWithRange date={date} setDate={setDate} className="" />
-        </div>
+        </Select> */}
 
-        <Button onClick={refetch}>Apply</Button>
-        <Button onClick={reset}>Reset</Button>
+        {/* Date Picker */}
+        {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
+
+        {/* <Button onClick={refetch}>Apply</Button>
+        <Button onClick={reset}>Reset</Button> */}
       </div>
 
 
       {/* Leads by Location and Agent */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         {/* Left Column */}
-        <Card className="shadow-md">
+        {
+          leadByLocationData &&
+          <LabelledPieChart
+            chartData={leadByLocationData}
+            heading="Location Pie Chart"
+            footer="Footer data"
+            key="fdg"
+          />
+        }
+        {/* <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Leads by Location</CardTitle>
           </CardHeader>
           <CardContent>
             <LeadsByLocation leadsByLocation={leads.leadsByLocation} />
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Right Column */}
-        <Card className="shadow-md">
+        {/* <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Leads by Agent</CardTitle>
           </CardHeader>
           <CardContent>
             <LeadsByAgent leadsByAgent={leads.leadsByAgent} />
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* <LabelledPieChart chartData={chartData} /> */}

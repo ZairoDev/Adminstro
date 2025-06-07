@@ -112,13 +112,13 @@ const NewUser = () => {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data: EmployeeSchema) => {
-    console.log(data, "I am submitting");
+    // console.log(data, "I am submitting");
     setLoading(true);
     const userData = {
       ...data,
       profilePic,
     };
-    console.log(userData.password, confirmPasswordRef.current?.value);
+    // console.log(userData.password, confirmPasswordRef.current?.value);
     if (userData.password !== confirmPasswordRef.current?.value) {
       toast({
         variant: "destructive",
@@ -127,13 +127,13 @@ const NewUser = () => {
       setLoading(false);
       return;
     }
-    console.log(userData);
+    // console.log(userData);
     try {
       const response = await axios.post(
         "/api/user/createnewEmployee",
         userData
       );
-      console.log("Inside Api call", response.data);
+      // console.log("Inside Api call", response.data);
       toast({
         description: "Employee created successfully",
       });

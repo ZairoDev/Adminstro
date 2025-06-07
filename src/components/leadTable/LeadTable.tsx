@@ -125,6 +125,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     index: number
   ) => {
     setLoading(true);
+    if (!queries[index].leadQualityByReviewer) {
+      toast({
+        description: "Please select lead quality first",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
     try {
       const response = axios.post("/api/sales/rejectionReason", {
         id,
@@ -481,8 +489,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 </Link> */}
                 <p
                   className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
-                  onClick={() =>
+                  onClick={() => {
                     navigator.clipboard.writeText(`${query?.phoneNo}`)
+                    if (query.isViewed === false) {
+                      IsView(query?._id, index)
+                    }
+                  }
                   }
                 >
                   Details

@@ -15,20 +15,23 @@ export async function POST(request: NextRequest) {
     const current = new Date();
     const day = current.getDay();
 
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const startOfWeek = new Date(current.setDate(current.getDate() + diffToMonday));
-    startOfWeek.setHours(0, 0, 0, 0);
+    // const diffToMonday = day === 0 ? -6 : 1 - day;
+    // const startOfWeek = new Date(current.setDate(current.getDate() + diffToMonday));
+    const startOfMonth = new Date(current.setDate(1));
+    // startOfWeek.setHours(0, 0, 0, 0);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 7);
-    endOfWeek.setMilliseconds(-1);
+    // const endOfWeek = new Date(startOfWeek);
+    // endOfWeek.setDate(startOfWeek.getDate() + 7?);
+    // endOfWeek.setMilliseconds(-1);
+    const endDate = new Date();
 
     const activeEmployees: any[] = [];
     for (let i = 0; i < tempActiveEmployees.length; i++) {
       const employee = tempActiveEmployees[i];
       const leadCount = await Query.countDocuments({
         createdBy: employee.email,
-        createdAt: { $gte: startOfWeek, $lt: endOfWeek },
+        createdAt: { $gte: startOfMonth, $lt: endDate },
       });
       activeEmployees.push({ ...employee, leads: leadCount });
     }

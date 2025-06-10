@@ -341,7 +341,7 @@ export function Sidebar() {
     }
     const routes = roleRoutes[token?.role as keyof typeof roleRoutes];
     if (!routes) {
-      return <li>Invalid role</li>;
+      return <li>{token?.role as string ?? "Invalid Role"}</li>;
     }
     return routes.map((route) => (
       <li

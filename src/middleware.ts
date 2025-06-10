@@ -41,6 +41,13 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/newproperty\/editPortionAvailability\/.*$/,
   ],
   LeadGen: ["/", "/dashboard/createquery", /^\/dashboard\/createquery\/.*$/],
+  "LeadGen-TeamLead": [
+    "/",
+    "/dashboard",
+    "/dashboard/agent-data",
+    /^\/dashboard\/lead-location-group\/.*$/,
+    /^\/dashboard\/lead-agent-group\/.*$/,
+  ],
   Content: [
     "/",
     /^\/dashboard\/createblog$/,
@@ -77,6 +84,7 @@ export const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
   Admin: "/dashboard/user",
   LeadGen: "/dashboard/createquery",
+  "LeadGen-TeamLead": "/dashboard",
   Content: "/dashboard/remainingproperties",
   Advert: "/dashboard/user",
   Sales: "/dashboard/rolebaseLead",

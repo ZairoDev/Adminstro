@@ -75,6 +75,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
   ],
+  "LeadGen-TeamLead": [
+    {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
+    },
+  ],
   Admin: [
     {
       path: "/dashboard/user",

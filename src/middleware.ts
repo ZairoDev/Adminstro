@@ -44,6 +44,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   "LeadGen-TeamLead": [
     "/",
     "/dashboard",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery\/.*$/,
     "/dashboard/agent-data",
     /^\/dashboard\/lead-location-group\/.*$/,
     /^\/dashboard\/lead-agent-group\/.*$/,

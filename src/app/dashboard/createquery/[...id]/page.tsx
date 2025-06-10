@@ -435,7 +435,7 @@ const QueryDetails = ({ params }: PageProps) => {
                   </div>
                 )}
               </div>
-              {(token?.email === "harshit2003gtm@gmail.com" ||
+              {(token?.email === "vikas@vacationsaga.com" ||
                 token?.role === "SuperAdmin") && (
                   <p className=" text-gray-500">Created By: {createdByEmail}</p>
                 )}

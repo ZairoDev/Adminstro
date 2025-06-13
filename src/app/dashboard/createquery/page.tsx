@@ -528,6 +528,8 @@ const SalesDashboard = () => {
                             {/* <SelectItem value="corfu">Corfu</SelectItem> */}
                             {/* <SelectItem value="chalkidiki">Chalkidiki</SelectItem> */}
                             <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                            <SelectItem value="rome">Rome</SelectItem>
+                            <SelectItem value="milan">Milan</SelectItem>
 
                           </SelectContent>
                         </Select>

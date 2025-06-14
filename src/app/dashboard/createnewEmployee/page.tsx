@@ -96,7 +96,7 @@ const NewUser = () => {
       email: "",
       nationality: "Indian",
       gender: undefined,
-      allotedArea: "",
+      allotedArea: [],
       spokenLanguage: "Hindi",
       accountNo: "",
       ifsc: "",
@@ -261,7 +261,7 @@ const NewUser = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="w-full">
+                  {/* <div className="w-full">
                     <Label htmlFor="role">Alloted Area</Label>
                     <Select
                       onValueChange={(value) =>
@@ -282,7 +282,7 @@ const NewUser = () => {
                         <SelectItem value="corfu">corfu</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="flex w-full sm:flex-row flex-col gap-x-2">

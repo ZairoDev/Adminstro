@@ -27,8 +27,9 @@ function getISTStartOfDay(date: Date): Date {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const token = await getDataFromToken(request);
+    // console.log("token: ", token);
     const assignedArea = token.allotedArea;
-    console.log("assignedArea", assignedArea);
+    // console.log("assignedArea", assignedArea);
 
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
@@ -110,7 +111,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     query = { ...query, rejectionReason: null, ...dateQuery };
     if (allotedArea) {
-      query.location = allotedArea;
+      if (Array.isArray(allotedArea)) {
+        query.location = { $in: allotedArea };
+      } else {
+        query.location = allotedArea;
+      }
     }
 
     // Perform the query

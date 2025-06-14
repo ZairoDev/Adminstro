@@ -405,6 +405,7 @@ export interface FilterInterface {
   budgetFrom: number;
   budgetTo: number;
   leadQualityByCreator?: "Very Good" | "Good" | "Average" | "Below Average";
+  leadQualityByReviewer?: "Very Good" | "Good" | "Average" | "Below Average";
 }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

@@ -83,7 +83,7 @@ const LeadFilter = ({
             itemList={["Good", "Very Good", "Average", "Below Average"]}
             labelHeader="Lead Quality"
             triggerText="Lead Quality"
-            onValueChange={(value) => handleOnChange("leadQualityByCreator", value)}
+            onValueChange={(value) => handleOnChange("leadQualityByReviewer", value)}
           />
         </div>
       </div>

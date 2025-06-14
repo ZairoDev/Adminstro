@@ -83,7 +83,7 @@ const employeeSchema = new Schema<IEmployee>(
       required: [true, "Password is required"],
     },
     allotedArea: {
-      type: String,
+      type: [String],
       required: false,
     },
     isVerified: {

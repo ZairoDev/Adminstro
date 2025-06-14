@@ -145,9 +145,12 @@ export const LeadPage = () => {
     try {
       const response = await axios.post("/api/leads", {
         filters,
+        page,
       });
       console.log("filtered data: ", response.data);
       setQueries(response.data);
+      // setTotalPages(response.data.totalPages);
+      // setTotalQueries(response.data.totalQueries);
     } catch (err: any) {
       toast({
         variant: "destructive",

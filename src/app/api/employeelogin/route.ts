@@ -13,7 +13,7 @@ interface Employee {
   email: string;
   password: string;
   isVerified: boolean;
-  allotedArea: string;
+  allotedArea: [string];
   role: string;
   passwordExpiresAt: Date;
 }
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const reqBody = await request.json();
     const { email, password } = reqBody;
 
-    const Employee = (await Employees.find({ email })) as Employee[];
+    const Employee = await Employees.find({ email });
     if (!Employee || Employee.length === 0) {
       return NextResponse.json(
         { error: "Please enter a valid email or password" },
@@ -36,7 +36,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   password,
     //   temp.password
     // );
-
     const validPassword: boolean = temp.password === password.trim();
     if (!validPassword) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });

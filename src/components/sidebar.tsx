@@ -291,6 +291,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Guest Window",
       Icon: <CircleHelp size={18} />,
     },
+    {
+      path: "/dashboard/owners",
+      label: "Owners",
+      Icon: <PersonStanding size={18} />,
+    },
   ],
   "Subscription-Sales": [
     {
@@ -348,15 +353,16 @@ export function Sidebar() {
     }
     const routes = roleRoutes[token?.role as keyof typeof roleRoutes];
     if (!routes) {
-      return <li>{token?.role as string ?? "Invalid Role"}</li>;
+      return <li>{(token?.role as string) ?? "Invalid Role"}</li>;
     }
     return routes.map((route) => (
       <li
         key={route.path}
-        className={`${isActive(currentPath, route.path)
-          ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
-          : ""
-          } text-sm`}
+        className={`${
+          isActive(currentPath, route.path)
+            ? "bg-primary/40  rounded-l-sm  border-r-4 border-primary"
+            : ""
+        } text-sm`}
       >
         <Link
           href={route.path}

@@ -79,8 +79,12 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/editemployeedetails\/.*$/,
   ],
   Agent: ["/", "/dashboard/sales-offer"],
-  Guest: ["/dashboard/guest-window"],
-  "Subscription-Sales": ["/", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
+  Guest: ["/dashboard/guest-window", "/dashboard/owners"],
+  "Subscription-Sales": [
+    "/",
+    "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
+  ],
 };
 export const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard/employee",
@@ -123,7 +127,9 @@ export async function middleware(request: NextRequest) {
       const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
       if (path === "/login") {
-        return NextResponse.redirect(new URL(defaultRoutes[role] || "/", request.url));
+        return NextResponse.redirect(
+          new URL(defaultRoutes[role] || "/", request.url)
+        );
       }
       if (!role || role.trim() === "") {
         if (path !== "/norole") {
@@ -139,7 +145,9 @@ export async function middleware(request: NextRequest) {
         if (previousUrl && matchesRolePattern(role, previousUrl.pathname)) {
           return NextResponse.redirect(previousUrl);
         } else {
-          return NextResponse.redirect(new URL(defaultRoutes[role] || "/", request.url));
+          return NextResponse.redirect(
+            new URL(defaultRoutes[role] || "/", request.url)
+          );
         }
       }
     } catch (error: any) {
@@ -159,5 +167,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|dashboard/room/).*)",
+  ],
 };

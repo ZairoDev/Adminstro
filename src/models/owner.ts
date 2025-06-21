@@ -46,6 +46,9 @@ const ownerSchema = new Schema(
     note: {
       type: String,
     },
+    createdBy: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

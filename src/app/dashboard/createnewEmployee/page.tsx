@@ -25,7 +25,6 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { CustomDatePicker } from "@/components/CustomDatePicker";
 import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
 
-
 const NewUser = () => {
   const { toast } = useToast();
   const [profilePic, setProfilepic] = useState("");
@@ -238,11 +237,11 @@ const NewUser = () => {
                         setValue(
                           "role",
                           value as
-                          | "Admin"
-                          | "Advert"
-                          | "Sales"
-                          | "Content"
-                          | "HR"
+                            | "Admin"
+                            | "Advert"
+                            | "Sales"
+                            | "Content"
+                            | "HR"
                         )
                       }
                       value={selectedRole}
@@ -251,6 +250,7 @@ const NewUser = () => {
                         <SelectValue placeholder="Select Role" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Intern">Intern</SelectItem>
                         <SelectItem value="Admin">Admin</SelectItem>
                         <SelectItem value="Advert">Advert</SelectItem>
                         <SelectItem value="LeadGen">LeadGen</SelectItem>

@@ -13,19 +13,21 @@ import {
   SelectValue,
   SelectContent,
   SelectTrigger,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { OwnerInterface } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
 import OwnerAddress from "./onwer-address";
 import { useOwnerStore } from "./owner-store";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const FormSchema = z.object({
   phone: z
@@ -38,7 +40,7 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 
 const OwnerPage = () => {
-  const [showAvailability, setShowAvailability] = useState(true);
+  const [showAvailability, setShowAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const { propertyAlreadyAvailableOn, setField, resetForm } = useOwnerStore();
 
@@ -70,7 +72,9 @@ const OwnerPage = () => {
 
     let emptyFields = "";
     let emptyFieldsCount = 0;
-    const canBeEmptyField = ["disposition","note"];
+    const canBeEmptyField = ["note"];
+
+    console.log("owner data: ", ownerData);
 
     for (const key in ownerData) {
       if (
@@ -194,12 +198,36 @@ const OwnerPage = () => {
             />
           </div>
 
-          <div className=" mt-4">
+          <div className=" mt-4 flex justify-between max-w-4xl">
             <Input
               type="text"
               placeholder="Email"
               onChange={(e) => setField("email", e.target.value)}
+              className=" w-[70%]"
             />
+
+            <Select onValueChange={(value) => setField("disposition", value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select Disposition" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Fruits</SelectLabel>
+                  {[
+                    "Not Interested",
+                    "Language Barrier",
+                    "Call Back",
+                    "Not Connected",
+                    "Send Offer",
+                    "Blacklist Lead",
+                  ].map((disposition, index) => (
+                    <SelectItem key={index} value={disposition}>
+                      <div>{disposition}</div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -270,7 +298,7 @@ const OwnerPage = () => {
             </Button>
             <Button onClick={handleOwnerFormSubmit}>
               <Save className=" mr-1" size={16} />
-              Submit
+              Save Offer
             </Button>
           </div>
         </div>

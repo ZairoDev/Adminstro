@@ -79,7 +79,17 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/editemployeedetails\/.*$/,
   ],
   Agent: ["/", "/dashboard/sales-offer"],
-  Guest: ["/dashboard/guest-window", "/dashboard/owners", "/dashboard/sales-offer"],
+  Guest: [
+    "/dashboard/guest-window",
+    "/dashboard/owners",
+    "/dashboard/owners/owner-list",
+    "/dashboard/sales-offer",
+  ],
+  Intern: [
+    "/dashboard/owners",
+    "/dashboard/owners/owner-list",
+    "/dashboard/sales-offer",
+  ],
   "Subscription-Sales": [
     "/",
     "/dashboard/sales-offer",
@@ -97,6 +107,7 @@ export const defaultRoutes: { [key: string]: string } = {
   HR: "/dashboard/employee",
   Agent: "/dashboard/sales-offer",
   Guest: "/dashboard/guest-window",
+  Intern: "/dashboard/owners",
   "Subscription-Sales": "/dashboard/sales-offer",
   Default: "/dashboard",
 };

@@ -64,6 +64,7 @@ const OwnerClient = ({ owner }: { owner: OwnerInterface }) => {
       propertyName: useOwnerStore.getState().propertyName,
       phoneNumber: useOwnerStore.getState().phoneNumber,
       propertyUrl: useOwnerStore.getState().propertyUrl,
+      propertyAlreadyAvailableOn: useOwnerStore.getState().propertyAlreadyAvailableOn,
       country: useOwnerStore.getState().country,
       state: useOwnerStore.getState().state,
       city: useOwnerStore.getState().city,

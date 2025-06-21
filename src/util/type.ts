@@ -361,6 +361,7 @@ export interface OwnerInterface {
   email?: string;
   propertyName: string;
   propertyUrl: string;
+  propertyAlreadyAvailableOn: string[];
   country: string;
   state: string;
   city: string;

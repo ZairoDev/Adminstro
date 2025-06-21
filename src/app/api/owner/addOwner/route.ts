@@ -7,7 +7,10 @@ export async function POST(req: NextRequest) {
   try {
     await Owners.create(body);
 
-    return NextResponse.json({ message: "Owner added successfully" }, { status: 201 });
+    return NextResponse.json(
+      { message: "Owner added successfully" },
+      { status: 201 }
+    );
   } catch (err: any) {
     const error = new Error(err);
 

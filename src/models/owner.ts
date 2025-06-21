@@ -17,6 +17,10 @@ const ownerSchema = new Schema(
       type: String,
       required: true,
     },
+    propertyAlreadyAvailableOn: {
+      type: [String],
+      default: [],
+    },
     country: {
       type: String,
       required: true,
@@ -46,4 +50,5 @@ const ownerSchema = new Schema(
   { timestamps: true }
 );
 
-export const Owners = mongoose.models?.Owners || mongoose.model("Owners", ownerSchema);
+export const Owners =
+  mongoose.models?.Owners || mongoose.model("Owners", ownerSchema);

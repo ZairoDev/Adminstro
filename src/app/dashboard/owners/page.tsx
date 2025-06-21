@@ -7,16 +7,25 @@ import { Check, RotateCcw, Save, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";
 
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+  SelectContent,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 import { OwnerInterface } from "@/util/type";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
 import OwnerAddress from "./onwer-address";
 import { useOwnerStore } from "./owner-store";
-import Aliases from "@/models/alias";
-import { toast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const FormSchema = z.object({
   phone: z
@@ -29,9 +38,9 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 
 const OwnerPage = () => {
-  const [showAvailability, setShowAvailability] = useState(false);
+  const [showAvailability, setShowAvailability] = useState(true);
   const [isAvailable, setIsAvailable] = useState(false);
-  const { setField, resetForm } = useOwnerStore();
+  const { propertyAlreadyAvailableOn, setField, resetForm } = useOwnerStore();
 
   const {
     control,
@@ -61,7 +70,7 @@ const OwnerPage = () => {
 
     let emptyFields = "";
     let emptyFieldsCount = 0;
-    const canBeEmptyField = ["email", "disposition", "note"];
+    const canBeEmptyField = ["disposition","note"];
 
     for (const key in ownerData) {
       if (
@@ -136,7 +145,9 @@ const OwnerPage = () => {
               />
               <div>
                 {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.phone.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -165,6 +176,7 @@ const OwnerPage = () => {
           </div>
         </div>
       </form>
+
       {/* Form */}
       {showAvailability && (
         <div>
@@ -181,6 +193,58 @@ const OwnerPage = () => {
               onChange={(e) => setField("propertyUrl", e.target.value)}
             />
           </div>
+
+          <div className=" mt-4">
+            <Input
+              type="text"
+              placeholder="Email"
+              onChange={(e) => setField("email", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <p className="my-2 text-gray-400">
+              Property already available on :
+            </p>
+            <div className=" flex flex-wrap justify-center gap-2">
+              {[
+                "MakeMyTrip",
+                "Booking",
+                "Expedia",
+                "Goibibo",
+                "OYO",
+                "Trivago",
+                "Agoda",
+                "Yatra",
+                "Cleartrip",
+                "Airbnb",
+              ].map((platform, index) => (
+                <div key={index} className=" flex items-center gap-x-2 w-[18%]">
+                  <Checkbox
+                    id={platform.toLowerCase()}
+                    checked={propertyAlreadyAvailableOn.includes(platform)}
+                    onCheckedChange={(e) => {
+                      if (propertyAlreadyAvailableOn.includes(platform)) {
+                        setField(
+                          "propertyAlreadyAvailableOn",
+                          propertyAlreadyAvailableOn.filter(
+                            (item) => item !== platform
+                          )
+                        );
+                      } else {
+                        setField("propertyAlreadyAvailableOn", [
+                          ...propertyAlreadyAvailableOn,
+                          platform,
+                        ]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor={platform.toLowerCase()}>{platform}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div>
             <OwnerAddress />
             <Input
@@ -189,6 +253,16 @@ const OwnerPage = () => {
               onChange={(e) => setField("area", e.target.value)}
             />
           </div>
+
+          {/* Note */}
+          <div className=" mt-2">
+            <Label>Note</Label>
+            <Textarea
+              placeholder="Enter Note"
+              onChange={(e) => setField("note", e.target.value)}
+            />
+          </div>
+
           <div className=" flex justify-center gap-x-2 mt-4">
             <Button onClick={handleReset}>
               <RotateCcw className=" mr-1" size={16} />

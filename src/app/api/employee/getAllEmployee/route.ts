@@ -25,7 +25,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
   const role = request.nextUrl.searchParams.get("role");
 
-  const query: UserQuery & { role?: { $nin: string[] } } = {};
+  const query: UserQuery = {};
+
+  if (role) {
+    query.role = new RegExp(role, "i");
+  }
 
   const validQueryTypes = ["name", "email", "phone"];
   if (queryType && validQueryTypes.includes(queryType)) {
@@ -39,9 +43,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const skip = (currentPage - 1) * 10;
 
-  if (role === "HR") {
-    query.role = { $nin: ["SuperAdmin", "Developer"] };
-  }
+  // if (role === "HR") {
+  //   query.role = { $nin: ["SuperAdmin", "Developer"] };
+  // }
 
   try {
     const allEmployees: Employee[] = await Employees.find(query)

@@ -136,6 +136,6 @@ const employeeSchema = new Schema<IEmployee>(
 );
 
 const Employees =
-  mongoose.models.Employees ||
+  mongoose.models?.Employees ||
   mongoose.model<IEmployee>("Employees", employeeSchema);
 export default Employees;

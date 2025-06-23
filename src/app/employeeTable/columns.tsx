@@ -1,6 +1,6 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +13,8 @@ import {
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import { toast } from "@/hooks/use-toast";
+import axios from "axios";
+import { useState } from "react";
 
 const renderCell = (value: any) => {
   return value ? value : "NA";
@@ -50,7 +52,33 @@ export const columns: ColumnDef<UserInterface>[] = [
   {
     accessorKey: "password",
     header: "Passwords",
-    cell: ({ getValue }) => renderCell(getValue()),
+    cell: ({ row }) => {
+      // const password = renderCell(getValue());
+      const user = row.original;
+
+      const passwordGeneration = async () => {
+        try {
+          const response = await axios.post("/api/generateNewpassword", {
+            employeeId: user._id,
+          });
+          user.password = response.data.newPassword;
+          // setNewPassword(resposne.data.newPassword);
+        } catch (error: any) {
+          console.log(error, "Password error will be render here");
+          return error;
+        }
+      };
+      return (
+        <div className=" flex items-center gap-x-2 justify-center">
+          <p>{user.password}</p>
+          <RefreshCcw
+            size={16}
+            className={`cursor-pointer`}
+            onClick={passwordGeneration}
+          />
+        </div>
+      );
+    },
   },
   {
     id: "actions",

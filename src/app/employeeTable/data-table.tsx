@@ -1,57 +1,61 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+
+import axios from "axios";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { CiViewColumn } from "react-icons/ci";
-import { Input } from "@/components/ui/input";
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   Select,
+  SelectItem,
+  SelectValue,
   SelectTrigger,
   SelectContent,
-  SelectItem,
 } from "@/components/ui/select";
 import {
   AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
+  AlertDialogTitle,
   AlertDialogHeader,
   AlertDialogFooter,
-  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogContent,
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import {
   ColumnDef,
   flexRender,
   SortingState,
-  ColumnFiltersState,
+  useReactTable,
   VisibilityState,
   getCoreRowModel,
   getSortedRowModel,
+  ColumnFiltersState,
   getFilteredRowModel,
   getPaginationRowModel,
-  useReactTable,
 } from "@tanstack/react-table";
 import {
   Table,
+  TableRow,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
-import Link from "next/link";
-import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
-import Heading from "@/components/Heading";
-import axios from "axios";
 import { toast } from "@/hooks/use-toast";
+import Heading from "@/components/Heading";
+import { UserInterface } from "@/util/type";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { employeeRoles } from "@/models/employee";
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
@@ -59,6 +63,9 @@ interface DataTableProps {
   setPage: React.Dispatch<React.SetStateAction<number>>;
   setSearch: React.Dispatch<React.SetStateAction<string>>;
   setQueryType: React.Dispatch<React.SetStateAction<string>>;
+  setRole: React.Dispatch<
+    React.SetStateAction<(typeof employeeRoles)[number] | "">
+  >;
   search: string;
   queryType: string;
   currentPage: number;
@@ -73,6 +80,7 @@ export function DataTable({
   setPage,
   setSearch,
   setQueryType,
+  setRole,
   search,
   queryType,
   currentPage,
@@ -83,6 +91,7 @@ export function DataTable({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
+  const [selectedRole, setSelectedRole] = useState("");
   const [isPasswordGenerating, setIsPasswordGenerating] = React.useState(false);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -213,7 +222,24 @@ export function DataTable({
             </Link>
           </div>
         </div>
-        <div className="flex gap-x-2 items-center">
+        <div className="flex gap-x-2 items-center mb-2">
+          <Select
+            onValueChange={(value) => {
+              setRole(value as (typeof employeeRoles)[number]);
+              setSelectedRole(value);
+            }}
+          >
+            <SelectTrigger className="w-[100px]">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              {employeeRoles.map((role, index) => (
+                <SelectItem key={index} value={role}>
+                  {role}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div>
@@ -346,6 +372,21 @@ export function DataTable({
           </p>
         </div>
         <div className="flex items-center justify-end space-x-2 py-4">
+          <Button
+            onClick={() => {
+              const specificRows = data?.filter(
+                (row) => row.role === selectedRole
+              );
+              const copyPasswords = specificRows.map(
+                (row) => `${row.email} : ${row.password}`
+              );
+              navigator.clipboard.writeText(
+                JSON.stringify(copyPasswords, null, 2)
+              );
+            }}
+          >
+            Copy Passwords
+          </Button>
           <Button
             variant="outline"
             size="sm"

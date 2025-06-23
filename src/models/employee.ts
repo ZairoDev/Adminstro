@@ -8,8 +8,10 @@ export const employeeRoles = [
   "Admin",
   "Sales",
   "Guest",
+  "Intern",
   "Advert",
   "LeadGen",
+  "LeadGen-TeamLead",
   "Content",
   "Developer",
   "Subscription-Sales",
@@ -96,11 +98,13 @@ const employeeSchema = new Schema<IEmployee>(
         "Admin",
         "Advert",
         "LeadGen",
+        "LeadGen-TeamLead",
         "Content",
         "Sales",
         "HR",
         "Developer",
         "Guest",
+        "Intern",
         "Subscription-Sales",
       ],
       default: "Advert",
@@ -132,5 +136,6 @@ const employeeSchema = new Schema<IEmployee>(
 );
 
 const Employees =
-  mongoose.models.Employees || mongoose.model<IEmployee>("Employees", employeeSchema);
+  mongoose.models.Employees ||
+  mongoose.model<IEmployee>("Employees", employeeSchema);
 export default Employees;

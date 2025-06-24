@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     query = { ...query, rejectionReason: { $ne: null }, ...dateQuery };
     if (allotedArea) {
-      query.location = allotedArea;
+      query.location = { $in: allotedArea };
     }
 
     const allquery = await Query.aggregate([

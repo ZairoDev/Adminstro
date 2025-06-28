@@ -73,7 +73,9 @@ export const LeadPage = () => {
   });
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("name");
-  const [page, setPage] = useState<number>(parseInt(searchParams.get("page") ?? "1") || 1);
+  const [page, setPage] = useState<number>(
+    parseInt(searchParams.get("page") ?? "1") || 1
+  );
   const [view, setView] = useState("Table View");
   const { toast } = useToast();
   const limit: number = 12;
@@ -304,29 +306,27 @@ export const LeadPage = () => {
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
-            {(token?.role == "SuperAdmin" ||
-              token?.email == "vikas@vacationsaga.com" ||
-              token?.email == "harshit2003gtm@gmail.com") && (
-                <div className="w-[200px]">
-                  <Select
-                    onValueChange={(value: string) => {
-                      setArea(value);
-                    }}
-                    value={area}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="chania">Chania</SelectItem>
-                      <SelectItem value="athens">Athens</SelectItem>
-                      <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                      <SelectItem value="corfu">Corfu</SelectItem>
-                      <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+            {token?.role == "SuperAdmin" && (
+              <div className="w-[200px]">
+                <Select
+                  onValueChange={(value: string) => {
+                    setArea(value);
+                  }}
+                  value={area}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chania">Chania</SelectItem>
+                    <SelectItem value="athens">Athens</SelectItem>
+                    <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
+                    <SelectItem value="corfu">Corfu</SelectItem>
+                    <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="">
               <Select
                 onValueChange={(value: string) => setSearchType(value)}
@@ -372,7 +372,9 @@ export const LeadPage = () => {
                           <SelectItem value="today">Today</SelectItem>
                           <SelectItem value="yesterday">Yesterday</SelectItem>
                           <SelectItem value="lastDays">Last X Days</SelectItem>
-                          <SelectItem value="customRange">Custom Date Range</SelectItem>
+                          <SelectItem value="customRange">
+                            Custom Date Range
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {dateFilter === "lastDays" && (
@@ -410,7 +412,10 @@ export const LeadPage = () => {
                         </div>
                       )}
                       <SheetClose asChild>
-                        <Button className="sm:w-auto w-full" onClick={handleSearch}>
+                        <Button
+                          className="sm:w-auto w-full"
+                          onClick={handleSearch}
+                        >
                           Apply
                         </Button>
                       </SheetClose>
@@ -462,7 +467,10 @@ export const LeadPage = () => {
 
                   <SheetFooter>
                     <SheetClose asChild>
-                      <Button className="w-full mt-4" onClick={FilteredLeadSearch}>
+                      <Button
+                        className="w-full mt-4"
+                        onClick={FilteredLeadSearch}
+                      >
                         Apply
                       </Button>
                     </SheetClose>
@@ -480,9 +488,9 @@ export const LeadPage = () => {
                         </SelectContent>
                       </Select>
                       <p className="px-2">
-                        Fill in your search details, apply custom filters, and let us
-                        bring you the most relevant results with just a click of the Apply
-                        button !
+                        Fill in your search details, apply custom filters, and
+                        let us bring you the most relevant results with just a
+                        click of the Apply button !
                       </p>
                     </div>
                   </SheetFooter>

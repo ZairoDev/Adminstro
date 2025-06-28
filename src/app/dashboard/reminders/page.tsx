@@ -190,28 +190,26 @@ const ReminderPage = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             <div className="w-[200px]">
-              {(token?.role == "SuperAdmin" ||
-                token?.email == "vikas@vacationsaga.com" ||
-                token?.email == "harshit2003gtm@gmail.com") && (
-                  <Select
-                    onValueChange={(value: string) => {
-                      setArea(value);
-                      setSearchTerm("");
-                    }}
-                    value={area}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="chania">Chania</SelectItem>
-                      <SelectItem value="athens">Athens</SelectItem>
-                      <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                      <SelectItem value="corfu">Corfu</SelectItem>
-                      <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+              {token?.role == "SuperAdmin" && (
+                <Select
+                  onValueChange={(value: string) => {
+                    setArea(value);
+                    setSearchTerm("");
+                  }}
+                  value={area}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chania">Chania</SelectItem>
+                    <SelectItem value="athens">Athens</SelectItem>
+                    <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
+                    <SelectItem value="corfu">Corfu</SelectItem>
+                    <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="">
               <Select

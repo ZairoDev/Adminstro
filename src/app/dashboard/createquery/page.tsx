@@ -209,7 +209,10 @@ const SalesDashboard = () => {
         phoneNo: phone,
       };
       setSubmitQuery(true);
-      const response = await axios.post("/api/sales/createquery", formDataToSubmit);
+      const response = await axios.post(
+        "/api/sales/createquery",
+        formDataToSubmit
+      );
       toast({
         description: "Query Created Successfully",
       });
@@ -527,10 +530,11 @@ const SalesDashboard = () => {
                             <SelectItem value="chania">Chania</SelectItem>
                             {/* <SelectItem value="corfu">Corfu</SelectItem> */}
                             {/* <SelectItem value="chalkidiki">Chalkidiki</SelectItem> */}
-                            <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                            <SelectItem value="thessaloniki">
+                              Thessaloniki
+                            </SelectItem>
                             <SelectItem value="rome">Rome</SelectItem>
                             <SelectItem value="milan">Milan</SelectItem>
-
                           </SelectContent>
                         </Select>
                       </div>
@@ -563,7 +567,9 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Short Term">Short Term</SelectItem>
+                            <SelectItem value="Short Term">
+                              Short Term
+                            </SelectItem>
                             <SelectItem value="Mid Term">Mid Term</SelectItem>
                             <SelectItem value="Long Term">Long Term</SelectItem>
                           </SelectContent>
@@ -575,7 +581,9 @@ const SalesDashboard = () => {
                         <div className="w-full">
                           <Label className="flex gap-3 m-1">
                             Duration*
-                            <p className="text-xs">Tick this to fill in Number</p>
+                            <p className="text-xs">
+                              Tick this to fill in Number
+                            </p>
                             <input
                               className="rounded-full"
                               type="checkbox"
@@ -589,11 +597,20 @@ const SalesDashboard = () => {
                             Duration*{" "}
                             {formData.bookingTerm ? (
                               formData.bookingTerm === "Short Term" ? (
-                                <div className="text-xs "> Fill in days from 1-28</div>
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in days from 1-28
+                                </div>
                               ) : formData.bookingTerm === "Mid Term" ? (
-                                <div className="text-xs "> Fill in months from 1-3</div>
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in months from 1-3
+                                </div>
                               ) : formData.bookingTerm === "Long Term" ? (
-                                <div className="text-xs "> Fill in months from 4-12</div>
+                                <div className="text-xs ">
+                                  {" "}
+                                  Fill in months from 4-12
+                                </div>
                               ) : null
                             ) : null}
                           </Label>
@@ -606,10 +623,10 @@ const SalesDashboard = () => {
                               formData.bookingTerm === "Short Term"
                                 ? "Fill in days from 1-28"
                                 : formData.bookingTerm === "Mid Term"
-                                  ? "Fill in months from 1-3"
-                                  : formData.bookingTerm === "Long Term"
-                                    ? "Fill in months from 4-12"
-                                    : "Enter duration based on term"
+                                ? "Fill in months from 1-3"
+                                : formData.bookingTerm === "Long Term"
+                                ? "Fill in months from 4-12"
+                                : "Enter duration based on term"
                             }
                           />
                         </div>
@@ -699,8 +716,12 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select Status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="With Bill">With Bill*</SelectItem>
-                            <SelectItem value="Without Bill">Without Bill</SelectItem>
+                            <SelectItem value="With Bill">
+                              With Bill*
+                            </SelectItem>
+                            <SelectItem value="Without Bill">
+                              Without Bill
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -756,8 +777,12 @@ const SalesDashboard = () => {
                             <SelectItem value="Studio">Studio</SelectItem>
                             <SelectItem value="Apartment">Apartment</SelectItem>
                             <SelectItem value="Villa">Villa</SelectItem>
-                            <SelectItem value="Pent House">Pent House</SelectItem>
-                            <SelectItem value="Detached House">Detached House</SelectItem>
+                            <SelectItem value="Pent House">
+                              Pent House
+                            </SelectItem>
+                            <SelectItem value="Detached House">
+                              Detached House
+                            </SelectItem>
                             <SelectItem value="Loft">Loft</SelectItem>
                             <SelectItem value="Shared Apartment">
                               Shared Apartment
@@ -788,7 +813,9 @@ const SalesDashboard = () => {
                             <SelectItem value="Good">Good</SelectItem>
                             <SelectItem value="Very Good">Very Good</SelectItem>
                             <SelectItem value="Average">Average</SelectItem>
-                            <SelectItem value="Below Average">Below Average</SelectItem>
+                            <SelectItem value="Below Average">
+                              Below Average
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -809,8 +836,12 @@ const SalesDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Furnished">Furnished</SelectItem>
-                            <SelectItem value="Un - furnished">Un- furnished</SelectItem>
-                            <SelectItem value="Semi-furnished">Semi-furnished</SelectItem>
+                            <SelectItem value="Un - furnished">
+                              Un- furnished
+                            </SelectItem>
+                            <SelectItem value="Semi-furnished">
+                              Semi-furnished
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -892,7 +923,9 @@ const SalesDashboard = () => {
                           <SelectItem value="today">Today</SelectItem>
                           <SelectItem value="yesterday">Yesterday</SelectItem>
                           <SelectItem value="lastDays">Last X Days</SelectItem>
-                          <SelectItem value="customRange">Custom Date Range</SelectItem>
+                          <SelectItem value="customRange">
+                            Custom Date Range
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {dateFilter === "lastDays" && (
@@ -930,7 +963,10 @@ const SalesDashboard = () => {
                         </div>
                       )}
                       <SheetClose asChild>
-                        <Button className="sm:w-auto w-full" onClick={handleSearch}>
+                        <Button
+                          className="sm:w-auto w-full"
+                          onClick={handleSearch}
+                        >
                           Apply
                         </Button>
                       </SheetClose>
@@ -948,9 +984,9 @@ const SalesDashboard = () => {
                         </SelectContent>
                       </Select>
                       <p className="px-2">
-                        Fill in your search details, apply custom filters, and let us
-                        bring you the most relevant results with just a click of the Apply
-                        button !
+                        Fill in your search details, apply custom filters, and
+                        let us bring you the most relevant results with just a
+                        click of the Apply button !
                       </p>
                     </div>
                   </SheetFooter>

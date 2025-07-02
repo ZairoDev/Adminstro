@@ -17,17 +17,34 @@ export async function POST(req: Request) {
 
     const existingQuery = await Query.findOne({ phoneNo });
 
+    let numberOfDays = 31;
     if (existingQuery) {
+      const today = new Date();
+      const leadCreatedDate = existingQuery.createdAt;
+
+      numberOfDays = Math.floor(
+        (today.getTime() - leadCreatedDate.getTime()) / (24 * 60 * 60 * 1000)
+      );
+    }
+
+    if (existingQuery && numberOfDays <= 30) {
       return NextResponse.json(
-        {
-          success: true,
-          exists: true,
-          message: "Phone number already exists",
-          data: existingQuery,
-        },
+        { success: true, exists: true, message: "Phone number already exists" },
         { status: 200 }
       );
     }
+
+    // if (existingQuery) {
+    //   return NextResponse.json(
+    //     {
+    //       success: true,
+    //       exists: true,
+    //       message: "Phone number already exists",
+    //       data: existingQuery,
+    //     },
+    //     { status: 200 }
+    //   );
+    // }
 
     return NextResponse.json(
       {
@@ -39,6 +56,9 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("Error checking phone number:", error);
-    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
 }

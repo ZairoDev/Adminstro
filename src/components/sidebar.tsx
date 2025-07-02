@@ -271,6 +271,48 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
   ],
+  "Sales-TeamLead": [
+    {
+      path: "/dashboard/rolebaseLead",
+      label: "Lead (Sales)",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
+    },
+    {
+      path: "/dashboard/rejectedleads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/room/joinroom",
+      label: "Join Room",
+      Icon: <House size={18} />,
+    },
+    {
+      path: "/dashboard/room/roomlist",
+      label: "Room List",
+      Icon: <Warehouse size={18} />,
+    },
+    {
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
+    },
+    {
+      path: "/dashboard/catalogue",
+      label: "Manage Catalogue",
+      Icon: <Notebook size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
+    },
+  ],
   HR: [
     {
       path: "/dashboard/employee",

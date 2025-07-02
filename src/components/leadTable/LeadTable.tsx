@@ -69,9 +69,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
-  const [salesPriority, setSalesPriority] = useState<("Low" | "High" | "None")[]>(
-    Array.from({ length: queries?.length }, () => "None")
-  );
+  const [salesPriority, setSalesPriority] = useState<
+    ("Low" | "High" | "None")[]
+  >(Array.from({ length: queries?.length }, () => "None"));
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
@@ -128,7 +128,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     if (!queries[index].leadQualityByReviewer) {
       toast({
         description: "Please select lead quality first",
-        variant: "destructive"
+        variant: "destructive",
       });
       setLoading(false);
       return;
@@ -222,7 +222,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   };
 
   // Creating Note
-  const handleNote = async (id: any, noteValue: string | undefined, index: number) => {
+  const handleNote = async (
+    id: any,
+    noteValue: string | undefined,
+    index: number
+  ) => {
     if (!noteValue) return;
 
     try {
@@ -251,7 +255,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
             <TableHead>Location</TableHead>
-            {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+            {(token?.role === "Sales-TeamLead" ||
+              token?.role === "SuperAdmin") && (
               <TableHead>Lead Quality</TableHead>
             )}
             <TableHead>Contact</TableHead>
@@ -263,8 +268,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableRow
               key={query?._id}
               className={`
-              ${query?.isViewed ? "bg-transparent hover:bg-transparent" : "bg-neutral-700"
-                }
+              ${
+                query?.isViewed
+                  ? "bg-transparent hover:bg-transparent"
+                  : "bg-neutral-700"
+              }
               relative
             `}
             >
@@ -275,7 +283,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 >
                   {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">Reminder</p>
+                      <p className=" rotate-90 text-xs font-semibold mt-1">
+                        Reminder
+                      </p>
                     </div>
                   )}
                   {query.salesPriority === "High" ? (
@@ -298,14 +308,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               )}
               <TableCell className="flex gap-x-1">
                 <Badge
-                  className={` ${query.priority === "ASAP"
-                    ? "bg-green-950"
-                    : query.priority === "High"
+                  className={` ${
+                    query.priority === "ASAP"
+                      ? "bg-green-950"
+                      : query.priority === "High"
                       ? "bg-green-500"
                       : query.priority === "Medium"
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    } relative`}
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                  } relative`}
                 >
                   <p className="text-white">{query?.name}</p>
                 </Badge>
@@ -315,15 +326,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       query?.bookingTerm === "Long Term"
                         ? "L"
                         : query?.bookingTerm === "Mid Term"
-                          ? "M"
-                          : "S"
+                        ? "M"
+                        : "S"
                     }
                     desc={
                       query?.bookingTerm === "Long Term"
                         ? "Long Term"
                         : query?.bookingTerm === "Mid Term"
-                          ? "Mid Term"
-                          : "Short Term"
+                        ? "Mid Term"
+                        : "Short Term"
                     }
                   />
                 </Badge>
@@ -358,15 +369,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         query?.propertyType === "Furnished"
                           ? "F"
                           : query?.propertyType === "Semi-furnished"
-                            ? "SF"
-                            : "UF"
+                          ? "SF"
+                          : "UF"
                       }
                       desc={
                         query?.propertyType === "Furnished"
                           ? "Furnished"
                           : query?.propertyType === "Semi-furnished"
-                            ? "Semi Furnished"
-                            : "Un Furnished"
+                          ? "Semi Furnished"
+                          : "Un Furnished"
                       }
                     />
                   </Badge>
@@ -402,29 +413,30 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         query?.zone === "East"
                           ? "E"
                           : query?.zone === "West"
-                            ? "W"
-                            : query?.zone === "North"
-                              ? "N"
-                              : query?.zone === "South"
-                                ? "S"
-                                : "C"
+                          ? "W"
+                          : query?.zone === "North"
+                          ? "N"
+                          : query?.zone === "South"
+                          ? "S"
+                          : "C"
                       }
                       desc={
                         query?.zone === "East"
                           ? "East"
                           : query?.zone === "West"
-                            ? "West"
-                            : query?.zone === "North"
-                              ? "North"
-                              : query?.zone === "South"
-                                ? "South"
-                                : "Center"
+                          ? "West"
+                          : query?.zone === "North"
+                          ? "North"
+                          : query?.zone === "South"
+                          ? "South"
+                          : "Center"
                       }
                     />
                   </Badge>
                 </div>
               </TableCell>
-              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+              {(token?.role === "Sales-TeamLead" ||
+                token?.role === "SuperAdmin") && (
                 <TableCell className=" flex gap-x-0.5">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -441,7 +453,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onClick={() => handleQualityChange("Good", query?._id, index)}
+                        onClick={() =>
+                          handleQualityChange("Good", query?._id, index)
+                        }
                       >
                         Good
                       </DropdownMenuItem>
@@ -455,14 +469,20 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onClick={() => handleQualityChange("Average", query?._id, index)}
+                        onClick={() =>
+                          handleQualityChange("Average", query?._id, index)
+                        }
                       >
                         Average
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onClick={() =>
-                          handleQualityChange("Below Average", query?._id, index)
+                          handleQualityChange(
+                            "Below Average",
+                            query?._id,
+                            index
+                          )
                         }
                       >
                         Below Average
@@ -490,12 +510,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 <p
                   className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
                   onClick={() => {
-                    navigator.clipboard.writeText(`${query?.phoneNo}`)
+                    navigator.clipboard.writeText(`${query?.phoneNo}`);
                     if (query.isViewed === false) {
-                      IsView(query?._id, index)
+                      IsView(query?._id, index);
                     }
-                  }
-                  }
+                  }}
                 >
                   Details
                 </p>
@@ -515,9 +534,13 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+                      {(token?.role === "Sales" ||
+                        token?.role === "Sales-TeamLead" ||
+                        token?.role === "SuperAdmin") && (
                         <>
-                          <DropdownMenuItem onClick={() => handleCreateRoom(index)}>
+                          <DropdownMenuItem
+                            onClick={() => handleCreateRoom(index)}
+                          >
                             Create Room
                           </DropdownMenuItem>
 
@@ -588,15 +611,24 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
-                        <DropdownMenuSubTrigger className="w-40 truncate">
-                          Rej re:
-                          <span className="ml-2">{query.rejectionReason}</span>
-                        </DropdownMenuSubTrigger>
+                        {(token?.role === "SuperAdmin" ||
+                          token?.role === "Sales-TeamLead") && (
+                          <DropdownMenuSubTrigger className="w-40 truncate">
+                            Rej re:
+                            <span className="ml-2">
+                              {query.rejectionReason}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                        )}
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason("Not Replying", query?._id, index)
+                                handleRejectionReason(
+                                  "Not Replying",
+                                  query?._id,
+                                  index
+                                )
                               }
                             >
                               Not Replying
@@ -625,7 +657,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason("Late Response", query?._id, index)
+                                handleRejectionReason(
+                                  "Late Response",
+                                  query?._id,
+                                  index
+                                )
                               }
                             >
                               Late Response
@@ -643,7 +679,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason("Off Location", query?._id, index)
+                                handleRejectionReason(
+                                  "Off Location",
+                                  query?._id,
+                                  index
+                                )
                               }
                             >
                               Off Location
@@ -661,7 +701,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason("Low Budget", query?._id, index)
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
                               }
                             >
                               Low Budget
@@ -679,7 +723,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                handleRejectionReason("Low Budget", query?._id, index)
+                                handleRejectionReason(
+                                  "Low Budget",
+                                  query?._id,
+                                  index
+                                )
                               }
                             >
                               Low Budget
@@ -695,26 +743,29 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             >
                               Didn&apos;t like the option
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() =>
-                              handleRejectionReason(
-                                "Defferent Area",
-                                query?._id,
-                                index
-                              )
-                            }>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Defferent Area",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
                               Different Area
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() =>
-                              handleRejectionReason(
-                                "Agency Fees",
-                                query?._id,
-                                index
-                              )
-                            }>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRejectionReason(
+                                  "Agency Fees",
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
                               Agency Fees
                             </DropdownMenuItem>
-
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -725,10 +776,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   <Dialog>
                     <DialogTrigger>
                       <p
-                        className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${query?.note && query?.note?.length > 0
-                          ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
-                          : "bg-white/20 text-white"
-                          } text-sm font-bold `}
+                        className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
+                          query?.note && query?.note?.length > 0
+                            ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
+                            : "bg-white/20 text-white"
+                        } text-sm font-bold `}
                       >
                         {/* <span>N</span>
                         <span>O</span>
@@ -767,7 +819,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       </DialogHeader>
                       <DialogFooter>
                         <Button
-                          onClick={() => handleNote(query._id, noteValue, index)}
+                          onClick={() =>
+                            handleNote(query._id, noteValue, index)
+                          }
                           className="w-auto"
                           disabled={!noteValue.trim() || creatingNote}
                         >
@@ -782,6 +836,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
           ))}
         </TableBody>
       </Table>
-    </div >
+    </div>
   );
 }

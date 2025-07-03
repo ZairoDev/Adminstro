@@ -1,60 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
-
-import Query from "@/models/query";
-import { connectDb } from "@/util/db";
 import {
-  subDays,
   addHours,
   setHours,
   setMinutes,
   setSeconds,
   setMilliseconds,
+  subDays,
 } from "date-fns";
+import { NextRequest, NextResponse } from "next/server";
+
+import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { IQuery } from "@/util/type";
+import Query from "@/models/query";
 
 connectDb();
-export const dynamic = "force-dynamic";
 
 function convertToIST(date: Date): Date {
   return addHours(date, 5.5);
 }
-
 function getISTStartOfDay(date: Date): Date {
   const istDate = convertToIST(date);
   return setMilliseconds(setSeconds(setMinutes(setHours(istDate, 0), 0), 0), 0);
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  try {
-    const token = await getDataFromToken(request);
-    // console.log("token: ", token);
-    const assignedArea = token.allotedArea;
-    // console.log("assignedArea", assignedArea);
+export async function POST(req: NextRequest) {
+  const reqBody = await req.json();
+  const token = await getDataFromToken(req);
+  const assignedArea = token.allotedArea;
 
-    const url = request.nextUrl;
-    const page = Number(url.searchParams.get("page")) || 1;
-    const limit = Number(url.searchParams.get("limit")) || 50;
-    const skip = (page - 1) * limit;
-    const searchTerm = url.searchParams.get("searchTerm") || "";
-    const searchType = url.searchParams.get("searchType") || "name";
-    const dateFilter = url.searchParams.get("dateFilter") || "";
-    const sortingField = url.searchParams.get("sortingField") || "";
-    const customDays = Number(url.searchParams.get("customDays")) || 0;
-    const startDate = url.searchParams.get("startDate");
-    const endDate = url.searchParams.get("endDate");
-    const allotedArea = url.searchParams.get("allotedArea") || assignedArea;
+  try {
+    console.log("req body in filter route: ", assignedArea, reqBody);
+
+    const {
+      searchType,
+      searchTerm,
+      dateFilter,
+      customDays,
+      fromDate,
+      toDate,
+      sortBy,
+      guest,
+      noOfBeds,
+      propertyType,
+      billStatus,
+      budgetFrom,
+      budgetTo,
+      leadQuality,
+    } = reqBody.filters;
+    const PAGE = reqBody.page;
+
+    const LIMIT = 50;
+    const SKIP = (PAGE - 1) * LIMIT;
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
-    query = {
-      $or: [
-        { reminder: { $exists: false } }, // reminder field does not exist
-        { reminder: { $eq: null } }, // reminder field exists but is an empty string
-      ],
-    };
-
+    {
+      /* Search Term */
+    }
     if (searchTerm) {
       if (searchType === "phoneNo") {
         query.phoneNo = Number(searchTerm);
@@ -63,12 +65,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Add date filtering
+    {
+      /* Date Filter */
+    }
     let dateQuery: any = {};
     const istToday = getISTStartOfDay(new Date());
     const istYesterday = getISTStartOfDay(subDays(new Date(), 1));
     switch (dateFilter) {
-      case "today":
+      case "Today":
         dateQuery = {
           createdAt: {
             $gte: new Date(istToday.toISOString()),
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           },
         };
         break;
-      case "yesterday":
+      case "Yesterday":
         dateQuery = {
           createdAt: {
             $gte: new Date(istYesterday.toISOString()),
@@ -84,7 +88,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           },
         };
         break;
-      case "lastDays":
+      case "Last X Days":
         if (customDays > 0) {
           const pastDate = getISTStartOfDay(subDays(new Date(), customDays));
           dateQuery = {
@@ -94,10 +98,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           };
         }
         break;
-      case "customRange":
-        if (startDate && endDate) {
-          const istStartDate = getISTStartOfDay(new Date(startDate));
-          const istEndDate = getISTStartOfDay(addHours(new Date(endDate), 24));
+      case "Custom Date Range":
+        if (fromDate && toDate) {
+          const istStartDate = getISTStartOfDay(new Date(fromDate));
+          const istEndDate = getISTStartOfDay(addHours(new Date(toDate), 24));
           dateQuery = {
             createdAt: {
               $gte: new Date(istStartDate.toISOString()),
@@ -110,21 +114,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         break;
     }
 
-    query = { ...query, rejectionReason: null, ...dateQuery };
-    if (allotedArea) {
-      if (Array.isArray(allotedArea)) {
-        query.location = { $in: allotedArea };
-      } else {
-        query.location = allotedArea;
-      }
+    // Other filters
+    if (guest) query.guest = { $gte: parseInt(guest, 10) };
+    if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
+    if (propertyType) query.propertyType = propertyType;
+    if (billStatus) query.billStatus = billStatus;
+    if (budgetFrom) query.budget = { $gte: budgetFrom };
+    if (budgetTo) query.budget = { $lte: budgetTo };
+    if (leadQuality) query.leadQualityByReviewer = leadQuality;
+
+    {
+      /* Searching in non rejected Leads and leads with no reminders */
+    }
+    query = {
+      ...query,
+      ...dateQuery,
+      $and: [
+        {
+          $or: [
+            {
+              rejectionReason: { $exists: false },
+            }, // rejectionReason field does not exist
+            {
+              rejectionReason: { $eq: null },
+            }, // rejectionReason field exists but is an empty string
+          ],
+        },
+        {
+          $or: [
+            { reminder: { $exists: false } }, // reminder field does not exist
+            { reminder: { $eq: null } }, // reminder field exists but is an empty string
+          ],
+        },
+      ],
+    };
+
+    {
+      /* Only search leads for alloted area */
+    }
+    if (Array.isArray(assignedArea)) {
+      query.location = { $in: assignedArea };
+    } else {
+      query.location = assignedArea;
     }
 
-    // Perform the query
+    console.log("created query: ", query);
+
     const allquery = await Query.aggregate([
       { $match: query },
       { $sort: { updatedAt: -1 } }, // last updated lead will come first
-      { $skip: skip },
-      { $limit: limit },
+      { $skip: SKIP },
+      { $limit: LIMIT },
       {
         $addFields: {
           istCreatedAt: {
@@ -138,20 +178,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     ]);
 
+    console.log("all query length: ", allquery.length);
+
+    {
+      /*Sorting*/
+    }
     const priorityMap = {
       None: 1,
       Low: 2,
       High: 3,
     };
-
-    if (sortingField && sortingField !== "None") {
+    if (sortBy && sortBy !== "None") {
       allquery.sort((a, b) => {
         const priorityA =
           priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
         const priorityB =
           priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
 
-        if (sortingField === "Asc") {
+        if (sortBy === "Asc") {
           return priorityA - priorityB;
         } else {
           return priorityB - priorityA;
@@ -160,16 +204,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const totalQueries = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalQueries / limit);
+    const totalPages = Math.ceil(totalQueries / LIMIT);
 
     return NextResponse.json({
       data: allquery,
-      page,
+      PAGE,
       totalPages,
       totalQueries,
     });
   } catch (error: any) {
-    console.error("Error in GET request:", error);
+    console.log("error in getting filtered leads: ", error);
     return NextResponse.json(
       {
         message: "Failed to fetch properties from the database",

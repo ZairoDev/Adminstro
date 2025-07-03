@@ -836,7 +836,7 @@ const SalesDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Furnished">Furnished</SelectItem>
-                            <SelectItem value="Un - furnished">
+                            <SelectItem value="Unfurnished">
                               Un- furnished
                             </SelectItem>
                             <SelectItem value="Semi-furnished">

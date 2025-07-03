@@ -42,148 +42,106 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import LeadTable from "@/components/leadTable/LeadTable";
 import LeadFilter from "@/components/lead-component/LeadFilter";
+import LeadsFilter, {
+  FilterState,
+} from "@/components/lead-component/NewLeadFilter";
 
-interface ApiResponse {
-  data: IQuery[];
-  totalPages: number;
-  totalQueries: number;
-}
-interface FetchQueryParams {
-  searchTerm: string;
-  searchType?: string;
-  dateFilter?: string;
-  sortingField?: string;
-  customDays: string;
-  customDateRange: { start: string; end: string };
-}
 export const LeadPage = () => {
   const router = useRouter();
+  const { toast } = useToast();
+  const { token } = useAuthStore();
   const searchParams = useSearchParams();
+
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [dateFilter, setDateFilter] = useState("all");
+
   const [sortingField, setSortingField] = useState("");
-  const [customDays, setCustomDays] = useState("");
   const [area, setArea] = useState("");
-  const [customDateRange, setCustomDateRange] = useState({
-    start: "",
-    end: "",
-  });
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [searchType, setSearchType] = useState<string>("name");
   const [page, setPage] = useState<number>(
-    parseInt(searchParams.get("page") ?? "1") || 1
+    parseInt(searchParams.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const { toast } = useToast();
-  const limit: number = 12;
   const [allotedArea, setAllotedArea] = useState("");
-  // const [filters, setFilters] = useState<FilterInterface>({
-  //   beds: 0,
-  //   guest: 0,
-  //   billStatus: "",
-  //   furnished: "Un-furnished",
-  //   budgetFrom: 0,
-  //   budgetTo: 0,
-  //   // leadQuality: ""
-  // });
-  const [filters, setFilters] = useState({});
 
-  const fetchQuery = useCallback(
-    debounce(
-      async ({
-        searchTerm,
-        searchType,
-        dateFilter,
-        sortingField,
-        customDays,
-        customDateRange,
-      }: FetchQueryParams) => {
-        setLoading(true);
-        try {
-          if (!dateFilter && !sortingField) return;
+  const [filters, setFilters] = useState<FilterState>({
+    searchType: searchParams.get("searchType") || "name",
+    searchTerm: searchParams.get("searchTerm") || "",
+    dateFilter: searchParams.get("dateFilter") || "all",
+    customDays: searchParams.get("customDays") || "0",
+    fromDate:
+      searchParams.get("fromDate") !== null
+        ? new Date(searchParams.get("fromDate") as string)
+        : undefined,
+    toDate:
+      searchParams.get("toDate") !== null
+        ? new Date(searchParams.get("toDate") as string)
+        : undefined,
+    sortBy: searchParams.get("sortBy") || "None",
+    guest: searchParams.get("guest") || "0",
+    noOfBeds: searchParams.get("noOfBeds") || "0",
+    propertyType: searchParams.get("propertyType") || "",
+    billStatus: searchParams.get("billStatus") || "",
+    budgetFrom: searchParams.get("budgetFrom") || "",
+    budgetTo: searchParams.get("budgetTo") || "",
+    leadQuality: searchParams.get("leadQuality") || "",
+  });
 
-          // const cachedQueries = sessionStorage.getItem("queries");
-          // const cachedTotalPages = sessionStorage.getItem("totalPages");
-          // const cachedTotalQueries = sessionStorage.getItem("totalQueries");
-          // const cachedPageNumber = JSON.parse(
-          //   sessionStorage.getItem("currentPage") || "1"
-          // );
+  // const fetchQuery = useCallback(
+  //   debounce(
+  //     async ({
+  //       searchTerm,
+  //       searchType,
+  //       dateFilter,
+  //       sortingField,
+  //       customDays,
+  //       customDateRange,
+  //     }: FetchQueryParams) => {
+  //       setLoading(true);
+  //       try {
+  //         if (!dateFilter && !sortingField) return;
+  //         const response = await fetch(
+  //           `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
+  //         );
+  //         const data: ApiResponse = await response.json();
+  // setQueries(data.data);
+  // setTotalPages(data.totalPages);
+  // setTotalQueries(data.totalQueries);
+  //       } catch (err: any) {
+  //         setLoading(false);
+  //       } finally {
+  //         setLoading(false);
+  //       }
+  //     },
+  //     1000
+  //   ),
+  //   [area, searchType, page, limit]
+  // );
 
-          // const samePage = cachedPageNumber === page;
-          // if (cachedQueries && cachedTotalPages && cachedTotalQueries && samePage) {
-          //   setQueries(JSON.parse(cachedQueries));
-          //   setTotalPages(JSON.parse(cachedTotalPages));
-          //   setTotalQueries(JSON.parse(cachedTotalQueries));
-          //   return;
-          // }
-
-          const response = await fetch(
-            `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
-          );
-          const data: ApiResponse = await response.json();
-          setQueries(data.data);
-          setTotalPages(data.totalPages);
-          setTotalQueries(data.totalQueries);
-          // sessionStorage.setItem("queries", JSON.stringify(data.data));
-          // sessionStorage.setItem("totalPages", JSON.stringify(data.totalPages));
-          // sessionStorage.setItem("totalQueries", JSON.stringify(data.totalQueries));
-          // sessionStorage.setItem("currentPage", JSON.stringify(page));
-        } catch (err: any) {
-          setLoading(false);
-        } finally {
-          setLoading(false);
-        }
-      },
-      1000
-    ),
-    [area, searchType, page, limit]
-  );
-
-  const FilteredLeadSearch = async () => {
-    if (Object.keys(filters).length === 0) return;
-    try {
-      const response = await axios.post("/api/leads", {
-        filters,
-        page,
-      });
-      console.log("filtered data: ", response.data);
-      setQueries(response.data);
-      // setTotalPages(response.data.totalPages);
-      // setTotalQueries(response.data.totalQueries);
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong while filtering data",
-      });
-    }
-  };
-
-  const handleSearch = () => {
-    fetchQuery({
-      searchTerm,
-      searchType,
-      dateFilter,
-      sortingField,
-      customDays,
-      customDateRange,
-    });
-    sessionStorage.clear();
-  };
-
-  useEffect(() => {
-    fetchQuery({
-      searchTerm,
-      searchType,
-      dateFilter,
-      sortingField,
-      customDays,
-      customDateRange,
-    });
-  }, [area, searchTerm, searchType, page]);
+  // const FilteredLeadSearch = async () => {
+  //   // router.push(`?page=1`);
+  //   const searchParams = new URLSearchParams(Object.entries(filters));
+  //   router.push(`?${searchParams.toString()}`);
+  //   setPage(1);
+  //   if (Object.keys(filters).length === 0) return;
+  //   try {
+  //     const response = await axios.post("/api/leads", {
+  //       filters,
+  //       page,
+  //     });
+  //     console.log("filtered data: ", response.data);
+  //     setQueries(response.data);
+  //     // setTotalPages(response.data.totalPages);
+  //     // setTotalQueries(response.data.totalQueries);
+  //   } catch (err: any) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "Error",
+  //       description: "Something went wrong while filtering data",
+  //     });
+  //   }
+  // };
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -218,18 +176,6 @@ export const LeadPage = () => {
     }
     // setQueries(sortedQueries);
   };
-
-  useEffect(() => {
-    const getAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken");
-        setAllotedArea(response.data.area);
-      } catch (err: any) {
-        console.log("error in getting area: ", err);
-      }
-    };
-    getAllotedArea();
-  }, []);
 
   const renderPaginationItems = () => {
     let items = [];
@@ -271,6 +217,39 @@ export const LeadPage = () => {
     }
     return items;
   };
+
+  const filterLeads = async (newPage: number) => {
+    try {
+      setLoading(true);
+      const response = await axios.post("/api/leads/getLeads", {
+        filters,
+        page: newPage,
+      });
+      console.log("response of new leads: ", response);
+      setQueries(response.data.data);
+      setTotalPages(response.data.totalPages);
+      setTotalQueries(response.data.totalQueries);
+    } catch (err: any) {
+      console.log("error in getting leads: ", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    filterLeads(1);
+    setPage(parseInt(searchParams.get("page") ?? "1"));
+    const getAllotedArea = async () => {
+      try {
+        const response = await axios.get("/api/getAreaFromToken");
+        setAllotedArea(response.data.area);
+      } catch (err: any) {
+        console.log("error in getting area: ", err);
+      }
+    };
+    getAllotedArea();
+  }, []);
+
   useEffect(() => {
     const pusher = new Pusher("1725fd164206c8aa520b", {
       cluster: "ap2",
@@ -292,7 +271,14 @@ export const LeadPage = () => {
     };
   }, [queries, allotedArea]);
 
-  const { token } = useAuthStore();
+  useEffect(() => {
+    // debounce(filterLeads, 500);
+    filterLeads(1);
+  }, [area, filters.searchTerm, filters.searchType]);
+
+  useEffect(() => {
+    filterLeads(page);
+  }, [page]);
 
   return (
     <div className=" w-full">
@@ -329,8 +315,10 @@ export const LeadPage = () => {
             )}
             <div className="">
               <Select
-                onValueChange={(value: string) => setSearchType(value)}
-                value={searchType}
+                onValueChange={(value: string) =>
+                  setFilters((prev) => ({ ...prev, searchType: value }))
+                }
+                value={filters.searchType}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Type" />
@@ -344,8 +332,10 @@ export const LeadPage = () => {
             </div>
             <Input
               placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.searchTerm}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
+              }
             />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
@@ -357,127 +347,30 @@ export const LeadPage = () => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle className="text-start">Data Filters</SheetTitle>
-                    <SheetDescription className="flex flex-col gap-y-2">
-                      <Select
-                        onValueChange={(value) => setDateFilter(value)}
-                        value={dateFilter}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Date Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          <SelectItem value="today">Today</SelectItem>
-                          <SelectItem value="yesterday">Yesterday</SelectItem>
-                          <SelectItem value="lastDays">Last X Days</SelectItem>
-                          <SelectItem value="customRange">
-                            Custom Date Range
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {dateFilter === "lastDays" && (
-                        <Input
-                          placeholder="Enter number of days"
-                          type="number"
-                          value={customDays}
-                          onChange={(e) => setCustomDays(e.target.value)}
-                        />
-                      )}
-                      {dateFilter === "customRange" && (
-                        <div className="flex space-x-2">
-                          <Input
-                            placeholder="Start Date"
-                            type="date"
-                            value={customDateRange.start}
-                            onChange={(e) =>
-                              setCustomDateRange({
-                                ...customDateRange,
-                                start: e.target.value,
-                              })
-                            }
-                          />
-                          <Input
-                            placeholder="End Date"
-                            type="date"
-                            value={customDateRange.end}
-                            onChange={(e) =>
-                              setCustomDateRange({
-                                ...customDateRange,
-                                end: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                      )}
-                      <SheetClose asChild>
-                        <Button
-                          className="sm:w-auto w-full"
-                          onClick={handleSearch}
-                        >
-                          Apply
-                        </Button>
-                      </SheetClose>
-                    </SheetDescription>
-                  </SheetHeader>
-
-                  <SheetHeader className=" mt-4">
-                    <SheetTitle className="text-start">Sort By</SheetTitle>
-                    <SheetDescription className="flex flex-col gap-y-2">
-                      <Select
-                        // onValueChange={(value) => {
-                        // setSortingField(value);
-                        //   queries.sort((a: IQuery, b:IQuery) => )
-                        // }}
-                        onValueChange={(value) => {
-                          handlePriorityChange();
-                          setSortingField(value);
-                        }}
-                        value={sortingField}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Priority Order" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="None">None</SelectItem>
-                          <SelectItem value="Asc">
-                            {" "}
-                            Priority : &nbsp; Low To High
-                          </SelectItem>
-                          <SelectItem value="Desc">
-                            {" "}
-                            Priority : &nbsp; High To Low
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </SheetDescription>
-                    <SheetDescription></SheetDescription>
-                  </SheetHeader>
-
-                  {/* <Button className="w-full mb-4" onClick={handleSearch}>
-                    Apply
-                  </Button> */}
-
                   {/* Lead Filters */}
-                  <div>
-                    <h2 className=" font-semibold text-lg">Filters</h2>
-                    <LeadFilter filters={filters} setFilters={setFilters} />
+                  <div className=" flex flex-col items-center">
+                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
+                    <LeadsFilter filters={filters} setFilters={setFilters} />
+                    {/* Apply Button */}
                   </div>
 
                   <SheetFooter>
                     <SheetClose asChild>
                       <Button
-                        className="w-full mt-4"
-                        onClick={FilteredLeadSearch}
+                        onClick={() => {
+                          const params = new URLSearchParams(
+                            Object.entries(filters)
+                          );
+                          setPage(1);
+                          router.push(`?${params.toString()}&page=1`);
+                          filterLeads(1);
+                        }}
+                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                       >
                         Apply
                       </Button>
                     </SheetClose>
-                  </SheetFooter>
-
-                  <SheetFooter className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                    <div className="flex flex-col gap-y-2">
+                    <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
                       <Select onValueChange={(value) => setView(value)}>
                         <SelectTrigger className="">
                           <SelectValue placeholder="Select View" />

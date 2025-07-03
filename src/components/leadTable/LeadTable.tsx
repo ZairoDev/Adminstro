@@ -1,7 +1,7 @@
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Users,
   Ellipsis,
@@ -60,12 +60,13 @@ import {
   AlertDialogContent,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const { toast } = useToast();
   const { token } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
@@ -80,6 +81,13 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   );
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (searchParams.get("page")) {
+      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+    }
+  }, []);
 
   const handleQualityChange = async (
     leadQualityByReviewer: string,
@@ -236,6 +244,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
         note: noteValue,
       });
       setCreatingNote(false);
+      setNoteValue("");
       queries[index] = response.data.data;
     } catch (error: any) {
       console.error("Error saving note:", error.message || error);
@@ -248,12 +257,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>S.No.</TableHead>
             {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
               <TableHead>Priority</TableHead>
             )}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
+            <TableHead>Duration</TableHead>
             <TableHead>Location</TableHead>
             {(token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin") && (
@@ -276,7 +287,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
               relative
             `}
             >
-              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+              <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
+              {(token?.role === "Sales" ||
+                token?.role === "Sales-TeamLead" ||
+                token?.role === "SuperAdmin") && (
                 <TableCell
                   className=" cursor-pointer relative "
                   onClick={() => handleSalesPriority(query?._id, index)}
@@ -400,6 +414,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
+
+              <TableCell>{query?.duration}</TableCell>
+
               <TableCell>
                 <div className=" flex gap-x-1">
                   <CustomTooltip
@@ -449,7 +466,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       )}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-40">
-                      <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
+                      {(token?.role === "SuperAdmin" ||
+                        token?.role === "Sales-TeamLead") && (
+                        <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="cursor-pointer"
@@ -782,10 +802,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             : "bg-white/20 text-white"
                         } text-sm font-bold `}
                       >
-                        {/* <span>N</span>
-                        <span>O</span>
-                        <span>T</span>
-                        <span>E</span> */}
                         <p className=" rotate-90">Note</p>
                       </p>
                     </DialogTrigger>

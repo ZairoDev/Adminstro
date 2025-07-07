@@ -1,57 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
-
-import Query from "@/models/query";
-import { connectDb } from "@/util/db";
 import {
-  subDays,
   addHours,
   setHours,
   setMinutes,
   setSeconds,
   setMilliseconds,
+  subDays,
 } from "date-fns";
-import { FetchQueryParams } from "@/app/dashboard/rejectedleads/lead-page";
+import { NextRequest, NextResponse } from "next/server";
+
+import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import Query from "@/models/query";
 
 connectDb();
 
 function convertToIST(date: Date): Date {
   return addHours(date, 5.5);
 }
-
 function getISTStartOfDay(date: Date): Date {
   const istDate = convertToIST(date);
   return setMilliseconds(setSeconds(setMinutes(setHours(istDate, 0), 0), 0), 0);
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const {
-      page,
-      limit,
-      searchTerm,
-      searchType,
-      dateFilter,
-      sortingField,
-      customDays,
-      startDate,
-      endDate,
-      allocatedArea: allotedArea,
-    } = await request.json();
-    const skip = (page - 1) * limit;
+export async function POST(req: NextRequest) {
+  const reqBody = await req.json();
+  const token = await getDataFromToken(req);
+  const assignedArea = token.allotedArea;
 
-    console.log(`data in reminder: page: ${page}, skip: ${skip}, searchTerm: ${searchTerm}, searchType: ${searchType},
-    dateFilter: ${dateFilter}, sortingField: ${sortingField}, customDays: ${customDays}, allotedArea: ${allotedArea},
-    limit: ${limit}, startDate: ${startDate}, endDate: ${endDate}`);
+  try {
+    console.log("req body in filter route: ", assignedArea, reqBody);
+
+    const {
+      searchType,
+      searchTerm,
+      dateFilter,
+      customDays,
+      fromDate,
+      toDate,
+      sortBy,
+      guest,
+      noOfBeds,
+      propertyType,
+      billStatus,
+      budgetFrom,
+      budgetTo,
+      leadQuality,
+    } = reqBody.filters;
+    const PAGE = reqBody.page;
+
+    const LIMIT = 50;
+    const SKIP = (PAGE - 1) * LIMIT;
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
-    query = {
-      $or: [{ reminder: { $exists: true } }, { reminder: { $ne: null } }],
-    };
-
-    const temp = await Query.find(query);
-
+    {
+      /* Search Term */
+    }
     if (searchTerm) {
       if (searchType === "phoneNo") {
         query.phoneNo = Number(searchTerm);
@@ -60,12 +65,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Add date filtering
+    {
+      /* Date Filter */
+    }
     let dateQuery: any = {};
     const istToday = getISTStartOfDay(new Date());
     const istYesterday = getISTStartOfDay(subDays(new Date(), 1));
     switch (dateFilter) {
-      case "today":
+      case "Today":
         dateQuery = {
           createdAt: {
             $gte: new Date(istToday.toISOString()),
@@ -73,7 +80,7 @@ export async function POST(request: NextRequest) {
           },
         };
         break;
-      case "yesterday":
+      case "Yesterday":
         dateQuery = {
           createdAt: {
             $gte: new Date(istYesterday.toISOString()),
@@ -81,7 +88,7 @@ export async function POST(request: NextRequest) {
           },
         };
         break;
-      case "lastDays":
+      case "Last X Days":
         if (customDays > 0) {
           const pastDate = getISTStartOfDay(subDays(new Date(), customDays));
           dateQuery = {
@@ -91,10 +98,10 @@ export async function POST(request: NextRequest) {
           };
         }
         break;
-      case "customRange":
-        if (startDate && endDate) {
-          const istStartDate = getISTStartOfDay(new Date(startDate));
-          const istEndDate = getISTStartOfDay(addHours(new Date(endDate), 24));
+      case "Custom Date Range":
+        if (fromDate && toDate) {
+          const istStartDate = getISTStartOfDay(new Date(fromDate));
+          const istEndDate = getISTStartOfDay(addHours(new Date(toDate), 24));
           dateQuery = {
             createdAt: {
               $gte: new Date(istStartDate.toISOString()),
@@ -107,16 +114,57 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    query = { ...query, rejectionReason: { $eq: null }, ...dateQuery };
-    if (allotedArea) {
-      query.location = allotedArea;
+    // Other filters
+    if (guest) query.guest = { $gte: parseInt(guest, 10) };
+    if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
+    if (propertyType) query.propertyType = propertyType;
+    if (billStatus) query.billStatus = billStatus;
+    if (budgetFrom) query.budget = { $gte: budgetFrom };
+    if (budgetTo) query.budget = { $lte: budgetTo };
+    if (leadQuality) query.leadQualityByReviewer = leadQuality;
+
+    {
+      /* Searching in non rejected Leads and leads with no reminders */
     }
+    query = {
+      ...query,
+      ...dateQuery,
+      $and: [
+        {
+          $and: [
+            {
+              rejectionReason: { $exists: true },
+            }, // rejectionReason field should exist and should not be null
+            {
+              rejectionReason: { $ne: null },
+            }, // rejectionReason field exists and not equal to null
+          ],
+        },
+        {
+          $or: [
+            { reminder: { $exists: false } }, // reminder field does not exist
+            { reminder: { $eq: null } }, // reminder field exists but is an empty string
+          ],
+        },
+      ],
+    };
+
+    {
+      /* Only search leads for alloted area */
+    }
+    if (Array.isArray(assignedArea)) {
+      query.location = { $in: assignedArea };
+    } else {
+      query.location = assignedArea;
+    }
+
+    console.log("created query: ", query);
 
     const allquery = await Query.aggregate([
       { $match: query },
-      { $sort: { _id: -1 } },
-      { $skip: skip },
-      { $limit: limit },
+      { $sort: { updatedAt: -1 } }, // last updated lead will come first
+      { $skip: SKIP },
+      { $limit: LIMIT },
       {
         $addFields: {
           istCreatedAt: {
@@ -130,20 +178,24 @@ export async function POST(request: NextRequest) {
       },
     ]);
 
+    console.log("all query length: ", allquery.length);
+
+    {
+      /*Sorting*/
+    }
     const priorityMap = {
       None: 1,
       Low: 2,
       High: 3,
     };
-
-    if (sortingField && sortingField !== "None") {
+    if (sortBy && sortBy !== "None") {
       allquery.sort((a, b) => {
         const priorityA =
           priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
         const priorityB =
           priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
 
-        if (sortingField === "Asc") {
+        if (sortBy === "Asc") {
           return priorityA - priorityB;
         } else {
           return priorityB - priorityA;
@@ -152,16 +204,16 @@ export async function POST(request: NextRequest) {
     }
 
     const totalQueries = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalQueries / limit);
+    const totalPages = Math.ceil(totalQueries / LIMIT);
 
     return NextResponse.json({
       data: allquery,
-      page,
+      PAGE,
       totalPages,
       totalQueries,
     });
   } catch (error: any) {
-    console.error("Error in GET request:", error);
+    console.log("error in getting filtered leads: ", error);
     return NextResponse.json(
       {
         message: "Failed to fetch properties from the database",

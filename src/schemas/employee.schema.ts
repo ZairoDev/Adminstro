@@ -26,6 +26,7 @@ export const employeeSchema = z.object({
     "LeadGen",
     "LeadGen-TeamLead",
     "Sales",
+    "Sales-TeamLead",
     "HR",
     "Guest",
     "Intern",

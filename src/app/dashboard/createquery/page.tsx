@@ -837,7 +837,7 @@ const SalesDashboard = () => {
                           <SelectContent>
                             <SelectItem value="Furnished">Furnished</SelectItem>
                             <SelectItem value="Unfurnished">
-                              Un- furnished
+                              Unfurnished
                             </SelectItem>
                             <SelectItem value="Semi-furnished">
                               Semi-furnished

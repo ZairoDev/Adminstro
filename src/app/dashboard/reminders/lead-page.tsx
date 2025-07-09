@@ -40,11 +40,10 @@ import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import LeadTable from "@/components/leadTable/LeadTable";
-import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import ReminderTable from "@/components/reminderTable/ReminderTable";
 
 export const LeadPage = () => {
   const router = useRouter();
@@ -165,7 +164,7 @@ export const LeadPage = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getLeads", {
+      const response = await axios.post("/api/leads/getReminderLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
@@ -365,7 +364,7 @@ export const LeadPage = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} />
+              <ReminderTable queries={queries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

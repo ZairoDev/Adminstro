@@ -7,8 +7,8 @@ import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
 import { useToast } from "@/hooks/use-toast";
 import PhoneInput from "react-phone-number-input";
-import React, { useCallback, useEffect, useState } from "react";
 import { CheckCheckIcon, SlidersHorizontal } from "lucide-react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 
 import { IQuery } from "@/util/type";
 import Loader from "@/components/loader";
@@ -836,8 +836,8 @@ const SalesDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Furnished">Furnished</SelectItem>
-                            <SelectItem value="Un - furnished">
-                              Un- furnished
+                            <SelectItem value="Unfurnished">
+                              Unfurnished
                             </SelectItem>
                             <SelectItem value="Semi-furnished">
                               Semi-furnished
@@ -1004,7 +1004,9 @@ const SalesDashboard = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} />
+              <Suspense fallback={<div>Loading...</div>}>
+                <LeadTable queries={queries} />
+              </Suspense>
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

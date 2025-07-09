@@ -254,8 +254,14 @@ const NewUser = () => {
                         <SelectItem value="Admin">Admin</SelectItem>
                         <SelectItem value="Advert">Advert</SelectItem>
                         <SelectItem value="LeadGen">LeadGen</SelectItem>
+                        <SelectItem value="LeadGen-TeamLead">
+                          LeadGen-TeamLead
+                        </SelectItem>
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
+                        <SelectItem value="Sales-TeamLead">
+                          Sales-TeamLead
+                        </SelectItem>
                         <SelectItem value="HR">Human Resource(HR)</SelectItem>
                         <SelectItem value="Developer">Developer</SelectItem>
                       </SelectContent>

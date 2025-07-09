@@ -40,13 +40,13 @@ import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import LeadTable from "@/components/leadTable/LeadTable";
-import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import ReminderTable from "@/components/reminderTable/ReminderTable";
+import LeadTable from "@/components/leadTable/LeadTable";
 
-export const LeadPage = () => {
+export const RejectedLeads = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
@@ -89,7 +89,6 @@ export const LeadPage = () => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    // console.log("area ::", area);
     filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
@@ -165,7 +164,7 @@ export const LeadPage = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getLeads", {
+      const response = await axios.post("/api/leads/getRejectedLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });

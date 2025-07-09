@@ -69,6 +69,12 @@ const querySchema = new Schema(
       type: String,
       enum: ["With Bill", "Without Bill"],
     },
+    leadStatus: {
+      type: String,
+    },
+    reason: {
+      type: String,
+    },
     leadQualityByReviewer: {
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
@@ -110,7 +116,7 @@ const querySchema = new Schema(
     },
     propertyType: {
       type: String,
-      enum: ["Furnished", "Un - furnished", "Semi-furnished"],
+      enum: ["Furnished", "Unfurnished", "Semi-furnished"],
       require: [true, "Property type must be provided"],
     },
     priority: {

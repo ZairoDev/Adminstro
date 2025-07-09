@@ -33,6 +33,14 @@ const chartConfig = {
     label: "Chania",
     color: "hsl(var(--chart-3))",
   },
+  rome: {
+    label: "Rome",
+    color: "hsl(var(--chart-4))",
+  },
+  milan: {
+    label: "Milan",
+    color: "hsl(var(--chart-5))",
+  },
 } satisfies ChartConfig
 
 
@@ -71,7 +79,7 @@ export function CustomStackBarChart({
   })
 
   // sort in ascending order according to the label
-  newChartData.sort((a, b) => a.label.localeCompare(b.label));
+  newChartData.sort((a, b) => a.label?.localeCompare(b.label));
   let locationKeys: string[] = [];
   for (const key in newChartData) {
     Object.keys(newChartData[key]).forEach((location) => {
@@ -126,7 +134,7 @@ export function CustomStackBarChart({
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) => `${value.split(" ")[0]?.trim()} ${value.split(" ")[1]?.slice(0, 1)}.`}
+              tickFormatter={(value) => `${value.split(" ")[0]?.trim()} `}
             />
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             {locationKeys.map((location, index) => (

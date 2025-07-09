@@ -1,71 +1,70 @@
+import {
+  Euro,
+  Users,
+  BookX,
+  Loader2,
+  Ellipsis,
+  ThumbsUp,
+  CircleDot,
+  BedSingle,
+  ReceiptText,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Users,
-  Ellipsis,
-  BedSingle,
-  Euro,
-  ReceiptText,
-  BookX,
-  Loader2,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  CircleDot,
-  ThumbsUp,
-} from "lucide-react";
 
-import { IQuery } from "@/util/type";
-import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
+  TableRow,
+  TableCell,
   TableBody,
   TableHead,
   TableHeader,
-  TableRow,
-  TableCell,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+  DialogTrigger,
+  DialogContent,
+} from "@/components/ui/dialog";
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
 
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
-import CustomTooltip from "../CustomToolTip";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
+  DropdownMenuSub,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogTrigger,
-} from "../ui/alert-dialog";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import CustomTooltip from "@/components/CustomToolTip";
 
-export default function LeadTable({ queries }: { queries: IQuery[] }) {
+export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
   const router = useRouter();
-  const path = usePathname();
   const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
@@ -129,44 +128,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
-  const handleRejectionReason = async (
-    rejectionReason: string,
-    id: any,
-    index: number
-  ) => {
-    setLoading(true);
-    if (!queries[index].leadQualityByReviewer) {
-      toast({
-        description: "Please select lead quality first",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-    try {
-      const response = axios.post("/api/sales/rejectionReason", {
-        id,
-        rejectionReason,
-      });
-      toast({
-        description: "Rejection reason saved succefully",
-      });
-      queries[index].rejectionReason = rejectionReason;
-      setLoading(false);
-    } catch (error: any) {
-      setLoading(false);
-      toast({
-        description: "Error occurred while updating status",
-      });
-    }
-  };
-
-  const handleDisposition = async (
-    id: any,
-    index: number,
-    disposition: string,
-    dispositionReason?: string
-  ) => {
+  const removeDisposition = async (id: any, index: number) => {
     setLoading(true);
     if (!queries[index].leadQualityByReviewer) {
       toast({
@@ -179,13 +141,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     try {
       axios.post("/api/leads/disposition", {
         id,
-        disposition,
-        dispositionReason,
+        disposition: "goodtogo",
       });
       toast({
         description: "Disposition updated succefully",
       });
-      queries[index].leadStatus = disposition;
+      queries[index].leadStatus = "goodtogo";
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -663,111 +624,16 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
+                      {(token?.role === "SuperAdmin" ||
+                        token?.role === "Sales-TeamLead") && (
+                        <DropdownMenuItem
+                          onClick={() => removeDisposition(query?._id, index)}
+                        >
+                          Revert to Good to go
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuSub>
-                        {(token?.role === "SuperAdmin" ||
-                          token?.role === "Sales-TeamLead") && (
-                          <>
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "goodtogo"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Good To Go <ThumbsUp size={16} />
-                              </DropdownMenuItem>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuSubTrigger className="w-40 truncate">
-                                Rej re:
-                                <span className="ml-2">
-                                  {query.rejectionReason}
-                                </span>
-                              </DropdownMenuSubTrigger>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "goodtogoleads" && (
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  Decline
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                  <DropdownMenuSubContent>
-                                    {["Not on whatsapp", "Low Budget"].map(
-                                      (declineReason, ind) => (
-                                        <DropdownMenuItem
-                                          key={ind}
-                                          onClick={() =>
-                                            handleDisposition(
-                                              query?._id,
-                                              index,
-                                              "declined",
-                                              `${declineReason}`
-                                            )
-                                          }
-                                        >
-                                          {`${declineReason}`}
-                                        </DropdownMenuItem>
-                                      )
-                                    )}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                              // <DropdownMenuItem
-                              //   onClick={() =>
-                              //     handleDisposition(
-                              //       query?._id,
-                              //       index,
-                              //       "declined"
-                              //     )
-                              //   }
-                              //   className=" flex items-center gap-x-2"
-                              // >
-                              //   Decline
-                              // </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
-                        <DropdownMenuPortal>
-                          <DropdownMenuSubContent>
-                            {[
-                              "Not Replying",
-                              "Blocked on whatsapp",
-                              "Late Response",
-                              "Delayed the travelling",
-                              "Off Location",
-                              "Number of people exceeded",
-                              "Already got it",
-                              "Didn't like the option",
-                              "Different Area",
-                              "Agency Fees",
-                            ].map((reason, ind) => (
-                              <DropdownMenuItem
-                                key={ind}
-                                onClick={() =>
-                                  handleRejectionReason(
-                                    `${reason}`,
-                                    query?._id,
-                                    index
-                                  )
-                                }
-                              >
-                                {`${reason}`}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                      </DropdownMenuSub>
-                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import {
@@ -9,7 +10,6 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
-import { FetchQueryParams } from "@/app/dashboard/rejectedleads/page";
 
 connectDb();
 

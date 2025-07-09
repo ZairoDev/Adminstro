@@ -36,6 +36,14 @@ const chartConfig = {
     label: "chania",
     color: "hsl(var(--chart-3))",
   },
+  rome: {
+    label: "rome",
+    color: "hsl(var(--chart-4))",
+  },
+  milan: {
+    label: "milan",
+    color: "hsl(var(--chart-5))",
+  },
 } satisfies ChartConfig
 
 interface LabelledPieChartProps {

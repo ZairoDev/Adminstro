@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const assignedArea = token.allotedArea;
 
     const { filters, page } = await req.json();
-    const skip = (page - 1) * 12;
+    const skip = (page - 1) * 50;
     console.log("Request Body:", filters);
 
     if (assignedArea) {
@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(leads, { status: 200 });
   } catch (err) {
     // Here you can handle the request and send a response
-    return NextResponse.json({ error: "Unable to filter leads" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unable to filter leads" },
+      { status: 401 }
+    );
   }
 }

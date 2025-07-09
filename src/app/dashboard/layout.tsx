@@ -24,9 +24,9 @@ export default function DashboardLayout({
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
-            {(token?.role === "SuperAdmin" || token?.role === "Sales") && (
-              <Notifications />
-            )}
+            {(token?.role === "SuperAdmin" ||
+              token?.role === "Sales" ||
+              token?.role === "Sales-TeamLead") && <Notifications />}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
                 <CommandDialogDemo />

@@ -298,6 +298,7 @@ export interface IQuery {
   propertyType: string;
   priority: string;
   salesPriority: string;
+  leadStatus?: string;
   note?: NotesInterface[];
   reminder: Date;
   roomDetails: {
@@ -405,6 +406,8 @@ export interface FilterInterface {
   billStatus: "With Bill" | "Without Bill";
   budgetFrom: number;
   budgetTo: number;
+  from: string;
+  to: string;
   leadQualityByCreator?: "Very Good" | "Good" | "Average" | "Below Average";
   leadQualityByReviewer?: "Very Good" | "Good" | "Average" | "Below Average";
 }

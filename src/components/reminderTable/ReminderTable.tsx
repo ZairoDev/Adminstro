@@ -1,55 +1,58 @@
+import {
+  Euro,
+  BookX,
+  Users,
+  Ellipsis,
+  CircleDot,
+  BedSingle,
+  ReceiptText,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+  Calendar as DateIcon,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
-import { useCallback, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { IQuery } from "@/util/type";
-import { useToast } from "@/hooks/use-toast";
-import { useAuthStore } from "@/AuthStore";
 import {
   Table,
-  TableBody,
-  TableHead,
-  TableHeader,
   TableRow,
+  TableHead,
+  TableBody,
   TableCell,
+  TableHeader,
 } from "@/components/ui/table";
-import {
-  Users,
-  Calendar as DateIcon,
-  Ellipsis,
-  BedSingle,
-  Euro,
-  ReceiptText,
-  BookX,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  CircleDot,
-} from "lucide-react";
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
 
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import CustomTooltip from "../CustomToolTip";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
 
 export default function ReminderTable({ queries }: { queries: IQuery[] }) {
   const { toast } = useToast();
   const { token } = useAuthStore();
+  const searchParams = useSearchParams();
 
   const [selectedQuery, setSelectedQuery] = useState<IQuery | null>(null);
-  const [salesPriority, setSalesPriority] = useState<("Low" | "High" | "None")[]>(
-    Array.from({ length: queries?.length ?? 0 }, () => "None")
-  );
+  const [salesPriority, setSalesPriority] = useState<
+    ("Low" | "High" | "None")[]
+  >(Array.from({ length: queries?.length ?? 0 }, () => "None"));
   const ellipsisRef = useRef<HTMLButtonElement>(null);
+  const [page, setPage] = useState(1);
 
   const startDate =
     selectedQuery?.startDate && !isNaN(Date.parse(selectedQuery?.startDate))
@@ -133,6 +136,12 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
+  useEffect(() => {
+    if (searchParams.get("page")) {
+      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+    }
+  }, []);
+
   return (
     <div className=" w-full h-full">
       {queries?.length > 0 ? (
@@ -142,6 +151,8 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
               {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                 <TableHead>Priority</TableHead>
               )}
+              <TableHead>S. No.</TableHead>
+              <TableHead>Priority</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Guests</TableHead>
               <TableHead>Budget</TableHead>
@@ -166,6 +177,7 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
               }
             `}
               >
+                <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
                 <TableCell
                   className=" cursor-pointer"
                   onClick={() => handleSalesPriority(query?._id, index)}
@@ -286,7 +298,10 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                     />
                     <div>|</div>
                     <Badge className="  ">
-                      <CustomTooltip text={query?.zone?.charAt(0)} desc={query?.zone} />
+                      <CustomTooltip
+                        text={query?.zone?.charAt(0)}
+                        desc={query?.zone}
+                      />
                     </Badge>
                   </div>
                 </TableCell>
@@ -308,7 +323,9 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                       <DropdownMenuLabel>My Account</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => addBackToLeads(query?._id)}>
+                        <DropdownMenuItem
+                          onClick={() => addBackToLeads(query?._id)}
+                        >
                           Add Back To Leads
                         </DropdownMenuItem>
                         <Link
@@ -333,7 +350,9 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
             alt="Temporary Image"
             className=" w-96 h-96 opacity-30"
           />
-          <h3 className=" text-4xl font-semibold uppercase opacity-30">No Reminders</h3>
+          <h3 className=" text-4xl font-semibold uppercase opacity-30">
+            No Reminders
+          </h3>
         </div>
       )}
     </div>

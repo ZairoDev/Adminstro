@@ -5,17 +5,14 @@ import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   Sheet,
-  SheetTitle,
   SheetClose,
   SheetFooter,
-  SheetHeader,
   SheetContent,
   SheetTrigger,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   Select,
@@ -40,13 +37,13 @@ import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
+import LeadTable from "@/components/leadTable/LeadTable";
+import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
-import ReminderTable from "@/components/reminderTable/ReminderTable";
-import LeadTable from "@/components/leadTable/LeadTable";
 
-export const RejectedLeads = () => {
+export const GoodToGoLeads = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
@@ -89,6 +86,7 @@ export const RejectedLeads = () => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
+    // console.log("area ::", area);
     filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
@@ -164,7 +162,7 @@ export const RejectedLeads = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getRejectedLeads", {
+      const response = await axios.post("/api/leads/getGoodToGoLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
@@ -364,7 +362,18 @@ export const RejectedLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} />
+              {queries.length > 0 ? (
+                <LeadTable queries={queries} />
+              ) : (
+                <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
+                  <img
+                    src="https://vacationsaga.b-cdn.net/assets/no-data-bg.png"
+                    alt="Temporary Image"
+                    className=" w-96 h-96 opacity-30"
+                  />
+                  <h1 className=" text-gray-600 text-3xl">No Leads</h1>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

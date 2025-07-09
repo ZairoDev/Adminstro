@@ -298,6 +298,7 @@ export interface IQuery {
   propertyType: string;
   priority: string;
   salesPriority: string;
+  leadStatus?: string;
   note?: NotesInterface[];
   reminder: Date;
   roomDetails: {

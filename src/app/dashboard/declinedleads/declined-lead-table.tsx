@@ -1,71 +1,70 @@
+import {
+  Euro,
+  Users,
+  BookX,
+  Loader2,
+  Ellipsis,
+  ThumbsUp,
+  CircleDot,
+  BedSingle,
+  ReceiptText,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Users,
-  Ellipsis,
-  BedSingle,
-  Euro,
-  ReceiptText,
-  BookX,
-  Loader2,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  CircleDot,
-  ThumbsUp,
-} from "lucide-react";
 
-import { IQuery } from "@/util/type";
-import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
+  TableRow,
+  TableCell,
   TableBody,
   TableHead,
   TableHeader,
-  TableRow,
-  TableCell,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+  DialogTrigger,
+  DialogContent,
+} from "@/components/ui/dialog";
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
 
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
-import CustomTooltip from "../CustomToolTip";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
+  DropdownMenuSub,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogTrigger,
-} from "../ui/alert-dialog";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import CustomTooltip from "@/components/CustomToolTip";
 
-export default function LeadTable({ queries }: { queries: IQuery[] }) {
+export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
   const router = useRouter();
-  const path = usePathname();
   const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
@@ -129,43 +128,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
-  const handleRejectionReason = async (
-    rejectionReason: string,
-    id: any,
-    index: number
-  ) => {
-    setLoading(true);
-    if (!queries[index].leadQualityByReviewer) {
-      toast({
-        description: "Please select lead quality first",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-    try {
-      const response = axios.post("/api/sales/rejectionReason", {
-        id,
-        rejectionReason,
-      });
-      toast({
-        description: "Rejection reason saved succefully",
-      });
-      queries[index].rejectionReason = rejectionReason;
-      setLoading(false);
-    } catch (error: any) {
-      setLoading(false);
-      toast({
-        description: "Error occurred while updating status",
-      });
-    }
-  };
-
-  const handleDisposition = async (
-    id: any,
-    index: number,
-    disposition: string
-  ) => {
+  const removeDisposition = async (id: any, index: number) => {
     setLoading(true);
     if (!queries[index].leadQualityByReviewer) {
       toast({
@@ -178,12 +141,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     try {
       axios.post("/api/leads/disposition", {
         id,
-        disposition,
+        disposition: "goodtogo",
       });
       toast({
         description: "Disposition updated succefully",
       });
-      queries[index].leadStatus = disposition;
+      queries[index].leadStatus = "goodtogo";
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -661,203 +624,16 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
+                      {(token?.role === "SuperAdmin" ||
+                        token?.role === "Sales-TeamLead") && (
+                        <DropdownMenuItem
+                          onClick={() => removeDisposition(query?._id, index)}
+                        >
+                          Revert to Good to go
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuSub>
-                        {(token?.role === "SuperAdmin" ||
-                          token?.role === "Sales-TeamLead") && (
-                          <>
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "goodtogo"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Good To Go <ThumbsUp size={16} />
-                              </DropdownMenuItem>
-                            )}
-                            {!(query.leadStatus === "goodtogo") && (
-                              <DropdownMenuSubTrigger className="w-40 truncate">
-                                Rej re:
-                                <span className="ml-2">
-                                  {query.rejectionReason}
-                                </span>
-                              </DropdownMenuSubTrigger>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "goodtogoleads" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "declined"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Decline
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
-                        <DropdownMenuPortal>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Not Replying",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Not Replying
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Blocked on whatsapp",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Blocked on whatsapp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Not on whatsapp",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Not on whatsapp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Late Response",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Late Response
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Delayed the Traveling",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Delayed the Traveling
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Off Location",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Off Location
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Number of people exceeded",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Number of people exceeded
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Low Budget
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Allready got it",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Allready got it
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Low Budget
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Didn't like the option",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Didn&apos;t like the option
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Defferent Area",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Different Area
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Agency Fees",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Agency Fees
-                            </DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                      </DropdownMenuSub>
-                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">

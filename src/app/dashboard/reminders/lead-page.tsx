@@ -44,9 +44,8 @@ import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
 import ReminderTable from "@/components/reminderTable/ReminderTable";
-import LeadTable from "@/components/leadTable/LeadTable";
 
-export const RejectedLeads = () => {
+export const LeadPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
@@ -89,6 +88,7 @@ export const RejectedLeads = () => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
+    // console.log("area ::", area);
     filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
@@ -164,7 +164,7 @@ export const RejectedLeads = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getRejectedLeads", {
+      const response = await axios.post("/api/leads/getReminderLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
@@ -364,7 +364,7 @@ export const RejectedLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} />
+              <ReminderTable queries={queries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

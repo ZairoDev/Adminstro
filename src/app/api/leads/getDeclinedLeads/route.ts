@@ -148,12 +148,7 @@ export async function POST(req: NextRequest) {
             { reminder: { $eq: null } }, // reminder field exists but is an empty string
           ],
         },
-        {
-          $or: [
-            { leadStatus: { $exists: false } }, // leadStatus field should either not exist
-            { leadStatus: "" }, // or it should be empty
-          ],
-        },
+        { leadStatus: "declined" }, // all leads should be having declined status
       ],
     };
 

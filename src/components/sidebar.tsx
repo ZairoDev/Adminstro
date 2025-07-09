@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Ban,
   House,
   Frown,
   Check,
@@ -8,6 +9,7 @@ import {
   ScanEye,
   CircleX,
   BellDot,
+  ThumbsUp,
   Notebook,
   PhoneOff,
   Languages,
@@ -162,15 +164,9 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Read Blogs",
       Icon: <FileSpreadsheet size={18} />,
     },
-
     {
       path: "/dashboard/createquery",
       label: "Create Lead",
-      Icon: <PencilLine size={18} />,
-    },
-    {
-      path: "/dashboard/rolebaseLead",
-      label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
     },
     {
@@ -189,14 +185,29 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <BadgeEuro size={18} />,
     },
     {
-      path: "/dashboard/reminders",
-      label: "Reminders",
-      Icon: <BellDot size={18} />,
+      path: "/dashboard/rolebaseLead",
+      label: "Lead (Sales)",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/goodtogoleads",
+      label: "Good To Go",
+      Icon: <ThumbsUp size={18} />,
+    },
+    {
+      path: "/dashboard/declinedleads",
+      label: "Declined Leads",
+      Icon: <Ban size={18} />,
     },
     {
       path: "/dashboard/rejectedleads",
       label: "Rejected Leads",
       Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
     },
     {
       path: "/dashboard/candidatePortal",
@@ -236,14 +247,24 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/reminders",
-      label: "Reminders",
-      Icon: <BellDot size={18} />,
+      path: "/dashboard/goodtogoleads",
+      label: "Good To Go",
+      Icon: <ThumbsUp size={18} />,
+    },
+    {
+      path: "/dashboard/declinedleads",
+      label: "Declined Leads",
+      Icon: <Ban size={18} />,
     },
     {
       path: "/dashboard/rejectedleads",
       label: "Rejected Leads",
       Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",
@@ -278,14 +299,24 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/reminders",
-      label: "Reminders",
-      Icon: <BellDot size={18} />,
+      path: "/dashboard/goodtogoleads",
+      label: "Good To Go",
+      Icon: <ThumbsUp size={18} />,
+    },
+    {
+      path: "/dashboard/declinedleads",
+      label: "Declined Leads",
+      Icon: <Ban size={18} />,
     },
     {
       path: "/dashboard/rejectedleads",
       label: "Rejected Leads",
       Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/reminders",
+      label: "Reminders",
+      Icon: <BellDot size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",

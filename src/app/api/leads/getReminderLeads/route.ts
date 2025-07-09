@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
 
     {
-      /* Searching in non rejected Leads and leads with no reminders */
+      /* Searching in non rejected Leads and leads with reminders set */
     }
     query = {
       ...query,
@@ -144,16 +144,11 @@ export async function POST(req: NextRequest) {
         },
         {
           $or: [
-            { reminder: { $exists: false } }, // reminder field does not exist
-            { reminder: { $eq: null } }, // reminder field exists but is an empty string
+            { reminder: { $exists: true } }, // either reminder field should exist
+            { reminder: { $ne: null } }, // or reminder field exists but is an empty string
           ],
         },
-        {
-          $or: [
-            { leadStatus: { $exists: false } }, // leadStatus field should either not exist
-            { leadStatus: "" }, // or it should be empty
-          ],
-        },
+        { leadStatus: { $exists: false } }, // the leads should not have any status
       ],
     };
 

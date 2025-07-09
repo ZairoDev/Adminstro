@@ -26,9 +26,10 @@ export async function POST(req: NextRequest) {
   const reqBody = await req.json();
   const token = await getDataFromToken(req);
   const assignedArea = token.allotedArea;
+  const role = token.role;
 
   try {
-    console.log("req body in filter route: ", assignedArea, reqBody);
+    // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
       searchType,
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       budgetFrom,
       budgetTo,
       leadQuality,
+      allotedArea,
     } = reqBody.filters;
     const PAGE = reqBody.page;
 
@@ -146,19 +148,25 @@ export async function POST(req: NextRequest) {
             { reminder: { $eq: null } }, // reminder field exists but is an empty string
           ],
         },
+        { leadStatus: { $exists: false } }, // the leads should not have any status
       ],
     };
 
     {
       /* Only search leads for alloted area */
     }
-    if (Array.isArray(assignedArea)) {
-      query.location = { $in: assignedArea };
+    if (allotedArea) {
+      query.location = new RegExp(allotedArea, "i");
     } else {
-      query.location = assignedArea;
+      if (role !== "SuperAdmin" && role !== "Sales-TeamLead") {
+        if (Array.isArray(assignedArea)) {
+          query.location = { $in: assignedArea };
+        } else {
+          query.location = assignedArea;
+        }
+      }
     }
-
-    console.log("created query: ", query);
+    // console.log("created query: ", query);
 
     const allquery = await Query.aggregate([
       { $match: query },
@@ -178,7 +186,7 @@ export async function POST(req: NextRequest) {
       },
     ]);
 
-    console.log("all query length: ", allquery.length);
+    // console.log("all query length: ", allquery.length);
 
     {
       /*Sorting*/

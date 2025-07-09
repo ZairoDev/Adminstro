@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
-import { LeadPage } from "./lead-page";
+import { GoodToGoLeads } from "./lead-page";
 
 const RolebasedLead = () => {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <LeadPage />
+      <GoodToGoLeads />
     </Suspense>
   );
 };

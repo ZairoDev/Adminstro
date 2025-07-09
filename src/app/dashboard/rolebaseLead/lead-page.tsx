@@ -65,88 +65,32 @@ export const LeadPage = () => {
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState("");
 
-  const [filters, setFilters] = useState<FilterState>({
-    searchType: searchParams.get("searchType") || "name",
-    searchTerm: searchParams.get("searchTerm") || "",
-    dateFilter: searchParams.get("dateFilter") || "all",
-    customDays: searchParams.get("customDays") || "0",
-    fromDate:
-      searchParams.get("fromDate") !== null
-        ? new Date(searchParams.get("fromDate") as string)
-        : undefined,
-    toDate:
-      searchParams.get("toDate") !== null
-        ? new Date(searchParams.get("toDate") as string)
-        : undefined,
-    sortBy: searchParams.get("sortBy") || "None",
-    guest: searchParams.get("guest") || "0",
-    noOfBeds: searchParams.get("noOfBeds") || "0",
-    propertyType: searchParams.get("propertyType") || "",
-    billStatus: searchParams.get("billStatus") || "",
-    budgetFrom: searchParams.get("budgetFrom") || "",
-    budgetTo: searchParams.get("budgetTo") || "",
-    leadQuality: searchParams.get("leadQuality") || "",
-  });
+  const defaultFilters: FilterState = {
+    searchType: "name",
+    searchTerm: "",
+    dateFilter: "all",
+    customDays: "0",
+    fromDate: undefined,
+    toDate: undefined,
+    sortBy: "None",
+    guest: "0",
+    noOfBeds: "0",
+    propertyType: "",
+    billStatus: "",
+    budgetFrom: "",
+    budgetTo: "",
+    leadQuality: "",
+    allotedArea: "",
+  };
 
-  // const fetchQuery = useCallback(
-  //   debounce(
-  //     async ({
-  //       searchTerm,
-  //       searchType,
-  //       dateFilter,
-  //       sortingField,
-  //       customDays,
-  //       customDateRange,
-  //     }: FetchQueryParams) => {
-  //       setLoading(true);
-  //       try {
-  //         if (!dateFilter && !sortingField) return;
-  //         const response = await fetch(
-  //           `/api/sales/getQueryByArea?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}&dateFilter=${dateFilter}&customDays=${customDays}&startDate=${customDateRange.start}&endDate=${customDateRange.end}&allotedArea=${area}&sortingField=${sortingField}`
-  //         );
-  //         const data: ApiResponse = await response.json();
-  // setQueries(data.data);
-  // setTotalPages(data.totalPages);
-  // setTotalQueries(data.totalQueries);
-  //       } catch (err: any) {
-  //         setLoading(false);
-  //       } finally {
-  //         setLoading(false);
-  //       }
-  //     },
-  //     1000
-  //   ),
-  //   [area, searchType, page, limit]
-  // );
-
-  // const FilteredLeadSearch = async () => {
-  //   // router.push(`?page=1`);
-  //   const searchParams = new URLSearchParams(Object.entries(filters));
-  //   router.push(`?${searchParams.toString()}`);
-  //   setPage(1);
-  //   if (Object.keys(filters).length === 0) return;
-  //   try {
-  //     const response = await axios.post("/api/leads", {
-  //       filters,
-  //       page,
-  //     });
-  //     console.log("filtered data: ", response.data);
-  //     setQueries(response.data);
-  //     // setTotalPages(response.data.totalPages);
-  //     // setTotalQueries(response.data.totalQueries);
-  //   } catch (err: any) {
-  //     toast({
-  //       variant: "destructive",
-  //       title: "Error",
-  //       description: "Something went wrong while filtering data",
-  //     });
-  //   }
-  // };
+  const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
+    // console.log("area ::", area);
+    filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
   };
@@ -218,14 +162,14 @@ export const LeadPage = () => {
     return items;
   };
 
-  const filterLeads = async (newPage: number) => {
+  const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
       const response = await axios.post("/api/leads/getLeads", {
-        filters,
+        filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);
+      // console.log("response of new leads: ", response);
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -237,7 +181,7 @@ export const LeadPage = () => {
   };
 
   useEffect(() => {
-    filterLeads(1);
+    filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams.get("page") ?? "1"));
     const getAllotedArea = async () => {
       try {
@@ -274,11 +218,7 @@ export const LeadPage = () => {
   useEffect(() => {
     // debounce(filterLeads, 500);
     filterLeads(1);
-  }, [area, filters.searchTerm, filters.searchType]);
-
-  useEffect(() => {
-    filterLeads(page);
-  }, [page]);
+  }, [filters.searchTerm]);
 
   return (
     <div className=" w-full">
@@ -292,11 +232,18 @@ export const LeadPage = () => {
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
-            {token?.role == "SuperAdmin" && (
+            {(token?.role == "SuperAdmin" ||
+              token?.role === "Sales-TeamLead") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {
-                    setArea(value);
+                    if (value === "all") {
+                      setArea("");
+                      filterLeads(1, { ...filters, allotedArea: "" });
+                    } else {
+                      setArea(value);
+                      filterLeads(1, { ...filters, allotedArea: value });
+                    }
                   }}
                   value={area}
                 >
@@ -304,7 +251,10 @@ export const LeadPage = () => {
                     <SelectValue placeholder="Select Area" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="chania">Chania</SelectItem>
+                    <SelectItem value="milan">Milan</SelectItem>
+                    <SelectItem value="rome">Rome</SelectItem>
                     <SelectItem value="athens">Athens</SelectItem>
                     <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
                     <SelectItem value="corfu">Corfu</SelectItem>
@@ -354,7 +304,7 @@ export const LeadPage = () => {
                     {/* Apply Button */}
                   </div>
 
-                  <SheetFooter>
+                  <SheetFooter className=" flex flex-col">
                     <SheetClose asChild>
                       <Button
                         onClick={() => {
@@ -363,11 +313,25 @@ export const LeadPage = () => {
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1);
+                          filterLeads(1, { ...filters, allotedArea: area });
                         }}
                         className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                       >
                         Apply
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button
+                        onClick={() => {
+                          router.push(`?page=1`);
+                          console.log("default filters: ", defaultFilters);
+                          setFilters({ ...defaultFilters });
+                          setPage(1);
+                          filterLeads(1, defaultFilters);
+                        }}
+                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                      >
+                        Clear
                       </Button>
                     </SheetClose>
                     <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">

@@ -10,7 +10,6 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
-import { FetchQueryParams } from "@/app/dashboard/rejectedleads/lead-page";
 
 connectDb();
 

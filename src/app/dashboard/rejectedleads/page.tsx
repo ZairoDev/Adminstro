@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import RejectedLeads from "./lead-page";
+import { RejectedLeads } from "./lead-page";
 
 const RolebasedLead = () => {
   return (

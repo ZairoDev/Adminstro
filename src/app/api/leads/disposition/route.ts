@@ -4,7 +4,7 @@ import Query from "@/models/query";
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, disposition } = await req.json();
+    const { id, disposition, dispositionReason } = await req.json();
 
     if (!id) {
       return NextResponse.json(
@@ -15,7 +15,12 @@ export async function POST(req: NextRequest) {
 
     const updatedQuery = await Query.findByIdAndUpdate(
       id,
-      { $set: { leadStatus: disposition } },
+      {
+        $set: {
+          leadStatus: disposition,
+          reason: dispositionReason ? dispositionReason : "",
+        },
+      },
       { new: true }
     );
 

@@ -164,7 +164,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const handleDisposition = async (
     id: any,
     index: number,
-    disposition: string
+    disposition: string,
+    dispositionReason?: string
   ) => {
     setLoading(true);
     if (!queries[index].leadQualityByReviewer) {
@@ -179,6 +180,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       axios.post("/api/leads/disposition", {
         id,
         disposition,
+        dispositionReason,
       });
       toast({
         description: "Disposition updated succefully",
@@ -683,7 +685,8 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                                 Good To Go <ThumbsUp size={16} />
                               </DropdownMenuItem>
                             )}
-                            {!(query.leadStatus === "goodtogo") && (
+                            {path.toString().trim().split("/")[2] ===
+                              "rolebaseLead" && (
                               <DropdownMenuSubTrigger className="w-40 truncate">
                                 Rej re:
                                 <span className="ml-2">
@@ -693,167 +696,74 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             )}
                             {path.toString().trim().split("/")[2] ===
                               "goodtogoleads" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "declined"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Decline
-                              </DropdownMenuItem>
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  Decline
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuPortal>
+                                  <DropdownMenuSubContent>
+                                    {["Not on whatsapp", "Low Budget"].map(
+                                      (declineReason, ind) => (
+                                        <DropdownMenuItem
+                                          key={ind}
+                                          onClick={() =>
+                                            handleDisposition(
+                                              query?._id,
+                                              index,
+                                              "declined",
+                                              `${declineReason}`
+                                            )
+                                          }
+                                        >
+                                          {`${declineReason}`}
+                                        </DropdownMenuItem>
+                                      )
+                                    )}
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuPortal>
+                              </DropdownMenuSub>
+                              // <DropdownMenuItem
+                              //   onClick={() =>
+                              //     handleDisposition(
+                              //       query?._id,
+                              //       index,
+                              //       "declined"
+                              //     )
+                              //   }
+                              //   className=" flex items-center gap-x-2"
+                              // >
+                              //   Decline
+                              // </DropdownMenuItem>
                             )}
                           </>
                         )}
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Not Replying",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Not Replying
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Blocked on whatsapp",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Blocked on whatsapp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Not on whatsapp",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Not on whatsapp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Late Response",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Late Response
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Delayed the Traveling",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Delayed the Traveling
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Off Location",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Off Location
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Number of people exceeded",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Number of people exceeded
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Low Budget
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Allready got it",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Allready got it
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Low Budget",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Low Budget
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Didn't like the option",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Didn&apos;t like the option
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Defferent Area",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Different Area
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleRejectionReason(
-                                  "Agency Fees",
-                                  query?._id,
-                                  index
-                                )
-                              }
-                            >
-                              Agency Fees
-                            </DropdownMenuItem>
+                            {[
+                              "Not Replying",
+                              "Blocked on whatsapp",
+                              "Late Response",
+                              "Delayed the travelling",
+                              "Off Location",
+                              "Number of people exceeded",
+                              "Already got it",
+                              "Didn't like the option",
+                              "Different Area",
+                              "Agency Fees",
+                            ].map((reason, ind) => (
+                              <DropdownMenuItem
+                                key={ind}
+                                onClick={() =>
+                                  handleRejectionReason(
+                                    `${reason}`,
+                                    query?._id,
+                                    index
+                                  )
+                                }
+                              >
+                                {`${reason}`}
+                              </DropdownMenuItem>
+                            ))}
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>

@@ -8,9 +8,9 @@ import {
 } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
+import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import Query from "@/models/query";
 
 connectDb();
 

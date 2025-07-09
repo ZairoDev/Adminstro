@@ -1,7 +1,8 @@
 import Link from "next/link"; // ✅ Correct import
-import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { IoChevronDown, IoChevronUp } from "react-icons/io5";
+import { usePathname } from "next/navigation";
+import { ChevronDown, ChevronRight } from "lucide-react";
+
 
 interface Route {
   path: string;
@@ -10,7 +11,7 @@ interface Route {
 }
 
 function SidebarSection({ title, routes }: { title: string; routes: Route[] }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const currentPath = usePathname();
 
   if (routes.length === 0) return null;
@@ -22,7 +23,7 @@ function SidebarSection({ title, routes }: { title: string; routes: Route[] }) {
         className="flex items-center text-sm justify-between w-full px-4 py-2 font-semibold text-white"
       >
         <span>{title}</span>
-        <span>{open ? <IoChevronDown /> : <IoChevronUp />}</span>
+        <span>{open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>
       </button>
       {open && (
         <ul className="pl-4">

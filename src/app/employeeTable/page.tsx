@@ -10,6 +10,7 @@ import { employeeRoles } from "@/models/employee";
 
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
+import EmployeeTable from "./employee-table";
 
 export default function TablePage() {
   const { token } = useAuthStore();
@@ -57,7 +58,7 @@ export default function TablePage() {
 
   return (
     <div className="">
-      <DataTable
+      {/* <DataTable
         data={data}
         columns={columns}
         setPage={setPage}
@@ -70,7 +71,8 @@ export default function TablePage() {
         queryType={queryType}
         totalUser={totalUser}
         loading={loading}
-      />
+      /> */}
+      {data && <EmployeeTable employees={data} />}
     </div>
   );
 }

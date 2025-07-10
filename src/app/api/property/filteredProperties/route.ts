@@ -4,7 +4,10 @@ import { Properties } from "@/models/property";
 import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties/page";
 
 export async function POST(req: NextRequest) {
-  const { filters, page }: { filters: FiltersInterface; page: number } = await req.json();
+  const { filters, page }: { filters: FiltersInterface; page: number } =
+    await req.json();
+
+  // console.log("filters in backend: ", filters);
 
   // console.log("filters: ", filters, filters.dateRange);
 
@@ -38,13 +41,21 @@ export async function POST(req: NextRequest) {
     ];
   }
   if (filters.minPrice && filters.maxPrice) {
-    query["basePrice"] = { $gte: filters.minPrice, $lte: filters.maxPrice };
+    query[
+      filters.rentalType === "Long Term" ? "basePriceLongTerm" : "basePrice"
+    ] = { $gte: filters.minPrice, $lte: filters.maxPrice };
   } else {
-    if (filters.minPrice) query["basePrice"] = { $gte: filters.minPrice };
-    if (filters.maxPrice) query["basePrice"] = { $lte: filters.maxPrice };
+    if (filters.minPrice)
+      query[
+        filters.rentalType === "Long Term" ? "basePriceLongTerm" : "basePrice"
+      ] = { $gte: filters.minPrice };
+    if (filters.maxPrice)
+      query[
+        filters.rentalType === "Long Term" ? "basePriceLongTerm" : "basePrice"
+      ] = { $lte: filters.maxPrice };
   }
 
-  // console.log("query created: ", query);
+  // console.log("filter query created: ", query);
 
   try {
     const filteredProperties = await Properties.find(query, projection)
@@ -62,11 +73,17 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { filteredProperties: filteredDocs, totalProperties: filteredDocs.length },
+        {
+          filteredProperties: filteredDocs,
+          totalProperties: filteredDocs.length,
+        },
         { status: 200 }
       );
     }
-    return NextResponse.json({ filteredProperties, totalProperties }, { status: 200 });
+    return NextResponse.json(
+      { filteredProperties, totalProperties },
+      { status: 200 }
+    );
   } catch (err: any) {
     const error = new Error(err);
     // console.log("error in filter:", err);
@@ -86,7 +103,11 @@ function getFilteredDocuments(
 
   return docs.filter((doc: any) => {
     // Iterate through the pricePerDay array (which is an array of months)
-    for (let monthIndex = 0; monthIndex < doc.pricePerDay.length; monthIndex++) {
+    for (
+      let monthIndex = 0;
+      monthIndex < doc.pricePerDay.length;
+      monthIndex++
+    ) {
       const monthDays = doc.pricePerDay[monthIndex];
 
       // Find the start and end date of this month

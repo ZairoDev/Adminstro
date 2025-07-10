@@ -55,7 +55,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear }: PageProps
     setFilters({ ...filters, dateRange: value });
   };
 
-  console.log("filters: ", filterCount(filters), filters);
+  // console.log("filters: ", filterCount(filters), filters);
 
   return (
     <div className="p-2 flex flex-wrap justify-between items-center  gap-y-2">

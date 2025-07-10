@@ -72,7 +72,7 @@ export default function TablePage() {
         totalUser={totalUser}
         loading={loading}
       /> */}
-      {data && <EmployeeTable employees={data} />}
+      {data && <EmployeeTable employees={data} role={token?.role ?? "HR"} />}
     </div>
   );
 }

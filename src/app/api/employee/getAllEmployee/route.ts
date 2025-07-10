@@ -1,6 +1,8 @@
+import { NextRequest, NextResponse } from "next/server";
+
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -19,6 +21,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     Number(request.nextUrl.searchParams.get("currentPage")) || 1;
   const queryType = request.nextUrl.searchParams.get("queryType");
   let EmployeeInput = request.nextUrl.searchParams.get("userInput");
+
+  const token = await getDataFromToken(request);
 
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
@@ -47,11 +51,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   //   query.role = { $nin: ["SuperAdmin", "Developer"] };
   // }
 
+  let allEmployees: Employee[] = [];
+
   try {
-    const allEmployees: Employee[] = await Employees.find(query)
-      // .limit(20)
-      .skip(skip)
-      .sort({ _id: -1 });
+    if (token.role === "LeadGen-TeamLead") {
+      allEmployees = await Employees.find({ ...query, role: "LeadGen" }).sort({
+        _id: -1,
+      });
+    } else {
+      allEmployees = await Employees.find(query).sort({ _id: -1 });
+    }
 
     const totalEmployee: number = await Employees.countDocuments(query);
 

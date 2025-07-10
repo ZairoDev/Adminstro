@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
 import { getDataFromToken } from "./util/getDataFromToken";
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
@@ -47,6 +48,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/createquery",
     /^\/dashboard\/createquery\/.*$/,
     "/dashboard/agent-data",
+    // /^\/dashboard\/employee\/.*$/,
+    "/dashboard/employee",
     /^\/dashboard\/lead-location-group\/.*$/,
     /^\/dashboard\/lead-agent-group\/.*$/,
   ],
@@ -139,7 +142,7 @@ const publicRoutes = [
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
-  console.log("token", token);
+  // console.log("token", token);
 
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
@@ -179,7 +182,7 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch (error: any) {
-      console.error("Error getting role from token:", error, error.message);
+      // console.error("Error getting role from token:", error, error.message);
       if (error.message === "Token Expired") {
         const response = NextResponse.redirect(new URL("/login", request.url));
         response.cookies.delete("token");

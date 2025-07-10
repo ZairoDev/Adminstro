@@ -1,6 +1,5 @@
 import axios from "axios";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Ellipsis, RefreshCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -35,8 +34,10 @@ import { employeeRoles } from "@/models/employee";
 
 export default function EmployeeTable({
   employees,
+  role,
 }: {
   employees: UserInterface[];
+  role: string;
 }) {
   const [employeeList, setEmployeeList] = useState<UserInterface[]>();
   const [filteredEmployee, setFilteredEmployee] = useState<UserInterface[]>([]);
@@ -117,27 +118,31 @@ export default function EmployeeTable({
 
         <div className=" flex gap-x-2">
           {/* Role Filter */}
-          <Select
-            onValueChange={(value) => {
-              if (value === "All") {
-                setFilteredEmployee(employeeList ?? []);
-                return;
-              }
-              const empList = employeeList?.filter((emp) => emp.role === value);
-              setFilteredEmployee(empList ?? []);
-            }}
-          >
-            <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Role" />
-            </SelectTrigger>
-            <SelectContent>
-              {["All", ...employeeRoles].map((role, index) => (
-                <SelectItem key={index} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {role !== "LeadGen-TeamLead" && (
+            <Select
+              onValueChange={(value) => {
+                if (value === "All") {
+                  setFilteredEmployee(employeeList ?? []);
+                  return;
+                }
+                const empList = employeeList?.filter(
+                  (emp) => emp.role === value
+                );
+                setFilteredEmployee(empList ?? []);
+              }}
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                {["All", ...employeeRoles].map((role, index) => (
+                  <SelectItem key={index} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Copy Passwords */}
           <Button

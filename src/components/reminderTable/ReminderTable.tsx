@@ -148,9 +148,9 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
+              {/* {(token?.role === "Sales" || token?.role === "SuperAdmin") && (
                 <TableHead>Priority</TableHead>
-              )}
+              )} */}
               <TableHead>S. No.</TableHead>
               <TableHead>Priority</TableHead>
               <TableHead>Name</TableHead>

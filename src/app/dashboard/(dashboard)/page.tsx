@@ -140,7 +140,7 @@ const Dashboard = () => {
           <LabelledPieChart
             chartData={leadByLocationData}
             heading="Location Pie Chart"
-            footer="Footer data"
+            // footer="Footer data"
             key="fdg"
           />
         }

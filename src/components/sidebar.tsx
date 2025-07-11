@@ -31,6 +31,7 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   SlidersHorizontal,
+  IdCardIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -367,7 +368,12 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/employee",
       label: "Employees",
-      Icon: <PencilLine size={18} />,
+      Icon: <IdCardIcon size={18} />,
+    },
+    {
+      path: "/dashboard/employee/employeeList",
+      label: "All Employees",
+      Icon: <IdCardIcon size={18} />,
     },
   ],
   Agent: [
@@ -482,6 +488,11 @@ const userManagementRoutes = [
     path: "/dashboard/employee",
     label: "Manage Employee",
     Icon: <User2Icon size={18} />,
+  },
+  {
+    path: "/dashboard/employee/employeeList",
+    label: "All Employees",
+    Icon: <IdCardIcon size={18} />,
   },
   {
     path: "/dashboard/user",

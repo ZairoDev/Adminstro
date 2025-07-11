@@ -2,14 +2,13 @@
 
 import axios from "axios";
 import debounce from "lodash.debounce";
+import { LucideLoader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuthStore } from "@/AuthStore";
 import { UserInterface } from "@/util/type";
 import { employeeRoles } from "@/models/employee";
 
-import { columns } from "./columns";
-import { DataTable } from "./data-table";
 import EmployeeTable from "./employee-table";
 
 export default function TablePage() {
@@ -56,6 +55,14 @@ export default function TablePage() {
     fetchData(search, queryType, page, role);
   }, [search, role, page, queryType, fetchData]);
 
+  if (loading) {
+    return (
+      <div className=" w-full h-full flex justify-center items-center">
+        <LucideLoader2 className=" animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="">
       {/* <DataTable
@@ -72,7 +79,12 @@ export default function TablePage() {
         totalUser={totalUser}
         loading={loading}
       /> */}
-      {data && <EmployeeTable employees={data} role={token?.role ?? "HR"} />}
+      {data && (
+        <EmployeeTable
+          employees={data.filter((emp) => emp.isActive === true)}
+          role={token?.role ?? "HR"}
+        />
+      )}
     </div>
   );
 }

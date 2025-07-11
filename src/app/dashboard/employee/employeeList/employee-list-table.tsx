@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
 
-export default function EmployeeTable({
+export default function EmployeeListTable({
   employees,
   role,
 }: {
@@ -50,27 +50,6 @@ export default function EmployeeTable({
   {
     /* Regenerate Individual Password */
   }
-  const regeneratePassword = async (employee: UserInterface) => {
-    try {
-      setLoadingIndex(employee._id);
-      const response = await axios.post("/api/generateNewpassword", {
-        employeeId: employee._id,
-      });
-
-      const updatedEmployeeList = filteredEmployee?.map((emp) =>
-        employee._id === emp._id
-          ? { ...emp, password: response.data.newPassword }
-          : emp
-      );
-      setEmployeeList(updatedEmployeeList);
-      setFilteredEmployee(updatedEmployeeList ?? []);
-    } catch (error: any) {
-      console.log(error, "Password error will be render here");
-      return error;
-    } finally {
-      setLoadingIndex("-1");
-    }
-  };
 
   useEffect(() => {
     setEmployeeList(employees);
@@ -186,13 +165,6 @@ export default function EmployeeTable({
               <TableCell>{employee.role}</TableCell>
               <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
                 <p>{employee?.password}</p>
-                <RefreshCcw
-                  size={16}
-                  className={`cursor-pointer ${
-                    employee._id === loadingIndex ? "animate-spin" : ""
-                  } `}
-                  onClick={() => regeneratePassword(employee)}
-                />
               </TableCell>
 
               {/* Actions */}

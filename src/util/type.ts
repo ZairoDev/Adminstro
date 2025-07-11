@@ -129,6 +129,7 @@ export interface UserInterface {
   role: string;
   spokenLanguage: string;
   updatedAt: string;
+  isActive: boolean;
 }
 
 export interface nearbyLocationInterface {

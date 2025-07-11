@@ -302,10 +302,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableHead>Budget</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Location</TableHead>
-            {(token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && (
-              <TableHead>Lead Quality</TableHead>
-            )}
+            {/* {(token?.role === "Sales-TeamLead" ||
+              token?.role === "SuperAdmin") && ( */}
+            <TableHead>Lead Quality</TableHead>
+            {/*  )}*/}
             <TableHead>Contact</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
@@ -488,65 +488,61 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-              {(token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
-                <TableCell className=" flex gap-x-0.5">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      {loading ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <Button variant="ghost">
-                          {query.leadQualityByReviewer || "Review"}
-                        </Button>
-                      )}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-40">
-                      {(token?.role === "SuperAdmin" ||
-                        token?.role === "Sales-TeamLead") && (
-                        <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Good", query?._id, index)
-                        }
-                      >
-                        Good
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Very Good", query?._id, index)
-                        }
-                      >
-                        Very Good
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Average", query?._id, index)
-                        }
-                      >
-                        Average
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange(
-                            "Below Average",
-                            query?._id,
-                            index
-                          )
-                        }
-                      >
-                        Below Average
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              )}
+              {/* {(token?.role === "Sales-TeamLead" ||
+                token?.role === "SuperAdmin") && ( */}
+              <TableCell className=" flex gap-x-0.5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    {loading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Button variant="ghost">
+                        {query.leadQualityByReviewer || "Review"}
+                      </Button>
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40">
+                    {(token?.role === "SuperAdmin" ||
+                      token?.role === "Sales-TeamLead") && (
+                      <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Good", query?._id, index)
+                      }
+                    >
+                      Good
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Very Good", query?._id, index)
+                      }
+                    >
+                      Very Good
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Average", query?._id, index)
+                      }
+                    >
+                      Average
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Below Average", query?._id, index)
+                      }
+                    >
+                      Below Average
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+              {/*)}*/}
               <TableCell>
                 {/* <Link
                   href={`https://wa.me/${
@@ -621,7 +617,9 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                               }}
                             >
                               <AlertDialogTrigger
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
                                 asChild
                               >
                                 <p>Set Reminder</p>
@@ -667,76 +665,72 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
-                        {(token?.role === "SuperAdmin" ||
-                          token?.role === "Sales-TeamLead") && (
-                          <>
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "goodtogo"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Good To Go <ThumbsUp size={16} />
-                              </DropdownMenuItem>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuSubTrigger className="w-40 truncate">
-                                Rej re:
-                                <span className="ml-2">
-                                  {query.rejectionReason}
-                                </span>
+                        {/* {(token?.role === "SuperAdmin" ||
+                          token?.role === "Sales-TeamLead") && ( */}
+                        <>
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDisposition(query?._id, index, "goodtogo")
+                              }
+                              className=" flex items-center gap-x-2"
+                            >
+                              Good To Go <ThumbsUp size={16} />
+                            </DropdownMenuItem>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuSubTrigger className="w-40 truncate">
+                              Rej re:
+                              <span className="ml-2">
+                                {query.rejectionReason}
+                              </span>
+                            </DropdownMenuSubTrigger>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "goodtogoleads" && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                Decline
                               </DropdownMenuSubTrigger>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "goodtogoleads" && (
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  Decline
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                  <DropdownMenuSubContent>
-                                    {["Not on whatsapp", "Low Budget"].map(
-                                      (declineReason, ind) => (
-                                        <DropdownMenuItem
-                                          key={ind}
-                                          onClick={() =>
-                                            handleDisposition(
-                                              query?._id,
-                                              index,
-                                              "declined",
-                                              `${declineReason}`
-                                            )
-                                          }
-                                        >
-                                          {`${declineReason}`}
-                                        </DropdownMenuItem>
-                                      )
-                                    )}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                              // <DropdownMenuItem
-                              //   onClick={() =>
-                              //     handleDisposition(
-                              //       query?._id,
-                              //       index,
-                              //       "declined"
-                              //     )
-                              //   }
-                              //   className=" flex items-center gap-x-2"
-                              // >
-                              //   Decline
-                              // </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  {["Not on whatsapp", "Low Budget"].map(
+                                    (declineReason, ind) => (
+                                      <DropdownMenuItem
+                                        key={ind}
+                                        onClick={() =>
+                                          handleDisposition(
+                                            query?._id,
+                                            index,
+                                            "declined",
+                                            `${declineReason}`
+                                          )
+                                        }
+                                      >
+                                        {`${declineReason}`}
+                                      </DropdownMenuItem>
+                                    )
+                                  )}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            // <DropdownMenuItem
+                            //   onClick={() =>
+                            //     handleDisposition(
+                            //       query?._id,
+                            //       index,
+                            //       "declined"
+                            //     )
+                            //   }
+                            //   className=" flex items-center gap-x-2"
+                            // >
+                            //   Decline
+                            // </DropdownMenuItem>
+                          )}
+                        </>
+                        {/* )}*/}
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
                             {[

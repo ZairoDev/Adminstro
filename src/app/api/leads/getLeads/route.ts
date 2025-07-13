@@ -131,30 +131,31 @@ export async function POST(req: NextRequest) {
     query = {
       ...query,
       ...dateQuery,
-      $and: [
-        {
-          $or: [
-            {
-              rejectionReason: { $exists: false },
-            }, // rejectionReason field does not exist
-            {
-              rejectionReason: { $eq: null },
-            }, // rejectionReason field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { reminder: { $exists: false } }, // reminder field does not exist
-            { reminder: { $eq: null } }, // reminder field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { leadStatus: { $exists: false } }, // leadStatus field should either not exist
-            { leadStatus: "" }, // or it should be empty
-          ],
-        },
-      ],
+      // $and: [
+      //   {
+      //     $or: [
+      //       {
+      //         rejectionReason: { $exists: false },
+      //       }, // rejectionReason field does not exist
+      //       {
+      //         rejectionReason: { $eq: null },
+      //       }, // rejectionReason field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { reminder: { $exists: false } }, // reminder field does not exist
+      //       { reminder: { $eq: null } }, // reminder field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { leadStatus: { $exists: false } }, // leadStatus field should either not exist
+      //       { leadStatus: "" }, // or it should be empty
+      //     ],
+      //   },
+      // ],
+      leadStatus: "fresh",
     };
 
     {
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // console.log("created query: ", query);
+    console.log("created query: ", query);
 
     const allquery = await Query.aggregate([
       { $match: query },

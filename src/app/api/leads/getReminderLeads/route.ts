@@ -131,25 +131,26 @@ export async function POST(req: NextRequest) {
     query = {
       ...query,
       ...dateQuery,
-      $and: [
-        {
-          $or: [
-            {
-              rejectionReason: { $exists: false },
-            }, // rejectionReason field does not exist
-            {
-              rejectionReason: { $eq: null },
-            }, // rejectionReason field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { reminder: { $exists: true } }, // either reminder field should exist
-            { reminder: { $ne: null } }, // or reminder field exists but is an empty string
-          ],
-        },
-        { leadStatus: { $exists: false } }, // the leads should not have any status
-      ],
+      // $and: [
+      //   {
+      //     $or: [
+      //       {
+      //         rejectionReason: { $exists: false },
+      //       }, // rejectionReason field does not exist
+      //       {
+      //         rejectionReason: { $eq: null },
+      //       }, // rejectionReason field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { reminder: { $exists: true } }, // either reminder field should exist
+      //       { reminder: { $ne: null } }, // or reminder field exists but is an empty string
+      //     ],
+      //   },
+      //   { leadStatus: { $exists: false } }, // the leads should not have any status
+      // ],
+      leadStatus: "reminder",
     };
 
     {

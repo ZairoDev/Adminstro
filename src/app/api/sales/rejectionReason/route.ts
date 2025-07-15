@@ -17,16 +17,18 @@ export async function POST(req: Request) {
       );
     }
     const validLeadQualities = [
-      "Late Response",
-      "Delayed the Traveling",
-      "Allready got it",
-      "Didn't like the option",
-      "Low Budget",
-      "Number of people exceeded",
-      "Off Location",
-      "Blocked on whatsapp",
       "Not on whatsapp",
       "Not Replying",
+      "Low Budget",
+      "Blocked on whatsapp",
+      "Late Response",
+      "Delayed the Traveling",
+      "Off Location",
+      "Number of people exceeded",
+      "Already got it",
+      "Different Area",
+      "Didn't like the option",
+      "Agency Fees",
     ];
     if (!validLeadQualities.includes(rejectionReason)) {
       return NextResponse.json(
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
       { $set: { leadStatus: "rejected", reason: rejectionReason } },
       { new: true }
     );
+    console.log("updated: ", updatedQuery);
     if (!updatedQuery) {
       return NextResponse.json(
         { success: false, message: "Query not found" },

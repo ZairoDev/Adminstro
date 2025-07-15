@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       priority,
       leadQualityByCreator,
       createdBy: token.email,
+      leadStatus: "fresh",
     });
 
     const triggerQuery = `new-query-${location.trim().toLowerCase()}`;

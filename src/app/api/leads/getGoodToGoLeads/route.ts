@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
       //   },
       //   { leadStatus: "goodtogo" }, // all leads should be having goodtogo status
       // ],
-      leadStatus: "goodtogo",
+      leadStatus: "active",
     };
 
     {

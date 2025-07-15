@@ -12,7 +12,7 @@ const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) =
     <div className=" border border-neutral-700 rounded-md p-2">
       <h2 className=" text-xl font-semibold">Properties</h2>
 
-      <div className=" w-full mt-2 flex flex-wrap gap-x-6 gap-y-4">
+      <div className=" w-full mt-2 flex flex-wrap justify-center gap-x-6 gap-y-4">
         {properties?.map((property) => (
           <div
             key={property._id.toString()}

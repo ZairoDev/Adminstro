@@ -278,8 +278,8 @@ export interface IQuery {
   isViewed?: boolean;
   leadQualityByReviewer?: string;
   rejectionReason?: string | null;
-  budgetFrom?: string;
-  budgetTo?: string;
+  minBudget: number;
+  maxBudget: number;
   leadQualityByCreator?: string;
   name: string;
   email: string;
@@ -289,7 +289,7 @@ export interface IQuery {
   phoneNo: number;
   area: string;
   guest: number;
-  budget: string;
+  budget?: string;
   noOfBeds: number;
   location: string;
   bookingTerm: string;

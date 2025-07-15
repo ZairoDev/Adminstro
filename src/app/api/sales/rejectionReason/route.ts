@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     }
     const updatedQuery = await Query.findByIdAndUpdate(
       id,
-      { rejectionReason },
+      { $set: { leadStatus: "rejected", reason: rejectionReason } },
       { new: true }
     );
     if (!updatedQuery) {

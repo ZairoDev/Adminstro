@@ -43,9 +43,13 @@ const querySchema = new Schema(
       type: String,
       require: [true, "End date is required"],
     },
-    budget: {
-      type: String,
-      require: [true, "Budget shoule be provided"],
+    minBudget: {
+      type: Number,
+      require: [true, "Minimum budget is required"],
+    },
+    maxBudget: {
+      type: Number,
+      require: [true, "Maximum budget is required"],
     },
     noOfBeds: {
       type: Number,

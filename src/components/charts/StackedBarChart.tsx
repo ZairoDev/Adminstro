@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 
 import {
   Card,
@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardContent,
   CardDescription,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   ChartLegend,
   ChartConfig,
@@ -17,8 +17,7 @@ import {
   ChartContainer,
   // ChartLegendContent,
   ChartTooltipContent,
-} from "@/components/ui/chart"
-
+} from "@/components/ui/chart";
 
 const chartConfig = {
   athens: {
@@ -41,27 +40,24 @@ const chartConfig = {
     label: "Milan",
     color: "hsl(var(--chart-5))",
   },
-} satisfies ChartConfig
-
+} satisfies ChartConfig;
 
 interface StackedBarChartProps {
   heading: string;
   subHeading?: string;
   chartData: {
     label: string;
-    categories: { field: string; count: number }[]
+    categories: { field: string; count: number }[];
   }[];
   footer?: string;
 }
-
 
 export function CustomStackBarChart({
   heading,
   subHeading,
   chartData,
-  footer
+  footer,
 }: StackedBarChartProps) {
-
   const newChartData = chartData.map((item) => {
     const flattenedCategories = item.categories.reduce((acc, category) => {
       const [key, value] = Object.entries(category);
@@ -69,14 +65,17 @@ export function CustomStackBarChart({
       return acc;
     }, {} as Record<string, number>);
 
-    const total = Object.values(flattenedCategories).reduce((acc, curr) => curr + acc, 0);
+    const total = Object.values(flattenedCategories).reduce(
+      (acc, curr) => curr + acc,
+      0
+    );
 
     return {
       label: item.label,
       ...flattenedCategories,
-      total
+      total,
     };
-  })
+  });
 
   // sort in ascending order according to the label
   newChartData.sort((a, b) => a.label?.localeCompare(b.label));
@@ -97,19 +96,22 @@ export function CustomStackBarChart({
     }
   }
 
-  function CustomLegend({ config, categoryTotals }: {
+  function CustomLegend({
+    config,
+    categoryTotals,
+  }: {
     config: ChartConfig;
     categoryTotals: Record<string, number>;
   }) {
     return (
-      <div className="flex gap-4 pt-4 justify-center">
+      <div className="flex gap-4 pt-4 justify-center flex-wrap">
         {Object.keys(config).map((key) => (
-          <div key={key} className="flex items-center gap-2">
+          <div key={key} className="flex flex-wrap items-center gap-2">
             <span
               className="inline-block w-3 h-3 rounded-full"
               style={{ backgroundColor: config[key].color }}
             />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {config[key].label}: {categoryTotals[key] ?? 0}
             </span>
           </div>
@@ -118,7 +120,6 @@ export function CustomStackBarChart({
     );
   }
 
-
   return (
     <Card className=" w-full">
       <CardHeader>
@@ -126,8 +127,8 @@ export function CustomStackBarChart({
         <CardDescription>{subHeading}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <BarChart accessibilityLayer data={newChartData}>
+        <ChartContainer config={chartConfig} className=" max-h-[350px] w-full">
+          <BarChart accessibilityLayer data={newChartData} margin={{ top: 30 }}>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
@@ -144,21 +145,31 @@ export function CustomStackBarChart({
                 stackId="a"
                 fill={`var(--color-${location})`}
                 radius={[4, 4, 0, 0]}
-                className="border-red-600"
+                className="border-2 border-red-600"
               >
-                <LabelList dataKey={"total"} position={"top"} formatter={(value: number) => value.toString()} style={{ fontSize: "15px", fill: "white" }} />
+                <LabelList
+                  dataKey={"total"}
+                  position={"top"}
+                  formatter={(value: number) => value.toString()}
+                  style={{ fontSize: "15px", fill: "white" }}
+                />
               </Bar>
             ))}
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
-            <ChartLegend content={<CustomLegend config={chartConfig} categoryTotals={categoryTotals} />} />
+            <ChartLegend
+              content={
+                <CustomLegend
+                  config={chartConfig}
+                  categoryTotals={categoryTotals}
+                />
+              }
+            />
           </BarChart>
         </ChartContainer>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 font-medium leading-none">
-          {footer}
-        </div>
+        <div className="flex gap-2 font-medium leading-none">{footer}</div>
       </CardFooter>
-    </Card >
-  )
+    </Card>
+  );
 }

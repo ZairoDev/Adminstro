@@ -5,10 +5,15 @@ import { DateRange } from "react-day-picker";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
+import { Property } from "@/models/listing";
 
 connectDb();
 
-export const getGroupedLeads = async ({ date }: { date: DateRange | undefined }) => {
+export const getGroupedLeads = async ({
+  date,
+}: {
+  date: DateRange | undefined;
+}) => {
   const filters = date ? { createdAt: { $gte: date.from, $lte: date.to } } : {};
 
   const leadsByAgent = await Query.aggregate([
@@ -38,6 +43,22 @@ export const getGroupedLeads = async ({ date }: { date: DateRange | undefined })
   return {
     leadsByAgent,
     leadsByLocation,
+  };
+};
+
+export const getLeadsGroupCount = async () => {
+  const freshLeads = await Query.countDocuments({ leadStatus: "fresh" });
+  const rejectedLeads = await Query.countDocuments({ leadStatus: "rejected" });
+  const reminderLeads = await Query.countDocuments({ leadStatus: "reminder" });
+  const activeLeads = await Query.countDocuments({ leadStatus: "active" });
+  const declinedLeads = await Query.countDocuments({ leadStatus: "declined" });
+
+  return {
+    freshLeads,
+    rejectedLeads,
+    reminderLeads,
+    activeLeads,
+    declinedLeads,
   };
 };
 
@@ -147,13 +168,19 @@ export const getLeadsByAgent = async (
     _id: doc._id.toString(), // Convert ObjectId to string
     createdAt: doc.createdAt?.toISOString(), // Convert Date to ISO string
     updatedAt: doc.updatedAt?.toISOString(), // Convert Date to ISO string
-    roomDetails: doc.roomDetails ? JSON.parse(JSON.stringify(doc.roomDetails)) : null,
+    roomDetails: doc.roomDetails
+      ? JSON.parse(JSON.stringify(doc.roomDetails))
+      : null,
   }));
 
   return { serializedLeads, totalLeads };
 };
 
-export const getDashboardData = async ({ date }: { date: DateRange | undefined }) => {
+export const getDashboardData = async ({
+  date,
+}: {
+  date: DateRange | undefined;
+}) => {
   const filters = date ? { createdAt: { $gte: date.from, $lte: date.to } } : {};
   const dashboardLeads = await Query.aggregate([
     {
@@ -288,4 +315,65 @@ export const getTodayLeads = async () => {
   const totalLeads = todayLeads.reduce((acc, lead) => acc + lead.total, 0);
 
   return { serializedLeads: leadsByAgentName, totalLeads };
+};
+
+export const getPropertyCount = async () => {
+  const pipeline = [
+    {
+      $group: {
+        _id: "$country",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $sort: {
+        count: -1 as const,
+      },
+    },
+    {
+      $limit: 5,
+    },
+  ];
+
+  const propertyCount = await Property.aggregate(pipeline);
+  const totalPropertyCount = await Property.countDocuments({});
+
+  return { propertyCount, totalPropertyCount };
+};
+
+export const getCountryWisePropertyCount = async ({
+  country,
+}: {
+  country: string;
+}) => {
+  const pipeline = [
+    {
+      $match: {
+        country: country,
+      },
+    },
+    {
+      $group: {
+        _id: "$city",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $sort: {
+        count: -1 as const,
+      },
+    },
+    {
+      $limit: 5,
+    },
+  ];
+
+  const countryWisePropertyCount = await Property.aggregate(pipeline);
+  const totalPropertyCount = await Property.countDocuments({
+    country: country,
+  });
+
+  return { countryWisePropertyCount, totalPropertyCount };
 };

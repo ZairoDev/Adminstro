@@ -398,7 +398,9 @@ export const LeadPage = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    budget={query.budget}
+                    minBudget={query.minBudget}
+                    maxBudget={query.maxBudget}
+                    // budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

@@ -134,6 +134,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   SuperAdmin: [
     {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
       path: "/dashboard/employee",
       label: "Manage Employee",
       Icon: <User2Icon size={18} />,
@@ -154,9 +159,9 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Check size={18} />,
     },
     {
-      path: "/dashboard/newproperty/filteredProperties",
-      label: "Property Filter",
-      Icon: <SlidersHorizontal size={18} />,
+      path: "/dashboard/completedproperties",
+      label: "Completed Task",
+      Icon: <Check size={18} />,
     },
     {
       path: "/dashboard/remainingproperties",
@@ -164,9 +169,9 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ArrowUpLeft size={18} />,
     },
     {
-      path: "/dashboard/completedproperties",
-      label: "Completed Task",
-      Icon: <Check size={18} />,
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
     },
     {
       path: "/dashboard/createblog",
@@ -198,11 +203,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/declinedleads",
       label: "Declined Leads",
       Icon: <Ban size={18} />,
-    },
-    {
-      path: "/dashboard/rolebaseLead",
-      label: "Lead (Sales)",
-      Icon: <PencilLine size={18} />,
     },
     {
       path: "/dashboard/reminders",
@@ -505,7 +505,7 @@ const userManagementRoutes = [
     Icon: <UserRoundCog size={18} />,
   },
 ];
-const taskManagementRoutes = [
+const propertyManagementRoutes = [
   {
     path: "/dashboard/property",
     label: "Manage Task",
@@ -517,11 +517,6 @@ const taskManagementRoutes = [
     Icon: <Check size={18} />,
   },
   {
-    path: "/dashboard/newproperty/filteredProperties",
-    label: "Property Filter",
-    Icon: <SlidersHorizontal size={18} />,
-  },
-  {
     path: "/dashboard/remainingproperties",
     label: "Leftover Task",
     Icon: <ArrowUpLeft size={18} />,
@@ -530,6 +525,11 @@ const taskManagementRoutes = [
     path: "/dashboard/completedproperties",
     label: "Completed Task",
     Icon: <Check size={18} />,
+  },
+  {
+    path: "/dashboard/newproperty/filteredProperties",
+    label: "Property Filter",
+    Icon: <SlidersHorizontal size={18} />,
   },
 ];
 const blogRoutes = [
@@ -614,8 +614,8 @@ export function Sidebar() {
       userManagementRoutes.some((route) => route.path === r.path)
     );
 
-    const taskManagementRoute = routes.filter((r) =>
-      taskManagementRoutes.some((route) => route.path === r.path)
+    const propertyManagementRoute = routes.filter((r) =>
+      propertyManagementRoutes.some((route) => route.path === r.path)
     );
 
     const blogRoute = routes.filter((r) =>
@@ -682,7 +682,10 @@ export function Sidebar() {
         <SidebarSection title="Dashboard" routes={dashboardRoutes} />
         <SidebarSection title="Lead Management" routes={leadRoute} />
         <SidebarSection title="User Management" routes={userManagementRoute} />
-        <SidebarSection title="Task Management" routes={taskManagementRoute} />
+        <SidebarSection
+          title="Property Management"
+          routes={propertyManagementRoute}
+        />
         <SidebarSection title="Blog Management" routes={blogRoute} />
         <SidebarSection title="Candidate Management" routes={candidateRoute} />
         <SidebarSection title="Room Management" routes={roomRoute} />
@@ -694,7 +697,7 @@ export function Sidebar() {
   return (
     <>
       <div>
-        <div className="hidden lg:block w-60 border-r fixed h-screen overflow-y-scroll">
+        <div className="hidden lg:block w-60 border-r fixed h-full overflow-y-scroll">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-primary p-4">
               <Link href="/">Adminstro</Link>

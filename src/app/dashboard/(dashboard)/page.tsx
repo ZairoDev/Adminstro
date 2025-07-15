@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
@@ -12,7 +12,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectContent,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import useLeads from "@/hooks/(VS)/useLeads";
 import { Button } from "@/components/ui/button";
 import useTodayLeads from "@/hooks/(VS)/useTodayLead";
@@ -23,37 +23,73 @@ import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 // import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 // import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
-
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
+import { PropertyCountBarChart } from "@/components/charts/PropertyCountBarChart";
+import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
+import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
+import { useAuthStore } from "@/AuthStore";
 
 const Dashboard = () => {
-
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [selectedCountry, setSelectedCountry] = useState("All");
+  const { token } = useAuthStore();
 
-  const { leads, isLoading, isError, error, refetch, reset } = useLeads({ date });
+  {
+    /* Property Count */
+  }
+  const {
+    properties,
+    totalProperties,
+    fetchCountryWiseProperties,
+    countryWiseProperties,
+    countryWiseTotalProperties,
+  } = usePropertyCount();
+
+  {
+    /* Leads */
+  }
+  const {
+    leads,
+    freshLeads,
+    activeLeads,
+    rejectedLeads,
+    reminderLeads,
+    declinedLeads,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    reset,
+  } = useLeads({
+    date,
+  });
   const {
     leads: todayLeads,
     totalLeads: totalTodayLeads,
     refetch: refetchTodayLeads,
-    isLoading: isLoadingTodayLeads
+    isLoading: isLoadingTodayLeads,
   } = useTodayLeads();
-
 
   const todaysLeadChartData = todayLeads?.map((lead) => {
     const label = lead.createdBy;
-    const categories = lead.locations.map((location) => ({ field: location.location, count: location.count }));
-    return { label, categories }
-  })
+    const categories = lead.locations.map((location) => ({
+      field: location.location,
+      count: location.count,
+    }));
+    return { label, categories };
+  });
 
   const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
-    return { label: lead._id, count: lead.count }
-  })
+    return { label: lead._id, count: lead.count };
+  });
 
   if (isLoading) {
     return (
       <div className=" w-full h-screen flex justify-center items-center">
         <Loader2 className=" animate-spin" />
       </div>
-    )
+    );
   }
 
   if (isError) {
@@ -61,7 +97,7 @@ const Dashboard = () => {
       <div className=" w-full h-screen flex justify-center items-center">
         <p>{error}</p>
       </div>
-    )
+    );
   }
 
   if (!leads) {
@@ -76,41 +112,116 @@ const Dashboard = () => {
     const endDate = new Date();
 
     setDate({ from: startDate, to: endDate });
-  }
+  };
 
+  const leadCountChartData = [
+    {
+      label: "fresh",
+      count: freshLeads,
+    },
+    {
+      label: "active",
+      count: activeLeads,
+    },
+    {
+      label: "rejected",
+      count: rejectedLeads,
+    },
+    {
+      label: "reminder",
+      count: reminderLeads,
+    },
+    {
+      label: "declined",
+      count: declinedLeads,
+    },
+  ];
 
   return (
-
     <div className="container mx-auto p-4 md:p-6">
-      <h1 className="text-3xl font-bold mb-6">Lead Generation Dashboard</h1>
-
-      {/* Daily Leads by Agent */}
-      <div className=" w-full flex justify-between gap-x-2 h-[350px] lg:h-[520px]">
-        <div className=" w-2/3 flex justify-center relative">
-          <CustomStackBarChart
-            heading={`Today Leads - ${totalTodayLeads}`}
-            subHeading="Leads by Agent"
-            chartData={todaysLeadChartData ? todaysLeadChartData : []}
-          />
-          <Button
-            size={"sm"}
-            onClick={refetchTodayLeads}
-            className="absolute top-0 right-0"
+      {/* Property Count */}
+      {token?.role === "SuperAdmin" && (
+        <div className=" border rounded-md p-2">
+          {/* Select country */}
+          <Select
+            onValueChange={(value) => {
+              setSelectedCountry(value);
+              if (value !== "All") {
+                fetchCountryWiseProperties({ country: value });
+              }
+            }}
           >
-            <RotateCw className={`${isLoadingTodayLeads ? "animate-spin" : ""}`} />
-          </Button>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="All">All Countries</SelectItem>
+                <SelectLabel>Country</SelectLabel>
+                {["Greece", "Italy", "Croatia", "Spain", "Portugal"].map(
+                  (country, index) => (
+                    <SelectItem key={index} value={country}>
+                      {country}
+                    </SelectItem>
+                  )
+                )}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          {/* country-wise property count */}
+          <div className=" mt-2">
+            <PropertyCountBarChart
+              heading={`Property Count - ${
+                selectedCountry === "All"
+                  ? totalProperties
+                  : countryWiseTotalProperties
+              }`}
+              chartData={
+                selectedCountry === "All"
+                  ? properties
+                    ? properties
+                    : []
+                  : countryWiseProperties
+                  ? countryWiseProperties
+                  : []
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Leads Generation Dashboard*/}
+      <section>
+        <h1 className="text-3xl font-bold my-6">Lead-Gen Dashboard</h1>
+        {/* Daily Leads by Agent & Active Employees */}
+        <div className=" w-full grid grid-cols-1 lg:grid-cols-3 gap-y-4 relative">
+          <div className=" w-full flex relative lg:col-span-2">
+            <CustomStackBarChart
+              heading={`Today Leads - ${totalTodayLeads}`}
+              subHeading="Leads by Agent"
+              chartData={todaysLeadChartData ? todaysLeadChartData : []}
+            />
+            <Button
+              size={"sm"}
+              onClick={refetchTodayLeads}
+              className="absolute top-0 right-0"
+            >
+              <RotateCw
+                className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
+
+          {/* Active Employees */}
+          <div className=" h-full border rounded-md w-72 mx-auto justify-self-center lg:absolute right-0">
+            <ActiveEmployeeList />
+          </div>
         </div>
 
-        {/* Active Employees */}
-        <div className=" h-full border rounded-md w-72">
-          <ActiveEmployeeList />
-        </div>
-      </div>
-
-
-      {/* Date Filter */}
-      <div className="flex justify-end gap-4 mt-4">
-        {/* <Select onValueChange={(value) => handleDateFilter(value)}>
+        {/* Date Filter */}
+        <div className="flex justify-end gap-4 mt-4">
+          {/* <Select onValueChange={(value) => handleDateFilter(value)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Select filter" />
           </SelectTrigger>
@@ -124,27 +235,25 @@ const Dashboard = () => {
           </SelectContent>
         </Select> */}
 
-        {/* Date Picker */}
-        {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
+          {/* Date Picker */}
+          {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
 
-        {/* <Button onClick={refetch}>Apply</Button>
+          {/* <Button onClick={refetch}>Apply</Button>
         <Button onClick={reset}>Reset</Button> */}
-      </div>
+        </div>
 
-
-      {/* Leads by Location and Agent */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-        {/* Left Column */}
-        {
-          leadByLocationData &&
-          <LabelledPieChart
-            chartData={leadByLocationData}
-            heading="Location Pie Chart"
-            // footer="Footer data"
-            key="fdg"
-          />
-        }
-        {/* <Card className="shadow-md">
+        {/* Leads by Location and Agent */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          {/* Left Column */}
+          {leadByLocationData && (
+            <LabelledPieChart
+              chartData={leadByLocationData}
+              heading="Leads By Location"
+              // footer="Footer data"
+              key="fdg"
+            />
+          )}
+          {/* <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Leads by Location</CardTitle>
           </CardHeader>
@@ -153,8 +262,8 @@ const Dashboard = () => {
           </CardContent>
         </Card> */}
 
-        {/* Right Column */}
-        {/* <Card className="shadow-md">
+          {/* Right Column */}
+          {/* <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Leads by Agent</CardTitle>
           </CardHeader>
@@ -162,12 +271,27 @@ const Dashboard = () => {
             <LeadsByAgent leadsByAgent={leads.leadsByAgent} />
           </CardContent>
         </Card> */}
-      </div>
+
+          {/* Right Column */}
+        </div>
+      </section>
+
+      {/* Sales Generation Dashboard*/}
+      {token?.role === "SuperAdmin" && (
+        <section>
+          <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
+          <div className=" grid grid-cols-1 md:grid-cols-2 gap-6">
+            <LeadCountPieChart
+              heading="Leads Count"
+              chartData={leadCountChartData ? leadCountChartData : []}
+            />
+          </div>
+        </section>
+      )}
 
       {/* <LabelledPieChart chartData={chartData} /> */}
       {/* <LabelledBarChart chartData={chartData} /> */}
     </div>
-
-  )
-}
-export default Dashboard  
+  );
+};
+export default Dashboard;

@@ -1,59 +1,42 @@
+import {
+  Users,
+  Euro,
+  BookX,
+  Loader2,
+  Ellipsis,
+  ThumbsUp,
+  CircleDot,
+  BedSingle,
+  ReceiptText,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Users,
-  Ellipsis,
-  BedSingle,
-  Euro,
-  ReceiptText,
-  BookX,
-  Loader2,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  CircleDot,
-  ThumbsUp,
-} from "lucide-react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import { IQuery } from "@/util/type";
-import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
+  TableRow,
+  TableCell,
   TableBody,
   TableHead,
   TableHeader,
-  TableRow,
-  TableCell,
 } from "@/components/ui/table";
-
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
-import CustomTooltip from "../CustomToolTip";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+  Dialog,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,7 +44,24 @@ import {
   AlertDialogContent,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuSub,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "../ui/dropdown-menu";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Calendar } from "../ui/calendar";
+import { Textarea } from "../ui/textarea";
+import CustomTooltip from "../CustomToolTip";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const router = useRouter();
@@ -672,7 +672,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             "rolebaseLead" && (
                             <DropdownMenuItem
                               onClick={() =>
-                                handleDisposition(query?._id, index, "goodtogo")
+                                handleDisposition(query?._id, index, "active")
                               }
                               className=" flex items-center gap-x-2"
                             >
@@ -696,23 +696,29 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
-                                  {["Not on whatsapp", "Low Budget"].map(
-                                    (declineReason, ind) => (
-                                      <DropdownMenuItem
-                                        key={ind}
-                                        onClick={() =>
-                                          handleDisposition(
-                                            query?._id,
-                                            index,
-                                            "declined",
-                                            `${declineReason}`
-                                          )
-                                        }
-                                      >
-                                        {`${declineReason}`}
-                                      </DropdownMenuItem>
-                                    )
-                                  )}
+                                  {[
+                                    "Blocked on whatsapp",
+                                    "Late Response",
+                                    "Delayed the travelling",
+                                    "Already got it",
+                                    "Didn't like the option",
+                                    "Different Area",
+                                    "Agency Fees",
+                                  ].map((declineReason, ind) => (
+                                    <DropdownMenuItem
+                                      key={ind}
+                                      onClick={() =>
+                                        handleDisposition(
+                                          query?._id,
+                                          index,
+                                          "declined",
+                                          `${declineReason}`
+                                        )
+                                      }
+                                    >
+                                      {`${declineReason}`}
+                                    </DropdownMenuItem>
+                                  ))}
                                 </DropdownMenuSubContent>
                               </DropdownMenuPortal>
                             </DropdownMenuSub>
@@ -734,14 +740,15 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
                             {[
+                              "Not on whatsapp",
                               "Not Replying",
+                              "Low Budget",
                               "Blocked on whatsapp",
                               "Late Response",
                               "Delayed the travelling",
                               "Off Location",
                               "Number of people exceeded",
                               "Already got it",
-                              "Didn't like the option",
                               "Different Area",
                               "Agency Fees",
                             ].map((reason, ind) => (

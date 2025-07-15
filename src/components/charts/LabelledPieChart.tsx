@@ -99,7 +99,7 @@ export function LabelledPieChart({
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="text-muted-foreground leading-none">{footer}</div>
         <div>
-          Total Leads: {chartData.reduce((acc, item) => acc + item.count, 0)}
+          Total : {chartData.reduce((acc, item) => acc + item.count, 0)}
         </div>
       </CardFooter>
     </Card>

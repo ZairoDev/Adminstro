@@ -116,7 +116,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
 };
 export const defaultRoutes: { [key: string]: string } = {
-  SuperAdmin: "/dashboard/employee",
+  SuperAdmin: "/dashboard",
   Admin: "/dashboard/user",
   LeadGen: "/dashboard/createquery",
   "LeadGen-TeamLead": "/dashboard",

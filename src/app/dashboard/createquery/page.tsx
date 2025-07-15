@@ -104,7 +104,8 @@ const SalesDashboard = () => {
     phoneNo: 0,
     area: "",
     guest: 0,
-    budget: "",
+    minBudget: 0,
+    maxBudget: 0,
     noOfBeds: 0,
     location: "",
     bookingTerm: "",
@@ -181,19 +182,19 @@ const SalesDashboard = () => {
   const handleSubmit = async () => {
     try {
       const emptyFields: string[] = [];
-      const { budgetFrom, budgetTo, ...otherFields } = formData;
+      // const { minBudget, maxBudget, ...otherFields } = formData;
 
-      const budget = `${budgetFrom} to ${budgetTo}`;
-      formData.budget = budget;
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value === "" || value === null || value === undefined) {
-          const fieldName = key
-            .replace(/([A-Z])/g, " $1")
-            .replace(/^./, (str) => str.toUpperCase())
-            .trim();
-          emptyFields.push(fieldName);
-        }
-      });
+      // const budget = `${budgetFrom} to ${budgetTo}`;
+      // formData.budget = budget;
+      // Object.entries(formData).forEach(([key, value]) => {
+      //   if (value === "" || value === null || value === undefined) {
+      //     const fieldName = key
+      //       .replace(/([A-Z])/g, " $1")
+      //       .replace(/^./, (str) => str.toUpperCase())
+      //       .trim();
+      //     emptyFields.push(fieldName);
+      //   }
+      // });
 
       if (emptyFields.length > 0) {
         toast({
@@ -204,10 +205,11 @@ const SalesDashboard = () => {
         return;
       }
       const formDataToSubmit = {
-        ...otherFields,
-        budget,
+        ...formData,
+        // budget,
         phoneNo: phone,
       };
+      // console.log("form to submit: ", formDataToSubmit);
       setSubmitQuery(true);
       const response = await axios.post(
         "/api/sales/createquery",
@@ -226,7 +228,8 @@ const SalesDashboard = () => {
         phoneNo: 0,
         area: "",
         guest: 0,
-        budget: "",
+        minBudget: 0,
+        maxBudget: 0,
         noOfBeds: 0,
         location: "",
         bookingTerm: "",
@@ -645,8 +648,10 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Budget (From)</Label>
                         <Input
-                          name="budgetFrom"
-                          value={formData.budgetFrom || ""}
+                          name="minBudget"
+                          type="number"
+                          min={0}
+                          value={formData.minBudget || ""}
                           onChange={handleInputChange}
                           placeholder="Enter minimum budget"
                         />
@@ -656,8 +661,10 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Budget (To)</Label>
                         <Input
-                          name="budgetTo"
-                          value={formData.budgetTo || ""}
+                          name="maxBudget"
+                          type="number"
+                          min={0}
+                          value={formData.maxBudget || ""}
                           onChange={handleInputChange}
                           placeholder="Enter maximum budget"
                         />
@@ -1040,7 +1047,9 @@ const SalesDashboard = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    budget={query.budget}
+                    minBudget={query.minBudget}
+                    maxBudget={query.maxBudget}
+                    budget={`${query.minBudget} to ${query.maxBudget}`}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

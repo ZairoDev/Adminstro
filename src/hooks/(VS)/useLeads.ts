@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 
-import { getGroupedLeads } from "@/actions/(VS)/queryActions";
+import {
+  getGroupedLeads,
+  getLeadsGroupCount,
+} from "@/actions/(VS)/queryActions";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -16,6 +19,11 @@ interface GroupedLeads {
 
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
+  const [freshLeads, setFreshLeads] = useState(0);
+  const [activeLeads, setActiveLeads] = useState(0);
+  const [rejectedLeads, setRejectedLeads] = useState(0);
+  const [reminderLeads, setReminderLeads] = useState(0);
+  const [declinedLeads, setDeclinedLeads] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
@@ -37,8 +45,24 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+  const fetchUntouchedLeads = async () => {
+    try {
+      const response = await getLeadsGroupCount();
+      setFreshLeads(response.freshLeads);
+      setActiveLeads(response.activeLeads);
+      setRejectedLeads(response.rejectedLeads);
+      setReminderLeads(response.reminderLeads);
+      setDeclinedLeads(response.declinedLeads);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchLeads({ date });
+    fetchUntouchedLeads();
   }, []);
 
   const refetch = () => fetchLeads({ date });
@@ -46,6 +70,11 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
 
   return {
     leads,
+    freshLeads,
+    activeLeads,
+    rejectedLeads,
+    reminderLeads,
+    declinedLeads,
     isLoading,
     isError,
     error,

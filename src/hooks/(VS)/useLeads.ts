@@ -4,7 +4,9 @@ import { DateRange } from "react-day-picker";
 import {
   getGroupedLeads,
   getLeadsGroupCount,
+  getRejectedLeadGroup,
 } from "@/actions/(VS)/queryActions";
+import { daysToWeeks } from "date-fns";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -17,6 +19,11 @@ interface GroupedLeads {
   }[];
 }
 
+interface RejectedLeadGroup {
+  reason: string;
+  count: number;
+}
+
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
   const [freshLeads, setFreshLeads] = useState(0);
@@ -24,6 +31,10 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [rejectedLeads, setRejectedLeads] = useState(0);
   const [reminderLeads, setReminderLeads] = useState(0);
   const [declinedLeads, setDeclinedLeads] = useState(0);
+  const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
+    RejectedLeadGroup[]
+  >([]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +56,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchUntouchedLeads = async () => {
+  const fetchLeadStatus = async () => {
     try {
       const response = await getLeadsGroupCount();
       setFreshLeads(response.freshLeads);
@@ -60,9 +71,21 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+  const fetchRejectedLeadGroup = async (days: string) => {
+    try {
+      const response = await getRejectedLeadGroup(days);
+      setRejectedLeadGroups(response.rejectedLeadGroup);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchLeads({ date });
-    fetchUntouchedLeads();
+    fetchLeadStatus();
+    fetchRejectedLeadGroup("10 days");
   }, []);
 
   const refetch = () => fetchLeads({ date });
@@ -75,6 +98,8 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     rejectedLeads,
     reminderLeads,
     declinedLeads,
+    fetchRejectedLeadGroup,
+    rejectedLeadGroups,
     isLoading,
     isError,
     error,

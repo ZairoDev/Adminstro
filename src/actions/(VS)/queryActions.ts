@@ -62,6 +62,47 @@ export const getLeadsGroupCount = async () => {
   };
 };
 
+export const getRejectedLeadGroup = async (days: string) => {
+  const filters: Record<string, any> = { leadStatus: "rejected" };
+  switch (days) {
+    case "10 days":
+      filters.createdAt = {
+        $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      };
+      break;
+    case "1 month":
+      filters.createdAt = {
+        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      };
+      break;
+    case "3 months":
+      filters.createdAt = {
+        $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+      };
+      break;
+  }
+  const pipeline = [
+    {
+      $match: filters,
+    },
+    {
+      $group: {
+        _id: "$reason",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+  ];
+  const tempRejectedLeadGroup = await Query.aggregate(pipeline);
+  const rejectedLeadGroup = tempRejectedLeadGroup.map((item) => ({
+    reason: item._id,
+    count: item.count,
+  }));
+
+  return { rejectedLeadGroup };
+};
+
 export const getGroupedLeadsByAgents = async ({
   location,
   date,

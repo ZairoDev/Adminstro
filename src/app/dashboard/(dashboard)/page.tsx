@@ -56,6 +56,8 @@ const Dashboard = () => {
     rejectedLeads,
     reminderLeads,
     declinedLeads,
+    fetchRejectedLeadGroup,
+    rejectedLeadGroups,
     isLoading,
     isError,
     error,
@@ -136,6 +138,11 @@ const Dashboard = () => {
       count: declinedLeads,
     },
   ];
+
+  const totalRejectedLeads = rejectedLeadGroups.reduce(
+    (acc, curr) => acc + curr.count,
+    0
+  );
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -285,6 +292,59 @@ const Dashboard = () => {
               heading="Leads Count"
               chartData={leadCountChartData ? leadCountChartData : []}
             />
+
+            {/*Rejected Leads Group*/}
+            <div className=" border rounded-md grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+              <div className=" flex flex-col justify-center items-center gap-y-2">
+                <Select
+                  defaultValue="10 days"
+                  onValueChange={(value) => {
+                    fetchRejectedLeadGroup(value);
+                  }}
+                >
+                  <SelectTrigger className=" w-24">
+                    <SelectValue placeholder="Select days" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="10 days">10 days</SelectItem>
+                      <SelectItem value="1 month">1 month</SelectItem>
+                      <SelectItem value="3 months">3 month</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                Total:{" "}
+                {rejectedLeadGroups.reduce((acc, item) => acc + item.count, 0)}
+              </div>
+              {rejectedLeadGroups
+                .sort((a, b) => a.reason.localeCompare(b.reason))
+                .map((item, index) => (
+                  <div
+                    key={index}
+                    className=" flex flex-col justify-center items-center border"
+                  >
+                    <div
+                      className={` text-lg md:text-2xl font-semibold justify-self-end ${
+                        (item.count / totalRejectedLeads) * 100 > 15
+                          ? "text-red-500"
+                          : (item.count / totalRejectedLeads) * 100 > 10
+                          ? "text-yellow-500"
+                          : "text-green-500"
+                      }`}
+                    >
+                      <p>
+                        {item.count}{" "}
+                        <span className=" text-lg">
+                          {`(${Math.round(
+                            (item.count / totalRejectedLeads) * 100
+                          )}%)`}
+                        </span>
+                      </p>
+                    </div>
+                    <p className=" text-sm truncate w-24">{item.reason}</p>
+                  </div>
+                ))}
+            </div>
           </div>
         </section>
       )}
@@ -295,3 +355,34 @@ const Dashboard = () => {
   );
 };
 export default Dashboard;
+
+{
+  /* <Select onValueChange={(value) => {}}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Select Reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Rejection Reason</SelectLabel>
+                    {[
+                      "Not on whatsapp",
+                      "Not Replying",
+                      "Low Budget",
+                      "Blocked on whatsapp",
+                      "Late Response",
+                      "Delayed the Traveling",
+                      "Off Location",
+                      "Number of people exceeded",
+                      "Already got it",
+                      "Different Area",
+                      "Agency Fees",
+                      "Didn't like the option",
+                    ].map((country, index) => (
+                      <SelectItem key={index} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select> */
+}

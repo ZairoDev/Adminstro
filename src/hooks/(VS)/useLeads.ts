@@ -24,13 +24,14 @@ interface RejectedLeadGroup {
   count: number;
 }
 
+interface LeadsGroupCount {
+  label: string;
+  count: number;
+}
+
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
-  const [freshLeads, setFreshLeads] = useState(0);
-  const [activeLeads, setActiveLeads] = useState(0);
-  const [rejectedLeads, setRejectedLeads] = useState(0);
-  const [reminderLeads, setReminderLeads] = useState(0);
-  const [declinedLeads, setDeclinedLeads] = useState(0);
+  const [leadsGroupCount, setLeadsGroupCount] = useState<LeadsGroupCount[]>([]);
   const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
     RejectedLeadGroup[]
   >([]);
@@ -56,14 +57,10 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchLeadStatus = async () => {
+  const fetchLeadStatus = async (days?: string) => {
     try {
-      const response = await getLeadsGroupCount();
-      setFreshLeads(response.freshLeads);
-      setActiveLeads(response.activeLeads);
-      setRejectedLeads(response.rejectedLeads);
-      setReminderLeads(response.reminderLeads);
-      setDeclinedLeads(response.declinedLeads);
+      const response = await getLeadsGroupCount(days);
+      setLeadsGroupCount(response.leadsGroupCount);
     } catch (err: any) {
       const error = new Error(err);
       setIsError(true);
@@ -71,7 +68,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchRejectedLeadGroup = async (days: string) => {
+  const fetchRejectedLeadGroup = async (days?: string) => {
     try {
       const response = await getRejectedLeadGroup(days);
       setRejectedLeadGroups(response.rejectedLeadGroup);
@@ -85,7 +82,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   useEffect(() => {
     fetchLeads({ date });
     fetchLeadStatus();
-    fetchRejectedLeadGroup("10 days");
+    fetchRejectedLeadGroup();
   }, []);
 
   const refetch = () => fetchLeads({ date });
@@ -93,13 +90,12 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
 
   return {
     leads,
-    freshLeads,
-    activeLeads,
-    rejectedLeads,
-    reminderLeads,
-    declinedLeads,
-    fetchRejectedLeadGroup,
+
+    leadsGroupCount,
+    fetchLeadStatus,
+
     rejectedLeadGroups,
+    fetchRejectedLeadGroup,
     isLoading,
     isError,
     error,

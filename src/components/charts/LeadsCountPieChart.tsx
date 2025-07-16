@@ -63,7 +63,6 @@ export function LeadCountPieChart({
     fill: `var(--color-${item.label.toLowerCase()})`,
   }));
   const totalCount = newChartData.reduce((acc, curr) => acc + curr.count, 0);
-
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
@@ -119,6 +118,29 @@ export function LeadCountPieChart({
             </Pie>
           </PieChart>
         </ChartContainer>
+        <div className=" flex flex-wrap justify-between gap-1">
+          {newChartData
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .map((item, index) => (
+              <div key={index} className=" flex gap-x-1 items-center text-sm">
+                <p
+                  className={` w-3 h-3 rounded-full ${
+                    item.label === "fresh"
+                      ? "bg-[#265FD0]"
+                      : item.label === "active"
+                      ? "bg-[#E23670]"
+                      : item.label === "rejected"
+                      ? "bg-[#2EB88A]"
+                      : "bg-[#E88C30]"
+                  }`}
+                />
+                <p>
+                  {item.label.slice(0, 1).toUpperCase() + item.label.slice(1)} (
+                  {item.count})
+                </p>
+              </div>
+            ))}
+        </div>
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="text-muted-foreground leading-none">{footer}</div>

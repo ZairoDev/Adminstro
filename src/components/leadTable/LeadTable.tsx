@@ -661,6 +661,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
+                      {path.toString().trim().split("/")[2] ===
+                        "goodtogoleads" && (
+                        <DropdownMenuItem>Set Visit</DropdownMenuItem>
+                      )}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

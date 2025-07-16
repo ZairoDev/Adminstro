@@ -46,41 +46,73 @@ export const getGroupedLeads = async ({
   };
 };
 
-export const getLeadsGroupCount = async () => {
-  const freshLeads = await Query.countDocuments({ leadStatus: "fresh" });
-  const rejectedLeads = await Query.countDocuments({ leadStatus: "rejected" });
-  const reminderLeads = await Query.countDocuments({ leadStatus: "reminder" });
-  const activeLeads = await Query.countDocuments({ leadStatus: "active" });
-  const declinedLeads = await Query.countDocuments({ leadStatus: "declined" });
+export const getLeadsGroupCount = async (days?: string) => {
+  const filters: Record<string, any> = {};
+  if (days) {
+    switch (days) {
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "3 months":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        };
+        break;
+    }
+  }
+
+  const pipeline = [
+    {
+      $match: filters,
+    },
+    {
+      $group: {
+        _id: "$leadStatus",
+        count: { $sum: 1 },
+      },
+    },
+  ];
+
+  const tempLeadsGroupCount = await Query.aggregate(pipeline);
+  const leadsGroupCount = tempLeadsGroupCount.map((item) => ({
+    label: item._id as string,
+    count: item.count,
+  }));
 
   return {
-    freshLeads,
-    rejectedLeads,
-    reminderLeads,
-    activeLeads,
-    declinedLeads,
+    leadsGroupCount,
   };
 };
 
-export const getRejectedLeadGroup = async (days: string) => {
+export const getRejectedLeadGroup = async (days?: string) => {
   const filters: Record<string, any> = { leadStatus: "rejected" };
-  switch (days) {
-    case "10 days":
-      filters.createdAt = {
-        $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      };
-      break;
-    case "1 month":
-      filters.createdAt = {
-        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      };
-      break;
-    case "3 months":
-      filters.createdAt = {
-        $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-      };
-      break;
+  if (days) {
+    switch (days) {
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "3 months":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        };
+        break;
+    }
   }
+
   const pipeline = [
     {
       $match: filters,

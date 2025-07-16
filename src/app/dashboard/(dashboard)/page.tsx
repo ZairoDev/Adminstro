@@ -29,6 +29,7 @@ import { PropertyCountBarChart } from "@/components/charts/PropertyCountBarChart
 import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
 import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
 import { useAuthStore } from "@/AuthStore";
+import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -51,11 +52,8 @@ const Dashboard = () => {
   }
   const {
     leads,
-    freshLeads,
-    activeLeads,
-    rejectedLeads,
-    reminderLeads,
-    declinedLeads,
+    leadsGroupCount,
+    fetchLeadStatus,
     fetchRejectedLeadGroup,
     rejectedLeadGroups,
     isLoading,
@@ -115,29 +113,6 @@ const Dashboard = () => {
 
     setDate({ from: startDate, to: endDate });
   };
-
-  const leadCountChartData = [
-    {
-      label: "fresh",
-      count: freshLeads,
-    },
-    {
-      label: "active",
-      count: activeLeads,
-    },
-    {
-      label: "rejected",
-      count: rejectedLeads,
-    },
-    {
-      label: "reminder",
-      count: reminderLeads,
-    },
-    {
-      label: "declined",
-      count: declinedLeads,
-    },
-  ];
 
   const totalRejectedLeads = rejectedLeadGroups.reduce(
     (acc, curr) => acc + curr.count,
@@ -287,44 +262,38 @@ const Dashboard = () => {
       {token?.role === "SuperAdmin" && (
         <section>
           <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
-          <div className=" grid grid-cols-1 md:grid-cols-2 gap-6">
-            <LeadCountPieChart
-              heading="Leads Count"
-              chartData={leadCountChartData ? leadCountChartData : []}
-            />
+          <div className=" grid grid-cols-1 md:grid-cols-2 gap-6 border rounded-md">
+            <div className=" relative">
+              <CustomSelect
+                itemList={["All", "10 days", "1 month", "3 months"]}
+                triggerText="Select days"
+                defaultValue="All"
+                onValueChange={(value) => {
+                  fetchLeadStatus(value);
+                  fetchRejectedLeadGroup(value);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-2"
+              />
+              {leadsGroupCount.length > 0 && (
+                <LeadCountPieChart
+                  heading="Leads Count"
+                  chartData={leadsGroupCount.length > 0 ? leadsGroupCount : []}
+                />
+              )}
+            </div>
 
             {/*Rejected Leads Group*/}
-            <div className=" border rounded-md grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-              <div className=" flex flex-col justify-center items-center gap-y-2">
-                <Select
-                  defaultValue="10 days"
-                  onValueChange={(value) => {
-                    fetchRejectedLeadGroup(value);
-                  }}
-                >
-                  <SelectTrigger className=" w-24">
-                    <SelectValue placeholder="Select days" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="10 days">10 days</SelectItem>
-                      <SelectItem value="1 month">1 month</SelectItem>
-                      <SelectItem value="3 months">3 month</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                Total:{" "}
-                {rejectedLeadGroups.reduce((acc, item) => acc + item.count, 0)}
-              </div>
+
+            <div className="  grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
               {rejectedLeadGroups
                 .sort((a, b) => a.reason.localeCompare(b.reason))
                 .map((item, index) => (
                   <div
                     key={index}
-                    className=" flex flex-col justify-center items-center border"
+                    className=" flex flex-col justify-center items-center border-b border-r"
                   >
                     <div
-                      className={` text-lg md:text-2xl font-semibold justify-self-end ${
+                      className={` text-lg md:text-2xl font-semibold justify-self-end text-center ${
                         (item.count / totalRejectedLeads) * 100 > 15
                           ? "text-red-500"
                           : (item.count / totalRejectedLeads) * 100 > 10
@@ -341,7 +310,9 @@ const Dashboard = () => {
                         </span>
                       </p>
                     </div>
-                    <p className=" text-sm truncate w-24">{item.reason}</p>
+                    <p className=" text-sm flex flex-wrap text-center">
+                      {item.reason}
+                    </p>
                   </div>
                 ))}
             </div>

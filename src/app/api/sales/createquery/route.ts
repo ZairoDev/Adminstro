@@ -1,4 +1,5 @@
 import Pusher from "pusher";
+import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
@@ -68,8 +69,8 @@ export async function POST(req: NextRequest) {
       name,
       email,
       date,
-      startDate,
-      endDate,
+      startDate: format(startDate, "MM/dd/yyyy"),
+      endDate: format(endDate, "MM/dd/yyyy"),
       phoneNo,
       duration,
       area,

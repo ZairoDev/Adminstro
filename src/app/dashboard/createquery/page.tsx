@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import Pusher from "pusher-js";
+import { format } from "date-fns";
 import debounce from "lodash.debounce";
 import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
@@ -211,6 +212,7 @@ const SalesDashboard = () => {
       };
       // console.log("form to submit: ", formDataToSubmit);
       setSubmitQuery(true);
+
       const response = await axios.post(
         "/api/sales/createquery",
         formDataToSubmit
@@ -370,8 +372,10 @@ const SalesDashboard = () => {
   useEffect(() => {
     setFormData((prevData) => ({
       ...prevData,
-      startDate: startDate.toLocaleDateString(),
-      endDate: endDate.toLocaleDateString(),
+      // startDate: startDate.toLocaleDateString(),
+      // endDate: endDate.toLocaleDateString(),
+      startDate: format(startDate, "MM/dd/yyyy"),
+      endDate: format(endDate, "MM/dd/yyyy"),
     }));
   }, [startDate, endDate]);
 

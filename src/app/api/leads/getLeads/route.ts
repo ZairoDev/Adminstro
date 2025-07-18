@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
+        // query.phoneNo = Number(searchTerm);
+        query.phoneNo = new RegExp(String(searchTerm), "i");
       } else {
         query[searchType] = regex;
       }
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log("created query: ", query);
+    // console.log("created query: ", query);
 
     const allquery = await Query.aggregate([
       { $match: query },

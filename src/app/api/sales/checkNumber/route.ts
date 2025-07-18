@@ -8,6 +8,7 @@ connectDb();
 export async function POST(req: Request) {
   try {
     const { phoneNo } = await req.json();
+    console.log("phone in checkkNumber route: ", phoneNo);
     if (!phoneNo) {
       return NextResponse.json(
         { success: false, error: "Phone number is required" },

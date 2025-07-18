@@ -123,16 +123,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.log(error);
 
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { success: false, error: "Phone number already exists" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    const err = new Error(error);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

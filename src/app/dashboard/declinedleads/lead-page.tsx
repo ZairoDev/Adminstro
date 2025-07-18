@@ -63,7 +63,7 @@ export const DeclinedLeads = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
-    searchType: "name",
+    searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
     customDays: "0",

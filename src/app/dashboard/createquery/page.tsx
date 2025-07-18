@@ -208,7 +208,7 @@ const SalesDashboard = () => {
       const formDataToSubmit = {
         ...formData,
         // budget,
-        phoneNo: phone,
+        phoneNo: phone.replace(/\D/g, ""),
       };
       // console.log("form to submit: ", formDataToSubmit);
       setSubmitQuery(true);

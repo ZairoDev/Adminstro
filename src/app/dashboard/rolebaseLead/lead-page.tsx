@@ -66,7 +66,7 @@ export const LeadPage = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
-    searchType: "name",
+    searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
     customDays: "0",
@@ -283,9 +283,20 @@ export const LeadPage = () => {
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
-              }
+              onChange={(e) => {
+                if (filters.searchType === "phoneNo") {
+                  const formattedValue = e.target.value.replace(/\D/g, "");
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: formattedValue,
+                  }));
+                } else {
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: e.target.value,
+                  }));
+                }
+              }}
             />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">

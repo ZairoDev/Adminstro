@@ -23,7 +23,7 @@ const querySchema = new Schema(
       require: [true, "Email must be provided"],
     },
     phoneNo: {
-      type: Number,
+      type: String,
       required: [true, "Phone number must be provided"],
       unique: true,
     },

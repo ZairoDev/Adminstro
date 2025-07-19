@@ -150,8 +150,9 @@ const SalesDashboard = () => {
         return;
       }
       setChecking(true);
+      console.log("handle search: ", phone);
       const response = await axios.post("/api/sales/checkNumber", {
-        phoneNo: phone,
+        phoneNo: String(phone).replace(/\D/g, ""),
       });
       if (response.data.success) {
         if (response.data.exists) {

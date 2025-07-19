@@ -34,6 +34,12 @@ import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [selectedCountry, setSelectedCountry] = useState("All");
+
+  const [leadsFilters, setLeadsFilters] = useState<{
+    days?: string;
+    location?: string;
+  }>({});
+
   const { token } = useAuthStore();
 
   {
@@ -269,10 +275,37 @@ const Dashboard = () => {
                 triggerText="Select days"
                 defaultValue="All"
                 onValueChange={(value) => {
-                  fetchLeadStatus(value);
-                  fetchRejectedLeadGroup(value);
+                  // fetchLeadStatus(value);
+                  // fetchRejectedLeadGroup(value);
+                  const newLeadFilters = { ...leadsFilters };
+                  newLeadFilters.days = value;
+                  setLeadsFilters(newLeadFilters);
+                  fetchLeadStatus(newLeadFilters);
+                  fetchRejectedLeadGroup(newLeadFilters);
                 }}
                 triggerClassName=" w-32 absolute left-2 top-2"
+              />
+              <CustomSelect
+                itemList={[
+                  "All",
+                  "Athens",
+                  "Chania",
+                  "Rome",
+                  "Milan",
+                  "Thessaloniki",
+                ]}
+                triggerText="Select location"
+                defaultValue="All"
+                onValueChange={(value) => {
+                  // fetchLeadStatus(value);
+                  // fetchRejectedLeadGroup(value);
+                  const newLeadFilters = { ...leadsFilters };
+                  newLeadFilters.location = value;
+                  setLeadsFilters(newLeadFilters);
+                  fetchLeadStatus(newLeadFilters);
+                  fetchRejectedLeadGroup(newLeadFilters);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-16"
               />
               {leadsGroupCount.length > 0 && (
                 <LeadCountPieChart
@@ -326,34 +359,3 @@ const Dashboard = () => {
   );
 };
 export default Dashboard;
-
-{
-  /* <Select onValueChange={(value) => {}}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Select Reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Rejection Reason</SelectLabel>
-                    {[
-                      "Not on whatsapp",
-                      "Not Replying",
-                      "Low Budget",
-                      "Blocked on whatsapp",
-                      "Late Response",
-                      "Delayed the Traveling",
-                      "Off Location",
-                      "Number of people exceeded",
-                      "Already got it",
-                      "Different Area",
-                      "Agency Fees",
-                      "Didn't like the option",
-                    ].map((country, index) => (
-                      <SelectItem key={index} value={country}>
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select> */
-}

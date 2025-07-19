@@ -57,9 +57,15 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchLeadStatus = async (days?: string) => {
+  const fetchLeadStatus = async ({
+    days,
+    location,
+  }: {
+    days?: string;
+    location?: string;
+  }) => {
     try {
-      const response = await getLeadsGroupCount(days);
+      const response = await getLeadsGroupCount({ days, location });
       setLeadsGroupCount(response.leadsGroupCount);
     } catch (err: any) {
       const error = new Error(err);
@@ -68,9 +74,15 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchRejectedLeadGroup = async (days?: string) => {
+  const fetchRejectedLeadGroup = async ({
+    days,
+    location,
+  }: {
+    days?: string;
+    location?: string;
+  }) => {
     try {
-      const response = await getRejectedLeadGroup(days);
+      const response = await getRejectedLeadGroup({ days, location });
       setRejectedLeadGroups(response.rejectedLeadGroup);
     } catch (err: any) {
       const error = new Error(err);
@@ -81,8 +93,8 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
 
   useEffect(() => {
     fetchLeads({ date });
-    fetchLeadStatus();
-    fetchRejectedLeadGroup();
+    fetchLeadStatus({});
+    fetchRejectedLeadGroup({});
   }, []);
 
   const refetch = () => fetchLeads({ date });

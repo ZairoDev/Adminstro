@@ -46,7 +46,13 @@ export const getGroupedLeads = async ({
   };
 };
 
-export const getLeadsGroupCount = async (days?: string) => {
+export const getLeadsGroupCount = async ({
+  days,
+  location,
+}: {
+  days?: string;
+  location?: string;
+}) => {
   const filters: Record<string, any> = {};
   if (days) {
     switch (days) {
@@ -66,6 +72,10 @@ export const getLeadsGroupCount = async (days?: string) => {
         };
         break;
     }
+  }
+
+  if (location && location !== "All") {
+    filters.location = new RegExp(location, "i");
   }
 
   const pipeline = [
@@ -91,7 +101,13 @@ export const getLeadsGroupCount = async (days?: string) => {
   };
 };
 
-export const getRejectedLeadGroup = async (days?: string) => {
+export const getRejectedLeadGroup = async ({
+  days,
+  location,
+}: {
+  days?: string;
+  location?: string;
+}) => {
   const filters: Record<string, any> = { leadStatus: "rejected" };
   if (days) {
     switch (days) {
@@ -111,6 +127,10 @@ export const getRejectedLeadGroup = async (days?: string) => {
         };
         break;
     }
+  }
+
+  if (location && location !== "All") {
+    filters.location = new RegExp(location, "i");
   }
 
   const pipeline = [

@@ -32,13 +32,17 @@ const chartConfig = {
     label: "reminder",
     color: "hsl(var(--chart-3))",
   },
-  declined: {
-    label: "declined",
+  closed: {
+    label: "closed",
     color: "hsl(var(--chart-4))",
   },
   active: {
     label: "active",
     color: "hsl(var(--chart-5))",
+  },
+  declined: {
+    label: "declined",
+    color: "hsl(var(--chart-4))",
   },
 } satisfies ChartConfig;
 
@@ -131,6 +135,8 @@ export function LeadCountPieChart({
                       ? "bg-[#E23670]"
                       : item.label === "rejected"
                       ? "bg-[#2EB88A]"
+                      : item.label === "closed"
+                      ? "bg-[#AA55D5]"
                       : "bg-[#E88C30]"
                   }`}
                 />

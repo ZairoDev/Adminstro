@@ -19,6 +19,9 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
       type: String,
       // required: true,
     },
+    phone: {
+      type: String,
+    },
     userId: {
       type: String,
       required: true,

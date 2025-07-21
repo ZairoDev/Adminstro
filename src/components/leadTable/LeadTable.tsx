@@ -62,6 +62,7 @@ import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
 import { Textarea } from "../ui/textarea";
 import CustomTooltip from "../CustomToolTip";
+import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const searchParams = useSearchParams();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
+  const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
@@ -626,7 +628,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                               </AlertDialogTrigger>
                               <AlertDialogContent
                                 className=" flex flex-col items-center"
-                                onClick={(e) => e.stopPropagation()}
+                                onCloseAutoFocus={(event) => {
+                                  event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                                  document.body.style.pointerEvents = "";
+                                }}
                               >
                                 <div className=" z-10">
                                   <Calendar
@@ -663,7 +668,43 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       </Link>
                       {path.toString().trim().split("/")[2] ===
                         "goodtogoleads" && (
-                        <DropdownMenuItem>Set Visit</DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setActiveModalRow(index);
+                            }}
+                          >
+                            Set Visit
+                          </DropdownMenuItem>
+
+                          <AlertDialog
+                            // onOpenChange={(isOpen) => {
+                            //   if (!isOpen) ellipsisRef.current?.focus();
+                            // }}
+                            open={activeModalRow === index}
+                            // onOpenChange={(open) => {
+                            //   if (!open) setActiveModalRow(-1);
+                            // }}
+                          >
+                            {/* <AlertDialogTrigger
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              asChild
+                            >
+                              <p>Set Visit</p>
+                            </AlertDialogTrigger> */}
+                            <AlertDialogContent
+                              // onCloseAutoFocus={(event) => {
+                              //   event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                              //   document.body.style.pointerEvents = "";
+                              // }}
+                            >
+                              <VisitModal />
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />

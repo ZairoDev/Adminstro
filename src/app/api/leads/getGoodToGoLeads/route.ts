@@ -121,8 +121,8 @@ export async function POST(req: NextRequest) {
     if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
     if (propertyType) query.propertyType = propertyType;
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.budget = { $gte: budgetFrom };
-    if (budgetTo) query.budget = { $lte: budgetTo };
+    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
+    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
 
     {

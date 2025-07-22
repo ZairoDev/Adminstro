@@ -718,7 +718,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             //   document.body.style.pointerEvents = "";
                             // }}
                             >
-                              <VisitModal />
+                              <VisitModal leadId={query._id!} />
                             </AlertDialogContent>
                           </AlertDialog>
                         </>

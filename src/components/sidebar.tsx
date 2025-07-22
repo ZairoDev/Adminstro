@@ -144,6 +144,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <User2Icon size={18} />,
     },
     {
+      path: "/dashboard/employee/employeeList",
+      label: "All Employees",
+      Icon: <IdCardIcon size={18} />,
+    },
+    {
       path: "/dashboard/user",
       label: "Manage User",
       Icon: <User2Icon size={18} />,

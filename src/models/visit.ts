@@ -8,16 +8,16 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
     required: true,
     ref: "query",
   },
-  property: {
-    propertyId: { type: String, required: true },
-    VSID: { type: String, required: true },
-    ownerPhone: { type: String, required: true },
-    ownerEmail: { type: String, required: true },
-  },
+  propertyId: { type: String, required: true },
+  VSID: { type: String, required: true },
+  ownerName: { type: String, required: true },
+  ownerPhone: { type: String, required: true },
+  ownerEmail: { type: String, required: true },
   schedule: [
     {
       date: { type: String, required: true },
       time: { type: String, required: true },
+      _id: false,
     },
   ],
   visitType: {
@@ -33,9 +33,9 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   commission: { type: Number, required: true },
   agentCommission: { type: Number, required: true },
   documentationCharges: { type: Number, required: true },
-  visitStatus: { type: String, required: true },
-  reason: { type: String, required: true },
-  note: { type: String, required: true },
+  visitStatus: { type: String, required: true, default: "scheduled" },
+  reason: { type: String, required: false },
+  note: { type: String, required: false },
   createdBy: { type: String, required: true },
 });
 

@@ -242,8 +242,16 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
-  const addReminder = async (leadId: string | undefined) => {
+  const addReminder = async (leadId: string | undefined, index: number) => {
     if (!leadId) return;
+    if (!queries[index].leadQualityByReviewer) {
+      toast({
+        description: "Please select lead quality first",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
     try {
       const response = await axios.post("/api/sales/reminders/addReminder", {
         leadId,
@@ -613,49 +621,58 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           </DropdownMenuItem>
 
                           <DropdownMenuItem>
-                            <AlertDialog
-                              onOpenChange={(isOpen) => {
-                                if (!isOpen) ellipsisRef.current?.focus();
+                            <div
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent dropdown click default behavior
+                                e.stopPropagation(); // Stop the event from bubbling
                               }}
                             >
-                              <AlertDialogTrigger
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                asChild
-                              >
-                                <p>Set Reminder</p>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent
-                                className=" flex flex-col items-center"
-                                onCloseAutoFocus={(event) => {
-                                  event.preventDefault(); // Prevent default focus-restoring behavior if needed
-                                  document.body.style.pointerEvents = "";
+                              <AlertDialog
+                                onOpenChange={(isOpen) => {
+                                  if (!isOpen) ellipsisRef.current?.focus();
                                 }}
                               >
-                                <div className=" z-10">
-                                  <Calendar
-                                    mode="single"
-                                    selected={reminderDate}
-                                    onSelect={(date) => {
-                                      setReminderDate(date);
-                                    }}
-                                    className="rounded-md border shadow"
-                                  />
-                                  <div className=" flex justify-between w-full gap-x-4 mt-2">
-                                    <AlertDialogCancel className=" w-1/2">
-                                      Cancel
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className=" w-1/2"
-                                      onClick={() => addReminder(query?._id)}
-                                    >
-                                      Continue
-                                    </AlertDialogAction>
+                                <AlertDialogTrigger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  asChild
+                                >
+                                  <button type="button">Set Reminder</button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent
+                                  className=" flex flex-col items-center"
+                                  onCloseAutoFocus={(event) => {
+                                    event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                                    document.body.style.pointerEvents = "";
+                                  }}
+                                >
+                                  <div className=" z-10">
+                                    <Calendar
+                                      mode="single"
+                                      selected={reminderDate}
+                                      onSelect={(date) => {
+                                        setReminderDate(date);
+                                      }}
+                                      className="rounded-md border shadow"
+                                    />
+                                    <div className=" flex justify-between w-full gap-x-4 mt-2">
+                                      <AlertDialogCancel className=" w-1/2">
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className=" w-1/2"
+                                        onClick={() =>
+                                          addReminder(query?._id, index)
+                                        }
+                                      >
+                                        Continue
+                                      </AlertDialogAction>
+                                    </div>
                                   </div>
-                                </div>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </DropdownMenuItem>
                         </>
                       )}
@@ -696,10 +713,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                               <p>Set Visit</p>
                             </AlertDialogTrigger> */}
                             <AlertDialogContent
-                              // onCloseAutoFocus={(event) => {
-                              //   event.preventDefault(); // Prevent default focus-restoring behavior if needed
-                              //   document.body.style.pointerEvents = "";
-                              // }}
+                            // onCloseAutoFocus={(event) => {
+                            //   event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                            //   document.body.style.pointerEvents = "";
+                            // }}
                             >
                               <VisitModal />
                             </AlertDialogContent>

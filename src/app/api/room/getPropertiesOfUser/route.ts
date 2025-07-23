@@ -10,7 +10,6 @@ connectDb();
 export async function POST(req: NextRequest) {
   try {
     const { userName, userMobile } = await req.json();
-    console.log(`mobile:${userName},${userMobile}`);
 
     if (!userName || !userMobile) {
       return NextResponse.json(
@@ -20,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await Users.find({ phone: userMobile });
-    console.log("user in route: ", user);
+    // console.log("user in route: ", user);
 
     // if (user.length === 0) {
     //   return NextResponse.json(
@@ -30,6 +29,7 @@ export async function POST(req: NextRequest) {
     // }
 
     const userEmail = user.length ? user[0].email : "";
+    const ownerName = user.length ? user[0].name : "";
 
     let totalProperties: any[] = [];
 
@@ -52,8 +52,12 @@ export async function POST(req: NextRequest) {
 
     const ownerProperties = totalProperties.map((property) => ({
       propertyId: property._id,
+      VSID: property.VSID,
       propertyImages: property.propertyImages,
       isQuickListing: property?.QID ? true : false,
+      ownerName: ownerName,
+      ownerEmail: userEmail,
+      address: `${property.street}, ${property.city}, ${property.state}, ${property.country}`,
     }));
 
     return NextResponse.json(ownerProperties, { status: 200 });

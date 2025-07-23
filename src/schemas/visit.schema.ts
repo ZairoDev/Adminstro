@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 
 const VisitSchema = z.object({
   lead: z.instanceof(mongoose.Schema.Types.ObjectId),
-  property: z.object({
-    propertyId: z.string(),
-    VSID: z.string(),
-    ownerPhone: z.string(),
-    propertyDesc: z.string(),
-  }),
+  propertyId: z.string(),
+  VSID: z.string(),
+  ownerName: z.string(),
+  ownerPhone: z.string(),
+  ownerEmail: z.string(),
+  propertyDesc: z.string(),
   schedule: z.array(
     z.object({
       date: z.date(),

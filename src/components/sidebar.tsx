@@ -19,6 +19,7 @@ import {
   CheckCheck,
   PencilLine,
   CircleHelp,
+  IdCardIcon,
   ShieldAlert,
   NotebookPen,
   ArrowUpLeft,
@@ -31,7 +32,7 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   SlidersHorizontal,
-  IdCardIcon,
+  Swords,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -137,6 +138,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard",
       label: "Dashboard",
       Icon: <LayoutDashboard size={18} />,
+    },
+    {
+      path: "/dashboard/addons",
+      label: "Add Ons",
+      Icon: <Swords size={18} />,
     },
     {
       path: "/dashboard/employee",
@@ -444,6 +450,11 @@ const dashboardManagementRoutes = [
     path: "/dashboard",
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
+  },
+  {
+    path: "/dashboard/addons",
+    label: "Add Ons",
+    Icon: <Swords size={18} />,
   },
 ];
 const leadManagementRoutes = [

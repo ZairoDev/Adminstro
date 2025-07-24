@@ -184,19 +184,23 @@ const SalesDashboard = () => {
   const handleSubmit = async () => {
     try {
       const emptyFields: string[] = [];
+      const canBeEmptyField = ["salesPriority"];
       // const { minBudget, maxBudget, ...otherFields } = formData;
 
       // const budget = `${budgetFrom} to ${budgetTo}`;
       // formData.budget = budget;
-      // Object.entries(formData).forEach(([key, value]) => {
-      //   if (value === "" || value === null || value === undefined) {
-      //     const fieldName = key
-      //       .replace(/([A-Z])/g, " $1")
-      //       .replace(/^./, (str) => str.toUpperCase())
-      //       .trim();
-      //     emptyFields.push(fieldName);
-      //   }
-      // });
+      Object.entries(formData).forEach(([key, value]) => {
+        if (
+          (value === "" || value === null || value === undefined) &&
+          !canBeEmptyField.includes(key)
+        ) {
+          const fieldName = key
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (str) => str.toUpperCase())
+            .trim();
+          emptyFields.push(fieldName);
+        }
+      });
 
       if (emptyFields.length > 0) {
         toast({
@@ -247,6 +251,7 @@ const SalesDashboard = () => {
           roomId: "",
           roomPassword: "",
         },
+        leadQualityByCreator: "",
       });
     } catch (error: any) {
       console.error("Error:", error.response.data.error);
@@ -523,6 +528,7 @@ const SalesDashboard = () => {
                       <div className="w-full ml-1 mb-2">
                         <Label>Location</Label>
                         <Select
+                          value={formData.location}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -570,7 +576,10 @@ const SalesDashboard = () => {
                       {/* Booking Term */}
                       <div className="ml-1">
                         <Label>Booking Term*</Label>
-                        <Select onValueChange={handleBookingTermChange}>
+                        <Select
+                          value={formData.bookingTerm}
+                          onValueChange={handleBookingTermChange}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
@@ -717,6 +726,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Bill Status</Label>
                         <Select
+                          value={formData.billStatus}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -742,6 +752,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Priority</Label>
                         <Select
+                          value={formData.priority}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -775,6 +786,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Type of Property</Label>
                         <Select
+                          value={formData.typeOfProperty}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -811,6 +823,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Lead Quality</Label>
                         <Select
+                          value={formData.leadQualityByCreator}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -836,6 +849,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Property Type</Label>
                         <Select
+                          value={formData.propertyType}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -862,6 +876,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Zone</Label>
                         <Select
+                          value={formData.zone}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,

@@ -695,30 +695,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                             Set Visit
                           </DropdownMenuItem>
 
-                          <AlertDialog
-                            // onOpenChange={(isOpen) => {
-                            //   if (!isOpen) ellipsisRef.current?.focus();
-                            // }}
-                            open={activeModalRow === index}
-                            // onOpenChange={(open) => {
-                            //   if (!open) setActiveModalRow(-1);
-                            // }}
-                          >
-                            {/* <AlertDialogTrigger
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                              asChild
-                            >
-                              <p>Set Visit</p>
-                            </AlertDialogTrigger> */}
-                            <AlertDialogContent
-                            // onCloseAutoFocus={(event) => {
-                            //   event.preventDefault(); // Prevent default focus-restoring behavior if needed
-                            //   document.body.style.pointerEvents = "";
-                            // }}
-                            >
-                              <VisitModal leadId={query._id!} />
+                          <AlertDialog open={activeModalRow === index}>
+                            <AlertDialogContent>
+                              <VisitModal
+                                leadId={query._id!}
+                                onOpenChange={() => {
+                                  setActiveModalRow(-1);
+                                }}
+                              />
                             </AlertDialogContent>
                           </AlertDialog>
                         </>

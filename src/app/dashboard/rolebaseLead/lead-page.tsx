@@ -45,6 +45,8 @@ import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import { InfinityLoader } from "@/components/Loaders";
+import HandLoader from "@/components/HandLoader";
 
 export const LeadPage = () => {
   const router = useRouter();
@@ -370,7 +372,9 @@ export const LeadPage = () => {
       </div>
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
-          <Loader />
+          {/* <Loader /> */}
+          {/* <InfinityLoader className=" h-20 w-28" /> */}
+          <HandLoader />
         </div>
       ) : view === "Table View" ? (
         <div className="">

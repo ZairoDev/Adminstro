@@ -52,7 +52,7 @@ const agentSchema: Schema = new Schema<AgentValidationSchema>(
       type: String,
       trim: true,
     },
-    ifsc: {
+    iban: {
       type: String,
       trim: true,
     },

@@ -2,7 +2,7 @@ import axios from "axios";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { LucideLoader2, Search } from "lucide-react";
+import { LucideLoader2, Search, X } from "lucide-react";
 
 import {
   Select,
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/phone-input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { InfinityLoader } from "@/components/Loaders";
 
 interface VisitFromSchema {
   lead: string;
@@ -67,7 +68,15 @@ interface AgentsInterface {
   agentPhone: string;
 }
 
-const VisitModal = ({ leadId }: { leadId: string }) => {
+const VisitModal = ({
+  leadId,
+  // open,
+  onOpenChange,
+}: {
+  leadId: string;
+  // open: boolean;
+  onOpenChange: () => void;
+}) => {
   const [visitFormValues, setVisitFormValues] = useState<VisitFromSchema>({
     lead: leadId,
     VSID: "",
@@ -96,7 +105,9 @@ const VisitModal = ({ leadId }: { leadId: string }) => {
   const [fetchingAgents, setFetchingAgents] = useState(false);
 
   const handleSubmit = async () => {
-    console.log("phone: ", visitFormValues);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 10000);
+    return;
     try {
       await axios.post("/api/visits/addVisit", visitFormValues);
       toast({
@@ -144,7 +155,6 @@ const VisitModal = ({ leadId }: { leadId: string }) => {
       const response = await axios.post("/api/property/getPropertyByVSID", {
         VSID: VSID.trim(),
       });
-      console.log("response of property: ", response);
       setProperty(response.data.data);
       setVisitFormValues((prev) => ({
         ...prev,
@@ -171,7 +181,7 @@ const VisitModal = ({ leadId }: { leadId: string }) => {
       const allAgents = await axios.get("/api/addons/agents/getAllAgents");
       setAgents(allAgents.data.data);
     } catch (err) {
-      console.log("unable to fetch agents");
+      console.error("unable to fetch agents");
     } finally {
       setFetchingAgents(false);
     }
@@ -183,7 +193,12 @@ const VisitModal = ({ leadId }: { leadId: string }) => {
 
   return (
     <div className=" flex flex-col gap-y-2">
-      <h2 className=" font-semibold text-lg">Visit Modal</h2>
+      <div className=" flex justify-between items-center mb-2">
+        <h2 className=" font-semibold text-lg">Visit Modal</h2>
+        <Button variant={"outline"} onClick={onOpenChange}>
+          <X />
+        </Button>
+      </div>
 
       <div className=" flex justify-between items-center gap-x-2">
         <Input
@@ -488,7 +503,13 @@ const VisitModal = ({ leadId }: { leadId: string }) => {
         </div>
       </div>
 
-      <Button onClick={handleSubmit}>Schedule Visit</Button>
+      <Button onClick={handleSubmit}>
+        {isLoading ? (
+          <InfinityLoader className=" h-12 w-16" strokeColor="black" />
+        ) : (
+          "Schedule Visit"
+        )}
+      </Button>
     </div>
   );
 };

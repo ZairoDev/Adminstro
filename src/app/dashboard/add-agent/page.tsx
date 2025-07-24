@@ -101,7 +101,7 @@ const AddAgent = () => {
       address: "",
       socialAccounts: [],
       accountNo: "",
-      ifsc: "",
+      iban: "",
       note: "",
     },
   });

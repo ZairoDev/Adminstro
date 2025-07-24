@@ -11,7 +11,7 @@ export const agentSchema = z.object({
   address: z.string().optional(),
   socialAccounts: z.array(z.object({ platform: z.string() })).optional(),
   accountNo: z.string().optional(),
-  ifsc: z.string().optional(),
+  iban: z.string().optional(),
   note: z.string().optional(),
   isActive: z.boolean().default(true),
 });

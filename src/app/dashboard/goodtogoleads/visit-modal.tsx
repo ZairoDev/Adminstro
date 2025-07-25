@@ -106,8 +106,6 @@ const VisitModal = ({
 
   const handleSubmit = async () => {
     setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 10000);
-    return;
     try {
       await axios.post("/api/visits/addVisit", visitFormValues);
       toast({

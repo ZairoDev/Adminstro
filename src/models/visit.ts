@@ -6,7 +6,7 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   lead: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    ref: "query",
+    ref: "Query",
   },
   propertyId: { type: String, required: true },
   VSID: { type: String, required: true },

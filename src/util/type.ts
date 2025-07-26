@@ -1,4 +1,4 @@
-import mongoose, { ObjectId } from "mongoose";
+import mongoose, { ObjectId, Types } from "mongoose";
 
 export interface MiddlweareInterface {
   name: string;
@@ -309,6 +309,36 @@ export interface IQuery {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface VisitInterface {
+  _id: string;
+  lead: {
+    _id: string;
+    name: string;
+    phoneNo: number;
+  };
+  propertyId: string;
+  VSID: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
+  propertyDesc: string;
+  schedule: {
+    date: Date;
+    time: string;
+  }[];
+  visitType: "physical" | "virtual";
+  agentName: string;
+  agentPhone: string;
+  pitchAmount: number;
+  commission: number;
+  agentCommission: number;
+  documentationCharges: number;
+  visitStatus: string;
+  reason: string;
+  note: string;
+  createdBy: string;
 }
 
 export interface imageInterface {

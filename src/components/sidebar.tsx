@@ -6,6 +6,7 @@ import {
   Frown,
   Check,
   Speech,
+  Swords,
   ScanEye,
   CircleX,
   BellDot,
@@ -16,6 +17,7 @@ import {
   User2Icon,
   BadgeEuro,
   Warehouse,
+  TramFront,
   CheckCheck,
   PencilLine,
   CircleHelp,
@@ -32,7 +34,6 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   SlidersHorizontal,
-  Swords,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -226,6 +227,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleX size={18} />,
     },
     {
+      path: "/dashboard/visits",
+      label: "Visits",
+      Icon: <TramFront size={18} />,
+    },
+    {
       path: "/dashboard/aliases",
       label: "Aliases",
       Icon: <UserRoundCog size={18} />,
@@ -273,6 +279,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   Sales: [
     {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
+    },
+    {
       path: "/dashboard/rolebaseLead",
       label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
@@ -296,6 +307,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/reminders",
       label: "Reminders",
       Icon: <BellDot size={18} />,
+    },
+    {
+      path: "/dashboard/visits",
+      label: "Visits",
+      Icon: <TramFront size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",
@@ -325,6 +341,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   "Sales-TeamLead": [
     {
+      path: "/dashboard/createquery",
+      label: "Lead",
+      Icon: <PencilLine size={18} />,
+    },
+    {
       path: "/dashboard/rolebaseLead",
       label: "Lead (Sales)",
       Icon: <PencilLine size={18} />,
@@ -348,6 +369,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/reminders",
       label: "Reminders",
       Icon: <BellDot size={18} />,
+    },
+    {
+      path: "/dashboard/visits",
+      label: "Visits",
+      Icon: <TramFront size={18} />,
     },
     {
       path: "/dashboard/room/joinroom",
@@ -499,6 +525,13 @@ const leadManagementRoutes = [
     Icon: <BellDot size={18} />,
   },
 ];
+const visitsManagementRoutes = [
+  {
+    path: "/dashboard/visits",
+    label: "Visits",
+    Icon: <TramFront size={18} />,
+  },
+];
 const userManagementRoutes = [
   {
     path: "/dashboard/employee",
@@ -626,6 +659,10 @@ export function Sidebar() {
       leadManagementRoutes.some((route) => route.path === r.path)
     );
 
+    const visitsManagementRoute = routes.filter((r) =>
+      visitsManagementRoutes.some((route) => route.path === r.path)
+    );
+
     const userManagementRoute = routes.filter((r) =>
       userManagementRoutes.some((route) => route.path === r.path)
     );
@@ -696,8 +733,12 @@ export function Sidebar() {
         </Link> */}
 
         <SidebarSection title="Dashboard" routes={dashboardRoutes} />
-        <SidebarSection title="Lead Management" routes={leadRoute} />
         <SidebarSection title="User Management" routes={userManagementRoute} />
+        <SidebarSection title="Lead Management" routes={leadRoute} />
+        <SidebarSection
+          title="Visit Management"
+          routes={visitsManagementRoute}
+        />
         <SidebarSection
           title="Property Management"
           routes={propertyManagementRoute}

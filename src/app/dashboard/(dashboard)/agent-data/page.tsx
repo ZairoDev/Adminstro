@@ -5,6 +5,12 @@ import { Loader2 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Select,
   SelectItem,
   SelectValue,
@@ -38,6 +44,13 @@ const AgentWiseData = () => {
     return nameA.localeCompare(nameB);
   })
 
+  console.log("dashboardData: ", dashboardData);
+
+  const activeEmployees = dashboardData.filter((emp)=> emp.isActive === true);
+  console.log("activeEmployees: ", activeEmployees);
+  const inactiveEmployees = dashboardData.filter((emp)=> emp.isActive === false);
+  console.log("inactiveEmployees: ", inactiveEmployees);
+
   const handleDateFilter = (value: string) => {
     const days = Number(value.split(" ")[0]);
 
@@ -68,12 +81,41 @@ const AgentWiseData = () => {
         <Button onClick={refetch}>Apply</Button>
         <Button onClick={reset}>Reset</Button>
       </div>
-      <div className=" grid md:grid-cols-2 gap-4">
-        {dashboardData?.map((employee) => (
+      <div className=" grid md:grid-cols-1 gap-4">
+        {/* {dashboardData?.map((employee) => (
           <EmployeeLeadCard key={employee._id} data={employee} />
-        ))}
+        ))} */}
+        <Accordion type="single" collapsible>
+          <AccordionItem value="item-1">
+            <AccordionTrigger>Active Employees</AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2  gap-4">
+                {activeEmployees?.map((employee) => (
+                  <EmployeeLeadCard key={employee._id} data={employee} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-2">
+            <AccordionTrigger>Inactive Employees</AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2  gap-4">
+                {inactiveEmployees?.map((employee) => (
+                  <EmployeeLeadCard key={employee._id} data={employee} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {/* <div>
+          <p>Inactive Employees</p>
+        </div>
+        {inactiveEmployees?.map((employee) => (
+          <EmployeeLeadCard key={employee._id} data={employee} />
+        ))} */}
       </div>
     </div>
-  )
+  );
 }
 export default AgentWiseData

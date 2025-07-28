@@ -114,8 +114,8 @@ const config: Config = {
   			}
   		},
   		rotate: {
-  			'315': '315deg',
-  			'270': '270deg'
+  			'270': '270deg',
+  			'315': '315deg'
   		}
   	}
   },

@@ -221,6 +221,7 @@ export const getDashboardData = async ({ date }: { date: DateRange | undefined }
       return {
         ...lead,
         employee: employee?.name,
+        isActive: employee?.isActive,
       };
     })
   );

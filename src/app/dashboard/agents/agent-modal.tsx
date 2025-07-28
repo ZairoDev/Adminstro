@@ -1,7 +1,5 @@
-"use client";
-
 import axios from "axios";
-import { LucideLoader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
 import React, { useRef, useState } from "react";
@@ -14,17 +12,23 @@ import {
   SelectTrigger,
   SelectContent,
 } from "@/components/ui/select";
-import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { InfinityLoader } from "@/components/Loaders";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { agentSchema, AgentValidationSchema } from "@/schemas/agent.schema";
 
-const AddAgent = () => {
+interface PageProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const AgentModal = ({ open, onOpenChange }: PageProps) => {
   const { toast } = useToast();
   const { uploadFiles } = useBunnyUpload();
 
@@ -136,13 +140,9 @@ const AddAgent = () => {
   const selectedGender = watch("gender");
 
   return (
-    <section className=" flex flex-col justify-center items-center">
-      <Heading
-        heading="Add new Agent"
-        subheading="You can add new agent here"
-      />
-      <div className="border-2 rounded-lg p-4 max-w-md">
-        <div className="flex items-center  sm:flex-row flex-col justify-center mt-8">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className=" flex flex-col justify-center items-center">
+        <div className="flex items-center  sm:flex-row flex-col justify-center">
           <div
             className="relative w-32 h-32 rounded-full border-2 border-gray-300 flex items-center justify-center cursor-pointer"
             onClick={handleImageClick}
@@ -296,16 +296,16 @@ const AddAgent = () => {
           <div className="flex items-end justify-start">
             <Button type="submit" className="w-full ">
               {loading ? (
-                <LucideLoader2 className=" animate-spin" />
+                <InfinityLoader className=" w-12 h-8 font-medium" />
               ) : (
                 "Create Agent"
               )}
             </Button>
           </div>
         </form>
-      </div>
-    </section>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default AddAgent;
+export default AgentModal;

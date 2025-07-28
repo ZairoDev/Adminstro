@@ -341,6 +341,25 @@ export interface VisitInterface {
   createdBy: string;
 }
 
+export interface AgentInterface {
+  _id: string;
+  agentName: string;
+  agentEmail: string;
+  agentPhone: number;
+  profilePicture?: string;
+  nationality: string;
+  gender: "Male" | "Female";
+  location: string;
+  address?: string;
+  socialAccounts?: [{}];
+  accountNo?: string;
+  iban?: string;
+  note?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface imageInterface {
   propertyCoverFileUrl: number[];
   propertyPictureUrls: number[];

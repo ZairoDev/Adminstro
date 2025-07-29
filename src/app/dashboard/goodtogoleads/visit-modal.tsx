@@ -34,7 +34,9 @@ interface VisitFromSchema {
   agentName: string;
   agentPhone: string;
   pitchAmount: number;
-  commission: number;
+  // commission: number;
+  ownerCommission: number;
+  travellerCommission: number;
   agentCommission: number;
   documentationCharges: number;
   visitType: "physical" | "virtual";
@@ -90,7 +92,8 @@ const VisitModal = ({
     agentName: "",
     agentPhone: "",
     pitchAmount: 0,
-    commission: 0,
+    ownerCommission: 0,
+    travellerCommission: 0,
     agentCommission: 0,
     documentationCharges: 0,
     visitType: "physical",
@@ -116,6 +119,8 @@ const VisitModal = ({
         title: "Unable to schedule visit",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -404,7 +409,7 @@ const VisitModal = ({
       </div>
 
       {/* Select Agent */}
-      <div className=" flex justify-between">
+      <div className=" flex justify-between gap-x-2">
         <div>
           <Label>Agent</Label>
           <Select
@@ -416,7 +421,7 @@ const VisitModal = ({
               }))
             }
           >
-            <SelectTrigger className="w-[210px]">
+            <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Select Agent" />
             </SelectTrigger>
             <SelectContent>
@@ -458,20 +463,32 @@ const VisitModal = ({
             }
           />
         </div>
+        <div>
+          <Label>Owner Comm.</Label>
+          <Input
+            type="number"
+            min={0}
+            value={visitFormValues.ownerCommission}
+            placeholder="Commission by owner"
+            onChange={(e) =>
+              handleChange("ownerCommission", parseInt(e.target.value))
+            }
+          />
+        </div>
       </div>
 
       {/* Pitch Amount */}
 
       <div className=" flex justify-between gap-x-2">
         <div>
-          <Label>VS Commission</Label>
+          <Label>Traveller comm.</Label>
           <Input
             type="number"
             min={0}
-            value={visitFormValues.commission}
-            placeholder="Enter VS Commission"
+            value={visitFormValues.travellerCommission}
+            placeholder=""
             onChange={(e) =>
-              handleChange("commission", parseInt(e.target.value))
+              handleChange("travellerCommission", parseInt(e.target.value))
             }
           />
         </div>

@@ -332,7 +332,8 @@ export interface VisitInterface {
   agentName: string;
   agentPhone: string;
   pitchAmount: number;
-  commission: number;
+  ownerCommission: number;
+  travellerCommission: number;
   agentCommission: number;
   documentationCharges: number;
   visitStatus: string;

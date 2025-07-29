@@ -119,13 +119,19 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                 <TableCell>{visit.agentPhone}</TableCell>
               )}
 
-              <TableCell className=" text-center">
+              <TableCell className=" text-center flex gap-x-1">
                 <Badge>
                   <CustomTooltip
-                    text={visit.commission.toString()}
-                    desc="VS Commission"
+                    text={visit.ownerCommission.toString()}
+                    desc="Owner Commission"
                   />
-                </Badge>{" "}
+                </Badge>
+                <Badge>
+                  <CustomTooltip
+                    text={visit.travellerCommission.toString()}
+                    desc="Traveller Commission"
+                  />
+                </Badge>
               </TableCell>
 
               <TableCell>
@@ -158,7 +164,10 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                       <Link href={`/dashboard/createquery/${visit.lead._id}`}>
                         <DropdownMenuItem>View Lead</DropdownMenuItem>
                       </Link>
-                      <Link href={`/dashboard/visits/${visit?._id}`} target="_blank">
+                      <Link
+                        href={`/dashboard/visits/${visit?._id}`}
+                        target="_blank"
+                      >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                     </DropdownMenuGroup>

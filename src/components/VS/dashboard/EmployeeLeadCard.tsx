@@ -46,7 +46,7 @@ export function EmployeeLeadCard({ data }: { data: EmployeeLeadData }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm sm:text-base font-medium truncate" title={data.employee}>
+            <CardTitle className="text-sm sm:text-base font-medium truncate " title={data.employee}>
               {data.employee}
             </CardTitle>
           </div>

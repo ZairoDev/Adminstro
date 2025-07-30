@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 export const getDataFromToken = async (request: NextRequest) => {
   try {
     const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
+    // console.log("secret: ", secret);
     const token = request.cookies.get("token")?.value || "";
+    // console.log("token: ", token);
     const { payload } = await jwtVerify(token, secret);
     return payload;
   } catch (error: any) {

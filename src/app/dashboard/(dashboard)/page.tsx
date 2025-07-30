@@ -30,6 +30,7 @@ import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
 import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
 import { useAuthStore } from "@/AuthStore";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
+import axios from "axios";
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -38,13 +39,19 @@ const Dashboard = () => {
   const [leadsFilters, setLeadsFilters] = useState<{
     days?: string;
     location?: string;
+    createdBy?: string;
+  }>({});
+
+  const [propertyFilters, setPropertyFilters] = useState<{
+    days?: string;
+    createdBy?: string;
   }>({});
 
   const { token } = useAuthStore();
 
-  {
-    /* Property Count */
-  }
+  
+    //  Property Count 
+  
   const {
     properties,
     totalProperties,
@@ -58,8 +65,11 @@ const Dashboard = () => {
   }
   const {
     leads,
+    locationLeads,
+    fetchLeadByLocation,
     leadsGroupCount,
     fetchLeadStatus,
+    allEmployees,
     fetchRejectedLeadGroup,
     rejectedLeadGroups,
     isLoading,
@@ -89,6 +99,25 @@ const Dashboard = () => {
   const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
     return { label: lead._id, count: lead.count };
   });
+
+  // const fetchEmployee = async()=>{
+  //   try{
+  //     const response = await axios.get(`/api/employee/getAllEmployee`, {
+  //       params: {
+  //         role:  token?.role,
+  //       },
+  //   })
+  //   console.log(response.data.allEmployees);
+  // }
+  //   catch(error){
+  //     console.log(error);
+  //   }
+  // }
+  // useEffect(()=>{
+  //   fetchEmployee();
+  // },[token?.role])
+
+  
 
   if (isLoading) {
     return (
@@ -234,20 +263,56 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {/* Left Column */}
           {leadByLocationData && (
-            <LabelledPieChart
-              chartData={leadByLocationData}
-              heading="Leads By Location"
-              // footer="Footer data"
-              key="fdg"
-            />
+            <div className=" relative">
+              
+              <CustomSelect
+                itemList={["All", "10 days", "1 month", "3 months"]}
+                triggerText="Select days"
+                defaultValue="All"
+                onValueChange={(value) => {
+                  // fetchLeadStatus(value);
+                  // fetchRejectedLeadGroup(value);
+                  const newLeadFilters = { ...propertyFilters };
+                  newLeadFilters.days = value;
+                  setPropertyFilters(newLeadFilters);
+                  fetchLeadByLocation(newLeadFilters);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-2"
+              />
+              <CustomSelect
+                itemList={["All", ...allEmployees]}
+                triggerText="Select agent"
+                defaultValue="All"
+                onValueChange={(value) => {
+                  // fetchLeadStatus(value);
+                  // fetchRejectedLeadGroup(value);
+                  const newLeadFilters = { ...propertyFilters };
+                  newLeadFilters.createdBy = value;
+                  setPropertyFilters(newLeadFilters);
+                  fetchLeadByLocation(newLeadFilters);
+                  // fetchAllEmployees();
+                  // fetchRejectedLeadGroup(newLeadFilters);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-16 "
+              />
+              <LabelledPieChart
+                chartData={locationLeads.map((lead) => ({
+                  label: lead._id,
+                  count: lead.count,
+                }))}
+                heading="Leads By Location"
+                // footer="Footer data"
+                key="fdg"
+              />
+            </div>
           )}
           {/* <Card className="shadow-md">
           <CardHeader>
-            <CardTitle>Leads by Location</CardTitle>
+          <CardTitle>Leads by Location</CardTitle>
           </CardHeader>
           <CardContent>
             <LeadsByLocation leadsByLocation={leads.leadsByLocation} />
-          </CardContent>
+            </CardContent>
         </Card> */}
 
           {/* Right Column */}
@@ -265,93 +330,125 @@ const Dashboard = () => {
       </section>
 
       {/* Sales Generation Dashboard*/}
-      {token?.role === "SuperAdmin" && (
-        <section>
-          <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
-          <div className=" grid grid-cols-1 md:grid-cols-2 gap-6 border rounded-md">
-            <div className=" relative">
-              <CustomSelect
-                itemList={["All", "10 days", "1 month", "3 months"]}
-                triggerText="Select days"
-                defaultValue="All"
-                onValueChange={(value) => {
-                  // fetchLeadStatus(value);
-                  // fetchRejectedLeadGroup(value);
-                  const newLeadFilters = { ...leadsFilters };
-                  newLeadFilters.days = value;
-                  setLeadsFilters(newLeadFilters);
-                  fetchLeadStatus(newLeadFilters);
-                  fetchRejectedLeadGroup(newLeadFilters);
-                }}
-                triggerClassName=" w-32 absolute left-2 top-2"
-              />
-              <CustomSelect
-                itemList={[
-                  "All",
-                  "Athens",
-                  "Chania",
-                  "Rome",
-                  "Milan",
-                  "Thessaloniki",
-                ]}
-                triggerText="Select location"
-                defaultValue="All"
-                onValueChange={(value) => {
-                  // fetchLeadStatus(value);
-                  // fetchRejectedLeadGroup(value);
-                  const newLeadFilters = { ...leadsFilters };
-                  newLeadFilters.location = value;
-                  setLeadsFilters(newLeadFilters);
-                  fetchLeadStatus(newLeadFilters);
-                  fetchRejectedLeadGroup(newLeadFilters);
-                }}
-                triggerClassName=" w-32 absolute left-2 top-16"
-              />
-              {leadsGroupCount.length > 0 && (
-                <LeadCountPieChart
-                  heading="Leads Count"
-                  chartData={leadsGroupCount.length > 0 ? leadsGroupCount : []}
+      {token?.role === "SuperAdmin" ||
+        (token?.role === "LeadGen-TeamLead" && (
+          <section>
+            <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
+            <div className=" grid grid-cols-1 md:grid-cols-2 gap-6  border rounded-md">
+              <div className=" relative">
+                <CustomSelect
+                  itemList={["All", "10 days", "1 month", "3 months"]}
+                  triggerText="Select days"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    // fetchLeadStatus(value);
+                    // fetchRejectedLeadGroup(value);
+                    const newLeadFilters = { ...leadsFilters };
+                    newLeadFilters.days = value;
+                    setLeadsFilters(newLeadFilters);
+                    fetchLeadStatus(newLeadFilters);
+                    fetchRejectedLeadGroup(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-2"
                 />
-              )}
-            </div>
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "Athens",
+                    "Chania",
+                    "Rome",
+                    "Milan",
+                    "Thessaloniki",
+                  ]}
+                  triggerText="Select location"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    // fetchLeadStatus(value);
+                    // fetchRejectedLeadGroup(value);
+                    const newLeadFilters = { ...leadsFilters };
+                    newLeadFilters.location = value;
+                    setLeadsFilters(newLeadFilters);
+                    fetchLeadStatus(newLeadFilters);
+                    fetchRejectedLeadGroup(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-16"
+                />
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    // fetchLeadStatus(value);
+                    // fetchRejectedLeadGroup(value);
+                    const newLeadFilters = { ...leadsFilters };
+                    newLeadFilters.createdBy = value;
+                    setLeadsFilters(newLeadFilters);
+                    fetchLeadStatus(newLeadFilters);
+                    // fetchAllEmployees();
+                    fetchRejectedLeadGroup(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-32 "
+                />
 
-            {/*Rejected Leads Group*/}
-
-            <div className="  grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-              {rejectedLeadGroups
-                .sort((a, b) => a.reason.localeCompare(b.reason))
-                .map((item, index) => (
-                  <div
-                    key={index}
-                    className=" flex flex-col justify-center items-center border-b border-r"
-                  >
-                    <div
-                      className={` text-lg md:text-2xl font-semibold justify-self-end text-center ${
-                        (item.count / totalRejectedLeads) * 100 > 15
-                          ? "text-red-500"
-                          : (item.count / totalRejectedLeads) * 100 > 10
-                          ? "text-yellow-500"
-                          : "text-green-500"
-                      }`}
-                    >
-                      <p>
-                        {item.count}{" "}
-                        <span className=" text-lg">
-                          {`(${Math.round(
-                            (item.count / totalRejectedLeads) * 100
-                          )}%)`}
-                        </span>
-                      </p>
-                    </div>
-                    <p className=" text-sm flex flex-wrap text-center">
-                      {item.reason}
-                    </p>
+                {leadsGroupCount.length > 0 ? (
+                  <LeadCountPieChart
+                    heading="Leads Count"
+                    chartData={
+                      leadsGroupCount.length > 0 ? leadsGroupCount : []
+                    }
+                  />
+                ) : (
+                  <div>
+                    <h1 className=" text-2xl text-center">No Data</h1>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/*Rejected Leads Group*/}
+
+              <div className="  grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                {rejectedLeadGroups ? (
+                  rejectedLeadGroups
+                    .sort((a, b) => a.reason.localeCompare(b.reason))
+                    .map((item, index) => (
+                      <div
+                        key={index}
+                        className=" flex flex-col justify-center items-center border-b border-r"
+                      >
+                        <div
+                          className={` text-lg md:text-2xl font-semibold justify-self-end text-center ${
+                            (item.count / totalRejectedLeads) * 100 > 15
+                              ? "text-red-500"
+                              : (item.count / totalRejectedLeads) * 100 > 10
+                              ? "text-yellow-500"
+                              : "text-green-500"
+                          }`}
+                        >
+                          <p>
+                            {item.count}{" "}
+                            <span className=" text-lg">
+                              {`(${Math.round(
+                                (item.count / totalRejectedLeads) * 100
+                              )}%)`}
+                            </span>
+                          </p>
+                        </div>
+                        <p className=" text-sm flex flex-wrap text-center">
+                          {item.reason}
+                        </p>
+                      </div>
+                    ))
+                ) : (
+                  <div className=" flex flex-col justify-center items-center">
+                    <div className="h-full">
+                      <h1 className=" text-2xl text-center">No Data</h1>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        ))}
 
       {/* <LabelledPieChart chartData={chartData} /> */}
       {/* <LabelledBarChart chartData={chartData} /> */}

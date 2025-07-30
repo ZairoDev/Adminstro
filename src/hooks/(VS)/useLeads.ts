@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 
 import {
+  getAllAgent,
   getGroupedLeads,
+  getLeadsByLocation,
   getLeadsGroupCount,
   getRejectedLeadGroup,
 } from "@/actions/(VS)/queryActions";
 import { daysToWeeks } from "date-fns";
+import { EmployeeInterface } from "@/util/type";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -17,6 +20,11 @@ interface GroupedLeads {
     _id: string;
     count: number;
   }[];
+}
+
+interface locationLeadsIn {
+  _id: string;
+  count: number;
 }
 
 interface RejectedLeadGroup {
@@ -35,6 +43,8 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
     RejectedLeadGroup[]
   >([]);
+  const [locationLeads,setLocationLeads] = useState<locationLeadsIn[]>([]);
+  const [allEmployees,setAllEmployees] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -57,15 +67,45 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+  const fetchLeadByLocation = async({days,createdBy}:{days?:string,createdBy?:string})=>{
+    setIsLoading(true);
+    setIsError(false);
+    setError("");
+    try {
+      const response:locationLeadsIn[] = await getLeadsByLocation({days,createdBy});
+      setLocationLeads(response);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const fetchAllEmployees = async()=>{
+    try {
+      const response = await getAllAgent();
+      setAllEmployees(response);
+      console.log("all employees: ", response);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    }
+  }
+
   const fetchLeadStatus = async ({
     days,
     location,
+    createdBy,
   }: {
     days?: string;
     location?: string;
+    createdBy?: string;
   }) => {
     try {
-      const response = await getLeadsGroupCount({ days, location });
+      const response = await getLeadsGroupCount({ days, location ,createdBy});
       setLeadsGroupCount(response.leadsGroupCount);
     } catch (err: any) {
       const error = new Error(err);
@@ -77,12 +117,14 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const fetchRejectedLeadGroup = async ({
     days,
     location,
+    createdBy
   }: {
     days?: string;
     location?: string;
+    createdBy?: string;
   }) => {
     try {
-      const response = await getRejectedLeadGroup({ days, location });
+      const response = await getRejectedLeadGroup({ days, location,createdBy });
       setRejectedLeadGroups(response.rejectedLeadGroup);
     } catch (err: any) {
       const error = new Error(err);
@@ -94,6 +136,8 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   useEffect(() => {
     fetchLeads({ date });
     fetchLeadStatus({});
+    fetchAllEmployees();
+    fetchLeadByLocation({});
     fetchRejectedLeadGroup({});
   }, []);
 
@@ -102,10 +146,11 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
 
   return {
     leads,
-
+    locationLeads,
+    fetchLeadByLocation,
     leadsGroupCount,
     fetchLeadStatus,
-
+    allEmployees,
     rejectedLeadGroups,
     fetchRejectedLeadGroup,
     isLoading,

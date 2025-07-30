@@ -6,6 +6,7 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { Property } from "@/models/listing";
+import axios from "axios";
 
 connectDb();
 
@@ -15,6 +16,7 @@ export const getGroupedLeads = async ({
   date: DateRange | undefined;
 }) => {
   const filters = date ? { createdAt: { $gte: date.from, $lte: date.to } } : {};
+  
 
   const leadsByAgent = await Query.aggregate([
     {
@@ -46,12 +48,65 @@ export const getGroupedLeads = async ({
   };
 };
 
+export const getLeadsByLocation = async({days,createdBy}:{days?:string,createdBy?:string})=>{
+  const filters: Record<string, any> = {};
+  if (days) {
+    switch (days) {
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "3 months":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        };
+        break;
+    }
+  }
+
+  if (createdBy && createdBy !== "All") {
+    filters.createdBy = createdBy;
+  }
+
+  const leadsByLocation = await Query.aggregate([
+    {
+      $match: filters,
+    },
+    {
+      $group: {
+        _id: "$location",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  return leadsByLocation
+}
+
+export const getAllAgent= async () => {
+    
+      const leadsByAgent = await Employees.find({
+        role: "LeadGen",
+        isActive: true,
+      },{email:1,_id:0});
+    
+      return leadsByAgent.map((emp) => emp.email);
+    
+};
+
 export const getLeadsGroupCount = async ({
   days,
   location,
+  createdBy
 }: {
   days?: string;
   location?: string;
+  createdBy?: string;
 }) => {
   const filters: Record<string, any> = {};
   if (days) {
@@ -76,6 +131,9 @@ export const getLeadsGroupCount = async ({
 
   if (location && location !== "All") {
     filters.location = new RegExp(location, "i");
+  }
+  if (createdBy && createdBy !== "All") {
+    filters.createdBy = createdBy;
   }
 
   const pipeline = [
@@ -104,9 +162,11 @@ export const getLeadsGroupCount = async ({
 export const getRejectedLeadGroup = async ({
   days,
   location,
+  createdBy
 }: {
   days?: string;
   location?: string;
+  createdBy?: string;
 }) => {
   const filters: Record<string, any> = { leadStatus: "rejected" };
   if (days) {
@@ -131,6 +191,9 @@ export const getRejectedLeadGroup = async ({
 
   if (location && location !== "All") {
     filters.location = new RegExp(location, "i");
+  }
+  if(createdBy && createdBy !== "All") {
+    filters.createdBy = createdBy;
   }
 
   const pipeline = [
@@ -341,6 +404,7 @@ export const getDashboardData = async ({
       return {
         ...lead,
         employee: employee?.name,
+        isActive: employee?.isActive,
       };
     })
   );

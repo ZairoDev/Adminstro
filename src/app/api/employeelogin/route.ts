@@ -22,8 +22,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
     const { email, password } = reqBody;
+    // console.log("email: ", email);
 
     const Employee = await Employees.find({ email });
+    // console.log("Employee: ", Employee);
     if (!Employee || Employee.length === 0) {
       return NextResponse.json(
         { error: "Please enter a valid email or password" },

@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const tempActiveEmployees = await Employees.find(filters).lean();
 
+
     const current = new Date();
     const day = current.getDay();
 
@@ -20,6 +21,10 @@ export async function POST(request: NextRequest) {
     const startOfMonth = new Date(current.setDate(1));
     // startOfWeek.setHours(0, 0, 0, 0);
     startOfMonth.setHours(0, 0, 0, 0);
+
+    const fourDaysAgo = new Date();
+    fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
+    fourDaysAgo.setHours(0, 0, 0, 0);
 
     // const endOfWeek = new Date(startOfWeek);
     // endOfWeek.setDate(startOfWeek.getDate() + 7?);
@@ -33,6 +38,11 @@ export async function POST(request: NextRequest) {
         createdBy: employee.email,
         createdAt: { $gte: startOfMonth, $lt: endDate },
       });
+      const hasRecentLeads = await Query.exists({
+        createdBy: employee.email,
+        createdAt: {$gte: fourDaysAgo, $lte:endDate},
+      })
+      if(leadCount >0 && hasRecentLeads)
       activeEmployees.push({ ...employee, leads: leadCount });
     }
 

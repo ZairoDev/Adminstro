@@ -45,6 +45,8 @@ import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import { InfinityLoader } from "@/components/Loaders";
+import HandLoader from "@/components/HandLoader";
 
 export const LeadPage = () => {
   const router = useRouter();
@@ -66,7 +68,7 @@ export const LeadPage = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
-    searchType: "name",
+    searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
     customDays: "0",
@@ -283,9 +285,20 @@ export const LeadPage = () => {
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
-              }
+              onChange={(e) => {
+                if (filters.searchType === "phoneNo") {
+                  const formattedValue = e.target.value.replace(/\D/g, "");
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: formattedValue,
+                  }));
+                } else {
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: e.target.value,
+                  }));
+                }
+              }}
             />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
@@ -359,7 +372,9 @@ export const LeadPage = () => {
       </div>
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
-          <Loader />
+          {/* <Loader /> */}
+          {/* <InfinityLoader className=" h-20 w-28" /> */}
+          <HandLoader />
         </div>
       ) : view === "Table View" ? (
         <div className="">
@@ -399,7 +414,9 @@ export const LeadPage = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    budget={query.budget}
+                    minBudget={query.minBudget}
+                    maxBudget={query.maxBudget}
+                    // budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

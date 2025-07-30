@@ -23,7 +23,7 @@ const querySchema = new Schema(
       require: [true, "Email must be provided"],
     },
     phoneNo: {
-      type: Number,
+      type: String,
       required: [true, "Phone number must be provided"],
       unique: true,
     },
@@ -43,9 +43,13 @@ const querySchema = new Schema(
       type: String,
       require: [true, "End date is required"],
     },
-    budget: {
-      type: String,
-      require: [true, "Budget shoule be provided"],
+    minBudget: {
+      type: Number,
+      require: [true, "Minimum budget is required"],
+    },
+    maxBudget: {
+      type: Number,
+      require: [true, "Maximum budget is required"],
     },
     noOfBeds: {
       type: Number,
@@ -87,16 +91,18 @@ const querySchema = new Schema(
     rejectionReason: {
       type: String,
       enum: [
-        "Late Response",
-        "Delayed the Traveling",
-        "Allready got it",
-        "Didn't like the option",
-        "Low Budget",
-        "Number of people exceeded",
-        "Off Location",
-        "Blocked on whatsapp",
         "Not on whatsapp",
         "Not Replying",
+        "Low Budget",
+        "Blocked on whatsapp",
+        "Late Response",
+        "Delayed the Traveling",
+        "Off Location",
+        "Number of people exceeded",
+        "Already got it",
+        "Different Area",
+        "Agency Fees",
+        "Didn't like the option",
       ],
       default: null,
     },

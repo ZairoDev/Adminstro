@@ -68,6 +68,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
+    "/dashboard/visits",
     "/dashboard/rolebaseLead",
     "/dashboard/goodtogoleads",
     "/dashboard/declinedleads",
@@ -80,6 +81,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
+    "/dashboard/visits",
     "/dashboard/rolebaseLead",
     "/dashboard/goodtogoleads",
     "/dashboard/declinedleads",
@@ -91,6 +93,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   HR: [
     "/",
     "/dashboard/employee",
+    /^\/dashboard\/employee\/.*$/,
     // /^\/dashboard\/editemployeedetails\/.*$/,
     /^\/dashboard\/employeedetails\/.*$/,
     "/dashboard/createnewEmployee",
@@ -115,7 +118,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
 };
 export const defaultRoutes: { [key: string]: string } = {
-  SuperAdmin: "/dashboard/employee",
+  SuperAdmin: "/dashboard",
   Admin: "/dashboard/user",
   LeadGen: "/dashboard/createquery",
   "LeadGen-TeamLead": "/dashboard",

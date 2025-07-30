@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 
-import { getGroupedLeads } from "@/actions/(VS)/queryActions";
+import {
+  getGroupedLeads,
+  getLeadsGroupCount,
+  getRejectedLeadGroup,
+} from "@/actions/(VS)/queryActions";
+import { daysToWeeks } from "date-fns";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -14,8 +19,23 @@ interface GroupedLeads {
   }[];
 }
 
+interface RejectedLeadGroup {
+  reason: string;
+  count: number;
+}
+
+interface LeadsGroupCount {
+  label: string;
+  count: number;
+}
+
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
+  const [leadsGroupCount, setLeadsGroupCount] = useState<LeadsGroupCount[]>([]);
+  const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
+    RejectedLeadGroup[]
+  >([]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
@@ -37,8 +57,44 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+  const fetchLeadStatus = async ({
+    days,
+    location,
+  }: {
+    days?: string;
+    location?: string;
+  }) => {
+    try {
+      const response = await getLeadsGroupCount({ days, location });
+      setLeadsGroupCount(response.leadsGroupCount);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    }
+  };
+
+  const fetchRejectedLeadGroup = async ({
+    days,
+    location,
+  }: {
+    days?: string;
+    location?: string;
+  }) => {
+    try {
+      const response = await getRejectedLeadGroup({ days, location });
+      setRejectedLeadGroups(response.rejectedLeadGroup);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchLeads({ date });
+    fetchLeadStatus({});
+    fetchRejectedLeadGroup({});
   }, []);
 
   const refetch = () => fetchLeads({ date });
@@ -46,6 +102,12 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
 
   return {
     leads,
+
+    leadsGroupCount,
+    fetchLeadStatus,
+
+    rejectedLeadGroups,
+    fetchRejectedLeadGroup,
     isLoading,
     isError,
     error,

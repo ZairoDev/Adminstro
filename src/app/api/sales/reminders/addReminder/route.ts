@@ -1,7 +1,8 @@
-import Query from "@/models/query";
-import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
+
+import Query from "@/models/query";
+import { connectDb } from "@/util/db";
 
 connectDb();
 
@@ -16,9 +17,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const addReminder = await Query.findOneAndUpdate(
+    await Query.findOneAndUpdate(
       { _id: new mongoose.Types.ObjectId(leadId) },
-      { $set: { reminder: reminderDate } }
+      { $set: { leadStatus: "reminder", reason: reminderDate.toString() } }
     );
 
     return NextResponse.json({ reminderDate }, { status: 200 });

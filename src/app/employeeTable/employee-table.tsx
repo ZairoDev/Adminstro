@@ -1,7 +1,7 @@
 import axios from "axios";
 import Link from "next/link";
-import { Ellipsis, RefreshCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Ellipsis, Plus, RefreshCcw } from "lucide-react";
 
 import {
   Table,
@@ -57,7 +57,7 @@ export default function EmployeeTable({
         employeeId: employee._id,
       });
 
-      const updatedEmployeeList = employeeList?.map((emp) =>
+      const updatedEmployeeList = filteredEmployee?.map((emp) =>
         employee._id === emp._id
           ? { ...emp, password: response.data.newPassword }
           : emp
@@ -78,7 +78,7 @@ export default function EmployeeTable({
   }, [employees]);
 
   return (
-    <div className=" w-full ">
+    <div className=" w-full mt-2">
       <div className=" flex justify-between">
         <div className=" flex gap-x-2">
           {/* Search Type */}
@@ -114,6 +114,16 @@ export default function EmployeeTable({
             }}
             placeholder="Search..."
           />
+
+          <Link
+            className="flex items-center justify-center gap-x-2"
+            href="/dashboard/createnewEmployee"
+          >
+            <Button className="w-full sm:flex items-center gap-x-1 hidden">
+              Add Employee
+              <Plus size={18} />
+            </Button>
+          </Link>
         </div>
 
         <div className=" flex gap-x-2">

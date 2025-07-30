@@ -1,59 +1,42 @@
+import {
+  Users,
+  Euro,
+  BookX,
+  Loader2,
+  Ellipsis,
+  ThumbsUp,
+  CircleDot,
+  BedSingle,
+  ReceiptText,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
+} from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Users,
-  Ellipsis,
-  BedSingle,
-  Euro,
-  ReceiptText,
-  BookX,
-  Loader2,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  CircleDot,
-  ThumbsUp,
-} from "lucide-react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import { IQuery } from "@/util/type";
-import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
+  TableRow,
+  TableCell,
   TableBody,
   TableHead,
   TableHeader,
-  TableRow,
-  TableCell,
 } from "@/components/ui/table";
-
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
-import CustomTooltip from "../CustomToolTip";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+  Dialog,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { IQuery } from "@/util/type";
+import { useAuthStore } from "@/AuthStore";
+import { useToast } from "@/hooks/use-toast";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,7 +44,25 @@ import {
   AlertDialogContent,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuSub,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "../ui/dropdown-menu";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Calendar } from "../ui/calendar";
+import { Textarea } from "../ui/textarea";
+import CustomTooltip from "../CustomToolTip";
+import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 
 export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
   const searchParams = useSearchParams();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
+  const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
@@ -240,8 +242,16 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
-  const addReminder = async (leadId: string | undefined) => {
+  const addReminder = async (leadId: string | undefined, index: number) => {
     if (!leadId) return;
+    if (!queries[index].leadQualityByReviewer) {
+      toast({
+        description: "Please select lead quality first",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
     try {
       const response = await axios.post("/api/sales/reminders/addReminder", {
         leadId,
@@ -302,10 +312,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
             <TableHead>Budget</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Location</TableHead>
-            {(token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && (
-              <TableHead>Lead Quality</TableHead>
-            )}
+            {/* {(token?.role === "Sales-TeamLead" ||
+              token?.role === "SuperAdmin") && ( */}
+            <TableHead>Lead Quality</TableHead>
+            {/*  )}*/}
             <TableHead>Contact</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
@@ -409,7 +419,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                 <div className="flex gap-x-2">
                   <CustomTooltip
                     icon={<Euro size={18} />}
-                    text={query?.budget}
+                    text={`${query?.minBudget} - ${query.maxBudget}`}
                     desc="Guest Budget"
                   />
                   <div>|</div>
@@ -488,65 +498,61 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   </Badge>
                 </div>
               </TableCell>
-              {(token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
-                <TableCell className=" flex gap-x-0.5">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      {loading ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <Button variant="ghost">
-                          {query.leadQualityByReviewer || "Review"}
-                        </Button>
-                      )}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-40">
-                      {(token?.role === "SuperAdmin" ||
-                        token?.role === "Sales-TeamLead") && (
-                        <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Good", query?._id, index)
-                        }
-                      >
-                        Good
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Very Good", query?._id, index)
-                        }
-                      >
-                        Very Good
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange("Average", query?._id, index)
-                        }
-                      >
-                        Average
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() =>
-                          handleQualityChange(
-                            "Below Average",
-                            query?._id,
-                            index
-                          )
-                        }
-                      >
-                        Below Average
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              )}
+              {/* {(token?.role === "Sales-TeamLead" ||
+                token?.role === "SuperAdmin") && ( */}
+              <TableCell className=" flex gap-x-0.5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    {loading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Button variant="ghost">
+                        {query.leadQualityByReviewer || "Review"}
+                      </Button>
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40">
+                    {(token?.role === "SuperAdmin" ||
+                      token?.role === "Sales-TeamLead") && (
+                      <DropdownMenuLabel>Lead Quality</DropdownMenuLabel>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Good", query?._id, index)
+                      }
+                    >
+                      Good
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Very Good", query?._id, index)
+                      }
+                    >
+                      Very Good
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Average", query?._id, index)
+                      }
+                    >
+                      Average
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleQualityChange("Below Average", query?._id, index)
+                      }
+                    >
+                      Below Average
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+              {/*)}*/}
               <TableCell>
                 {/* <Link
                   href={`https://wa.me/${
@@ -615,44 +621,58 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                           </DropdownMenuItem>
 
                           <DropdownMenuItem>
-                            <AlertDialog
-                              onOpenChange={(isOpen) => {
-                                if (!isOpen) ellipsisRef.current?.focus();
+                            <div
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent dropdown click default behavior
+                                e.stopPropagation(); // Stop the event from bubbling
                               }}
                             >
-                              <AlertDialogTrigger
-                                onClick={(e) => e.stopPropagation()}
-                                asChild
+                              <AlertDialog
+                                onOpenChange={(isOpen) => {
+                                  if (!isOpen) ellipsisRef.current?.focus();
+                                }}
                               >
-                                <p>Set Reminder</p>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent
-                                className=" flex flex-col items-center"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className=" z-10">
-                                  <Calendar
-                                    mode="single"
-                                    selected={reminderDate}
-                                    onSelect={(date) => {
-                                      setReminderDate(date);
-                                    }}
-                                    className="rounded-md border shadow"
-                                  />
-                                  <div className=" flex justify-between w-full gap-x-4 mt-2">
-                                    <AlertDialogCancel className=" w-1/2">
-                                      Cancel
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className=" w-1/2"
-                                      onClick={() => addReminder(query?._id)}
-                                    >
-                                      Continue
-                                    </AlertDialogAction>
+                                <AlertDialogTrigger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  asChild
+                                >
+                                  <button type="button">Set Reminder</button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent
+                                  className=" flex flex-col items-center"
+                                  onCloseAutoFocus={(event) => {
+                                    event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                                    document.body.style.pointerEvents = "";
+                                  }}
+                                >
+                                  <div className=" z-10">
+                                    <Calendar
+                                      mode="single"
+                                      selected={reminderDate}
+                                      onSelect={(date) => {
+                                        setReminderDate(date);
+                                      }}
+                                      className="rounded-md border shadow"
+                                    />
+                                    <div className=" flex justify-between w-full gap-x-4 mt-2">
+                                      <AlertDialogCancel className=" w-1/2">
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className=" w-1/2"
+                                        onClick={() =>
+                                          addReminder(query?._id, index)
+                                        }
+                                      >
+                                        Continue
+                                      </AlertDialogAction>
+                                    </div>
                                   </div>
-                                </div>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </DropdownMenuItem>
                         </>
                       )}
@@ -663,91 +683,118 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
+                      {path.toString().trim().split("/")[2] ===
+                        "goodtogoleads" && (
+                        <>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setActiveModalRow(index);
+                            }}
+                          >
+                            Set Visit
+                          </DropdownMenuItem>
+
+                          <AlertDialog open={activeModalRow === index}>
+                            <AlertDialogContent>
+                              <VisitModal
+                                leadId={query._id!}
+                                onOpenChange={() => {
+                                  setActiveModalRow(-1);
+                                }}
+                              />
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <DropdownMenuSub>
-                        {(token?.role === "SuperAdmin" ||
-                          token?.role === "Sales-TeamLead") && (
-                          <>
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleDisposition(
-                                    query?._id,
-                                    index,
-                                    "goodtogo"
-                                  )
-                                }
-                                className=" flex items-center gap-x-2"
-                              >
-                                Good To Go <ThumbsUp size={16} />
-                              </DropdownMenuItem>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "rolebaseLead" && (
-                              <DropdownMenuSubTrigger className="w-40 truncate">
-                                Rej re:
-                                <span className="ml-2">
-                                  {query.rejectionReason}
-                                </span>
+                        {/* {(token?.role === "SuperAdmin" ||
+                          token?.role === "Sales-TeamLead") && ( */}
+                        <>
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDisposition(query?._id, index, "active")
+                              }
+                              className=" flex items-center gap-x-2"
+                            >
+                              Good To Go <ThumbsUp size={16} />
+                            </DropdownMenuItem>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuSubTrigger className="w-40 truncate">
+                              Rej re:
+                              <span className="ml-2">
+                                {query.rejectionReason}
+                              </span>
+                            </DropdownMenuSubTrigger>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "goodtogoleads" && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                Decline
                               </DropdownMenuSubTrigger>
-                            )}
-                            {path.toString().trim().split("/")[2] ===
-                              "goodtogoleads" && (
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  Decline
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                  <DropdownMenuSubContent>
-                                    {["Not on whatsapp", "Low Budget"].map(
-                                      (declineReason, ind) => (
-                                        <DropdownMenuItem
-                                          key={ind}
-                                          onClick={() =>
-                                            handleDisposition(
-                                              query?._id,
-                                              index,
-                                              "declined",
-                                              `${declineReason}`
-                                            )
-                                          }
-                                        >
-                                          {`${declineReason}`}
-                                        </DropdownMenuItem>
-                                      )
-                                    )}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                              // <DropdownMenuItem
-                              //   onClick={() =>
-                              //     handleDisposition(
-                              //       query?._id,
-                              //       index,
-                              //       "declined"
-                              //     )
-                              //   }
-                              //   className=" flex items-center gap-x-2"
-                              // >
-                              //   Decline
-                              // </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  {[
+                                    "Blocked on whatsapp",
+                                    "Late Response",
+                                    "Delayed the travelling",
+                                    "Already got it",
+                                    "Didn't like the option",
+                                    "Different Area",
+                                    "Agency Fees",
+                                  ].map((declineReason, ind) => (
+                                    <DropdownMenuItem
+                                      key={ind}
+                                      onClick={() =>
+                                        handleDisposition(
+                                          query?._id,
+                                          index,
+                                          "declined",
+                                          `${declineReason}`
+                                        )
+                                      }
+                                    >
+                                      {`${declineReason}`}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            // <DropdownMenuItem
+                            //   onClick={() =>
+                            //     handleDisposition(
+                            //       query?._id,
+                            //       index,
+                            //       "declined"
+                            //     )
+                            //   }
+                            //   className=" flex items-center gap-x-2"
+                            // >
+                            //   Decline
+                            // </DropdownMenuItem>
+                          )}
+                        </>
+                        {/* )}*/}
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
                             {[
+                              "Not on whatsapp",
                               "Not Replying",
+                              "Low Budget",
                               "Blocked on whatsapp",
                               "Late Response",
                               "Delayed the travelling",
                               "Off Location",
                               "Number of people exceeded",
                               "Already got it",
-                              "Didn't like the option",
                               "Different Area",
                               "Agency Fees",
                             ].map((reason, ind) => (

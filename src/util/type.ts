@@ -1,4 +1,4 @@
-import mongoose, { ObjectId } from "mongoose";
+import mongoose, { ObjectId, Types } from "mongoose";
 
 export interface MiddlweareInterface {
   name: string;
@@ -129,6 +129,7 @@ export interface UserInterface {
   role: string;
   spokenLanguage: string;
   updatedAt: string;
+  isActive: boolean;
 }
 
 export interface nearbyLocationInterface {
@@ -277,8 +278,8 @@ export interface IQuery {
   isViewed?: boolean;
   leadQualityByReviewer?: string;
   rejectionReason?: string | null;
-  budgetFrom?: string;
-  budgetTo?: string;
+  minBudget: number;
+  maxBudget: number;
   leadQualityByCreator?: string;
   name: string;
   email: string;
@@ -288,7 +289,7 @@ export interface IQuery {
   phoneNo: number;
   area: string;
   guest: number;
-  budget: string;
+  budget?: string;
   noOfBeds: number;
   location: string;
   bookingTerm: string;
@@ -308,6 +309,56 @@ export interface IQuery {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface VisitInterface {
+  _id: string;
+  lead: {
+    _id: string;
+    name: string;
+    phoneNo: number;
+  };
+  propertyId: string;
+  VSID: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
+  propertyDesc: string;
+  schedule: {
+    date: Date;
+    time: string;
+  }[];
+  visitType: "physical" | "virtual";
+  agentName: string;
+  agentPhone: string;
+  pitchAmount: number;
+  ownerCommission: number;
+  travellerCommission: number;
+  agentCommission: number;
+  documentationCharges: number;
+  visitStatus: string;
+  reason: string;
+  note: string;
+  createdBy: string;
+}
+
+export interface AgentInterface {
+  _id: string;
+  agentName: string;
+  agentEmail: string;
+  agentPhone: number;
+  profilePicture?: string;
+  nationality: string;
+  gender: "Male" | "Female";
+  location: string;
+  address?: string;
+  socialAccounts?: [{}];
+  accountNo?: string;
+  iban?: string;
+  note?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface imageInterface {

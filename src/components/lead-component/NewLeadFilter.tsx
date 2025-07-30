@@ -225,7 +225,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
       </div>
 
       {/* Budget filters */}
-      {/* <div className="space-y-2">
+      <div className="space-y-2">
         <Label className="text-sm font-medium">Budget filters</Label>
         <div className="flex space-x-2">
           <Input
@@ -241,7 +241,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             className=" border-gray-700 text-white placeholder-gray-400"
           />
         </div>
-      </div> */}
+      </div>
 
       {/* Lead Quality */}
       <div className="space-y-2">

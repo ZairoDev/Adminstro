@@ -4,8 +4,8 @@ import axios from "axios";
 import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   Sheet,
@@ -29,7 +29,6 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { IQuery } from "@/util/type";
-import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
@@ -37,11 +36,12 @@ import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import LeadTable from "@/components/leadTable/LeadTable";
-import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import { InfinityLoader } from "@/components/Loaders";
+import LeadTable from "@/components/leadTable/LeadTable";
+import HandLoader from "@/components/HandLoader";
 
 export const GoodToGoLeads = () => {
   const router = useRouter();
@@ -63,7 +63,7 @@ export const GoodToGoLeads = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
-    searchType: "name",
+    searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
     customDays: "0",
@@ -356,7 +356,8 @@ export const GoodToGoLeads = () => {
       </div>
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
-          <Loader />
+          {/* <InfinityLoader className=" h-20 w-28" /> */}
+          <HandLoader />
         </div>
       ) : view === "Table View" ? (
         <div className="">
@@ -407,7 +408,9 @@ export const GoodToGoLeads = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    budget={query.budget}
+                    minBudget={query.minBudget}
+                    maxBudget={query.maxBudget}
+                    // budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

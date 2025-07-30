@@ -1,4 +1,5 @@
 import Pusher from "pusher";
+import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
       endDate,
       area,
       guest,
-      budget,
+      minBudget,
+      maxBudget,
       noOfBeds,
       location,
       bookingTerm,
@@ -67,13 +69,14 @@ export async function POST(req: NextRequest) {
       name,
       email,
       date,
-      startDate,
-      endDate,
+      startDate: format(startDate, "MM/dd/yyyy"),
+      endDate: format(endDate, "MM/dd/yyyy"),
       phoneNo,
       duration,
       area,
       guest,
-      budget,
+      minBudget,
+      maxBudget,
       noOfBeds,
       location: location.toLowerCase(),
       bookingTerm,
@@ -84,6 +87,7 @@ export async function POST(req: NextRequest) {
       priority,
       leadQualityByCreator,
       createdBy: token.email,
+      leadStatus: "fresh",
     });
 
     const triggerQuery = `new-query-${location.trim().toLowerCase()}`;
@@ -99,7 +103,8 @@ export async function POST(req: NextRequest) {
       duration: newQuery.duration,
       area: newQuery.area,
       guest: newQuery.guest,
-      budget: newQuery.budget,
+      minBudget: newQuery.minBudget,
+      maxBudget: newQuery.maxBudget,
       noOfBeds: newQuery.noOfBeds,
       location: newQuery.location,
       bookingTerm: newQuery.bookingTerm,
@@ -118,16 +123,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.log(error);
 
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { success: false, error: "Phone number already exists" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    const err = new Error(error);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

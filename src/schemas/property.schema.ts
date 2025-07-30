@@ -7,6 +7,7 @@ const propertyValidationSchema = z.object({
     .regex(/^[A-Za-z0-9]+$/, "VSID must contain only alphanumeric characters"),
   commonId: z.string(),
   email: z.string().email().optional(),
+  phone: z.string().optional(),
   userId: z.string(),
   rentalType: z.string().optional(),
   isInstantBooking: z.boolean().default(false),

@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import Pusher from "pusher-js";
+import { format } from "date-fns";
 import debounce from "lodash.debounce";
 import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
@@ -104,7 +105,8 @@ const SalesDashboard = () => {
     phoneNo: 0,
     area: "",
     guest: 0,
-    budget: "",
+    minBudget: 0,
+    maxBudget: 0,
     noOfBeds: 0,
     location: "",
     bookingTerm: "",
@@ -148,8 +150,9 @@ const SalesDashboard = () => {
         return;
       }
       setChecking(true);
+      console.log("handle search: ", phone);
       const response = await axios.post("/api/sales/checkNumber", {
-        phoneNo: phone,
+        phoneNo: String(phone).replace(/\D/g, ""),
       });
       if (response.data.success) {
         if (response.data.exists) {
@@ -181,12 +184,16 @@ const SalesDashboard = () => {
   const handleSubmit = async () => {
     try {
       const emptyFields: string[] = [];
-      const { budgetFrom, budgetTo, ...otherFields } = formData;
+      const canBeEmptyField = ["salesPriority"];
+      // const { minBudget, maxBudget, ...otherFields } = formData;
 
-      const budget = `${budgetFrom} to ${budgetTo}`;
-      formData.budget = budget;
+      // const budget = `${budgetFrom} to ${budgetTo}`;
+      // formData.budget = budget;
       Object.entries(formData).forEach(([key, value]) => {
-        if (value === "" || value === null || value === undefined) {
+        if (
+          (value === "" || value === null || value === undefined) &&
+          !canBeEmptyField.includes(key)
+        ) {
           const fieldName = key
             .replace(/([A-Z])/g, " $1")
             .replace(/^./, (str) => str.toUpperCase())
@@ -204,11 +211,13 @@ const SalesDashboard = () => {
         return;
       }
       const formDataToSubmit = {
-        ...otherFields,
-        budget,
-        phoneNo: phone,
+        ...formData,
+        // budget,
+        phoneNo: phone.replace(/\D/g, ""),
       };
+      // console.log("form to submit: ", formDataToSubmit);
       setSubmitQuery(true);
+
       const response = await axios.post(
         "/api/sales/createquery",
         formDataToSubmit
@@ -226,7 +235,8 @@ const SalesDashboard = () => {
         phoneNo: 0,
         area: "",
         guest: 0,
-        budget: "",
+        minBudget: 0,
+        maxBudget: 0,
         noOfBeds: 0,
         location: "",
         bookingTerm: "",
@@ -241,6 +251,7 @@ const SalesDashboard = () => {
           roomId: "",
           roomPassword: "",
         },
+        leadQualityByCreator: "",
       });
     } catch (error: any) {
       console.error("Error:", error.response.data.error);
@@ -367,8 +378,10 @@ const SalesDashboard = () => {
   useEffect(() => {
     setFormData((prevData) => ({
       ...prevData,
-      startDate: startDate.toLocaleDateString(),
-      endDate: endDate.toLocaleDateString(),
+      // startDate: startDate.toLocaleDateString(),
+      // endDate: endDate.toLocaleDateString(),
+      startDate: format(startDate, "MM/dd/yyyy"),
+      endDate: format(endDate, "MM/dd/yyyy"),
     }));
   }, [startDate, endDate]);
 
@@ -515,6 +528,7 @@ const SalesDashboard = () => {
                       <div className="w-full ml-1 mb-2">
                         <Label>Location</Label>
                         <Select
+                          value={formData.location}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -562,7 +576,10 @@ const SalesDashboard = () => {
                       {/* Booking Term */}
                       <div className="ml-1">
                         <Label>Booking Term*</Label>
-                        <Select onValueChange={handleBookingTermChange}>
+                        <Select
+                          value={formData.bookingTerm}
+                          onValueChange={handleBookingTermChange}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
@@ -645,8 +662,10 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Budget (From)</Label>
                         <Input
-                          name="budgetFrom"
-                          value={formData.budgetFrom || ""}
+                          name="minBudget"
+                          type="number"
+                          min={0}
+                          value={formData.minBudget || ""}
                           onChange={handleInputChange}
                           placeholder="Enter minimum budget"
                         />
@@ -656,8 +675,10 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Budget (To)</Label>
                         <Input
-                          name="budgetTo"
-                          value={formData.budgetTo || ""}
+                          name="maxBudget"
+                          type="number"
+                          min={0}
+                          value={formData.maxBudget || ""}
                           onChange={handleInputChange}
                           placeholder="Enter maximum budget"
                         />
@@ -705,6 +726,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Bill Status</Label>
                         <Select
+                          value={formData.billStatus}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -730,6 +752,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Priority</Label>
                         <Select
+                          value={formData.priority}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -763,6 +786,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Type of Property</Label>
                         <Select
+                          value={formData.typeOfProperty}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -799,6 +823,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Lead Quality</Label>
                         <Select
+                          value={formData.leadQualityByCreator}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -824,6 +849,7 @@ const SalesDashboard = () => {
                       <div className="ml-1">
                         <Label>Property Type</Label>
                         <Select
+                          value={formData.propertyType}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -850,6 +876,7 @@ const SalesDashboard = () => {
                       <div>
                         <Label>Zone</Label>
                         <Select
+                          value={formData.zone}
                           onValueChange={(value) =>
                             setFormData((prevData) => ({
                               ...prevData,
@@ -1040,7 +1067,9 @@ const SalesDashboard = () => {
                     phoneNo={query.phoneNo}
                     area={query.area}
                     guest={query.guest}
-                    budget={query.budget}
+                    minBudget={query.minBudget}
+                    maxBudget={query.maxBudget}
+                    budget={`${query.minBudget} to ${query.maxBudget}`}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

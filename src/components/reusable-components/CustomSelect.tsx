@@ -15,8 +15,9 @@ interface SelectProps {
   triggerClassName?: string;
   contentClassName?: string;
   itemsClassName?: string;
+  defaultValue?: string;
   triggerText: string;
-  labelHeader: string;
+  labelHeader?: string;
   itemList: string[];
   value?: string;
   onValueChange: (value: string) => void;
@@ -24,6 +25,7 @@ interface SelectProps {
 
 export function CustomSelect({
   itemList,
+  defaultValue,
   triggerClassName,
   contentClassName,
   itemsClassName,
@@ -33,13 +35,19 @@ export function CustomSelect({
   onValueChange,
 }: SelectProps) {
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select
+      value={value}
+      onValueChange={onValueChange}
+      defaultValue={defaultValue}
+    >
       <SelectTrigger className={cn(triggerClassName)}>
         <SelectValue placeholder={triggerText} />
       </SelectTrigger>
       <SelectContent className={cn(contentClassName)}>
         <SelectGroup>
-          <SelectLabel className="pl-2">{labelHeader}</SelectLabel>
+          {labelHeader && (
+            <SelectLabel className="pl-2">{labelHeader}</SelectLabel>
+          )}
           {itemList?.map((item, index) => (
             <SelectItem key={index} value={item} className={cn(itemsClassName)}>
               {item}

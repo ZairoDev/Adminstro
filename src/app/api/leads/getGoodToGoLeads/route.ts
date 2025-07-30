@@ -121,8 +121,8 @@ export async function POST(req: NextRequest) {
     if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
     if (propertyType) query.propertyType = propertyType;
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.budget = { $gte: budgetFrom };
-    if (budgetTo) query.budget = { $lte: budgetTo };
+    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
+    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
 
     {
@@ -131,25 +131,26 @@ export async function POST(req: NextRequest) {
     query = {
       ...query,
       ...dateQuery,
-      $and: [
-        {
-          $or: [
-            {
-              rejectionReason: { $exists: false },
-            }, // rejectionReason field does not exist
-            {
-              rejectionReason: { $eq: null },
-            }, // rejectionReason field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { reminder: { $exists: false } }, // reminder field does not exist
-            { reminder: { $eq: null } }, // reminder field exists but is an empty string
-          ],
-        },
-        { leadStatus: "goodtogo" }, // all leads should be having goodtogo status
-      ],
+      // $and: [
+      //   {
+      //     $or: [
+      //       {
+      //         rejectionReason: { $exists: false },
+      //       }, // rejectionReason field does not exist
+      //       {
+      //         rejectionReason: { $eq: null },
+      //       }, // rejectionReason field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { reminder: { $exists: false } }, // reminder field does not exist
+      //       { reminder: { $eq: null } }, // reminder field exists but is an empty string
+      //     ],
+      //   },
+      //   { leadStatus: "goodtogo" }, // all leads should be having goodtogo status
+      // ],
+      leadStatus: "active",
     };
 
     {

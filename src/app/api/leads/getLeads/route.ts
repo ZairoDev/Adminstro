@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
+        // query.phoneNo = Number(searchTerm);
+        query.phoneNo = new RegExp(String(searchTerm), "i");
       } else {
         query[searchType] = regex;
       }
@@ -121,8 +122,8 @@ export async function POST(req: NextRequest) {
     if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
     if (propertyType) query.propertyType = propertyType;
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.budget = { $gte: budgetFrom };
-    if (budgetTo) query.budget = { $lte: budgetTo };
+    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
+    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
 
     {
@@ -131,30 +132,31 @@ export async function POST(req: NextRequest) {
     query = {
       ...query,
       ...dateQuery,
-      $and: [
-        {
-          $or: [
-            {
-              rejectionReason: { $exists: false },
-            }, // rejectionReason field does not exist
-            {
-              rejectionReason: { $eq: null },
-            }, // rejectionReason field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { reminder: { $exists: false } }, // reminder field does not exist
-            { reminder: { $eq: null } }, // reminder field exists but is an empty string
-          ],
-        },
-        {
-          $or: [
-            { leadStatus: { $exists: false } }, // leadStatus field should either not exist
-            { leadStatus: "" }, // or it should be empty
-          ],
-        },
-      ],
+      // $and: [
+      //   {
+      //     $or: [
+      //       {
+      //         rejectionReason: { $exists: false },
+      //       }, // rejectionReason field does not exist
+      //       {
+      //         rejectionReason: { $eq: null },
+      //       }, // rejectionReason field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { reminder: { $exists: false } }, // reminder field does not exist
+      //       { reminder: { $eq: null } }, // reminder field exists but is an empty string
+      //     ],
+      //   },
+      //   {
+      //     $or: [
+      //       { leadStatus: { $exists: false } }, // leadStatus field should either not exist
+      //       { leadStatus: "" }, // or it should be empty
+      //     ],
+      //   },
+      // ],
+      leadStatus: "fresh",
     };
 
     {

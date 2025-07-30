@@ -359,7 +359,7 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                       Pitch Amount
                     </p>
                   </div>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xl font-bold text-green-600">
                     {formatCurrency(visitData.pitchAmount)}
                   </p>
                 </div>
@@ -367,11 +367,22 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                   <div className="flex items-center space-x-2">
                     <EuroIcon className="h-4 w-4 text-gray-500" />
                     <p className="text-sm font-medium text-gray-500">
-                      Total Commission
+                      Owner Commission
                     </p>
                   </div>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {formatCurrency(visitData.commission)}
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatCurrency(visitData.ownerCommission)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <EuroIcon className="h-4 w-4 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-500">
+                      Traveller Commission
+                    </p>
+                  </div>
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatCurrency(visitData.travellerCommission)}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -381,7 +392,7 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                       Agent Commission
                     </p>
                   </div>
-                  <p className="text-2xl font-bold text-purple-600">
+                  <p className="text-xl font-bold text-purple-600">
                     {formatCurrency(visitData.agentCommission)}
                   </p>
                 </div>
@@ -392,7 +403,7 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                       Documentation
                     </p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xl font-bold text-blue-600">
                     {formatCurrency(visitData.documentationCharges)}
                   </p>
                 </div>

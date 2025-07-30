@@ -27,10 +27,10 @@ import { VisitInterface } from "@/util/type";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import BookingModal from "./booking-modal";
 
 export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
-  const router = useRouter();
-  const path = usePathname();
   const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
@@ -170,7 +170,32 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setActiveModalRow(index);
+                        }}
+                      >
+                        Add Booking
+                      </DropdownMenuItem>
                     </DropdownMenuGroup>
+                    <AlertDialog open={activeModalRow === index}>
+                      <AlertDialogContent>
+                        {/* <VisitModal
+                          leadId={query._id!}
+                          onOpenChange={() => {
+                            setActiveModalRow(-1);
+                          }}
+                        /> */}
+                        <BookingModal
+                          lead=""
+                          visit=""
+                          onOpenChange={() => {
+                            setActiveModalRow(-1);
+                          }}
+                        />
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

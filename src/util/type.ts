@@ -342,6 +342,42 @@ export interface VisitInterface {
   createdBy: string;
 }
 
+export interface BookingInterface {
+  _id: string;
+  lead: string;
+  visit: string;
+  checkIn: {
+    date: Date;
+    time: string;
+  };
+  checkOut: {
+    date: Date;
+    time: string;
+  };
+  bookingStatus: string;
+  contract?: string;
+  negotiatedAmount: number;
+  ownerPayment: {
+    finalAmount: number;
+    amountRecieved: number;
+  };
+  travellerAmount: {
+    finalAmount: number;
+    amountRecieved: number;
+  };
+  payment: {
+    orderId: string;
+    paymentId: string;
+    status: "pending" | "paid" | "failed" | "partial";
+    remainingAmount: number;
+    paidAt: Date;
+  };
+  note?: string;
+  createdBy: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface AgentInterface {
   _id: string;
   agentName: string;

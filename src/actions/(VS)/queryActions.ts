@@ -16,7 +16,6 @@ export const getGroupedLeads = async ({
   date: DateRange | undefined;
 }) => {
   const filters = date ? { createdAt: { $gte: date.from, $lte: date.to } } : {};
-  
 
   const leadsByAgent = await Query.aggregate([
     {
@@ -48,10 +47,28 @@ export const getGroupedLeads = async ({
   };
 };
 
-export const getLeadsByLocation = async({days,createdBy}:{days?:string,createdBy?:string})=>{
+export const getLeadsByLocation = async ({
+  days,
+  createdBy,
+}: {
+  days?: string;
+  createdBy?: string;
+}) => {
   const filters: Record<string, any> = {};
   if (days) {
     switch (days) {
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
       case "10 days":
         filters.createdAt = {
           $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
@@ -85,24 +102,25 @@ export const getLeadsByLocation = async({days,createdBy}:{days?:string,createdBy
       },
     },
   ]);
-  return leadsByLocation
-}
+  return leadsByLocation;
+};
 
-export const getAllAgent= async () => {
-    
-      const leadsByAgent = await Employees.find({
-        role: "LeadGen",
-        isActive: true,
-      },{email:1,_id:0});
-    
-      return leadsByAgent.map((emp) => emp.email);
-    
+export const getAllAgent = async () => {
+  const leadsByAgent = await Employees.find(
+    {
+      role: "LeadGen",
+      isActive: true,
+    },
+    { email: 1, _id: 0 }
+  );
+
+  return leadsByAgent.map((emp) => emp.email);
 };
 
 export const getLeadsGroupCount = async ({
   days,
   location,
-  createdBy
+  createdBy,
 }: {
   days?: string;
   location?: string;
@@ -111,6 +129,18 @@ export const getLeadsGroupCount = async ({
   const filters: Record<string, any> = {};
   if (days) {
     switch (days) {
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
       case "10 days":
         filters.createdAt = {
           $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
@@ -162,7 +192,7 @@ export const getLeadsGroupCount = async ({
 export const getRejectedLeadGroup = async ({
   days,
   location,
-  createdBy
+  createdBy,
 }: {
   days?: string;
   location?: string;
@@ -192,7 +222,7 @@ export const getRejectedLeadGroup = async ({
   if (location && location !== "All") {
     filters.location = new RegExp(location, "i");
   }
-  if(createdBy && createdBy !== "All") {
+  if (createdBy && createdBy !== "All") {
     filters.createdBy = createdBy;
   }
 

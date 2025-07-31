@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
     createdBy: token.email,
   };
 
+  console.log("new booking data: ", newBookingData);
+
   try {
     await Bookings.create(newBookingData);
     return NextResponse.json(
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
+    console.log("error in adding booking: ", err);
     return NextResponse.json(
       { error: "Unable to add booking" },
       { status: 401 }

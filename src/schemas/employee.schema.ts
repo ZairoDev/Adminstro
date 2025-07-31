@@ -33,6 +33,7 @@ export const employeeSchema = z.object({
     "Developer",
   ]),
   isActive: z.boolean().optional().default(true),
+  isfeatured: z.boolean().optional().default(false),
   passwordExpiresAt: z.date().optional(),
   extras: z
     .record(

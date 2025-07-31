@@ -12,14 +12,13 @@ const bookingSchema = z.object({
     date: z.date(),
     time: z.string(),
   }),
-  paymentStatus: z.string(),
   contract: z.string().optional(),
   finalAmount: z.number(),
   ownerPayment: z.object({
     finalAmount: z.number(),
     amountRecieved: z.number(),
   }),
-  travellerAmount: z.object({
+  travellerPayment: z.object({
     finalAmount: z.number(),
     amountRecieved: z.number(),
   }),

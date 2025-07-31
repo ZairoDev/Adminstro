@@ -356,12 +356,12 @@ export interface BookingInterface {
   };
   bookingStatus: string;
   contract?: string;
-  negotiatedAmount: number;
+  finalAmount: number;
   ownerPayment: {
     finalAmount: number;
     amountRecieved: number;
   };
-  travellerAmount: {
+  travellerPayment: {
     finalAmount: number;
     amountRecieved: number;
   };

@@ -115,6 +115,10 @@ const employeeSchema = new Schema<IEmployee>(
       type: Boolean,
       default: true,
     },
+    isfeatured: {
+      type: Boolean,
+      default: false,
+    },
     extras: {
       type: Map,
       of: Schema.Types.Mixed,

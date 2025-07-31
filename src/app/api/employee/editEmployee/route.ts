@@ -14,6 +14,7 @@ interface RequestBody {
   gender?: string;
   spokenLanguage?: string;
   isActive?: boolean;
+  isfeatured?: boolean;
   phone?: string;
   address?: string;
   aadhar?: string;
@@ -40,7 +41,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     const { _id, ...updateFields } = body;
     if (!_id) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
     }
 
     const updateData: Partial<RequestBody> = {};
@@ -48,8 +52,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (Object.keys(updateFields).includes("isActive")) {
       updateData.isActive = updateFields.isActive;
     }
-    if (updateFields.profilePic) updateData.profilePic = updateFields.profilePic;
-    if (updateFields.nationality) updateData.nationality = updateFields.nationality;
+    if (Object.keys(updateFields).includes("isfeatured")) {
+      updateData.isfeatured = updateFields.isfeatured;
+    }
+    if (updateFields.profilePic)
+      updateData.profilePic = updateFields.profilePic;
+    if (updateFields.nationality)
+      updateData.nationality = updateFields.nationality;
     if (updateFields.name) updateData.name = updateFields.name;
     if (updateFields.gender) updateData.gender = updateFields.gender;
     if (updateFields.spokenLanguage)
@@ -60,11 +69,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.accountNo) updateData.accountNo = updateFields.accountNo;
     if (updateFields.alias) updateData.alias = updateFields.alias;
     if (updateFields.country) updateData.country = updateFields.country;
-    if (updateFields.experience) updateData.experience = updateFields.experience;
+    if (updateFields.experience)
+      updateData.experience = updateFields.experience;
     if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
     if (updateFields.role) updateData.role = updateFields.role;
 
-    // console.log("Update data:", updateData);
     const user = await Employees.findOneAndUpdate(
       { _id },
       { $set: updateData },

@@ -188,8 +188,8 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                           }}
                         /> */}
                         <BookingModal
-                          lead=""
-                          visit=""
+                          lead={visit.lead._id!}
+                          visit={visit._id!}
                           onOpenChange={() => {
                             setActiveModalRow(-1);
                           }}

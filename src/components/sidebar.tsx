@@ -34,6 +34,7 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   SlidersHorizontal,
+  Hotel,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -230,6 +231,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/visits",
       label: "Visits",
       Icon: <TramFront size={18} />,
+    },
+    {
+      path: "/dashboard/bookings",
+      label: "Bookings",
+      Icon: <Hotel size={18} />,
     },
     {
       path: "/dashboard/aliases",
@@ -532,6 +538,13 @@ const visitsManagementRoutes = [
     Icon: <TramFront size={18} />,
   },
 ];
+const bookingsManagementRoutes = [
+  {
+    path: "/dashboard/bookings",
+    label: "Bookings",
+    Icon: <Hotel size={18} />,
+  },
+];
 const userManagementRoutes = [
   {
     path: "/dashboard/employee",
@@ -663,6 +676,10 @@ export function Sidebar() {
       visitsManagementRoutes.some((route) => route.path === r.path)
     );
 
+    const bookingsManagementRoute = routes.filter((r) =>
+      bookingsManagementRoutes.some((route) => route.path === r.path)
+    );
+
     const userManagementRoute = routes.filter((r) =>
       userManagementRoutes.some((route) => route.path === r.path)
     );
@@ -738,6 +755,10 @@ export function Sidebar() {
         <SidebarSection
           title="Visit Management"
           routes={visitsManagementRoute}
+        />
+        <SidebarSection
+          title="Booking Management"
+          routes={bookingsManagementRoute}
         />
         <SidebarSection
           title="Property Management"

@@ -16,7 +16,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingQuery = await Query.findOne({ phoneNo });
+    const existingQuery = await Query.findOne({ phoneNo }).sort({
+      createdAt: -1,
+    });
 
     let numberOfDays = 31;
     if (existingQuery) {

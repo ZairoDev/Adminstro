@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { format } from "date-fns";
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -54,14 +54,13 @@ const statusVariants = {
   active: { x: 48 },
 };
 
-
 export default function EmployeeProfilePage({ params }: PageProps) {
-
   const userId = params.id[0];
   const { toast } = useToast();
   const [user, setUser] = useState<EmployeeInterface>();
   const [loadinguserDetails, setLoadinguserDetails] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
 
   const getUserDetails = async () => {
     try {
@@ -71,6 +70,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       });
       console.log(response.data.data);
       setIsActive(response.data.data.isActive);
+      setIsFeatured(response.data.data.isfeatured);
       if (response.status == 404) {
         toast({
           variant: "destructive",
@@ -149,13 +149,29 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   const handleStatusChange = async (active: boolean) => {
     setIsActive(active);
     try {
-      const statusResponse = await axios.put("/api/employee/editEmployee",
-        { _id: user?._id, isActive: active });
+      const statusResponse = await axios.put("/api/employee/editEmployee", {
+        _id: user?._id,
+        isActive: active,
+      });
     } catch (error) {
       setIsActive(!active);
       alert("Status cannot be changed");
     }
-  }
+  };
+
+  const handleFeaturedChange = async (featured: boolean) => {
+    console.log("featured: ", featured);
+    setIsFeatured(featured);
+    try {
+      await axios.put("/api/employee/editEmployee", {
+        _id: user?._id,
+        isfeatured: featured,
+      });
+    } catch (error) {
+      setIsFeatured(!featured);
+      alert("Featured cannot be changed");
+    }
+  };
 
   return (
     <>
@@ -205,20 +221,35 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 </div>
               </div>
               <div className="ml-auto flex flex-col gap-y-2">
-                <Badge variant="secondary" >
-                  {user?.role}
-                </Badge>
+                <Badge variant="secondary">{user?.role}</Badge>
                 <div
                   className=" h-8 w-20 border rounded-3xl flex items-center cursor-pointer relative"
                   onClick={() => handleStatusChange(!isActive)}
                 >
                   <motion.div
-                    className={`${isActive ? "bg-green-600" : "bg-red-600"} h-7 w-7 rounded-full flex items-center justify-center font-bold text-lg`}
+                    className={`${
+                      isActive ? "bg-green-600" : "bg-red-600"
+                    } h-7 w-7 rounded-full flex items-center justify-center font-bold text-lg`}
                     variants={statusVariants}
                     initial={isActive ? "active" : "inactive"}
                     animate={isActive ? "active" : "inactive"}
                   >
                     {isActive ? "A" : "I"}
+                  </motion.div>
+                </div>
+                <div
+                  className=" h-8 w-20 border rounded-3xl flex items-center cursor-pointer relative"
+                  onClick={() => handleFeaturedChange(!isFeatured)}
+                >
+                  <motion.div
+                    className={`${
+                      isFeatured ? "bg-green-600" : "bg-red-600"
+                    } h-7 w-7 rounded-full flex items-center justify-center font-bold text-base`}
+                    variants={statusVariants}
+                    initial={isFeatured ? "active" : "inactive"}
+                    animate={isFeatured ? "active" : "inactive"}
+                  >
+                    {isFeatured ? "F" : "NF"}
                   </motion.div>
                 </div>
               </div>

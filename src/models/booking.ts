@@ -34,10 +34,6 @@ const bookingSchema = new Schema<bookingValidationSchema>(
         required: true,
       },
     },
-    paymentStatus: {
-      type: String,
-      required: true,
-    },
     contract: {
       type: String,
     },
@@ -55,7 +51,7 @@ const bookingSchema = new Schema<bookingValidationSchema>(
         required: true,
       },
     },
-    travellerAmount: {
+    travellerPayment: {
       finalAmount: {
         type: Number,
         required: true,
@@ -68,11 +64,9 @@ const bookingSchema = new Schema<bookingValidationSchema>(
     payment: {
       orderId: {
         type: String,
-        required: true,
       },
       paymentId: {
         type: String,
-        required: true,
       },
       status: {
         type: String,
@@ -82,11 +76,9 @@ const bookingSchema = new Schema<bookingValidationSchema>(
       },
       remainingAmount: {
         type: Number,
-        required: true,
       },
       paidAt: {
         type: Date,
-        required: true,
       },
     },
     note: {

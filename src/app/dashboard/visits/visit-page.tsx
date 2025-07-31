@@ -240,16 +240,15 @@ export const VisitsPage = () => {
               }}
             />
           </div> */}
-          <Sheet>
+
+          {/* <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline">
                 <SlidersHorizontal size={18} />
               </Button>
             </SheetTrigger>
             <SheetContent>
-              {/* Lead Filters */}
               <div className=" flex flex-col items-center">
-                {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
                 <LeadsFilter filters={filters} setFilters={setFilters} />
               </div>
 
@@ -262,7 +261,6 @@ export const VisitsPage = () => {
                       );
                       setPage(1);
                       router.push(`?${params.toString()}&page=1`);
-                      // filterLeads(1, { ...filters, allotedArea: area });
                     }}
                     className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                   >
@@ -276,7 +274,6 @@ export const VisitsPage = () => {
                       console.log("default filters: ", defaultFilters);
                       setFilters({ ...defaultFilters });
                       setPage(1);
-                      // filterLeads(1, defaultFilters);
                     }}
                     className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                   >
@@ -285,7 +282,7 @@ export const VisitsPage = () => {
                 </SheetClose>
               </SheetFooter>
             </SheetContent>
-          </Sheet>
+          </Sheet> */}
         </div>
       </div>
       {loading ? (

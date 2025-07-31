@@ -27,7 +27,7 @@ interface BookingFormSchema {
     date: Date;
     time: string;
   };
-  bookingStatus: string;
+  paymentStatus: string;
   finalAmount: number;
   contract?: string;
   ownerPayment: {
@@ -66,7 +66,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         date: new Date(),
         time: "",
       },
-      bookingStatus: "",
+      paymentStatus: "",
       finalAmount: 0,
       contract: "",
       ownerPayment: {
@@ -163,11 +163,20 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
       </div>
 
-      {/* Booking Status */}
+      {/* Payment Status */}
       <div className=" flex justify-between items-center gap-x-2">
         <Label>Payment Status</Label>
         <Select
-          // onValueChange={(value) => handleChange("payment.status", value)}
+          value={bookingFormValues.payment.status}
+          onValueChange={(value) => {
+            setBookingFormValues((prev) => ({
+              ...prev,
+              payment: {
+                ...prev.payment,
+                status: value,
+              },
+            }));
+          }}
         >
           <SelectTrigger>Payment Status</SelectTrigger>
           <SelectContent>
@@ -188,7 +197,11 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
         <div>
           <Label>Final Amount</Label>
-          <Input type="number" value={bookingFormValues.finalAmount} />
+          <Input
+            type="number"
+            value={bookingFormValues.finalAmount}
+            onChange={(e) => handleChange("finalAmount", e.target.value)}
+          />
         </div>
       </div>
 
@@ -214,7 +227,10 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         {contractStatus && (
           <div>
             <Label>Contract Date</Label>
-            <Input type="date" />
+            <Input
+              type="date"
+              onChange={(e) => handleChange("contract", e.target.value)}
+            />
           </div>
         )}
       </div>
@@ -231,6 +247,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
           <Input
             type="number"
             value={bookingFormValues.ownerPayment.finalAmount}
+            onChange={(e) =>
+              setBookingFormValues((prev) => ({
+                ...prev,
+                ownerPayment: {
+                  ...prev.ownerPayment,
+                  finalAmount: Number(e.target.value),
+                },
+              }))
+            }
           />
         </div>
         <div>
@@ -238,6 +263,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
           <Input
             type="number"
             value={bookingFormValues.ownerPayment.amountRecieved}
+            onChange={(e) =>
+              setBookingFormValues((prev) => ({
+                ...prev,
+                ownerPayment: {
+                  ...prev.ownerPayment,
+                  amountRecieved: Number(e.target.value),
+                },
+              }))
+            }
           />
         </div>
       </div>
@@ -254,6 +288,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
           <Input
             type="number"
             value={bookingFormValues.travellerPayment.finalAmount}
+            onChange={(e) =>
+              setBookingFormValues((prev) => ({
+                ...prev,
+                travellerPayment: {
+                  ...prev.travellerPayment,
+                  finalAmount: Number(e.target.value),
+                },
+              }))
+            }
           />
         </div>
         <div>
@@ -261,6 +304,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
           <Input
             type="number"
             value={bookingFormValues.travellerPayment.amountRecieved}
+            onChange={(e) =>
+              setBookingFormValues((prev) => ({
+                ...prev,
+                travellerPayment: {
+                  ...prev.travellerPayment,
+                  amountRecieved: Number(e.target.value),
+                },
+              }))
+            }
           />
         </div>
       </div>

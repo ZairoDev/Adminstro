@@ -65,6 +65,7 @@ export const getLeadsByLocation = async ({
       case "this month":
         const dt = new Date();
         dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
         filters.createdAt = {
           $gte: dt,
         };
@@ -137,6 +138,7 @@ export const getLeadsGroupCount = async ({
       case "this month":
         const dt = new Date();
         dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
         filters.createdAt = {
           $gte: dt,
         };

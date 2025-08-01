@@ -382,19 +382,21 @@ const Dashboard = () => {
                 }}
                 triggerClassName=" w-32 absolute left-2 top-16"
               />
-              <CustomSelect
-                itemList={["All", ...allEmployees]}
-                triggerText="Select agent"
-                defaultValue="All"
-                onValueChange={(value) => {
-                  const newLeadFilters = { ...leadsFilters };
-                  newLeadFilters.createdBy = value;
-                  setLeadsFilters(newLeadFilters);
-                  fetchLeadStatus(newLeadFilters);
-                  fetchRejectedLeadGroup(newLeadFilters);
-                }}
-                triggerClassName=" w-32 absolute left-2 top-32 "
-              />
+              {token?.email !== "vikas@vacationsaga.com" && (
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...leadsFilters };
+                    newLeadFilters.createdBy = value;
+                    setLeadsFilters(newLeadFilters);
+                    fetchLeadStatus(newLeadFilters);
+                    fetchRejectedLeadGroup(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-32 "
+                />
+              )}
 
               {leadsGroupCount.length > 0 ? (
                 <LeadCountPieChart

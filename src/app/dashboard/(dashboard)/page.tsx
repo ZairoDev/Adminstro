@@ -206,36 +206,37 @@ const Dashboard = () => {
       )}
 
       {/* Leads Generation Dashboard*/}
-      <section>
-        <h1 className="text-3xl font-bold my-6">Lead-Gen Dashboard</h1>
-        {/* Daily Leads by Agent & Active Employees */}
-        <div className=" w-full grid grid-cols-1 lg:grid-cols-3 gap-y-4 relative">
-          <div className=" w-full flex relative lg:col-span-2">
-            <CustomStackBarChart
-              heading={`Today Leads - ${totalTodayLeads}`}
-              subHeading="Leads by Agent"
-              chartData={todaysLeadChartData ? todaysLeadChartData : []}
-            />
-            <Button
-              size={"sm"}
-              onClick={refetchTodayLeads}
-              className="absolute top-0 right-0"
-            >
-              <RotateCw
-                className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
+        <section>
+          <h1 className="text-3xl font-bold my-6">Lead-Gen Dashboard</h1>
+          {/* Daily Leads by Agent & Active Employees */}
+          <div className=" w-full grid grid-cols-1 lg:grid-cols-3 gap-y-4 relative">
+            <div className=" w-full flex relative lg:col-span-2">
+              <CustomStackBarChart
+                heading={`Today Leads - ${totalTodayLeads}`}
+                subHeading="Leads by Agent"
+                chartData={todaysLeadChartData ? todaysLeadChartData : []}
               />
-            </Button>
+              <Button
+                size={"sm"}
+                onClick={refetchTodayLeads}
+                className="absolute top-0 right-0"
+              >
+                <RotateCw
+                  className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
+
+            {/* Active Employees */}
+            <div className=" h-full border rounded-md w-72 mx-auto justify-self-center lg:absolute right-0">
+              <ActiveEmployeeList />
+            </div>
           </div>
 
-          {/* Active Employees */}
-          <div className=" h-full border rounded-md w-72 mx-auto justify-self-center lg:absolute right-0">
-            <ActiveEmployeeList />
-          </div>
-        </div>
-
-        {/* Date Filter */}
-        <div className="flex justify-end gap-4 mt-4">
-          {/* <Select onValueChange={(value) => handleDateFilter(value)}>
+          {/* Date Filter */}
+          <div className="flex justify-end gap-4 mt-4">
+            {/* <Select onValueChange={(value) => handleDateFilter(value)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Select filter" />
           </SelectTrigger>
@@ -249,67 +250,67 @@ const Dashboard = () => {
           </SelectContent>
         </Select> */}
 
-          {/* Date Picker */}
-          {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
+            {/* Date Picker */}
+            {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
 
-          {/* <Button onClick={refetch}>Apply</Button>
+            {/* <Button onClick={refetch}>Apply</Button>
         <Button onClick={reset}>Reset</Button> */}
-        </div>
+          </div>
 
-        {/* Leads by Location and Agent */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          {/* Left Column */}
-          {leadByLocationData && (
-            <div className=" relative">
-              <CustomSelect
-                itemList={[
-                  "All",
-                  "yesterday",
-                  "this month",
-                  "10 days",
-                  "1 month",
-                  "3 months",
-                ]}
-                triggerText="Select days"
-                defaultValue="All"
-                onValueChange={(value) => {
-                  // fetchLeadStatus(value);
-                  // fetchRejectedLeadGroup(value);
-                  const newLeadFilters = { ...propertyFilters };
-                  newLeadFilters.days = value;
-                  setPropertyFilters(newLeadFilters);
-                  fetchLeadByLocation(newLeadFilters);
-                }}
-                triggerClassName=" w-32 absolute left-2 top-2"
-              />
-              <CustomSelect
-                itemList={["All", ...allEmployees]}
-                triggerText="Select agent"
-                defaultValue="All"
-                onValueChange={(value) => {
-                  // fetchLeadStatus(value);
-                  // fetchRejectedLeadGroup(value);
-                  const newLeadFilters = { ...propertyFilters };
-                  newLeadFilters.createdBy = value;
-                  setPropertyFilters(newLeadFilters);
-                  fetchLeadByLocation(newLeadFilters);
-                  // fetchAllEmployees();
-                  // fetchRejectedLeadGroup(newLeadFilters);
-                }}
-                triggerClassName=" w-32 absolute left-2 top-16 "
-              />
-              <LabelledPieChart
-                chartData={locationLeads.map((lead) => ({
-                  label: lead._id,
-                  count: lead.count,
-                }))}
-                heading="Leads By Location"
-                // footer="Footer data"
-                key="fdg"
-              />
-            </div>
-          )}
-          {/* <Card className="shadow-md">
+          {/* Leads by Location and Agent */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            {/* Left Column */}
+            {leadByLocationData && (
+              <div className=" relative">
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "yesterday",
+                    "this month",
+                    "10 days",
+                    "1 month",
+                    "3 months",
+                  ]}
+                  triggerText="Select days"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    // fetchLeadStatus(value);
+                    // fetchRejectedLeadGroup(value);
+                    const newLeadFilters = { ...propertyFilters };
+                    newLeadFilters.days = value;
+                    setPropertyFilters(newLeadFilters);
+                    fetchLeadByLocation(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-2"
+                />
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    // fetchLeadStatus(value);
+                    // fetchRejectedLeadGroup(value);
+                    const newLeadFilters = { ...propertyFilters };
+                    newLeadFilters.createdBy = value;
+                    setPropertyFilters(newLeadFilters);
+                    fetchLeadByLocation(newLeadFilters);
+                    // fetchAllEmployees();
+                    // fetchRejectedLeadGroup(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-16 "
+                />
+                <LabelledPieChart
+                  chartData={locationLeads.map((lead) => ({
+                    label: lead._id,
+                    count: lead.count,
+                  }))}
+                  heading="Leads By Location"
+                  // footer="Footer data"
+                  key="fdg"
+                />
+              </div>
+            )}
+            {/* <Card className="shadow-md">
           <CardHeader>
           <CardTitle>Leads by Location</CardTitle>
           </CardHeader>
@@ -318,8 +319,8 @@ const Dashboard = () => {
             </CardContent>
         </Card> */}
 
-          {/* Right Column */}
-          {/* <Card className="shadow-md">
+            {/* Right Column */}
+            {/* <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Leads by Agent</CardTitle>
           </CardHeader>
@@ -328,12 +329,15 @@ const Dashboard = () => {
           </CardContent>
         </Card> */}
 
-          {/* Right Column */}
-        </div>
-      </section>
+            {/* Right Column */}
+          </div>
+        </section>
+      )}
 
       {/* Sales Generation Dashboard*/}
-      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
+      {(token?.role === "SuperAdmin" ||
+        token?.role === "LeadGen-TeamLead" ||
+        token?.email === "vikas@vacationsaga.com") && (
         <section>
           <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
           <div className=" grid grid-cols-1 md:grid-cols-2 gap-6  border rounded-md">

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { InfinityLoader } from "@/components/Loaders";
+import { Textarea } from "@/components/ui/textarea";
 
 interface BookingFormSchema {
   lead: string;
@@ -45,6 +46,7 @@ interface BookingFormSchema {
     remainingAmount: number;
     paidAt: Date;
   };
+  note?: string;
 }
 
 interface PageProps {
@@ -84,6 +86,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         remainingAmount: 0,
         paidAt: new Date(),
       },
+      note: "",
     }
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -167,7 +170,6 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       <div className=" flex justify-between items-center gap-x-2">
         <Label>Payment Status</Label>
         <Select
-          value={bookingFormValues.payment.status}
           onValueChange={(value) => {
             setBookingFormValues((prev) => ({
               ...prev,
@@ -317,9 +319,12 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
       </div>
 
-      <div></div>
+      <div>
+        <Label>Note</Label>
+        <Textarea onChange={(e) => handleChange("note", e.target.value)} />
+      </div>
 
-      <Button onClick={handleSubmit}>
+      <Button onClick={handleSubmit} className=" mt-1">
         {isLoading ? (
           <InfinityLoader className=" h-12 w-16" strokeColor="black" />
         ) : (

@@ -4,7 +4,7 @@ import Bookings from "@/models/booking";
 
 export async function POST(req: NextRequest) {
   try {
-    const bookings = await Bookings.find().sort({ createdAt: -1 }).limit(1);
+    const bookings = await Bookings.find().sort({ createdAt: -1 }).limit(2);
     const totalBookings = await Bookings.countDocuments();
     const totalPages = Math.ceil(totalBookings / 50);
 

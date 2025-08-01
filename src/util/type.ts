@@ -354,7 +354,6 @@ export interface BookingInterface {
     date: Date;
     time: string;
   };
-  bookingStatus: string;
   contract?: string;
   finalAmount: number;
   ownerPayment: {

@@ -11,7 +11,7 @@ const bookingSchema = new Schema<bookingValidationSchema>(
     },
     visit: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Visits",
+      ref: "visits",
       required: true,
     },
     checkIn: {

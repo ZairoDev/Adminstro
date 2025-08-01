@@ -1,24 +1,9 @@
 "use client";
 
 import axios from "axios";
-import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import {
-  Sheet,
-  SheetClose,
-  SheetFooter,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectItem,
-  SelectValue,
-  SelectTrigger,
-  SelectContent,
-} from "@/components/ui/select";
 import {
   Pagination,
   PaginationLink,
@@ -28,10 +13,11 @@ import {
 } from "@/components/ui/pagination";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
-import { BookingInterface, VisitInterface } from "@/util/type";
+import { BookingInterface } from "@/util/type";
 import HandLoader from "@/components/HandLoader";
 import { Toaster } from "@/components/ui/toaster";
 import { FilterState } from "@/components/lead-component/NewLeadFilter";
+
 import BookingTable from "./booking-table";
 
 export const BookingPage = () => {

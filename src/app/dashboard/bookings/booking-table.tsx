@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { format } from "date-fns";
 import { Ellipsis } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Table,
@@ -21,27 +22,47 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
-import { BookingInterface } from "@/util/type";
+import { toast, useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { BookingInterface } from "@/util/type";
 import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import axios from "axios";
 
 export default function BookingTable({
   bookings,
 }: {
   bookings: BookingInterface[];
 }) {
-  const { toast } = useToast();
-  const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
   const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [page, setPage] = useState(1);
+
+  const handlePaymentStatus = async (
+    paymentStatus: "pending" | "paid" | "failed" | "partial",
+    bookingId: string,
+    index: number
+  ) => {
+    try {
+      await axios.patch("/api/bookings/changePaymentStatus", {
+        paymentStatus,
+        bookingId,
+      });
+      toast({
+        title: "Payment status updated successfully",
+      });
+      bookings[index].payment.status = paymentStatus;
+    } catch (err) {
+      toast({
+        title: "Unable to update payment status",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     if (searchParams.get("page")) {
@@ -104,7 +125,52 @@ export default function BookingTable({
                 </Badge>
               </TableCell>
 
-              <TableCell>{booking.payment.status}</TableCell>
+              <TableCell>
+                {" "}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost">
+                      {booking.payment.status?.toUpperCase()}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40">
+                    <DropdownMenuLabel>Payment Status</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handlePaymentStatus("pending", booking._id, index)
+                      }
+                    >
+                      Pending
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handlePaymentStatus("partial", booking._id, index)
+                      }
+                    >
+                      Partial
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handlePaymentStatus("failed", booking._id, index)
+                      }
+                    >
+                      Failed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handlePaymentStatus("paid", booking._id, index)
+                      }
+                    >
+                      Paid
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
 
               <TableCell>
                 <DropdownMenu>
@@ -130,26 +196,8 @@ export default function BookingTable({
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
-                      {/* <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setActiveModalRow(index);
-                        }}
-                      >
-                        Add Booking
-                      </DropdownMenuItem> */}
+                      <DropdownMenuItem>Generate Invoice</DropdownMenuItem>
                     </DropdownMenuGroup>
-                    <AlertDialog open={activeModalRow === index}>
-                      <AlertDialogContent>
-                        {/* <BookingModal
-                          lead={booking.lead._id!}
-                          booking={visit._id!}
-                          onOpenChange={() => {
-                            setActiveModalRow(-1);
-                          }}
-                        /> */}
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

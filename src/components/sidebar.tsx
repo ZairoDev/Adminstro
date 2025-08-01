@@ -285,6 +285,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   Sales: [
     {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
       path: "/dashboard/createquery",
       label: "Lead",
       Icon: <PencilLine size={18} />,

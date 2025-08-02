@@ -32,9 +32,27 @@ import { useAuthStore } from "@/AuthStore";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import axios from "axios";
 
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [selectedCountry, setSelectedCountry] = useState("All");
+  const [leadCountDateModal, setLeadCountDateModal] = useState(false);
+  const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
+    new Date(2025, 5, 12)
+  );
 
   const [leadsFilters, setLeadsFilters] = useState<{
     days?: string;
@@ -98,31 +116,6 @@ const Dashboard = () => {
   const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
     return { label: lead._id, count: lead.count };
   });
-
-  // const fetchEmployee = async()=>{
-  //   try{
-  //     const response = await axios.get(`/api/employee/getAllEmployee`, {
-  //       params: {
-  //         role:  token?.role,
-  //       },
-  //   })
-  //   console.log(response.data.allEmployees);
-  // }
-  //   catch(error){
-  //     console.log(error);
-  //   }
-  // }
-  // useEffect(()=>{
-  //   fetchEmployee();
-  // },[token?.role])
-
-  // if (isLoading) {
-  //   return (
-  //     <div className=" w-full h-screen flex justify-center items-center">
-  //       <Loader2 className=" animate-spin" />
-  //     </div>
-  //   );
-  // }
 
   if (isError) {
     return (
@@ -266,16 +259,16 @@ const Dashboard = () => {
                   itemList={[
                     "All",
                     "yesterday",
+                    "last month",
                     "this month",
                     "10 days",
+                    "15 days",
                     "1 month",
                     "3 months",
                   ]}
                   triggerText="Select days"
                   defaultValue="All"
                   onValueChange={(value) => {
-                    // fetchLeadStatus(value);
-                    // fetchRejectedLeadGroup(value);
                     const newLeadFilters = { ...propertyFilters };
                     newLeadFilters.days = value;
                     setPropertyFilters(newLeadFilters);
@@ -283,19 +276,16 @@ const Dashboard = () => {
                   }}
                   triggerClassName=" w-32 absolute left-2 top-2"
                 />
+
                 <CustomSelect
                   itemList={["All", ...allEmployees]}
                   triggerText="Select agent"
                   defaultValue="All"
                   onValueChange={(value) => {
-                    // fetchLeadStatus(value);
-                    // fetchRejectedLeadGroup(value);
                     const newLeadFilters = { ...propertyFilters };
                     newLeadFilters.createdBy = value;
                     setPropertyFilters(newLeadFilters);
                     fetchLeadByLocation(newLeadFilters);
-                    // fetchAllEmployees();
-                    // fetchRejectedLeadGroup(newLeadFilters);
                   }}
                   triggerClassName=" w-32 absolute left-2 top-16 "
                 />
@@ -346,14 +336,21 @@ const Dashboard = () => {
                 itemList={[
                   "All",
                   "yesterday",
+                  "last month",
                   "this month",
                   "10 days",
+                  "15 days",
                   "1 month",
                   "3 months",
+                  "Custom",
                 ]}
                 triggerText="Select days"
                 defaultValue="All"
                 onValueChange={(value) => {
+                  if (value === "Custom") {
+                    setLeadCountDateModal(true);
+                    return;
+                  }
                   const newLeadFilters = { ...leadsFilters };
                   newLeadFilters.days = value;
                   setLeadsFilters(newLeadFilters);
@@ -362,6 +359,32 @@ const Dashboard = () => {
                 }}
                 triggerClassName=" w-32 absolute left-2 top-2"
               />
+              <Dialog
+                open={leadCountDateModal}
+                onOpenChange={setLeadCountDateModal}
+              >
+                <DialogContent className=" min-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Select Dates</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <Calendar
+                      mode="single"
+                      defaultMonth={leadCountDate}
+                      numberOfMonths={2}
+                      selected={date?.from}
+                      onSelect={setLeadCountDate}
+                      className="rounded-lg border shadow-sm"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit">Save changes</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <CustomSelect
                 itemList={[
                   "All",

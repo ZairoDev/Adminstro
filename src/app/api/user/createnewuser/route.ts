@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       email,
       password: hashedPassword,
       role,
-      phone: phoneNumber,
+      phone: phoneNumber.replace(/\D/g, ""),
       gender,
       nationality,
       spokenLanguage,

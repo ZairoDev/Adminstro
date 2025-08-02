@@ -62,6 +62,19 @@ export const getLeadsByLocation = async ({
           $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
         };
         break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
       case "this month":
         const dt = new Date();
         dt.setDate(1);
@@ -73,6 +86,11 @@ export const getLeadsByLocation = async ({
       case "10 days":
         filters.createdAt = {
           $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         };
         break;
       case "1 month":
@@ -135,6 +153,19 @@ export const getLeadsGroupCount = async ({
           $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
         };
         break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
       case "this month":
         const dt = new Date();
         dt.setDate(1);
@@ -146,6 +177,11 @@ export const getLeadsGroupCount = async ({
       case "10 days":
         filters.createdAt = {
           $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         };
         break;
       case "1 month":
@@ -203,9 +239,40 @@ export const getRejectedLeadGroup = async ({
   const filters: Record<string, any> = { leadStatus: "rejected" };
   if (days) {
     switch (days) {
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
       case "10 days":
         filters.createdAt = {
           $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         };
         break;
       case "1 month":

@@ -135,9 +135,8 @@ const VisitModal = ({
     if (!visitFormValues.ownerPhone) return;
     setIsLoading(true);
     try {
-      const response = await axios.post("/api/room/getPropertiesOfUser", {
-        userName: "-",
-        userMobile: visitFormValues.ownerPhone.trim(),
+      const response = await axios.post("/api/visits/getPropertiesForVisit", {
+        userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
       });
       setProperties(response.data);
     } catch (err: unknown) {

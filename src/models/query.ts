@@ -76,6 +76,10 @@ const querySchema = new Schema(
     leadStatus: {
       type: String,
     },
+    propertyShown:{
+      type:Number,
+      default:0,
+    },
     reason: {
       type: String,
     },

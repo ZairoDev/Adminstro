@@ -40,8 +40,8 @@ import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
 import { InfinityLoader } from "@/components/Loaders";
-import LeadTable from "@/components/leadTable/LeadTable";
 import HandLoader from "@/components/HandLoader";
+import GoodTable from "./good-table";
 
 export const GoodToGoLeads = () => {
   const router = useRouter();
@@ -364,7 +364,7 @@ export const GoodToGoLeads = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               {queries.length > 0 ? (
-                <LeadTable queries={queries} />
+                <GoodTable queries={queries} />
               ) : (
                 <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                   <img

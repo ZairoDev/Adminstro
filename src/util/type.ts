@@ -283,6 +283,7 @@ export interface IQuery {
   leadQualityByCreator?: string;
   name: string;
   email: string;
+  propertyShown?: number;
   duration: string;
   startDate: string;
   endDate: string;

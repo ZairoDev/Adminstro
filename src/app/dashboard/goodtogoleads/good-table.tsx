@@ -70,7 +70,7 @@ interface Timers {
   current: { [key: string]: NodeJS.Timeout };
 }
 
-export default function GoodTable({ queries }: { queries: IQuery[] }) {
+export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], setQueries: React.Dispatch<React.SetStateAction<IQuery[]>> }) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -256,34 +256,63 @@ export default function GoodTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
-  const updatePropertyShown = async (leadId: string, newCount: number, type: string) => {
-    // Optimistically update the UI
+  const debouncersRef = useRef<{ [leadId: string]: Function }>({});
 
-    try {
-      const res = await axios.post("/api/sales/updatePropertyShown", {
-        leadId,
-        value: newCount,
-        type
-      });
-      console.log("Updated lead:", leadId, res.data);
-      window.location.reload();
-    } catch (err) {
-      console.error("API error for leadId:", leadId, err);
-      // Optional: Rollback UI if API fails
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Unable to update property shown! Please try again later.",
-      });
+  const debouncedUpdate = (leadId: string, value: number, type: string) => {
+
+    setQueries((prev :IQuery[])=>{
+      return prev.map(q=> q._id === leadId ? {...q, propertyShown: value} : q)
+    })
+    // If a debouncer doesn't exist for this lead, create one
+    if (!debouncersRef.current[leadId]) {
+      debouncersRef.current[leadId] = debounce(
+        async (leadId: string, value: number, type: string) => {
+          try {
+            const res = await axios.post("/api/sales/updatePropertyShown", {
+              leadId,
+              value,
+              type,
+            });
+            console.log("Updated lead:", leadId, res.data);
+          } catch (err) {
+            console.error("API error for leadId:", leadId, err);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description:
+                "Unable to update property shown! Please try again later.",
+            });
+          }
+          
+        },
+        500, // debounce delay (ms)
+        { leading: false, trailing: true }
+      );
     }
+
+    // Call the debounced function
+    debouncersRef.current[leadId](leadId, value, type);
   };
 
-  const Increase = (leadId: string, current: number) => {
-    updatePropertyShown(leadId, current,"increase");
+  const Increase = (leadId: string, current: number, index: number) => {
+    // updatePropertyShown(leadId, current,"increase");
+    // setQueries((prevRows) => {
+    //   const newRows = [...prevRows];
+    //   newRows[index].propertyShown = current + 1;
+    //   return newRows;
+    // });
+    debouncedUpdate(leadId, current + 1, "increase");
+    
   };
 
-  const Decrease = (leadId: string, current: number) => {
-    updatePropertyShown(leadId, Math.max(0, current),"decrease");
+  const Decrease = (leadId: string, current: number,index: number) => {
+    // updatePropertyShown(leadId, Math.max(0, current),"decrease");
+    // setQueries((prev)=>{
+    //   const newRows = [...prev]; 
+    //   newRows[index].propertyShown = Math.max(0, current - 1);
+    //   return newRows;
+    // })
+    debouncedUpdate(leadId, Math.max(0, current - 1), "decrease");
   };
 
   const addReminder = async (leadId: string | undefined, index: number) => {
@@ -547,14 +576,26 @@ export default function GoodTable({ queries }: { queries: IQuery[] }) {
               <TableCell className=" flex gap-x-0.5">
                 <div className="flex gap-1 items-center justify-center">
                   <button
-                    onClick={() => Decrease(query?._id || "", (query?.propertyShown || 0)-1)}
+                    onClick={() =>
+                      Decrease(
+                        query?._id || "",
+                        query?.propertyShown || 0,
+                        index
+                      )
+                    }
                     className="bg-gray-500 rounded-full p-1"
                   >
                     <Minus size={18} />
                   </button>
                   <button>{query?.propertyShown || 0}</button>
                   <button
-                    onClick={() => Increase(query?._id || "",  (query?.propertyShown || 0)+1)}
+                    onClick={() =>
+                      Increase(
+                        query?._id || "",
+                        query?.propertyShown || 0,
+                        index
+                      )
+                    }
                     className="bg-gray-500 rounded-full p-1"
                   >
                     <Plus size={18} />

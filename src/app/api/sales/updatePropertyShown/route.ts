@@ -16,28 +16,17 @@ export async function POST(req: NextRequest) {
 
     const parsedValue = Number(value);
 
-    const updatedLead = await Query.findOne({
-      _id: new mongoose.Types.ObjectId(leadId),
-    });
+    const updatedLead = await Query.updateOne(
+      {_id:new mongoose.Types.ObjectId(leadId)},
+      { $set: { [`propertyShown`]: parsedValue } },
+      {timestamps: false}
+    );
 
-    if (!updatedLead) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-    }
-
-    if (type === "increase") {
-      updatedLead.propertyShown = parsedValue;
-    } else if (type === "decrease") {
-      updatedLead.propertyShown = Math.max(
-        0, parsedValue
-      );
-    }
-
-    await updatedLead.save();
+    // console.log("updatedLead: ", updatedLead);
 
     return NextResponse.json(
       {
         message: "Sales Property Shown updated successfully",
-        updatedValue: updatedLead.salesPropertyShown,
       },
       { status: 200 }
     );

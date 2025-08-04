@@ -364,7 +364,7 @@ export const GoodToGoLeads = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               {queries.length > 0 ? (
-                <GoodTable queries={queries} />
+                <GoodTable queries={queries} setQueries={setQueries} />
               ) : (
                 <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                   <img

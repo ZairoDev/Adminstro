@@ -8,8 +8,8 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
     required: true,
     ref: "Query",
   },
-  propertyId: { type: String, required: true },
-  VSID: { type: String, required: true },
+  propertyId: { type: String},
+  VSID: { type: String },
   ownerName: { type: String, required: true },
   ownerPhone: { type: String, required: true },
   ownerEmail: { type: String, required: true },
@@ -39,7 +39,8 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   reason: { type: String, required: false },
   note: { type: String, required: false },
   createdBy: { type: String, required: true },
-});
+},
+{ timestamps: true });
 
 const Visits = mongoose.models?.visits || mongoose.model("visits", visitSchema);
 export default Visits;

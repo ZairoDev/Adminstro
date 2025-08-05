@@ -203,7 +203,7 @@ const VisitModal = ({
       </div>
 
       <div className=" flex justify-between items-center gap-x-2">
-        <Input
+          <Input
           type="text"
           placeholder="Enter VSID..."
           value={visitFormValues.VSID}

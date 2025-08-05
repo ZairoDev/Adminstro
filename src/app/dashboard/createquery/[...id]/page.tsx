@@ -398,7 +398,7 @@ const QueryDetails = ({ params }: PageProps) => {
                     disabled={editDisabled}
                   />
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 ">
                   <CalendarIcon size={20} />
                   <Label>End Date:</Label>
                   <DatePicker
@@ -415,7 +415,7 @@ const QueryDetails = ({ params }: PageProps) => {
                     disabled={editDisabled}
                   />
                 </div>
-                {apiData?.rejectionReason &&
+                {apiData?.leadStatus === "rejected" &&
                   (
                     <div>
                       <div className=" flex items-center gap-x-2 text-neutral-500">

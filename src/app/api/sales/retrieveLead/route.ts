@@ -8,7 +8,7 @@ connectDb();
 export async function POST(req: NextRequest) {
   try {
     const { leadId } = await req.json();
-    console.log("leadId: ", leadId);
+    // console.log("leadId: ", leadId);
 
     if (!leadId) {
       return NextResponse.json(
@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
 
     const lead = await Query.findByIdAndUpdate(
       { _id: new mongoose.Types.ObjectId(leadId) },
-      { $set: { rejectionReason: null } }
+      { $set: { leadStatus: "fresh", reason: null } }
     );
 
-    console.log("lead: ", lead);
+    // console.log("lead: ", lead);
 
     return NextResponse.json(
       { message: "Lead retrieved successfully" },

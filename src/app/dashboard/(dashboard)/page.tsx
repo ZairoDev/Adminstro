@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
+
+import { TrendingUp } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+
 import {
   Select,
   SelectItem,
@@ -23,7 +35,14 @@ import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 // import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 // import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 import { PropertyCountBarChart } from "@/components/charts/PropertyCountBarChart";
 import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
@@ -45,6 +64,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
+
+const chartConfig = {
+  desktop: {
+    label: "Desktop",
+    color: "var(--chart-1)",
+  },
+  mobile: {
+    label: "Mobile",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig;
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -476,6 +506,55 @@ const Dashboard = () => {
             </div>
           </div>
         </section>
+      )}
+
+      {token?.role === "SuperAdmin" && (
+        <div>
+          <h3>Visit Dashboard</h3>
+          {/* <Card>
+            <CardHeader>
+              <CardTitle>Bar Chart - Stacked + Legend</CardTitle>
+              <CardDescription>January - June 2024</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig}>
+                <BarChart accessibilityLayer data={chartData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                    tickFormatter={(value) => value.slice(0, 3)}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="desktop"
+                    stackId="a"
+                    fill="var(--color-desktop)"
+                    radius={[0, 0, 4, 4]}
+                  />
+                  <Bar
+                    dataKey="mobile"
+                    stackId="a"
+                    fill="var(--color-mobile)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+            <CardFooter className="flex-col items-start gap-2 text-sm">
+              <div className="flex gap-2 leading-none font-medium">
+                Trending up by 5.2% this month{" "}
+                <TrendingUp className="h-4 w-4" />
+              </div>
+              <div className="text-muted-foreground leading-none">
+                Showing total visitors for the last 6 months
+              </div>
+            </CardFooter>
+          </Card> */}
+        </div>
       )}
 
       {/* <LabelledPieChart chartData={chartData} /> */}

@@ -7,6 +7,8 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { Property } from "@/models/listing";
 import axios from "axios";
+import { from } from "form-data";
+import Visits from "@/models/visit";
 
 connectDb();
 
@@ -573,6 +575,88 @@ export const getTodayLeads = async () => {
   return { serializedLeads: leadsByAgentName, totalLeads };
 };
 
+export const getWeeksVisit = async({days}:{days?:string}) =>{
+  const filters: Record<string, any> = {}
+  if (days) {
+    switch (days) {
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "3 months":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        };
+        break;
+    }
+  }
+  const pipeline = [
+    {
+      $match: filters,
+    },
+    {
+      $lookup: {
+        from: "queries",
+        localField: "lead",
+        foreignField: "_id",
+        as: "leadData",
+      },
+    },
+    { $unwind: "$leadData" },
+    {
+      $group: {
+        _id: "$leadData.location",
+        count: { $sum: 1 },
+      },
+    },{
+      $sort:{
+        count:-1 as const
+      }
+    }
+  ];
+
+  const visits = await Visits.aggregate(pipeline);
+  console.log("visits: ", visits);
+
+  return { visits };  
+}
 export const getPropertyCount = async () => {
   const pipeline = [
     {
@@ -596,6 +680,76 @@ export const getPropertyCount = async () => {
 
   return { propertyCount, totalPropertyCount };
 };
+
+export const getReviews = async({days,location,createdBy}:{days?:string;location?:string;createdBy?:string})=>{
+  const filters: Record<string, any> = {};
+  if(days && days !== "All"){
+    switch (days){
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    }
+  }
+}
+  if(location){
+    filters.location = location
+  }
+  if(createdBy){
+    filters.createdBy = createdBy
+  }
+
+  const pipeline = [
+    {
+      $match: filters,
+    },
+    {
+      $group: {
+        _id: "$leadQualityByReviewer",
+        count: { $sum: 1 },
+      },
+    },
+  ];
+
+  const reviews = await Query.aggregate(pipeline);
+  console.log("reviews: ", reviews);
+  return {reviews}
+}
 
 export const getCountryWisePropertyCount = async ({
   country,

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
 
 import { TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -64,15 +64,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
+import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
+import { VisitsCountBarChart } from "@/components/charts/VisitsCountBarChart";
+import useReview from "@/hooks/(VS)/useReviews";
+import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
 
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--chart-1)",
+ const chartConfig = {
+  greece: {
+    label: "Greece",
+    color: "hsl(var(--chart-1))",
   },
-  mobile: {
-    label: "Mobile",
-    color: "var(--chart-2)",
+  italy: {
+    label: "Italy",
+    color: "hsl(var(--chart-2))",
+  },
+  croatia: {
+    label: "Croatia",
+    color: "hsl(var(--chart-3))",
+  },
+  spain: {
+    label: "Spain",
+    color: "hsl(var(--chart-4))",
+  },
+  portugal: {
+    label: "Portugal",
+    color: "hsl(var(--chart-5))",
   },
 } satisfies ChartConfig;
 
@@ -90,8 +106,18 @@ const Dashboard = () => {
     createdBy?: string;
   }>({});
 
+  const [visitsFilter,setVisitsFilter] = useState<{
+    days?: string;
+  }>({});
+
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
+    createdBy?: string;
+  }>({});
+
+  const [reviewsFilters, setReviewsFilters] = useState<{
+    days?: string;
+    location?: string;
     createdBy?: string;
   }>({});
 
@@ -133,6 +159,18 @@ const Dashboard = () => {
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
   } = useTodayLeads();
+
+  const { loading, visits, fetchVisits } = WeeksVisit();
+  const {
+    reviews,
+    revLoading,
+    setRevLoading,
+    revError,
+    setRevError,
+    revErr,
+    setRevErr,
+    fetchReviews,
+  } = useReview();
 
   const todaysLeadChartData = todayLeads?.map((lead) => {
     const label = lead.createdBy;
@@ -330,6 +368,51 @@ const Dashboard = () => {
                 />
               </div>
             )}
+            {reviews && (
+              <div className=" relative">
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "yesterday",
+                    "last month",
+                    "this month",
+                    "10 days",
+                    "15 days",
+                    "1 month",
+                    "3 months",
+                  ]}
+                  triggerText="Select days"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...reviewsFilters };
+                    newLeadFilters.days = value;
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-2"
+                />
+
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...reviewsFilters };
+                    newLeadFilters.createdBy = value;
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-16 "
+                />
+                <ReviewPieChart
+                  chartData={reviews}
+                  // heading="Leads By Location"
+                  // // footer="Footer data"
+                  // key="fdg"
+                />
+              </div>
+            )}
+
             {/* <Card className="shadow-md">
           <CardHeader>
           <CardTitle>Leads by Location</CardTitle>
@@ -509,51 +592,78 @@ const Dashboard = () => {
       )}
 
       {token?.role === "SuperAdmin" && (
-        <div>
-          <h3>Visit Dashboard</h3>
-          {/* <Card>
-            <CardHeader>
-              <CardTitle>Bar Chart - Stacked + Legend</CardTitle>
-              <CardDescription>January - June 2024</CardDescription>
+        <div className="grid grid-cols-2">
+          <div className="relative  mt-8">
+            {/* <Card>
+            <CardHeader className="relative">
+              <CardTitle className="text-center text-2xl">
+                Visits DashBoard
+              </CardTitle>
+              
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig}>
-                <BarChart accessibilityLayer data={chartData}>
+                <BarChart
+                  accessibilityLayer
+                  data={visits}
+                  margin={{
+                    top: 5,
+                  }}
+                >
                   <CartesianGrid vertical={false} />
                   <XAxis
-                    dataKey="month"
+                    dataKey="_id"
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
+                    tickFormatter={(value) => value.slice(0, 5)}
                   />
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    dataKey="desktop"
-                    stackId="a"
-                    fill="var(--color-desktop)"
-                    radius={[0, 0, 4, 4]}
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
                   />
                   <Bar
-                    dataKey="mobile"
-                    stackId="a"
-                    fill="var(--color-mobile)"
-                    radius={[4, 4, 0, 0]}
-                  />
+                    dataKey="count"
+                    fill="hsl(var(--color-primary))"
+                    radius={8}
+                  >
+                    <LabelList
+                      position="top"
+                      offset={12}
+                      className="fill-foreground"
+                      fontSize={12}
+                    />
+                  </Bar>
                 </BarChart>
               </ChartContainer>
             </CardContent>
-            <CardFooter className="flex-col items-start gap-2 text-sm">
-              <div className="flex gap-2 leading-none font-medium">
-                Trending up by 5.2% this month{" "}
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              <div className="text-muted-foreground leading-none">
-                Showing total visitors for the last 6 months
-              </div>
-            </CardFooter>
           </Card> */}
+            <CustomSelect
+              itemList={[
+                "All",
+                "yesterday",
+                "last month",
+                "this month",
+                "10 days",
+                "15 days",
+                "1 month",
+                "3 months",
+              ]}
+              triggerText="Select days"
+              defaultValue="All"
+              onValueChange={(value) => {
+                const newLeadFilters = { ...visitsFilter };
+                newLeadFilters.days = value;
+                setVisitsFilter(newLeadFilters);
+                fetchVisits(newLeadFilters);
+              }}
+              triggerClassName=" w-32 absolute left-2 top-2"
+            />
+            <VisitsCountBarChart
+              heading={"Visits Dashboard  "}
+              chartData={visits}
+            />
+          </div>
         </div>
       )}
 

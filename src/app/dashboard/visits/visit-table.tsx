@@ -140,7 +140,7 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                   target="_blank"
                   className=" p-2 bg-neutral-500 rounded-md"
                 >
-                  {visit.VSID}
+                  {visit.VSID || "No VSID"}
                 </Link>
               </TableCell>
 

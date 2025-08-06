@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { format } from "date-fns";
 
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { InfinityLoader } from "@/components/Loaders";
 import { Textarea } from "@/components/ui/textarea";
+import { set } from "mongoose";
+import { VisitInterface } from "@/util/type";
 
 interface BookingFormSchema {
   lead: string;
@@ -56,6 +58,7 @@ interface PageProps {
 }
 
 const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
+  
   const [bookingFormValues, setBookingFormValues] = useState<BookingFormSchema>(
     {
       lead: lead,
@@ -91,6 +94,20 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [contractStatus, setContractStatus] = useState(false);
+  const [visits, setVisits] = useState<VisitInterface | null>(null)
+
+  const getVisitData = async()=>{
+    try {
+      const response = await axios.post(`/api/visits/getVisitById`, {visitId: visit});
+      console.log(response.data.data);
+      setVisits(response.data.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  useEffect(() => {
+    getVisitData();
+  }, []);
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -118,6 +135,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       [key]: typeof value === "string" ? value.trim() : value,
     }));
   };
+  console.log("lead: ", lead, "visit: ", visit);
 
   return (
     <div className=" flex flex-col gap-y-2">
@@ -195,7 +213,8 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       <div className=" grid grid-cols-2 items-center gap-x-2">
         <div>
           <Label>Pitched Amount</Label>
-          <Input type="number" value={700} disabled />
+          <Input type="number" value={visits?.pitchAmount
+} disabled />
         </div>
         <div>
           <Label>Final Amount</Label>
@@ -242,7 +261,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         <p>Owner</p>
         <div>
           <Label>Pitched Amt.</Label>
-          <Input type="number" value={700} disabled />
+          <Input type="number" value={visits?.ownerCommission} disabled />
         </div>
         <div>
           <Label>Final Amt.</Label>
@@ -283,7 +302,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         <p>Traveller</p>
         <div>
           <Label>Pitched Amt.</Label>
-          <Input type="number" value={700} disabled />
+          <Input type="number" value={visits?.travellerCommission} disabled />
         </div>
         <div>
           <Label>Final Amt.</Label>

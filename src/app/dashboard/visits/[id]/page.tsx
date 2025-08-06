@@ -58,7 +58,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: Date) => {
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -321,7 +321,7 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                   >
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4 text-gray-500" />
-                      {/* <span className="font-medium">{formatDate(slot.date)}</span> */}
+                      <span className="font-medium">{formatDate(new Date(slot.date))}</span>
                     </div>
                     <Separator orientation="vertical" className="h-4" />
                     <div className="flex items-center space-x-2">

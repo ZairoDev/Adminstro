@@ -160,7 +160,8 @@ const Dashboard = () => {
     isLoading: isLoadingTodayLeads,
   } = useTodayLeads();
 
-  const { loading, visits, fetchVisits } = WeeksVisit();
+  const { loading, visits, fetchVisits, visitsToday ,fetchVisitsToday,} = WeeksVisit();
+  // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
     reviews,
     revLoading,
@@ -443,6 +444,14 @@ const Dashboard = () => {
         token?.email === "vikas@vacationsaga.com") && (
         <section>
           <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales by Agent</CardTitle>
+            </CardHeader>
+            <CardContent>
+              
+            </CardContent>
+          </Card>
           <div className=" grid grid-cols-1 md:grid-cols-2 gap-6  border rounded-md">
             <div className=" relative">
               <CustomSelect
@@ -592,54 +601,11 @@ const Dashboard = () => {
       )}
 
       {token?.role === "SuperAdmin" && (
-        <div className="grid grid-cols-2">
+        <div className="grid grid-cols-2 gap-4">
           <div className="relative  mt-8">
-            {/* <Card>
-            <CardHeader className="relative">
-              <CardTitle className="text-center text-2xl">
-                Visits DashBoard
-              </CardTitle>
-              
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig}>
-                <BarChart
-                  accessibilityLayer
-                  data={visits}
-                  margin={{
-                    top: 5,
-                  }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="_id"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 5)}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Bar
-                    dataKey="count"
-                    fill="hsl(var(--color-primary))"
-                    radius={8}
-                  >
-                    <LabelList
-                      position="top"
-                      offset={12}
-                      className="fill-foreground"
-                      fontSize={12}
-                    />
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card> */}
             <CustomSelect
               itemList={[
+                "Today",
                 "All",
                 "yesterday",
                 "last month",
@@ -649,8 +615,8 @@ const Dashboard = () => {
                 "1 month",
                 "3 months",
               ]}
-              triggerText="Select days"
-              defaultValue="All"
+              triggerText="Select days" 
+              defaultValue="Today"
               onValueChange={(value) => {
                 const newLeadFilters = { ...visitsFilter };
                 newLeadFilters.days = value;
@@ -662,6 +628,36 @@ const Dashboard = () => {
             <VisitsCountBarChart
               heading={"Visits Dashboard  "}
               chartData={visits}
+            />
+          </div>
+          <div className="relative  mt-8">
+            <CustomSelect
+              itemList={[
+                "Today",
+                "Tomorrow",
+                "yesterday",
+                "This Week",
+                "Next Week",
+                "last month",
+                "this month",
+                "10 days",
+                "15 days",
+                "1 month",
+                "3 months", 
+              ]}
+              triggerText="Select days"
+              defaultValue="Today"
+              onValueChange={(value) => {
+                const newLeadFilters = { ...visitsFilter };
+                newLeadFilters.days = value;
+                // setVisitsFilter(newLeadFilters);
+                fetchVisitsToday(newLeadFilters);
+              }}
+              triggerClassName=" w-32 absolute left-2 top-2"
+            />
+            <VisitsCountBarChart
+              heading={"Visits Dashboard  "}
+              chartData={visitsToday}
             />
           </div>
         </div>

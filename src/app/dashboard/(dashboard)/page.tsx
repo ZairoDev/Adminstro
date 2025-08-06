@@ -1,11 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
 
 import { TrendingUp } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import {
   ChartConfig,
@@ -89,6 +91,21 @@ import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
   portugal: {
     label: "Portugal",
     color: "hsl(var(--chart-5))",
+  italy: {
+    label: "Italy",
+    color: "hsl(var(--chart-2))",
+  },
+  croatia: {
+    label: "Croatia",
+    color: "hsl(var(--chart-3))",
+  },
+  spain: {
+    label: "Spain",
+    color: "hsl(var(--chart-4))",
+  },
+  portugal: {
+    label: "Portugal",
+    color: "hsl(var(--chart-5))",
   },
 } satisfies ChartConfig;
 
@@ -110,8 +127,18 @@ const Dashboard = () => {
     days?: string;
   }>({});
 
+  const [visitsFilter,setVisitsFilter] = useState<{
+    days?: string;
+  }>({});
+
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
+    createdBy?: string;
+  }>({});
+
+  const [reviewsFilters, setReviewsFilters] = useState<{
+    days?: string;
+    location?: string;
     createdBy?: string;
   }>({});
 
@@ -159,6 +186,18 @@ const Dashboard = () => {
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
   } = useTodayLeads();
+
+  const { loading, visits, fetchVisits } = WeeksVisit();
+  const {
+    reviews,
+    revLoading,
+    setRevLoading,
+    revError,
+    setRevError,
+    revErr,
+    setRevErr,
+    fetchReviews,
+  } = useReview();
 
   const { loading, visits, fetchVisits } = WeeksVisit();
   const {
@@ -413,6 +452,51 @@ const Dashboard = () => {
               </div>
             )}
 
+            {reviews && (
+              <div className=" relative">
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "yesterday",
+                    "last month",
+                    "this month",
+                    "10 days",
+                    "15 days",
+                    "1 month",
+                    "3 months",
+                  ]}
+                  triggerText="Select days"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...reviewsFilters };
+                    newLeadFilters.days = value;
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-2"
+                />
+
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...reviewsFilters };
+                    newLeadFilters.createdBy = value;
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName=" w-32 absolute left-2 top-16 "
+                />
+                <ReviewPieChart
+                  chartData={reviews}
+                  // heading="Leads By Location"
+                  // // footer="Footer data"
+                  // key="fdg"
+                />
+              </div>
+            )}
+
             {/* <Card className="shadow-md">
           <CardHeader>
           <CardTitle>Leads by Location</CardTitle>
@@ -600,6 +684,14 @@ const Dashboard = () => {
                 Visits DashBoard
               </CardTitle>
               
+        <div className="grid grid-cols-2">
+          <div className="relative  mt-8">
+            {/* <Card>
+            <CardHeader className="relative">
+              <CardTitle className="text-center text-2xl">
+                Visits DashBoard
+              </CardTitle>
+              
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig}>
@@ -610,14 +702,26 @@ const Dashboard = () => {
                     top: 5,
                   }}
                 >
+                <BarChart
+                  accessibilityLayer
+                  data={visits}
+                  margin={{
+                    top: 5,
+                  }}
+                >
                   <CartesianGrid vertical={false} />
                   <XAxis
+                    dataKey="_id"
                     dataKey="_id"
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
                     tickFormatter={(value) => value.slice(0, 5)}
+                    tickFormatter={(value) => value.slice(0, 5)}
                   />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent hideLabel />}
@@ -634,10 +738,47 @@ const Dashboard = () => {
                       fontSize={12}
                     />
                   </Bar>
+                    dataKey="count"
+                    fill="hsl(var(--color-primary))"
+                    radius={8}
+                  >
+                    <LabelList
+                      position="top"
+                      offset={12}
+                      className="fill-foreground"
+                      fontSize={12}
+                    />
+                  </Bar>
                 </BarChart>
               </ChartContainer>
             </CardContent>
           </Card> */}
+            <CustomSelect
+              itemList={[
+                "All",
+                "yesterday",
+                "last month",
+                "this month",
+                "10 days",
+                "15 days",
+                "1 month",
+                "3 months",
+              ]}
+              triggerText="Select days"
+              defaultValue="All"
+              onValueChange={(value) => {
+                const newLeadFilters = { ...visitsFilter };
+                newLeadFilters.days = value;
+                setVisitsFilter(newLeadFilters);
+                fetchVisits(newLeadFilters);
+              }}
+              triggerClassName=" w-32 absolute left-2 top-2"
+            />
+            <VisitsCountBarChart
+              heading={"Visits Dashboard  "}
+              chartData={visits}
+            />
+          </div>
             <CustomSelect
               itemList={[
                 "All",

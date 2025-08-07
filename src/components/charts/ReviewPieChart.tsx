@@ -73,11 +73,28 @@ export const ReviewPieChart = ({chartData}:{chartData:any})=>{
          </ChartContainer>
        </CardContent>
        <CardFooter className="flex-col gap-2 text-sm mt-3">
-         {/* <div className="text-muted-foreground leading-none">Nothing</div> */}
-         <div>
-           Total : {chartData?.reduce((acc: number, item : any) => acc + item.count, 0)}
+         <div className="flex flex-wrap gap-4">
+           {Object.entries(charconfig).map(([key, { label, color }]) => (
+             <div key={key} className="flex items-center gap-2">
+               <span
+                 className="w-4 h-4 rounded-full"
+                 style={{ backgroundColor: color }}
+               />
+               <span className="text-sm font-medium">{label}</span>
+             </div>
+           ))}
          </div>
-       </CardFooter>                
-     </Card>                                                                                                            
+         <div className="absolute top-8 right-4">
+           Total :{" "}
+           {chartData?.reduce((acc: number, item: any) => acc + item.count, 0)}
+         </div>
+         <div className="absolute top-4 right-4">
+          Usable Leads:{" "}
+          {chartData
+            ?.filter((item: any) => item._id === "Good" || item._id === "Very Good" || item._id === "Average")
+            .reduce((acc: number, item: any) => acc + item.count, 0)}
+         </div>
+       </CardFooter>
+     </Card>
    );
 }

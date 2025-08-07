@@ -68,6 +68,10 @@ import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
 import { VisitsCountBarChart } from "@/components/charts/VisitsCountBarChart";
 import useReview from "@/hooks/(VS)/useReviews";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
+import { table } from "console";
+import { list } from "postcss";
+// import { UnregisteredOwnersTable } from "@/app/dashboard/unregistered-owner/unregisteredTable";
+import { useRouter } from "next/navigation";
 
  const chartConfig = {
   greece: {
@@ -99,6 +103,9 @@ const Dashboard = () => {
   const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
     new Date(2025, 5, 12)
   );
+  const [listUnregisteredOwners, setUnregisteredOwners] = useState(false);
+
+  const [fetchloading, setFetchLoading] = useState(false);
 
   const [leadsFilters, setLeadsFilters] = useState<{
     days?: string;
@@ -160,11 +167,11 @@ const Dashboard = () => {
     isLoading: isLoadingTodayLeads,
   } = useTodayLeads();
 
-  const { loading, visits, fetchVisits, visitsToday ,fetchVisitsToday,} = WeeksVisit();
+  const { loading,setloading, visits, fetchVisits, visitsToday ,fetchVisitsToday,goodVisits,fetchGoodVisitsCount,unregisteredOwners,fetchUnregisteredVisits} = WeeksVisit();
   // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
     reviews,
-    revLoading,
+    revLoading, 
     setRevLoading,
     revError,
     setRevError,
@@ -172,6 +179,23 @@ const Dashboard = () => {
     setRevErr,
     fetchReviews,
   } = useReview();
+
+  const router = useRouter();
+
+  const handleClick = ()=>{
+    const serialized = encodeURIComponent(JSON.stringify(unregisteredOwners));
+    router.push(`dashboard/unregistered-owner?owners=${serialized}`);
+  }
+
+const handlfetch = async()=>{
+  setFetchLoading(true);
+  fetchUnregisteredVisits();
+  fetchVisitsToday({days:"today"});
+  fetchVisits({days:"today"});
+  fetchGoodVisitsCount();
+  setFetchLoading(false);
+}
+
 
   const todaysLeadChartData = todayLeads?.map((lead) => {
     const label = lead.createdBy;
@@ -212,6 +236,8 @@ const Dashboard = () => {
     (acc, curr) => acc + curr.count,
     0
   );
+
+  const labels = ["0", "1", "2", "3", "4", "5+"];
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -448,9 +474,7 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle>Sales by Agent</CardTitle>
             </CardHeader>
-            <CardContent>
-              
-            </CardContent>
+            <CardContent></CardContent>
           </Card>
           <div className=" grid grid-cols-1 md:grid-cols-2 gap-6  border rounded-md">
             <div className=" relative">
@@ -601,67 +625,142 @@ const Dashboard = () => {
       )}
 
       {token?.role === "SuperAdmin" && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="relative  mt-8">
-            <CustomSelect
-              itemList={[
-                "Today",
-                "All",
-                "yesterday",
-                "last month",
-                "this month",
-                "10 days",
-                "15 days",
-                "1 month",
-                "3 months",
-              ]}
-              triggerText="Select days" 
-              defaultValue="Today"
-              onValueChange={(value) => {
-                const newLeadFilters = { ...visitsFilter };
-                newLeadFilters.days = value;
-                setVisitsFilter(newLeadFilters);
-                fetchVisits(newLeadFilters);
-              }}
-              triggerClassName=" w-32 absolute left-2 top-2"
-            />
-            <VisitsCountBarChart
-              heading={"Visits Dashboard  "}
-              chartData={visits}
-            />
-          </div>
-          <div className="relative  mt-8">
-            <CustomSelect
-              itemList={[
-                "Today",
-                "Tomorrow",
-                "yesterday",
-                "This Week",
-                "Next Week",
-                "last month",
-                "this month",
-                "10 days",
-                "15 days",
-                "1 month",
-                "3 months", 
-              ]}
-              triggerText="Select days"
-              defaultValue="Today"
-              onValueChange={(value) => {
-                const newLeadFilters = { ...visitsFilter };
-                newLeadFilters.days = value;
-                // setVisitsFilter(newLeadFilters);
-                fetchVisitsToday(newLeadFilters);
-              }}
-              triggerClassName=" w-32 absolute left-2 top-2"
-            />
-            <VisitsCountBarChart
-              heading={"Visits Dashboard  "}
-              chartData={visitsToday}
-            />
+        <div className="relative">
+          <span onClick={handlfetch} className="bg-white p-1 absolute right-1/2 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 rounded-lg">
+            <RotateCw className={fetchloading || loading ? "animate-spin" : ""}  color="black" size={32}/>
+          </span>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="relative  mt-8">
+              <CustomSelect
+                itemList={[
+                  "Today",
+                  "All",
+                  "yesterday",
+                  "last month",
+                  "this month",
+                  "10 days",
+                  "15 days",
+                  "1 month",
+                  "3 months",
+                ]}
+                triggerText="Select days"
+                defaultValue="Today"
+                onValueChange={(value) => {
+                  const newLeadFilters = { ...visitsFilter };
+                  newLeadFilters.days = value;
+                  setVisitsFilter(newLeadFilters);
+                  fetchVisits(newLeadFilters);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-2"
+              />
+              <VisitsCountBarChart
+                heading={"Visits Dashboard  "}
+                chartData={visits}
+              />
+            </div>
+            <div className="relative  mt-8">
+              <CustomSelect
+                itemList={[
+                  "Today",
+                  "Tomorrow",
+                  "yesterday",
+                  "This Week",
+                  "Next Week",
+                  "last month",
+                  "this month",
+                  "10 days",
+                  "15 days",
+                  "1 month",
+                  "3 months",
+                ]}
+                triggerText="Select days"
+                defaultValue="Today"
+                onValueChange={(value) => {
+                  const newLeadFilters = { ...visitsFilter };
+                  newLeadFilters.days = value;
+                  // setVisitsFilter(newLeadFilters);
+                  fetchVisitsToday(newLeadFilters);
+                }}
+                triggerClassName=" w-32 absolute left-2 top-2"
+              />
+              <VisitsCountBarChart
+                heading={"Visits Dashboard  "}
+                chartData={visitsToday}
+              />
+            </div>
           </div>
         </div>
       )}
+
+      {token?.role === "SuperAdmin" && (
+        <div className="flex flex-col md:flex-row gap-6 mt-8">
+          {/* Properties Shown Summary (larger width) */}
+          <div className="flex-1 p-6 border rounded-xl shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              Properties Shown Summary
+            </h2>
+
+            {goodVisits ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
+                  <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    <tr>
+                      <th className="px-4 py-2 font-semibold border-b">
+                        Total Leads
+                      </th>
+                      {labels.map((label) => (
+                        <th
+                          key={label}
+                          className="px-4 py-2 font-semibold border-b"
+                        >
+                          {label} Shown
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white dark:bg-gray-950">
+                      <td className="px-4 py-2 border-b">{goodVisits.total}</td>
+                      {labels.map((label) => (
+                        <td key={label} className="px-4 py-2 border-b">
+                          {goodVisits[label]}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex justify-center items-center h-24">
+                <h1 className="text-xl text-gray-500 dark:text-gray-400">
+                  No Data Available
+                </h1>
+              </div>
+            )}
+          </div>
+
+          {/* Unregistered Owners (smaller box) */}
+          <div className="w-full md:w-[250px] p-6 border rounded-xl shadow-md">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              Unregistered Owners
+            </h2>
+            <div
+              onClick={handleClick}
+              className="text-3xl mt-6 font-bold text-center cursor-pointer text-indigo-600 dark:text-indigo-400"
+            >
+              {unregisteredOwners.length}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* {unregisteredOwners.length > 0 && listUnregisteredOwners && (
+        <div className="fixed inset-0 flex justify-center items-center h-full w-full bg-black bg-opacity-50 z-50">
+          <UnregisteredOwnersTable
+            owners={unregisteredOwners}
+            setUnregisteredOwners={setUnregisteredOwners}
+          />
+        </div>
+      )}   */}
 
       {/* <LabelledPieChart chartData={chartData} /> */}
       {/* <LabelledBarChart chartData={chartData} /> */}

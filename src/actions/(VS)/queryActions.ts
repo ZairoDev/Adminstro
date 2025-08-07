@@ -514,9 +514,12 @@ export const getDashboardData = async ({
 };
 
 export const getTodayLeads = async () => {
-  const today = new Date();
-  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(now);
+  endOfDay.setHours(23, 59, 59, 999);
 
   const pipeline = [
     {
@@ -575,63 +578,115 @@ export const getTodayLeads = async () => {
   return { serializedLeads: leadsByAgentName, totalLeads };
 };
 
-export const getWeeksVisit = async({days}:{days?:string}) =>{
-  const filters: Record<string, any> = {}
+export const getWeeksVisit = async ({ days }: { days?: string }) => {
+  const filters: Record<string, any> = {};
+
   if (days) {
-    switch (days) {
-      case "Today":
+    const now = new Date();
+
+    switch (days.toLowerCase()) {
+      case "today": {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
         filters.createdAt = {
-          $gte: new Date(Date.now()),
-          $lt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        }
-      case "yesterday":
-        filters.createdAt = {
-          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          $gte: start,
+          $lte: end,
         };
         break;
-      case "last month":
-        const now = new Date();
+      }
+
+      case "yesterday": {
+        const start = new Date();
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+
+        filters.createdAt = {
+          $gte: start,
+          $lte: end,
+        };
+        break;
+      }
+
+      case "last month": {
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(
           now.getFullYear(),
           now.getMonth() - 1,
           1
         );
+
         filters.createdAt = {
           $gte: startOfLastMonth,
           $lt: startOfThisMonth,
         };
         break;
-      case "this month":
-        const dt = new Date();
-        dt.setDate(1);
-        dt.setHours(0, 0, 0, 0);
+      }
+
+      case "this month": {
+        const dt = new Date(now.getFullYear(), now.getMonth(), 1);
         filters.createdAt = {
           $gte: dt,
         };
         break;
-      case "10 days":
+      }
+
+      case "10 days": {
+        const start = new Date();
+        start.setDate(start.getDate() - 10);
+        start.setHours(0, 0, 0, 0);
+
         filters.createdAt = {
-          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          $gte: start,
         };
         break;
-      case "15 days":
+      }
+
+      case "15 days": {
+        const start = new Date();
+        start.setDate(start.getDate() - 15);
+        start.setHours(0, 0, 0, 0);
+
         filters.createdAt = {
-          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+          $gte: start,
         };
         break;
-      case "1 month":
+      }
+
+      case "1 month": {
+        const start = new Date();
+        start.setMonth(start.getMonth() - 1);
+        start.setHours(0, 0, 0, 0);
+
         filters.createdAt = {
-          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          $gte: start,
         };
         break;
-      case "3 months":
+      }
+
+      case "3 months": {
+        const start = new Date();
+        start.setMonth(start.getMonth() - 3);
+        start.setHours(0, 0, 0, 0);
+
         filters.createdAt = {
-          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+          $gte: start,
         };
+        break;
+      }
+
+      default:
         break;
     }
   }
+
   const pipeline = [
     {
       $match: filters,
@@ -650,18 +705,18 @@ export const getWeeksVisit = async({days}:{days?:string}) =>{
         _id: "$leadData.location",
         count: { $sum: 1 },
       },
-    },{
-      $sort:{
-        count:-1 as const
-      }
-    }
+    },
+    {
+      $sort: {
+        count: -1 as const,
+      },
+    },
   ];
 
   const visits = await Visits.aggregate(pipeline);
-  // console.log("visits: ", visits);
+  return { visits };
+};
 
-  return { visits };  
-}
 // const formatDate = (date: Date) =>
 //   date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
 
@@ -860,34 +915,79 @@ export const getReviews = async({days,location,createdBy}:{days?:string;location
   return {reviews}
 }
 
-// export const getUnregisteredOwners = async () => {
+export const getUnregisteredOwners = async () => {
   
-//   const pipeline = [
-//     {
-//       $match: {
-//         "leadQualityByReviewer": "unregistered",
-//       },
-//     },
-//     {
-//       $group: {
-//         _id: "$createdBy",
-//         count: { $sum: 1 },
-//       },
-//     },
-//     {
-//       $sort: {
-//         count: -1 as const,
-//       },
-//     },
-//     {
-//       $limit: 5,
-//     },
-//   ];
+  const pipeline = [
+    {
+      $match: {
+        VSID: "",
+        propertyId: "",
+        ownerPhone: { $exists: true },
+      },
+    },
+    {
+      $group: {
+        _id: "$ownerPhone", // Use ownerPhone as _id
+        ownerName: { $first: "$ownerName" }, // Capture first occurrence of ownerName
+      },
+    },
+    {
+      $lookup: {
+        from: "owners",
+        localField: "_id", // _id holds ownerPhone
+        foreignField: "phoneNumber",
+        as: "result",
+      },
+    },
+    {
+      $match: {
+        result: { $eq: [] }, // Only where no match found in owners
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        ownerPhone: "$_id",
+        ownerName: 1,
+      },
+    },
+  ];
 
-//   const unregisteredOwners = await Query.aggregate(pipeline);
-//   const totalUnregisteredOwners = await Query.countDocuments({
-//     "leadQualityByReviewer": "unregistered",
-//   });
+  const unregisteredOwners = await Visits.aggregate(pipeline);
+  console.log("unregisteredOwners: ", unregisteredOwners);
+  return { unregisteredOwners };
+}
+
+export const getGoodVisitsCount = async()=>{
+  const pipeline = [
+  {
+    $match: {
+      leadStatus: { $in: ["active"] }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        leadStatus: "$leadStatus",
+        propertyShown: "$propertyShown"
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      // leadStatus: "$_id.leadStatus",
+      propertyShown: "$_id.propertyShown",
+      count: 1
+    }
+  }
+];
+
+const count = await Query.aggregate(pipeline);
+console.log("count: ", count);
+return { count };
+}
 
 export const getCountryWisePropertyCount = async ({
   country,

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let EmployeeInput = request.nextUrl.searchParams.get("userInput");
 
   const token = await getDataFromToken(request);
+  console.log(token, "token");
 
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
@@ -36,13 +37,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const validQueryTypes = ["name", "email", "phone"];
-  if (queryType && validQueryTypes.includes(queryType)) {
-    if (EmployeeInput) {
-      const regex = new RegExp(EmployeeInput, "i");
-      query[queryType] = regex;
+  if (queryType) {
+    if (validQueryTypes.includes(queryType)) {
+      if (EmployeeInput) {
+        const regex = new RegExp(EmployeeInput, "i");
+        query[queryType] = regex;
+      }
+    } else {
+      console.log("Invalid queryType:", queryType);
     }
-  } else {
-    console.log("Invalid queryType");
   }
 
   const skip = (currentPage - 1) * 10;
@@ -52,13 +55,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // }
 
   let allEmployees: Employee[] = [];
-
+  // console.log("working in getAllEmployee",role);
   try {
     if (token.role === "LeadGen-TeamLead") {
       allEmployees = await Employees.find({ ...query, role: "LeadGen" }).sort({
         _id: -1,
       });
-    } else {
+    }
+    // else if (role === "Sales") {
+    //   allEmployees = await Employees.find({ ...query, role: "Sales", isActive: true }).sort({
+    //     _id: -1,
+    //   });
+    //   // console.log(allEmployees);
+    // }
+     else {
       allEmployees = await Employees.find(query).sort({ _id: -1 });
     }
 

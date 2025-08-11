@@ -84,37 +84,42 @@ goodVisits1.forEach(item=>{
       }
    }
 
-   const fetchGoodVisitsCount = async()=>{
+   const fetchGoodVisitsCount = async({days}:{days?:string})=>{
       try{
          setloading(true);
          setIsError(false);
          setError("");
-         const response =await getGoodVisitsCount()
+         const response =await getGoodVisitsCount({days});
          setGoodVisits(response.count);
       }catch(err:any){
          const error = new Error(err);
          setIsError(true);
          setError(error.message);
       }
+      finally{
+         setloading(false);
+      }
    }
 
    const fetchUnregisteredVisits = async()=>{
-      try{
-         setloading(true);
-         setIsError(false);
-         setError("");
-         const response = await getUnregisteredOwners();
-         setUnregisteredOwners(response.unregisteredOwners);
-      }catch(err:any){
-         const error = new Error(err);
-         setIsError(true);
-         setError(error.message);
+      try {
+        setloading(true);
+        setIsError(false);
+        setError("");
+        const response = await getUnregisteredOwners();
+        setUnregisteredOwners(response.unregisteredOwners);
+      } catch (err: any) {
+        const error = new Error(err);
+        setIsError(true);
+        setError(error.message);
+      } finally {
+        setloading(false);
       }
    }
    useEffect(()=>{
       fetchVisits({days:"Today"});
       fetchVisitsToday({days:"Today"});
-      fetchGoodVisitsCount();
+      fetchGoodVisitsCount({days:"Today"});
       fetchUnregisteredVisits();
    },[])
    return {

@@ -13,6 +13,7 @@ const bookingSchema = z.object({
     time: z.string(),
   }),
   contract: z.string().optional(),
+  leadClosingBy: z.string().optional(),
   finalAmount: z.number(),
   ownerPayment: z.object({
     finalAmount: z.number(),

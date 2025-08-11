@@ -37,6 +37,9 @@ const bookingSchema = new Schema<bookingValidationSchema>(
     contract: {
       type: String,
     },
+    leadClosingBy: {
+      type: String,
+    },
     finalAmount: {
       type: Number,
       required: true,

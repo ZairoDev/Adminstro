@@ -41,6 +41,7 @@ export default function BookingTable({
   const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [page, setPage] = useState(1);
+  console.log("bookings: ", bookings);  
 
   const handlePaymentStatus = async (
     paymentStatus: "pending" | "paid" | "failed" | "partial",
@@ -92,25 +93,25 @@ export default function BookingTable({
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
 
               <TableCell>
-                <Badge>{format(booking.checkIn.date, "MM-dd-yyyy")}</Badge>
+                <Badge>{format(booking?.checkIn?.date, "MM-dd-yyyy")}</Badge>
                 {"  "}
-                <Badge>{booking.checkIn.time}</Badge>
+                <Badge>{booking?.checkIn?.time}</Badge>
               </TableCell>
 
               <TableCell>
-                <Badge>{format(booking.checkOut.date, "MM-dd-yyyy")}</Badge>
+                <Badge>{format(booking?.checkOut?.date, "MM-dd-yyyy")}</Badge>
                 {"  "}
-                <Badge>{booking.checkOut.time}</Badge>
+                <Badge>{booking?.checkOut?.time}</Badge>
               </TableCell>
 
               <TableCell>1000</TableCell>
 
-              <TableCell>{booking.finalAmount}</TableCell>
+              <TableCell>{booking?.finalAmount}</TableCell>
 
               <TableCell>
                 <Badge>
                   <CustomTooltip
-                    text={`${booking.ownerPayment.amountRecieved} / ${booking.ownerPayment.finalAmount}`}
+                    text={`${booking?.ownerPayment?.amountRecieved} / ${booking?.ownerPayment?.finalAmount}`}
                     desc="Received Amt. / Final Amt."
                   />
                 </Badge>
@@ -119,7 +120,7 @@ export default function BookingTable({
               <TableCell>
                 <Badge>
                   <CustomTooltip
-                    text={`${booking.travellerPayment.amountRecieved} / ${booking.travellerPayment.finalAmount}`}
+                    text={`${booking?.travellerPayment?.amountRecieved} / ${booking?.travellerPayment?.finalAmount}`}
                     desc="Received Amt. / Final Amt."
                   />
                 </Badge>
@@ -130,7 +131,7 @@ export default function BookingTable({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost">
-                      {booking.payment.status?.toUpperCase()}
+                      {booking?.payment.status?.toUpperCase()}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">

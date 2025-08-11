@@ -958,12 +958,117 @@ export const getUnregisteredOwners = async () => {
   return { unregisteredOwners };
 }
 
-export const getGoodVisitsCount = async()=>{
+export const getGoodVisitsCount = async({days}:{days?:string})=>{
+  const filters: Record<string, any> = {};
+  if (days) {
+    const now = new Date();
+
+    switch (days.toLowerCase()) {
+      case "today": {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        filters.createdAt = {
+          $gte: start,
+          $lte: end,
+        };
+        break;
+      }
+
+      case "yesterday": {
+        const start = new Date();
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+
+        filters.createdAt = {
+          $gte: start,
+          $lte: end,
+        };
+        break;
+      }
+
+      case "last month": {
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
+      }
+
+      case "this month": {
+        const dt = new Date(now.getFullYear(), now.getMonth(), 1);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
+      }
+
+      case "10 days": {
+        const start = new Date();
+        start.setDate(start.getDate() - 10);
+        start.setHours(0, 0, 0, 0);
+
+        filters.createdAt = {
+          $gte: start,
+        };
+        break;
+      }
+
+      case "15 days": {
+        const start = new Date();
+        start.setDate(start.getDate() - 15);
+        start.setHours(0, 0, 0, 0);
+
+        filters.createdAt = {
+          $gte: start,
+        };
+        break;
+      }
+
+      case "1 month": {
+        const start = new Date();
+        start.setMonth(start.getMonth() - 1);
+        start.setHours(0, 0, 0, 0);
+
+        filters.createdAt = {
+          $gte: start,
+        };
+        break;
+      }
+
+      case "3 months": {
+        const start = new Date();
+        start.setMonth(start.getMonth() - 3);
+        start.setHours(0, 0, 0, 0);
+
+        filters.createdAt = {
+          $gte: start,
+        };
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+  filters.leadStatus = "active";
   const pipeline = [
   {
-    $match: {
-      leadStatus: { $in: ["active"] }
-    }
+    $match: filters
   },
   {
     $group: {

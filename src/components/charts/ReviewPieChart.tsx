@@ -72,15 +72,15 @@ export const ReviewPieChart = ({chartData}:{chartData:any})=>{
            </PieChart>
          </ChartContainer>
        </CardContent>
-       <CardFooter className="flex-col gap-2 text-sm mt-3">
-         <div className="flex flex-wrap gap-4">
-           {Object.entries(charconfig).map(([key, { label, color }]) => (
-             <div key={key} className="flex items-center gap-2">
+       <CardFooter className="flex-col gap-1 text-sm my-2">
+         <div className="flex flex-wrap gap-3">
+           {data.map(( { label,count,fill }: any) => (
+             <div key={label} className="flex items-center gap-1">
                <span
-                 className="w-4 h-4 rounded-full"
-                 style={{ backgroundColor: color }}
+                 className="w-2 h-2 rounded-full"
+                 style={{ backgroundColor: fill }}
                />
-               <span className="text-sm font-medium">{label}</span>
+               <span className="text-xs font-medium">{label + "(" + count+")"}</span>
              </div>
            ))}
          </div>

@@ -188,12 +188,12 @@ const Dashboard = () => {
   }
 
 const handlfetch = async()=>{
-  setFetchLoading(true);
+  // setFetchLoading(true);
   fetchUnregisteredVisits();
   fetchVisitsToday({days:"today"});
   fetchVisits({days:"today"});
-  fetchGoodVisitsCount();
-  setFetchLoading(false);
+  fetchGoodVisitsCount({days:"today"});
+  // setFetchLoading(false);
 }
 
 
@@ -626,8 +626,15 @@ const handlfetch = async()=>{
 
       {token?.role === "SuperAdmin" && (
         <div className="relative">
-          <span onClick={handlfetch} className="bg-white p-1 absolute right-1/2 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 rounded-lg">
-            <RotateCw className={fetchloading || loading ? "animate-spin" : ""}  color="black" size={32}/>
+          <span
+            onClick={handlfetch}
+            className="bg-white p-1 absolute right-1/2 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 rounded-lg"
+          >
+            <RotateCw
+              className={ loading ? "animate-spin" : ""}
+              color="black"
+              size={32} 
+            />
           </span>
           <div className="grid grid-cols-2 gap-4">
             <div className="relative  mt-8">
@@ -695,11 +702,32 @@ const handlfetch = async()=>{
       {token?.role === "SuperAdmin" && (
         <div className="flex flex-col md:flex-row gap-6 mt-8">
           {/* Properties Shown Summary (larger width) */}
-          <div className="flex-1 p-6 border rounded-xl shadow-md">
+          <div className="relative flex-1 p-6 border rounded-xl shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
               Properties Shown Summary
             </h2>
-
+            <CustomSelect
+              itemList={[
+                "Today",  
+                "All",
+                "yesterday",
+                "last month",
+                "this month",
+                "10 days",
+                "15 days",
+                "1 month",
+                "3 months",
+              ]}
+              triggerText="Select days"
+              defaultValue="Today"
+              onValueChange={(value) => {
+                const newLeadFilters = {} as { days: string };
+                newLeadFilters.days = value;
+                // setReviewsFilters(newLeadFilters);
+              fetchGoodVisitsCount(newLeadFilters);
+              }}
+              triggerClassName="w-32 absolute right-6 top-4"
+            />
             {goodVisits ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">

@@ -33,6 +33,7 @@ interface BookingFormSchema {
   paymentStatus: string;
   finalAmount: number;
   contract?: string;
+  closingBy?: string;
   ownerPayment: {
     finalAmount: number;
     amountRecieved: number;
@@ -74,6 +75,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       paymentStatus: "",
       finalAmount: 0,
       contract: "",
+      closingBy:"",
       ownerPayment: {
         finalAmount: 0,
         amountRecieved: 0,
@@ -95,6 +97,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [contractStatus, setContractStatus] = useState(false);
   const [visits, setVisits] = useState<VisitInterface | null>(null)
+  const [employees, setEmployees] = useState<any[]>([]);
 
   const getVisitData = async()=>{
     try {
@@ -105,8 +108,18 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       console.log(error);
     }
   }
+  const getEmpData = async()=>{
+    try {
+      const response = await axios.get(`/api/employee/getSalesEmployee`);
+      setEmployees(response.data.emp);
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
   useEffect(() => {
     getVisitData();
+    getEmpData();
   }, []);
 
   const handleSubmit = async () => {
@@ -123,6 +136,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       });
     } finally {
       setIsLoading(false);
+      onOpenChange();
     }
   };
 
@@ -209,12 +223,34 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </Select>
       </div>
 
+      <div className=" flex justify-between items-center gap-x-2">
+        <Label>Lead Closing By </Label>
+        <Select
+          onValueChange={(value) => {
+            setBookingFormValues((prev) => ({
+              ...prev,
+              leadClosingBy: value,
+            }));
+          }}
+        >
+          <SelectTrigger>Select Employee</SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {
+                employees.map((emp: any) => (
+                  <SelectItem key={emp._id} value={emp.name}>{emp.name}</SelectItem>
+                ))
+              }
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Negotiated Amount */}
       <div className=" grid grid-cols-2 items-center gap-x-2">
         <div>
           <Label>Pitched Amount</Label>
-          <Input type="number" value={visits?.pitchAmount
-} disabled />
+          <Input type="number" value={visits?.pitchAmount} disabled />
         </div>
         <div>
           <Label>Final Amount</Label>

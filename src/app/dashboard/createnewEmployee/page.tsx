@@ -111,7 +111,7 @@ const NewUser = () => {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data: EmployeeSchema) => {
-    // console.log(data, "I am submitting");
+    console.log(data, "I am submitting");
     setLoading(true);
     const userData = {
       ...data,
@@ -242,6 +242,8 @@ const NewUser = () => {
                             | "Sales"
                             | "Content"
                             | "HR"
+                            | "Intern"
+                            | "Probation"
                         )
                       }
                       value={selectedRole}
@@ -251,6 +253,7 @@ const NewUser = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Intern">Intern</SelectItem>
+                        <SelectItem value="Probation">Probation</SelectItem>
                         <SelectItem value="Admin">Admin</SelectItem>
                         <SelectItem value="Advert">Advert</SelectItem>
                         <SelectItem value="LeadGen">LeadGen</SelectItem>
@@ -289,6 +292,28 @@ const NewUser = () => {
                       </SelectContent>
                     </Select>
                   </div> */}
+                </div>
+                <div>
+                  <label htmlFor="duration">
+                    Internship/Probation Duration
+                  </label>
+                  {/* <input
+                    type="number"
+                    {...register("duration")}
+                    min="1"
+                    placeholder="Enter duration in months"
+                  /> */}
+                  <Input
+                    {...register("duration")}
+                    type="number"
+                    className="w-full"
+                    placeholder="Enter duration in months"
+                  />
+                  {errors.duration && (
+                    <p className="text-red-500 text-xs">
+                      {errors.duration.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex w-full sm:flex-row flex-col gap-x-2">

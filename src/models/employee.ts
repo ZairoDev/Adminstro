@@ -4,6 +4,8 @@ import { EmployeeSchema } from "@/schemas/employee.schema";
 
 interface IEmployee extends Document, EmployeeSchema {}
 export const employeeRoles = [
+  "Intern",
+  "Probation",
   "HR",
   "Admin",
   "Sales",
@@ -110,6 +112,9 @@ const employeeSchema = new Schema<IEmployee>(
         "Subscription-Sales",
       ],
       default: "Advert",
+    },
+    duration:{
+      type: String,
     },
     isActive: {
       type: Boolean,

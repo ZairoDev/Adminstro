@@ -196,7 +196,6 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Read Blogs",
       Icon: <FileSpreadsheet size={18} />,
     },
-
     {
       path: "/dashboard/createquery",
       label: "Create Lead",
@@ -281,6 +280,43 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/catalogue",
       label: "Manage Catalogue",
       Icon: <Notebook size={18} />,
+    },
+    // ✅ Added missing Guest routes
+    {
+      path: "/dashboard/guest-window",
+      label: "Guest Window",
+      Icon: <CircleHelp size={18} />,
+    },
+    {
+      path: "/dashboard/owners",
+      label: "Owners",
+      Icon: <PersonStanding size={18} />,
+    },
+    // ✅ Added missing Subscription-Sales routes
+    {
+      path: "/dashboard/sales-offer/not-connected",
+      label: "Not Connected",
+      Icon: <PhoneOff size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-interested",
+      label: "Not Interested",
+      Icon: <Frown size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/call-back",
+      label: "Call Back",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/language-barrier",
+      label: "Language Barrier",
+      Icon: <Languages size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklist",
+      label: "Blacklist Lead",
+      Icon: <ShieldAlert size={18} />,
     },
   ],
   Sales: [

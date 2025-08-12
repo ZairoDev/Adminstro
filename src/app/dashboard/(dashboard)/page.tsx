@@ -165,6 +165,7 @@ const Dashboard = () => {
     totalLeads: totalTodayLeads,
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
+    average,
   } = useTodayLeads();
 
   const { loading,setloading, visits, fetchVisits, visitsToday ,fetchVisitsToday,goodVisits,fetchGoodVisitsCount,unregisteredOwners,fetchUnregisteredVisits} = WeeksVisit();
@@ -209,6 +210,12 @@ const handlfetch = async()=>{
   const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
     return { label: lead._id, count: lead.count };
   });
+
+  const emp = allEmployees.length;
+  console.log(emp);
+
+  const averagedata = (average / 30).toFixed(0);
+  const averagedata1 = (Number(averagedata) / emp).toFixed(0);
 
   if (isError) {
     return (
@@ -304,6 +311,8 @@ const handlfetch = async()=>{
                 heading={`Today Leads - ${totalTodayLeads}`}
                 subHeading="Leads by Agent"
                 chartData={todaysLeadChartData ? todaysLeadChartData : []}
+                footer = {`${averagedata1}`}
+                requiredLeads={`${averagedata}`}
               />
               <Button
                 size={"sm"}

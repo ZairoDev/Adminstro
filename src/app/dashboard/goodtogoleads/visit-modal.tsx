@@ -110,6 +110,12 @@ const VisitModal = ({
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
+      if(visitFormValues.ownerCommission ===0 && visitFormValues.travellerCommission ===0 ){
+        toast({
+          title: "Traveller and Owner Commission cannot be zero",
+        })
+        return;
+      }
       await axios.post("/api/visits/addVisit", visitFormValues);
       toast({
         title: "Visit scheduled successfully",

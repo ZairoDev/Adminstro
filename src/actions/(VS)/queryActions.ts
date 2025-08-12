@@ -9,6 +9,7 @@ import { Property } from "@/models/listing";
 import axios from "axios";
 import { from } from "form-data";
 import Visits from "@/models/visit";
+import { MonthlyTarget } from "@/models/monthlytarget";
 
 connectDb();
 
@@ -577,6 +578,41 @@ export const getTodayLeads = async () => {
 
   return { serializedLeads: leadsByAgentName, totalLeads };
 };
+
+export const getAverage = async()=>{
+  const start = new Date(new Date().setDate(new Date().getDate() - 7));
+  const end = new Date();
+
+  // const pipeline1 = [
+  //   {
+  //     $match: {
+  //       createdAt: {
+  //         $gte: start,
+  //         $lte: end,
+  //       },
+  //     },
+  //   },
+  //   {
+  //     $group: {
+  //       _id: null,
+  //       average: { $avg: "$leadQualityByReviewer" },
+  //     },
+  //   },
+  // ];
+  const pipeline2 = [
+    {
+      $group: {
+        _id: null,
+        totalLeads: { $sum: "$leads" },
+      },
+    },
+  ];
+  // const weeklyAverage = await Query.aggregate(pipeline1);                
+  // console.log(weeklyAverage);
+  const totalTarget = await MonthlyTarget.aggregate(pipeline2);
+  console.log(totalTarget);
+  return { totalTarget: totalTarget[0].totalLeads };
+}
 
 export const getWeeksVisit = async ({ days }: { days?: string }) => {
   const filters: Record<string, any> = {};

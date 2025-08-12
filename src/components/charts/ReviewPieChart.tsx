@@ -39,6 +39,12 @@ const charconfig = {
 } satisfies ChartConfig;
 
 type QualityKey = "Good" | "Very Good" | "Average" | "Below Average";
+
+interface Data{
+  label:String;
+  count: number;
+  fill: string;
+}
  
 export const ReviewPieChart = ({chartData}:{chartData:any})=>{
    const data = chartData.map((item: any) => {
@@ -49,6 +55,8 @@ export const ReviewPieChart = ({chartData}:{chartData:any})=>{
        fill: charconfig[label]?.color ?? "gray", // fallback if unknown
      };
    });
+   const total = data.reduce((acc: number, item:Data) => acc + item.count, 0);
+   const usable = data.filter((item:Data) => item.label !== "Below Average").reduce((acc: number, item:Data) => acc + item.count, 0);
    return (
      <Card className="flex flex-col">
        <CardHeader className="items-center pb-4">
@@ -86,15 +94,13 @@ export const ReviewPieChart = ({chartData}:{chartData:any})=>{
          </div>
          <div className="absolute top-8 right-4">
            Total :{" "}
-           {chartData?.reduce((acc: number, item: any) => acc + item.count, 0)}
+           {total}
          </div>
          <div className="absolute top-4 right-4">
-          Usable Leads:{" "}
-          {chartData
-            ?.filter((item: any) => item._id === "Good" || item._id === "Very Good" || item._id === "Average")
-            .reduce((acc: number, item: any) => acc + item.count, 0)}
+          Usable:{" "}
+          {usable + " (" + Math.round((usable / total) * 100) + "%)"}
          </div>
        </CardFooter>
      </Card>
-   );
-}
+   ); 
+}                                                                                                                                       

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 // import { DateRange } from "react-day-picker";
 
-import { getTodayLeads } from "@/actions/(VS)/queryActions";
+import { getAverage, getTodayLeads } from "@/actions/(VS)/queryActions";
+import { get } from "http";
+import { set } from "mongoose";
 
 interface TodaysLeadsInterface {
   locations: {
@@ -16,6 +18,7 @@ interface TodaysLeadsInterface {
 const useTodayLeads = () => {
   const [leads, setLeads] = useState<TodaysLeadsInterface[]>();
   const [totalLeads, setTotalLeads] = useState(0);
+  const [average, setAverage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
@@ -27,6 +30,9 @@ const useTodayLeads = () => {
     setError("");
     try {
       const response = await getTodayLeads();
+      // const res = await getAverage();
+      // console.log("res", res.totalTarget);
+      // setAverage(res.totalTarget);
       setLeads(response.serializedLeads);
       setTotalLeads(response.totalLeads);
     } catch (err: any) {
@@ -38,8 +44,27 @@ const useTodayLeads = () => {
     }
   };
 
+  const fetchAverage = async()=>{
+    setIsLoading(true);
+    setIsError(false);
+    setError("");
+    try {
+      const response = await getAverage();
+      setAverage(response.totalTarget);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+
+
   useEffect(() => {
     fetchLeads();
+    fetchAverage();
   }, []);
 
   const refetch = () => fetchLeads();
@@ -51,6 +76,8 @@ const useTodayLeads = () => {
     isError,
     error,
     refetch,
+    average,
+    setAverage,
   };
 };
 

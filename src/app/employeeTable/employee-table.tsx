@@ -190,7 +190,7 @@ export default function EmployeeTable({
           {filteredEmployee?.map((employee, index) => (
             <TableRow key={employee?._id}>
               <TableCell>{index + 1}</TableCell>
-              <TableCell>{employee.name}</TableCell>
+              <TableCell className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}>{employee.name}</TableCell>
               <TableCell>{employee.phone}</TableCell>
               <TableCell>{employee.email}</TableCell>
               <TableCell>{employee.role}</TableCell>

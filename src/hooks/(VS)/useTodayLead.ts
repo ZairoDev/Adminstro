@@ -18,7 +18,7 @@ interface TodaysLeadsInterface {
 const useTodayLeads = () => {
   const [leads, setLeads] = useState<TodaysLeadsInterface[]>();
   const [totalLeads, setTotalLeads] = useState(0);
-  const [average, setAverage] = useState(0);
+  // const [average, setAverage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
@@ -44,27 +44,13 @@ const useTodayLeads = () => {
     }
   };
 
-  const fetchAverage = async()=>{
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getAverage();
-      setAverage(response.totalTarget);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+ 
 
 
 
   useEffect(() => {
     fetchLeads();
-    fetchAverage();
+    // fetchAverage();
   }, []);
 
   const refetch = () => fetchLeads();
@@ -76,8 +62,6 @@ const useTodayLeads = () => {
     isError,
     error,
     refetch,
-    average,
-    setAverage,
   };
 };
 

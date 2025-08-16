@@ -54,6 +54,8 @@ interface RadialChartProps {
     count: number;
   }[];
   footer?: string;
+  totalAverage: string;
+  empAverage: string;
 }
 
 export function LeadCountPieChart({
@@ -61,6 +63,8 @@ export function LeadCountPieChart({
   subHeading,
   chartData,
   footer,
+  totalAverage,
+  empAverage
 }: RadialChartProps) {
   const newChartData = chartData.map((item) => ({
     ...item,
@@ -151,6 +155,25 @@ export function LeadCountPieChart({
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="text-muted-foreground leading-none">{footer}</div>
       </CardFooter>
+      {/* Bottom Right: Per Employee Info */}
+      <div className="absolute bottom-32 right-2 flex flex-col items-center gap-1 text-white">
+        <div className="text-lg font-bold leading-tight">
+          {empAverage} / Emp
+        </div>
+        <div className="text-sm font-medium leading-tight text-gray-200">
+          Leads Target
+        </div>
+      </div>
+
+      {/* Top Right: Daily Info */}
+      <div className="absolute top-16 right-2 flex flex-col items-center gap-1 text-white">
+        <div className="text-lg font-bold leading-tight">
+          {totalAverage} / Day
+        </div>
+        <div className="text-sm font-medium leading-tight text-gray-200">
+          Required Total
+        </div>
+      </div>
     </Card>
-  );
+  );  
 }

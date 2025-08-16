@@ -18,6 +18,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
+import { set } from "mongoose";
 
 interface PageProps {
   params: {
@@ -47,7 +48,14 @@ const AccountPage = ({ params }: PageProps) => {
   const [loading, setLoading] = useState(false);
   const [experience, setExperience] = useState("");
   const [alias, setAlias] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [allotedArea, setAllotedArea] = useState<String[]>([]);
+  const [salary, setSalary] = useState("");
+  const [empType, setEmpType] = useState("");
+  const [duration, setDuration] = useState("");
   const [user, setUser] = useState<any>();
+  const [selectCountry, setSelectCountry] = useState<String[]>([]);
+  const [city, setCity] = useState<string[]>([]);
 
   const gettheUserdetails = async () => {
     try {
@@ -76,6 +84,11 @@ const AccountPage = ({ params }: PageProps) => {
         setExperience(response.data.data.experience || " ");
         setCountry(response.data.data.country || " ");
         setAlias(response.data.data.alias || " ");
+        setAssignedTo(response.data.data.assignedCountry || " ");
+        setAllotedArea(response.data.data.allotedArea || " ");
+        setSalary(response.data.data.salary || " ");
+        setEmpType(response.data.data.empType || " ");
+        setDuration(response.data.data.duration || " ");
       }
     } catch (error: any) {
       toast({
@@ -85,6 +98,30 @@ const AccountPage = ({ params }: PageProps) => {
       });
     }
   };
+
+  const fetchCountry = async ({ target }: { target: String }) => {
+    try {
+      const response = await axios.get(
+        `/api/addons/target/getLocations?target=${target}`
+      );
+      console.log(response.data);
+      if (target === "country") {
+        setSelectCountry(response.data.data);
+      } else {
+        setCity(response.data.data);
+      }
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "An unexpected error occurred",
+        description: "Please try again.",
+      });
+    }
+  };
+  useEffect(() => {
+    fetchCountry({ target: "country" });
+    fetchCountry({ target: "city" });
+  }, []);
 
   useEffect(() => {
     gettheUserdetails();
@@ -109,6 +146,11 @@ const AccountPage = ({ params }: PageProps) => {
         experience,
         ifsc,
         role,
+        assignedCountry: assignedTo,
+        allotedArea,
+        salary,
+        empType,
+        duration,
       };
       const response = await axios.put(
         "/api/employee/editEmployee",
@@ -330,6 +372,86 @@ const AccountPage = ({ params }: PageProps) => {
 
         <div className="flex items-center mt-2 gap-2 sm:flex-row flex-col">
           <div className="w-full">
+            <Label>Assigned Country</Label>
+            <Select
+              onValueChange={(value) => setAssignedTo(value)}
+              value={assignedTo}
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select employment type" />
+              </SelectTrigger>
+              <SelectContent>
+                {selectCountry.map((country: String,index) => (
+                  <SelectItem key={index} value={country.toString()}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full">
+            <Label>Alloted Area</Label>
+            <Select
+              onValueChange={(value) =>
+                setAllotedArea((prev) => [...prev, value])
+              }
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select employment type" />
+              </SelectTrigger>
+              <SelectContent>
+                {city.map((country: string) => (
+                  <SelectItem key={country} value={country}>
+                    {country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center mt-2 gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label
+              htmlFor="duration"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Duration (months)
+            </Label>
+            <Input
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              type="number"
+              className="h-11"
+              placeholder="Enter duration"
+              min="1"
+            />
+          </div>
+
+          <div className="w-full">
+            <Label
+              htmlFor="empType"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Employment Type *
+            </Label>
+            <Select
+              onValueChange={(value) => setEmpType(value)}
+              value={empType}
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select employment type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Intern">Intern</SelectItem>
+                <SelectItem value="Probation">Probation</SelectItem>
+                <SelectItem value="Permanent">Permanent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center mt-2 gap-2 sm:flex-row flex-col">
+          <div className="w-full">
             <Label>Language</Label>
             <Input
               value={language}
@@ -379,6 +501,23 @@ const AccountPage = ({ params }: PageProps) => {
             <Input
               value={accountNo}
               onChange={(e) => setAccountNumber(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex mt-2 items-center gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <label
+              htmlFor="salary"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Salary *{" "}
+            </label>
+            <Input
+              value={salary}
+              onChange={(e) => setSalary(e.target.value)}
+              className="h-11 mt-2"
+              type="number"
+              placeholder="Enter salary"
             />
           </div>
         </div>

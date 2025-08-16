@@ -50,7 +50,7 @@ interface StackedBarChartProps {
     categories: { field: string; count: number }[];
   }[];
   footer?: string;
-  requiredLeads: string;
+  // requiredLeads: string;
 }
 
 export function CustomStackBarChart({
@@ -58,7 +58,7 @@ export function CustomStackBarChart({
   subHeading,
   chartData,
   footer,
-  requiredLeads,
+  // requiredLeads,
 }: StackedBarChartProps) {
   const newChartData = chartData.map((item) => {
     const flattenedCategories = item.categories.reduce((acc, category) => {
@@ -169,22 +169,22 @@ export function CustomStackBarChart({
           </BarChart>
         </ChartContainer>
       </CardContent>
-      <div className="absolute top-6 left-80 flex-col items-center gap-2">
+      {/* <div className="absolute top-6 left-80 flex-col items-center gap-2">
         <div className="flex gap-2 font-semibold leading-none text-xl">
           Required -
         </div>
         <div className="flex gap-2 font-medium leading-none text-md">
           {footer + "/" + "Emp"}
         </div>
-      </div>
-      <div className="absolute top-6 right-16 flex-col items-center gap-2">
+      </div> */}
+      {/* <div className="absolute top-6 right-16 flex-col items-center gap-2">
         <div className="flex gap-2 font-semibold leading-none text-xl">
           Required -
         </div>
         <div className="flex gap-2 font-medium leading-none text-md">
           {requiredLeads + "/" + "Day"}
         </div>
-      </div>
+      </div> */}
     </Card>
   );
 }

@@ -72,6 +72,7 @@ import { table } from "console";
 import { list } from "postcss";
 // import { UnregisteredOwnersTable } from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { useRouter } from "next/navigation";
+import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 
  const chartConfig = {
   greece: {
@@ -95,6 +96,15 @@ import { useRouter } from "next/navigation";
     color: "hsl(var(--chart-5))",
   },
 } satisfies ChartConfig;
+
+interface BookingDetailsIn {
+  _id: string;
+  "Total Amount": number;
+  "Owner Amount": number;
+  totalOwnerReceived: number;
+  "Traveller Amount": number;
+  totalTravellerReceived: number;
+}
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -152,6 +162,7 @@ const Dashboard = () => {
     allEmployees,
     fetchRejectedLeadGroup,
     rejectedLeadGroups,
+    average,
     isLoading,
     isError,
     error,
@@ -165,7 +176,7 @@ const Dashboard = () => {
     totalLeads: totalTodayLeads,
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
-    average,
+    // average,
   } = useTodayLeads();
 
   const { loading,setloading, visits, fetchVisits, visitsToday ,fetchVisitsToday,goodVisits,fetchGoodVisitsCount,unregisteredOwners,fetchUnregisteredVisits} = WeeksVisit();
@@ -181,12 +192,16 @@ const Dashboard = () => {
     fetchReviews,
   } = useReview();
 
+  const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
+
   const router = useRouter();
 
   const handleClick = ()=>{
     const serialized = encodeURIComponent(JSON.stringify(unregisteredOwners));
     router.push(`dashboard/unregistered-owner?owners=${serialized}`);
   }
+
+  console.log("Booking Details0",bookingDetails); 
 
 const handlfetch = async()=>{
   // setFetchLoading(true);
@@ -245,6 +260,18 @@ const handlfetch = async()=>{
   );
 
   const labels = ["0", "1", "2", "3", "4", "5+"];
+
+  const bookingLabels = [
+    "Total Amount",
+    "Traveller Received / Amount",
+    "Owner Received / Amount",
+    "Documentaion Charges",
+    "Agents Commision",
+    "Received Amount/Final Amount",
+  ];
+  const FinalAmount = ((bookingDetails?.ownerAmount ?? 0) + (bookingDetails?.travellerAmount ??0)) - ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
+
+  const finalReceived = ((bookingDetails?.totalOwnerReceived ?? 0) + (bookingDetails?.totalTravellerReceived ?? 0))- ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -311,8 +338,8 @@ const handlfetch = async()=>{
                 heading={`Today Leads - ${totalTodayLeads}`}
                 subHeading="Leads by Agent"
                 chartData={todaysLeadChartData ? todaysLeadChartData : []}
-                footer = {`${averagedata1}`}
-                requiredLeads={`${averagedata}`}
+                // footer = {`${totalTodayLeads} leads`}
+                // requiredLeads={`${averagedata}`}
               />
               <Button
                 size={"sm"}
@@ -580,6 +607,8 @@ const handlfetch = async()=>{
                 <LeadCountPieChart
                   heading="Leads Count"
                   chartData={leadsGroupCount.length > 0 ? leadsGroupCount : []}
+                  totalAverage={averagedata}
+                  empAverage={averagedata1}
                 />
               ) : (
                 <div>
@@ -640,9 +669,9 @@ const handlfetch = async()=>{
             className="bg-white p-1 absolute right-1/2 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 rounded-lg"
           >
             <RotateCw
-              className={ loading ? "animate-spin" : ""}
+              className={loading ? "animate-spin" : ""}
               color="black"
-              size={32} 
+              size={32}
             />
           </span>
           <div className="grid grid-cols-2 gap-4">
@@ -717,7 +746,7 @@ const handlfetch = async()=>{
             </h2>
             <CustomSelect
               itemList={[
-                "Today",  
+                "Today",
                 "All",
                 "yesterday",
                 "last month",
@@ -733,7 +762,7 @@ const handlfetch = async()=>{
                 const newLeadFilters = {} as { days: string };
                 newLeadFilters.days = value;
                 // setReviewsFilters(newLeadFilters);
-              fetchGoodVisitsCount(newLeadFilters);
+                fetchGoodVisitsCount(newLeadFilters);
               }}
               triggerClassName="w-32 absolute right-6 top-4"
             />
@@ -790,17 +819,88 @@ const handlfetch = async()=>{
           </div>
         </div>
       )}
-      {/* {unregisteredOwners.length > 0 && listUnregisteredOwners && (
-        <div className="fixed inset-0 flex justify-center items-center h-full w-full bg-black bg-opacity-50 z-50">
-          <UnregisteredOwnersTable
-            owners={unregisteredOwners}
-            setUnregisteredOwners={setUnregisteredOwners}
-          />
-        </div>
-      )}   */}
+      {token?.role === "SuperAdmin" && (
+        <div className="flex flex-col md:flex-row gap-6 mt-8">
+          {/* Properties Shown Summary (larger width) */}
+          <div className="relative flex-1 p-6 border rounded-xl shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              Booking Summary
+            </h2>
+            <CustomSelect
+              itemList={[
+                "Today",
+                "All",
+                "yesterday",
+                "last month",
+                "this month",
+                "10 days",
+                "15 days",
+                "1 month",
+                "3 months",
+              ]}
+              triggerText="Select days"
+              defaultValue="Today"
+              onValueChange={(value) => {
+                const newLeadFilters = {} as { days: string };
+                newLeadFilters.days = value;
+                // setReviewsFilters(newLeadFilters);
+                fetchBookingDetails (newLeadFilters);
+              }}
+              triggerClassName="w-32 absolute right-6 top-4"
+            />
+            {bookingDetails ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
+                  <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    <tr>
+                      {bookingLabels.map((label) => (
+                        <th
+                          key={label}
+                          scope="col"
+                          className="px-4 py-2 text-xs font-semibold text-left border-b"
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white dark:bg-gray-950 text-center">
+                      <td className="px-4 py-2 border-b">
+                        €{bookingDetails?.totalAmount ?? 0}
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        €{bookingDetails?.totalTravellerReceived ?? 0} / €
+                        {bookingDetails?.travellerAmount ?? 0}
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        €{bookingDetails?.totalOwnerReceived ?? 0} / €
+                        {bookingDetails?.ownerAmount ?? 0}
+                      </td>
 
-      {/* <LabelledPieChart chartData={chartData} /> */}
-      {/* <LabelledBarChart chartData={chartData} /> */}
+                      <td className="px-4 py-2 border-b">
+                        €{bookingDetails?.totalAgentCommission ?? 0}
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        €{bookingDetails?.totalDocumentationCommission ?? 0}
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        €{finalReceived ?? 0} / €{FinalAmount ?? 0}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex justify-center items-center h-24">
+                <h1 className="text-xl text-gray-500 dark:text-gray-400">
+                  No Data Available
+                </h1>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

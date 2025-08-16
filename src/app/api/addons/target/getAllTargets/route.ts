@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
 import { NextResponse } from "next/server";

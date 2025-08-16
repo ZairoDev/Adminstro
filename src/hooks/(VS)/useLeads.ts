@@ -3,6 +3,7 @@ import { DateRange } from "react-day-picker";
 
 import {
   getAllAgent,
+  getAverage,
   getGroupedLeads,
   getLeadsByLocation,
   getLeadsGroupCount,
@@ -45,6 +46,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   >([]);
   const [locationLeads,setLocationLeads] = useState<locationLeadsIn[]>([]);
   const [allEmployees,setAllEmployees] = useState<string[]>([]);
+  const [average, setAverage] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -133,8 +135,25 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+  const fetchAverage = async () => {
+    setIsLoading(true);
+    setIsError(false);
+    setError("");
+    try {
+      const response = await getAverage();
+      setAverage(response.totalTarget);
+    } catch (err: any) {
+      const error = new Error(err);
+      setIsError(true);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchLeads({ date });
+    fetchAverage();
     fetchLeadStatus({});
     fetchAllEmployees();
     fetchLeadByLocation({});
@@ -150,6 +169,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     fetchLeadByLocation,
     leadsGroupCount,
     fetchLeadStatus,
+    average,
     allEmployees,
     rejectedLeadGroups,
     fetchRejectedLeadGroup,

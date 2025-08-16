@@ -24,6 +24,11 @@ interface RequestBody {
   experience?: string;
   ifsc?: string;
   role?: string;
+  assignedCountry?: string;
+  allotedArea?: string[];
+  salary?: number;
+  empType?: string;
+  duration?: string;
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -38,6 +43,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     const body: RequestBody = await request.json();
+    // console.log(body, "Body will print here");
 
     const { _id, ...updateFields } = body;
     if (!_id) {
@@ -73,6 +79,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.experience = updateFields.experience;
     if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
     if (updateFields.role) updateData.role = updateFields.role;
+    if (updateFields.assignedCountry)
+      updateData.assignedCountry = updateFields.assignedCountry;
+    if (updateFields.allotedArea)
+      updateData.allotedArea = updateFields.allotedArea;
+    if (updateFields.salary) updateData.salary = updateFields.salary;
+    if (updateFields.empType) updateData.empType = updateFields.empType;
+    if (updateFields.duration) updateData.duration = updateFields.duration;
 
     const user = await Employees.findOneAndUpdate(
       { _id },

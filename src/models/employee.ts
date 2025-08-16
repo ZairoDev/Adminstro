@@ -4,8 +4,6 @@ import { EmployeeSchema } from "@/schemas/employee.schema";
 
 interface IEmployee extends Document, EmployeeSchema {}
 export const employeeRoles = [
-  "Intern",
-  "Probation",
   "HR",
   "Admin",
   "Sales",
@@ -83,6 +81,7 @@ const employeeSchema = new Schema<IEmployee>(
       type: String,
       default: "",
     },
+
     password: {
       type: String,
       required: [true, "Password is required"],
@@ -91,6 +90,18 @@ const employeeSchema = new Schema<IEmployee>(
       type: [String],
       required: false,
     },
+    assignedCountry:{
+      type:String,
+      default:""
+    },
+    empType:{
+      type:String,
+      default:""
+    },
+    salary:{
+      type:Number,
+      default:0
+    },
     isVerified: {
       type: Boolean,
       default: true,
@@ -98,6 +109,7 @@ const employeeSchema = new Schema<IEmployee>(
     role: {
       type: String,
       enum: [
+        "Intern",
         "Admin",
         "Advert",
         "LeadGen",
@@ -108,7 +120,6 @@ const employeeSchema = new Schema<IEmployee>(
         "HR",
         "Developer",
         "Guest",
-        "Intern",
         "Subscription-Sales",
       ],
       default: "Advert",

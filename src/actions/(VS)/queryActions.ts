@@ -10,6 +10,7 @@ import axios from "axios";
 import { from } from "form-data";
 import Visits from "@/models/visit";
 import { MonthlyTarget } from "@/models/monthlytarget";
+import Bookings from "@/models/booking";
 
 connectDb();
 
@@ -1165,4 +1166,117 @@ export const getCountryWisePropertyCount = async ({
   });
 
   return { countryWisePropertyCount, totalPropertyCount };
+};
+
+export const getAmountDetails = async ({
+  days,
+  location,
+  createdBy,
+}: {
+  days?: string;
+  location?: string;
+  createdBy?: string;
+}) => {
+  const filters: Record<string, any> = {};
+  if (days && days !== "All") {
+    switch (days.toLowerCase()) {
+      case "today": {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        filters.createdAt = {
+          $gte: start,
+          $lte: end,
+        };
+        break;
+      }
+      case "yesterday":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "last month":
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        filters.createdAt = {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        };
+        break;
+      case "this month":
+        const dt = new Date();
+        dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
+        filters.createdAt = {
+          $gte: dt,
+        };
+        break;
+      case "10 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "15 days":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        };
+        break;
+      case "1 month":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        };
+    }
+  }
+  if (location) {
+    filters.location = location;
+  }
+  if (createdBy) {
+    filters.createdBy = createdBy;
+  }
+  const pipeline = [
+    {
+      $match: filters,
+    },
+    {
+      $lookup: {
+        from: "visits",
+        localField: "visit",
+        foreignField: "_id",
+        as: "visitDetails",
+      },
+    },
+    {
+      $unwind: {
+        path: "$visitDetails",
+        preserveNullAndEmptyArrays: true, // optional if some payments may not have a visit
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: "$finalAmount" },
+        ownerAmount: { $sum: "$ownerPayment.finalAmount" },
+        totalOwnerReceived: { $sum: "$ownerPayment.amountRecieved" },
+        travellerAmount: { $sum: "$travellerPayment.finalAmount" },
+        totalTravellerReceived: { $sum: "$travellerPayment.amountRecieved" },
+        totalAgentCommission: { $sum: "$visitDetails.agentCommission" },
+        totalDocumentationCommission: {
+          $sum: "$visitDetails.documentationCharges",
+        },
+      },
+    },
+  ];
+  
+
+  const amountDetails = await Bookings.aggregate(pipeline);
+  console.log("amountDetails: ", amountDetails);
+  return { amountDetails };
 };

@@ -166,7 +166,7 @@ export const GoodToGoLeads = () => {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      // console.log("response of new leads: ", response);
+      console.log("response of new leads: ", response);
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -212,10 +212,10 @@ export const GoodToGoLeads = () => {
     };
   }, [queries, allotedArea]);
 
-  useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1);
-  }, [filters.searchTerm]);
+  // useEffect(() => {
+  //   // debounce(filterLeads, 100);
+  //   filterLeads(1);
+  // }, [filters.searchTerm]);
 
   return (
     <div className=" w-full">
@@ -223,7 +223,7 @@ export const GoodToGoLeads = () => {
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
           <Heading
-            heading="All Leads"
+            heading="Good To Go Leads"
             subheading="You will get the list of leads that created till now"
           />
         </div>
@@ -280,6 +280,7 @@ export const GoodToGoLeads = () => {
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
+              onKeyDown={(e) => e.key === "Enter" && filterLeads(1, filters)}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
               }

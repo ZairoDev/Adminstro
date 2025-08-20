@@ -20,6 +20,8 @@ import { InfinityLoader } from "@/components/Loaders";
 import AgentModal from "@/app/dashboard/agents/agent-modal";
 import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
+import { AreaModel } from "../../target/area-model";
+import { DisplayLists } from "@/components/displaylists/lists";
 
 
 interface AgentIntrerface {
@@ -36,6 +38,7 @@ interface TargetInterface {
   sales: number;
   visits: number;
   leads: number;
+  area:[string];
 }
 
 const Addons = () => {
@@ -48,6 +51,10 @@ const Addons = () => {
   const [targetId, setTargetId] = useState("");
   const [loading, setLoading] = useState(false);
   const [targetEdit, setTargetEdit] = useState(false);
+  const [areaModel,setAreaModel] = useState(false)
+  const [areaId, setAreaId] = useState("")
+  const [openList,setOpenList] = useState(false)
+  const [list, setList] = useState<String[]>([])
 
   const [DeleteDialog, confirmDelete] = useConfirm(
     "Delete Agent",
@@ -75,7 +82,10 @@ const Addons = () => {
       setLoading(true);
       const response = await axios.get("/api/addons/target/getAllTargets");
       console.log(response.data.data);
-      setTargets(response.data.data);
+      const sortedData = response.data.data.sort(
+        (a:any, b:any) => a.country.localeCompare(b.country) // alphabetically by country
+      );
+      setTargets(sortedData);
       setLoading(false);
     } catch (err) {
       console.log(err);
@@ -100,6 +110,20 @@ const Addons = () => {
       });
     }
   };
+  const deleteTarget = async (id: string) => {
+    const ok = await confirmDelete();
+    if (!ok) return;
+    try {
+      await axios.delete("/api/addons/target/deleteTargetById", {
+        data: { targetId: id },
+      });
+      toast({ title: "Target deleted successfully" });
+      setTargets((prev) => prev.filter((target) => target._id !== id));
+    } catch (err) {
+      toast({ title: "Unable to delete target", variant: "destructive" });
+    }
+  };
+  
 
   useEffect(() => {
     if (!targetId) return;
@@ -169,66 +193,98 @@ const Addons = () => {
           </Button>
           <AgentModal open={agentModal} onOpenChange={setAgentModal} />
         </section>
-        <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
-          <div className=" w-full flex flex-col gap-y-2 justify-between">
+        <section className="border rounded-md w-64 h-80 flex flex-col mt-8">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-y-2">
             {loading ? (
-              <InfinityLoader className=" w-16 h-12" />
+              <InfinityLoader className="w-16 h-12" />
             ) : (
-              <div className=" w-full flex flex-col  gap-y-2">
-                {targets?.map((agent, index) => (
-                  <div
-                    key={index}
-                    className=" flex justify-between items-center w-full p-2 border rounded-md"
-                  >
-                    <p>{agent.city || agent.country}</p>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger>
-                        <EllipsisVertical size={22} />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <button
-                            onClick={() => {
-                              setTargetEdit(true);
-                              setTargetId(agent._id);
-                            }}
-                          >
-                            Edit Details
-                          </button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => deleteAgent(agent._id)}
+              targets?.map((target, index) => (
+                <div
+                  key={index}
+                  className="flex justify-between items-center w-full p-2 border rounded-md"
+                >
+                  <p className="text-sm">
+                    {target.city + "/" + target.country}
+                  </p>
+                  <p onClick={() => {setOpenList(true); setList(target.area)}} className="text-sm bg-slate-500 p-2 rounded-md cursor-pointer">
+                    {target.area.length}
+                  </p>
+
+                  {/* Dropdown menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <EllipsisVertical size={22} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                        <button
+                          onClick={() => {
+                            setTargetEdit(true);
+                            setEditTarget(target);
+                          }}
                         >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </div>
+                          Edit Details
+                        </button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <button
+                          onClick={() => {
+                            setAreaModel(true);
+                            setAreaId(target._id);
+                          }}
+                        >
+                          Add Location
+                        </button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => deleteTarget(target._id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))
             )}
-            <Button className=" w-full" onClick={() => setTargetModal(true)}>
-              <span className=" font-semibold text-base">
+          </div>
+
+          {/* Fixed footer button */}
+          <div className="p-2 border-t">
+            <Button className="w-full" onClick={() => setTargetModal(true)}>
+              <span className="font-semibold text-base">
                 Add Country Target
               </span>
             </Button>
-            <TargetModal
-              open={targetModal}
-              onOpenChange={setTargetModal}
-              getAllTargets={getTargets}
-            />
-            {editTarget && (
-              <TargetEditModal
-                open={targetEdit}
-                onOpenChange={setTargetEdit}
-                targetData={editTarget}
-                getAllTargets={getTargets}
-              />
-            )}
           </div>
         </section>
+
+        <AreaModel
+          areaModel={areaModel}
+          setAreaModel={setAreaModel}
+          areaId={areaId}
+          // getAllTargets={getTargets}
+        />
+        <TargetModal
+          open={targetModal}
+          onOpenChange={setTargetModal}
+          getAllTargets={getTargets}
+        />
+        {
+          openList && list &&(
+            <DisplayLists heading="Area List" data={list} setOnClose={setOpenList} />
+          )
+        }
+        {targetEdit && editTarget && (
+          <TargetEditModal
+            open={targetEdit}
+            onOpenChange={setTargetEdit}
+            targetData={editTarget}
+            getAllTargets={getTargets}
+          />
+        )}
       </div>
     </div>
   );

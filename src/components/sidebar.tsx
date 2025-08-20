@@ -76,6 +76,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Lead",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/spreadsheet",
+      label: "Spreadsheet Data",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   LeadGen: [
     {
@@ -140,6 +145,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard",
       label: "Dashboard",
       Icon: <LayoutDashboard size={18} />,
+    },
+    {
+      path: "/dashboard/spreadsheet",
+      label: "Spreadsheet Data",
+      Icon: <PencilLine size={18} />,
     },
     {
       path: "/dashboard/addons",
@@ -534,6 +544,11 @@ const leadManagementRoutes = [
   {
     path: "/dashboard/createquery",
     label: "Create Lead",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/spreadsheet",
+    label: "Spreadsheet Data",
     Icon: <PencilLine size={18} />,
   },
   {

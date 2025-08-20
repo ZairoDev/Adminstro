@@ -122,6 +122,10 @@ const SalesDashboard = () => {
       roomPassword: "",
     },
   });
+
+  const [location,setLocation] = useState([]);
+  
+
   const limit: number = 12;
 
   const {
@@ -142,6 +146,17 @@ const SalesDashboard = () => {
   };
 
   const [checking, setChecking] = useState(false);
+
+  const fetchLocations =async()=>{
+    try{
+      const response = await axios.get(`/api/addons/target/getAlLocations`);
+      setLocation(response.data.data);
+      
+      console.log("fetched Locations",response.data.data);  
+    }catch(err){
+      console.log(err);
+    }
+  } 
 
   const handleNumberSearch = async () => {
     try {
@@ -418,6 +433,19 @@ const SalesDashboard = () => {
     };
   }, [queries, allotedArea]);
 
+  useEffect(()=>{
+    fetchLocations();
+  },[])
+
+  const [areas,setAreas] = useState<String[]>([]);
+  useEffect(()=>{
+    const data = location
+      .filter((item: any) => item.city === formData.location)
+      .map((item: any) => ({ area: item.area, city: item.city }));
+    setAreas(data[0]?.area)
+    console.log(data[0]?.area);
+  },[formData.location])
+
   return (
     <div>
       <Toaster />
@@ -455,7 +483,7 @@ const SalesDashboard = () => {
             <DialogTrigger asChild>
               {token?.role !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
-            <DialogContent className="p-4 w-[400px] md:min-w-[650px]">
+            <DialogContent className="p-4 w-[500px] md:min-w-[650px]">
               <DialogHeader>
                 <DialogTitle>Create Lead</DialogTitle>
                 <DialogDescription>
@@ -540,18 +568,47 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select Location" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="athens">Athens</SelectItem>
-                            <SelectItem value="chania">Chania</SelectItem>
-                            {/* <SelectItem value="corfu">Corfu</SelectItem> */}
-                            {/* <SelectItem value="chalkidiki">Chalkidiki</SelectItem> */}
-                            <SelectItem value="thessaloniki">
-                              Thessaloniki
-                            </SelectItem>
-                            <SelectItem value="rome">Rome</SelectItem>
-                            <SelectItem value="milan">Milan</SelectItem>
+                            {location?.map(
+                              (location: { city: string; _id: string }) => (
+                                <SelectItem
+                                  key={location._id}
+                                  value={location.city}
+                                >
+                                  {location.city}
+                                </SelectItem>
+                              )
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                    <div className="w-full ml-1 mb-2">
+                      <Label>Area</Label>
+                      <Select
+                        value={formData.area}
+                        onValueChange={(value) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            area: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {areas?.map(
+                            (area1,index) => (
+                              <SelectItem
+                                key={index}
+                                value={area1.toString()}
+                              >
+                                {area1}
+                              </SelectItem>
+                            )
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 

@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       leadQuality,
       allotedArea,
     } = reqBody.filters;
+    console.log("req body in filter route: ", reqBody);
     const PAGE = reqBody.page;
 
     const LIMIT = 50;
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
+        query.phoneNo = { $regex: searchTerm, $options: "i" };
       } else {
         query[searchType] = regex;
       }

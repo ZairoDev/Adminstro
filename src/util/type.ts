@@ -499,4 +499,20 @@ export interface FilterInterface {
   leadQualityByReviewer?: "Very Good" | "Good" | "Average" | "Below Average";
 }
 
+export interface  unregisteredOwners {
+  _id: string;
+  name: string;
+  // email: string;
+  location: string;
+  interiorStatus: string;
+  phoneNumber: string;
+  address: string;
+  price: string;
+  propertyType: string;
+  area: string;
+  link: string;
+  referenceLink: string;
+  remarks: string;
+}
+
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

@@ -10,7 +10,8 @@ const target = new mongoose.Schema(
       type: String,
       required: true,
     },
-    state: {
+    area:{type:[String]},
+    state: {  
       type: String,
     },
     leads: { type: Number, required: true },

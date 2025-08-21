@@ -24,6 +24,9 @@ const unregisteredOwnerSchema = new mongoose.Schema({
   referenceLink:{
     type: String
   },
+  date:{
+    type: Date,
+  },
   price:{
     type: String,
     default: "0"

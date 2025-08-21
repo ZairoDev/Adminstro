@@ -503,6 +503,7 @@ export interface  unregisteredOwners {
   _id: string;
   name: string;
   // email: string;
+  date: Date;
   location: string;
   interiorStatus: string;
   phoneNumber: string;

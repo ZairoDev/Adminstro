@@ -17,6 +17,7 @@ import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
 import { SelectableCell } from "./SelectableCell";
+import { useEffect, useState } from "react";
 
 export function SpreadsheetTable({
   tableData,
@@ -26,19 +27,22 @@ export function SpreadsheetTable({
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
 }) {
   const columns = [
-    "Name",
-    // "Email",
-    "Phone Number",
-    "Location",
-    "Price",
-    "Int. Status",
-    "Property Type",
-    // "Area",
-    "Link",
-    "Ref. Link",
-    "Address",
-    "Remarks",
+    { label: "Name", field: "name", sortable: true },
+    { label: "Phone Number", field: "phoneNumber", sortable: false },
+    { label: "Location", field: "location", sortable: true },
+    { label: "Price", field: "price", sortable: true },
+    { label: "Int. Status", field: "intStatus", sortable: false },
+    { label: "Property Type", field: "propertyType", sortable: false },
+    { label: "Date", field: "date", sortable: true },
+    { label: "Link", field: "link", sortable: false },
+    { label: "Ref. Link", field: "refLink", sortable: false },
+    { label: "Address", field: "address", sortable: false },
+    { label: "Remarks", field: "remarks", sortable: false },
   ];
+
+  const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
+  const [sortBy, setSortBy] = useState<keyof unregisteredOwners>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const apartmentTypes = [
     "Studio",
@@ -58,6 +62,10 @@ export function SpreadsheetTable({
     "Unfurnished",
   ];
 
+  useEffect(() => {
+    applySort(sortBy, sortOrder);
+  }, [tableData]);
+
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
       name: "-",
@@ -68,11 +76,11 @@ export function SpreadsheetTable({
       propertyType: "Studio",
       link: "-",
       area: "",
-      referenceLink: "",
+      referenceLink: "-",
       address: "-",
       remarks: "-",
+      date: new Date(Date.now()),
     };
-
     const tempId = `temp_${Date.now()}_${Math.random()
       .toString(36)
       .substring(2, 9)}`;
@@ -128,6 +136,38 @@ export function SpreadsheetTable({
     }
   };
 
+  const applySort = (
+    field: keyof unregisteredOwners,
+    order: "asc" | "desc"
+  ) => {
+    const sorted = [...tableData].sort((a, b) => {
+      const aVal = a[field];
+      const bVal = b[field];
+
+      if (aVal === undefined || bVal === undefined) return 0;
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return order === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      return order === "asc"
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
+    });
+
+    setSortedData(sorted);
+  };
+
+  const handleSort = (field: keyof unregisteredOwners) => {
+    let newOrder: "asc" | "desc" = "asc";
+    if (sortBy === field) {
+      newOrder = sortOrder === "asc" ? "desc" : "asc"; // toggle
+    }
+    setSortBy(field);
+    setSortOrder(newOrder);
+    applySort(field, newOrder);
+  };
+
   const handleSave = async (
     _id: string,
     key: keyof unregisteredOwners,
@@ -155,12 +195,12 @@ export function SpreadsheetTable({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div>
+        {/* <div>
           <h2 className="text-2xl font-bold">Lead Management</h2>
           <p className="text-muted-foreground">
             Manage your unregistered property owners and leads
           </p>
-        </div>
+        </div> */}
         <Button onClick={handleAddRow} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add New Lead
@@ -173,15 +213,34 @@ export function SpreadsheetTable({
         {/* Table Header */}
         <TableHeader>
           <TableRow>
-            {columns.map((column) => (
+            {/* {columns.map((column) => (
               <TableHead key={column}>{column}</TableHead>
+              
+            ))} */}
+            {columns.map((col) => (
+              <TableHead
+                key={col.field}
+                onClick={
+                  col.sortable
+                    ? () => handleSort(col.field as keyof unregisteredOwners)
+                    : undefined
+                }
+                className={col.sortable ? "cursor-pointer select-none" : ""}
+              >
+                {col.label}{" "}
+                {col.sortable && sortBy === col.field
+                  ? sortOrder === "asc"
+                    ? "↑"
+                    : "↓"
+                  : ""}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
 
         {/* Table Body */}
         <TableBody>
-          {tableData.map((item: unregisteredOwners) => (
+          {sortedData.map((item: unregisteredOwners) => (
             <TableRow key={item?._id}>
               {/* Name */}
               <TableCell className="font-medium truncate max-w-[150px]">
@@ -253,7 +312,17 @@ export function SpreadsheetTable({
                   }
                 />
               </TableCell>
-
+              <TableCell>
+                <EditableCell
+                  maxWidth="80px"
+                  value={
+                    new Date(item.date).toLocaleDateString("en-US", {}) ||
+                    item.date.toString()
+                  }
+                  onSave={(newValue) => handleSave(item._id, "date", newValue)}
+                  type="date"
+                />
+              </TableCell>
               {/* Link */}
               <TableCell
                 className="text-right truncate max-w-[60px]"
@@ -294,7 +363,7 @@ export function SpreadsheetTable({
                   >
                     Ref
                   </a>
-                ) : ( 
+                ) : (
                   <EditableCell
                     value={item.referenceLink}
                     onSave={(newValue) =>

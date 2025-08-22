@@ -21,7 +21,6 @@ import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-
 import {
   Table,
   TableRow,
@@ -224,7 +223,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
 
   const handleSalesPriority = (leadId: string | undefined, index: number) => {
     if (!leadId) return;
-
     const newSalesPriorities = [...salesPriority];
     const newSalesPriority = newSalesPriorities[index];
     if (newSalesPriority === "None") {
@@ -236,14 +234,11 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     } else if (newSalesPriorities[index] === "High") {
       newSalesPriorities[index] = "Medium";
       queries[index].salesPriority = "Medium";
-    }
-     else {
+    } else {
       newSalesPriorities[index] = "None";
       queries[index].salesPriority = "None";
     }
-
     setSalesPriority(newSalesPriorities);
-
     changeSalesPriority(leadId, newSalesPriorities[index]);
   };
 
@@ -252,7 +247,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
 
     const newMessageStatus = [...messageStatus];
     const newMessage = newMessageStatus[index];
-
     if (newMessage === "None") {
       newMessageStatus[index] = "First";
       queries[index].messageStatus = "First";
@@ -265,20 +259,14 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     } else if (newMessageStatus[index] === "Options") {
       newMessageStatus[index] = "Visit";
       queries[index].messageStatus = "Visit";
-    }
-     else {
+    } else {
       newMessageStatus[index] = "None";
       queries[index].messageStatus = "None";
     }
 
     setMessageStatus(newMessageStatus);
-
     changeMessageStatus(leadId, newMessageStatus[index]);
-
-
-  }
-
-
+  };
 
   const changeSalesPriority = useCallback(
     debounce(async (leadId: string, priority: string) => {
@@ -412,22 +400,22 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   )}
                   {query.messageStatus === "First" ? (
                     <CustomTooltip
-                      icon={<Mail  color="pink" />}
+                      icon={<Mail color="pink" />}
                       desc="First Message"
                     />
                   ) : query.messageStatus === "Second" ? (
                     <CustomTooltip
-                      icon={<MailCheck  color="red" />}
+                      icon={<MailCheck color="red" />}
                       desc="Second Message"
                     />
                   ) : query.messageStatus === "Options" ? (
                     <CustomTooltip
-                      icon={<Image  color="yellow" />}
+                      icon={<Image color="yellow" />}
                       desc="Shared Options"
                     />
                   ) : query.messageStatus === "Visit" ? (
                     <CustomTooltip
-                      icon={<Map  color="green" />}
+                      icon={<Map color="green" />}
                       desc="Visit Scheduled"
                     />
                   ) : (
@@ -435,8 +423,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       icon={<CircleDot fill="" color="gray" />}
                       desc="No Status"
                     />
-
-                  ) }
+                  )}
                 </TableCell>
               )}
               {(token?.role === "Sales" ||
@@ -473,8 +460,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                       icon={<CircleDot fill="" color="gray" />}
                       desc="No Priority"
                     />
-
-                  ) }
+                  )}
                 </TableCell>
               )}
               <TableCell className="flex gap-x-1">

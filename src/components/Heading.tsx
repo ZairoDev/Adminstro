@@ -9,7 +9,7 @@ const Heading = ({ heading, subheading }: HeadingProps) => {
       <div className="text-start px-1 ">
         <div className="sm:text-xl text-lg font-semibold">{heading}</div>
         <p className="sm:text-sm text-xs text-muted-foreground">{subheading}</p>
-      </div>
+      </div >
     </div>
   );
 };

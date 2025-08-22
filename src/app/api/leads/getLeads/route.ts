@@ -132,37 +132,13 @@ export async function POST(req: NextRequest) {
     query = {
       ...query,
       ...dateQuery,
-      // $and: [
-      //   {
-      //     $or: [
-      //       {
-      //         rejectionReason: { $exists: false },
-      //       }, // rejectionReason field does not exist
-      //       {
-      //         rejectionReason: { $eq: null },
-      //       }, // rejectionReason field exists but is an empty string
-      //     ],
-      //   },
-      //   {
-      //     $or: [
-      //       { reminder: { $exists: false } }, // reminder field does not exist
-      //       { reminder: { $eq: null } }, // reminder field exists but is an empty string
-      //     ],
-      //   },
-      //   {
-      //     $or: [
-      //       { leadStatus: { $exists: false } }, // leadStatus field should either not exist
-      //       { leadStatus: "" }, // or it should be empty
-      //     ],
-      //   },
-      // ],
       leadStatus: "fresh",
     };
 
     {
       /* Only search leads for alloted area, but only in case of agents not for TL and SuperAdmin */
     }
-    // console.log("alloted area: ", allotedArea);
+    
     if (allotedArea) {
       query.location = new RegExp(allotedArea, "i");
     } else {
@@ -220,6 +196,94 @@ export async function POST(req: NextRequest) {
         }
       });
     }
+    
+    const pipeline = [
+      {
+        $match: {
+          leadStatus: "fresh",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          "1bhk": {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$typeOfProperty", "Apartment"] },
+                    { $eq: ["$noOfBeds", 1] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          "2bhk": {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$typeOfProperty", "Apartment"] },
+                    { $eq: ["$noOfBeds", 2] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          "3bhk": {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$typeOfProperty", "Apartment"] },
+                    { $eq: ["$noOfBeds", 3] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          "4bhk": {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$typeOfProperty", "Apartment"] },
+                    { $eq: ["$noOfBeds", 4] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          studio: {
+            $sum: {
+              $cond: [{ $eq: ["$typeOfProperty", "Studio"] }, 1, 0],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          "1bhk": 1,
+          "2bhk": 1,
+          "3bhk": 1,
+          "4bhk": 1,
+          studio: 1,
+        },
+      },
+    ];
+
+
+    const wordsCount = await Query.aggregate(pipeline);
+     console.log("wordsCount: ", wordsCount);
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / LIMIT);
@@ -229,7 +293,9 @@ export async function POST(req: NextRequest) {
       PAGE,
       totalPages,
       totalQueries,
+      wordsCount
     });
+    
   } catch (error: any) {
     console.log("error in getting filtered leads: ", error);
     return NextResponse.json(

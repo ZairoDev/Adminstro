@@ -453,7 +453,7 @@ const SalesDashboard = () => {
         <div className="w-full">
           <Heading
             heading="All Leads"
-            subheading="You will get the list of leads that created till now"
+            subheading=""
           />
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">

@@ -134,6 +134,12 @@ const querySchema = new Schema(
       enum: ["ASAP", "High", "Low", "Medium"],
       require: [true, "Priority must be provided"],
     },
+    messageStatus: {
+      type: String,
+      enum: ["First","Second","Options","Visit","None"],
+      require: [true, "Status must be provided"],
+      default: "None",
+    },
     salesPriority: {
       type: String,
       enum: ["High", "Low", "Medium", "None"],

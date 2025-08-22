@@ -227,16 +227,20 @@ export const LeadPage = () => {
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
+          {/* heading component where all leads is*/}
           <Heading
             heading="All Leads"
-            subheading="You will get the list of leads that created till now"
+            subheading=""
           />
         </div>
+
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
+          {/* top filter component */}
           <div className="flex w-full items-center gap-x-2">
+            {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
               token?.role === "Sales-TeamLead") && (
-              <div className="w-[200px]">
+              <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {
                     if (value === "all") {
@@ -265,6 +269,7 @@ export const LeadPage = () => {
                 </Select>
               </div>
             )}
+            {/* this is phone/email/name filter*/  }
             <div className="">
               <Select
                 onValueChange={(value: string) =>
@@ -282,6 +287,7 @@ export const LeadPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            {/* search component in the top */}
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
@@ -301,7 +307,9 @@ export const LeadPage = () => {
               }}
             />
           </div>
-          <div className="flex md:w-auto w-full justify-between  gap-x-2">
+
+          {/* options filter button */}
+          <div className="flex md:w-auto w-full  justify-between  gap-x-2">
             <div className="">
               <Sheet>
                 <SheetTrigger asChild>
@@ -368,8 +376,11 @@ export const LeadPage = () => {
               </Sheet>
             </div>
           </div>
+
         </div>
       </div>
+
+
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
           {/* <Loader /> */}
@@ -399,6 +410,7 @@ export const LeadPage = () => {
           </div>
         </div>
       ) : (
+        // card view
         <div>
           <div className="min-h-screen">
             <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
@@ -426,6 +438,7 @@ export const LeadPage = () => {
                     propertyType={query.propertyType}
                     priority={query.priority}
                     salesPriority={query.salesPriority}
+                    messageStatus={query.messageStatus}
                     reminder={query.reminder}
                     roomDetails={query.roomDetails}
                   />
@@ -434,8 +447,8 @@ export const LeadPage = () => {
             </div>
           </div>
           <div>
-            <div className="flex items-center justify-between p-2 w-full">
-              <div>
+            <div className="flex  items-center justify-between p-2 w-full">
+              <div className="border border-white">
                 <p className="text-xs">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>
@@ -450,6 +463,7 @@ export const LeadPage = () => {
             </div>
           </div>
         </div>
+
       )}
       <div className="text-xs flex items-end justify-end"></div>
     </div>

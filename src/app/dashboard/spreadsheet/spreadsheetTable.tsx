@@ -328,16 +328,7 @@ export function SpreadsheetTable({
                 className="text-right truncate max-w-[60px]"
                 title={item.link}
               >
-                {item.link ? (
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    className="text-blue-500 underline"
-                    rel="noreferrer"
-                  >
-                    Link
-                  </a>
-                ) : (
+                <div className="flex items-center gap-1">
                   <EditableCell
                     value={item.link}
                     onSave={(newValue) =>
@@ -346,7 +337,22 @@ export function SpreadsheetTable({
                     maxWidth="60px"
                     // placeholder="URL"
                   />
-                )}
+                  {item.link && item.link !== "-" && (
+                    <a
+                      href={
+                        item.link.startsWith("http")
+                          ? item.link
+                          : `https://${item.link}`
+                      }
+                      target="_blank"
+                      className="text-blue-500 hover:text-blue-700 ml-1"
+                      rel="noreferrer"
+                      title="Open link in new tab"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </div>
               </TableCell>
 
               {/* Ref. Link */}
@@ -354,16 +360,7 @@ export function SpreadsheetTable({
                 className="text-right truncate max-w-[60px]"
                 title={item.referenceLink}
               >
-                {item.referenceLink ? (
-                  <a
-                    href={item.referenceLink}
-                    target="_blank"
-                    className="text-blue-500 underline"
-                    rel="noreferrer"
-                  >
-                    Ref
-                  </a>
-                ) : (
+                <div className="flex items-center gap-1">
                   <EditableCell
                     value={item.referenceLink}
                     onSave={(newValue) =>
@@ -372,7 +369,22 @@ export function SpreadsheetTable({
                     maxWidth="60px"
                     // placeholder="Ref URL"
                   />
-                )}
+                  {item.referenceLink && item.referenceLink !== "-" && (
+                    <a
+                      href={
+                        item.referenceLink.startsWith("http")
+                          ? item.referenceLink
+                          : `https://${item.referenceLink}`
+                      }
+                      target="_blank"
+                      className="text-blue-500 hover:text-blue-700 ml-1"
+                      rel="noreferrer"
+                      title="Open reference link in new tab"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </div>
               </TableCell>
 
               {/* Address */}

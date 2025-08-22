@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
-    // console.log("req body in filter route: ", assignedArea, reqBody);
+    console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
       searchType,
@@ -201,7 +201,8 @@ export async function POST(req: NextRequest) {
       /*Sorting*/
     }
     const priorityMap = {
-      None: 1,
+      None: 0,
+      Medium : 1,
       Low: 2,
       High: 3,
     };

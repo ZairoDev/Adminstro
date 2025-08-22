@@ -121,6 +121,7 @@ const SalesDashboard = () => {
       roomId: "",
       roomPassword: "",
     },
+    messageStatus:"None",
   });
 
   const [location,setLocation] = useState([]);
@@ -267,6 +268,7 @@ const SalesDashboard = () => {
           roomPassword: "",
         },
         leadQualityByCreator: "",
+        messageStatus: "",
       });
     } catch (error: any) {
       console.error("Error:", error.response.data.error);

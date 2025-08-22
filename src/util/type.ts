@@ -300,7 +300,7 @@ export interface IQuery {
   propertyType: string;
   priority: string;
   salesPriority: string;
-  messageStatus: string;
+  messageStatus?: string;
   leadStatus?: string;
   note?: NotesInterface[];
   reminder: Date;

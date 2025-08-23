@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     const targetData = await req.json(); // ✅ await here
 
-    console.log("target data: ", targetData);
+    // console.log("target data: ", targetData);
 
     const exists = await MonthlyTarget.find({
       country: targetData.country,
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if(exists.length > 0) return NextResponse.json({ error: "Target already exists" }, { status: 501 });
 
     const target = await MonthlyTarget.create(targetData);
-    console.log("target created: ", target);
+    // console.log("target created: ", target);
 
     return NextResponse.json(
       { message: "Target created successfully" },

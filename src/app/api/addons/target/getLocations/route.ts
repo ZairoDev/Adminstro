@@ -10,13 +10,13 @@ export async function GET(req: NextRequest) {
       const val = await MonthlyTarget.find({}, { country: 1, _id: 0 }).distinct(
         "country"
       );
-      console.log("val: ", val);
+      // console.log("val: ", val);
       return NextResponse.json({ data: val }, { status: 200 });
     } else {
       const val = await MonthlyTarget.find({}, { city: 1, _id: 0 }).distinct(
         "city"
       );
-      console.log("val: ", val);
+      // console.log("val: ", val);
       return NextResponse.json({ data: val }, { status: 200 });
     }
   } catch (err) {

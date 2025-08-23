@@ -103,7 +103,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     if (allProperties.length === 0) {
       const totalCount = await Property.countDocuments();
-      console.log("Total properties in database:", totalCount);
+      // console.log("Total properties in database:", totalCount);
     }
     const totalProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limit);

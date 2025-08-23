@@ -10,10 +10,10 @@ export async function PUT(
 ) {
   await connectDb();
   try {
-    console.log("params: ", params);
+    // console.log("params: ", params);
     const body = await req.json();
     if(!body) return NextResponse.json({ error: "No data provided" }, { status: 400 });
-    console.log("body: ", body);
+    // console.log("body: ", body);
     const monthlytarget = await MonthlyTarget.findById({
       _id: params.targetId,
     });

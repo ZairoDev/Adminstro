@@ -611,7 +611,7 @@ export const getAverage = async()=>{
   // const weeklyAverage = await Query.aggregate(pipeline1);                
   // console.log(weeklyAverage);
   const totalTarget = await MonthlyTarget.aggregate(pipeline2);
-  console.log(totalTarget);
+  // console.log(totalTarget);
   return { totalTarget: totalTarget[0].totalLeads };
 }
 
@@ -991,7 +991,7 @@ export const getUnregisteredOwners = async () => {
   ];
 
   const unregisteredOwners = await Visits.aggregate(pipeline);
-  console.log("unregisteredOwners: ", unregisteredOwners);
+  // console.log("unregisteredOwners: ", unregisteredOwners);
   return { unregisteredOwners };
 }
 
@@ -1127,7 +1127,7 @@ export const getGoodVisitsCount = async({days}:{days?:string})=>{
 ];
 
 const count = await Query.aggregate(pipeline);
-console.log("count: ", count);
+// console.log("count: ", count);
 return { count };
 }
 
@@ -1277,6 +1277,6 @@ export const getAmountDetails = async ({
   
 
   const amountDetails = await Bookings.aggregate(pipeline);
-  console.log("amountDetails: ", amountDetails);
+  // console.log("amountDetails: ", amountDetails);
   return { amountDetails };
 };

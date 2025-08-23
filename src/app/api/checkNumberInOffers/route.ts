@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const existingPhone = await Query.findOne({ phoneNo });
 
     if (existingPhone) {
-      console.log("isAvailable: ", existingPhone);
+      // console.log("isAvailable: ", existingPhone);
 
       const onVS = existingPhone.availableOn.includes("VacationSaga");
       const onTT = existingPhone.availableOn.includes("TechTunes");

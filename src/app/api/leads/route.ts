@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
 
     const { filters, page } = await req.json();
     const skip = (page - 1) * 50;
-    console.log("Request Body:", filters);
+    // console.log("Request Body:", filters);
 
     if (assignedArea) {
       filters.location = assignedArea;
     }
 
-    console.log("filters: ", filters);
+    // console.log("filters: ", filters);
 
     const searchFilters: Record<string, any> = {};
 
@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-    console.log("search filters: ", searchFilters);
+    // console.log("search filters: ", searchFilters);
     // const leads = await Query.find(searchFilters).skip(skip).limit(12);
     const leads = await Query.find(searchFilters);
     // const totalQueries = await Query.countDocuments(searchFilters);
     // const totalPages = Math.ceil(totalQueries / 12);
-    console.log(leads.length);
+    // console.log(leads.length);
 
     // return NextResponse.json(
     //   {

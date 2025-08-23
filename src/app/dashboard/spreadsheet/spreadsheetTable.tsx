@@ -12,12 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Phone, Plus } from "lucide-react";
 import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
 import { SelectableCell } from "./SelectableCell";
 import { useEffect, useState } from "react";
+import { CopyCell } from "@/components/Copy";
+import { EditableCopyCell } from "./EditableCopyCell";
 
 export function SpreadsheetTable({
   tableData,
@@ -28,7 +30,7 @@ export function SpreadsheetTable({
 }) {
   const columns = [
     { label: "Name", field: "name", sortable: true },
-    { label: "Phone Number", field: "phoneNumber", sortable: false },
+    { label: <Phone size={16}/>, field: "phoneNumber", sortable: false },
     { label: "Location", field: "location", sortable: true },
     { label: "Price", field: "price", sortable: true },
     { label: "Int. Status", field: "intStatus", sortable: false },
@@ -41,7 +43,7 @@ export function SpreadsheetTable({
   ];
 
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
-  const [sortBy, setSortBy] = useState<keyof unregisteredOwners>("name");
+  const [sortBy, setSortBy] = useState<keyof unregisteredOwners | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const apartmentTypes = [
@@ -63,22 +65,26 @@ export function SpreadsheetTable({
   ];
 
   useEffect(() => {
-    applySort(sortBy, sortOrder);
+    if (sortBy) {
+      applySort(sortBy, sortOrder);
+    } else {
+      setSortedData(tableData); // no sort applied
+    }
   }, [tableData]);
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
-      name: "-",
-      phoneNumber: "-",
-      location: "-",
-      price: "-",
+      name: "",
+      phoneNumber: "",
+      location: "",
+      price: "",
       interiorStatus: "Furnished",
       propertyType: "Studio",
-      link: "-",
+      link: "",
       area: "",
-      referenceLink: "-",
-      address: "-",
-      remarks: "-",
+      referenceLink: "",
+      address: "",
+      remarks: "",
       date: new Date(Date.now()),
     };
     const tempId = `temp_${Date.now()}_${Math.random()
@@ -254,13 +260,11 @@ export function SpreadsheetTable({
 
               {/* Phone Number */}
               <TableCell>
-                <EditableCell
-                  value={item.phoneNumber}
+                <EditableCopyCell
+                  value={item.phoneNumber.toString()}
                   onSave={(newValue) =>
                     handleSave(item._id, "phoneNumber", newValue)
                   }
-                  maxWidth="120px"
-                  // placeholder="Phone number"
                 />
               </TableCell>
 

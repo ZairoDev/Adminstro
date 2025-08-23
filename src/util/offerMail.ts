@@ -61,11 +61,11 @@ export const sendOfferMail = async ({
 
     // Check if the email was rejected
     if (mailResponse.rejected.length > 0) {
-      console.log("Email rejected:", mailResponse.rejected);
+      // console.log("Email rejected:", mailResponse.rejected);
       return { success: false, message: "Unable to send mail" };
     }
 
-    console.log("Email sent successfully");
+    // console.log("Email sent successfully");
     return { success: true, message: "Email sent successfully." };
   } catch (error: any) {
     console.error("Error sending email:", error);

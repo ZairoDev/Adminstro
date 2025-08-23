@@ -8,7 +8,7 @@ interface RequestBody {
 export async function POST(request: NextRequest) {
   const reqBody: RequestBody = await request.json();
   const { userId } = reqBody;
-  console.log(userId);
+  // console.log(userId);
   const user = await Employees.findOne({ _id: userId }).select(
     "-password -passwordExpiresAt"
   );

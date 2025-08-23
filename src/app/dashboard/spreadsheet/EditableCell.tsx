@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -22,42 +22,48 @@ export function EditableCell({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
+  // keep draft in sync if parent updates value externally
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
   const handleSave = () => {
     setIsEditing(false);
+    // prevent saving unchanged values
     if (draft !== value) {
-      onSave(draft);
+      onSave(draft.trim()); // trim spaces before saving
     }
   };
 
   return (
     <div
-      className={`truncate cursor-pointer inline-block`}
-      style={{ maxWidth }}
+      className="inline-block cursor-pointer"
+      style={{ maxWidth, minWidth: "80px" }} // ✅ minWidth ensures always clickable area
       onClick={() => !isEditing && setIsEditing(true)}
     >
       {isEditing ? (
         type === "date" ? (
-          // 👇 date editor
           <input
-    type="date"
-    autoFocus
-    value={draft || ""} // keep as yyyy-mm-dd string
-    onChange={(e) => setDraft(e.target.value)}
-    onBlur={handleSave}
-    onKeyDown={(e) => {
-      if (e.key === "Enter") handleSave();
-      if (e.key === "Escape") {
-        setDraft(value);
-        setIsEditing(false);
-      }
-    }}
-    className="w-full border px-1 text-sm rounded outline-none"
-  />
+            type="date"
+            autoFocus
+            value={draft || ""} // ✅ allow empty string safely
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") {
+                setDraft(value);
+                setIsEditing(false);
+              }
+            }}
+            className="w-full border px-1 text-sm rounded outline-none"
+          />
         ) : (
-          // 👇 normal text editor
           <input
+            type="text"
             autoFocus
             value={draft}
+            placeholder="Click to edit" // ✅ visible placeholder when empty
             onChange={(e) => setDraft(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => {
@@ -74,17 +80,18 @@ export function EditableCell({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span>
+              <span className="truncate block">
                 {type === "date" && value
                   ? new Date(value).toLocaleDateString()
-                  : value}
+                  : value || "—"}{" "}
+                {/* ✅ fallback display, but still editable */}
               </span>
             </TooltipTrigger>
             <TooltipContent>
               <p className="whitespace-pre-wrap">
                 {type === "date" && value
                   ? new Date(value).toLocaleString()
-                  : value}
+                  : value || "No value"}
               </p>
             </TooltipContent>
           </Tooltip>

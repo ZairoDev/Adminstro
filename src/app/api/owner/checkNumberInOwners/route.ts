@@ -4,14 +4,14 @@ import { Owners } from "@/models/owner";
 
 export async function POST(req: NextRequest) {
   const { phoneNumber } = await req.json();
-  console.log("phoneNumber: ", phoneNumber);
+  // console.log("phoneNumber: ", phoneNumber);
 
   try {
     const existingPhone = await Owners.findOne({
       phoneNumber: phoneNumber,
     });
 
-    console.log("phoneNumber in try: ", phoneNumber, !!existingPhone);
+    // console.log("phoneNumber in try: ", phoneNumber, !!existingPhone);
 
     if (existingPhone) {
       return NextResponse.json({ exists: true }, { status: 200 });

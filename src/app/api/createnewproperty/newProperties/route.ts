@@ -93,8 +93,8 @@ export async function POST(request: Request) {
     const commonId = generateCommonId(7);
 
     for (let i = 0; i < (numberOfPortions ?? 1); i++) {
-      console.log("LOOP: ", i);
-      console.log("userId: ", userId, "email: ", email);
+      // console.log("LOOP: ", i);
+      // console.log("userId: ", userId, "email: ", email);
       const newProperty = await Properties.create({
         commonId: commonId,
         userId,
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         isLive,
       });
 
-      console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
+      // console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
       propertyIds.push(newProperty.VSID);
     }
     return NextResponse.json({ propertyIds }, { status: 200 });

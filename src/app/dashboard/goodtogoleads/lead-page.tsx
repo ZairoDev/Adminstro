@@ -230,7 +230,7 @@ export const GoodToGoLeads = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
-              token?.role === "Sales-TeamLead") && (
+              token?.role === "Sales-TeamLead" || token?.role === "Sales") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {

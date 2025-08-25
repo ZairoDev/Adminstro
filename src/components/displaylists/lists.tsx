@@ -1,10 +1,16 @@
+type Area = {
+  name: string;
+  metrolane?: string;
+  zone?: string;
+};
+
 export const DisplayLists = ({
   heading,
   data,
   setOnClose,
 }: {
   heading: string; 
-  data: String[];
+  data: Area[];
   setOnClose: Function;
 }) => {
   return (
@@ -32,7 +38,7 @@ export const DisplayLists = ({
             >
               <h1>{index + 1}.</h1>
 
-              <h1>{item}</h1>
+              <h1>{item.name}</h1>
             </li>
           ))}
         </ul>

@@ -1,3 +1,4 @@
+import { Copy } from "lucide-react";
 import { useState } from "react";
 
 type EditableCopyCellProps = {
@@ -65,7 +66,7 @@ export function EditableCopyCell({
           }`}
           title={safeValue || "Click to edit"}
         >
-          {safeValue || "Click to edit"}
+          {safeValue ? <Copy size={16} /> : "Edit"}
         </div>
       )}
     </div>

@@ -1,6 +1,15 @@
 import mongoose from "mongoose";
 
-const target = new mongoose.Schema(
+const areaSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    metrolane: { type: String },
+    zone: { type: String },
+  },
+  { _id: false } // prevent auto _id for each subdocument
+);
+
+const targetSchema = new mongoose.Schema(
   {
     country: {
       type: String,
@@ -10,8 +19,11 @@ const target = new mongoose.Schema(
       type: String,
       required: true,
     },
-    area:{type:[String]},
-    state: {  
+    area: {
+      type: [areaSchema], // 👈 array of objects, not strings
+      default: [],
+    },
+    state: {
       type: String,
     },
     leads: { type: Number, required: true },
@@ -22,4 +34,5 @@ const target = new mongoose.Schema(
 );
 
 export const MonthlyTarget =
-  mongoose.models.MonthlyTarget || mongoose.model("MonthlyTarget", target);
+  mongoose.models.MonthlyTarget ||
+  mongoose.model("MonthlyTarget", targetSchema);

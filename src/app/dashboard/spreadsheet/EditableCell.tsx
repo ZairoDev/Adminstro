@@ -80,7 +80,7 @@ export function EditableCell({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block">
+              <span className="truncate block bg-slate-950">
                 {type === "date" && value
                   ? new Date(value).toLocaleDateString()
                   : value || "—"}{" "}

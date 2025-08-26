@@ -12,6 +12,10 @@ import {
   ArrowBigDownDash,
   Plus,
   Minus,
+  Image,
+  Map,
+  Mail,
+  MailCheck,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -85,6 +89,11 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   const [salesPriority, setSalesPriority] = useState<
     ("Low" | "High" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
+
+    const [messageStatus, setMessageStatus] = useState<
+    ( "Options" | "Visit" | "None")[]
+  >(Array.from({ length: queries?.length }, () => "None"));
+
   const [loading, setLoading] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
@@ -251,6 +260,33 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
       }
     };
 
+ 
+  const handleMessageStatus = (leadId: string | undefined, index: number) => {
+    if (!leadId) return;
+
+    const newMessageStatus = [...messageStatus];
+    const newMessage = newMessageStatus[index];
+    // if (newMessage === "None") {
+    //   newMessageStatus[index] = "First";
+    //   queries[index].messageStatus = "First";
+    // } else if (newMessageStatus[index] === "First") {
+    //   newMessageStatus[index] = "Second";
+    //   queries[index].messageStatus = "Second";
+     if (newMessageStatus[index] === "None") {
+      newMessageStatus[index] = "Options";
+      queries[index].messageStatus = "Options";
+    } else if (newMessageStatus[index] === "Options") {
+      newMessageStatus[index] = "Visit";
+      queries[index].messageStatus = "Visit";
+    } else {
+      newMessageStatus[index] = "None";
+      queries[index].messageStatus = "None";
+    }
+
+    setMessageStatus(newMessageStatus);
+    changeMessageStatus(leadId, newMessageStatus[index]);
+  };
+
   const handleSalesPriority = (leadId: string | undefined, index: number) => {
     if (!leadId) return;
     const newSalesPriorities = [...salesPriority];
@@ -276,6 +312,16 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
       const response = await axios.post("/api/sales/updateSalesPriority", {
         leadId,
         changedPriority: priority,
+      });
+    }, 1000),
+    []
+  );
+
+    const changeMessageStatus = useCallback(
+    debounce(async (leadId: string, status: string) => {
+      const response = await axios.post("/api/sales/updateMessageStatus", {
+        leadId,
+        changedStatus: status,
       });
     }, 1000),
     []
@@ -404,7 +450,10 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
             <TableHead>S.No.</TableHead>
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Priority</TableHead>}
+              token?.role === "SuperAdmin") && <TableHead>Status</TableHead>}
+             {(token?.role === "Sales" ||
+              token?.role === "Sales-TeamLead" ||
+              token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -432,6 +481,50 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
             `}
             >
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
+
+                {(token?.role === "Sales" ||
+                token?.role === "Sales-TeamLead" ||
+                token?.role === "SuperAdmin") && (
+                <TableCell
+                  className=" cursor-pointer relative "
+                  onClick={() => handleMessageStatus(query?._id, index)}
+                >
+                  {query?.reminder === null && (
+                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
+                      <p className=" rotate-90 text-xs font-semibold mt-1">
+                        Reminder
+                      </p>
+                    </div>
+                  )}
+                  {query.messageStatus === "First" ? (
+                    <CustomTooltip
+                      icon={<Mail color="pink" />}
+                      desc="First Message"
+                    />
+                  ) : query.messageStatus === "Second" ? (
+                    <CustomTooltip
+                      icon={<MailCheck color="red" />}
+                      desc="Second Message"
+                    />
+                  ) : query.messageStatus === "Options" ? (
+                    <CustomTooltip
+                      icon={<Image color="yellow" />}
+                      desc="Shared Options"
+                    />
+                  ) : query.messageStatus === "Visit" ? (
+                    <CustomTooltip
+                      icon={<Map color="green" />}
+                      desc="Visit Scheduled"
+                    />
+                  ) : (
+                    <CustomTooltip
+                      icon={<CircleDot fill="" color="gray" />}
+                      desc="No Status"
+                    />
+                  )}
+                </TableCell>
+              )}
+
               {(token?.role === "Sales" ||
                 token?.role === "Sales-TeamLead" ||
                 token?.role === "SuperAdmin") && (
@@ -464,6 +557,10 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                   )}
                 </TableCell>
               )}
+               
+
+
+
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${

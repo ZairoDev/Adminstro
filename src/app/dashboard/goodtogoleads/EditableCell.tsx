@@ -43,7 +43,7 @@ export const EditableCell = ({
               setEditing(false);
             }
           }}
-          className="w-full border rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full border rounded px-1 text-sm focus:outline-none focus:ring-1 bg-slate-400 focus:ring-blue-500"
         />
       ) : (
         <span className="truncate block">{value}</span>

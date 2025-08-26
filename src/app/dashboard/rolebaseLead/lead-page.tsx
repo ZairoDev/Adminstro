@@ -54,7 +54,7 @@ interface WordsCount {
   "3bhk": number;
   "4bhk": number;
   studio: number;
-}
+} 
 
 export const LeadPage = () => {
   const router = useRouter();

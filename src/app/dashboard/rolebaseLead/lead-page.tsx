@@ -56,9 +56,6 @@ interface WordsCount {
   studio: number;
 }
 
-
-
-
 export const LeadPage = () => {
   const router = useRouter();
   const { toast } = useToast();

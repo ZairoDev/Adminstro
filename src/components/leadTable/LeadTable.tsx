@@ -253,12 +253,12 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     } else if (newMessageStatus[index] === "First") {
       newMessageStatus[index] = "Second";
       queries[index].messageStatus = "Second";
-    } else if (newMessageStatus[index] === "Second") {
-      newMessageStatus[index] = "Options";
-      queries[index].messageStatus = "Options";
-    } else if (newMessageStatus[index] === "Options") {
-      newMessageStatus[index] = "Visit";
-      queries[index].messageStatus = "Visit";
+    // } else if (newMessageStatus[index] === "Second") {
+    //   newMessageStatus[index] = "Options";
+    //   queries[index].messageStatus = "Options";
+    // } else if (newMessageStatus[index] === "Options") {
+    //   newMessageStatus[index] = "Visit";
+    //   queries[index].messageStatus = "Visit";
     } else {
       newMessageStatus[index] = "None";
       queries[index].messageStatus = "None";
@@ -321,7 +321,6 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
     }
   };
 
-  // Creating Note
   const handleNote = async (
     id: any,
     noteValue: string | undefined,

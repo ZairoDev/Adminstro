@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { id } = await req.json();
-    console.log(id);
+    // console.log(id);
 
     const _id = id[0];
-    console.log(_id);
+    // console.log(_id);
 
     const blog = await Blog.findByIdAndDelete(_id);
     if (!blog) {

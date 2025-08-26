@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     const _id = id;
 
-    console.log(_id, title, content, tags, maintext, banner, "Above call");
+    // console.log(_id, title, content, tags, maintext, banner, "Above call");
 
     if (!_id || !title || !content || !maintext || !banner) {
       return NextResponse.json(
@@ -18,16 +18,16 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    console.log(
-      _id,
-      title,
-      content,
-      tags,
-      maintext,   
-      banner,
+    // console.log(
+    //   _id,
+    //   title,
+    //   content,
+    //   tags,
+    //   maintext,   
+    //   banner,
 
-      "Below call"
-    );
+    //   "Below call"
+    // );
 
     
 

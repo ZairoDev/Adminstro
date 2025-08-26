@@ -29,6 +29,7 @@ interface AgentIntrerface {
   agentName: string;
   agentPhone: string;
 }
+type Area = { name: string; metrolane?: string; zone?: string };
 
 interface TargetInterface {
   _id: string;
@@ -38,7 +39,7 @@ interface TargetInterface {
   sales: number;
   visits: number;
   leads: number;
-  area:[string];
+  area:Area[];
 }
 
 const Addons = () => {
@@ -54,7 +55,7 @@ const Addons = () => {
   const [areaModel,setAreaModel] = useState(false)
   const [areaId, setAreaId] = useState("")
   const [openList,setOpenList] = useState(false)
-  const [list, setList] = useState<String[]>([])
+  const [list, setList] = useState<Area[]>([])
 
   const [DeleteDialog, confirmDelete] = useConfirm(
     "Delete Agent",

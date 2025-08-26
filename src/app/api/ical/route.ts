@@ -6,13 +6,13 @@ connectDb();
 
 export async function POST(request: NextRequest) {
   const { url } = await request.json();
-  console.log("url: ", url);
+  // console.log("url: ", url);
   try {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    console.log("response data: ", response);
+    // console.log("response data: ", response);
     const data = await response.text();
     const parsedData = ical.parseICS(data);
     return NextResponse.json({

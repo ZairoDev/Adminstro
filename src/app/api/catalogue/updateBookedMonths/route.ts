@@ -4,7 +4,7 @@ import Catalogue from "@/models/catalogue";
 export async function POST(req: NextRequest) {
   const { catalogueId, VSID, selectedMonths } = await req.json();
 
-  console.log("data in catalogue: ", catalogueId, VSID, selectedMonths);
+  // console.log("data in catalogue: ", catalogueId, VSID, selectedMonths);
 
   try {
     const catalogue = await Catalogue.findById(catalogueId);
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       (category: { properties: { VSID: string; bookedMonths: string[] }[] }) => {
         category.properties.forEach((property) => {
           if (property.VSID === VSID) {
-            console.log("VSID matched: ", VSID);
+            // console.log("VSID matched: ", VSID);
             property.bookedMonths = selectedMonths; // Update only bookedMonths
             isUpdated = true;
           }

@@ -158,7 +158,6 @@ const SalesDashboard = () => {
       console.log(err);
     }
   } 
-
   const handleNumberSearch = async () => {
     try {
       if (!phone) {

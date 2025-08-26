@@ -288,7 +288,7 @@ export const LeadPage = () => {
           <div className="flex w-full items-center gap-x-2">
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
-              token?.role === "Sales-TeamLead") && (
+              token?.role === "Sales-TeamLead" || token?.role === "Sales") && (
               <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {
@@ -420,7 +420,7 @@ export const LeadPage = () => {
                         click of the Apply button !
                       </p>
                     </div>
-                  </SheetFooter>
+                  </SheetFooter>  
                 </SheetContent>
               </Sheet>
             </div>

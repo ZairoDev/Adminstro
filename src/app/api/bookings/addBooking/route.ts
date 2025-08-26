@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     createdBy: token.email,
   };
 
-  console.log("new booking data: ", newBookingData);
+  // console.log("new booking data: ", newBookingData);
 
   try {
     await Bookings.create(newBookingData);

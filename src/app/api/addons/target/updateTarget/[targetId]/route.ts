@@ -1,8 +1,6 @@
-
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
-
 
 export async function PUT(
   req: NextRequest,
@@ -10,28 +8,62 @@ export async function PUT(
 ) {
   await connectDb();
   try {
-    console.log("params: ", params);
     const body = await req.json();
-    if(!body) return NextResponse.json({ error: "No data provided" }, { status: 400 });
-    console.log("body: ", body);
-    const monthlytarget = await MonthlyTarget.findById({
-      _id: params.targetId,
-    });
-    if(body.area){
-      body.area = body.area.toLowerCase();
-      monthlytarget.area.push(body.area);
+    if (!body) {
+      return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
-    else{
-    const updatedTarget = await MonthlyTarget.findByIdAndUpdate(
-      params.targetId,
-      body,
-      { new: true }
+
+    const monthlyTarget = await MonthlyTarget.findById(params.targetId);
+    if (!monthlyTarget) {
+      return NextResponse.json({ error: "Target not found" }, { status: 404 });
+    }
+    console.log("body: ", body);
+    if (body.area) {
+      const { name, metrolane, zone } = body.areaUpdate;
+
+      if (!name) {
+        return NextResponse.json(
+          { error: "Area name is required" },
+          { status: 400 }
+        );
+      }
+
+      // ✅ Look for existing area by name
+      const existingAreaIndex = monthlyTarget.area.findIndex(
+        (a: any) => a.name.toLowerCase() === name.toLowerCase()
+      );
+
+      if (existingAreaIndex !== -1) {
+        // 🔄 Update existing
+        monthlyTarget.area[existingAreaIndex] = {
+          ...monthlyTarget.area[existingAreaIndex],
+          name: name.trim(),
+          metrolane: metrolane?.trim() || "",
+          zone: zone?.trim() || "",
+        };
+      } else {
+        // ➕ Add new
+        monthlyTarget.area.push({
+          name: name.trim(),
+          metrolane: metrolane?.trim() || "",
+          zone: zone?.trim() || "",
+        });
+      }
+
+      await monthlyTarget.save();
+    } else {
+      // Update non-area fields
+      await MonthlyTarget.findByIdAndUpdate(params.targetId, body, {
+        new: true,
+      });
+    }
+
+    return NextResponse.json(
+      { message: "Target updated successfully" },
+      { status: 200 }
     );
-  }
-  monthlytarget.save();
-    return NextResponse.json({ message: "Target updated successfully" }, { status: 200 });
   } catch (err) {
-    console.error(err);
+    console.error("Update Target Error:", err);
     return NextResponse.json(
       { error: "Unable to update target" },
       { status: 500 }

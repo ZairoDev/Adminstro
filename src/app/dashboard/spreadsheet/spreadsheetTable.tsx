@@ -12,12 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Check, Phone, Plus, X } from "lucide-react";
 import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
 import { SelectableCell } from "./SelectableCell";
 import { useEffect, useState } from "react";
+import { CopyCell } from "@/components/Copy";
+import { EditableCopyCell } from "./EditableCopyCell";
+import { get } from "http";
+import toast from "react-hot-toast";
 
 export function SpreadsheetTable({
   tableData,
@@ -28,9 +32,10 @@ export function SpreadsheetTable({
 }) {
   const columns = [
     { label: "Name", field: "name", sortable: true },
-    { label: "Phone Number", field: "phoneNumber", sortable: false },
+    { label: <Phone size={16} />, field: "phoneNumber", sortable: false },
     { label: "Location", field: "location", sortable: true },
     { label: "Price", field: "price", sortable: true },
+    { label: "Area", field: "area", sortable: false },
     { label: "Int. Status", field: "intStatus", sortable: false },
     { label: "Property Type", field: "propertyType", sortable: false },
     { label: "Date", field: "date", sortable: true },
@@ -41,8 +46,11 @@ export function SpreadsheetTable({
   ];
 
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
-  const [sortBy, setSortBy] = useState<keyof unregisteredOwners>("name");
+  const [sortBy, setSortBy] = useState<keyof unregisteredOwners | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [locationws, setLocationws] = useState<string[]>([]);
+  const [cityAreas, setCityAreas] = useState<Record<string, string[]>>({});
+  const [selectedRow, setSelectedRow] = useState<string | null>(null);
 
   const apartmentTypes = [
     "Studio",
@@ -62,24 +70,55 @@ export function SpreadsheetTable({
     "Unfurnished",
   ];
 
+
   useEffect(() => {
-    applySort(sortBy, sortOrder);
+    if (sortBy) {
+      applySort(sortBy, sortOrder);
+    } else {
+      setSortedData(tableData); // no sort applied
+    }
   }, [tableData]);
+
+  useEffect(() => {
+    const getAllLocations = async () => {
+      try {
+        // 1. Fetch all locations
+        const res = await axios.get(`/api/addons/target/getAlLocations`);
+        const fetchedCities: string[] = res.data.data.map(
+          (loc: any) => loc.city
+        );
+
+        setLocationws(fetchedCities);
+        // make city → area mapping
+        const cityAreaMap: Record<string, string[]> = {};
+        res.data.data.forEach((loc: any) => {
+          cityAreaMap[loc.city] = loc.area || [];
+        });
+        setCityAreas(cityAreaMap);
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+        setLocationws([]);
+      }
+    };
+    console.log("Fetching locations...",cityAreas);
+    getAllLocations();
+  }, []);
+  
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
-      name: "-",
-      phoneNumber: "-",
-      location: "-",
-      price: "-",
+      name: "",
+      phoneNumber: "",
+      location: "",
+      price: "",
       interiorStatus: "Furnished",
       propertyType: "Studio",
-      link: "-",
+      link: "",
       area: "",
-      referenceLink: "-",
-      address: "-",
-      remarks: "-",
-      date: new Date(Date.now()),
+      referenceLink: "",
+      address: "",
+      remarks: "",
+      date: new Date(),
     };
     const tempId = `temp_${Date.now()}_${Math.random()
       .toString(36)
@@ -174,6 +213,7 @@ export function SpreadsheetTable({
     newValue: string
   ) => {
     // optimistic UI update
+    
     const prev = tableData;
     const updatedData = tableData.map((item) =>
       item._id === _id ? { ...item, [key]: newValue } : item
@@ -191,6 +231,39 @@ export function SpreadsheetTable({
       setTableData(prev);
     }
   };
+
+  // const currentArea = localStorage.getItem("token");
+  // const parsedArea = JSON.parse(currentArea ?? "{}").allotedArea;
+
+  // console.log("currentArea: ", currentArea);
+  useEffect(() => {
+    const handleKeyDown = async(e: KeyboardEvent) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedRow) {
+        setTableData((prev) => prev.filter((row) => row._id !== selectedRow));
+        setSelectedRow(null);
+        console.log("Deleted row with ID:", selectedRow);
+        const res = await axios.delete(`/api/unregisteredOwners/updateData/${selectedRow}`);
+        if(res.status === 200){
+          toast(
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4" />
+              Lead deleted successfully
+            </div>
+          )
+        }
+        else{
+          toast(
+            <div className="flex items-center gap-2">
+              <X className="h-4 w-4" />
+              Error deleting lead
+            </div>
+          )
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedRow]);
 
   return (
     <div className="space-y-4">
@@ -241,7 +314,13 @@ export function SpreadsheetTable({
         {/* Table Body */}
         <TableBody>
           {sortedData.map((item: unregisteredOwners) => (
-            <TableRow key={item?._id}>
+            <TableRow
+              key={item?._id}
+              onClick={() => setSelectedRow(item._id)}
+              className={`cursor-pointer ${
+                selectedRow === item._id ? " bg-gray-900" : ""
+              }`}
+            >
               {/* Name */}
               <TableCell className="font-medium truncate max-w-[150px]">
                 <EditableCell
@@ -254,13 +333,11 @@ export function SpreadsheetTable({
 
               {/* Phone Number */}
               <TableCell>
-                <EditableCell
-                  value={item.phoneNumber}
+                <EditableCopyCell
+                  value={item.phoneNumber.toString()}
                   onSave={(newValue) =>
                     handleSave(item._id, "phoneNumber", newValue)
                   }
-                  maxWidth="120px"
-                  // placeholder="Phone number"
                 />
               </TableCell>
 
@@ -269,17 +346,18 @@ export function SpreadsheetTable({
                 className="truncate max-w-[150px]"
                 title={item.location}
               >
-                <EditableCell
+                <SelectableCell
                   maxWidth="100px"
                   value={item.location}
-                  onSave={(newValue) =>
+                  data={locationws}
+                  save={(newValue: string) =>
                     handleSave(item._id, "location", newValue)
                   }
-                  // placeholder="Location"
                 />
               </TableCell>
 
               {/* Price */}
+
               <TableCell>
                 <EditableCell
                   maxWidth="80px"
@@ -289,6 +367,16 @@ export function SpreadsheetTable({
                 />
               </TableCell>
 
+              <TableCell>
+                <SelectableCell
+                  maxWidth="200px"
+                  data={cityAreas[item.location] || []}
+                  value={item.area}
+                  save={(newValue: string) =>
+                    handleSave(item._id, "area", newValue)
+                  }
+                />
+              </TableCell>
               {/* Int. Status */}
               <TableCell>
                 <SelectableCell
@@ -337,22 +425,22 @@ export function SpreadsheetTable({
                     maxWidth="60px"
                     // placeholder="URL"
                   />
-                  {item.link && item.link !== "-" && (
-                    <a
-                      href={
-                        item.link.startsWith("http")
-                          ? item.link
-                          : `https://${item.link}`
-                      }
-                      target="_blank"
-                      className="text-blue-500 hover:text-blue-700 ml-1"
-                      rel="noreferrer"
-                      title="Open link in new tab"
-                    >
-                      🔗
-                    </a>
-                  )}
                 </div>
+                {item.link && item.link !== "-" && (
+                  <a
+                    href={
+                      item.link.startsWith("http")
+                        ? item.link
+                        : `https://${item.link}`
+                    }
+                    target="_blank"
+                    className="text-blue-500 hover:text-blue-700 ml-1"
+                    rel="noreferrer"
+                    title="Open link in new tab"
+                  >
+                    🔗
+                  </a>
+                )}
               </TableCell>
 
               {/* Ref. Link */}
@@ -369,22 +457,22 @@ export function SpreadsheetTable({
                     maxWidth="60px"
                     // placeholder="Ref URL"
                   />
-                  {item.referenceLink && item.referenceLink !== "-" && (
-                    <a
-                      href={
-                        item.referenceLink.startsWith("http")
-                          ? item.referenceLink
-                          : `https://${item.referenceLink}`
-                      }
-                      target="_blank"
-                      className="text-blue-500 hover:text-blue-700 ml-1"
-                      rel="noreferrer"
-                      title="Open reference link in new tab"
-                    >
-                      🔗
-                    </a>
-                  )}
                 </div>
+                {item.referenceLink && item.referenceLink !== "-" && (
+                  <a
+                    href={
+                      item.referenceLink.startsWith("http")
+                        ? item.referenceLink
+                        : `https://${item.referenceLink}`
+                    }
+                    target="_blank"
+                    className="text-blue-500 hover:text-blue-700 ml-1"
+                    rel="noreferrer"
+                    title="Open reference link in new tab"
+                  >
+                    🔗
+                  </a>
+                )}
               </TableCell>
 
               {/* Address */}

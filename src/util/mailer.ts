@@ -26,7 +26,7 @@ export const sendEmail = async ({
 }: SendEmailParams): Promise<{ success: boolean; message: string }> => {
   let otp: number | null = null;
   try {
-    console.log("inside sendEmail");
+    // console.log("inside sendEmail");
     const hashedToken = await bcryptjs.hash(userId.toString(), 10);
     const encodedToken = encodeURIComponent(hashedToken);
     // Update user record in DB based on email type

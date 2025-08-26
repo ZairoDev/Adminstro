@@ -10,7 +10,7 @@ export async function GET(
   // await connectDb();
   await connectDb();
   const targetId = params.targetId;
-  console.log("targetId: ", targetId);
+  // console.log("targetId: ", targetId);
 
   if (!mongoose.Types.ObjectId.isValid(targetId)) {
     return NextResponse.json({ error: "Invalid target ID" }, { status: 400 });

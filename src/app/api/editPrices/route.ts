@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(property);
+    // console.log(property);
     const startDate = new Date(dateRange.from);
     const endDate = new Date(dateRange.to);
 

@@ -57,6 +57,11 @@ type Route = {
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
     {
+      path: "/dashboard/addons",
+      label: "Add Ons",
+      Icon: <Swords size={18} />,
+    },
+    {
       path: "/dashboard/user",
       label: "Manage User",
       Icon: <User2Icon size={18} />,
@@ -336,6 +341,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <LayoutDashboard size={18} />,
     },
     {
+      path: "/dashboard/spreadsheet",
+      label: "Spreadsheet Data",
+      Icon: <FileSpreadsheet  size={18} />,
+    },
+    {
       path: "/dashboard/createquery",
       label: "Lead",
       Icon: <PencilLine size={18} />,
@@ -360,6 +370,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Rejected Leads",
       Icon: <CircleX size={18} />,
     },
+
     {
       path: "/dashboard/reminders",
       label: "Reminders",

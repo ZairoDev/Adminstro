@@ -23,7 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let EmployeeInput = request.nextUrl.searchParams.get("userInput");
 
   const token = await getDataFromToken(request);
-  console.log(token, "token");
+  // console.log(token, "token");
 
   if (EmployeeInput) {
     EmployeeInput = EmployeeInput.trim();
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         query[queryType] = regex;
       }
     } else {
-      console.log("Invalid queryType:", queryType);
+      // console.log("Invalid queryType:", queryType);
     }
   }
 

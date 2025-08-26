@@ -7,9 +7,9 @@ connectDb();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log(body, "Body will print here");
+    // console.log(body, "Body will print here");
     const { userId } = body;
-    console.log(userId, "User ID will print here");
+    // console.log(userId, "User ID will print here");
     const properties = await Property.find({ userId: userId });
     if (!properties || properties.length === 0) {
       return NextResponse.json(

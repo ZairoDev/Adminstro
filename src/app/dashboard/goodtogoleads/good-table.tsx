@@ -65,6 +65,8 @@ import { Calendar } from "../../../components/ui/calendar";
 import { Textarea } from "../../../components/ui/textarea";
 import CustomTooltip from "../../../components/CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
+import { EditableCell } from "../spreadsheet/EditableCell";
+import { TooltipEditableCell } from "./ToolTipEditableProp";
 
 interface Timers {
   current: { [key: string]: NodeJS.Timeout };
@@ -225,6 +227,29 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
       console.log("err: ", err);
     }
   };
+
+  const handleSave = async (
+      _id: string,
+      key: keyof IQuery,
+      newValue: string
+    ) => {
+      // optimistic UI update
+      const prev = queries;
+      const updatedData = queries.map((item) =>
+        item._id === _id ? { ...item, [key]: newValue } : item
+      );
+      setQueries(updatedData);
+      try {
+        await axios.put(`/api/leads/updateData/${_id}`, {
+          field: key,
+          value: newValue,
+        });
+      } catch (error) {
+        console.error("Update failed", error);
+        // rollback if API fails
+        setQueries(prev);
+      }
+    };
 
   const handleSalesPriority = (leadId: string | undefined, index: number) => {
     if (!leadId) return;
@@ -474,27 +499,58 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
               </TableCell>
               <TableCell className="">
                 <div className="flex gap-x-2">
-                  <CustomTooltip
+                  {/* <CustomTooltip
                     icon={<Users size={18} />}
                     content={query?.guest}
                     desc="Number of guests"
+                  /> */}  
+                  <TooltipEditableCell
+                    value={query?.guest.toString() ?? ""}
+                    onSave={(val) => handleSave(query._id!, "guest", val)}
+                    tooltipText="Number of guests"
+                    icon={<Users size={18} />}
+                    maxWidth="40px"
                   />
                   <div> | </div>
-                  <CustomTooltip
+                  {/* <CustomTooltip
                     icon={<BedSingle size={18} />}
                     content={query?.noOfBeds}
                     desc="Number of Beds"
+                  /> */}
+                  <TooltipEditableCell
+                    value={query?.noOfBeds.toString() ?? ""}
+                    onSave={(val) => handleSave(query._id!, "noOfBeds", val)}
+                    tooltipText="Number of Beds"
+                    icon={<BedSingle size={18} />}
+                    maxWidth="40px"
                   />
                 </div>
               </TableCell>
 
               <TableCell>
                 <div className="flex gap-x-2">
-                  <CustomTooltip
-                    icon={<Euro size={18} />}
-                    text={`${query?.minBudget} - ${query.maxBudget}`}
-                    desc="Guest Budget"
+                  €
+                  {/* <EditableCell
+                    value={query?.maxBudget.toString()}
+                    onSave={() =>
+                      handleSave(
+                        query?._id!,
+                        "maxBudget",
+                        query?.maxBudget.toString()
+                      )
+                    }
+                    maxWidth="40px"
+                  /> */}
+                  <TooltipEditableCell
+                    value={query?.maxBudget.toString() ?? ""}
+                    onSave={(val) => handleSave(query._id!, "maxBudget", val)}
+                    tooltipText={`€ ${query.minBudget} - € ${query.maxBudget}`}
                   />
+                  {/* <CustomTooltip
+                    // icon={<Euro size={18} />}  
+                    text={`€ ${query.maxBudget}`}
+                    desc={`€ ${query?.minBudget} - € ${query.maxBudget}`}
+                  /> */}
                   <div>|</div>
                   <Badge>
                     <CustomTooltip
@@ -537,10 +593,15 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
               <TableCell>{query?.duration}</TableCell>
 
               <TableCell>
-                <div className=" flex gap-x-1">
-                  <CustomTooltip
+                <div className=" flex gap-x-1"> 
+                  {/* <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
                     desc={`Location ->${query?.location} Area ->${query?.area}`}
+                  /> */}
+                  <TooltipEditableCell
+                    value={query?.area ?? ""}
+                    onSave={(val) => handleSave(query._id!, "area", val)}
+                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
                   />
                   <div>|</div>
                   <Badge>

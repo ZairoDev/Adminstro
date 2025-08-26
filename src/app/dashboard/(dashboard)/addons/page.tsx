@@ -22,6 +22,7 @@ import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
 import { AreaModel } from "../../target/area-model";
 import { DisplayLists } from "@/components/displaylists/lists";
+import { useAuthStore } from "@/AuthStore";
 
 
 interface AgentIntrerface {
@@ -56,6 +57,8 @@ const Addons = () => {
   const [areaId, setAreaId] = useState("")
   const [openList,setOpenList] = useState(false)
   const [list, setList] = useState<Area[]>([])
+  const token = useAuthStore();
+  console.log(token);
 
   const [DeleteDialog, confirmDelete] = useConfirm(
     "Delete Agent",
@@ -154,6 +157,9 @@ const Addons = () => {
 
       {/*Add Agents*/}
       <div className=" flex items-center gap-3">
+        {
+          
+        }
         <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
           {isLoading ? (
             <InfinityLoader className=" w-16 h-12" />

@@ -124,6 +124,33 @@ const SalesDashboard = () => {
     messageStatus:"None",
   });
 
+  const locationList = [ {
+    id:1,
+    label: "Athens",
+    value: "athens",
+  },
+  {
+    id:2,
+    label: "Thessaloniki",
+    value: "thessaloniki",
+  },
+  {
+    id:3,
+    label: "Milan",
+    value: "milan",
+  },
+  { 
+    id:4,
+    label: "Rome",
+    value: "rome",
+  },
+  {
+    id:5,
+    label: "Chania",
+    value: "chania",
+  },
+]
+
   const [location,setLocation] = useState([]);
   
 
@@ -572,7 +599,7 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select Location" />
                           </SelectTrigger>
                           <SelectContent>
-                            {location?.map(
+                            {/* {location?.map(
                               (location: { city: string; _id: string }) => (
                                 <SelectItem
                                   key={location._id}
@@ -581,12 +608,22 @@ const SalesDashboard = () => {
                                   {location.city}
                                 </SelectItem>
                               )
+                            )} */}
+                            {locationList?.map(
+                              (location: {label: string; value: string; id: number }) => (
+                                <SelectItem
+                                  key={location.id}
+                                  value={location.value}
+                                >
+                                  {location.label}
+                                </SelectItem>
+                              )
                             )}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    <div className="w-full ml-1 mb-2">
+                    {/* <div className="w-full ml-1 mb-2">
                       <Label>Area</Label>
                       <Select
                         value={formData.area}
@@ -613,7 +650,7 @@ const SalesDashboard = () => {
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Section 2: Booking Details */}

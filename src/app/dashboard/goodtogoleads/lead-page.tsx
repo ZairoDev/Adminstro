@@ -43,6 +43,14 @@ import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
 import GoodTable from "./good-table";
 
+interface WordsCount {
+  "1bhk": number;
+  "2bhk": number;
+  "3bhk": number;
+  "4bhk": number;
+  studio: number;
+} 
+
 export const GoodToGoLeads = () => {
   const router = useRouter();
   const { toast } = useToast();
@@ -53,6 +61,7 @@ export const GoodToGoLeads = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+   const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -78,6 +87,7 @@ export const GoodToGoLeads = () => {
     budgetTo: "",
     leadQuality: "",
     allotedArea: "",
+    typeOfProperty: "",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
@@ -86,37 +96,37 @@ export const GoodToGoLeads = () => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    // console.log("area ::", area);
+
     filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
   };
 
-  const handlePriorityChange = () => {
-    const priorityMap = {
-      None: 1,
-      Low: 2,
-      High: 3,
-    };
-    // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+  // const handlePriorityChange = () => {
+  //   const priorityMap = {
+  //     None: 1,
+  //     Low: 2,
+  //     High: 3,
+  //   };
 
-    if (sortingField && sortingField !== "None") {
-      queries.sort((a, b) => {
-        const priorityA =
-          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-        const priorityB =
-          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
+  //   console.log("sorting field: ", queries);
 
-        if (sortingField === "Asc") {
-          return priorityA - priorityB;
-        } else {
-          return priorityB - priorityA;
-        }
-      });
-    }
-    // setQueries(sortedQueries);
-  };
+  //   if (sortingField && sortingField !== "None") {
+  //     queries.sort((a, b) => {
+  //       const priorityA =
+  //         priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
+  //       const priorityB =
+  //         priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
+
+  //       if (sortingField === "Asc") {
+  //         return priorityA - priorityB;
+  //       } else {
+  //         return priorityB - priorityA;
+  //       }
+  //     });
+  //   }
+  //   // setQueries(sortedQueries);
+  // };
 
   const renderPaginationItems = () => {
     let items = [];
@@ -170,6 +180,7 @@ export const GoodToGoLeads = () => {
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
+      setWordsCount(response.data.wordsCount);
     } catch (err: any) {
       console.log("error in getting leads: ", err);
     } finally {
@@ -217,16 +228,75 @@ export const GoodToGoLeads = () => {
   //   filterLeads(1);
   // }, [filters.searchTerm]);
 
+  const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
+    console.log("filtering leads and clicked", typeOfProperty, noOfBeds);
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      typeOfProperty: typeOfProperty,
+      noOfBeds: noOfBeds?? prevFilters.noOfBeds,
+     
+    }));
+
+    filterLeads(1, {
+      ...filters,
+      typeOfProperty: typeOfProperty,
+      noOfBeds: noOfBeds?? filters.noOfBeds,
+      allotedArea: allotedArea
+    });
+
+
+  }
+
   return (
     <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full">
-          <Heading
-            heading="Good To Go Leads"
-            subheading="You will get the list of leads that created till now"
-          />
-        </div>
+         <div className="w-full  flex ">
+                  {/* heading component where all leads is*/}
+                  <Heading heading="Good To Go Leads" subheading="" />
+                  <div className="w-full flex flex-wrap gap-4 justify-center ">
+                    <div onClick={() => handlePropertyCountFilter("Apartment","1")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+                      <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
+                        {wordsCount[0]?.["1bhk"]}
+                      </p>
+                      <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
+                        1 BHK
+                      </p>
+                    </div>
+                    <div onClick={() => handlePropertyCountFilter("Apartment","2")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+                      <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
+                        {wordsCount[0]?.["2bhk"]}
+                      </p>
+                      <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
+                        2 BHK
+                      </p>
+                    </div>
+                    <div onClick={() => handlePropertyCountFilter("Apartment","3")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+                      <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
+                        {wordsCount[0]?.["3bhk"]}
+                      </p>
+                      <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
+                        3 BHK
+                      </p>
+                    </div>
+                    <div onClick={() => handlePropertyCountFilter("Apartment","4")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+                      <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
+                        {wordsCount[0]?.["4bhk"]}
+                      </p>
+                      <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
+                        4 BHK
+                      </p>
+                    </div>
+                    <div onClick={() => handlePropertyCountFilter("Studio","1")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+                      <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
+                        {wordsCount[0]?.["studio"]}
+                      </p>
+                      <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
+                        Studio
+                      </p>
+                    </div>
+                  </div>
+                </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||

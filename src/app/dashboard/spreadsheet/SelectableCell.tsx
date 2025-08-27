@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import {
   Tooltip,
@@ -5,6 +7,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type Option =
+  | { label: string; value: string }
+  | string;
 
 export function SelectableCell({
   data,
@@ -12,7 +25,7 @@ export function SelectableCell({
   save,
   maxWidth,
 }: {
-  data: string[];
+  data: Option[];
   value: string;
   save: (val: string) => void;
   maxWidth?: string;
@@ -20,38 +33,58 @@ export function SelectableCell({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
+  // Normalize: get label for display
+  const getLabel = (val: string) => {
+    const found = data.find((item) =>
+      typeof item === "string" ? item === val : item.value === val
+    );
+    if (!found) return val;
+    return typeof found === "string" ? found : found.label;
+  };
+
   return (
     <div
       className={`truncate cursor-pointer inline-block px-2 py-1 rounded-md transition-colors
-        ${editing ? "bg-gray-100" : "hover:bg-gray-50"}`}
+        ${editing ? "bg-gray-700" : "hover:bg-gray-500"}`}
       style={{ maxWidth }}
       onClick={() => !editing && setEditing(true)}
     >
       {editing ? (
-        <select
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => {
+        <Select
+          defaultValue={draft}
+          onValueChange={(val) => {
+            setDraft(val);
+            save(val);
             setEditing(false);
-            save(draft);
           }}
-          className="w-full text-xs border border-gray-300 rounded-md p-1 focus:outline-none focus:ring focus:ring-blue-200"
         >
-          {data.map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full text-md border border-gray-100 rounded-md p-1  ">
+            <SelectValue placeholder="Select an option" />
+          </SelectTrigger>
+          <SelectContent>
+            {data.map((item) =>
+              typeof item === "string" ? (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ) : (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
       ) : (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                className={`text-xs block ${
-                  value ? "text-gray-500" : "text-gray-400 italic"
+                className={`text-md border rounded-md p-1 block ${
+                  value ? "text-gray-200" : "text-gray-400 italic"
                 }`}
               >
-                {value || "Click to select"}
+                {value ? getLabel(value) : "Click"}
               </span>
             </TooltipTrigger>
             {value && (

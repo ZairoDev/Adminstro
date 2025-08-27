@@ -36,6 +36,7 @@ export function SpreadsheetTable({
     { label: "Location", field: "location", sortable: true },
     { label: "Price", field: "price", sortable: true },
     { label: "Area", field: "area", sortable: false },
+    { label: "Avail.", field: "availability", sortable: true },
     { label: "Int. Status", field: "intStatus", sortable: false },
     { label: "Property Type", field: "propertyType", sortable: false },
     { label: "Date", field: "date", sortable: true },
@@ -53,22 +54,33 @@ export function SpreadsheetTable({
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
 
   const apartmentTypes = [
-    "Studio",
-    "Apartment",
-    "Villa",
-    "Pent House",
-    "Detached House",
-    "Loft",
-    "Shared Apartment",
-    "Maisotte",
-    "Studio / 1 bedroom",
+    { label: "Studio", value: "studio" },
+    { label: "Apartment", value: "apartment" },
+    { label: "Villa", value: "villa" },
+    { label: "Pent House", value: "pent_house" },
+    { label: "Detached House", value: "detached_house" },
+    { label: "Loft", value: "loft" },
+    { label: "Shared Apartment", value: "shared_apartment" },
+    { label: "Maisotte", value: "maisotte" },
+    { label: "Studio / 1 bedroom", value: "studio_1_bedroom" },
   ];
 
   const interiorStatus = [
-    "Fully Furnished",
-    "Partially Furnished",
-    "Unfurnished",
+    { label: "F", value: "fully_furnished" },
+    { label: "P F", value: "partially_furnished" },
+    { label: "Un", value: "unfurnished" },
   ];
+
+  const avail = [
+   {
+      label: "A",
+      value: "Available",
+    },
+    {
+      label: "NA",
+      value: "Not Available",
+    },
+  ]
 
 
   useEffect(() => {
@@ -118,6 +130,7 @@ export function SpreadsheetTable({
       referenceLink: "",
       address: "",
       remarks: "",
+      availability: "Available",
       date: new Date(),
     };
     const tempId = `temp_${Date.now()}_${Math.random()
@@ -132,8 +145,8 @@ export function SpreadsheetTable({
       const res = await axios.post(`/api/unregisteredOwners/addUser`, tempRow);
       const savedRow = res.data.data;
 
-      console.log("Backend response:", savedRow);
-      console.log("Temp ID to replace:", tempId);
+      // console.log("Backend response:", savedRow);
+      // console.log("Temp ID to replace:", tempId);
 
       // Ensure the saved row has an _id field
       if (!savedRow || !savedRow._id) {
@@ -164,10 +177,10 @@ export function SpreadsheetTable({
       });
     } catch (error) {
       console.error("Row creation failed", error);
-      console.log("Rolling back optimistic update for tempId:", tempId);
+      // console.log("Rolling back optimistic update for tempId:", tempId);
       setTableData((prev) => {
         const rolledBack = prev.filter((row) => row._id !== tempId);
-        console.log("Rollback complete, remaining rows:", rolledBack.length);
+        // console.log("Rollback complete, remaining rows:", rolledBack.length);
         return rolledBack;
       });
 
@@ -238,26 +251,27 @@ export function SpreadsheetTable({
   // console.log("currentArea: ", currentArea);
   useEffect(() => {
     const handleKeyDown = async(e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedRow) {
+      if (e.ctrlKey && e.key === "Delete" && selectedRow) {
         setTableData((prev) => prev.filter((row) => row._id !== selectedRow));
         setSelectedRow(null);
         console.log("Deleted row with ID:", selectedRow);
-        const res = await axios.delete(`/api/unregisteredOwners/updateData/${selectedRow}`);
-        if(res.status === 200){
+        const res = await axios.delete(
+          `/api/unregisteredOwners/updateData/${selectedRow}`
+        );
+        if (res.status === 200) {
           toast(
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4" />
               Lead deleted successfully
             </div>
-          )
-        }
-        else{
+          );
+        } else {
           toast(
             <div className="flex items-center gap-2">
               <X className="h-4 w-4" />
               Error deleting lead
             </div>
-          )
+          );
         }
       }
     };
@@ -374,6 +388,16 @@ export function SpreadsheetTable({
                   value={item.area}
                   save={(newValue: string) =>
                     handleSave(item._id, "area", newValue)
+                  }
+                />
+              </TableCell>
+              <TableCell>
+                <SelectableCell
+                  maxWidth="200px"
+                  data={avail}
+                  value={item.availability}
+                  save={(newValue: string) =>
+                    handleSave(item._id, "availability", newValue)
                   }
                 />
               </TableCell>

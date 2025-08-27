@@ -515,6 +515,7 @@ export interface  unregisteredOwners {
   link: string;
   referenceLink: string;
   remarks: string;
+  availability: string;
 }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

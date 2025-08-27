@@ -46,6 +46,9 @@ const unregisteredOwnerSchema = new mongoose.Schema({
   },
   remarks:{
     type: String
+  },
+  availability:{
+    type: String
   }
 });
 

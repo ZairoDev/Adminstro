@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       budgetTo,
       leadQuality,
       allotedArea,
+      typeOfProperty,
     } = reqBody.filters;
     console.log("req body in filter route: ", reqBody);
     const PAGE = reqBody.page;
@@ -119,12 +120,21 @@ export async function POST(req: NextRequest) {
 
     // Other filters
     if (guest) query.guest = { $gte: parseInt(guest, 10) };
-    if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
+
+    if(noOfBeds){
+      if (noOfBeds==="0"){
+       query.noOfBeds ={ $gte: parseInt(noOfBeds, 10)} ;
+    }else{
+      query.noOfBeds =  parseInt(noOfBeds, 10);
+    }
+    }
+
     if (propertyType) query.propertyType = propertyType;
     if (billStatus) query.billStatus = billStatus;
     if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
     if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
-    if (leadQuality) query.leadQualityByReviewer = leadQuality;
+    if (leadQuality) query.leadQualityByReviewer = leadQuality; 
+    if (typeOfProperty) query.typeOfProperty = typeOfProperty;
 
     {
       /* Searching in non rejected Leads and leads with no reminders */

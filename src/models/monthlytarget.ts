@@ -3,10 +3,25 @@ import mongoose from "mongoose";
 const areaSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    metrolane: { type: String },
     zone: { type: String },
+    transportation: {
+      metroZone: { type: String }, // metro line/zone
+      tram: { type: String },
+      subway: { type: String },
+      bus: { type: String },
+    },
+    price: {
+      studio: { type: Number },
+      sharedSpot: { type: Number }, // e.g. bed space
+      sharedRoom: { type: Number }, // e.g. room in shared flat
+      apartment: {
+        oneBhk: { type: Number },
+        twoBhk: { type: Number },
+        threeBhk: { type: Number },
+      },
+    },
   },
-  { _id: false } // prevent auto _id for each subdocument
+  { _id: false } // avoid auto _id for subdocs
 );
 
 const targetSchema = new mongoose.Schema(
@@ -15,16 +30,16 @@ const targetSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    state: {
+      type: String,
+    },
     city: {
       type: String,
       required: true,
     },
     area: {
-      type: [areaSchema], // 👈 array of objects, not strings
+      type: [areaSchema], // richer schema per area
       default: [],
-    },
-    state: {
-      type: String,
     },
     leads: { type: Number, required: true },
     visits: { type: Number, required: true },

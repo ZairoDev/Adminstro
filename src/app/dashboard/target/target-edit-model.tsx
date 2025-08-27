@@ -30,7 +30,7 @@ interface TargetEditModalProps {
     visits: number;
     leads: number;
     area: Area[];
-  };
+  } | null;
   getAllTargets: () => void;
 }
 
@@ -96,7 +96,7 @@ export const TargetEditModal = ({
 
       // only send areaUpdate when a specific area was selected
       if (selectedAreaOldName) {
-        payload.areaUpdate = {
+        payload.area = {
           oldName: selectedAreaOldName, // what to match on
           name: areaEdit.name?.trim(), // new values
           metrolane: areaEdit.metrolane?.trim() || "",
@@ -105,7 +105,7 @@ export const TargetEditModal = ({
       }
 
       await axios.put(
-        `/api/addons/target/updateTarget/${targetData._id}`,
+        `/api/addons/target/updateTarget/${targetData?._id}`,
         payload
       );
 
@@ -171,7 +171,7 @@ export const TargetEditModal = ({
                 value={selectedAreaOldName}
                 onValueChange={(val) => {
                   setSelectedAreaOldName(val);
-                  const found = targetData.area.find((a) => a.name === val);
+                  const found = targetData?.area.find((a) => a.name === val);
                   setAreaEdit(
                     found ? { ...found } : { name: "", metrolane: "", zone: "" }
                   );
@@ -182,7 +182,7 @@ export const TargetEditModal = ({
                   <SelectValue placeholder="Pick an area" />
                 </SelectTrigger>
                 <SelectContent>
-                  {targetData.area.map((a) => (
+                  {targetData?.area.map((a) => (
                     <SelectItem key={a.name} value={a.name}>
                       {a.name}
                     </SelectItem>

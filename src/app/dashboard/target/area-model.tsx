@@ -18,11 +18,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Area = {
   name: string;
-  metrolane?: string;
   zone?: string;
+  transportation?: {
+    metroZone?: string;
+    tram?: string;
+    subway?: string;
+    bus?: string;
+  };
+  price?: {
+    studio?: number;
+    sharedSpot?: number;
+    sharedRoom?: number;
+    apartment?: {
+      oneBhk?: number;
+      twoBhk?: number;
+      threeBhk?: number;
+    };
+  };
 };
 
 export function AreaModel({
@@ -38,8 +54,23 @@ export function AreaModel({
   const [loading, setLoading] = useState(false);
   const [newArea, setNewArea] = useState<Area>({
     name: "",
-    metrolane: "",
     zone: "",
+    transportation: {
+      metroZone: "",
+      tram: "",
+      subway: "",
+      bus: "",
+    },
+    price: {
+      studio: undefined,
+      sharedSpot: undefined,
+      sharedRoom: undefined,
+      apartment: {
+        oneBhk: undefined,
+        twoBhk: undefined,
+        threeBhk: undefined,
+      },
+    },
   });
 
   const metroLines = [
@@ -51,19 +82,37 @@ export function AreaModel({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!newArea.name.trim()) return; // prevent empty name
+    if (!newArea.name.trim()) return;
 
     try {
       setLoading(true);
 
       await axios.put(`/api/addons/target/updateTarget/${areaId}`, {
-        area: newArea, // 👈 send as object
+        area: newArea,
       });
 
-      // Optimistic UI update
       setAreas((prev) => [...prev, newArea]);
-      setNewArea({ name: "", metrolane: "", zone: "" }); // reset input
-      setAreaModel(false); // close modal
+      setNewArea({
+        name: "",
+        zone: "",
+        transportation: {
+          metroZone: "",
+          tram: "",
+          subway: "",
+          bus: "",
+        },
+        price: {
+          studio: undefined,
+          sharedSpot: undefined,
+          sharedRoom: undefined,
+          apartment: {
+            oneBhk: undefined,
+            twoBhk: undefined,
+            threeBhk: undefined,
+          },
+        },
+      });
+      setAreaModel(false);
     } catch (err) {
       console.error("Failed to add area:", err);
     } finally {
@@ -74,7 +123,7 @@ export function AreaModel({
   const getAllArea = async () => {
     try {
       const res = await axios.get(`/api/addons/target/getTargetById/${areaId}`);
-      setAreas(res.data.target.area || []); // backend should return array of objects
+      setAreas(res.data.target.area || []);
     } catch (err) {
       console.error(err);
     }
@@ -86,12 +135,12 @@ export function AreaModel({
 
   return (
     <Dialog open={areaModel} onOpenChange={setAreaModel}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Locations</DialogTitle>
+            <DialogTitle>Add Area</DialogTitle>
             <DialogDescription>
-              Add new locations for this target.
+              Add detailed information for this area.
             </DialogDescription>
           </DialogHeader>
 
@@ -104,8 +153,7 @@ export function AreaModel({
                     key={index}
                     className="px-2 py-1 bg-gray-700 rounded-md text-sm"
                   >
-                    {area.name} {area.metrolane ? `• ${area.metrolane}` : ""}{" "}
-                    {area.zone ? `• ${area.zone}` : ""}
+                    {area.name} • {area.zone}
                   </span>
                 ))
               ) : (
@@ -113,34 +161,50 @@ export function AreaModel({
               )}
             </div>
 
-            {/* Location Name */}
+            {/* Name */}
             <div className="grid gap-3">
-              <Label htmlFor="area">Location Name</Label>
+              <Label htmlFor="area">Area Name</Label>
               <Input
                 id="area"
                 value={newArea.name}
                 onChange={(e) =>
                   setNewArea((prev) => ({ ...prev, name: e.target.value }))
                 }
-                placeholder="Enter location"
+                placeholder="Enter area name"
                 disabled={loading}
               />
             </div>
 
-            {/* Metro Line */}
+            {/* Zone */}
             <div className="grid gap-3">
-              <Label htmlFor="metroLane">Metro Line</Label>
+              <Label htmlFor="zone">Zone</Label>
+              <Input
+                id="zone"
+                value={newArea.zone}
+                onChange={(e) =>
+                  setNewArea((prev) => ({ ...prev, zone: e.target.value }))
+                }
+                placeholder="Enter zone"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Transportation */}
+            {/* Transportation */}
+            <div className="grid gap-3">
+              <Label>Transportation</Label>
+
+              {/* Metro */}
               <Select
-                value={newArea.metrolane}
+                value={newArea.transportation?.metroZone}
                 onValueChange={(val) =>
-                  setNewArea((prev) => ({ ...prev, metrolane: val }))
+                  setNewArea((prev) => ({
+                    ...prev,
+                    transportation: { ...prev.transportation, metroZone: val },
+                  }))
                 }
               >
-                <SelectTrigger
-                  id="metroLane"
-                  className="w-full"
-                  disabled={loading}
-                >
+                <SelectTrigger className="w-full" disabled={loading}>
                   <SelectValue placeholder="Select Metro Line" />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,20 +215,167 @@ export function AreaModel({
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Tram */}
+              <div className="grid gap-2 mt-2">
+                <Label htmlFor="tram">Tram</Label>
+                <Input
+                  id="tram"
+                  value={newArea.transportation?.tram ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      transportation: {
+                        ...prev.transportation,
+                        tram: e.target.value,
+                      },
+                    }))
+                  }
+                  placeholder="Enter Tram Line (e.g. Tram 5)"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Subway */}
+              <div className="grid gap-2">
+                <Label htmlFor="subway">Subway</Label>
+                <Input
+                  id="subway"
+                  value={newArea.transportation?.subway ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      transportation: {
+                        ...prev.transportation,
+                        subway: e.target.value,
+                      },
+                    }))
+                  }
+                  placeholder="Enter Subway Line (e.g. Line 2)"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Bus */}
+              <div className="grid gap-2">
+                <Label htmlFor="bus">Bus</Label>
+                <Input
+                  id="bus"
+                  value={newArea.transportation?.bus ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      transportation: {
+                        ...prev.transportation,
+                        bus: e.target.value,
+                      },
+                    }))
+                  }
+                  placeholder="Enter Bus Route (e.g. Bus 24B)"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            {/* Zone */}
+            {/* Price Section */}
             <div className="grid gap-3">
-              <Label htmlFor="zone">Zone Name</Label>
-              <Input
-                id="zone"
-                value={newArea.zone}
-                onChange={(e) =>
-                  setNewArea((prev) => ({ ...prev, zone: e.target.value }))
-                }
-                placeholder="Enter Zone Name"
-                disabled={loading}
-              />
+              <Label>Price</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="number"
+                  placeholder="Studio"
+                  value={newArea.price?.studio ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: { ...prev.price, studio: Number(e.target.value) },
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="Shared Spot"
+                  value={newArea.price?.sharedSpot ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        sharedSpot: Number(e.target.value),
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="Shared Room"
+                  value={newArea.price?.sharedRoom ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        sharedRoom: Number(e.target.value),
+                      },
+                    }))
+                  }
+                />
+              </div>
+
+              <Label className="mt-2">Apartment</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <Input
+                  type="number"
+                  placeholder="1 BHK"
+                  value={newArea.price?.apartment?.oneBhk ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        apartment: {
+                          ...prev.price?.apartment,
+                          oneBhk: Number(e.target.value),
+                        },
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="2 BHK"
+                  value={newArea.price?.apartment?.twoBhk ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        apartment: {
+                          ...prev.price?.apartment,
+                          twoBhk: Number(e.target.value),
+                        },
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="3 BHK"
+                  value={newArea.price?.apartment?.threeBhk ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        apartment: {
+                          ...prev.price?.apartment,
+                          threeBhk: Number(e.target.value),
+                        },
+                      },
+                    }))
+                  }
+                />
+              </div>
             </div>
           </div>
 
@@ -177,7 +388,6 @@ export function AreaModel({
             >
               Cancel
             </Button>
-
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save changes"}
             </Button>

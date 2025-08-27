@@ -57,7 +57,7 @@ const Addons = () => {
   const [areaId, setAreaId] = useState("")
   const [openList,setOpenList] = useState(false)
   const [list, setList] = useState<Area[]>([])
-  const token = useAuthStore();
+  const {token} = useAuthStore();
   console.log(token);
 
   const [DeleteDialog, confirmDelete] = useConfirm(
@@ -157,9 +157,7 @@ const Addons = () => {
 
       {/*Add Agents*/}
       <div className=" flex items-center gap-3">
-        {
-          
-        }
+      {(token?.role === "SuperAdmin" ) && (
         <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
           {isLoading ? (
             <InfinityLoader className=" w-16 h-12" />
@@ -200,73 +198,84 @@ const Addons = () => {
           </Button>
           <AgentModal open={agentModal} onOpenChange={setAgentModal} />
         </section>
-        <section className="border rounded-md w-64 h-80 flex flex-col mt-8">
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-y-2">
-            {loading ? (
-              <InfinityLoader className="w-16 h-12" />
-            ) : (
-              targets?.map((target, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center w-full p-2 border rounded-md"
-                >
-                  <p className="text-sm">
-                    {target.city + "/" + target.country}
-                  </p>
-                  <p onClick={() => {setOpenList(true); setList(target.area)}} className="text-sm bg-slate-500 p-2 rounded-md cursor-pointer">
-                    {target.area.length}
-                  </p>
+      )}
+        {(token?.role === "SuperAdmin" ||
+          token?.role === "Advert" ||
+          token?.role === "LeadGen-TeamLead") && (
+          <section className="border rounded-md w-64 h-80 flex flex-col mt-8">
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-y-2">
+              {loading ? (
+                <InfinityLoader className="w-16 h-12" />
+              ) : (
+                targets?.map((target, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center w-full p-2 border rounded-md"
+                  >
+                    <p className="text-sm">
+                      {target.city + "/" + target.country}
+                    </p>
+                    <p
+                      onClick={() => {
+                        setOpenList(true);
+                        setList(target.area);
+                      }}
+                      className="text-sm bg-slate-500 p-2 rounded-md cursor-pointer"
+                    >
+                      {target.area.length}
+                    </p>
 
-                  {/* Dropdown menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <EllipsisVertical size={22} />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <button
-                          onClick={() => {
-                            setTargetEdit(true);
-                            setEditTarget(target);
-                          }}
+                    {/* Dropdown menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <EllipsisVertical size={22} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <button
+                            onClick={() => {
+                              setTargetEdit(true);
+                              setEditTarget(target);
+                            }}
+                          >
+                            Edit Details
+                          </button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <button
+                            onClick={() => {
+                              setAreaModel(true);
+                              setAreaId(target._id);
+                            }}
+                          >
+                            Add Location
+                          </button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => deleteTarget(target._id)}
                         >
-                          Edit Details
-                        </button>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <button
-                          onClick={() => {
-                            setAreaModel(true);
-                            setAreaId(target._id);
-                          }}
-                        >
-                          Add Location
-                        </button>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => deleteTarget(target._id)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))
-            )}
-          </div>
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))
+              )}
+            </div>
 
-          {/* Fixed footer button */}
-          <div className="p-2 border-t">
-            <Button className="w-full" onClick={() => setTargetModal(true)}>
-              <span className="font-semibold text-base">
-                Add Country Target
-              </span>
-            </Button>
-          </div>
-        </section>
+            {/* Fixed footer button */}
+            <div className="p-2 border-t">
+              <Button className="w-full" onClick={() => setTargetModal(true)}>
+                <span className="font-semibold text-base">
+                  Add Country Target
+                </span>
+              </Button>
+            </div>
+          </section>
+        )}
 
         <AreaModel
           areaModel={areaModel}
@@ -279,11 +288,13 @@ const Addons = () => {
           onOpenChange={setTargetModal}
           getAllTargets={getTargets}
         />
-        {
-          openList && list &&(
-            <DisplayLists heading="Area List" data={list} setOnClose={setOpenList} />
-          )
-        }
+        {openList && list && (
+          <DisplayLists
+            heading="Area List"
+            data={list}
+            setOnClose={setOpenList}
+          />
+        )}
         {targetEdit && editTarget && (
           <TargetEditModal
             open={targetEdit}

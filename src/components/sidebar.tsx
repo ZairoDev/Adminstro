@@ -96,6 +96,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   "LeadGen-TeamLead": [
     {
+      path: "/dashboard/addons",
+      label: "Add Ons",
+      Icon: <Swords size={18} />,
+    },
+    {
       path: "/dashboard",
       label: "Dashboard",
       Icon: <LayoutDashboard size={18} />,
@@ -146,6 +151,11 @@ const roleRoutes: Record<string, Route[]> = {
     },
   ],
   SuperAdmin: [
+    {
+      path: "/dashboard/target",
+      label: "Create Target",
+      Icon: <PencilLine size={18} />,
+    },
     {
       path: "/dashboard",
       label: "Dashboard",
@@ -343,7 +353,7 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/spreadsheet",
       label: "Spreadsheet Data",
-      Icon: <FileSpreadsheet  size={18} />,
+      Icon: <FileSpreadsheet size={18} />,
     },
     {
       path: "/dashboard/createquery",
@@ -549,6 +559,11 @@ const dashboardManagementRoutes = [
     path: "/dashboard/addons",
     label: "Add Ons",
     Icon: <Swords size={18} />,
+  },
+  {
+    path: "/dashboard/target",
+    label: "Create Target",
+    Icon: <PencilLine size={18} />,
   },
 ];
 const leadManagementRoutes = [

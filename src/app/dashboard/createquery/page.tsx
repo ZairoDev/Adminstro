@@ -439,13 +439,16 @@ const SalesDashboard = () => {
   },[])
 
   const [areas,setAreas] = useState<String[]>([]);
-  useEffect(()=>{
+  useEffect(() => {
+    console.log(location);
+
     const data = location
       .filter((item: any) => item.city === formData.location)
-      .map((item: any) => ({ area: item.area, city: item.city }));
-    setAreas(data[0]?.area)
-    console.log(data[0]?.area);
-  },[formData.location])
+      .flatMap((item: any) => item.area.map((a: any) => a.name)); // extract names
+
+    setAreas(data); // directly set all area names
+    console.log(data);
+  }, [formData.location, location]);
 
   return (
     <div>

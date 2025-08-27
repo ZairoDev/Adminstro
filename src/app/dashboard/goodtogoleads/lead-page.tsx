@@ -251,56 +251,72 @@ export const GoodToGoLeads = () => {
     <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-         <div className="w-full  flex ">
-                  {/* heading component where all leads is*/}
-                  <Heading heading="Good To Go Leads" subheading="" />
-                  <div className="w-full flex flex-wrap gap-4 justify-center ">
-                    <div onClick={() => handlePropertyCountFilter("Apartment","1")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
-                      <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
-                        {wordsCount[0]?.["1bhk"]}
-                      </p>
-                      <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
-                        1 BHK
-                      </p>
-                    </div>
-                    <div onClick={() => handlePropertyCountFilter("Apartment","2")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
-                      <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
-                        {wordsCount[0]?.["2bhk"]}
-                      </p>
-                      <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
-                        2 BHK
-                      </p>
-                    </div>
-                    <div onClick={() => handlePropertyCountFilter("Apartment","3")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
-                      <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
-                        {wordsCount[0]?.["3bhk"]}
-                      </p>
-                      <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
-                        3 BHK
-                      </p>
-                    </div>
-                    <div onClick={() => handlePropertyCountFilter("Apartment","4")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
-                      <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
-                        {wordsCount[0]?.["4bhk"]}
-                      </p>
-                      <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
-                        4 BHK
-                      </p>
-                    </div>
-                    <div onClick={() => handlePropertyCountFilter("Studio","1")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
-                      <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                        {wordsCount[0]?.["studio"]}
-                      </p>
-                      <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
-                        Studio
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        <div className="w-full  flex ">
+          {/* heading component where all leads is*/}
+          <Heading heading="Good To Go Leads" subheading="" />
+          <div className="w-full flex flex-wrap gap-3 justify-center ">
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "1")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
+              <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
+                {wordsCount[0]?.["1bhk"]}
+              </p>
+              <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
+                1 BHK
+              </p>
+            </div>
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "2")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
+              <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
+                {wordsCount[0]?.["2bhk"]}
+              </p>
+              <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
+                2 BHK
+              </p>
+            </div>
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "3")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
+              <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
+                {wordsCount[0]?.["3bhk"]}
+              </p>
+              <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
+                3 BHK
+              </p>
+            </div>
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "4")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
+              <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
+                {wordsCount[0]?.["4bhk"]}
+              </p>
+              <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
+                4 BHK
+              </p>
+            </div>
+            <div
+              onClick={() => handlePropertyCountFilter("Studio", "1")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
+              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
+                {wordsCount[0]?.["studio"]}
+              </p>
+              <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
+                Studio
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
-              token?.role === "Sales-TeamLead" || token?.role === "Sales") && (
+              token?.role === "Sales-TeamLead" ||
+              token?.role === "Sales") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {

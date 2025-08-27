@@ -28,7 +28,7 @@ export interface FilterState {
   budgetTo: string;
   leadQuality: string;
   allotedArea: string;
-  typeOfProperty: string;
+  typeOfProperty?: string;
 }
 
 interface FilterProps {

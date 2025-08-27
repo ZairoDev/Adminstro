@@ -362,7 +362,7 @@ export const RejectedLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} />
+              <LeadTable queries={queries} setQueries={setQueries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

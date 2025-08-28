@@ -594,6 +594,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                   />
                 </Badge>
               </TableCell>
+              
               <TableCell className="">
                 <div className="flex gap-x-2">
                   {/* <CustomTooltip

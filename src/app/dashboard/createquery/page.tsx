@@ -1130,7 +1130,7 @@ const SalesDashboard = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               <Suspense fallback={<div>Loading...</div>}>
-                <LeadTable queries={queries} />
+                <LeadTable queries={queries} setQueries={setQueries}/>
               </Suspense>
             </div>
             <div className="flex items-center justify-between p-2 w-full">

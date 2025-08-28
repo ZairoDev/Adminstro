@@ -67,8 +67,10 @@ import { Calendar } from "../ui/calendar";
 import { Textarea } from "../ui/textarea";
 import CustomTooltip from "../CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
+import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
+import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
 
-export default function LeadTable({ queries }: { queries: IQuery[] }) {
+export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -125,6 +127,34 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
       });
     }
   };
+
+const handleSave = async (
+  _id: string,
+  key: keyof IQuery,
+  newValue: string
+) => {
+  // keep previous snapshot
+  const prev = [...queries];
+
+  // optimistic update
+  setQueries?.((q: IQuery[]) =>
+    q.map((item: IQuery) =>
+      item._id === _id ? { ...item, [key]: newValue } : item
+    )
+  );
+
+  try {
+    await axios.put(`/api/leads/updateData/${_id}`, {
+      field: key,
+      value: newValue,
+    });
+  } catch (error) {
+    console.error("Update failed", error);
+    // rollback if API fails
+    setQueries?.(prev);
+  }
+};
+
 
   const IsView = async (id: any, index: any) => {
     try {
@@ -495,7 +525,7 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                   />
                 </Badge>
               </TableCell>
-              <TableCell className="">
+              {/* <TableCell className="">
                 <div className="flex gap-x-2">
                   <CustomTooltip
                     icon={<Users size={18} />}
@@ -509,14 +539,44 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
                     desc="Number of Beds"
                   />
                 </div>
+              </TableCell> */}
+
+              <TableCell className="">
+                <div className="flex gap-x-2">
+                  <TooltipEditableCell
+                    value={query?.guest.toString() ?? ""}
+                    onSave={(val) => handleSave(query._id!, "guest", val)}
+                    tooltipText="Number of guests"
+                    icon={<Users size={18} />}
+                    maxWidth="40px"
+                  />
+                  {/* <CustomTooltip
+                    icon={<Users size={18} />}
+                    content={query?.guest}
+                    desc="Number of guests"
+                  /> */}
+                  <div> | </div>
+                  {/* <CustomTooltip
+                    icon={<BedSingle size={18} />}
+                    content={query?.noOfBeds}
+                    desc="Number of Beds"
+                  /> */}
+                  <TooltipEditableCell
+                    value={query?.noOfBeds.toString() ?? ""}
+                    onSave={(val) => handleSave(query._id!, "noOfBeds", val)}
+                    tooltipText="Number of Beds"
+                    icon={<BedSingle size={18} />}
+                    maxWidth="40px"
+                  />
+                </div>
               </TableCell>
 
               <TableCell>
                 <div className="flex gap-x-2">
-                  <CustomTooltip
-                    icon={<Euro size={18} />}
-                    text={`${query?.minBudget} - ${query.maxBudget}`}
-                    desc="Guest Budget"
+                  <TooltipEditableCell
+                    value={`€${query?.maxBudget.toString() ?? ""}`}
+                    onSave={(val) => handleSave(query._id!, "maxBudget", val)}
+                    tooltipText={`€ ${query.minBudget} - € ${query.maxBudget}`}
                   />
                   <div>|</div>
                   <Badge>
@@ -561,9 +621,10 @@ export default function LeadTable({ queries }: { queries: IQuery[] }) {
 
               <TableCell>
                 <div className=" flex gap-x-1">
-                  <CustomTooltip
-                    text={`${query?.area?.slice(0, 8)}...`}
-                    desc={`Location ->${query?.location} Area ->${query?.area}`}
+                  <TooltipEditableCell
+                    value={query?.area ?? ""}
+                    onSave={(val) => handleSave(query._id!, "area", val)}
+                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
                   />
                   <div>|</div>
                   <Badge>

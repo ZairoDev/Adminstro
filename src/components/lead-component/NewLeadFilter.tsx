@@ -29,6 +29,7 @@ export interface FilterState {
   leadQuality: string;
   allotedArea: string;
   typeOfProperty?: string;
+  rejectionReason?: string;
 }
 
 interface FilterProps {

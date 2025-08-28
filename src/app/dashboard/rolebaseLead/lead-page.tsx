@@ -260,7 +260,7 @@ export const LeadPage = () => {
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full  flex ">
           {/* heading component where all leads is*/}
-          <Heading heading="All Leads" subheading="" />
+          <Heading heading="Fresh Leads" subheading="" />
           <div className="w-full flex flex-wrap gap-4 justify-center ">
             <div onClick={() => handlePropertyCountFilter("Apartment","1")} className="min-w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
               <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">

@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/logoutAlertBox";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { Notifications } from "@/components/Notifications/Notifications";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
+import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,9 @@ export default function DashboardLayout({
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
+            {
+              <LeadSearch />
+            }
             {(token?.role === "SuperAdmin" ||
               token?.role === "Sales" ||
               token?.role === "Sales-TeamLead") && <Notifications />}

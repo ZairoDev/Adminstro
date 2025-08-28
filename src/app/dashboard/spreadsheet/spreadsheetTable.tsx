@@ -40,10 +40,10 @@ export function SpreadsheetTable({
     { label: "Int. Status", field: "intStatus", sortable: false },
     { label: "Property Type", field: "propertyType", sortable: false },
     { label: "Date", field: "date", sortable: true },
-    { label: "Link", field: "link", sortable: false },
-    { label: "Ref. Link", field: "refLink", sortable: false },
     { label: "Address", field: "address", sortable: false },
+    { label: "Ref. Link", field: "refLink", sortable: false },
     { label: "Remarks", field: "remarks", sortable: false },
+    { label: "VsLink", field: "link", sortable: false },
   ];
 
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
@@ -101,20 +101,25 @@ export function SpreadsheetTable({
         );
 
         setLocationws(fetchedCities);
-        // make city → area mapping
+
+        // make city → area mapping (just area names)
         const cityAreaMap: Record<string, string[]> = {};
         res.data.data.forEach((loc: any) => {
-          cityAreaMap[loc.city] = loc.area || [];
+          cityAreaMap[loc.city] = (loc.area || []).map(
+            (a: any) => a.name // extract only name
+          );
         });
+
         setCityAreas(cityAreaMap);
       } catch (error) {
         console.error("Error fetching locations:", error);
         setLocationws([]);
       }
     };
-    console.log("Fetching locations...",cityAreas);
+
     getAllLocations();
   }, []);
+  
   
 
   const handleAddRow = async () => {
@@ -435,36 +440,20 @@ export function SpreadsheetTable({
                   type="date"
                 />
               </TableCell>
-              {/* Link */}
+
+              {/* Address */}
               <TableCell
-                className="text-right truncate max-w-[60px]"
-                title={item.link}
+                className="truncate max-w-[150px]"
+                title={item.address}
               >
-                <div className="flex items-center gap-1">
-                  <EditableCell
-                    value={item.link}
-                    onSave={(newValue) =>
-                      handleSave(item._id, "link", newValue)
-                    }
-                    maxWidth="60px"
-                    // placeholder="URL"
-                  />
-                </div>
-                {item.link && item.link !== "-" && (
-                  <a
-                    href={
-                      item.link.startsWith("http")
-                        ? item.link
-                        : `https://${item.link}`
-                    }
-                    target="_blank"
-                    className="text-blue-500 hover:text-blue-700 ml-1"
-                    rel="noreferrer"
-                    title="Open link in new tab"
-                  >
-                    🔗
-                  </a>
-                )}
+                <EditableCell
+                  maxWidth="200px"
+                  value={item.address}
+                  onSave={(newValue) =>
+                    handleSave(item._id, "address", newValue)
+                  }
+                  // placeholder="Address"
+                />
               </TableCell>
 
               {/* Ref. Link */}
@@ -499,21 +488,6 @@ export function SpreadsheetTable({
                 )}
               </TableCell>
 
-              {/* Address */}
-              <TableCell
-                className="truncate max-w-[150px]"
-                title={item.address}
-              >
-                <EditableCell
-                  maxWidth="200px"
-                  value={item.address}
-                  onSave={(newValue) =>
-                    handleSave(item._id, "address", newValue)
-                  }
-                  // placeholder="Address"
-                />
-              </TableCell>
-
               {/* Remarks */}
               <TableCell
                 className="text-right truncate max-w-[120px]"
@@ -527,6 +501,37 @@ export function SpreadsheetTable({
                   maxWidth="120px"
                   // placeholder="Remarks"
                 />
+              </TableCell>
+              {/* Link */}
+              <TableCell
+                className="text-right truncate max-w-[60px]"
+                title={item.link}
+              >
+                <div className="flex items-center gap-1">
+                  <EditableCell
+                    value={item.link}
+                    onSave={(newValue) =>
+                      handleSave(item._id, "link", newValue)
+                    }
+                    maxWidth="60px"
+                    // placeholder="URL"
+                  />
+                </div>
+                {item.link && item.link !== "-" && (
+                  <a
+                    href={
+                      item.link.startsWith("http")
+                        ? item.link
+                        : `https://${item.link}`
+                    }
+                    target="_blank"
+                    className="text-blue-500 hover:text-blue-700 ml-1"
+                    rel="noreferrer"
+                    title="Open link in new tab"
+                  >
+                    🔗
+                  </a>
+                )}
               </TableCell>
             </TableRow>
           ))}

@@ -160,7 +160,7 @@ const QueryDetails = ({ params }: PageProps) => {
         heading="Lead Details"
         subheading="Details about the leads , please rate it according to your experience"
       />
-      <div className=" relative">
+      <div className=" relative ">
         {loading ? (
           <div className="flex items-center justify-center">
             <Loader2 size={18} className="animate-spin" />

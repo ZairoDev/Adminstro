@@ -35,6 +35,7 @@ import {
   LayoutDashboard,
   SlidersHorizontal,
   Hotel,
+  Sprout,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -164,7 +165,7 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/spreadsheet",
       label: "Spreadsheet Data",
-      Icon: <PencilLine size={18} />,
+      Icon: <FileSpreadsheet size={18} />,
     },
     {
       path: "/dashboard/addons",
@@ -228,8 +229,8 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/rolebaseLead",
-      label: "Lead (Sales)",
-      Icon: <PencilLine size={18} />,
+      label: "Fresh Leads",
+      Icon: <Sprout size={18} />,
     },
     {
       path: "/dashboard/goodtogoleads",
@@ -362,8 +363,8 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/rolebaseLead",
-      label: "Lead (Sales)",
-      Icon: <PencilLine size={18} />,
+      label: "Fresh Leads",
+      Icon: <Sprout size={18} />,
     },
     {
       path: "/dashboard/goodtogoleads",
@@ -425,8 +426,8 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/rolebaseLead",
-      label: "Lead (Sales)",
-      Icon: <PencilLine size={18} />,
+      label: "Fresh Leads",
+      Icon: <Sprout size={18} />,
     },
     {
       path: "/dashboard/goodtogoleads",
@@ -589,8 +590,8 @@ const leadManagementRoutes = [
   },
   {
     path: "/dashboard/rolebaseLead",
-    label: "Lead (Sales)",
-    Icon: <PencilLine size={18} />,
+    label: "Fresh Leads",
+    Icon: <Sprout size={18} />,
   },
   {
     path: "/dashboard/goodtogoleads",

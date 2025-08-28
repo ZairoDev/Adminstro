@@ -10,6 +10,13 @@ import axios from "axios";
 import TargetModal from "./target_model";
 import { AreaModel } from "./area-model";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
 interface Area {
   name: string;
   zone: string;
@@ -80,6 +87,17 @@ export default function TargetPage() {
     }
   };
 
+  const handleDeleteArea = async (areaName: string) => {
+    try {
+      await axios.delete(`/api/addons/target/deleteArea`,{
+        data:{areaName,cityId}
+      });
+      getTargets();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   useEffect(() => {
     getTargets();
   }, []);
@@ -144,7 +162,11 @@ export default function TargetPage() {
               <CardContent className="p-4">
                 <Tabs
                   value={selectedCountry}
-                  onValueChange={setSelectedCountry}
+                  onValueChange={(country) => {
+                    setSelectedCountry(country);
+                    setSelectedCity(""); // reset city when switching country
+                    setCityId("");
+                  }}
                 >
                   <TabsList className="grid w-full grid-cols-1 gap-2 h-auto bg-transparent p-0">
                     {countries.map((country) => (
@@ -177,13 +199,20 @@ export default function TargetPage() {
             <Card>
               <CardContent className="p-4">
                 {cities.length > 0 ? (
-                  <Tabs value={selectedCity} onValueChange={setSelectedCity}>
+                  <Tabs
+                    value={selectedCity}
+                    onValueChange={(cityName) => {
+                      setSelectedCity(cityName);
+                      const city = cities.find((c) => c.city === cityName);
+                      setCityId(city?._id || "");
+                    }}
+                  >
                     <TabsList className="grid w-full grid-cols-1 gap-2 h-auto bg-transparent p-0">
                       {cities.map((c) => (
                         <TabsTrigger
                           key={c._id}
                           value={c.city}
-                          onClick={() => setCityId(c._id || "")}
+                          // onClick={() => setCityId(c._id || "")}
                           className="w-full justify-start data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                         >
                           {c.city}
@@ -192,7 +221,12 @@ export default function TargetPage() {
                               {c.state}
                             </span>
                           )}
-                          <button className="ml-auto" onClick={() => handleDeleteCity( c._id || "")}><Trash2 className="h-6 w-5 mr-0" /></button>
+                          <button
+                            className="ml-auto"
+                            onClick={() => handleDeleteCity(c._id || "")}
+                          >
+                            <Trash2 className="h-6 w-5 mr-0" />
+                          </button>
                         </TabsTrigger>
                       ))}
                     </TabsList>
@@ -209,135 +243,151 @@ export default function TargetPage() {
           {/* Areas Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold">Areas</h2>
+              <h2 className="text-xl font-semibold flex justify-center items-center gap-2">
+                Areas{" "}
+                <p className="text-sm">{selectedCity.toLocaleUpperCase()}</p>
+              </h2>
               <Badge variant="secondary">
                 {selectedCityData?.area?.length || 0}
               </Badge>
-              {cityId && (
-              <button
-                onClick={() => setAddArea(true)}
-                className="ml-auto border px-4 py-2 text-sm"
-              >
-                Add Area
-              </button>
-            )}
+              {selectedCity && cityId && (
+                <button
+                  onClick={() => setAddArea(true)}
+                  className="ml-auto border px-4 py-2 text-sm"
+                >
+                  Add Area
+                </button>
+              )}
             </div>
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
               {selectedCityData?.area?.length ? (
-                selectedCityData.area.map((area) => (
-                  <Card
-                    key={area.name}
-                    className="hover:shadow-md transition-shadow"
-                  >
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        {area.name}
-                      </CardTitle>
-                      <Badge variant="outline" className="w-fit">
-                        Zone {area.zone}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                          Transportation
-                        </h4>
-                        <div className="grid grid-cols-1 gap-2">
-                          {area.transportation?.metroZone && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Train className="h-4 w-4 text-blue-500" />
-                              <span className="font-medium">Metro:</span>
-                              <span>{area.transportation.metroZone}</span>
-                            </div>
-                          )}
-                          {area.transportation?.subway && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Subway className="h-4 w-4 text-green-500" />
-                              <span className="font-medium">Subway:</span>
-                              <span>{area.transportation.subway}</span>
-                            </div>
-                          )}
-                          {area.transportation?.tram && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Train className="h-4 w-4 text-orange-500" />
-                              <span className="font-medium">Tram:</span>
-                              <span>{area.transportation.tram}</span>
-                            </div>
-                          )}
-                          {area.transportation?.bus && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Bus className="h-4 w-4 text-purple-500" />
-                              <span className="font-medium">Bus:</span>
-                              <span>{area.transportation.bus}</span>
-                            </div>
-                          )}
+                <Accordion type="single" collapsible className="w-full">
+                  {selectedCityData.area.map((area: any) => (
+                    <AccordionItem key={area.name} value={area.name}>
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2 w-full">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {area.name}
+                          <Badge variant="outline" className="ml-2">
+                            Zone {area.zone}
+                          </Badge>
+                          <button
+                            className="ml-auto"
+                            onClick={(e) => {
+                              e.stopPropagation(); // prevents accordion toggle when clicking delete
+                              handleDeleteArea(area.name || "");
+                            }}
+                          >
+                            <Trash2 className="h-6 w-5" />
+                          </button>
                         </div>
-                      </div>
-
-                      {area.price && (
-                        <>
-                          <Separator />
-                          <div className="space-y-3">
-                            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                              Pricing
-                            </h4>
-                            <div className="grid grid-cols-1 gap-2 text-sm">
-                              {area.price.studio && (
-                                <div className="flex justify-between">
-                                  <span>Studio:</span>
-                                  <span className="font-medium">
-                                    ${area.price.studio}
-                                  </span>
-                                </div>
-                              )}
-                              {area.price.sharedSpot && (
-                                <div className="flex justify-between">
-                                  <span>Shared Spot:</span>
-                                  <span className="font-medium">
-                                    ${area.price.sharedSpot}
-                                  </span>
-                                </div>
-                              )}
-                              {area.price.sharedRoom && (
-                                <div className="flex justify-between">
-                                  <span>Shared Room:</span>
-                                  <span className="font-medium">
-                                    ${area.price.sharedRoom}
-                                  </span>
-                                </div>
-                              )}
-                              {area.price.apartment?.oneBhk && (
-                                <div className="flex justify-between">
-                                  <span>1 BHK:</span>
-                                  <span className="font-medium">
-                                    ${area.price.apartment.oneBhk}
-                                  </span>
-                                </div>
-                              )}
-                              {area.price.apartment?.twoBhk && (
-                                <div className="flex justify-between">
-                                  <span>2 BHK:</span>
-                                  <span className="font-medium">
-                                    ${area.price.apartment.twoBhk}
-                                  </span>
-                                </div>
-                              )}
-                              {area.price.apartment?.threeBhk && (
-                                <div className="flex justify-between">
-                                  <span>3 BHK:</span>
-                                  <span className="font-medium">
-                                    ${area.price.apartment.threeBhk}
-                                  </span>
-                                </div>
-                              )}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <Card className="border-none shadow-none">
+                          <CardHeader className="pb-3"></CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                                Transportation
+                              </h4>
+                              <div className="grid grid-cols-1 gap-2">
+                                {area.transportation?.metroZone && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Train className="h-4 w-4 text-blue-500" />
+                                    <span className="font-medium">Metro:</span>
+                                    <span>{area.transportation.metroZone}</span>
+                                  </div>
+                                )}
+                                {area.transportation?.subway && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Subway className="h-4 w-4 text-green-500" />
+                                    <span className="font-medium">Subway:</span>
+                                    <span>{area.transportation.subway}</span>
+                                  </div>
+                                )}
+                                {area.transportation?.tram && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Train className="h-4 w-4 text-orange-500" />
+                                    <span className="font-medium">Tram:</span>
+                                    <span>{area.transportation.tram}</span>
+                                  </div>
+                                )}
+                                {area.transportation?.bus && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Bus className="h-4 w-4 text-purple-500" />
+                                    <span className="font-medium">Bus:</span>
+                                    <span>{area.transportation.bus}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
+
+                            {area.price && (
+                              <>
+                                <Separator />
+                                <div className="space-y-3">
+                                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                                    Pricing
+                                  </h4>
+                                  <div className="grid grid-cols-1 gap-2 text-sm">
+                                    {area.price.studio && (
+                                      <div className="flex justify-between">
+                                        <span>Studio:</span>
+                                        <span className="font-medium">
+                                          ${area.price.studio}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {area.price.sharedSpot && (
+                                      <div className="flex justify-between">
+                                        <span>Shared Spot:</span>
+                                        <span className="font-medium">
+                                          ${area.price.sharedSpot}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {area.price.sharedRoom && (
+                                      <div className="flex justify-between">
+                                        <span>Shared Room:</span>
+                                        <span className="font-medium">
+                                          ${area.price.sharedRoom}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {area.price.apartment?.oneBhk && (
+                                      <div className="flex justify-between">
+                                        <span>1 BHK:</span>
+                                        <span className="font-medium">
+                                          ${area.price.apartment.oneBhk}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {area.price.apartment?.twoBhk && (
+                                      <div className="flex justify-between">
+                                        <span>2 BHK:</span>
+                                        <span className="font-medium">
+                                          ${area.price.apartment.twoBhk}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {area.price.apartment?.threeBhk && (
+                                      <div className="flex justify-between">
+                                        <span>3 BHK:</span>
+                                        <span className="font-medium">
+                                          ${area.price.apartment.threeBhk}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center">

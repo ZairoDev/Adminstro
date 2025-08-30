@@ -8,6 +8,7 @@ import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { Notifications } from "@/components/Notifications/Notifications";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
+import { useState } from "react";
 
 export default function DashboardLayout({
   children,
@@ -15,19 +16,22 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { token } = useAuthStore();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className="flex">
-      <Sidebar />
-      <main className=" lg:ml-60 p-2 w-full ">
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <main
+        className={`p-2 w-full transition-all duration-300 ${
+          collapsed ? "ml-16" : "lg:ml-64"
+        }`}
+      >
         <div className=" xs:flex  hidden items-center xs:justify-between  justify-end ">
           <div className="xs:block hidden">
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
-            {
-              <LeadSearch />
-            }
+            {<LeadSearch />}
             {(token?.role === "SuperAdmin" ||
               token?.role === "Sales" ||
               token?.role === "Sales-TeamLead") && <Notifications />}

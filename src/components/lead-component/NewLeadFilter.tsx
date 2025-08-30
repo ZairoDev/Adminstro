@@ -342,7 +342,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
               value="Didn't like the option"
               className="text-white hover:bg-gray-700"
             >
-              Didn't like the option
+              Didn&apos;t like the option
             </SelectItem>
           </SelectContent>
         </Select>

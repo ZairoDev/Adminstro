@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
+  Menu,
   Ban,
-  House,
+  Mouse as House,
   Frown,
   Check,
   Speech,
@@ -21,11 +25,10 @@ import {
   CheckCheck,
   PencilLine,
   CircleHelp,
-  IdCardIcon,
+  AwardIcon as IdCardIcon,
   ShieldAlert,
   NotebookPen,
   ArrowUpLeft,
-  CornerLeftUp,
   UserRoundCog,
   PhoneIncoming,
   ClipboardPaste,
@@ -36,18 +39,23 @@ import {
   SlidersHorizontal,
   Hotel,
   Sprout,
+  CornerLeftUp,
 } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
 
-import { useAuthStore } from "@/AuthStore";
-
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
 import SidebarSection from "./sidebarSection";
+import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
 
+// Simple active matcher (keep strict equality)
 const isActive = (currentPath: string, path: string): boolean =>
-  // currentPath.startsWith(path);
   currentPath === path;
 
 type Route = {
@@ -55,6 +63,7 @@ type Route = {
   label: string;
   Icon?: JSX.Element;
 };
+
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
     {
@@ -726,167 +735,234 @@ const catalogueRoutes = [
   },
 ];
 
-export function Sidebar() {
-  const { token } = useAuthStore();
-  const currentPath = usePathname();
-  const [showLeadAccordion, setShowLeadAccordion] = useState("");
-  const renderRoutes = (showText: boolean) => {
-    if (!token) {
+export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // const [collapsed, setCollapsed] = useState(false);
+
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const mod: any = await import("@/AuthStore").catch(() => null);
+        const store = mod?.useAuthStore;
+        const tokenRole =
+          typeof store?.getState === "function"
+            ? store.getState()?.token?.role
+            : undefined;
+        if (mounted) setRole(tokenRole ?? null);
+      } catch {
+        if (mounted) setRole(null);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const renderRoutes = (
+    showText: boolean,
+    defaultOpen = false,
+    onNavigate?: () => void
+  ) => {
+    if (!role) {
       return (
         <li className="flex justify-center text-xl font-medium text-[#F7951D]">
           <img
             src="https://vacationsaga.b-cdn.net/assets/logo2.webp"
-            className=" w-40 md:w-4/5"
+            className="w-40 md:w-4/5"
+            alt="Logo"
           />
         </li>
       );
     }
-    const routes = roleRoutes[token?.role as keyof typeof roleRoutes];
-    // console.log(routes, "routes");
-    if (!routes) {
-      return <li>{(token?.role as string) ?? "Invalid Role"}</li>;
+
+    const routesForRole = roleRoutes[role as keyof typeof roleRoutes];
+    if (!routesForRole) {
+      return <li className="px-4 py-2 text-sm">{role ?? "Invalid Role"}</li>;
     }
 
-    const dashboardRoutes = routes.filter((r) =>
-      dashboardManagementRoutes.some((route) => route.path === r.path)
-    );
+    const inGroup = (group: Route[]) =>
+      routesForRole.filter((r) => group.some((g) => g.path === r.path));
 
-    const leadRoute = routes.filter((r) =>
-      leadManagementRoutes.some((route) => route.path === r.path)
-    );
-
-    const visitsManagementRoute = routes.filter((r) =>
-      visitsManagementRoutes.some((route) => route.path === r.path)
-    );
-
-    const bookingsManagementRoute = routes.filter((r) =>
-      bookingsManagementRoutes.some((route) => route.path === r.path)
-    );
-
-    const userManagementRoute = routes.filter((r) =>
-      userManagementRoutes.some((route) => route.path === r.path)
-    );
-
-    const propertyManagementRoute = routes.filter((r) =>
-      propertyManagementRoutes.some((route) => route.path === r.path)
-    );
-
-    const blogRoute = routes.filter((r) =>
-      blogRoutes.some((route) => route.path === r.path)
-    );
-
-    const candidateRoute = routes.filter((r) =>
-      candidateRoutes.some((route) => route.path === r.path)
-    );
-
-    const roomRoute = routes.filter((r) =>
-      roomRoutes.some((route) => route.path === r.path)
-    );
-
-    const catalogueRoute = routes.filter((r) =>
-      catalogueRoutes.some((route) => route.path === r.path)
-    );
-
-    // console.log("leadRoute", leadRoute);
-    // console.log("userManagementRoute", userManagementRoute);
+    const dashboardRoutes = inGroup(dashboardManagementRoutes);
+    const leadRoute = inGroup(leadManagementRoutes);
+    const visitsManagementRoute = inGroup(visitsManagementRoutes);
+    const bookingsManagementRoute = inGroup(bookingsManagementRoutes);
+    const userManagementRoute = inGroup(userManagementRoutes);
+    const propertyManagementRoute = inGroup(propertyManagementRoutes);
+    const blogRoute = inGroup(blogRoutes);
+    const candidateRoute = inGroup(candidateRoutes);
+    const roomRoute = inGroup(roomRoutes);
+    const catalogueRoute = inGroup(catalogueRoutes);
 
     return (
       <>
-        {/* {
-          leadRoute && (
-            <div>
-              <button
-                onClick={() => setShowLeadAccordion(leadRoute)}
-                className="flex items-center gap-x-2 hover:bg-primary/50 rounded-l-sm px-4 py-1.5"
-              >
-                <ClipboardPaste size={18} />
-          {showText && <span>Lead Management</span>}
-              </button>
-            </div>
-          )}
-          {showLeadAccordion && (
-                <ul className="pl-4">
-                  {showLeadAccordion.map((leadRoute) => (
-                    <li key={leadRoute.path}> 
-                      <Link
-                        href={leadRoute.path}
-                        className={`flex items-center gap-2 py-2 px-2 ${
-                          isActive(currentPath, leadRoute.path)
-                            ? "bg-primary/30 border-r-4 border-primary"
-                            : ""
-                        }`}
-                      >
-                        {leadRoute.Icon}
-                        <span>{leadRoute.label}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )} */}
-
-        {/* <Link
-          href={route.path}
-          className="flex items-center gap-x-2 hover:bg-primary/50 rounded-l-sm px-4 py-1.5"
-        >
-          {route.Icon && route.Icon}
-          {showText && <span className="">{route.label}</span>}
-        </Link> */}
-
-        <SidebarSection title="Dashboard" routes={dashboardRoutes} />
-        <SidebarSection title="User Management" routes={userManagementRoute} />
-        <SidebarSection title="Lead Management" routes={leadRoute} />
+        <SidebarSection
+          title="Dashboard"
+          routes={dashboardRoutes}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="User Management"
+          routes={userManagementRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Lead Management"
+          routes={leadRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
         <SidebarSection
           title="Visit Management"
           routes={visitsManagementRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
         />
         <SidebarSection
           title="Booking Management"
           routes={bookingsManagementRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
         />
         <SidebarSection
           title="Property Management"
           routes={propertyManagementRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
         />
-        <SidebarSection title="Blog Management" routes={blogRoute} />
-        <SidebarSection title="Candidate Management" routes={candidateRoute} />
-        <SidebarSection title="Room Management" routes={roomRoute} />
-        <SidebarSection title="Catalogue Management" routes={catalogueRoute} />
+        <SidebarSection
+          title="Blog Management"
+          routes={blogRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Candidate Management"
+          routes={candidateRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Room Management"
+          routes={roomRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Catalogue Management"
+          routes={catalogueRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
       </>
     );
   };
 
   return (
     <>
-      <div>
-        <div className="hidden lg:block w-60 border-r fixed h-full overflow-y-scroll">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-primary p-4">
-              <Link href="/">Adminstro</Link>
-            </h2>
-            <div className="mr-1">
-              <ModeToggle />
+      {/* Mobile: Hamburger button to open a left drawer (retractable) */}
+      <div className="lg:hidden fixed top-2 left-2 z-50">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <button
+              aria-label="Open menu"
+              className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 shadow-sm hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <Menu size={18} />
+              <span className="sr-only">Open sidebar</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <div className="h-full">
+              <div className="flex items-center justify-between border-b">
+                <h2 className="text-xl font-semibold text-primary p-4">
+                  <Link href="/" onClick={() => setMobileOpen(false)}>
+                    Adminstro
+                  </Link>
+                </h2>
+                <div className="mr-2">
+                  <ModeToggle />
+                </div>
+              </div>
+              <nav className="flex flex-col overflow-y-auto">
+                <ul>{renderRoutes(true, true, () => setMobileOpen(false))}</ul>
+              </nav>
+              <div className="p-2">
+                <SheetClose asChild>
+                  <button className="w-full rounded-md border px-3 py-2 hover:bg-accent">
+                    Close
+                  </button>
+                </SheetClose>
+              </div>
             </div>
-          </div>
-          <div>
-            <nav className="flex flex-col justify-between overflow-y-auto">
-              <ul className=" overflow-y-auto">
-                {/* <li className="flex-grow"> */}
-                {renderRoutes(true)}
-                {/* </li> */}
-              </ul>
-            </nav>
-          </div>
-        </div>
-        <div className="fixed z-50 bottom-0 left-0 w-full bg-background border-t-2 lg:hidden">
-          <nav className="mx-auto flex-1 overflow-y-auto">
-            <ul className=" items-center justify-around overflow-x-scroll h-14 scrollbar-hide ">
-              {/* <li className="flex items-center justify-around overflow-x-scroll h-14 scrollbar-hide"> */}
-              {renderRoutes(false)}
-              {/* </li> */}
-            </ul>
-          </nav>
-        </div>
+          </SheetContent>
+        </Sheet>
       </div>
+
+      {/* Desktop: Fixed sidebar with collapse toggle */}
+      <aside
+        className={`hidden lg:block ${
+          collapsed ? "w-16" : "w-60"
+        } border-r fixed h-full overflow-y-auto bg-background transition-[width] duration-200`}
+      >
+        <div
+          className={`flex items-center justify-between ${
+            collapsed ? "px-2" : ""
+          }`}
+        >
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="m-2 inline-flex items-center justify-center rounded-md border bg-background px-2 py-2 hover:bg-accent"
+              onClick={() => setCollapsed((v: boolean) => !v)}
+            >
+              <Menu size={16} />
+            </button>
+            {!collapsed && (
+              <h2 className="text-2xl font-bold text-primary p-2">
+                <Link href="/">Adminstro</Link>
+              </h2>
+            )}
+          </div>
+          <div className="mr-1">
+            <ModeToggle />
+          </div>
+        </div>
+        <nav className="flex flex-col justify-between overflow-y-auto">
+          <ul>{renderRoutes(!collapsed, false)}</ul>
+        </nav>
+      </aside>
     </>
   );
 }

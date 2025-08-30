@@ -66,9 +66,9 @@ export function SpreadsheetTable({
   ];
 
   const interiorStatus = [
-    { label: "F", value: "fully_furnished" },
-    { label: "P F", value: "partially_furnished" },
-    { label: "Un", value: "unfurnished" },
+    { label: "F", value: "Fully Furnished" },
+    { label: "P F", value: "Partially Furnished" },
+    { label: "Un", value: "Unfurnished" },
   ];
 
   const avail = [
@@ -128,8 +128,8 @@ export function SpreadsheetTable({
       phoneNumber: "",
       location: "",
       price: "",
-      interiorStatus: "Furnished",
-      propertyType: "Studio",
+      interiorStatus: "Fully Furnished",
+      propertyType: "studio",
       link: "",
       area: "",
       referenceLink: "",

@@ -280,6 +280,73 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           </SelectContent>
         </Select>
       </div>
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Rejection Reason</Label>
+        <Select
+          value={filters.rejectionReason}
+          onValueChange={(value) => updateFilter("rejectionReason", value)}
+        >
+          <SelectTrigger className=" border-gray-700 text-white">
+            <SelectValue placeholder="Rejection Reason" />
+          </SelectTrigger>
+          <SelectContent className=" border-gray-700">
+            <SelectItem
+              value="Allready got it"
+              className="text-white hover:bg-gray-700"
+            >
+              Allready got it
+            </SelectItem>
+            <SelectItem
+              value="Number of people exceeded"
+              className="text-white hover:bg-gray-700"
+            >
+              Number of people exceeded
+            </SelectItem>
+            <SelectItem
+              value="Low Budget"
+              className="text-white hover:bg-gray-700"
+            >
+              Low Budget
+            </SelectItem>
+            <SelectItem
+              value="Not Replying"
+              className="text-white hover:bg-gray-700"
+            >
+              Not Replying
+            </SelectItem>
+            <SelectItem
+              value="Late Response"
+              className="text-white hover:bg-gray-700"
+            >
+              Late Response
+            </SelectItem>
+            <SelectItem
+              value="Blocked on whatsapp"
+              className="text-white hover:bg-gray-700"
+            >
+              Blocked on whatsapp
+            </SelectItem>
+            <SelectItem
+              value="Not on whatsapp"
+              className="text-white hover:bg-gray-700"
+            >
+              Not on whatsapp
+            </SelectItem>
+            <SelectItem
+              value="Delayed the Traveling"
+              className="text-white hover:bg-gray-700"
+            >
+              Delayed the Traveling
+            </SelectItem>
+            <SelectItem
+              value="Didn't like the option"
+              className="text-white hover:bg-gray-700"
+            >
+              Didn't like the option
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

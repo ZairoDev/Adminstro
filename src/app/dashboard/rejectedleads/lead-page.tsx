@@ -78,6 +78,7 @@ export const RejectedLeads = () => {
     budgetTo: "",
     leadQuality: "",
     allotedArea: "",
+    rejectionReason: "",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
@@ -213,7 +214,7 @@ export const RejectedLeads = () => {
 
   useEffect(() => {
     // debounce(filterLeads, 500);
-    filterLeads(1);
+    filterLeads(1, { ...filters, allotedArea: area });
   }, [filters.searchTerm]);
 
   return (

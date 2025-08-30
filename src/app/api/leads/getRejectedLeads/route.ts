@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
-    // console.log("req body in filter route: ", assignedArea, reqBody);
+    console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
       searchType,
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       budgetTo,
       leadQuality,
       allotedArea,
+      rejectionReason
     } = reqBody.filters;
     const PAGE = reqBody.page;
 
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
     if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
     if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
-
+    if (rejectionReason) query.rejectionReason = rejectionReason;
     {
       /* Searching in non rejected Leads and leads with no reminders */
     }

@@ -1,5 +1,6 @@
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
+import { sub } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
@@ -21,7 +22,7 @@ export async function PUT(
     console.log("body: ", body);
 
     if (body.area) {
-      const { name, zone, transportation, price } = body.area;
+      const { name, zone , subUrban, transportation, price } = body.area;
 
       if (!name) {
         return NextResponse.json(
@@ -41,6 +42,7 @@ export async function PUT(
           ...monthlyTarget.area[existingAreaIndex]._doc, // keep old values
           name: name.trim(),
           zone: zone?.trim() || "",
+          subUrban: subUrban || false,
           transportation: {
             ...monthlyTarget.area[existingAreaIndex].transportation,
             ...transportation, // e.g. metroZone, tram, subway, bus
@@ -59,8 +61,10 @@ export async function PUT(
         monthlyTarget.area.push({
           name: name.trim(),
           zone: zone?.trim() || "",
+          subUrban: subUrban || false,
           transportation: {
             metroZone: transportation?.metroZone || "",
+            extension: transportation?.extension || false,
             tram: transportation?.tram || "",
             subway: transportation?.subway || "",
             bus: transportation?.bus || "",
@@ -73,6 +77,7 @@ export async function PUT(
               oneBhk: price?.apartment?.oneBhk || 0,
               twoBhk: price?.apartment?.twoBhk || 0,
               threeBhk: price?.apartment?.threeBhk || 0,
+              fourBhk: price?.apartment?.fourBhk || 0,
             },
           },
         });

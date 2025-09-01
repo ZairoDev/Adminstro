@@ -19,12 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type Area = {
   name: string;
   zone?: string;
+  subUrban?: boolean;
   transportation?: {
     metroZone?: string;
+    extension?: boolean;
     tram?: string;
     subway?: string;
     bus?: string;
@@ -37,6 +40,7 @@ type Area = {
       oneBhk?: number;
       twoBhk?: number;
       threeBhk?: number;
+      fourBhk?: number;
     };
   };
 };
@@ -55,8 +59,10 @@ export function AreaModel({
   const [newArea, setNewArea] = useState<Area>({
     name: "",
     zone: "",
+    subUrban: false,
     transportation: {
       metroZone: "",
+      extension:false,
       tram: "",
       subway: "",
       bus: "",
@@ -69,14 +75,16 @@ export function AreaModel({
         oneBhk: undefined,
         twoBhk: undefined,
         threeBhk: undefined,
+        fourBhk: undefined,
       },
     },
   });
 
   const metroLines = [
-    { value: "blue", label: "Blue Line (M3)" },
-    { value: "red", label: "Red Line (M2)" },
-    { value: "green", label: "Green Line (M1)" },
+    { value: "blue", label: "Blue Line " },
+    { value: "red", label: "Red Line" },
+    { value: "green", label: "Green Line" },
+    { value: "yellow", label: "Yellow Line" },
   ];
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -95,8 +103,10 @@ export function AreaModel({
       setNewArea({
         name: "",
         zone: "",
+        subUrban: false,
         transportation: {
           metroZone: "",
+          extension:false,
           tram: "",
           subway: "",
           bus: "",
@@ -109,6 +119,7 @@ export function AreaModel({
             oneBhk: undefined,
             twoBhk: undefined,
             threeBhk: undefined,
+            fourBhk: undefined,
           },
         },
       });
@@ -176,45 +187,116 @@ export function AreaModel({
             </div>
 
             {/* Zone */}
-            <div className="grid gap-3">
-              <Label htmlFor="zone">Zone</Label>
-              <Input
-                id="zone"
-                value={newArea.zone}
-                onChange={(e) =>
-                  setNewArea((prev) => ({ ...prev, zone: e.target.value }))
-                }
-                placeholder="Enter zone"
-                disabled={loading}
-              />
+            <div className="grid grid-cols-2 gap-5">
+              <div className="grid gap-3">
+                <Label htmlFor="zone">Zone</Label>
+                <Select
+                  value={newArea.zone}
+                  onValueChange={(e) =>
+                    setNewArea((prev) => ({ ...prev, zone: e }))
+                  }
+                >
+                  <SelectTrigger id="zone">
+                    <SelectValue placeholder="Select zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="North">North</SelectItem>
+                    <SelectItem value="West">West</SelectItem>
+                    <SelectItem value="East">East</SelectItem>
+                    <SelectItem value="South">South</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-foreground">
+                  Suburban
+                </div>
+
+                <RadioGroup
+                  value={newArea.subUrban ? "yes" : "no"}
+                  // defaultValue={value === undefined ? defaultValue : undefined}
+                  onValueChange={(v) => {
+                    setNewArea((prev) => ({
+                      ...prev,
+                      subUrban: v === "yes",
+                    }));
+                  }}
+                  className="flex items-center gap-6"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id={`${name}-yes`} value="yes" />
+                    <Label htmlFor={`${name}-yes`}>Yes</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id={`${name}-no`} value="no" />
+                    <Label htmlFor={`${name}-no`}>No</Label>
+                  </div>
+                </RadioGroup>
+              </div>
             </div>
 
             {/* Transportation */}
             {/* Transportation */}
-            <div className="grid gap-3">
-              <Label>Transportation</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Transportation</Label>
 
-              {/* Metro */}
-              <Select
-                value={newArea.transportation?.metroZone}
-                onValueChange={(val) =>
-                  setNewArea((prev) => ({
-                    ...prev,
-                    transportation: { ...prev.transportation, metroZone: val },
-                  }))
-                }
-              >
-                <SelectTrigger className="w-full" disabled={loading}>
-                  <SelectValue placeholder="Select Metro Line" />
-                </SelectTrigger>
-                <SelectContent>
-                  {metroLines.map((line) => (
-                    <SelectItem key={line.value} value={line.label}>
-                      {line.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {/* Metro */}
+                <Select
+                  value={newArea.transportation?.metroZone}
+                  onValueChange={(val) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      transportation: {
+                        ...prev.transportation,
+                        metroZone: val,
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full" disabled={loading}>
+                    <SelectValue placeholder="Select Metro Line" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metroLines.map((line) => (
+                      <SelectItem key={line.value} value={line.label}>
+                        {line.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-foreground">
+                  Metro Extension
+                </div>
+
+                <RadioGroup
+                  value={newArea.transportation?.extension ? "yes" : "no"}
+                  // defaultValue={value === undefined ? defaultValue : undefined}
+                  onValueChange={(v) => {
+                    setNewArea((prev) => ({
+                      ...prev,
+                      transportation: {
+                        ...prev.transportation,
+                        extension: v === "yes",
+                      },
+                    }));
+                  }}
+                  className="flex items-center gap-6"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id={`${name}-yes`} value="yes" />
+                    <Label htmlFor={`${name}-yes`}>Yes</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id={`${name}-no`} value="no" />
+                    <Label htmlFor={`${name}-no`}>No</Label>
+                  </div>
+                </RadioGroup>
+              </div>
 
               {/* Tram */}
               <div className="grid gap-2 mt-2">
@@ -323,7 +405,7 @@ export function AreaModel({
               </div>
 
               <Label className="mt-2">Apartment</Label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <Input
                   type="number"
                   placeholder="1 BHK"
@@ -370,6 +452,23 @@ export function AreaModel({
                         apartment: {
                           ...prev.price?.apartment,
                           threeBhk: Number(e.target.value),
+                        },
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="4 BHK"
+                  value={newArea.price?.apartment?.fourBhk ?? ""}
+                  onChange={(e) =>
+                    setNewArea((prev) => ({
+                      ...prev,
+                      price: {
+                        ...prev.price,
+                        apartment: {
+                          ...prev.price?.apartment,
+                          fourBhk: Number(e.target.value),
                         },
                       },
                     }))

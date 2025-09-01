@@ -20,8 +20,10 @@ import {
 interface Area {
   name: string;
   zone: string;
+  subUrban?: boolean;
   transportation: {
     metroZone?: string;
+    extension?: boolean;
     tram?: string;
     subway?: string;
     bus?: string;
@@ -34,6 +36,7 @@ interface Area {
       oneBhk?: number;
       twoBhk?: number;
       threeBhk?: number;
+      fourBhk?: number;
     };
   };
 }

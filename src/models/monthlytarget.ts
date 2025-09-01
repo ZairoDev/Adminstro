@@ -4,8 +4,10 @@ const areaSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     zone: { type: String },
+    subUrban: { type: Boolean },
     transportation: {
       metroZone: { type: String }, // metro line/zone
+      extension: { type: Boolean },
       tram: { type: String },
       subway: { type: String },
       bus: { type: String },
@@ -18,6 +20,7 @@ const areaSchema = new mongoose.Schema(
         oneBhk: { type: Number },
         twoBhk: { type: Number },
         threeBhk: { type: Number },
+        fourBhk: { type: Number },
       },
     },
   },

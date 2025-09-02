@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import axios from "axios";
 import Link from "next/link";
@@ -24,7 +25,6 @@ import { AreaModel } from "../../target/area-model";
 import { DisplayLists } from "@/components/displaylists/lists";
 import { useAuthStore } from "@/AuthStore";
 
-
 interface AgentIntrerface {
   _id: string;
   agentName: string;
@@ -40,7 +40,7 @@ interface TargetInterface {
   sales: number;
   visits: number;
   leads: number;
-  area:Area[];
+  area: Area[];
 }
 
 const Addons = () => {
@@ -53,11 +53,11 @@ const Addons = () => {
   const [targetId, setTargetId] = useState("");
   const [loading, setLoading] = useState(false);
   const [targetEdit, setTargetEdit] = useState(false);
-  const [areaModel,setAreaModel] = useState(false)
-  const [areaId, setAreaId] = useState("")
-  const [openList,setOpenList] = useState(false)
-  const [list, setList] = useState<Area[]>([])
-  const {token} = useAuthStore();
+  const [areaModel, setAreaModel] = useState(false);
+  const [areaId, setAreaId] = useState("");
+  const [openList, setOpenList] = useState(false);
+  const [list, setList] = useState<Area[]>([]);
+  const { token } = useAuthStore();
   console.log(token);
 
   const [DeleteDialog, confirmDelete] = useConfirm(
@@ -87,7 +87,7 @@ const Addons = () => {
       const response = await axios.get("/api/addons/target/getAllTargets");
       console.log(response.data.data);
       const sortedData = response.data.data.sort(
-        (a:any, b:any) => a.country.localeCompare(b.country) // alphabetically by country
+        (a: any, b: any) => a.country.localeCompare(b.country) // alphabetically by country
       );
       setTargets(sortedData);
       setLoading(false);
@@ -127,7 +127,6 @@ const Addons = () => {
       toast({ title: "Unable to delete target", variant: "destructive" });
     }
   };
-  
 
   useEffect(() => {
     if (!targetId) return;
@@ -157,48 +156,50 @@ const Addons = () => {
 
       {/*Add Agents*/}
       <div className=" flex items-center gap-3">
-      {(token?.role === "SuperAdmin" ) && (
-        <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
-          {isLoading ? (
-            <InfinityLoader className=" w-16 h-12" />
-          ) : (
-            <div className=" w-full flex flex-col gap-y-2">
-              {agents?.map((agent, index) => (
-                <div
-                  key={index}
-                  className=" flex justify-between items-center w-full p-2 border rounded-md"
-                >
-                  <p>{agent.agentName}</p>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <EllipsisVertical size={22} />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/dashboard/agents/${agent._id}`}
-                          target="_blank"
+        {token?.role === "SuperAdmin" && (
+          <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
+            {isLoading ? (
+              <InfinityLoader className=" w-16 h-12" />
+            ) : (
+              <div className=" w-full flex flex-col gap-y-2">
+                {agents?.map((agent, index) => (
+                  <div
+                    key={index}
+                    className=" flex justify-between items-center w-full p-2 border rounded-md"
+                  >
+                    <p>{agent.agentName}</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <EllipsisVertical size={22} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Link
+                            href={`/dashboard/agents/${agent._id}`}
+                            target="_blank"
+                          >
+                            View Detail
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => deleteAgent(agent._id)}
                         >
-                          View Detail
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => deleteAgent(agent._id)}>
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          )}
-          <Button className=" w-full" onClick={() => setAgentModal(true)}>
-            <span className=" font-semibold text-base">Add Agent</span>
-          </Button>
-          <AgentModal open={agentModal} onOpenChange={setAgentModal} />
-        </section>
-      )}
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button className=" w-full" onClick={() => setAgentModal(true)}>
+              <span className=" font-semibold text-base">Add Agent</span>
+            </Button>
+            <AgentModal open={agentModal} onOpenChange={setAgentModal} />
+          </section>
+        )}
         {(token?.role === "SuperAdmin" ||
           token?.role === "Advert" ||
           token?.role === "LeadGen-TeamLead") && (

@@ -45,7 +45,7 @@ type Area = {
   };
 };
 
-export function AreaModel({
+export function     AreaModel({
   areaModel,
   setAreaModel,
   areaId,
@@ -224,13 +224,13 @@ export function AreaModel({
                   className="flex items-center gap-6"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id={`${name}-yes`} value="yes" />
-                    <Label htmlFor={`${name}-yes`}>Yes</Label>
+                    <RadioGroupItem  value="yes" />
+                    <Label >Yes</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id={`${name}-no`} value="no" />
-                    <Label htmlFor={`${name}-no`}>No</Label>
+                    <RadioGroupItem  value="no" />
+                    <Label >No</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -287,13 +287,13 @@ export function AreaModel({
                   className="flex items-center gap-6"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id={`${name}-yes`} value="yes" />
-                    <Label htmlFor={`${name}-yes`}>Yes</Label>
+                    <RadioGroupItem  value="yes" />
+                    <Label>Yes</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id={`${name}-no`} value="no" />
-                    <Label htmlFor={`${name}-no`}>No</Label>
+                    <RadioGroupItem  value="no" />
+                    <Label>No</Label>
                   </div>
                 </RadioGroup>
               </div>

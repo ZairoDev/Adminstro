@@ -136,7 +136,7 @@ const querySchema = new Schema(
     },
     messageStatus: {
       type: String,
-      enum: ["First","Second","Options","Visit","None"],
+      enum: ["First","Second","Third","Fourth","Options","Visit","None"],
       require: [true, "Status must be provided"],
       default: "None",
     },

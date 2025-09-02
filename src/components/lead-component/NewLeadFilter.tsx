@@ -20,6 +20,7 @@ export interface FilterState {
   fromDate?: Date;
   toDate?: Date;
   sortBy: string;
+  status?: string;
   guest: string;
   noOfBeds: string;
   propertyType: string;
@@ -39,6 +40,10 @@ interface FilterProps {
 
 export default function LeadsFilter({ filters, setFilters }: FilterProps) {
   const updateFilter = (key: keyof FilterState, value: any) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateMessageStatusFilter = (key: keyof FilterState, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -123,7 +128,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
 
       {/* Sort By */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">Sort By</h3>
+        <h3 className="text-sm font-medium">Sort By Response</h3>
         <Select
           value={filters.sortBy}
           onValueChange={(value) => updateFilter("sortBy", value)}
@@ -134,14 +139,37 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           <SelectContent className=" border-gray-700">
             <SelectItem value="None">None</SelectItem>
             <SelectItem value="Asc" className="text-white hover:bg-gray-700">
-              Priority : &nbsp; Low To High
+              Response : &nbsp; Low To High
             </SelectItem>
             <SelectItem value="Desc" className="text-white hover:bg-gray-700">
-              Priority : &nbsp; High To Low
+              Response : &nbsp; High To Low
             </SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">Sort By Message Status</h3>
+        <Select
+          value={filters.status}
+          onValueChange={(value) => updateMessageStatusFilter("status", value)}
+        >
+          <SelectTrigger className="w-full  border-gray-700 text-white">
+            <SelectValue placeholder="Select Priority Order" />
+          </SelectTrigger>
+          <SelectContent className=" border-gray-700">
+            <SelectItem value="None">None</SelectItem>
+            <SelectItem value="Default" className="text-white hover:bg-gray-700">
+              Status : &nbsp; Default Order
+            </SelectItem>
+            <SelectItem value="Reverse" className="text-white hover:bg-gray-700">
+              Status : &nbsp; Reverse Order
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+
 
       {/* filters Grid */}
       <div className="grid grid-cols-2 gap-4">

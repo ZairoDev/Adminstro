@@ -16,6 +16,9 @@ import {
   Map,
   Mail,
   MailCheck,
+  MailX,
+
+  MessageSquareX,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -91,7 +94,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   >(Array.from({ length: queries?.length }, () => "None"));
 
     const [messageStatus, setMessageStatus] = useState<
-    ( "Options" | "Visit" | "None")[]
+    ( "First" | "Second" | "Third" | "Fourth" | "Options" | "Visit" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
   const [loading, setLoading] = useState(false);
@@ -498,22 +501,34 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                   )}
                   {query.messageStatus === "First" ? (
                     <CustomTooltip
-                      icon={<Mail color="pink" />}
+                      icon={<Mail color="green" />}
                       desc="First Message"
                     />
                   ) : query.messageStatus === "Second" ? (
                     <CustomTooltip
-                      icon={<MailCheck color="red" />}
+                      icon={<MailCheck color="yellow" />}
                       desc="Second Message"
                     />
-                  ) : query.messageStatus === "Options" ? (
+                  ) : query.messageStatus === "Third" ? (
                     <CustomTooltip
-                      icon={<Image color="yellow" />}
+                      icon={<MailX color="magenta" />}
+                      desc="Third Message"
+                    />
+                  ) : query.messageStatus === "Fourth" ? (
+                    <CustomTooltip
+                      icon={<MessageSquareX color="red" />}
+                      desc="Fourth Message"
+                    />
+                  )
+                  
+                   : query.messageStatus === "Options" ? (
+                    <CustomTooltip
+                      icon={<Image color="cyan" />}
                       desc="Shared Options"
                     />
                   ) : query.messageStatus === "Visit" ? (
                     <CustomTooltip
-                      icon={<Map color="green" />}
+                      icon={<Map color="lightgreen" />}
                       desc="Visit Scheduled"
                     />
                   ) : (

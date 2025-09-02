@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { leadStatuses } from "@/app/dashboard/sales-offer/sales-offer-utils";
+import { isArray } from "@apollo/client/utilities";
+import { Regex } from "lucide-react";
 
 connectDb();
 
@@ -25,12 +28,11 @@ function getISTStartOfDay(date: Date): Date {
 export async function POST(req: NextRequest) {
   const reqBody = await req.json();
   const token = await getDataFromToken(req);
-  const assignedArea = token.allotedArea;
+  const assignedArea = token.allotedArea as String[];
   const role = token.role;
 
   try {
     // console.log("req body in filter route: ", assignedArea, reqBody);
-
     const {
       searchType,
       searchTerm,
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
       fromDate,
       toDate,
       sortBy,
+      status,
       guest,
       noOfBeds,
       propertyType,
@@ -48,8 +51,9 @@ export async function POST(req: NextRequest) {
       leadQuality,
       allotedArea,
       typeOfProperty,
+
     } = reqBody.filters;
-    console.log("req body in filter route: ", reqBody);
+    // console.log("req body in filter route: ", reqBody);
     const PAGE = reqBody.page;
 
     const LIMIT = 50;
@@ -58,6 +62,7 @@ export async function POST(req: NextRequest) {
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 
+  
     {
       /* Search Term */
     }
@@ -225,96 +230,143 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const pipeline = [
-      {
-        $match: {
-          leadStatus: "active",
-        },
+    const statusPriorityMap = {
+      None:0,
+      First:1,
+      Second:2,
+      Third:3,
+      Fourth:4,
+      Options:5,
+      Visit:6,
+    }
+
+    if (status && status !== "None") {
+  allquery.sort((a, b) => {
+    const statusA =
+      statusPriorityMap[(a.messageStatus as keyof typeof statusPriorityMap) || "None"];
+    const statusB =
+      statusPriorityMap[(b.messageStatus as keyof typeof statusPriorityMap) || "None"];
+
+    return status === "Default"
+      ? statusA - statusB 
+      : statusB - statusA; 
+  });
+}
+
+
+    
+ console.log("alloted area: ", allotedArea);
+ console.log("assigned area: ", assignedArea);
+
+
+  const pipeline = [
+  {
+    $match: {
+      leadStatus: "active",   
+      ...(allotedArea
+      ? { location: new RegExp(allotedArea, "i") }  
+      : (assignedArea && assignedArea.length > 0
+          ? { location: { $in: assignedArea } }  
+          : {})),
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      "1bhk": {
+        $sum: {
+          $cond: [
+            { 
+              $and: [
+                { $eq: ["$typeOfProperty", "Apartment"] }, 
+                { $eq: ["$noOfBeds", 1] }
+              ] 
+            },
+            1,
+            0
+          ]
+        }
       },
-      {
-        $group: {
-          _id: null,
-          "1bhk": {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ["$typeOfProperty", "Apartment"] },
-                    { $eq: ["$noOfBeds", 1] },
-                  ],
-                },
-                1,
-                0,
-              ],
+      "2bhk": {
+        $sum: {
+          $cond: [
+            { 
+              $and: [
+                { $eq: ["$typeOfProperty", "Apartment"] }, 
+                { $eq: ["$noOfBeds", 2] }
+              ] 
             },
-          },
-          "2bhk": {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ["$typeOfProperty", "Apartment"] },
-                    { $eq: ["$noOfBeds", 2] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          "3bhk": {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ["$typeOfProperty", "Apartment"] },
-                    { $eq: ["$noOfBeds", 3] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          "4bhk": {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ["$typeOfProperty", "Apartment"] },
-                    { $eq: ["$noOfBeds", 4] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          studio: {
-            $sum: {
-              $cond: [{ $eq: ["$typeOfProperty", "Studio"] }, 1, 0],
-            },
-          },
-        },
+            1,
+            0
+          ]
+        }
       },
-      {
-        $project: {
-          _id: 0,
-          "1bhk": 1,
-          "2bhk": 1,
-          "3bhk": 1,
-          "4bhk": 1,
-          studio: 1,
-        },
+      "3bhk": {
+        $sum: {
+          $cond: [
+            { 
+              $and: [
+                { $eq: ["$typeOfProperty", "Apartment"] }, 
+                { $eq: ["$noOfBeds", 3] }
+              ] 
+            },
+            1,
+            0
+          ]
+        }
       },
-    ];
+      "4bhk": {
+        $sum: {
+          $cond: [
+            { 
+              $and: [
+                { $eq: ["$typeOfProperty", "Apartment"] }, 
+                { $eq: ["$noOfBeds", 4] }
+              ] 
+            },
+            1,
+            0
+          ]
+        }
+      },
+      studio: {
+        $sum: {
+          $cond: [
+            { $in: ["$typeOfProperty", ["Studio", "Studio / 1 bedroom"]] },
+            1,
+            0
+          ]
+        }
+      },
+      sharedApartment: {
+        $sum: {
+          $cond: [
+            { $eq: ["$typeOfProperty", "Shared Apartment"] },
+            1,
+            0
+          ]
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      "1bhk": 1,
+      "2bhk": 1,
+      "3bhk": 1,
+      "4bhk": 1,
+      studio: 1,
+      sharedApartment: 1
+    }
+  }
+]
 
     const wordsCount = await Query.aggregate(pipeline);
-
-
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / LIMIT);
 
+    console.log("words count: ", wordsCount);
     return NextResponse.json({
       data: allquery,
       PAGE,

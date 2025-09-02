@@ -15,6 +15,11 @@ import {
   MailCheck,
   Image,
   Map,
+  MailOpen,
+  MessageSquare,
+  MessageSquareText,
+  MailX,
+  MessageSquareX,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -85,7 +90,7 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
   >(Array.from({ length: queries?.length }, () => "None"));
 
   const [messageStatus, setMessageStatus] = useState<
-    ("First" | "Second" | "Options" | "Visit" | "None")[]
+    ("First" | "Second" | "Third" | "Fourth" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
   const [loading, setLoading] = useState(false);
@@ -283,12 +288,12 @@ const handleSave = async (
     } else if (newMessageStatus[index] === "First") {
       newMessageStatus[index] = "Second";
       queries[index].messageStatus = "Second";
-    // } else if (newMessageStatus[index] === "Second") {
-    //   newMessageStatus[index] = "Options";
-    //   queries[index].messageStatus = "Options";
-    // } else if (newMessageStatus[index] === "Options") {
-    //   newMessageStatus[index] = "Visit";
-    //   queries[index].messageStatus = "Visit";
+    } else if (newMessageStatus[index] === "Second") {
+      newMessageStatus[index] = "Third";
+      queries[index].messageStatus = "Third";
+    } else if (newMessageStatus[index] === "Third") {
+      newMessageStatus[index] = "Fourth";
+      queries[index].messageStatus = "Fourth";
     } else {
       newMessageStatus[index] = "None";
       queries[index].messageStatus = "None";
@@ -429,22 +434,22 @@ const handleSave = async (
                   )}
                   {query.messageStatus === "First" ? (
                     <CustomTooltip
-                      icon={<Mail color="pink" />}
+                      icon={<Mail color="green" />}
                       desc="First Message"
                     />
                   ) : query.messageStatus === "Second" ? (
                     <CustomTooltip
-                      icon={<MailCheck color="red" />}
+                      icon={<MailCheck color="yellow" />}
                       desc="Second Message"
                     />
-                  ) : query.messageStatus === "Options" ? (
+                  ) : query.messageStatus === "Third" ? (
                     <CustomTooltip
-                      icon={<Image color="yellow" />}
+                      icon={<MailX color="magenta" />}
                       desc="Shared Options"
                     />
-                  ) : query.messageStatus === "Visit" ? (
+                  ) : query.messageStatus === "Fourth" ? (
                     <CustomTooltip
-                      icon={<Map color="green" />}
+                      icon={<MessageSquareX color="red" />}
                       desc="Visit Scheduled"
                     />
                   ) : (

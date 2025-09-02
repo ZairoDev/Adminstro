@@ -70,6 +70,7 @@ export const RejectedLeads = () => {
     fromDate: undefined,
     toDate: undefined,
     sortBy: "None",
+    status: "None",
     guest: "0",
     noOfBeds: "0",
     propertyType: "",

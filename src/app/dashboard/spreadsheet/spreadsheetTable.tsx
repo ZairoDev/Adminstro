@@ -353,7 +353,7 @@ export function SpreadsheetTable({
               {/* Phone Number */}
               <TableCell>
                 <EditableCopyCell
-                  value={item.phoneNumber.toString()}
+                  value={item?.phoneNumber?.toString()}
                   onSave={(newValue) =>
                     handleSave(item._id, "phoneNumber", newValue)
                   }

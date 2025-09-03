@@ -166,6 +166,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Target",
       Icon: <PencilLine size={18} />,
     },
+
     {
       path: "/dashboard",
       label: "Dashboard",
@@ -353,6 +354,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Blacklist Lead",
       Icon: <ShieldAlert size={18} />,
     },
+    {
+      path: "/dashboard/invoice",
+      label: "Create Invoice",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/listinvoice",
+      label: "List Invoice",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   Sales: [
     {
@@ -425,6 +436,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer",
       label: "Sales Offer",
       Icon: <ClipboardPaste size={18} />,
+    },
+    {
+      path: "/dashboard/invoice",
+      label: "Create Invoice",
+      Icon: <PencilLine size={18} />,
     },
   ],
   "Sales-TeamLead": [
@@ -734,6 +750,18 @@ const catalogueRoutes = [
     Icon: <Notebook size={18} />,
   },
 ];
+const InvoiceRoutes = [
+  {
+    path: "/dashboard/invoice",
+    label: "Manage Invoice",
+    Icon: <Notebook size={18} />,
+  },
+  {
+    path: "/dashboard/listinvoice",
+    label: "List Invoice",
+    Icon: <PencilLine size={18} />,
+  },
+]
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
   const pathname = usePathname();
@@ -797,6 +825,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const candidateRoute = inGroup(candidateRoutes);
     const roomRoute = inGroup(roomRoutes);
     const catalogueRoute = inGroup(catalogueRoutes);
+    const invoiceRoute = inGroup(InvoiceRoutes);
 
     return (
       <>
@@ -875,6 +904,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="Catalogue Management"
           routes={catalogueRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Invoice Management"
+          routes={invoiceRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

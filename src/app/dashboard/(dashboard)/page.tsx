@@ -276,6 +276,55 @@ const handlfetch = async()=>{
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Property Count */}
+     <div className="w-full flex flex-wrap gap-6 justify-center p-4">
+  {/* Circle 1 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      12
+    </div>
+    <p className="text-sm font-medium text-gray-700">First Text</p>
+  </div>
+
+  {/* Circle 2 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      8
+    </div>
+    <p className="text-sm font-medium text-gray-700">Second Text</p>
+  </div>
+
+  {/* Circle 3 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      5
+    </div>
+    <p className="text-sm font-medium text-gray-700">Third Text</p>
+  </div>
+
+  {/* Circle 4 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      3
+    </div>
+    <p className="text-sm font-medium text-gray-700">Fourth Text</p>
+  </div>
+
+  {/* Circle 5 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      15
+    </div>
+    <p className="text-sm font-medium text-gray-700">Options</p>
+  </div>
+
+  {/* Circle 6 */}
+  <div className="flex flex-col items-center space-y-2">
+    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+      20
+    </div>
+    <p className="text-sm font-medium text-gray-700">Visit</p>
+  </div>
+</div>
       {token?.role === "SuperAdmin" && (
         <div className=" border rounded-md p-2">
           {/* Select country */}

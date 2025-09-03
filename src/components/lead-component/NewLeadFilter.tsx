@@ -139,10 +139,10 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           <SelectContent className=" border-gray-700">
             <SelectItem value="None">None</SelectItem>
             <SelectItem value="Asc" className="text-white hover:bg-gray-700">
-              Response : &nbsp; Low To High
+              Response : &nbsp; waiting for reply to send reply
             </SelectItem>
             <SelectItem value="Desc" className="text-white hover:bg-gray-700">
-              Response : &nbsp; High To Low
+              Response : &nbsp; send reply to waiting for reply
             </SelectItem>
           </SelectContent>
         </Select>

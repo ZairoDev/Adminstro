@@ -25,18 +25,18 @@ export default function HomePage() {
       designation: "COO",
       image: "https://github.com/shadcn.png",
     },
-    {
-      id: 3,
-      name: "Ayushi Gupta",
-      designation: "Sales Head",
-      image: "https://github.com/shadcn.png",
-    },
-    {
-      id: 4,
-      name: "Vikas Gurele",
-      designation: "H.O.S",
-      image: "https://github.com/shadcn.png",
-    },
+    // {
+    //   id: 3,
+    //   name: "Ayushi Gupta",
+    //   designation: "Sales Head",
+    //   image: "https://github.com/shadcn.png",
+    // },
+    // {
+    //   id: 4,
+    //   name: "Vikas Gurele",
+    //   designation: "H.O.S",
+    //   image: "https://github.com/shadcn.png",
+    // },
   ];
 
   const { token } = useAuthStore();
@@ -149,3 +149,4 @@ export default function HomePage() {
     </>
   );
 }
+

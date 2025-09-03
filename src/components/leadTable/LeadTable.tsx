@@ -378,6 +378,26 @@ const handleSave = async (
     }
   };
 
+    const formatDuration = (duration: string , startDate: string) => {
+    if(!duration || !startDate){
+      return "";
+    }
+
+    let shortDuration = duration
+
+    shortDuration = shortDuration
+    .replace(/years?/gi, "(Y)")
+    .replace(/months?/gi, "(M)")
+    .replace(/days?/gi, "(D)")
+    .replace(/\s+/g, "");
+
+    const date = new Date(startDate);
+    const month = date.toLocaleString("default", { month: "short" });
+
+    return `${shortDuration} ${month}`;
+
+  }
+
   return (
     <div className=" w-full">
       <Table>
@@ -622,7 +642,7 @@ const handleSave = async (
                 </div>
               </TableCell>
 
-              <TableCell>{query?.duration}</TableCell>
+              <TableCell>{formatDuration(query?.duration, query?.startDate)}</TableCell>
 
               <TableCell>
                 <div className=" flex gap-x-1">

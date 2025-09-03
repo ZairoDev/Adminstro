@@ -253,14 +253,13 @@ export const GoodToGoLeads = () => {
     <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-
         <div className="w-full  flex ">
           {/* heading component where all leads is*/}
           <Heading heading="Good To Go Leads" subheading="" />
           <div className="w-full flex flex-wrap gap-2 justify-center">
             <div
               onClick={() => handlePropertyCountFilter("Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
                 {wordsCount[0]?.["1bhk"]}
@@ -271,7 +270,7 @@ export const GoodToGoLeads = () => {
             </div>
             <div
               onClick={() => handlePropertyCountFilter("Apartment", "2")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
                 {wordsCount[0]?.["2bhk"]}
@@ -282,7 +281,7 @@ export const GoodToGoLeads = () => {
             </div>
             <div
               onClick={() => handlePropertyCountFilter("Apartment", "3")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
                 {wordsCount[0]?.["3bhk"]}
@@ -293,7 +292,7 @@ export const GoodToGoLeads = () => {
             </div>
             <div
               onClick={() => handlePropertyCountFilter("Apartment", "4")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
                 {wordsCount[0]?.["4bhk"]}
@@ -304,7 +303,7 @@ export const GoodToGoLeads = () => {
             </div>
             <div
               onClick={() => handlePropertyCountFilter("Studio", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
                 {wordsCount[0]?.["studio"]}
@@ -315,13 +314,13 @@ export const GoodToGoLeads = () => {
             </div>
             <div
               onClick={() => handlePropertyCountFilter("Shared Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
             >
               <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
                 {wordsCount[0]?.["sharedApartment"]}
               </p>
-              <p className="text-white font-medium text-xs  text-center group-hover:text-pink-100">
-                Shrd Aprt
+              <p className="text-white truncate font-medium text-xs  text-center group-hover:text-pink-100" title="Shared " >
+                Shard
               </p>
             </div>
           </div>

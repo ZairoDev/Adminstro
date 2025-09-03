@@ -97,7 +97,6 @@ export function InvoicePreview({ value, computed }: Props) {
               <tr className="bg-neutral-50 text-left">
                 <th className="border px-3 py-2">Description</th>
                 <th className="border px-3 py-2 text-right">SAC Code</th>
-                <th className="border px-3 py-2 text-right">Price</th>
                 <th className="border px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
@@ -114,7 +113,6 @@ export function InvoicePreview({ value, computed }: Props) {
                 <td className="border px-3 py-2 text-right">
                   {value.sacCode || 0}
                 </td>
-                <td className="border px-3 py-2 text-right"></td>
                 <td className="border px-3 py-2 text-right">
                   {eur(value.amount)}
                 </td>
@@ -126,7 +124,6 @@ export function InvoicePreview({ value, computed }: Props) {
                     {value.checkIn ? formatDisplayDate(value.checkIn) : "-"}
                   </span>
                 </td>
-                <td colSpan={3}></td>
               </tr>
               <tr>
                 <td className="border px-3 py-2">
@@ -135,8 +132,7 @@ export function InvoicePreview({ value, computed }: Props) {
                     {value.checkOut ? formatDisplayDate(value.checkOut) : "-"}
                   </span>
                 </td>
-                <td colSpan={2}></td>
-                <td className="border px-3 py-2 text-right">
+                <td className="border px-3 py-2 text-right ">
                   <div className="w-full max-w-sm text-sm">
                     <div className="flex items-center justify-between">
                       <span>Sub Total :</span>

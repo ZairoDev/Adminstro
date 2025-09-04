@@ -6,6 +6,7 @@ export type InvoiceStatus = "paid" | "unpaid" | "partially_paid" | "cancelled";
 
 export type InvoiceData = {
   // Customer
+  _id?: string;
   name: string;
   email: string;
   phoneNumber: string;
@@ -28,7 +29,6 @@ export type InvoiceData = {
   status: "paid" | "unpaid";
   sacCode: number;
   invoiceNumber?: string;
-  invoiceDate: string;
 };
 
 export type ComputedTotals = {

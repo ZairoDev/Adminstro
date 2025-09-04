@@ -35,6 +35,7 @@ const invoiceSchema = new mongoose.Schema(
 
     checkIn: { type: Date },
     checkOut: { type: Date },
+    date: { type: Date },
 
     bookingType: {
       type: String,

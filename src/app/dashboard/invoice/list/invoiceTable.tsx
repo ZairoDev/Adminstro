@@ -14,17 +14,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
-import type { Invoice } from "./page";
 import { EditableCell } from "../../spreadsheet/EditableCell";
 import { IoOptions } from "react-icons/io5";
+import BulkInvoiceButton from "./buttonBulk";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { InvoicePreview } from "../components/invoice-preview";
+import { InvoiceData } from "../page";
 
 export function InvoiceTable({
   tableData,
   setTableData,
 }: {
-  tableData: Invoice[];
-  setTableData: React.Dispatch<React.SetStateAction<Invoice[]>>;
+  tableData: InvoiceData[];
+  setTableData: React.Dispatch<React.SetStateAction<InvoiceData[]>>;
 }) {
   const columns = [
     { label: "Invoice No", field: "invoiceNo", sortable: true },
@@ -42,8 +59,10 @@ export function InvoiceTable({
     {label: "Action", field: "action", sortable: false },
   ];
 
-  const [sortedData, setSortedData] = useState<Invoice[]>([]);
-  const [sortBy, setSortBy] = useState<keyof Invoice | null>(null);
+  const [sortedData, setSortedData] = useState<InvoiceData[]>([]);
+  const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
+
+  const [sortBy, setSortBy] = useState<keyof InvoiceData | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
 
@@ -55,7 +74,7 @@ export function InvoiceTable({
     }
   }, [tableData]);
 
-  const applySort = (field: keyof Invoice, order: "asc" | "desc") => {
+  const applySort = (field: keyof InvoiceData, order: "asc" | "desc") => {
     const sorted = [...tableData].sort((a, b) => {
       const aVal = a[field];
       const bVal = b[field];
@@ -74,7 +93,7 @@ export function InvoiceTable({
     setSortedData(sorted);
   };
 
-  const handleSort = (field: keyof Invoice) => {
+  const handleSort = (field: keyof InvoiceData) => {
     let newOrder: "asc" | "desc" = "asc";
     if (sortBy === field) {
       newOrder = sortOrder === "asc" ? "desc" : "asc";
@@ -84,7 +103,7 @@ export function InvoiceTable({
     applySort(field, newOrder);
   };
 
-  const handleSave = async (_id: string, key: keyof Invoice, newValue: any) => {
+  const handleSave = async (_id: string, key: keyof InvoiceData, newValue: any) => {
     const prev = tableData;
     const updatedData = tableData.map((item) =>
       item._id === _id ? { ...item, [key]: newValue } : item
@@ -143,16 +162,7 @@ export function InvoiceTable({
           <Plus className="h-4 w-4" />
           Add New Invoice
         </Button>
-        <Button
-          onClick={() => {
-            // Navigate to invoice create form
-            window.location.href = "/dashboard/invoices/create";
-          }}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Make Invoice Bulk
-        </Button>
+        <BulkInvoiceButton invoices={tableData} />
       </div>
 
       <Table>
@@ -164,7 +174,7 @@ export function InvoiceTable({
                 key={col.field as string}
                 onClick={
                   col.sortable
-                    ? () => handleSort(col.field as keyof Invoice)
+                    ? () => handleSort(col.field as keyof InvoiceData)
                     : undefined
                 }
                 className={col.sortable ? "cursor-pointer select-none" : ""}
@@ -181,7 +191,7 @@ export function InvoiceTable({
         </TableHeader>
 
         <TableBody>
-          {sortedData.map((item: Invoice) => (
+          {sortedData.map((item: InvoiceData) => (
             <TableRow
               key={item._id}
               onClick={() => setSelectedRow(item._id!)}
@@ -220,12 +230,44 @@ export function InvoiceTable({
               <TableCell>{item.address}</TableCell>
               <TableCell>{item.companyAddress}</TableCell>
               <TableCell>
-                <EllipsisVertical className="h-4 w-4" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <EllipsisVertical className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setPreviewInvoice(item)}>
+                      Preview
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>Download</DropdownMenuItem>
+                    <DropdownMenuItem>Delete</DropdownMenuItem>
+                    {/* <DropdownMenuItem>Subscription</DropdownMenuItem> */}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      <Dialog
+        open={!!previewInvoice}
+        onOpenChange={(open) => setPreviewInvoice(open ? previewInvoice : null)}
+      >
+        <DialogContent className="max-w-4xl p-0">
+          {previewInvoice && (
+            <InvoicePreview
+              value={previewInvoice}
+              computed={{
+                subTotal: previewInvoice.amount,
+                taxes: { sgst: 0, cgst: 0, igst: 0 }, // compute or pass real values
+                total: previewInvoice.amount,
+              }}
+              currencyFormatter={(n) => `€${n.toFixed(2)}`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

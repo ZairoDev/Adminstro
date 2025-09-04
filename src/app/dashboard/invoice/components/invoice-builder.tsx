@@ -35,7 +35,6 @@ const INITIAL_DATA: InvoiceData = {
   // Company & meta
   companyAddress: "117/N/70, 3rd Floor Kakadeo, Kanpur - 208025, UP, India",
   invoiceNumber: "ZI-1",
-  invoiceDate: "",
   sacCode: 9985,
   description: "Booking Commission",
 };
@@ -90,7 +89,7 @@ export default function InvoiceBuilder() {
       cgst: 0,
       sacCode: 9985,
       status: "paid",
-      invoiceDate: "2025-08-25",
+      date: "2025-08-25",
       checkIn: "2025-08-26",
       checkOut: "2026-08-25",
       companyAddress: "117/N/70, 3rd Floor Kakadeo, Kanpur - 208025, UP, India",

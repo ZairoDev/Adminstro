@@ -104,8 +104,8 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
             <input
               type="date"
               className="h-9 rounded-md border bg-background px-3"
-              value={value.invoiceDate || ""}
-              onChange={handle("invoiceDate")}
+              value={value.date || ""}
+              onChange={handle("date")}
             />
           </label>
           <label className="grid gap-1">

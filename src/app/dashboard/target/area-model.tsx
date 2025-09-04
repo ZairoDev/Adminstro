@@ -182,7 +182,7 @@ export function AreaModel({
                     <SelectItem value="North-West">North-West</SelectItem>
                     <SelectItem value="South-East">South-East</SelectItem>
                     <SelectItem value="South-West">South-West</SelectItem>
-                    <SelectItem value="Central">Central</SelectItem>
+                    <SelectItem value="Center">Center</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

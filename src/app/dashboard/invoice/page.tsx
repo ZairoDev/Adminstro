@@ -10,7 +10,7 @@ export type InvoiceData = {
   email: string;
   phoneNumber: string;
   address: string;
-
+  date: string;
   companyAddress: string;
 
   // Booking
@@ -27,7 +27,7 @@ export type InvoiceData = {
   totalAmount: number; // final payable
   status: "paid" | "unpaid";
   sacCode: number;
-  invoiceNo: string;
+  invoiceNumber?: string;
   invoiceDate: string;
 };
 

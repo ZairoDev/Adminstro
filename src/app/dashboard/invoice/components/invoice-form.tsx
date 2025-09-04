@@ -100,15 +100,6 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
         </legend>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
           <label className="grid gap-1">
-            <span className="text-sm">Invoice No.</span>
-            <input
-              className="h-9 rounded-md border bg-background px-3"
-              value={value.invoiceNo || ""}
-              onChange={handle("invoiceNo")}
-              placeholder="ZI-001"
-            />
-          </label>
-          <label className="grid gap-1">
             <span className="text-sm">Date</span>
             <input
               type="date"

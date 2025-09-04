@@ -79,7 +79,7 @@ export function generateInvoicePdf(
                 margin: [0, 20, 0, 5],
               },
               {
-                text: `Invoice No: ${value.invoiceNo || "-"}`,
+                text: `Invoice No: ${value.invoiceNumber || "-"}`,
                 alignment: "right",
               },
               { text: `Date: ${value.invoiceDate || "-"}`, alignment: "right" },
@@ -94,7 +94,7 @@ export function generateInvoicePdf(
         style: "table",
         table: {
           headerRows: 1,
-          widths: ["50%", "25%", "25%"], // Description narrow, SAC and Amount wider
+          widths: ["50%", "25%", "25%"], // Description wide, SAC Code + Amount balanced
           body: [
             // Header
             [
@@ -104,43 +104,27 @@ export function generateInvoicePdf(
             ],
             // Service row
             [
-              { text: value.description || value.bookingType },
+              { text: value.description || value.bookingType || "-" },
               { text: value.sacCode || "-", alignment: "right" },
               { text: `€${value.amount}`, alignment: "right" },
             ],
-            // Check-in/out as part of Description column
-            [{ text: `Check In: ${value.checkIn || "-"}`, colSpan: 3 }, {}, {}],
+            // Check-in/out
+            [
+              { text: `Check In: ${value.checkIn || "-"}`, colSpan: 3 },
+              {},
+              {},
+            ],
             [
               { text: `Check Out: ${value.checkOut || "-"}`, colSpan: 3 },
               {},
               {},
             ],
             // Subtotal / Taxes / Total
-            [
-              {},
-              { text: "Sub Total:", alignment: "right" },
-              { text: `€${computed.subTotal}`, alignment: "right" },
-            ],
-            [
-              {},
-              { text: "SGST:", alignment: "right" },
-              { text: `€${computed.taxes.sgst}`, alignment: "right" },
-            ],
-            [
-              {},
-              { text: "CGST:", alignment: "right" },
-              { text: `€${computed.taxes.cgst}`, alignment: "right" },
-            ],
-            [
-              {},
-              { text: "IGST:", alignment: "right" },
-              { text: `€${computed.taxes.igst}`, alignment: "right" },
-            ],
-            [
-              {},
-              { text: "Total:", bold: true, alignment: "right" },
-              { text: `€${computed.total}`, bold: true, alignment: "right" },
-            ],
+            [{}, { text: "Sub Total:", alignment: "right" }, { text: `€${computed.subTotal}`, alignment: "right" }],
+            [{}, { text: "SGST:", alignment: "right" }, { text: `€${computed.taxes.sgst}`, alignment: "right" }],
+            [{}, { text: "CGST:", alignment: "right" }, { text: `€${computed.taxes.cgst}`, alignment: "right" }],
+            [{}, { text: "IGST:", alignment: "right" }, { text: `€${computed.taxes.igst}`, alignment: "right" }],
+            [{}, { text: "Total:", bold: true, alignment: "right" }, { text: `€${computed.total}`, bold: true, alignment: "right" }],
           ],
         },
         layout: "lightHorizontalLines",

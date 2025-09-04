@@ -360,7 +360,7 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/listinvoice",
+      path: "/dashboard/invoice/list",
       label: "List Invoice",
       Icon: <PencilLine size={18} />,
     },
@@ -757,11 +757,11 @@ const InvoiceRoutes = [
     Icon: <Notebook size={18} />,
   },
   {
-    path: "/dashboard/listinvoice",
+    path: "/dashboard/invoice/list",
     label: "List Invoice",
     Icon: <PencilLine size={18} />,
   },
-]
+];
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
   const pathname = usePathname();

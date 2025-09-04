@@ -80,7 +80,7 @@ export function InvoicePreview({ value, computed }: Props) {
           </div>
           <div className="text-sm">
             <span className="font-medium">Invoice No. </span>
-            <span>{value.invoiceNo || "-"}</span>
+            <span>{value.invoiceNumber || "-"}</span>
           </div>
           <div className="text-sm">
             <span className="font-medium">Date </span>

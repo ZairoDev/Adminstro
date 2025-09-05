@@ -21,6 +21,11 @@ const unregisteredOwnerSchema = new mongoose.Schema({
     type: String,
     default: "unfurnished"
   },  
+petStatus: {
+  type: String,            
+  enum: ["Allowed", "Not Allowed","None"],   
+  default: "None"
+},
   referenceLink:{
     type: String
   },

@@ -38,6 +38,19 @@ interface LeadsGroupCount {
   count: number;
 }
 
+
+interface StatusCount {
+  First: number;
+  Second: number;
+  Third: number;
+  Fourth: number;
+  Options: number;
+  Visit: number;
+  None: number;
+  Null: number;
+}
+
+
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
   const [leadsGroupCount, setLeadsGroupCount] = useState<LeadsGroupCount[]>([]);
@@ -47,6 +60,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [locationLeads,setLocationLeads] = useState<locationLeadsIn[]>([]);
   const [allEmployees,setAllEmployees] = useState<string[]>([]);
   const [average, setAverage] = useState(0);
+    const [messageStatus, setMessageStatus] = useState<StatusCount | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -151,11 +165,23 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
+    const fetchMessageStatus = async () => {
+    try {
+      const res = await fetch("/api/leads/getStatusCount");
+      if (!res.ok) throw new Error("Failed to fetch message status");
+      const data = await res.json();
+      setMessageStatus(data.statusSummary);
+    } catch (error: any) {
+      console.error("Error fetching message status:", error.message);
+    }
+  };
+
   useEffect(() => {
     fetchLeads({ date });
     fetchAverage();
     fetchLeadStatus({});
     fetchAllEmployees();
+    fetchMessageStatus();
     fetchLeadByLocation({});
     fetchRejectedLeadGroup({});
   }, []);
@@ -173,6 +199,8 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     allEmployees,
     rejectedLeadGroups,
     fetchRejectedLeadGroup,
+     messageStatus, 
+    fetchMessageStatus, 
     isLoading,
     isError,
     error,

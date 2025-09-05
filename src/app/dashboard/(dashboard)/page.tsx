@@ -74,37 +74,48 @@ import { list } from "postcss";
 import { useRouter } from "next/navigation";
 import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 
- const chartConfig = {
-  greece: {
-    label: "Greece",
-    color: "hsl(var(--chart-1))",
-  },
-  italy: {
-    label: "Italy",
-    color: "hsl(var(--chart-2))",
-  },
-  croatia: {
-    label: "Croatia",
-    color: "hsl(var(--chart-3))",
-  },
-  spain: {
-    label: "Spain",
-    color: "hsl(var(--chart-4))",
-  },
-  portugal: {
-    label: "Portugal",
-    color: "hsl(var(--chart-5))",
-  },
-} satisfies ChartConfig;
+//  const chartConfig = {
+//   greece: {
+//     label: "Greece",
+//     color: "hsl(var(--chart-1))",
+//   },
+//   italy: {
+//     label: "Italy",
+//     color: "hsl(var(--chart-2))",
+//   },
+//   croatia: {
+//     label: "Croatia",
+//     color: "hsl(var(--chart-3))",
+//   },
+//   spain: {
+//     label: "Spain",
+//     color: "hsl(var(--chart-4))",
+//   },
+//   portugal: {
+//     label: "Portugal",
+//     color: "hsl(var(--chart-5))",
+//   },
+// } satisfies ChartConfig;
 
-interface BookingDetailsIn {
-  _id: string;
-  "Total Amount": number;
-  "Owner Amount": number;
-  totalOwnerReceived: number;
-  "Traveller Amount": number;
-  totalTravellerReceived: number;
+// interface BookingDetailsIn {
+//   _id: string;
+//   "Total Amount": number;
+//   "Owner Amount": number;
+//   totalOwnerReceived: number;
+//   "Traveller Amount": number;
+//   totalTravellerReceived: number;
+// }
+interface StatusCount {
+  First: number;
+  Second: number;
+  Third: number;
+  Fourth: number;
+  Options: number;
+  Visit: number;
+  None: number;
+  Null: number;
 }
+
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -163,6 +174,7 @@ const Dashboard = () => {
     fetchRejectedLeadGroup,
     rejectedLeadGroups,
     average,
+    messageStatus,
     isLoading,
     isError,
     error,
@@ -204,12 +216,12 @@ const Dashboard = () => {
   console.log("Booking Details0",bookingDetails); 
 
 const handlfetch = async()=>{
-  // setFetchLoading(true);
+
   fetchUnregisteredVisits();
   fetchVisitsToday({days:"today"});
   fetchVisits({days:"today"});
   fetchGoodVisitsCount({days:"today"});
-  // setFetchLoading(false);
+ 
 }
 
 
@@ -273,6 +285,7 @@ const handlfetch = async()=>{
 
   const finalReceived = ((bookingDetails?.totalOwnerReceived ?? 0) + (bookingDetails?.totalTravellerReceived ?? 0))- ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
 
+
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Property Count */}
@@ -280,7 +293,7 @@ const handlfetch = async()=>{
   {/* Circle 1 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      12
+      {messageStatus?.First}
     </div>
     <p className="text-sm font-medium text-gray-700">First Text</p>
   </div>
@@ -288,7 +301,7 @@ const handlfetch = async()=>{
   {/* Circle 2 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      8
+      {messageStatus?.Second}
     </div>
     <p className="text-sm font-medium text-gray-700">Second Text</p>
   </div>
@@ -296,7 +309,7 @@ const handlfetch = async()=>{
   {/* Circle 3 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      5
+      {messageStatus?.Third}
     </div>
     <p className="text-sm font-medium text-gray-700">Third Text</p>
   </div>
@@ -304,7 +317,7 @@ const handlfetch = async()=>{
   {/* Circle 4 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      3
+      {messageStatus?.Fourth}
     </div>
     <p className="text-sm font-medium text-gray-700">Fourth Text</p>
   </div>
@@ -312,7 +325,7 @@ const handlfetch = async()=>{
   {/* Circle 5 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      15
+      {messageStatus?.Options}
     </div>
     <p className="text-sm font-medium text-gray-700">Options</p>
   </div>
@@ -320,7 +333,7 @@ const handlfetch = async()=>{
   {/* Circle 6 */}
   <div className="flex flex-col items-center space-y-2">
     <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      20
+      {messageStatus?.Visit}
     </div>
     <p className="text-sm font-medium text-gray-700">Visit</p>
   </div>

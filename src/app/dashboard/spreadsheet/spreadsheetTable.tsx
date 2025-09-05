@@ -12,16 +12,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Check, Phone, Plus, X } from "lucide-react";
+import { Ban, Check, CircleDot, Mail, MailCheck, PawPrint, Phone, Plus, X } from "lucide-react";
 import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
 import { SelectableCell } from "./SelectableCell";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CopyCell } from "@/components/Copy";
 import { EditableCopyCell } from "./EditableCopyCell";
 import { get } from "http";
 import toast from "react-hot-toast";
+import CustomTooltip from "@/components/CustomToolTip";
+import { table } from "console";
+import debounce from "lodash.debounce";
 
 export function SpreadsheetTable({
   tableData,
@@ -31,6 +34,7 @@ export function SpreadsheetTable({
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
 }) {
   const columns = [
+    { label: "S.No", field: "serial", sortable: false },
     { label: "Name", field: "name", sortable: true },
     { label: <Phone size={16} />, field: "phoneNumber", sortable: false },
     { label: "Location", field: "location", sortable: true },
@@ -38,12 +42,13 @@ export function SpreadsheetTable({
     { label: "Area", field: "area", sortable: false },
     { label: "Avail.", field: "availability", sortable: true },
     { label: "Int. Status", field: "intStatus", sortable: false },
+    { label: "Pet. Status", field: "intStatus", sortable: false },
     { label: "Property Type", field: "propertyType", sortable: false },
-    { label: "Date", field: "date", sortable: true },
     { label: "Address", field: "address", sortable: false },
     { label: "Ref. Link", field: "refLink", sortable: false },
-    { label: "Remarks", field: "remarks", sortable: false },
     { label: "VsLink", field: "link", sortable: false },
+    { label: "Remarks", field: "remarks", sortable: false },
+    { label: "Date", field: "date", sortable: true },
   ];
 
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
@@ -52,19 +57,23 @@ export function SpreadsheetTable({
   const [locationws, setLocationws] = useState<string[]>([]);
   const [cityAreas, setCityAreas] = useState<Record<string, string[]>>({});
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
+    const [petStatus, setPetStatus] = useState<
+    ( "Allowed" | "Not Allowed" | "None")[]
+  >(Array.from({ length: tableData?.length }, () => "None"));
 
   const apartmentTypes = [
-    { label: "Studio", value: "studio" },
-    { label: "Apartment", value: "apartment" },
-    { label: "Villa", value: "villa" },
-    { label: "Pent House", value: "pent_house" },
-    { label: "Detached House", value: "detached_house" },
-    { label: "Loft", value: "loft" },
-    { label: "Shared Apartment", value: "shared_apartment" },
-    { label: "Maisotte", value: "maisotte" },
-    { label: "Studio / 1 bedroom", value: "studio_1_bedroom" },
-  ];
-
+  { label: "Studio", value: "Studio" },
+  { label: "1 Bedroom", value: "1 Bedroom" },
+  { label: "2 Bedroom", value: "2 Bedroom" },
+  { label: "3 Bedroom", value: "3 Bedroom" },
+  { label: "4 Bedroom", value: "4 Bedroom" },
+  { label: "Villa", value: "Villa" },
+  { label: "Pent House", value: "Pent House" },
+  { label: "Detached House", value: "Detached House" },
+  { label: "Loft", value: "Loft" },
+  { label: "Shared Apartment", value: "Shared Apartment" },
+  { label: "Maisotte", value: "Maisotte" },
+];
   const interiorStatus = [
     { label: "F", value: "Fully Furnished" },
     { label: "P F", value: "Partially Furnished" },
@@ -101,6 +110,7 @@ export function SpreadsheetTable({
         );
 
         setLocationws(fetchedCities);
+        console.log("fetched Locations that has been selected in get allocations", locationws);
 
         // make city → area mapping (just area names)
         const cityAreaMap: Record<string, string[]> = {};
@@ -129,6 +139,7 @@ export function SpreadsheetTable({
       location: "",
       price: "",
       interiorStatus: "Fully Furnished",
+      petStatus: "None",
       propertyType: "studio",
       link: "",
       area: "",
@@ -284,6 +295,37 @@ export function SpreadsheetTable({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedRow]);
 
+    const handlePetStatus = (petId: string | undefined, index: number) => {
+    if (!petId) return;
+
+    const newPetStatus = [...petStatus];
+    const newMessage = newPetStatus[index];
+   
+     if (newPetStatus[index] === "None") {
+      newPetStatus[index] = "Allowed";
+      tableData[index].petStatus = "Allowed";
+    } else if (newPetStatus[index] === "Allowed") {
+      newPetStatus[index] = "Not Allowed";
+      tableData[index].petStatus = "Not Allowed";
+    } else {
+      newPetStatus[index] = "None";
+      tableData[index].petStatus = "None";
+    }
+
+    setPetStatus(newPetStatus);
+    changePetStatus(petId, newPetStatus[index]);
+  };
+
+    const changePetStatus = useCallback(
+    debounce(async (petId: string, status: string) => {
+      const response = await axios.post("/api/unregisteredOwners/updatePetStatus", {
+        petId,
+        changedStatus: status,
+      });
+    }, 1000),
+    []
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -332,7 +374,7 @@ export function SpreadsheetTable({
 
         {/* Table Body */}
         <TableBody>
-          {sortedData.map((item: unregisteredOwners) => (
+          {sortedData.map((item: unregisteredOwners , index: number) => (
             <TableRow
               key={item?._id}
               onClick={() => setSelectedRow(item._id)}
@@ -340,6 +382,9 @@ export function SpreadsheetTable({
                 selectedRow === item._id ? " bg-gray-900" : ""
               }`}
             >
+               <TableCell className="font-medium">
+        {index + 1}
+      </TableCell>
               {/* Name */}
               <TableCell className="font-medium truncate max-w-[150px]">
                 <EditableCell
@@ -379,7 +424,7 @@ export function SpreadsheetTable({
 
               <TableCell>
                 <EditableCell
-                  maxWidth="80px"
+                  maxWidth="70px"
                   value={item.price}
                   onSave={(newValue) => handleSave(item._id, "price", newValue)}
                   // placeholder="Price"
@@ -388,7 +433,7 @@ export function SpreadsheetTable({
 
               <TableCell>
                 <SelectableCell
-                  maxWidth="200px"
+                  maxWidth="100px"
                   data={cityAreas[item.location] || []}
                   value={item.area}
                   save={(newValue: string) =>
@@ -396,9 +441,11 @@ export function SpreadsheetTable({
                   }
                 />
               </TableCell>
+
+
               <TableCell>
                 <SelectableCell
-                  maxWidth="200px"
+                  maxWidth="100px"
                   data={avail}
                   value={item.availability}
                   save={(newValue: string) =>
@@ -418,6 +465,35 @@ export function SpreadsheetTable({
                 />
               </TableCell>
 
+              <TableCell
+                  className=" cursor-pointer relative "
+                  onClick={() => handlePetStatus(item?._id, index)}
+                >
+                  {/* {query?.reminder === null && (
+                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
+                      <p className=" rotate-90 text-xs font-semibold mt-1">
+                        Reminder
+                      </p>
+                    </div>
+                  )} */}
+                  {item.petStatus === "Allowed" ? (
+                    <CustomTooltip
+                      icon={<PawPrint color="green" />}
+                      desc="First Message"
+                    />
+                  ) : item.petStatus === "Not Allowed" ? (
+                    <CustomTooltip
+                      icon={<Ban color="yellow" />}
+                      desc="Second Message"
+                    />
+                  ) : (
+                    <CustomTooltip
+                      icon={<CircleDot fill="" color="gray" />}
+                      desc="No Status"
+                    />
+                  )}
+                </TableCell>
+
               {/* Property Type */}
               <TableCell>
                 <SelectableCell
@@ -429,17 +505,7 @@ export function SpreadsheetTable({
                   }
                 />
               </TableCell>
-              <TableCell>
-                <EditableCell
-                  maxWidth="80px"
-                  value={
-                    new Date(item.date).toLocaleDateString("en-US", {}) ||
-                    item.date.toString()
-                  }
-                  onSave={(newValue) => handleSave(item._id, "date", newValue)}
-                  type="date"
-                />
-              </TableCell>
+             
 
               {/* Address */}
               <TableCell
@@ -487,21 +553,6 @@ export function SpreadsheetTable({
                   </a>
                 )}
               </TableCell>
-
-              {/* Remarks */}
-              <TableCell
-                className="text-right truncate max-w-[120px]"
-                title={item.remarks}
-              >
-                <EditableCell
-                  value={item.remarks}
-                  onSave={(newValue) =>
-                    handleSave(item._id, "remarks", newValue)
-                  }
-                  maxWidth="120px"
-                  // placeholder="Remarks"
-                />
-              </TableCell>
               {/* Link */}
               <TableCell
                 className="text-right truncate max-w-[60px]"
@@ -532,6 +583,32 @@ export function SpreadsheetTable({
                     🔗
                   </a>
                 )}
+              </TableCell>
+               {/* Remarks */}
+              <TableCell
+                className="text-right truncate max-w-[120px]"
+                title={item.remarks}
+              >
+                <EditableCell
+                  value={item.remarks}
+                  onSave={(newValue) =>
+                    handleSave(item._id, "remarks", newValue)
+                  }
+                  maxWidth="120px"
+                  // placeholder="Remarks"
+                />
+              </TableCell>
+              {/*Date*/}
+               <TableCell>
+                <EditableCell
+                  maxWidth="80px"
+                  value={
+                    new Date(item.date).toLocaleDateString("en-US", {}) ||
+                    item.date.toString()
+                  }
+                  onSave={(newValue) => handleSave(item._id, "date", newValue)}
+                  type="date"
+                />
               </TableCell>
             </TableRow>
           ))}

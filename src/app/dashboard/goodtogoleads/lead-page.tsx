@@ -387,7 +387,7 @@ export const GoodToGoLeads = () => {
           </div>
 
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
-            <div className="">
+            <div className="overflow-y-scroll">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline">
@@ -402,53 +402,53 @@ export const GoodToGoLeads = () => {
                     {/* Apply Button */}
                   </div>
 
-                  <SheetFooter className=" flex flex-col">
-                    <SheetClose asChild>
-                      <Button
-                        onClick={() => {
-                          const params = new URLSearchParams(
-                            Object.entries(filters)
-                          );
-                          setPage(1);
-                          router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1, { ...filters, allotedArea: area });
-                        }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
-                      >
-                        Apply
-                      </Button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Button
-                        onClick={() => {
-                          router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
-                          setFilters({ ...defaultFilters });
-                          setPage(1);
-                          filterLeads(1, defaultFilters);
-                        }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
-                      >
-                        Clear
-                      </Button>
-                    </SheetClose>
-                    <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
-                      </p>
-                    </div>
-                  </SheetFooter>
+                  <SheetFooter className="flex flex-col gap-3 p-4 border-t border-gray-200">
+  {/* Buttons Row */}
+  <div className="flex gap-3">
+    <SheetClose asChild>
+      <Button
+        onClick={() => {
+          const params = new URLSearchParams(Object.entries(filters));
+          setPage(1);
+          router.push(`?${params.toString()}&page=1`);
+          filterLeads(1, { ...filters, allotedArea: area });
+        }}
+        className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+      >
+        Apply
+      </Button>
+    </SheetClose>
+
+    <SheetClose asChild>
+      <Button
+        onClick={() => {
+          router.push(`?page=1`);
+          setFilters({ ...defaultFilters });
+          setPage(1);
+          filterLeads(1, defaultFilters);
+        }}
+        className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+      >
+        Clear
+      </Button>
+    </SheetClose>
+  </div>
+
+  {/* Select Dropdown */}
+  <div className="w-full">
+    <Select onValueChange={(value) => setView(value)}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select View" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="Table View">Table View</SelectItem>
+        <SelectItem value="Card View">Card View</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+</SheetFooter>
+
+
                 </SheetContent>
               </Sheet>
             </div>

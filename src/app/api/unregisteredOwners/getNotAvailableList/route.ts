@@ -7,11 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 connectDb();
 export async function POST(req: NextRequest) {
   try{
-    const { filters }: { filters: FiltersInterface; page: number } =
+    const { filters , page=1 , limit=50}  : { filters: FiltersInterface; page: number ; limit: number} =
         await req.json();
     const query: Record<string, any> = {};
 
-    // query["availability"]= "Available";
+    query["availability"]= "Not Available";
 
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
@@ -24,9 +24,13 @@ export async function POST(req: NextRequest) {
     else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
     else if(filters.place) query["location"] = filters.place;
     console.log("query: ", query);
-    const data = await unregisteredOwner.find(query);
+
+    const skip = (page - 1) * limit;
+
+    const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean();
+     const total = await unregisteredOwner.countDocuments(query);
     console.log(data);  
-    return NextResponse.json({data}, {status: 200});
+    return NextResponse.json({data,total    }, {status: 200});
   }catch(err){
     console.log(err);
     return NextResponse.json({error: err}, {status: 500});

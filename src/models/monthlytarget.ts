@@ -1,32 +1,5 @@
 import mongoose from "mongoose";
 
-const areaSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    zone: { type: String },
-    subUrban: { type: Boolean },
-    transportation: {
-      metroZone: { type: String }, // metro line/zone
-      extension: { type: Boolean },
-      tram: { type: String },
-      subway: { type: String },
-      bus: { type: String },
-    },
-    price: {
-      studio: { type: Number },
-      sharedSpot: { type: Number }, // e.g. bed space
-      sharedRoom: { type: Number }, // e.g. room in shared flat
-      apartment: {
-        oneBhk: { type: Number },
-        twoBhk: { type: Number },
-        threeBhk: { type: Number },
-        fourBhk: { type: Number },
-      },
-    },
-  },
-  { _id: false } // avoid auto _id for subdocs
-);
-
 const targetSchema = new mongoose.Schema(
   {
     country: {
@@ -40,10 +13,7 @@ const targetSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    area: {
-      type: [areaSchema], // richer schema per area
-      default: [],
-    },
+    area: [{ type: mongoose.Schema.Types.ObjectId, ref: "Area" }],
     leads: { type: Number, required: true },
     visits: { type: Number, required: true },
     sales: { type: Number, required: true },

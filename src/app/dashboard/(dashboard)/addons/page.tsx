@@ -281,8 +281,10 @@ const Addons = () => {
         <AreaModel
           areaModel={areaModel}
           setAreaModel={setAreaModel}
+          areaName="Athens"
           areaId={areaId}
-          // getAllTargets={getTargets}
+
+          getAllTargets={getTargets}
         />
         <TargetModal
           open={targetModal}

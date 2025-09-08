@@ -151,19 +151,7 @@ export function InvoiceTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <Button
-          onClick={() => {
-            // Navigate to invoice create form
-            window.location.href = "/dashboard/invoices/create";
-          }}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add New Invoice
-        </Button>
-        <BulkInvoiceButton invoices={tableData} />
-      </div>
+      
 
       <Table>
         <TableCaption>A list of your invoices.</TableCaption>

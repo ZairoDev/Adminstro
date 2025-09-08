@@ -1,6 +1,6 @@
+import { Area } from "@/models/area";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
-import { sub } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
@@ -13,86 +13,20 @@ export async function PUT(
     if (!body) {
       return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
-
-    const monthlyTarget = await MonthlyTarget.findById(params.targetId);
-    if (!monthlyTarget) {
-      return NextResponse.json({ error: "Target not found" }, { status: 404 });
-    }
-
     console.log("body: ", body);
-
-    if (body.area) {
-      const { name, zone , subUrban, transportation, price } = body.area;
-
-      if (!name) {
-        return NextResponse.json(
-          { error: "Area name is required" },
-          { status: 400 }
-        );
-      }
-
-      // ✅ Look for existing area by name
-      const existingAreaIndex = monthlyTarget.area.findIndex(
-        (a: any) => a.name.toLowerCase() === name.toLowerCase()
-      );
-
-      if (existingAreaIndex !== -1) {
-        // 🔄 Update existing area
-        monthlyTarget.area[existingAreaIndex] = {
-          ...monthlyTarget.area[existingAreaIndex]._doc, // keep old values
-          name: name.trim(),
-          zone: zone?.trim() || "",
-          subUrban: subUrban || false,
-          transportation: {
-            ...monthlyTarget.area[existingAreaIndex].transportation,
-            ...transportation, // e.g. metroZone, tram, subway, bus
-          },
-          price: {
-            ...monthlyTarget.area[existingAreaIndex].price,
-            ...price, // e.g. studio, sharedSpot, sharedRoom, apartment
-            apartment: {
-              ...monthlyTarget.area[existingAreaIndex].price?.apartment,
-              ...price?.apartment,
-            },
-          },
-        };
-      } else {
-        // ➕ Add new area
-        monthlyTarget.area.push({
-          name: name.trim(),
-          zone: zone?.trim() || "",
-          subUrban: subUrban || false,
-          transportation: {
-            metroZone: transportation?.metroZone || "",
-            extension: transportation?.extension || false,
-            tram: transportation?.tram || "",
-            subway: transportation?.subway || "",
-            bus: transportation?.bus || "",
-          },
-          price: {
-            studio: price?.studio || 0,
-            sharedSpot: price?.sharedSpot || 0,
-            sharedRoom: price?.sharedRoom || 0,
-            apartment: {
-              oneBhk: price?.apartment?.oneBhk || 0,
-              twoBhk: price?.apartment?.twoBhk || 0,
-              threeBhk: price?.apartment?.threeBhk || 0,
-              fourBhk: price?.apartment?.fourBhk || 0,
-            },
-          },
-        });
-      }
-
-      await monthlyTarget.save();
-    } else {
-      // Update non-area fields directly
-      await MonthlyTarget.findByIdAndUpdate(params.targetId, body, {
-        new: true,
-      });
+    const area = await Area.create(body);
+    const target = await MonthlyTarget.findById(params.targetId);
+    if (target) {
+      target.area = area._id;
+      await target.save();
     }
 
     return NextResponse.json(
-      { message: "Target updated successfully" },
+      {
+        message: body.area
+          ? "Area added successfully"
+          : "Target updated successfully",
+      },
       { status: 200 }
     );
   } catch (err) {

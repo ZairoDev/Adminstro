@@ -517,6 +517,7 @@ export interface  unregisteredOwners {
   remarks: string;
   availability: string;
   petStatus: string;
+  imageUrls: string[];
 
 }
 

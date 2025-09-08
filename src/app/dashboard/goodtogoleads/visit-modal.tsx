@@ -34,6 +34,7 @@ interface VisitFromSchema {
   agentName: string;
   agentPhone: string;
   pitchAmount: number;
+  vsFinal: number;
   // commission: number;
   ownerCommission: number;
   travellerCommission: number;
@@ -92,6 +93,7 @@ const VisitModal = ({
     agentName: "",
     agentPhone: "",
     pitchAmount: 0,
+    vsFinal: 0,
     ownerCommission: 0,
     travellerCommission: 0,
     agentCommission: 0,
@@ -110,25 +112,23 @@ const VisitModal = ({
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      if(visitFormValues.ownerCommission ===0 && visitFormValues.travellerCommission ===0 ){
-        toast({
-          title: "Traveller and Owner Commission cannot be zero",
-        })
+      if (
+        visitFormValues.ownerCommission === 0 &&
+        visitFormValues.travellerCommission === 0
+      ) {
+        toast({ title: "Traveller and Owner Commission cannot be zero" });
         return;
       }
       await axios.post("/api/visits/addVisit", visitFormValues);
-      toast({
-        title: "Visit scheduled successfully",
-      });
+      toast({ title: "Visit scheduled successfully" });
     } catch (err) {
-      toast({
-        title: "Unable to schedule visit",
-        variant: "destructive",
-      });
+      toast({ title: "Unable to schedule visit", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // const updateMessageStatus
 
   const handleChange = (key: keyof VisitFromSchema, value: string | number) => {
     setVisitFormValues((prev) => ({
@@ -198,6 +198,23 @@ const VisitModal = ({
   useEffect(() => {
     fetchAgents();
   }, []);
+  useEffect(() => {
+    const pitch =
+      visitFormValues.ownerCommission + visitFormValues.travellerCommission;
+    const final =
+      pitch -
+      (visitFormValues.agentCommission + visitFormValues.documentationCharges);
+    setVisitFormValues((prev) => ({
+      ...prev,
+      pitchAmount: pitch,
+      vsFinal: final,
+    }));
+  }, [
+    visitFormValues.ownerCommission,
+    visitFormValues.travellerCommission,
+    visitFormValues.agentCommission,
+    visitFormValues.documentationCharges,
+  ]);
 
   return (
     <div className=" flex flex-col gap-y-2">
@@ -209,7 +226,7 @@ const VisitModal = ({
       </div>
 
       <div className=" flex justify-between items-center gap-x-2">
-          <Input
+        <Input
           type="text"
           placeholder="Enter VSID..."
           value={visitFormValues.VSID}
@@ -414,114 +431,120 @@ const VisitModal = ({
       </div>
 
       {/* Select Agent */}
-      <div className=" flex justify-between gap-x-2">
-        <div>
-          <Label>Agent</Label>
-          <Select
-            onValueChange={(value) =>
-              setVisitFormValues((prev) => ({
-                ...prev,
-                agentName: value.split("-")[0],
-                agentPhone: value.split("-")[1],
-              }))
-            }
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Select Agent" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Agents</SelectLabel>
-                {fetchingAgents ? (
-                  <LucideLoader2 className=" animate-spin text-center" />
-                ) : (
-                  agents.map((agent, index) => (
-                    <SelectItem
-                      key={index}
-                      value={`${agent.agentName}-${agent.agentPhone}`}
-                    >
-                      {agent.agentName}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        {/* <div>
-          <Label>Agent Phone</Label>
-          <Input
-            value={visitFormValues.agentPhone}
-            placeholder="Agent's Phone"
-            disabled
-          />
-        </div> */}
-        <div>
-          <Label>Pitch Amount</Label>
-          <Input
-            type="number"
-            min={0}
-            value={visitFormValues.pitchAmount}
-            placeholder="Enter Pitch Amount"
-            onChange={(e) =>
-              handleChange("pitchAmount", parseInt(e.target.value))
-            }
-          />
-        </div>
-        <div>
-          <Label>Owner Comm.</Label>
-          <Input
-            type="number"
-            min={0}
-            value={visitFormValues.ownerCommission}
-            placeholder="Commission by owner"
-            onChange={(e) =>
-              handleChange("ownerCommission", parseInt(e.target.value))
-            }
-          />
-        </div>
-      </div>
+<div className="grid grid-cols-4 gap-4 p-4 border rounded-lg ">
+  {/* Agent Selector */}
+  <div className="col-span-4">
+    <Label>Agent</Label>
+    <Select
+      onValueChange={(value) =>
+        setVisitFormValues((prev) => ({
+          ...prev,
+          agentName: value.split("-")[0],
+          agentPhone: value.split("-")[1],
+        }))
+      }
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select Agent" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>Agents</SelectLabel>
+          {fetchingAgents ? (
+            <LucideLoader2 className="animate-spin mx-auto" />
+          ) : (
+            agents.map((agent, index) => (
+              <SelectItem
+                key={index}
+                value={`${agent.agentName}-${agent.agentPhone}`}
+              >
+                {agent.agentName}
+              </SelectItem>
+            ))
+          )}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  </div>
 
-      {/* Pitch Amount */}
+  
+ 
 
-      <div className=" flex justify-between gap-x-2">
-        <div>
-          <Label>Traveller comm.</Label>
-          <Input
-            type="number"
-            min={0}
-            value={visitFormValues.travellerCommission}
-            placeholder=""
-            onChange={(e) =>
-              handleChange("travellerCommission", parseInt(e.target.value))
-            }
-          />
-        </div>
-        <div>
-          <Label>Agent Commission</Label>
-          <Input
-            type="number"
-            min={0}
-            value={visitFormValues.agentCommission}
-            placeholder="Enter Pitch Amount"
-            onChange={(e) =>
-              handleChange("agentCommission", parseInt(e.target.value))
-            }
-          />
-        </div>
-        <div>
-          <Label>Docs. Charges</Label>
-          <Input
-            type="number"
-            min={0}
-            value={visitFormValues.documentationCharges}
-            placeholder="Enter Documentation Charges"
-            onChange={(e) =>
-              handleChange("documentationCharges", parseInt(e.target.value))
-            }
-          />
-        </div>
-      </div>
+  {/* Owner Comm */}
+  <div className="col-span-2">
+    <Label>Owner Comm.</Label>
+    <Input
+      type="number"
+      min={0}
+      value={visitFormValues.ownerCommission}
+      onChange={(e) =>
+        handleChange("ownerCommission", parseInt(e.target.value) || 0)
+      }
+    />
+  </div>
+
+  {/* Traveller Comm. */}
+   <div className="col-span-2">
+    <Label>Traveller Comm.</Label>
+    <Input
+      type="number"
+      min={0}
+      value={visitFormValues.travellerCommission}
+      onChange={(e) =>
+        handleChange("travellerCommission", parseInt(e.target.value) || 0)
+      }
+    />
+  </div>
+
+  {/* Agent Commission */}
+  <div className="col-span-2">
+    <Label>Agent Commission</Label>
+    <Input
+      type="number"
+      min={0}
+      value={visitFormValues.agentCommission}
+      onChange={(e) =>
+        handleChange("agentCommission", parseInt(e.target.value) || 0)
+      }
+    />
+  </div>
+
+  {/* Docs Charges */}
+  <div className="col-span-2">
+    <Label>Docs. Charges</Label>
+    <Input
+      type="number"
+      min={0}
+      value={visitFormValues.documentationCharges}
+      onChange={(e) =>
+        handleChange("documentationCharges", parseInt(e.target.value) || 0)
+      }
+    />
+  </div>
+
+  {/* Pitch Amount */}
+  <div className="col-span-2">
+    <Label>Pitch Amount</Label>
+    <Input
+      type="number"
+      value={visitFormValues.pitchAmount}
+      disabled
+      className=" cursor-not-allowed"
+    />
+  </div>
+
+  {/* VS Final */}
+  <div className="col-span-2">
+    <Label>V.S Final</Label>
+    <Input
+      type="number"
+      value={visitFormValues.vsFinal || 0}
+      disabled
+      className="cursor-not-allowed"
+    />
+  </div>
+</div>
+
 
       <Button onClick={handleSubmit}>
         {isLoading ? (

@@ -12,19 +12,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Ban, Check, CircleDot, Mail, MailCheck, PawPrint, Phone, Plus, X } from "lucide-react";
+import {
+  Ban,
+  Calendar,
+  Check,
+  CircleDot,
+  Download,
+  ImageUp,
+  Mail,
+  MailCheck,
+  PawPrint,
+  Phone,
+  Plus,
+  Upload,
+  X,
+} from "lucide-react";
 import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
 import { SelectableCell } from "./SelectableCell";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CopyCell } from "@/components/Copy";
 import { EditableCopyCell } from "./EditableCopyCell";
 import { get } from "http";
 import toast from "react-hot-toast";
 import CustomTooltip from "@/components/CustomToolTip";
 import { table } from "console";
+
 import debounce from "lodash.debounce";
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 export function SpreadsheetTable({
   tableData,
@@ -42,13 +60,15 @@ export function SpreadsheetTable({
     { label: "Area", field: "area", sortable: false },
     { label: "Avail.", field: "availability", sortable: true },
     { label: "Int. Status", field: "intStatus", sortable: false },
-    { label: "Pet. Status", field: "intStatus", sortable: false },
+    { label: "Pet. Status", field: "petStatus", sortable: false },
     { label: "Property Type", field: "propertyType", sortable: false },
     { label: "Address", field: "address", sortable: false },
     { label: "Ref. Link", field: "refLink", sortable: false },
     { label: "VsLink", field: "link", sortable: false },
     { label: "Remarks", field: "remarks", sortable: false },
     { label: "Date", field: "date", sortable: true },
+    { label: "Upload", field: "upload", sortable: false },
+    { label: "Download", field: "download", sortable: false },
   ];
 
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
@@ -57,23 +77,23 @@ export function SpreadsheetTable({
   const [locationws, setLocationws] = useState<string[]>([]);
   const [cityAreas, setCityAreas] = useState<Record<string, string[]>>({});
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
-    const [petStatus, setPetStatus] = useState<
-    ( "Allowed" | "Not Allowed" | "None")[]
+  const [petStatus, setPetStatus] = useState<
+    ("Allowed" | "Not Allowed" | "None")[]
   >(Array.from({ length: tableData?.length }, () => "None"));
 
   const apartmentTypes = [
-  { label: "Studio", value: "Studio" },
-  { label: "1 Bedroom", value: "1 Bedroom" },
-  { label: "2 Bedroom", value: "2 Bedroom" },
-  { label: "3 Bedroom", value: "3 Bedroom" },
-  { label: "4 Bedroom", value: "4 Bedroom" },
-  { label: "Villa", value: "Villa" },
-  { label: "Pent House", value: "Pent House" },
-  { label: "Detached House", value: "Detached House" },
-  { label: "Loft", value: "Loft" },
-  { label: "Shared Apartment", value: "Shared Apartment" },
-  { label: "Maisotte", value: "Maisotte" },
-];
+    { label: "Studio", value: "Studio" },
+    { label: "1 Bedroom", value: "1 Bedroom" },
+    { label: "2 Bedroom", value: "2 Bedroom" },
+    { label: "3 Bedroom", value: "3 Bedroom" },
+    { label: "4 Bedroom", value: "4 Bedroom" },
+    { label: "Villa", value: "Villa" },
+    { label: "Pent House", value: "Pent House" },
+    { label: "Detached House", value: "Detached House" },
+    { label: "Loft", value: "Loft" },
+    { label: "Shared Apartment", value: "Shared Apartment" },
+    { label: "Maisotte", value: "Maisotte" },
+  ];
   const interiorStatus = [
     { label: "F", value: "Fully Furnished" },
     { label: "P F", value: "Partially Furnished" },
@@ -81,7 +101,7 @@ export function SpreadsheetTable({
   ];
 
   const avail = [
-   {
+    {
       label: "A",
       value: "Available",
     },
@@ -89,8 +109,7 @@ export function SpreadsheetTable({
       label: "NA",
       value: "Not Available",
     },
-  ]
-
+  ];
 
   useEffect(() => {
     if (sortBy) {
@@ -110,7 +129,10 @@ export function SpreadsheetTable({
         );
 
         setLocationws(fetchedCities);
-        console.log("fetched Locations that has been selected in get allocations", locationws);
+        console.log(
+          "fetched Locations that has been selected in get allocations",
+          locationws
+        );
 
         // make city → area mapping (just area names)
         const cityAreaMap: Record<string, string[]> = {};
@@ -129,8 +151,6 @@ export function SpreadsheetTable({
 
     getAllLocations();
   }, []);
-  
-  
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
@@ -148,6 +168,7 @@ export function SpreadsheetTable({
       remarks: "",
       availability: "Available",
       date: new Date(),
+      imageUrls: [],
     };
     const tempId = `temp_${Date.now()}_${Math.random()
       .toString(36)
@@ -242,7 +263,7 @@ export function SpreadsheetTable({
     newValue: string
   ) => {
     // optimistic UI update
-    
+
     const prev = tableData;
     const updatedData = tableData.map((item) =>
       item._id === _id ? { ...item, [key]: newValue } : item
@@ -266,7 +287,7 @@ export function SpreadsheetTable({
 
   // console.log("currentArea: ", currentArea);
   useEffect(() => {
-    const handleKeyDown = async(e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "Delete" && selectedRow) {
         setTableData((prev) => prev.filter((row) => row._id !== selectedRow));
         setSelectedRow(null);
@@ -295,13 +316,13 @@ export function SpreadsheetTable({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedRow]);
 
-    const handlePetStatus = (petId: string | undefined, index: number) => {
+  const handlePetStatus = (petId: string | undefined, index: number) => {
     if (!petId) return;
 
     const newPetStatus = [...petStatus];
     const newMessage = newPetStatus[index];
-   
-     if (newPetStatus[index] === "None") {
+
+    if (newPetStatus[index] === "None") {
       newPetStatus[index] = "Allowed";
       tableData[index].petStatus = "Allowed";
     } else if (newPetStatus[index] === "Allowed") {
@@ -316,15 +337,152 @@ export function SpreadsheetTable({
     changePetStatus(petId, newPetStatus[index]);
   };
 
-    const changePetStatus = useCallback(
+  const changePetStatus = useCallback(
     debounce(async (petId: string, status: string) => {
-      const response = await axios.post("/api/unregisteredOwners/updatePetStatus", {
-        petId,
-        changedStatus: status,
-      });
+      const response = await axios.post(
+        "/api/unregisteredOwners/updatePetStatus",
+        {
+          petId,
+          changedStatus: status,
+        }
+      );
     }, 1000),
     []
   );
+
+  interface dateCellProps {
+    item: unregisteredOwners;
+    handleSave: (
+      id: string,
+      field: keyof unregisteredOwners,
+      value: string
+    ) => void;
+  }
+  function DateCell({ item, handleSave }: dateCellProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const date = new Date(item.date);
+    const isValidDate = !isNaN(date.getTime());
+
+    return (
+      <>
+        {isEditing || isValidDate ? (
+          <EditableCell
+            maxWidth="80px"
+            value={isValidDate ? date.toLocaleDateString("en-US") : ""}
+            onSave={(newValue) => {
+              handleSave(item._id, "date", newValue);
+              setIsEditing(false);
+            }}
+            type="date"
+          />
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="p-0"
+            onClick={() => setIsEditing(true)}
+          >
+            <Calendar className="h-5 w-5 text-gray-500" />
+          </Button>
+        )}
+      </>
+    );
+  }
+
+  interface UploadCellProps {
+    item: unregisteredOwners;
+  }
+  function UploadCell({ item }: UploadCellProps) {
+    const { uploadFiles, loading } = useBunnyUpload();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (
+      event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      const files = event.target.files;
+      if (!files) return;
+
+      const fileArray = Array.from(files);
+      const { imageUrls, error } = await uploadFiles(fileArray, "Uploads");
+
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      // Save uploaded URLs to your table row (uploadLink or any field)
+
+      if (!error && imageUrls.length > 0) {
+        await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
+          field: "imageUrls", // 🔥 Send as array
+          value: imageUrls,
+        });
+      }
+      // Reset input so selecting same file works next time
+      event.target.value = "";
+    };
+
+    return (
+      <>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          multiple
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleFileChange}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="p-0"
+          disabled={loading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <ImageUp className="h-5 w-5 text-gray-500" />
+        </Button>
+      </>
+    );
+  }
+
+  function DownloadCell({ item }: { item: unregisteredOwners }) {
+    const handleDownloadZip = async () => {
+      if (!item.imageUrls || item.imageUrls.length === 0) {
+        alert("No images to download");
+        return;
+      }
+
+      const zip = new JSZip();
+
+      // Fetch and add each image to the zip
+      for (let i = 0; i < item.imageUrls.length; i++) {
+        const url = item.imageUrls[i];
+        try {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          const filename = url.split("/").pop() || `image-${i + 1}.jpg`;
+          zip.file(filename, blob);
+        } catch (err) {
+          console.error(`Failed to fetch ${url}`, err);
+        }
+      }
+
+      // Generate and trigger download
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `${item.name || "images"}.zip`);
+    };
+
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="p-0"
+        onClick={handleDownloadZip}
+      >
+        <Download className="h-5 w-5 text-gray-500" />
+      </Button>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -374,7 +532,7 @@ export function SpreadsheetTable({
 
         {/* Table Body */}
         <TableBody>
-          {sortedData.map((item: unregisteredOwners , index: number) => (
+          {sortedData.map((item: unregisteredOwners, index: number) => (
             <TableRow
               key={item?._id}
               onClick={() => setSelectedRow(item._id)}
@@ -382,9 +540,7 @@ export function SpreadsheetTable({
                 selectedRow === item._id ? " bg-gray-900" : ""
               }`}
             >
-               <TableCell className="font-medium">
-        {index + 1}
-      </TableCell>
+              <TableCell className="font-medium">{index + 1}</TableCell>
               {/* Name */}
               <TableCell className="font-medium truncate max-w-[150px]">
                 <EditableCell
@@ -442,7 +598,6 @@ export function SpreadsheetTable({
                 />
               </TableCell>
 
-
               <TableCell>
                 <SelectableCell
                   maxWidth="100px"
@@ -466,33 +621,33 @@ export function SpreadsheetTable({
               </TableCell>
 
               <TableCell
-                  className=" cursor-pointer relative "
-                  onClick={() => handlePetStatus(item?._id, index)}
-                >
-                  {/* {query?.reminder === null && (
+                className=" cursor-pointer relative "
+                onClick={() => handlePetStatus(item?._id, index)}
+              >
+                {/* {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
                       <p className=" rotate-90 text-xs font-semibold mt-1">
                         Reminder
                       </p>
                     </div>
                   )} */}
-                  {item.petStatus === "Allowed" ? (
-                    <CustomTooltip
-                      icon={<PawPrint color="green" />}
-                      desc="First Message"
-                    />
-                  ) : item.petStatus === "Not Allowed" ? (
-                    <CustomTooltip
-                      icon={<Ban color="yellow" />}
-                      desc="Second Message"
-                    />
-                  ) : (
-                    <CustomTooltip
-                      icon={<CircleDot fill="" color="gray" />}
-                      desc="No Status"
-                    />
-                  )}
-                </TableCell>
+                {item.petStatus === "Allowed" ? (
+                  <CustomTooltip
+                    icon={<PawPrint color="green" />}
+                    desc="First Message"
+                  />
+                ) : item.petStatus === "Not Allowed" ? (
+                  <CustomTooltip
+                    icon={<Ban color="yellow" />}
+                    desc="Second Message"
+                  />
+                ) : (
+                  <CustomTooltip
+                    icon={<CircleDot fill="" color="gray" />}
+                    desc="No Status"
+                  />
+                )}
+              </TableCell>
 
               {/* Property Type */}
               <TableCell>
@@ -505,7 +660,6 @@ export function SpreadsheetTable({
                   }
                 />
               </TableCell>
-             
 
               {/* Address */}
               <TableCell
@@ -584,7 +738,7 @@ export function SpreadsheetTable({
                   </a>
                 )}
               </TableCell>
-               {/* Remarks */}
+              {/* Remarks */}
               <TableCell
                 className="text-right truncate max-w-[120px]"
                 title={item.remarks}
@@ -599,16 +753,17 @@ export function SpreadsheetTable({
                 />
               </TableCell>
               {/*Date*/}
-               <TableCell>
-                <EditableCell
-                  maxWidth="80px"
-                  value={
-                    new Date(item.date).toLocaleDateString("en-US", {}) ||
-                    item.date.toString()
-                  }
-                  onSave={(newValue) => handleSave(item._id, "date", newValue)}
-                  type="date"
-                />
+              <TableCell>
+                <DateCell item={item} handleSave={handleSave} />
+              </TableCell>
+              {/*Upload*/}
+              <TableCell>
+                <UploadCell item={item} />
+              </TableCell>
+
+              {/*Download*/}
+              <TableCell>
+                <DownloadCell item={item} />
               </TableCell>
             </TableRow>
           ))}

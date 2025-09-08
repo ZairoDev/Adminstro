@@ -54,7 +54,15 @@ petStatus: {
   },
   availability:{
     type: String
+  },
+  imageUrls:{
+    type: [String],
+    default: []
   }
+
+},
+{
+  timestamps: true,
 });
 
 export const unregisteredOwner =

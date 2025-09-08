@@ -30,6 +30,8 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   agentName: { type: String, required: true },
   agentPhone: { type: String, required: true },
   pitchAmount: { type: Number, required: true },
+  vsFinal:{
+    type: Number,},
   // commission: { type: Number, required: true },
   ownerCommission: { type: Number, required: true },
   travellerCommission: { type: Number, required: true },

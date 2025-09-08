@@ -496,9 +496,17 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
               key={query?._id}
               className={`
               ${
-                query?.isViewed
-                  ? "bg-transparent hover:bg-transparent"
-                  : "bg-neutral-700"
+                query?.messageStatus === "Visit"
+        ? "bg-cyan-400/10" 
+        : query?.isViewed
+        ? "bg-transparent hover:bg-transparent"
+        : "bg-neutral-700"
+
+                  
+
+
+
+                
               }
               relative
             `}

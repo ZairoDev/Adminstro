@@ -19,6 +19,7 @@ const VisitSchema = z.object({
   agentName: z.string(),
   agentPhone: z.string(),
   pitchAmount: z.number(),
+  vsFinal: z.number(),
   // commission: z.number(),
   ownerCommission: z.number(),
   travellerCommission: z.number(),

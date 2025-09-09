@@ -10,20 +10,19 @@ export async function GET() {
   await connectDb();
   try {
     const targets = await MonthlyTarget.find().lean();
-    const areas = await Area.find().lean();
+    const areas = await Area.find({},{city:1,name:1}).lean();
 
-    // Merge targets with their matching areas based on city field
+    
     const result = targets.map((target) => {
       const matchingAreas = areas.filter((a) => a.city === target.city);
       return {
         ...target,
-        areas: matchingAreas, // all areas for this target's city
+        areas: matchingAreas, 
       };
     });
 
     
-
-    // console.log("result: ", result);
+    console.log("result fro the getAreaFilterTarget: ", result);
 
     return NextResponse.json({ data: result }, { status: 200 });
   } catch (err) {

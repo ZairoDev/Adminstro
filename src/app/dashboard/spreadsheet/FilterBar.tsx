@@ -9,7 +9,7 @@ import {
   SelectGroup,
   SelectTrigger,
   SelectContent,
-} from "@/components/ui/select";
+} from "@/components/ui/select"; 
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -17,12 +17,12 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { propertyTypes } from "@/util/type";
+// import { propertyTypes } from "@/util/type";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Calendar } from "@/components/ui/calendar";
+// import { Switch } from "@/components/ui/switch";
+// import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
@@ -30,6 +30,8 @@ import { DateRange } from "react-day-picker";
 import { FiltersInterface } from "../newproperty/filteredProperties/page";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { set } from "mongoose";
+import { Area } from "../target/page";
 
 interface PageProps {
   filters: FiltersInterface;
@@ -38,6 +40,8 @@ interface PageProps {
   handleClear: () => void;
   selectedTab: string;
 }
+interface TargetType { _id: string; city: string; areas: AreaType[]; }
+interface AreaType { _id: string; city: string; name: string; }
 
 const filterCount = (filters: FiltersInterface) => {
   return Object.entries(filters).filter(([key, value]) => value).length;
@@ -61,6 +65,9 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
 
    const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
    const [locationws, setLocationws] = useState<string[]>([]);
+   const [targets, setTargets] = useState<TargetType[]>([]);
+     const [selectedLocation, setSelectedLocation] = useState<string>("");
+     const [areas,setAreas]=useState<AreaType[]>([]);
   const longTermDateSelect = (value: DateRange | undefined) => {
     const from = value?.from;
     const to = value?.to;
@@ -114,6 +121,46 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
 
     getAllLocations();
   }, []);
+
+  useEffect(() => {
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data); 
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      } 
+    };
+    fetchTargets();
+  }, []);
+
+
+  //  const selectedTarget:any = targets.find((t:any) => t.city === selectedLocation);
+  //  console.log("selectedTarget: ", selectedTarget);
+  // useEffect(() => {
+  //   if (selectedTarget) {
+  //     const areas = selectedTarget.areas.map((area: any) => area.name);
+  //     setAreas(areas);
+  //   }
+  // }, [selectedTarget]);
+
+  useEffect(() => {
+  const target = targets.find((t) => t.city === selectedLocation);
+  if (target) {
+    setAreas(target.areas);
+  } else {
+    setAreas([]);
+  }
+  setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
+}, [selectedLocation, targets]);
+
+
+  useEffect(() => {
+  console.log("filters updated:", filters);
+}, [filters]);
+
 
 
   return (
@@ -194,8 +241,10 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
         </div> */}
         <div>
            <Select
-            onValueChange={(value) =>
-              setFilters({ ...filters, place: value })
+            onValueChange={(value) =>{
+               setFilters({ ...filters, place: value });
+               setSelectedLocation(value);
+            }
             }
             value={filters.place}
           >
@@ -205,13 +254,115 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Locations</SelectLabel>
-                {locationws.sort().map((loc) => (
+                {targets.map((loc: any) => (
+                  <SelectItem key={loc.city} value={loc.city}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc.city}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {
+
+                }
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+
+        <div>
+           <Select
+            onValueChange={(value) =>
+
+              {
+setFilters({ ...filters, area: value });
+
+              }
+              
+              
+            }
+            value={filters.area}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select Area" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Areas</SelectLabel>
+                {areas.sort().map((loc:Area) => (
+                  <SelectItem key={loc._id} value={loc.name}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+               
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+           <Select
+            onValueChange={(value) =>
+              setFilters({ ...filters, zone: value })
+            }
+            value={filters.zone}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select Zone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Zones</SelectLabel>
+                {/* {targets.map((loc) => (
                   <SelectItem key={loc} value={loc}>
                     <div className="flex justify-between items-center w-full">
                       <span>{loc}</span>
                     </div>
                   </SelectItem>
-                ))}
+                ))} */}
+               <SelectItem value="North">North</SelectItem>
+<SelectItem value="South">South</SelectItem>
+<SelectItem value="East">East</SelectItem>
+<SelectItem value="West">West</SelectItem>
+<SelectItem value="Central">Central</SelectItem>
+<SelectItem value="North-East">North-East</SelectItem>
+<SelectItem value="North-West">North-West</SelectItem>
+<SelectItem value="South-East">South-East</SelectItem>
+<SelectItem value="South-West">South-West</SelectItem>
+
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+
+        <div>
+           <Select
+            onValueChange={(value) =>
+              setFilters({ ...filters, metroZone: value })
+            }
+            value={filters.metroZone}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select Metro Line" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Metro Line</SelectLabel>
+                {/* {locationws.sort().map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc}</span>
+                    </div>
+                  </SelectItem>
+                ))} */}
+                <SelectItem value="Red Line">Red Line</SelectItem>
+<SelectItem value="Blue Line">Blue Line</SelectItem>
+<SelectItem value="Green Line">Green Line</SelectItem>
+<SelectItem value="Yellow Line">Yellow Line</SelectItem>
+<SelectItem value="Purple Line">Purple Line</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -224,7 +375,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
           <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className=" px-6 font-bold">P</Button>
+                <Button className=" px-6 font-bold">Price</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className=" w-56">
                 <DropdownMenuLabel>Price Range</DropdownMenuLabel>
@@ -262,7 +413,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
         </div>
       </div>
    
-      <div className=" w-1/3 flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">
+      <div className="  flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">
         <Button
           className=" rounded-lg font-semibold w-20 md:w-32"
           onClick={() => handleSubmit()}

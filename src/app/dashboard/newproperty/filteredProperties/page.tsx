@@ -16,6 +16,9 @@ export interface FiltersInterface {
   searchValue: string;
   propertyType: string;
   place: string;
+  area:string;
+  zone:string;
+  metroZone:string;
   rentalType: "Short Term" | "Long Term";
   minPrice: number;
   maxPrice: number;
@@ -48,6 +51,9 @@ const FilteredProperties = () => {
     searchValue: "",
     propertyType: "",
     place: "",
+    area: "",
+    zone: "",
+    metroZone: "",
     rentalType: "Short Term",
     minPrice: 0,
     maxPrice: 0,
@@ -85,6 +91,9 @@ const FilteredProperties = () => {
       searchValue: "",
       propertyType: "",
       place: "",
+      area: "",
+      zone: "",
+      metroZone: "",
       rentalType: "Short Term",
       minPrice: 0,
       maxPrice: 0,

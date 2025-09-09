@@ -18,18 +18,20 @@ export async function POST(req: NextRequest) {
 
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
     if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
+     if(filters.place) query["location"] = filters.place;
+    if(filters.area) query["area"] = filters.area;
   
     if(filters.maxPrice && filters.minPrice) query["price"] = { $gte: filters.minPrice, $lte: filters.maxPrice };
     else if(filters.maxPrice) query["price"] = { $lte: filters.maxPrice };
     else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
-    else if(filters.place) query["location"] = filters.place;
-    console.log("query: ", query);
+    // else if(filters.place) query["location"] = filters.place;
+    // console.log("query: ", query);
 
     const skip = (page - 1) * limit;
 
     const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean();
      const total = await unregisteredOwner.countDocuments(query);
-    console.log(data);  
+    // console.log(data);  
     return NextResponse.json({data,total    }, {status: 200});
   }catch(err){
     console.log(err);

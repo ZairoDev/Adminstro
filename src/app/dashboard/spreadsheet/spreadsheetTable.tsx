@@ -43,6 +43,7 @@ import debounce from "lodash.debounce";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { unregisteredOwner } from "@/models/unregisteredOwner";
 
 export function SpreadsheetTable({
   tableData,
@@ -71,6 +72,13 @@ export function SpreadsheetTable({
     { label: "Download", field: "download", sortable: false },
   ];
 
+interface TargetType { _id: string; city: string; areas: AreaType[]; }
+interface AreaType { _id: string; city: string; name: string; }
+
+
+const [targets, setTargets] = useState<TargetType[]>([]);
+     
+     const [areas,setAreas]=useState<AreaType[]>([]);
   const [sortedData, setSortedData] = useState<unregisteredOwners[]>([]);
   const [sortBy, setSortBy] = useState<keyof unregisteredOwners | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -149,8 +157,31 @@ export function SpreadsheetTable({
       }
     };
 
-    getAllLocations();
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data); 
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      } 
+    };
+    fetchTargets();
+
+    // getAllLocations();
+
   }, []);
+
+//     useEffect(() => {
+//   const target = targets.find((t) => t.city === unregisteredOwners.location);
+//   if (target) {
+//     setAreas(target.areas);
+//   } else {
+//     setAreas([]);
+//   }
+//   setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
+// }, [selectedLocation, targets]);
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
@@ -569,7 +600,7 @@ export function SpreadsheetTable({
                 <SelectableCell
                   maxWidth="100px"
                   value={item.location}
-                  data={locationws}
+                  data={targets.map((target) => target.city)}
                   save={(newValue: string) =>
                     handleSave(item._id, "location", newValue)
                   }

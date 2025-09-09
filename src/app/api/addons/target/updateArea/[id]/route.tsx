@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Area } from "@/models/area"; // <-- your Area model (adjust path if needed)
+import { Area } from "@/models/area"; 
 
 export async function PUT(
   req: NextRequest,

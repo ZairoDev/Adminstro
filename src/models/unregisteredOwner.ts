@@ -13,7 +13,7 @@ const unregisteredOwnerSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     // required: true,
-  },
+  },  
   location:{
     type: String
   },
@@ -53,7 +53,8 @@ petStatus: {
     type: String
   },
   availability:{
-    type: String
+    type: String,
+    default: "Available"
   },
   imageUrls:{
     type: [String],

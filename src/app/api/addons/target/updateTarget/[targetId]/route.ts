@@ -13,7 +13,7 @@ export async function PUT(
     if (!body) {
       return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
-    console.log("body: ", body);
+    // console.log("body: ", body);
     const area = await Area.create(body);
     const target = await MonthlyTarget.findById(params.targetId);
     if (target) {

@@ -104,7 +104,7 @@ const [targets, setTargets] = useState<TargetType[]>([]);
   ];
   const interiorStatus = [
     { label: "F", value: "Fully Furnished" },
-    { label: "P F", value: "Partially Furnished" },
+    { label: "S F", value: "SemiFurnished" },
     { label: "Un", value: "Unfurnished" },
   ];
 

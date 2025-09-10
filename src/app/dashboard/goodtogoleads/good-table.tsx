@@ -74,9 +74,22 @@ import CustomTooltip from "../../../components/CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "../spreadsheet/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
+import { AreaSelect } from "@/components/leadTableSearch/page";
+
 
 interface Timers {
   current: { [key: string]: NodeJS.Timeout };
+}
+
+interface AreaType {
+  _id: string;
+  city: string;
+  name: string;
+}
+interface TargetType {
+  _id: string;
+  city: string;
+  areas: AreaType[];
 }
 
 export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], setQueries: React.Dispatch<React.SetStateAction<IQuery[]>> }) {
@@ -112,6 +125,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
       propertyShown: q["propertyShown"] || 0,
     }))
   );
+  const [targets, setTargets] = useState<TargetType[]>([]);
 
 //   const timers:Timers = useRef({});
 
@@ -464,6 +478,19 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     return `${shortDuration} ${month}`;
 
   }
+  useEffect(() => {
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data);
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      }
+    };
+    fetchTargets();
+  }, []);
 
   return (
     <div className=" w-full">
@@ -474,7 +501,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin") && <TableHead>Status</TableHead>}
-             {(token?.role === "Sales" ||
+            {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
@@ -497,23 +524,17 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
               className={`
               ${
                 query?.messageStatus === "Visit"
-        ? "bg-cyan-400/10" 
-        : query?.isViewed
-        ? "bg-transparent hover:bg-transparent"
-        : "bg-neutral-700"
-
-                  
-
-
-
-                
+                  ? "bg-cyan-400/10"
+                  : query?.isViewed
+                  ? "bg-transparent hover:bg-transparent"
+                  : "bg-neutral-700"
               }
               relative
             `}
             >
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
 
-                {(token?.role === "Sales" ||
+              {(token?.role === "Sales" ||
                 token?.role === "Sales-TeamLead" ||
                 token?.role === "SuperAdmin") && (
                 <TableCell
@@ -547,9 +568,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                       icon={<MessageSquareX color="red" />}
                       desc="Fourth Message"
                     />
-                  )
-                  
-                   : query.messageStatus === "Options" ? (
+                  ) : query.messageStatus === "Options" ? (
                     <CustomTooltip
                       icon={<Image color="cyan" />}
                       desc="Shared Options"
@@ -600,9 +619,6 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                   )}
                 </TableCell>
               )}
-               
-
-
 
               <TableCell className="flex gap-x-1">
                 <Badge
@@ -637,14 +653,14 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                   />
                 </Badge>
               </TableCell>
-              
+
               <TableCell className="">
                 <div className="flex gap-x-2">
                   {/* <CustomTooltip
                     icon={<Users size={18} />}
                     content={query?.guest}
                     desc="Number of guests"
-                  /> */}  
+                  /> */}
                   <TooltipEditableCell
                     value={query?.guest.toString() ?? ""}
                     onSave={(val) => handleSave(query._id!, "guest", val)}
@@ -731,18 +747,39 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                 </div>
               </TableCell>
 
-              <TableCell>{formatDuration(query?.duration, query?.startDate)}</TableCell>
+              <TableCell>
+                {formatDuration(query?.duration, query?.startDate)}
+              </TableCell>
 
               <TableCell>
-                <div className=" flex gap-x-1"> 
+                <div className=" flex gap-x-1">
                   {/* <CustomTooltip
                     text={`${query?.area?.slice(0, 8)}...`}
                     desc={`Location ->${query?.location} Area ->${query?.area}`}
                   /> */}
-                  <TooltipEditableCell
+                  {/* <TooltipEditableCell
                     value={query?.area ?? ""}
                     onSave={(val) => handleSave(query._id!, "area", val)}
                     tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
+                  /> */}
+                  <AreaSelect
+                    data={
+                      targets
+                        .find(
+                          (target) =>
+                            target.city.toLowerCase() ===
+                            query.location.toLowerCase()
+                        )
+                        ?.areas.map((area) => ({
+                          value: area.name,
+                          label: area.name.toLowerCase(),
+                        })) ?? []
+                    }
+                    value={query.area}
+                    save={(val) => handleSave(query._id!, "area", val)}
+                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
+                    icon={<span className="text-green-500">✅</span>}
+                    maxWidth="150px"
                   />
                   <div>|</div>
                   <Badge>

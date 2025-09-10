@@ -74,6 +74,18 @@ import CustomTooltip from "../CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
+import { AreaSelect} from "../leadTableSearch/page";
+
+interface AreaType {
+  _id: string;
+  city: string;
+  name: string;
+}
+interface TargetType {
+  _id: string;
+  city: string;
+  areas: AreaType[];
+}
 
 export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
@@ -102,6 +114,7 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
   const [page, setPage] = useState(1);
+  const [targets, setTargets] = useState<TargetType[]>([]);
 
   useEffect(() => {
     if (searchParams.get("page")) {
@@ -397,6 +410,21 @@ const handleSave = async (
     return `${shortDuration} ${month}`;
 
   }
+  useEffect(() => {
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data);
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      }
+    };
+    fetchTargets();
+  }, []);
+
+
 
   return (
     <div className=" w-full">
@@ -642,14 +670,31 @@ const handleSave = async (
                 </div>
               </TableCell>
 
-              <TableCell>{formatDuration(query?.duration, query?.startDate)}</TableCell>
+              <TableCell>
+                {formatDuration(query?.duration, query?.startDate)}
+              </TableCell>
 
               <TableCell>
                 <div className=" flex gap-x-1">
-                  <TooltipEditableCell
+                  {/* <TooltipEditableCell
                     value={query?.area ?? ""}
                     onSave={(val) => handleSave(query._id!, "area", val)}
                     tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
+                  /> */}
+                  <AreaSelect
+                    data={
+                      targets
+                        .find((target) => target.city.toLowerCase() === query.location.toLowerCase())
+                        ?.areas.map((area) => ({
+                          value: area.name,
+                          label: area.name,
+                        })) ?? []
+                    }
+                    value={query.area}
+                    save={(val) => handleSave(query._id!, "area", val)}
+                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
+                    icon={<span className="text-green-500">✅</span>}
+                    maxWidth="150px"
                   />
                   <div>|</div>
                   <Badge>

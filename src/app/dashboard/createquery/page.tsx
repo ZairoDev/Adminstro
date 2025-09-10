@@ -46,7 +46,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -57,6 +59,7 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
+import SearchableAreaSelect from "./SearchAndSelect";
 
 interface ApiResponse {
   data: IQuery[];
@@ -69,6 +72,17 @@ interface FetchQueryParams {
   dateFilter: string;
   customDays: string;
   customDateRange: { start: string; end: string };
+}
+
+interface TargetType {
+  _id: string;
+  city: string;
+  areas: AreaType[];
+}
+interface AreaType {
+  _id: string;
+  city: string;
+  name: string;
 }
 const SalesDashboard = () => {
   const { toast } = useToast();
@@ -96,6 +110,9 @@ const SalesDashboard = () => {
     start: "",
     end: "",
   });
+     const [targets, setTargets] = useState<TargetType[]>([]);
+       const [selectedLocation, setSelectedLocation] = useState<string>("");
+       const [areas1,setAreas1]=useState<AreaType[]>([]);
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -465,27 +482,35 @@ const SalesDashboard = () => {
     fetchLocations();
   },[])
 
-  const [areas,setAreas] = useState<String[]>([]);
   useEffect(() => {
-    console.log(location);
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data);
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      }
+    };
+    fetchTargets();
+  }, []);
 
-    const data = location
-      .filter((item: any) => item.city === formData.location)
-      .flatMap((item: any) => item.area.map((a: any) => a.name)); // extract names
-
-    setAreas(data); // directly set all area names
-    console.log(data);
-  }, [formData.location, location]);
+  useEffect(() => {
+    const target = targets.find((t) => t.city === selectedLocation);
+    if (target) {
+      setAreas1(target.areas);
+    } else {
+      setAreas1([]);
+    }
+  }, [selectedLocation, targets]);
 
   return (
     <div>
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full">
-          <Heading
-            heading="All Leads"
-            subheading=""
-          />
+          <Heading heading="All Leads" subheading="" />
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
@@ -587,70 +612,46 @@ const SalesDashboard = () => {
                       <div className="w-full ml-1 mb-2">
                         <Label>Location</Label>
                         <Select
-                          value={formData.location}
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
+                          onValueChange={(value) => {
+                            setFormData((prev) => ({
+                              ...prev,
                               location: value,
-                            }))
-                          }
+                            }));
+                            setSelectedLocation(value);
+                          }}
+                          value={selectedLocation}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Location" />
+                          <SelectTrigger className=" w-44 border border-neutral-700">
+                            <SelectValue placeholder="Select location" />
                           </SelectTrigger>
                           <SelectContent>
-                            {/* {location?.map(
-                              (location: { city: string; _id: string }) => (
-                                <SelectItem
-                                  key={location._id}
-                                  value={location.city}
-                                >
-                                  {location.city}
+                            <SelectGroup>
+                              <SelectLabel>Locations</SelectLabel>
+                              {targets.map((loc: any) => (
+                                <SelectItem key={loc.city} value={loc.city}>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>{loc.city}</span>
+                                  </div>
                                 </SelectItem>
-                              )
-                            )} */}
-                            {locationList?.map(
-                              (location: {label: string; value: string; id: number }) => (
-                                <SelectItem
-                                  key={location.id}
-                                  value={location.value}
-                                >
-                                  {location.label}
-                                </SelectItem>
-                              )
-                            )}
+                              ))}
+                              {}
+                            </SelectGroup>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    {/* <div className="w-full ml-1 mb-2">
+                    <div className="w-full ml-1 mb-2">
                       <Label>Area</Label>
-                      <Select
-                        value={formData.area}
-                        onValueChange={(value) =>
-                          setFormData((prevData) => ({
-                            ...prevData,
-                            area: value,
+                      <SearchableAreaSelect
+                        areas={areas1}
+                        onSelect={(area) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            area: area.name, // only store the name
                           }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Area" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areas?.map(
-                            (area1,index) => (
-                              <SelectItem
-                                key={index}
-                                value={area1.toString()}
-                              >
-                                {area1}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div> */}
+                      />
+                    </div>
                   </div>
 
                   {/* Section 2: Booking Details */}
@@ -1130,7 +1131,7 @@ const SalesDashboard = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               <Suspense fallback={<div>Loading...</div>}>
-                <LeadTable queries={queries} setQueries={setQueries}/>
+                <LeadTable queries={queries} setQueries={setQueries} />
               </Suspense>
             </div>
             <div className="flex items-center justify-between p-2 w-full">

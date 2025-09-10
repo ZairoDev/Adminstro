@@ -45,6 +45,7 @@ export default function DashboardLayout({
             </nav>
           </div>
         </div>
+  
         <div className="xs:hidden block">
           <nav className="absolute top-2 right-2">
             <div className="flex items-center gap-x-2 justify-center">

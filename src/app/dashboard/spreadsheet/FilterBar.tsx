@@ -31,7 +31,10 @@ import { FiltersInterface } from "../newproperty/filteredProperties/page";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { set } from "mongoose";
+
+
 import { Area } from "../target/page";
+import { AreaSelect } from "@/components/leadTableSearch/page";
 
 interface PageProps {
   filters: FiltersInterface;
@@ -270,7 +273,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
         </div>
 
 
-        <div>
+        {/* <div>
            <Select
             onValueChange={(value) =>
 
@@ -289,18 +292,44 @@ setFilters({ ...filters, area: value });
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Areas</SelectLabel>
-                {areas.sort().map((loc:Area) => (
-                  <SelectItem key={loc._id} value={loc.name}>
-                    <div className="flex justify-between items-center w-full">
-                      <span>{loc.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {[...areas] 
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((loc: Area) => (
+            <SelectItem key={loc._id} value={loc.name}>
+              <div className="flex justify-between items-center w-full">
+                <span>{loc.name}</span>
+              </div>
+            </SelectItem>
+          ))}
                
               </SelectGroup>
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
+
+        {/* <AreaSelect areas={areas} filters={filters} setFilters={setFilters} /> */}
+        
+        <div className="w-44">
+  <AreaSelect
+    maxWidth="100%"
+    data={
+      [...areas] // ✅ copy array
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((loc: Area) => ({
+          label: loc.name,
+          value: loc.name,
+        }))
+    }
+    value={filters.area || ""}
+    save={(newValue: string) => {
+      setFilters({ ...filters, area: newValue });
+    }}
+    tooltipText="Select an area"
+  />
+</div>
+
+
+
 
         <div>
            <Select

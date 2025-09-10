@@ -8,10 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import {
   Select,
-  SelectContent,
   SelectItem,
+  SelectLabel,
+  SelectValue,
+  SelectGroup,
   SelectTrigger,
-} from "@/components/ui/select";
+  SelectContent,
+} from "@/components/ui/select"; 
 import { Input } from "@/components/ui/input";
 import LocationMap from "@/components/LocationMap";
 import Link from "next/link";
@@ -22,6 +25,8 @@ import { Plus } from "lucide-react";
 import { IoRemoveSharp } from "react-icons/io5";
 import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
+import axios from "axios";
+import { AreaSelect } from "@/components/leadTableSearch/page";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
@@ -57,12 +62,19 @@ interface Page2State {
   nearbyLocations: nearbyLocationInterface;
 }
 
+
+interface TargetType { _id: string; city: string; areas: AreaType[]; }
+interface AreaType { _id: string; city: string; name: string; }
+
 const PageAddListing2: FC = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
 
   const [type, setType] = useState<string>();
+   const [targets, setTargets] = useState<TargetType[]>([]);
+       const [selectedLocation, setSelectedLocation] = useState<string>("");
+       const [areas,setAreas]=useState<AreaType[]>([]);
 
   const [rentalType, SetRentalType] = useState(() => {
     const type = localStorage.getItem("page1");
@@ -337,6 +349,7 @@ const PageAddListing2: FC = () => {
   useEffect(() => {
     const newPage2: Page2State = {
       country,
+
       street,
       city,
       state,
@@ -460,6 +473,21 @@ const PageAddListing2: FC = () => {
     validateForm();
   }, [country, street, city, state, postalCode]);
 
+    useEffect(() => {
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data); 
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      } 
+    };
+    fetchTargets();
+  }, []);
+
+
   return (
     <div>
       <Heading
@@ -498,6 +526,7 @@ const PageAddListing2: FC = () => {
           </SelectContent>{" "}
         </Select>{" "}
       </FormItem>
+
       <div className="flex flex-col my-4">
         <div className="ml-2 ">
           <LoadScript
@@ -512,6 +541,57 @@ const PageAddListing2: FC = () => {
             </div>
           </LoadScript>
         </div>
+
+        {/* <div>
+           <Select
+            onValueChange={(value) =>{
+              //  setFilters({ ...filters, place: value });
+               setSelectedLocation(value);
+            }
+            }
+            value={selectedLocation}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Locations</SelectLabel>
+                {targets.map((loc: any) => (
+                  <SelectItem key={loc.city} value={loc.city}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc.city}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {
+
+                }
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div> */}
+
+
+               {/* <div className="w-44">
+          <AreaSelect
+            maxWidth="100%"
+            data={
+              [...areas] // ✅ copy array
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((loc: Area) => ({
+                  label: loc.name,
+                  value: loc.name,
+                }))
+            }
+            value={filters.area || ""}
+            save={(newValue: string) => {
+              setFilters({ ...filters, area: newValue });
+            }}
+            tooltipText="Select an area"
+          />
+        </div> */}
+
         <div className="w-full">
           <FormItem label="Street">
             <Input

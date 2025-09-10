@@ -502,6 +502,7 @@ export interface FilterInterface {
 
 export interface  unregisteredOwners {
   _id: string;
+  VSID: string;
   name: string;
   // email: string;
   date: Date;

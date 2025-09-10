@@ -2,6 +2,10 @@ import { propertyTypes } from "@/util/type";
 import mongoose from "mongoose";
 
 const unregisteredOwnerSchema = new mongoose.Schema({
+  VSID: {
+    type: String,
+    // required: true,
+  },
   name: {
     type: String,
     // required: true,

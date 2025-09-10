@@ -17,6 +17,7 @@ import {
   Calendar,
   Check,
   CircleDot,
+  Copy,
   Download,
   ImageUp,
   Mail,
@@ -44,6 +45,8 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+import { AreaSelect } from "@/components/leadTableSearch/page";
+import { useAuthStore } from "@/AuthStore";
 
 export function SpreadsheetTable({
   tableData,
@@ -66,10 +69,10 @@ export function SpreadsheetTable({
     { label: "Address", field: "address", sortable: false },
     { label: "Ref. Link", field: "refLink", sortable: false },
     { label: "VsLink", field: "link", sortable: false },
+    { label: "VSID", field: "vsid", sortable: false },
     { label: "Remarks", field: "remarks", sortable: false },
     { label: "Date", field: "date", sortable: true },
-    { label: "Upload", field: "upload", sortable: false },
-    { label: "Download", field: "download", sortable: false },
+    { label: "Up/Down", field: "upload", sortable: false },
   ];
 
   interface TargetType {
@@ -125,6 +128,9 @@ export function SpreadsheetTable({
       value: "Not Available",
     },
   ];
+
+  const token = useAuthStore((state: any) => state.token);
+  console.log("token: ", token);
 
   useEffect(() => {
     if (sortBy) {
@@ -191,6 +197,7 @@ export function SpreadsheetTable({
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
+      VSID: "",
       name: "",
       phoneNumber: "",
       location: "",
@@ -432,6 +439,9 @@ export function SpreadsheetTable({
   function UploadCell({ item }: UploadCellProps) {
     const { uploadFiles, loading } = useBunnyUpload();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploaded, setUploaded] = useState(
+      !!(item.imageUrls && item.imageUrls.length > 0)
+    );
 
     const handleFileChange = async (
       event: React.ChangeEvent<HTMLInputElement>
@@ -449,15 +459,22 @@ export function SpreadsheetTable({
 
       // Save uploaded URLs to your table row (uploadLink or any field)
 
-      if (!error && imageUrls.length > 0) {
-        await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
-          field: "imageUrls", // 🔥 Send as array
-          value: imageUrls,
-        });
+      if (imageUrls.length > 0) {
+        try {
+          await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
+            field: "imageUrls",
+            value: imageUrls,
+          });
+
+          setUploaded(true);
+        } catch (err) {
+          console.error("Failed to update images:", err);
+        }
       }
       // Reset input so selecting same file works next time
       event.target.value = "";
     };
+    const hasImages = item.imageUrls && item.imageUrls.length > 0;
 
     return (
       <>
@@ -476,7 +493,11 @@ export function SpreadsheetTable({
           disabled={loading}
           onClick={() => fileInputRef.current?.click()}
         >
-          <ImageUp className="h-5 w-5 text-gray-500" />
+          <ImageUp
+            className={`h-5 w-5 ${
+              uploaded ? "text-green-500" : "text-gray-500"
+            }`}
+          />
         </Button>
       </>
     );
@@ -578,6 +599,9 @@ export function SpreadsheetTable({
               }`}
             >
               <TableCell className="font-medium">{index + 1}</TableCell>
+
+              {/*VSID*/}
+
               {/* Name */}
               <TableCell className="font-medium truncate max-w-[150px]">
                 <EditableCell
@@ -625,16 +649,21 @@ export function SpreadsheetTable({
               </TableCell>
 
               <TableCell>
-                <SelectableCell
+                <AreaSelect
                   maxWidth="100px"
-                  // data={cityAreas[item.location] || []}
                   data={(
                     targets.find((t) => t.city === item.location)?.areas || []
-                  ).map((a) => a.name)}
-                  value={item.area}
+                  )
+                    .map((a) => ({
+                      label: a.name,
+                      value: a.name,
+                    }))
+                    .sort((a, b) => a.label.localeCompare(b.label))}
+                  value={item.area || ""}
                   save={(newValue: string) =>
                     handleSave(item._id, "area", newValue)
                   }
+                  tooltipText="Select an area"
                 />
               </TableCell>
 
@@ -666,11 +695,11 @@ export function SpreadsheetTable({
               >
                 {/* {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">
-                        Reminder
-                      </p>
+                    <p className=" rotate-90 text-xs font-semibold mt-1">
+                    Reminder
+                    </p>
                     </div>
-                  )} */}
+                    )} */}
                 {item.petStatus === "Allowed" ? (
                   <CustomTooltip
                     icon={<PawPrint color="green" />}
@@ -753,15 +782,29 @@ export function SpreadsheetTable({
                 title={item.link}
               >
                 <div className="flex items-center gap-1">
-                  <EditableCell
-                    value={item.link}
-                    onSave={(newValue) =>
-                      handleSave(item._id, "link", newValue)
-                    }
-                    maxWidth="60px"
-                    // placeholder="URL"
-                  />
+                  {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                    <EditableCell
+                      value={item.link}
+                      onSave={(newValue) =>
+                        handleSave(item._id, "link", newValue)
+                      }
+                      maxWidth="60px"
+                    />
+                  ) : (
+                    <span className="truncate block max-w-[60px]">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-1 text-xs"
+                        onClick={() => navigator.clipboard.writeText(item.link)}
+                      >
+                        <Copy />
+                      </Button>
+                    </span>
+                  )}
                 </div>
+
+                {/* 🔗 Open link button (for all roles) */}
                 {item.link && item.link !== "-" && (
                   <a
                     href={
@@ -776,6 +819,23 @@ export function SpreadsheetTable({
                   >
                     🔗
                   </a>
+                )}
+              </TableCell>
+
+              {/* VSID */}
+              <TableCell className="font-medium truncate max-w-[150px]">
+                {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                  <EditableCell
+                    value={item.VSID}
+                    onSave={(newValue) =>
+                      handleSave(item?._id, "VSID", newValue)
+                    }
+                    maxWidth="150px"
+                  />
+                ) : (
+                  <span className="truncate block max-w-[150px]">
+                    {item.VSID}
+                  </span>
                 )}
               </TableCell>
               {/* Remarks */}
@@ -796,13 +856,10 @@ export function SpreadsheetTable({
               <TableCell>
                 <DateCell item={item} handleSave={handleSave} />
               </TableCell>
-              {/*Upload*/}
-              <TableCell>
-                <UploadCell item={item} />
-              </TableCell>
 
               {/*Download*/}
               <TableCell>
+                <UploadCell item={item} />
                 <DownloadCell item={item} />
               </TableCell>
             </TableRow>

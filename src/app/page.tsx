@@ -10,6 +10,7 @@ import DashboardCard from "@/components/DashBoardCard";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
+// import CrashErrorPage from "./dashboard/cr%%5E$ghzdkkxjuhgy789/page";
 
 export default function HomePage() {
   const people = [
@@ -121,6 +122,7 @@ export default function HomePage() {
                 Dashboard
               </RainbowButton>
             </Link>
+            // <CrashErrorPage />
           ) : (
             <Link href="/login">
               <RainbowButton>Login</RainbowButton>
@@ -147,6 +149,8 @@ export default function HomePage() {
       </div>
       <ScrollToTopButton />
     </>
+
+   
   );
 }
 

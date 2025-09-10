@@ -1024,6 +1024,7 @@ const handleSave = async (
                               "Already got it",
                               "Different Area",
                               "Agency Fees",
+                              "Low Duration",
                             ].map((reason, ind) => (
                               <DropdownMenuItem
                                 key={ind}

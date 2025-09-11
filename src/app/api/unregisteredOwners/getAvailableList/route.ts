@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     
   
     query["availability"]= "Available";
-    console.log("filters: ", filters);
+    // console.log("filters: ", filters);
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         .lean();
 
       const areaNames = areasInZone.map((a) => a.name);
-      console.log("Areas in selected zone:", areaNames);
+      // console.log("Areas in selected zone:", areaNames);
 
       // If we found areas in that zone, filter owners by those areas
       if (areaNames.length > 0) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         .lean();
 
       const areaNames = areasInMetroZone.map((a) => a.name);
-      console.log("Areas in selected zone:", areaNames);
+      // console.log("Areas in selected zone:", areaNames);
 
       // If we found areas in that zone, filter owners by those areas
       if (areaNames.length > 0) {

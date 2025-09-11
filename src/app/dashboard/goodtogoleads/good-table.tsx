@@ -42,7 +42,7 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { IQuery } from "@/util/type";
+import { IQuery, unregisteredOwners } from "@/util/type";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -116,6 +116,8 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
     new Date(Date.now())
   );
+  const [recommendationData, setRecommendationData] =
+    useState<unregisteredOwners[]>([]);
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
   const [page, setPage] = useState(1);
@@ -204,6 +206,21 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
       });
     }
   };
+
+  const getRecommendations = (id: any, index: number) => {
+    try {
+      axios.post("/api/getRecommendations", {
+        id,
+      });
+      toast({
+        description: "Rejection reason saved succefully",
+      });
+    } catch (error: any) {
+      toast({
+        description: "Error occurred while updating status",
+      });
+    }
+  }
 
   const handleDisposition = async (
     id: any,
@@ -996,6 +1013,30 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                           </AlertDialog>
                         </>
                       )}
+                      <>
+                        <DropdownMenuItem    
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            getRecommendations(query._id, index);
+                          }}
+                        >
+                          Get Recommendation
+                        </DropdownMenuItem>
+
+                        <AlertDialog open={activeModalRow === index}>
+                          <AlertDialogContent>
+                            <VisitModal
+                              leadId={query._id!}
+                              // loading={loading}
+                              // data={recommendationData}
+                              onOpenChange={() => {
+                                setActiveModalRow(-1);
+                                setRecommendationData([]); // Clear previous data
+                              }}
+                            />
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

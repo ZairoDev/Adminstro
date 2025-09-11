@@ -122,12 +122,12 @@ export function AreaSelect({
               <CommandList className="max-h-60 overflow-y-auto">
                 <CommandEmpty>No area found.</CommandEmpty>
                 <CommandGroup>
-                  {filteredData.map((item) => {
+                  {filteredData.map((item, index) => {
                     const val = typeof item === "string" ? item : item.value;
                     const label = typeof item === "string" ? item : item.label;
                     return (
                       <CommandItem
-                        key={val}
+                        key={index}
                         value={val}
                         onSelect={() => handleSelect(val)}
                         className="flex justify-between py-2 text-sm"

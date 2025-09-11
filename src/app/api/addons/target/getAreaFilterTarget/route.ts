@@ -22,7 +22,7 @@ export async function GET() {
     });
 
     
-    console.log("result fro the getAreaFilterTarget: ", result);
+    // console.log("result fro the getAreaFilterTarget: ", result);
 
     return NextResponse.json({ data: result }, { status: 200 });
   } catch (err) {

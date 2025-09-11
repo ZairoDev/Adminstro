@@ -1,166 +1,17 @@
-// "use client";
-// import axios from "axios";
-// import { SpreadsheetTable } from "./spreadsheetTable";
-// import { useEffect, useRef, useState } from "react";
-// import { unregisteredOwners } from "@/util/type";
-// import { FilteredPropertiesInterface, FiltersInterface } from "../newproperty/filteredProperties/page";
-// import FilterBar from "./FilterBar";
-// import {
-//   Tabs,
-//   TabsContent,
-//   TabsList,
-//   TabsTrigger,
-// } from "@/components/ui/tabs";
-
-
-// const Spreadsheet = () => {
-//     const [data, setData] = useState<unregisteredOwners[]>([]);
-//     const [properties, setProperties] = useState<FilteredPropertiesInterface[]>([]);
-//     const [isLoading, setIsLoading] = useState(false);
-//     const [page, setPage] = useState(1);
-//     const [totalProperties, setTotalProperties] = useState(1);
-//     const [selectedTab , setSelectedTab] = useState("available");
-//     const observerRef = useRef<HTMLDivElement | null>(null);
-
-//     const [filters, setFilters] = useState<FiltersInterface>({
-//       searchType: "",
-//       searchValue: "",
-//       propertyType: "",
-//       place: "",
-//       rentalType: "Short Term",
-//       minPrice: 0,
-//       maxPrice: 0,
-//       beds: 0,
-//       bedrooms: 0,
-//       bathroom: 0,
-//       dateRange: undefined,
-//     });
-
-//     const fetchProperties = async () => {
-//       setIsLoading(true);
-//       try {
-//         const response = await axios.post("/api/property/filteredProperties", {
-//           filters,
-//           page,
-//         });
-//         // console.log("response of filtered data: ", response.data.filteredProperties);
-//         setProperties(response.data.filteredProperties);
-//         setTotalProperties(response.data.totalProperties);
-//       } catch (error) {
-//         console.error("Error fetching properties:", error);
-//       } finally {
-//         setIsLoading(false);
-//       }
-//     };
-
-//     const handleSubmit = () => {
-//       // console.log("clicked submit", filters);
-//       // fetchProperties();
-//       getData(selectedTab);
-//     };
-
-//     const handleClear = () => {
-//       setFilters({
-//         searchType: "",
-//         searchValue: "",
-//         propertyType: "",
-//         place: "",
-//         rentalType: "Short Term",
-//         minPrice: 0,
-//         maxPrice: 0,
-//         beds: 0,
-//         bedrooms: 0,
-//         bathroom: 0,
-//         dateRange: undefined,
-//       });
-//       fetchProperties();
-//     };
-
-//     useEffect(() => {
-//       fetchProperties();
-//     }, [page]);
-
-//     const getData = async (tab:string , currentPage : number ) => {
-//     try {
-//       const endpoint = tab === "available" ? "/api/unregisteredOwners/getAvailableList" : "/api/unregisteredOwners/getNotAvailableList";
-
-//       const response = await axios.post(endpoint,{
-//         filters,
-//          filters,
-//         page: currentPage,
-//         limit: LIMIT,
-//       });
-//       // console.log(response.data);
-//       // ✅ make sure it's always an array
-//       setData(
-//         Array.isArray(response.data.data)
-//           ? response.data.data
-//           : [response.data.data]
-//       );
-//     } catch (error) {
-//       console.error("Failed to fetch target:", error);
-//     }
-//   };
-
-//     useEffect(() => {
-//       getData(selectedTab);
-//     }, [selectedTab]);
-
-//   return (
-//     <div>
-//       <h1 className="text-xl font-bold mb-4">Spreadsheet</h1>
-
-     
-//       <Tabs
-//         defaultValue="available"
-//         value={selectedTab}
-//         onValueChange={setSelectedTab}
-//       >
-//         <TabsList>
-//           <TabsTrigger value="available">Available</TabsTrigger>
-//           <TabsTrigger value="notAvailable">Not Available</TabsTrigger>
-//         </TabsList>
-
-       
-//         <TabsContent value="available">
-//             <FilterBar
-//               filters={filters}
-//               setFilters={setFilters}
-//               handleSubmit={handleSubmit}
-//               handleClear={handleClear}
-//             />
-//           <SpreadsheetTable tableData={data} setTableData={setData} />
-//         </TabsContent>
-
-//         {/* Not Available Tab */}
-//         <TabsContent value="notAvailable">
-//           <FilterBar
-//             filters={filters}
-//             setFilters={setFilters}
-//             handleSubmit={handleSubmit}
-//             handleClear={handleClear}
-//           />
-//           <SpreadsheetTable tableData={data} setTableData={setData} />
-//         </TabsContent>
-//       </Tabs>
-//     </div>
-//   );
-// };
-// export default Spreadsheet;
-
 "use client";
 import axios from "axios";
 import { SpreadsheetTable } from "./spreadsheetTable";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { unregisteredOwners } from "@/util/type";
 import { FilteredPropertiesInterface, FiltersInterface } from "../newproperty/filteredProperties/page";
-import FilterBar from "./FilterBar";
+import FilterBar, { FiltersInterfaces } from "./FilterBar";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useAuthStore } from "@/AuthStore";
 
 const LIMIT = 50;
 
@@ -173,23 +24,37 @@ const Spreadsheet = () => {
   const [selectedTab, setSelectedTab] = useState("available");
   const observerRef = useRef<HTMLDivElement | null>(null);
   const observerInstance = useRef<IntersectionObserver | null>(null);
+  const token = useAuthStore((state) => state.token);
 
-  const [filters, setFilters] = useState<FiltersInterface>({
+  const role = token?.role;
+ const allocations = token?.allotedArea || [];
+const parsedAllocations =
+  typeof allocations === "string"
+    ? allocations.split(",").filter(Boolean)
+    : allocations;
+  
+  const [filters, setFilters] = useState<FiltersInterfaces>({
     searchType: "",
     searchValue: "",
     propertyType: "",
-    place: "",
+     place: parsedAllocations.length === 1
+    ? [parsedAllocations[0]]
+    : parsedAllocations.length > 1
+    ? parsedAllocations
+    : [],
     area: "",
     zone: "",
     metroZone: "",
     rentalType: "Short Term",
-    minPrice: 0,
-    maxPrice: 0,
+    minPrice:  0,
+    maxPrice:  0,
     beds: 0,
     bedrooms: 0,
     bathroom: 0,
     dateRange: undefined,
   });
+
+  
 
   const getData = async (tab: string, currentPage: number) => {
     try {
@@ -228,7 +93,7 @@ const Spreadsheet = () => {
       searchType: "",
       searchValue: "",
       propertyType: "",
-      place: "",
+      place: [],
       area: "",
       zone: "",
       metroZone: "",
@@ -293,8 +158,8 @@ const Spreadsheet = () => {
         onValueChange={setSelectedTab}
       >
         <TabsList>
-          <TabsTrigger value="available">Available</TabsTrigger>
-          <TabsTrigger value="notAvailable">Not Available</TabsTrigger>
+          <TabsTrigger value="available">Available <span>(35)</span></TabsTrigger>
+          <TabsTrigger value="notAvailable">Not Available <span>(35)</span></TabsTrigger>
         </TabsList>
 
         {/* Available Tab */}

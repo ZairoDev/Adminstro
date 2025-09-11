@@ -9,7 +9,7 @@ import {
   SelectGroup,
   SelectTrigger,
   SelectContent,
-} from "@/components/ui/select"; 
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -23,30 +23,56 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 // import { Switch } from "@/components/ui/switch";
 // import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import { DateRange } from "react-day-picker";
-import { FiltersInterface } from "../newproperty/filteredProperties/page";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { set } from "mongoose";
 
-
 import { Area } from "../target/page";
 import { AreaSelect } from "@/components/leadTableSearch/page";
-
+import { useAuthStore } from "@/AuthStore";
 interface PageProps {
-  filters: FiltersInterface;
-  setFilters: React.Dispatch<React.SetStateAction<FiltersInterface>>;
+  filters: FiltersInterfaces;
+  setFilters: React.Dispatch<React.SetStateAction<FiltersInterfaces>>;
   handleSubmit: () => void;
   handleClear: () => void;
   selectedTab: string;
 }
-interface TargetType { _id: string; city: string; areas: AreaType[]; }
-interface AreaType { _id: string; city: string; name: string; }
+interface TargetType {
+  _id: string;
+  city: string;
+  areas: AreaType[];
+}
+interface AreaType {
+  _id: string;
+  city: string;
+  name: string;
+}
 
-const filterCount = (filters: FiltersInterface) => {
+export interface FiltersInterfaces {
+  searchType: string;
+  searchValue: string;
+  propertyType: string;
+  place: string[];
+  area:string;
+  zone:string;
+  metroZone:string;
+  rentalType: "Short Term" | "Long Term";
+  minPrice: number | null;
+  maxPrice: number | null;
+  beds: number;
+  bedrooms: number;
+  bathroom: number;
+  dateRange: DateRange | undefined;
+}
+const filterCount = (filters: FiltersInterfaces) => {
   return Object.entries(filters).filter(([key, value]) => value).length;
 };
 
@@ -64,13 +90,25 @@ const apartmentTypes = [
   "Maisotte",
   "Studio",
 ];
-const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab }: PageProps) => { 
+const FilterBar = ({
+  filters,
+  setFilters,
+  handleSubmit,
+  handleClear,
+  selectedTab,
+}: PageProps) => {
+  const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+  const [locationws, setLocationws] = useState<string[]>([]);
+  const [targets, setTargets] = useState<TargetType[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [areas, setAreas] = useState<AreaType[]>([]);
 
-   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
-   const [locationws, setLocationws] = useState<string[]>([]);
-   const [targets, setTargets] = useState<TargetType[]>([]);
-     const [selectedLocation, setSelectedLocation] = useState<string>("");
-     const [areas,setAreas]=useState<AreaType[]>([]);
+  const token = useAuthStore((state) => state.token);
+const allocations = token?.allotedArea || []; 
+// If it's a string, split it:
+const parsedAllocations = typeof allocations === "string"
+  ? allocations.split(",").filter(Boolean)
+  : allocations;
   const longTermDateSelect = (value: DateRange | undefined) => {
     const from = value?.from;
     const to = value?.to;
@@ -87,13 +125,14 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
   };
 
   // console.log("filters: ", filterCount(filters), filters);
-   useEffect(() => {
+  useEffect(() => {
     const fetchCounts = async () => {
       try {
         const endpoint = "/api/unregisteredOwners/getCounts";
         const res = await axios.post(endpoint, {
           filters,
-          availability: selectedTab === "available" ? "Available" : "Not Available",
+          availability:
+            selectedTab === "available" ? "Available" : "Not Available",
         });
         setTypeCounts(res.data.counts || {});
       } catch (err) {
@@ -103,7 +142,7 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
     fetchCounts();
   }, [filters, selectedTab]);
 
-   useEffect(() => {
+  useEffect(() => {
     const getAllLocations = async () => {
       try {
         // 1. Fetch all locations
@@ -113,9 +152,10 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
         );
 
         setLocationws(fetchedCities);
-        console.log("fetched Locations that has been selected in get allocations", locationws);
-
-        
+        console.log(
+          "fetched Locations that has been selected in get allocations",
+          locationws
+        );
       } catch (error) {
         console.error("Error fetching locations:", error);
         setLocationws([]);
@@ -130,15 +170,14 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
       try {
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
-        setTargets(res.data.data); 
+        setTargets(res.data.data);
         console.log("targets: ", res.data.data);
       } catch (error) {
         console.error("Error fetching targets:", error);
-      } 
+      }
     };
     fetchTargets();
   }, []);
-
 
   //  const selectedTarget:any = targets.find((t:any) => t.city === selectedLocation);
   //  console.log("selectedTarget: ", selectedTarget);
@@ -150,20 +189,81 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
   // }, [selectedTarget]);
 
   useEffect(() => {
-  const target = targets.find((t) => t.city === selectedLocation);
-  if (target) {
-    setAreas(target.areas);
-  } else {
-    setAreas([]);
-  }
-  setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
-}, [selectedLocation, targets]);
-
+    const target = targets.find((t) => t.city === selectedLocation);
+    if (target) {
+      setAreas(target.areas);
+    } else {
+      setAreas([]);
+    }
+    setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
+  }, [selectedLocation, targets]);
 
   useEffect(() => {
-  console.log("filters updated:", filters);
-}, [filters]);
+    console.log("filters updated:", filters);
+  }, [filters]);
 
+// derive filteredTargets from parsedAllocations + targets (case-insensitive)
+const filteredTargets = useMemo(() => {
+  if (!targets || targets.length === 0) return [];
+  if (!parsedAllocations || parsedAllocations.length === 0) return targets;
+
+  const lowerAlloc = parsedAllocations.map((a: string) => a.toLowerCase());
+  return targets.filter((t) => lowerAlloc.includes(t.city.toLowerCase()));
+}, [parsedAllocations, targets]);
+
+// Ensure filters.place is valid for current allocations/targets.
+// - If there's exactly 1 allowed target, set that value (after targets load).
+// - If current filters.place is not in filteredTargets, clear it (unless single target).
+useEffect(() => {
+  if (!filteredTargets) return;
+
+  const current = filters.place && filters.place.length > 0 ? filters.place[0] : "";
+  const matchesCurrent =
+    current &&
+    filteredTargets.some((t) => t.city.toLowerCase() === current.toLowerCase());
+
+  if (!matchesCurrent) {
+    if (filteredTargets.length === 1) {
+      // use the exact-cased city from targets
+      setFilters((prev) => ({ ...prev, place: [filteredTargets[0].city] }));
+    } else {
+      // multiple allowed but current selection not valid -> clear selection
+      setFilters((prev) => ({ ...prev, place: [] }));
+    }
+  }
+  // only depend on filteredTargets (which already depends on parsedAllocations & targets)
+}, [filteredTargets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+// Update areas and selectedLocation whenever filters.place or targets change.
+// This derives selectedLocation/areas from the authoritative `targets` data.
+useEffect(() => {
+  const place = filters.place && filters.place.length > 0 ? filters.place[0] : "";
+
+  if (!place) {
+    setAreas([]);
+    setSelectedLocation("");
+    if (filters.area) setFilters((prev) => ({ ...prev, area: "" }));
+    return;
+  }
+
+  const match = targets.find(
+    (t) => t.city.toLowerCase() === place.toLowerCase()
+  );
+
+  if (match) {
+    setAreas(match.areas || []);
+    setSelectedLocation(match.city); // canonical casing
+  } else {
+    // selected place not found in targets — keep empty areas
+    setAreas([]);
+    setSelectedLocation(place);
+  }
+
+  // reset area only if it was non-empty
+  if (filters.area) setFilters((prev) => ({ ...prev, area: "" }));
+}, [filters.place, targets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  
 
 
   return (
@@ -207,30 +307,32 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
         {/* Property Type */}
         <div>
           <Select
-          value={filters.propertyType}
-          onValueChange={(value) => setFilters({ ...filters, propertyType: value })}
-        >
-          <SelectTrigger className="border border-neutral-700 w-48">
-            <SelectValue placeholder="Property Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Property Type</SelectLabel>
-              {apartmentTypes.sort().map((type) => (
-                <SelectItem key={type} value={type}>
-                  <div className="flex justify-between items-center w-full">
-                    <span>{type}</span>
-                    {typeCounts[type] && (
-                      <span className="ml-2 text-xs bg-pink-600 text-white rounded-full px-2">
-                        {typeCounts[type]}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+            value={filters.propertyType}
+            onValueChange={(value) =>
+              setFilters({ ...filters, propertyType: value })
+            }
+          >
+            <SelectTrigger className="border border-neutral-700 w-48">
+              <SelectValue placeholder="Property Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Property Type</SelectLabel>
+                {apartmentTypes.sort().map((type) => (
+                  <SelectItem key={type} value={type}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{type}</span>
+                      {typeCounts[type] && (
+                        <span className="ml-2 text-xs bg-pink-600 text-white rounded-full px-2">
+                          {typeCounts[type]}
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Location */}
@@ -242,14 +344,13 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
             value={filters.place}
           />
         </div> */}
-        <div>
-           <Select
-            onValueChange={(value) =>{
-               setFilters({ ...filters, place: value });
-               setSelectedLocation(value);
-            }
-            }
-            value={filters.place}
+        {/* <div>
+          <Select
+            onValueChange={(value) => {
+              setFilters({ ...filters, place:[ value ]});
+              setSelectedLocation(value);
+            }}
+            value={filters.place[0]}
           >
             <SelectTrigger className=" w-44 border border-neutral-700">
               <SelectValue placeholder="Select location" />
@@ -264,13 +365,58 @@ const FilterBar = ({ filters, setFilters, handleSubmit, handleClear, selectedTab
                     </div>
                   </SelectItem>
                 ))}
-                {
-
-                }
+                {}
               </SelectGroup>
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
+
+<div>
+  <Select
+    onValueChange={(value) => {
+      // only set filters.place here — selectedLocation and areas are derived from that
+      setFilters({ ...filters, place: value ? [value] : [] });
+    }}
+    value={filters.place.length > 0 ? filters.place[0] : undefined}
+  >
+    <SelectTrigger className="w-44 border border-neutral-700">
+      <SelectValue
+        placeholder={
+          parsedAllocations.length === 0
+            ? "Select location"
+            : parsedAllocations.length === 1 && filteredTargets.length === 1
+            ? filteredTargets[0].city
+            : "Select location"
+        }
+      />
+    </SelectTrigger>
+
+    <SelectContent>
+      <SelectGroup>
+        <SelectLabel>
+          {parsedAllocations.length === 0 ? "Locations" : "Allotted Locations"}
+        </SelectLabel>
+
+        {filteredTargets.map((loc) => (
+          <SelectItem key={loc.city} value={loc.city}>
+            {loc.city}
+          </SelectItem>
+        ))}
+
+        {/* if filteredTargets is empty (allocation names not found in targets),
+            you can optionally show the raw parsedAllocations as fallback */}
+        {filteredTargets.length === 0 &&
+          parsedAllocations.length > 0 &&
+          parsedAllocations.map((city: string) => (
+            <SelectItem key={city} value={city}>
+              {city}
+            </SelectItem>
+          ))}
+      </SelectGroup>
+    </SelectContent>
+  </Select>
+</div>
+
 
 
         {/* <div>
@@ -308,34 +454,27 @@ setFilters({ ...filters, area: value });
         </div> */}
 
         {/* <AreaSelect areas={areas} filters={filters} setFilters={setFilters} /> */}
-        
+
         <div className="w-44">
-  <AreaSelect
-    maxWidth="100%"
-    data={
-      [...areas] // ✅ copy array
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((loc: Area) => ({
-          label: loc.name,
-          value: loc.name,
-        }))
-    }
-    value={filters.area || ""}
-    save={(newValue: string) => {
-      setFilters({ ...filters, area: newValue });
-    }}
-    tooltipText="Select an area"
-  />
-</div>
-
-
-
+          <AreaSelect
+            maxWidth="100%"
+            data={[...areas] // ✅ copy array
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((loc: Area) => ({
+                label: loc.name,
+                value: loc.name,
+              }))}
+            value={filters.area || ""}
+            save={(newValue: string) => {
+              setFilters({ ...filters, area: newValue });
+            }}
+            tooltipText="Select an area"
+          />
+        </div>
 
         <div>
-           <Select
-            onValueChange={(value) =>
-              setFilters({ ...filters, zone: value })
-            }
+          <Select
+            onValueChange={(value) => setFilters({ ...filters, zone: value })}
             value={filters.zone}
           >
             <SelectTrigger className=" w-44 border border-neutral-700">
@@ -351,24 +490,22 @@ setFilters({ ...filters, area: value });
                     </div>
                   </SelectItem>
                 ))} */}
-               <SelectItem value="North">North</SelectItem>
-<SelectItem value="South">South</SelectItem>
-<SelectItem value="East">East</SelectItem>
-<SelectItem value="West">West</SelectItem>
-<SelectItem value="Central">Central</SelectItem>
-<SelectItem value="North-East">North-East</SelectItem>
-<SelectItem value="North-West">North-West</SelectItem>
-<SelectItem value="South-East">South-East</SelectItem>
-<SelectItem value="South-West">South-West</SelectItem>
-
+                <SelectItem value="North">North</SelectItem>
+                <SelectItem value="South">South</SelectItem>
+                <SelectItem value="East">East</SelectItem>
+                <SelectItem value="West">West</SelectItem>
+                <SelectItem value="Central">Central</SelectItem>
+                <SelectItem value="North-East">North-East</SelectItem>
+                <SelectItem value="North-West">North-West</SelectItem>
+                <SelectItem value="South-East">South-East</SelectItem>
+                <SelectItem value="South-West">South-West</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         </div>
 
-
         <div>
-           <Select
+          <Select
             onValueChange={(value) =>
               setFilters({ ...filters, metroZone: value })
             }
@@ -388,60 +525,68 @@ setFilters({ ...filters, area: value });
                   </SelectItem>
                 ))} */}
                 <SelectItem value="Red Line">Red Line</SelectItem>
-<SelectItem value="Blue Line">Blue Line</SelectItem>
-<SelectItem value="Green Line">Green Line</SelectItem>
-<SelectItem value="Yellow Line">Yellow Line</SelectItem>
-<SelectItem value="Purple Line">Purple Line</SelectItem>
+                <SelectItem value="Blue Line">Blue Line</SelectItem>
+                <SelectItem value="Green Line">Green Line</SelectItem>
+                <SelectItem value="Yellow Line">Yellow Line</SelectItem>
+                <SelectItem value="Purple Line">Purple Line</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         </div>
 
-
         {/* Price & Beds */}
         <div className=" w-28 gap-x-1 flex justify-between">
           {/* Price */}
           <div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className=" px-6 font-bold">Price</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className=" w-56">
-                <DropdownMenuLabel>Price Range</DropdownMenuLabel>
-                <div className=" flex gap-x-4 p-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="bg-white text-black">
+                  Price Range
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="flex gap-x-4">
                   <div>
-                    <Label>Min Price</Label>
+                    <Label htmlFor="minPrice">Min Price</Label>
                     <Input
-                      value={filters.minPrice}
-                      onChange={(e) =>
+                      id="minPrice"
+                      value={filters.minPrice === null ? "" : filters.minPrice}
+                      onChange={(e) => {
+                        const value = e.target.value;
                         setFilters({
                           ...filters,
-                          minPrice: parseInt(e.target.value, 10),
-                        })
-                      }
+                          minPrice: value === "" ? null : parseInt(value, 10),
+                        });
+                      }}
+                      type="number"
+                      placeholder="0"
+                      autoFocus
                     />
                   </div>
                   <div>
-                    <Label>Max Price</Label>
+                    <Label htmlFor="maxPrice">Max Price</Label>
                     <Input
-                      value={filters.maxPrice}
-                      onChange={(e) =>
+                      id="maxPrice"
+                      value={filters.maxPrice === null ? "" : filters.maxPrice}
+                      onChange={(e) => {
+                        const value = e.target.value;
                         setFilters({
                           ...filters,
-                          maxPrice: parseInt(e.target.value, 10),
-                        })
-                      }
+                          maxPrice: value === "" ? null : parseInt(value, 10),
+                        });
+                      }}
+                      type="number"
+                      placeholder="0"
                     />
                   </div>
                 </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </PopoverContent>
+            </Popover>
           </div>
-
-     
         </div>
       </div>
-   
+
       <div className="  flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">
         <Button
           className=" rounded-lg font-semibold w-20 md:w-32"

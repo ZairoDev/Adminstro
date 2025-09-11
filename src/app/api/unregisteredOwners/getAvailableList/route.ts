@@ -1,5 +1,6 @@
 
 import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties/page";
+import { FiltersInterfaces } from "@/app/dashboard/spreadsheet/FilterBar";
 import { Area } from "@/models/area";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
@@ -8,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 connectDb();
 export async function POST(req: NextRequest) {
   try{
-    const { filters , page=1 , limit=50}  : { filters: FiltersInterface; page: number ; limit: number} =
+    const { filters , page=1 , limit=50}  : { filters: FiltersInterfaces; page: number ; limit: number} =
         await req.json();
     const query: Record<string, any> = {};
     
@@ -20,7 +21,15 @@ export async function POST(req: NextRequest) {
 
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
     if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
-    if(filters.place) query["location"] = filters.place;
+    if (filters.place) {
+  const locations = filters.place.flat().filter(loc => typeof loc === 'string');
+
+  if (locations.length > 0) {
+    query["$or"] = locations.map(loc => ({
+      location: { $regex: new RegExp(`^${loc}$`, "i") }
+    }));
+  }
+}
     if(filters.area) query["area"] = filters.area;
      if (filters.place && filters.zone) {
       const areasInZone = await Area.find({ zone: filters.zone })
@@ -52,9 +61,7 @@ export async function POST(req: NextRequest) {
     else if(filters.maxPrice) query["price"] = { $lte: filters.maxPrice };
     else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
 
-    // else if(filters.zone) query["zone"] = filters.zone;
-    // else if(filters.metroZone) query["metroZone"] = filters.metroZone;
-    // console.log("query: ", query);
+ 
 
     const skip = (page - 1) * limit;
 

@@ -20,8 +20,8 @@ export interface FiltersInterface {
   zone:string;
   metroZone:string;
   rentalType: "Short Term" | "Long Term";
-  minPrice: number;
-  maxPrice: number;
+  minPrice: number ;
+  maxPrice: number ;
   beds: number;
   bedrooms: number;
   bathroom: number;
@@ -95,7 +95,7 @@ const FilteredProperties = () => {
       zone: "",
       metroZone: "",
       rentalType: "Short Term",
-      minPrice: 0,
+      minPrice: 0 ,
       maxPrice: 0,
       beds: 0,
       bedrooms: 0,

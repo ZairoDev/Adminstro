@@ -64,8 +64,16 @@ const parsedAllocations =
           ? "/api/unregisteredOwners/getAvailableList"
           : "/api/unregisteredOwners/getNotAvailableList";
 
+           let effectiveFilters = { ...filters };
+    if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
+      effectiveFilters = {
+        ...effectiveFilters,
+        place: parsedAllocations,
+      };
+    }  
+
       const response = await axios.post(endpoint, {
-        filters,
+        filters: effectiveFilters,
         page: currentPage,
         limit: LIMIT,
       });

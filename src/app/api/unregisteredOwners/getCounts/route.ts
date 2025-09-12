@@ -12,7 +12,9 @@ export async function POST(req: NextRequest) {
     // Build query based on filters
     const query: Record<string, any> = {};
     if (availability) query.availability = availability;
-    if (filters.place) query.location = filters.place;
+    if (filters.place && filters.place.length > 0) {
+  query.location = { $in: filters.place };
+}
     if (filters.propertyType) query.propertyType = filters.propertyType;
     if (filters.minPrice) query.price = { ...query.price, $gte: filters.minPrice };
     if (filters.maxPrice) query.price = { ...query.price, $lte: filters.maxPrice };

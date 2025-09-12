@@ -134,6 +134,7 @@ const parsedAllocations = typeof allocations === "string"
           availability:
             selectedTab === "available" ? "Available" : "Not Available",
         });
+        console.log("Counts/api response:", res.data.counts);
         setTypeCounts(res.data.counts || {});
       } catch (err) {
         console.error("Failed to fetch counts:", err);
@@ -318,18 +319,22 @@ useEffect(() => {
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Property Type</SelectLabel>
-                {apartmentTypes.sort().map((type) => (
-                  <SelectItem key={type} value={type}>
+                {apartmentTypes.sort().map((type) => {
+                   console.log("Type:", type, "Count:", typeCounts[type], "All counts:", typeCounts);
+                  return (
+                       <SelectItem key={type} value={type}>
                     <div className="flex justify-between items-center w-full">
                       <span>{type}</span>
                       {typeCounts[type] && (
                         <span className="ml-2 text-xs bg-pink-600 text-white rounded-full px-2">
-                          {typeCounts[type]}
+                          {typeCounts[type] ?? 0}
+                      
                         </span>
                       )}
                     </div>
                   </SelectItem>
-                ))}
+                  )
+                })}
               </SelectGroup>
             </SelectContent>
           </Select>

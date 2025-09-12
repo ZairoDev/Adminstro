@@ -125,23 +125,26 @@ const parsedAllocations = typeof allocations === "string"
   };
 
   // console.log("filters: ", filterCount(filters), filters);
-  useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const endpoint = "/api/unregisteredOwners/getCounts";
-        const res = await axios.post(endpoint, {
-          filters,
-          availability:
-            selectedTab === "available" ? "Available" : "Not Available",
-        });
-        console.log("Counts/api response:", res.data.counts);
-        setTypeCounts(res.data.counts || {});
-      } catch (err) {
-        console.error("Failed to fetch counts:", err);
-      }
-    };
-    fetchCounts();
-  }, [filters, selectedTab]);
+ useEffect(() => {
+  const fetchCounts = async () => {
+    try {
+      const endpoint = "/api/unregisteredOwners/getCounts";
+      const res = await axios.post(endpoint, {
+        filters: {
+          ...filters,
+          allocations: parsedAllocations, // ✅ allocations merged into filters
+        },
+        availability:
+          selectedTab === "available" ? "Available" : "Not Available",
+      });
+      console.log("Counts/api response:", res.data.counts);
+      setTypeCounts(res.data.counts || {});
+    } catch (err) {
+      console.error("Failed to fetch counts:", err);
+    }
+  };
+  fetchCounts();
+}, [filters, selectedTab]);
 
   useEffect(() => {
     const getAllLocations = async () => {

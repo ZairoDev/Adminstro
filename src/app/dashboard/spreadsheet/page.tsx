@@ -18,6 +18,9 @@ const LIMIT = 50;
 const Spreadsheet = () => {
   const [data, setData] = useState<unregisteredOwners[]>([]);
   const [properties, setProperties] = useState<FilteredPropertiesInterface[]>([]);
+  const [availableCount, setAvailableCount] = useState(0);
+const [notAvailableCount, setNotAvailableCount] = useState(0);
+
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -156,19 +159,85 @@ const parsedAllocations =
     };
   }, [loadMore, isLoading]);
 
+  const getCounts = async () => {
+  try {
+    let effectiveFilters = { ...filters };
+    if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
+      effectiveFilters = {
+        ...effectiveFilters,
+        place: parsedAllocations,
+      };
+    }
+
+    const [availRes, notAvailRes] = await Promise.all([
+      axios.post("/api/unregisteredOwners/getAvailableList", {
+        filters: effectiveFilters,
+        page: 1,
+        limit: 1, // only need total
+      }),
+      axios.post("/api/unregisteredOwners/getNotAvailableList", {
+        filters: effectiveFilters,
+        page: 1,
+        limit: 1,
+      }),
+    ]);
+
+    setAvailableCount(availRes.data.total || 0);
+    setNotAvailableCount(notAvailRes.data.total || 0);
+  } catch (error) {
+    console.error("Failed to fetch counts:", error);
+  }
+};
+
+useEffect(() => {
+  getCounts();
+}, [filters, parsedAllocations]);
+
+
   return (
     <div>
       <h1 className="text-xl font-bold mb-4">Spreadsheet</h1>
 
       <Tabs
-        defaultValue="available"
-        value={selectedTab}
-        onValueChange={setSelectedTab}
-      >
+  value={selectedTab}
+  onValueChange={(val) => {
+    setSelectedTab(val);
+
+ 
+    setFilters({
+      searchType: "", // clears search type
+      searchValue: "", // clears search bar
+      propertyType: "",
+      place:
+        parsedAllocations.length === 1
+          ? [parsedAllocations[0]]
+          : parsedAllocations.length > 1
+          ? parsedAllocations
+          : [],
+      area: "",
+      zone: "",
+      metroZone: "",
+      rentalType: "Short Term",
+      minPrice: null,
+      maxPrice: null,
+      beds: 0,
+      bedrooms: 0,
+      bathroom: 0,
+      dateRange: undefined,
+    });
+
+    setPage(1);
+  }}
+>
         <TabsList>
-          <TabsTrigger value="available">Available <span>(35)</span></TabsTrigger>
-          <TabsTrigger value="notAvailable">Not Available <span>(35)</span></TabsTrigger>
-        </TabsList>
+  <TabsTrigger value="available">
+    Available <span>({availableCount})</span>
+  </TabsTrigger>
+  <TabsTrigger value="notAvailable">
+    Not Available <span>({notAvailableCount})</span>
+  </TabsTrigger>
+</TabsList>
+
 
         {/* Available Tab */}
         <TabsContent value="available">

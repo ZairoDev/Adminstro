@@ -1,19 +1,22 @@
 // app/api/unregisteredOwners/getCounts/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+import { useAuthStore } from "@/AuthStore";
 import { connectDb } from "@/util/db";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
   try {
-    const { filters, availability } = await req.json();
+    const { filters, availability ,allocations} = await req.json();
 
     // Build query based on filters
     const query: Record<string, any> = {};
     if (availability) query.availability = availability;
     if (filters.place && filters.place.length > 0) {
   query.location = { $in: filters.place };
+} else if (allocations && allocations.length > 0) {
+  query.location = { $in: allocations };
 }
     if (filters.propertyType) query.propertyType = filters.propertyType;
     if (filters.minPrice) query.price = { ...query.price, $gte: filters.minPrice };

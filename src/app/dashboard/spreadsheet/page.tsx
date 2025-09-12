@@ -12,6 +12,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
+import _ from "lodash";
 
 const LIMIT = 50;
 
@@ -93,10 +94,14 @@ const parsedAllocations =
       setIsLoading(false);
     }
   };
+    useEffect(() => {
+    getData(selectedTab, page);
+  }, [page, selectedTab]);
+
 
   const handleSubmit = () => {
     setPage(1);
-    getData(selectedTab, 1);
+    // getData(selectedTab, 1);
   };
 
   const handleClear = () => {
@@ -125,12 +130,21 @@ const parsedAllocations =
     getData(selectedTab, 1);
   }, [selectedTab]);
 
-  const loadMore = useCallback(() => {
-    if (isLoading || data.length >= total) return; 
-    const nextPage = page + 1;
-    setPage(nextPage);
-    getData(selectedTab, nextPage);
-  }, [isLoading, data, total, page, selectedTab]);
+  // const loadMore = useCallback(() => {
+  //   if (isLoading || data.length >= total) return; 
+  //   const nextPage = page + 1;
+  //   setPage(nextPage);
+  //   getData(selectedTab, nextPage);
+  // }, [isLoading, data, total, page, selectedTab]);
+
+   const loadMore = useCallback(
+    _.throttle(() => {
+      if (!isLoading && data.length < total) {
+        setPage((prev) => prev + 1);
+      }
+    }, 500),
+    [isLoading, data, total]
+  );
 
   useEffect(() => {
     if (!observerRef.current) return;
@@ -147,7 +161,7 @@ const parsedAllocations =
       },
       {
         root: null, 
-        rootMargin: "200px", 
+        rootMargin: "600px", 
         threshold: 0, 
       }
     );
@@ -205,8 +219,8 @@ useEffect(() => {
 
  
     setFilters({
-      searchType: "", // clears search type
-      searchValue: "", // clears search bar
+      searchType: "", 
+      searchValue: "", 
       propertyType: "",
       place:
         parsedAllocations.length === 1

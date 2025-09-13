@@ -1,0 +1,51 @@
+import mongoose from "mongoose";
+import { customAlphabet } from "nanoid";
+
+
+const generateBoostID = (length: number): string => {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const generateUniqueId = customAlphabet(charset, length);
+  return generateUniqueId();
+};
+
+const propertyBoosterSchema = new mongoose.Schema(
+
+  {
+     BoostID: {
+      type: String,
+      default: () => generateBoostID(6),
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true, // keeps clean edges but preserves inner formatting
+    },
+    images: [
+      {
+        type: String, // store image URLs or file paths
+        required: true,
+      },
+    ],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employees",
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { timestamps: true }
+);
+
+export const Boosters = mongoose.model("Property", propertyBoosterSchema);

@@ -40,6 +40,8 @@ import {
   Hotel,
   Sprout,
   CornerLeftUp,
+  Rocket,
+  List,
 } from "lucide-react";
 
 import {
@@ -763,6 +765,19 @@ const InvoiceRoutes = [
   },
 ];
 
+const propertyBoostRoutes = [
+  {
+    path: "/dashboard/propertyBoost",
+    label: "Property Boost",
+    Icon: <Rocket size={18} />,
+  },
+  {
+    path: "/dashboard/propertyBoost/list",
+    label: "Property List",
+    Icon: <List size={18} />,
+  },
+]
+
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -912,6 +927,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="Invoice Management"
           routes={invoiceRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Property Boost"
+          routes={propertyBoostRoutes}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

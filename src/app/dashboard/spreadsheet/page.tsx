@@ -94,14 +94,11 @@ const parsedAllocations =
       setIsLoading(false);
     }
   };
-    useEffect(() => {
-    getData(selectedTab, page);
-  }, [page, selectedTab]);
-
+    
 
   const handleSubmit = () => {
     setPage(1);
-    // getData(selectedTab, 1);
+    getData(selectedTab, 1);
   };
 
   const handleClear = () => {

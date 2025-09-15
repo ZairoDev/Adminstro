@@ -502,7 +502,7 @@ setFilters({ ...filters, area: value });
                 <SelectItem value="South">South</SelectItem>
                 <SelectItem value="East">East</SelectItem>
                 <SelectItem value="West">West</SelectItem>
-                <SelectItem value="Central">Central</SelectItem>
+                <SelectItem value="Central">Centre</SelectItem>
                 <SelectItem value="North-East">North-East</SelectItem>
                 <SelectItem value="North-West">North-West</SelectItem>
                 <SelectItem value="South-East">South-East</SelectItem>

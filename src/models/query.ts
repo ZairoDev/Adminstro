@@ -29,7 +29,6 @@ const querySchema = new Schema(
     },
     area: {
       type: String,
-      require: [true, "Area must be provided"],
     },
     guest: {
       type: Number,
@@ -66,8 +65,30 @@ const querySchema = new Schema(
     },
     zone: {
       type: String,
-      enum: ["North", "South", "East", "West", "Center", "Anywhere"],
-      require: [true, "Zone shoule be provided"],
+      enum: [
+        "",
+        "North",
+        "South",
+        "East",
+        "West",
+        "Center",
+        "North-East",
+        "North-West",
+        "South-East",
+        "South-West",
+        "Anywhere",
+      ],
+    },
+    metroZone: {
+      type: String,
+      enum: [
+        "",
+        "Blue Line",
+        "Red Line",
+        "Green Line",
+        "Yellow Line",
+        "Anywhere",
+      ],
     },
     billStatus: {
       type: String,
@@ -76,9 +97,9 @@ const querySchema = new Schema(
     leadStatus: {
       type: String,
     },
-    propertyShown:{
-      type:Number,
-      default:0,
+    propertyShown: {
+      type: Number,
+      default: 0,
     },
     reason: {
       type: String,
@@ -107,21 +128,24 @@ const querySchema = new Schema(
         "Different Area",
         "Agency Fees",
         "Didn't like the option",
+        "Low Duration"
       ],
       default: null,
     },
     typeOfProperty: {
       type: String,
       enum: [
-        "Studio",
-        "Apartment",
+        "1 Bedroom",
+        "2 Bedroom",
+        "3 Bedroom",
+        "4 Bedroom",
         "Villa",
         "Pent House",
         "Detached House",
         "Loft",
         "Shared Apartment",
         "Maisotte",
-        "Studio / 1 bedroom",
+        "Studio",
       ],
     },
     propertyType: {
@@ -136,7 +160,7 @@ const querySchema = new Schema(
     },
     messageStatus: {
       type: String,
-      enum: ["First","Second","Third","Fourth","Options","Visit","None"],
+      enum: ["First", "Second", "Third", "Fourth", "Options", "Visit", "None"],
       require: [true, "Status must be provided"],
       default: "None",
     },

@@ -208,18 +208,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   };
 
   const getRecommendations = (id: any, index: number) => {
-    try {
-      axios.post("/api/getRecommendations", {
-        id,
-      });
-      toast({
-        description: "Rejection reason saved succefully",
-      });
-    } catch (error: any) {
-      toast({
-        description: "Error occurred while updating status",
-      });
-    }
+    router.push(`/dashboard/recommendations/${id}`);
   }
 
   const handleDisposition = async (
@@ -792,7 +781,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                           label: area.name.toLowerCase(),
                         })) ?? []
                     }
-                    value={query.area}
+                    value={query.area ?? "" }
                     save={(val) => handleSave(query._id!, "area", val)}
                     tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
                     icon={<span className="text-green-500">✅</span>}

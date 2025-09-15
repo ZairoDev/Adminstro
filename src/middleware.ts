@@ -10,12 +10,13 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/superadmin",
     // "/spreadsheet",
     "/dashboard",
+    /^\/dashboard\/recommendations\/.*$/,
     /^\/dashboard\/.*$/,
     /^\/property\/.*$/,
   ],
   Admin: [
     "/",
-    "/admin",
+    "/admin", 
     "/dashboard",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
@@ -175,6 +176,8 @@ export async function middleware(request: NextRequest) {
       typeof pattern === "string" ? path === pattern : pattern.test(path)
     );
   };
+  // console.log("path", path);
+  // console.log("matchesRolePattern", matchesRolePattern("SuperAdmin", path));
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)
   );

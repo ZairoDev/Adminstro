@@ -23,10 +23,10 @@ import { Area } from "./page";
 
 
 export const metroLines = [
-  { value: "blue", label: "Blue Line" },
-  { value: "red", label: "Red Line" },
-  { value: "green", label: "Green Line" },
-  { value: "yellow", label: "Yellow Line" },
+  { value: "Blue Line", label: "Blue Line" },
+  { value: "Red Line", label: "Red Line" },
+  { value: "Green Line", label: "Green Line" },
+  { value: "Yellow Line", label: "Yellow Line" },
 ];
 
 export function AreaModel({

@@ -165,7 +165,7 @@ export default function QueryCard(query: IQuery) {
                 <ScrollArea className="md:h-[400px] h-[300px] w-full border-none rounded-md border p-4">
                   <div className="flex flex-col gap-y-3">
                     <div className="border px-3 py-2 rounded-lg">
-                      <InfoItem icon={MapPin} label="Area" value={query.area} />
+                      <InfoItem icon={MapPin} label="Area" value={query.area ?? ""} />
                     </div>
                     <div className="border px-3 py-2 rounded-lg">
                       <InfoItem
@@ -206,7 +206,7 @@ export default function QueryCard(query: IQuery) {
                       <InfoItem
                         icon={ChartArea}
                         label="Zone"
-                        value={query.zone}
+                        value={query.zone ?? ""}
                       />
                     </div>
                     <div className="border px-3 py-2 rounded-lg">

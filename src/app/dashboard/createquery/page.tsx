@@ -60,6 +60,8 @@ import {
   PaginationLink,
 } from "@/components/ui/pagination";
 import SearchableAreaSelect from "./SearchAndSelect";
+import { metroLines } from "../target/components/editArea";
+import { apartmentTypes } from "../spreadsheet/spreadsheetTable";
 
 interface ApiResponse {
   data: IQuery[];
@@ -128,6 +130,7 @@ const SalesDashboard = () => {
     location: "",
     bookingTerm: "",
     zone: "",
+    metroZone: "",
     billStatus: "",
     typeOfProperty: "",
     propertyType: "",
@@ -141,32 +144,33 @@ const SalesDashboard = () => {
     messageStatus:"None",
   });
 
-  const locationList = [ {
-    id:1,
-    label: "Athens",
-    value: "athens",
-  },
-  {
-    id:2,
-    label: "Thessaloniki",
-    value: "thessaloniki",
-  },
-  {
-    id:3,
-    label: "Milan",
-    value: "milan",
-  },
-  { 
-    id:4,
-    label: "Rome",
-    value: "rome",
-  },
-  {
-    id:5,
-    label: "Chania",
-    value: "chania",
-  },
-]
+//   const locationList = [ {
+//     id:1,
+//     label: "Athens",
+//     value: "athens",
+//   },
+//   {
+//     id:2,
+//     label: "Thessaloniki",
+//     value: "thessaloniki",
+//   },
+//   {
+//     id:3,
+//     label: "Milan",
+//     value: "milan",
+//   },
+//   { 
+//     id:4,
+//     label: "Rome",
+//     value: "rome",
+//   },
+//   {
+//     id:5,
+//     label: "Chania",
+//     value: "chania",
+//   },
+// ]
+
 
   const [location,setLocation] = useState([]);
   
@@ -244,14 +248,27 @@ const SalesDashboard = () => {
     try {
       const emptyFields: string[] = [];
       const canBeEmptyField = ["salesPriority"];
-      // const { minBudget, maxBudget, ...otherFields } = formData;
 
-      // const budget = `${budgetFrom} to ${budgetTo}`;
-      // formData.budget = budget;
+      // ✅ Check if area, zone, metroZone - at least one is required
+      if (
+        !formData.area?.trim() &&
+        !formData.zone?.trim() &&
+        !formData.metroZone?.trim()
+      ) {
+        toast({
+          description: "Please fill at least one of: Area, Zone, or Metro Zone",
+        });
+        return;
+      }
+
+      // ✅ Check other required fields
       Object.entries(formData).forEach(([key, value]) => {
         if (
           (value === "" || value === null || value === undefined) &&
-          !canBeEmptyField.includes(key)
+          !canBeEmptyField.includes(key) &&
+          key !== "area" &&
+          key !== "zone" &&
+          key !== "metroZone" // we already handled these above
         ) {
           const fieldName = key
             .replace(/([A-Z])/g, " $1")
@@ -269,22 +286,24 @@ const SalesDashboard = () => {
         });
         return;
       }
+
       const formDataToSubmit = {
         ...formData,
-        // budget,
         phoneNo: phone.replace(/\D/g, ""),
       };
-      // console.log("form to submit: ", formDataToSubmit);
+
       setSubmitQuery(true);
 
       const response = await axios.post(
         "/api/sales/createquery",
         formDataToSubmit
       );
+
       toast({
         description: "Query Created Successfully",
       });
 
+      // ✅ Reset form after submission
       setFormData({
         startDate: "",
         duration: "",
@@ -312,17 +331,19 @@ const SalesDashboard = () => {
         },
         leadQualityByCreator: "",
         messageStatus: "",
+        metroZone: "", // ✅ Make sure metroZone exists in formData reset
       });
     } catch (error: any) {
-      console.error("Error:", error.response.data.error);
+      console.error("Error:", error.response?.data?.error);
       toast({
         variant: "destructive",
-        description: `${error.response.data.error}`,
+        description: `${error.response?.data?.error || "Something went wrong"}`,
       });
     } finally {
       setSubmitQuery(false);
     }
   };
+  
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -897,23 +918,16 @@ const SalesDashboard = () => {
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Studio">Studio</SelectItem>
-                            <SelectItem value="Apartment">Apartment</SelectItem>
-                            <SelectItem value="Villa">Villa</SelectItem>
-                            <SelectItem value="Pent House">
-                              Pent House
-                            </SelectItem>
-                            <SelectItem value="Detached House">
-                              Detached House
-                            </SelectItem>
-                            <SelectItem value="Loft">Loft</SelectItem>
-                            <SelectItem value="Shared Apartment">
-                              Shared Apartment
-                            </SelectItem>
-                            <SelectItem value="Maisotte">Maisotte</SelectItem>
-                            <SelectItem value="Studio / 1 bedroom">
-                              Studio / 1 bedroom
-                            </SelectItem>
+                            {
+                              apartmentTypes.map((propertyType, index) => (
+                                <SelectItem
+                                  key={index}
+                                  value={propertyType.value}
+                                >
+                                  {propertyType.label}
+                                </SelectItem>
+                              ))
+                            }
                           </SelectContent>
                         </Select>
                       </div>
@@ -992,6 +1006,18 @@ const SalesDashboard = () => {
                             <SelectItem value="North">North</SelectItem>
                             <SelectItem value="South">South</SelectItem>
                             <SelectItem value="Center">Center</SelectItem>
+                            <SelectItem value="North-East">
+                              North-East
+                            </SelectItem>
+                            <SelectItem value="North-West">
+                              North-West
+                            </SelectItem>
+                            <SelectItem value="South-East">
+                              South-East
+                            </SelectItem>
+                            <SelectItem value="South-West">
+                              South-West
+                            </SelectItem>
                             <SelectItem value="Anywhere">Anywhere</SelectItem>
                           </SelectContent>
                         </Select>
@@ -999,14 +1025,29 @@ const SalesDashboard = () => {
                     </div>
 
                     {/* Area */}
-                    <div className="w-full mt-2 ml-1 mb-2">
-                      <Label>Area</Label>
-                      <Input
-                        name="area"
-                        value={formData.area}
-                        placeholder="Enter Area"
-                        onChange={(e) => handleInputChange(e)}
-                      />
+
+                    <div>
+                      <Label>Metro Zone</Label>
+                      <Select
+                        value={formData.metroZone}
+                        onValueChange={(value) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            metroZone: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Metro Line" />
+                        </SelectTrigger>
+                        <SelectContent>
+                                            {metroLines.map((line) => (
+                                              <SelectItem key={line.value} value={line.label}>
+                                                {line.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </ScrollArea>

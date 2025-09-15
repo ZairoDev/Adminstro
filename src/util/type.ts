@@ -288,13 +288,14 @@ export interface IQuery {
   startDate: string;
   endDate: string;
   phoneNo: number;
-  area: string;
+  area?: string;
   guest: number;
   budget?: string;
   noOfBeds: number;
   location: string;
   bookingTerm: string;
-  zone: string;
+  zone?: string;
+  metroZone?: string;
   billStatus: string;
   typeOfProperty: string;
   propertyType: string;

@@ -49,6 +49,19 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
 
+export const apartmentTypes = [
+  { label: "Studio", value: "Studio" },
+  { label: "1 Bedroom", value: "1 Bedroom" },
+  { label: "2 Bedroom", value: "2 Bedroom" },
+  { label: "3 Bedroom", value: "3 Bedroom" },
+  { label: "4 Bedroom", value: "4 Bedroom" },
+  { label: "Villa", value: "Villa" },
+  { label: "Pent House", value: "Pent House" },
+  { label: "Detached House", value: "Detached House" },
+  { label: "Loft", value: "Loft" },
+  { label: "Shared Apartment", value: "Shared Apartment" },
+  { label: "Maisotte", value: "Maisotte" },
+];
 export function SpreadsheetTable({
   tableData,
   setTableData,
@@ -100,19 +113,7 @@ export function SpreadsheetTable({
     ("Allowed" | "Not Allowed" | "None")[]
   >(Array.from({ length: tableData?.length }, () => "None"));
 
-  const apartmentTypes = [
-    { label: "Studio", value: "Studio" },
-    { label: "1 Bedroom", value: "1 Bedroom" },
-    { label: "2 Bedroom", value: "2 Bedroom" },
-    { label: "3 Bedroom", value: "3 Bedroom" },
-    { label: "4 Bedroom", value: "4 Bedroom" },
-    { label: "Villa", value: "Villa" },
-    { label: "Pent House", value: "Pent House" },
-    { label: "Detached House", value: "Detached House" },
-    { label: "Loft", value: "Loft" },
-    { label: "Shared Apartment", value: "Shared Apartment" },
-    { label: "Maisotte", value: "Maisotte" },
-  ];
+
   const interiorStatus = [
     { label: "F", value: "Fully Furnished" },
     { label: "S F", value: "SemiFurnished" },

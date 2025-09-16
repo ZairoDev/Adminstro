@@ -49,18 +49,56 @@ const parsedAllocations =
     area: "",
     zone: "",
     metroZone: "",
-    rentalType: "Short Term",
+    // rentalType: "Short Term",
     minPrice:  0,
     maxPrice:  0,
     beds: 0,
-    bedrooms: 0,
-    bathroom: 0,
     dateRange: undefined,
   });
 
   
 
-  const getData = async (tab: string, currentPage: number) => {
+  // const getData = async (tab: string, currentPage: number) => {
+  //   try {
+  //     setIsLoading(true);
+  //     const endpoint =
+  //       tab === "available"
+  //         ? "/api/unregisteredOwners/getAvailableList"
+  //         : "/api/unregisteredOwners/getNotAvailableList";
+
+  //          let effectiveFilters = { ...filters };
+  //   if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
+  //     effectiveFilters = {
+  //       ...effectiveFilters,
+  //       place: parsedAllocations,
+  //     };
+  //   }  
+
+  //     const response = await axios.post(endpoint, {
+  //       filters: effectiveFilters,
+  //       page: currentPage,
+  //       limit: LIMIT,
+  //     });
+
+  //     const newData = Array.isArray(response.data.data)
+  //       ? response.data.data
+  //       : [response.data.data];
+
+  //     setData((prev) => (currentPage === 1 ? newData : [...prev, ...newData]));
+  //     setTotal(response.data.total || 0);
+  //   } catch (error) {
+  //     console.error("Failed to fetch data:", error);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+  
+  const getData = async (
+    tab: string,
+    currentPage: number,
+    appliedFilters?: FiltersInterfaces
+  ) => {
+    if (isLoading) return;
     try {
       setIsLoading(true);
       const endpoint =
@@ -68,13 +106,10 @@ const parsedAllocations =
           ? "/api/unregisteredOwners/getAvailableList"
           : "/api/unregisteredOwners/getNotAvailableList";
 
-           let effectiveFilters = { ...filters };
-    if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-      effectiveFilters = {
-        ...effectiveFilters,
-        place: parsedAllocations,
-      };
-    }  
+      let effectiveFilters = { ...(appliedFilters ?? filters) };
+      if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
+        effectiveFilters.place = parsedAllocations;
+      }
 
       const response = await axios.post(endpoint, {
         filters: effectiveFilters,
@@ -94,6 +129,7 @@ const parsedAllocations =
       setIsLoading(false);
     }
   };
+  
     
 
   const handleSubmit = () => {
@@ -102,25 +138,31 @@ const parsedAllocations =
   };
 
   const handleClear = () => {
-    setFilters({
+    const resetFilters = {
       searchType: "",
       searchValue: "",
       propertyType: "",
-      place: [],
+      place:
+        parsedAllocations.length === 1
+          ? [parsedAllocations[0]]
+          : parsedAllocations.length > 1
+          ? parsedAllocations
+          : [],
       area: "",
       zone: "",
       metroZone: "",
-      rentalType: "Short Term",
       minPrice: 0,
       maxPrice: 0,
       beds: 0,
-      bedrooms: 0,
-      bathroom: 0,
       dateRange: undefined,
-    });
+    };
+
+    setFilters(resetFilters);
     setPage(1);
-    getData(selectedTab, 1);
+    setData([]);
+    getData(selectedTab, 1, resetFilters);
   };
+  
 
   useEffect(() => {
     setPage(1);
@@ -142,6 +184,12 @@ const parsedAllocations =
     }, 500),
     [isLoading, data, total]
   );
+  useEffect(() => {
+    if (page > 1) {
+      getData(selectedTab, page);
+    }
+  }, [page, selectedTab]); 
+  
 
   useEffect(() => {
     if (!observerRef.current) return;
@@ -210,45 +258,43 @@ useEffect(() => {
       <h1 className="text-xl font-bold mb-4">Spreadsheet</h1>
 
       <Tabs
-  value={selectedTab}
-  onValueChange={(val) => {
-    setSelectedTab(val);
+        value={selectedTab}
+        onValueChange={(val) => {
+          setSelectedTab(val);
 
- 
-    setFilters({
-      searchType: "", 
-      searchValue: "", 
-      propertyType: "",
-      place:
-        parsedAllocations.length === 1
-          ? [parsedAllocations[0]]
-          : parsedAllocations.length > 1
-          ? parsedAllocations
-          : [],
-      area: "",
-      zone: "",
-      metroZone: "",
-      rentalType: "Short Term",
-      minPrice: null,
-      maxPrice: null,
-      beds: 0,
-      bedrooms: 0,
-      bathroom: 0,
-      dateRange: undefined,
-    });
+          setFilters({
+            searchType: "",
+            searchValue: "",
+            propertyType: "",
+            place:
+              parsedAllocations.length === 1
+                ? [parsedAllocations[0]]
+                : parsedAllocations.length > 1
+                ? parsedAllocations
+                : [],
+            area: "",
+            zone: "",
+            metroZone: "",
+            // rentalType: "Short Term",
+            minPrice: null,
+            maxPrice: null,
+            beds: 0,
 
-    setPage(1);
-  }}
->
+            dateRange: undefined,
+          });
+
+          setPage(1);
+          setData([]);
+        }}
+      >
         <TabsList>
-  <TabsTrigger value="available">
-    Available <span>({availableCount})</span>
-  </TabsTrigger>
-  <TabsTrigger value="notAvailable">
-    Not Available <span>({notAvailableCount})</span>
-  </TabsTrigger>
-</TabsList>
-
+          <TabsTrigger value="available">
+            Available <span>({availableCount})</span>
+          </TabsTrigger>
+          <TabsTrigger value="notAvailable">
+            Not Available <span>({notAvailableCount})</span>
+          </TabsTrigger>
+        </TabsList>
 
         {/* Available Tab */}
         <TabsContent value="available">
@@ -261,6 +307,10 @@ useEffect(() => {
           />
           <SpreadsheetTable tableData={data} setTableData={setData} />
           {isLoading && <p className="text-center">Loading...</p>}
+          {!isLoading && data.length >= total && (
+            <p className="text-center text-gray-500 my-2">No more records</p>
+          )}
+
           <div ref={observerRef} className="h-10" />
         </TabsContent>
 
@@ -272,7 +322,6 @@ useEffect(() => {
             handleSubmit={handleSubmit}
             handleClear={handleClear}
             selectedTab={selectedTab}
-
           />
           <SpreadsheetTable tableData={data} setTableData={setData} />
           {isLoading && <p className="text-center">Loading...</p>}

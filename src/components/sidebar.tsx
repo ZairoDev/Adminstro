@@ -98,6 +98,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Spreadsheet Data",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/invoice",
+      label: "Manage Invoice",
+      Icon: <Notebook size={18} />,
+    },
+    {
+      path: "/dashboard/invoice/list",
+      label: "List Invoice",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   LeadGen: [
     {
@@ -178,6 +188,16 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/spreadsheet",
       label: "Spreadsheet Data",
       Icon: <FileSpreadsheet size={18} />,
+    },
+    {
+      path: "/dashboard/areadetails",
+      label: "Area Details",
+      Icon: <TramFront size={18} />,
+    },
+    {
+      path: "/dashboard/areapriceinfo",
+      label: "Area Price Info",
+      Icon: <BadgeEuro size={18} />,
     },
     {
       path: "/dashboard/addons",
@@ -592,6 +612,16 @@ const dashboardManagementRoutes = [
     path: "/dashboard/target",
     label: "Create Target",
     Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/areadetails",
+    label: "Area Details",
+    Icon: <TramFront size={18} />,
+  },
+  {
+    path: "/dashboard/areapriceinfo",
+    label: "Area Price Info",
+    Icon: <BadgeEuro size={18} />,
   },
 ];
 const leadManagementRoutes = [

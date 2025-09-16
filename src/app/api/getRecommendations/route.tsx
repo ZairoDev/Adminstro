@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 3️⃣ Handle area, zone, metroZone logic
-    if (query.area) {
+    if (query.area || query.area !== "Anywhere") {
       baseMatchStage.area = { $regex: query.area, $options: "i" };
     } else if (query.zone || query.metroZone) {
       const areaFilter: Record<string, any> = {};
-      if (query.zone) areaFilter.zone = { $regex: query.zone, $options: "i" };
+      if (query.zone || query.zone !== "Anywhere") areaFilter.zone = { $regex: query.zone, $options: "i" };
       if (query.metroZone)
         areaFilter.metroZone = { $regex: query.metroZone, $options: "i" };
 

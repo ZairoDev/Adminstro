@@ -128,13 +128,15 @@ const querySchema = new Schema(
         "Different Area",
         "Agency Fees",
         "Didn't like the option",
-        "Low Duration"
+        "Low Duration",
       ],
       default: null,
     },
     typeOfProperty: {
       type: String,
       enum: [
+        "Apartment",
+        "Studio / 1 bedroom",
         "1 Bedroom",
         "2 Bedroom",
         "3 Bedroom",

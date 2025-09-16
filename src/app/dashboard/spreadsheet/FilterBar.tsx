@@ -64,12 +64,12 @@ export interface FiltersInterfaces {
   area:string;
   zone:string;
   metroZone:string;
-  rentalType: "Short Term" | "Long Term";
+  // rentalType?: "Short Term" | "Long Term";
   minPrice: number | null;
   maxPrice: number | null;
   beds: number;
-  bedrooms: number;
-  bathroom: number;
+  // bedrooms: number;
+  // bathroom: number;
   dateRange: DateRange | undefined;
 }
 const filterCount = (filters: FiltersInterfaces) => {
@@ -109,20 +109,20 @@ const allocations = token?.allotedArea || [];
 const parsedAllocations = typeof allocations === "string"
   ? allocations.split(",").filter(Boolean)
   : allocations;
-  const longTermDateSelect = (value: DateRange | undefined) => {
-    const from = value?.from;
-    const to = value?.to;
-    if (from && to) {
-      const numberOfDays = Math.floor(
-        (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      if (numberOfDays < 28 && filters.rentalType === "Long Term") {
-        alert("Minimum stay for long term rentals is 28 days.");
-        return;
-      }
-    }
-    setFilters({ ...filters, dateRange: value });
-  };
+  // const longTermDateSelect = (value: DateRange | undefined) => {
+  //   const from = value?.from;
+  //   const to = value?.to;
+  //   if (from && to) {
+  //     const numberOfDays = Math.floor(
+  //       (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+  //     );
+  //     if (numberOfDays < 28 && filters.rentalType === "Long Term") {
+  //       alert("Minimum stay for long term rentals is 28 days.");
+  //       return;
+  //     }
+  //   }
+  //   setFilters({ ...filters, dateRange: value });
+  // };
 
   // console.log("filters: ", filterCount(filters), filters);
  useEffect(() => {
@@ -323,20 +323,26 @@ useEffect(() => {
               <SelectGroup>
                 <SelectLabel>Property Type</SelectLabel>
                 {apartmentTypes.sort().map((type) => {
-                   console.log("Type:", type, "Count:", typeCounts[type], "All counts:", typeCounts);
+                  console.log(
+                    "Type:",
+                    type,
+                    "Count:",
+                    typeCounts[type],
+                    "All counts:",
+                    typeCounts
+                  );
                   return (
-                       <SelectItem key={type} value={type}>
-                    <div className="flex justify-between items-center w-full">
-                      <span>{type}</span>
-                      {typeCounts[type] && (
-                        <span className="ml-2 text-xs bg-pink-600 text-white rounded-full px-2">
-                          {typeCounts[type] ?? 0}
-                      
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                  )
+                    <SelectItem key={type} value={type}>
+                      <div className="flex justify-between items-center w-full">
+                        <span>{type}</span>
+                        {typeCounts[type] && (
+                          <span className="ml-2 text-xs bg-pink-600 text-white rounded-full px-2">
+                            {typeCounts[type] ?? 0}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
                 })}
               </SelectGroup>
             </SelectContent>
@@ -379,53 +385,54 @@ useEffect(() => {
           </Select>
         </div> */}
 
-<div>
-  <Select
-    onValueChange={(value) => {
-      // only set filters.place here — selectedLocation and areas are derived from that
-      setFilters({ ...filters, place: value ? [value] : [] });
-    }}
-    value={filters.place.length > 0 ? filters.place[0] : undefined}
-  >
-    <SelectTrigger className="w-44 border border-neutral-700">
-      <SelectValue
-        placeholder={
-          parsedAllocations.length === 0
-            ? "Select location"
-            : parsedAllocations.length === 1 && filteredTargets.length === 1
-            ? filteredTargets[0].city
-            : "Select location"
-        }
-      />
-    </SelectTrigger>
+        <div>
+          <Select
+            onValueChange={(value) => {
+              // only set filters.place here — selectedLocation and areas are derived from that
+              setFilters({ ...filters, place: value ? [value] : [] });
+            }}
+            value={filters.place.length > 0 ? filters.place[0] : ""}
+          >
+            <SelectTrigger className="w-44 border border-neutral-700">
+              <SelectValue
+                placeholder={
+                  parsedAllocations.length === 0
+                    ? "Select location"
+                    : parsedAllocations.length === 1 &&
+                      filteredTargets.length === 1
+                    ? filteredTargets[0].city
+                    : "Select location"
+                }
+              />
+            </SelectTrigger>
 
-    <SelectContent>
-      <SelectGroup>
-        <SelectLabel>
-          {parsedAllocations.length === 0 ? "Locations" : "Allotted Locations"}
-        </SelectLabel>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>
+                  {parsedAllocations.length === 0
+                    ? "Locations"
+                    : "Allotted Locations"}
+                </SelectLabel>
 
-        {filteredTargets.map((loc) => (
-          <SelectItem key={loc.city} value={loc.city}>
-            {loc.city}
-          </SelectItem>
-        ))}
+                {filteredTargets.map((loc) => (
+                  <SelectItem key={loc.city} value={loc.city}>
+                    {loc.city}
+                  </SelectItem>
+                ))}
 
-        {/* if filteredTargets is empty (allocation names not found in targets),
+                {/* if filteredTargets is empty (allocation names not found in targets),
             you can optionally show the raw parsedAllocations as fallback */}
-        {filteredTargets.length === 0 &&
-          parsedAllocations.length > 0 &&
-          parsedAllocations.map((city: string) => (
-            <SelectItem key={city} value={city}>
-              {city}
-            </SelectItem>
-          ))}
-      </SelectGroup>
-    </SelectContent>
-  </Select>
-</div>
-
-
+                {filteredTargets.length === 0 &&
+                  parsedAllocations.length > 0 &&
+                  parsedAllocations.map((city: string) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* <div>
            <Select
@@ -465,6 +472,7 @@ setFilters({ ...filters, area: value });
 
         <div className="w-44">
           <AreaSelect
+            key={filters.place.join(",")}
             maxWidth="100%"
             data={[...areas] // ✅ copy array
               .sort((a, b) => a.name.localeCompare(b.name))

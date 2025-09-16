@@ -128,7 +128,9 @@ export default function RecommendationPage() {
             )}
           </Badge>
         </div>
-        {item.remarks && <CardDescription>{item.remarks}</CardDescription>}
+        {item.remarks && (
+          <CardDescription>Remarks: {item.remarks}</CardDescription>
+        )}
       </CardHeader>
       <CardContent className="space-y-2">
         {item.price && (
@@ -141,7 +143,15 @@ export default function RecommendationPage() {
         )}
         {item.phoneNumber && (
           <p className="text-sm text-muted-foreground">
-            Phone: {item.phoneNumber}
+            Phone:{" "}
+            <a
+              href={`https://wa.me/${item.phoneNumber.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              {item.phoneNumber}
+            </a>
           </p>
         )}
         {item.referenceLink && (

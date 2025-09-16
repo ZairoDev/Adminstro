@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
 
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
-    if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
+    // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
     if (filters.place) {
   const locations = filters.place.flat().filter(loc => typeof loc === 'string');
 

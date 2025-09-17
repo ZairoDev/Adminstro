@@ -269,7 +269,8 @@ const SalesDashboard = () => {
           !canBeEmptyField.includes(key) &&
           key !== "area" &&
           key !== "zone" &&
-          key !== "metroZone" // we already handled these above
+          key !== "metroZone" &&
+          key !== "BoostID"
         ) {
           const fieldName = key
             .replace(/([A-Z])/g, " $1")
@@ -1054,7 +1055,7 @@ const SalesDashboard = () => {
                       <Label>BoostID</Label>
                       <Input
                         name="BoostID"
-                        value={formData.BoostID}
+                        value={formData?.BoostID}
                         placeholder="Enter BoostID"
                         onChange={handleInputChange}
                       />

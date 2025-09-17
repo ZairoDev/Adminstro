@@ -38,6 +38,7 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   agentCommission: { type: Number, required: true },
   documentationCharges: { type: Number, required: true },
   visitStatus: { type: String, required: true, default: "scheduled" },
+  rejectionReason: { type: String },
   reason: { type: String, required: false },
   note: { type: String, required: false },
   createdBy: { type: String, required: true },

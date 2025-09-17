@@ -341,6 +341,7 @@ export interface VisitInterface {
   agentCommission: number;
   documentationCharges: number;
   visitStatus: string;
+  rejectionReason?: string;
   reason: string;
   note: string;
   createdBy: string;

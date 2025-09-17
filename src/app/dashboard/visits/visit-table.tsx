@@ -1,6 +1,6 @@
 import axios from "axios";
 import Link from "next/link";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, ClipboardCopy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -20,6 +20,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuPortal,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +33,19 @@ import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
 import BookingModal from "./booking-modal";
+
+function CopyButton({ value }: { value: string }) {
+  const { toast } = useToast();
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    toast({ title: "Copied!"});
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={handleCopy}>
+      <ClipboardCopy size={16} />
+    </Button>
+  );
+}
 
 export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
   const { toast } = useToast();
@@ -79,6 +96,35 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
     }
   };
 
+  // Add rejection handler
+  const handleRejectionReason = async (
+    rejectionReason: string,
+    id: any,
+    index: number
+  ) => {
+    setLoading(true);
+    try {
+      await axios.post("/api/visits/rejectVisit", {
+        id,
+        rejectionReason,
+        status: "rejected",
+      });
+      toast({
+        description: "Visit rejected successfully",
+      });
+      // Optionally update visit object locally
+      visits[index].visitStatus = "rejected";
+      visits[index].rejectionReason = rejectionReason;
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        description: "Error occurred while updating status",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className=" w-full">
       <Table>
@@ -91,7 +137,6 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
             <TableHead>Customer Phone</TableHead>
             <TableHead>Visit Type</TableHead>
             <TableHead>Agent Name</TableHead>
-            {token?.role === "SuperAdmin" && <TableHead>Agent Phone</TableHead>}
             <TableHead className="">Commission</TableHead>
             <TableHead>VSID</TableHead>
             <TableHead>Visit Status</TableHead>
@@ -105,33 +150,31 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
 
               <TableCell>{visit.ownerName}</TableCell>
 
-              <TableCell>{visit.ownerPhone}</TableCell>
+              <TableCell>
+                <CopyButton value={visit.ownerPhone} />
+              </TableCell>
 
               <TableCell>{visit.lead?.name}</TableCell>
 
-              <TableCell>{visit.lead?.phoneNo}</TableCell>
+              <TableCell>
+                <CopyButton value={visit.lead?.phoneNo.toString() ?? ""} />
+              </TableCell>
 
               <TableCell>{visit.visitType}</TableCell>
 
               <TableCell>{visit.agentName}</TableCell>
 
-              {token?.role === "SuperAdmin" && (
-                <TableCell>{visit.agentPhone}</TableCell>
-              )}
-
-              <TableCell className=" text-center flex gap-x-1">
-                <Badge>
-                  <CustomTooltip
-                    text={visit.ownerCommission.toString()}
-                    desc="Owner Commission"
-                  />
-                </Badge>
-                <Badge>
-                  <CustomTooltip
-                    text={visit.travellerCommission.toString()}
-                    desc="Traveller Commission"
-                  />
-                </Badge>
+              <TableCell className="text-center">
+                <div className="flex gap-x-1 justify-center">
+                  <Badge>
+                    <CustomTooltip
+                      text={`€${
+                        visit?.ownerCommission + visit?.travellerCommission
+                      }`}
+                      desc={`Owner: €${visit?.ownerCommission}\nTraveller: €${visit?.travellerCommission}`}
+                    />
+                  </Badge>
+                </div>
               </TableCell>
 
               <TableCell>
@@ -178,6 +221,35 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                       >
                         Add Booking
                       </DropdownMenuItem>
+                      {/* --- Add Reject option with sub-dropdown --- */}
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="cursor-pointer">
+                          Reject
+                        </DropdownMenuSubTrigger>
+
+                        <DropdownMenuSubContent>
+                          {[
+                            "Blocked on whatsapp",
+                            "Late Response",
+                            "Delayed the travelling",
+                            "Already got it",
+                            "Didn't like the option",
+                            "Different Area",
+                            "Agency Fees",
+                          ].map((reason, ind) => (
+                            <DropdownMenuItem
+                              key={ind}
+                              onClick={() =>
+                                handleRejectionReason(reason, visit._id, index)
+                              }
+                              className="cursor-pointer"
+                            >
+                              {reason}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      {/* --- End Reject option --- */} 
                     </DropdownMenuGroup>
                     <AlertDialog open={activeModalRow === index}>
                       <AlertDialogContent>

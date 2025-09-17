@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const visits = await Visits.find().populate({
       path: "lead",
       select: "name phoneNo",
-    });
+    }).sort({ createdAt: -1 });
     const totalVisits = await Visits.countDocuments();
     const totalPages = Math.ceil(totalVisits / 50);
     return NextResponse.json(

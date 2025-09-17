@@ -24,6 +24,7 @@ const VisitSchema = z.object({
   ownerCommission: z.number(),
   travellerCommission: z.number(),
   agentCommission: z.number(),
+  rejectionReason: z.string().optional(),
   documentationCharges: z.number(),
   visitStatus: z.string(),
   reason: z.string(),

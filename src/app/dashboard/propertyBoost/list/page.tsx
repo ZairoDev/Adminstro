@@ -74,7 +74,7 @@ export default function BoostPropertiesPage() {
         </div>
         {searchTerm && (
           <p className="text-sm text-muted-foreground text-center mt-2">
-            {filteredProperties.length} result{filteredProperties.length !== 1 ? "s" : ""} found for "{searchTerm}"
+            {filteredProperties.length} result{filteredProperties.length !== 1 ? "s" : ""} found for &quot;{searchTerm}&quot;
           </p>
         )}
       </div>

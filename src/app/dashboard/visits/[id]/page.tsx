@@ -246,14 +246,14 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                     <User className="h-4 w-4 text-gray-500" />
                     <div>
                       <p className="text-sm font-medium text-gray-500">Name</p>
-                      <p className="font-medium">{visitData.lead.name}</p>
+                      <p className="font-medium">{visitData?.lead?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="h-4 w-4 text-gray-500" />
                     <div>
                       <p className="text-sm font-medium text-gray-500">Phone</p>
-                      <p className="font-medium">{visitData.lead.phoneNo}</p>
+                      <p className="font-medium">{visitData?.lead?.phoneNo}</p>
                     </div>
                   </div>
                   {/* <div className="flex items-center space-x-3">

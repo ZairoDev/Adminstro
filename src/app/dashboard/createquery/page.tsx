@@ -332,11 +332,8 @@ const SalesDashboard = () => {
         },
         leadQualityByCreator: "",
         messageStatus: "",
-<<<<<<< Updated upstream
         metroZone: "", // ✅ Make sure metroZone exists in formData reset
-=======
         BoostID: "",
->>>>>>> Stashed changes
       });
     } catch (error: any) {
       console.error("Error:", error.response?.data?.error);
@@ -900,7 +897,7 @@ const SalesDashboard = () => {
                   </div>
 
                   {/* Section 5: Property Details */}
-                  <div className="">
+                
                     <h3 className="text-lg font-semibold border-b pb-1 pt-4">
                       Property Details
                     </h3>
@@ -1030,7 +1027,6 @@ const SalesDashboard = () => {
                     </div>
 
                     {/* Area */}
-<<<<<<< Updated upstream
 
                     <div>
                       <Label>Metro Zone</Label>
@@ -1054,7 +1050,6 @@ const SalesDashboard = () => {
                                             ))}
                                           </SelectContent>
                       </Select>
-=======
                     <div className="w-full mt-2 ml-1 mb-2">
                       <Label>BoostID</Label>
                       <Input
@@ -1063,7 +1058,6 @@ const SalesDashboard = () => {
                         placeholder="Enter BoostID"
                         onChange={handleInputChange}
                       />
->>>>>>> Stashed changes
                     </div>
                   </div>
                 </ScrollArea>

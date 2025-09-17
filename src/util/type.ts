@@ -317,7 +317,7 @@ export interface IQuery {
 
 export interface VisitInterface {
   _id: string;
-  lead: {
+  lead?: {
     _id: string;
     name: string;
     phoneNo: number;

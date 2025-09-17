@@ -107,9 +107,9 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
 
               <TableCell>{visit.ownerPhone}</TableCell>
 
-              <TableCell>{visit.lead.name}</TableCell>
+              <TableCell>{visit.lead?.name}</TableCell>
 
-              <TableCell>{visit.lead.phoneNo}</TableCell>
+              <TableCell>{visit.lead?.phoneNo}</TableCell>
 
               <TableCell>{visit.visitType}</TableCell>
 
@@ -161,7 +161,7 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <Link href={`/dashboard/createquery/${visit.lead._id}`}>
+                      <Link href={`/dashboard/createquery/${visit.lead?._id}`}>
                         <DropdownMenuItem>View Lead</DropdownMenuItem>
                       </Link>
                       <Link
@@ -188,7 +188,7 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                           }}
                         /> */}
                         <BookingModal
-                          lead={visit.lead._id!}
+                          lead={visit.lead?._id!}
                           visit={visit._id!}
                           onOpenChange={() => {
                             setActiveModalRow(-1);

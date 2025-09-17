@@ -458,7 +458,9 @@ const handleSave = async (
               key={query?._id}
               className={`
               ${
-                query?.isViewed
+                query?.BoostID 
+                  ? "bg-orange-300/40"
+                  : query?.isViewed
                   ? "bg-transparent hover:bg-transparent"
                   : "bg-neutral-700"
               }
@@ -557,7 +559,7 @@ const handleSave = async (
                       : "bg-red-500"
                   } relative`}
                 >
-                  <p className="text-white">{query?.name}</p>
+                  <p className="text-white">{query?.name} </p>
                 </Badge>
                 <Badge>
                   <CustomTooltip

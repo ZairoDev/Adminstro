@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { X, Upload, Eye, Download } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-
+import {useBunnyUpload} from "@/hooks/useBunnyUpload"; 
+import { useAuthStore } from "@/AuthStore"
+import axios from "axios"
 interface ImageData {
   id: string
   file: File
@@ -19,7 +21,10 @@ export default function PropertyBoost() {
   const [images, setImages] = useState<ImageData[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [description,setDescription]=useState("") 
+  const [title,setTitle]=useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { uploadFiles } = useBunnyUpload();
+ const token = useAuthStore((state: any) => state.token);
 
   const handleFiles = (files: FileList) => {
     const newImages: ImageData[] = []
@@ -89,33 +94,33 @@ export default function PropertyBoost() {
     setImages([])
   }
 
-  const handleSubmit = async () => {
+
+
+const handleSubmit = async () => {
   try {
-    if (images.length === 0 || !description) {
-      alert("Please add a description and upload at least one image");
+    if (images.length === 0 || !description || !title) {
+      alert("Please add a description/title and upload at least one image");
       return;
     }
 
-    // Upload images first
-    const uploadedUrls = await (images.map((img) => img.file));
+    // Upload images
+    const { imageUrls, error } = await uploadFiles(images.map((img) => img.file));
+
+    if (error) {
+      alert("Upload failed: " + error);
+      return;
+    }
 
     const payload = {
-      title: "My New Property", // you can add a title input if needed
+      title: title,
       description,
-      images: uploadedUrls,
-      createdBy: "EMPLOYEE_ID_HERE", // Replace with logged-in employee ID
+      images: imageUrls,
+      createdBy: token.name,
     };
 
-    const res = await fetch("/api/properties", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await axios.post("/api/propertyBoost", payload);
 
-    if (!res.ok) throw new Error("Failed to save property");
-
-    const data = await res.json();
-    console.log("Property Saved:", data);
+    console.log("Property Saved:", res.data);
     alert("Property saved successfully!");
     clearAll();
     setDescription("");
@@ -126,12 +131,13 @@ export default function PropertyBoost() {
 };
 
 
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-8 ">
        
 
-        {/* Upload Area */}
+      
 <div className="max-w-6xl mx-auto space-y-8">
   <Card className="border-2 border-dashed border-border hover:border-primary/50 transition-colors">
     <CardContent className="p-8">
@@ -189,7 +195,22 @@ export default function PropertyBoost() {
     </CardContent>
   </Card>
 
-  {/* Property Description */}
+  <div className="space-y-2">
+    <label
+      htmlFor="property-description"
+      className="text-sm font-medium text-foreground"
+    >
+      Title
+    </label>
+    <Input
+      id="title"
+      placeholder="Add property title"
+      className="min-h-[50px] whitespace-pre-wrap"
+      onChange={(e) => setTitle(e.target.value)}
+      value={title}
+    />
+  </div>
+  
   <div className="space-y-2">
     <label
       htmlFor="property-description"

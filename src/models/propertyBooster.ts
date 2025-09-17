@@ -1,6 +1,5 @@
-import mongoose from "mongoose";
+import mongoose, { model, models } from "mongoose";
 import { customAlphabet } from "nanoid";
-
 
 const generateBoostID = (length: number): string => {
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -9,7 +8,6 @@ const generateBoostID = (length: number): string => {
 };
 
 const propertyBoosterSchema = new mongoose.Schema(
-
   {
      BoostID: {
       type: String,
@@ -23,17 +21,16 @@ const propertyBoosterSchema = new mongoose.Schema(
     description: {
       type: String,
       required: true,
-      trim: true, // keeps clean edges but preserves inner formatting
+      trim: true, 
     },
     images: [
       {
-        type: String, // store image URLs or file paths
+        type: String, 
         required: true,
       },
     ],
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employees",
+      type: String,
       required: true,
     },
     createdAt: {
@@ -48,4 +45,4 @@ const propertyBoosterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const Boosters = mongoose.model("Property", propertyBoosterSchema);
+export const Boosters = models.PropertyBooster || model("PropertyBooster", propertyBoosterSchema);

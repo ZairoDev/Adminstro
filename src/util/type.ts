@@ -303,6 +303,7 @@ export interface IQuery {
   salesPriority: string;
   messageStatus?: string;
   leadStatus?: string;
+  BoostID?: string;
   note?: NotesInterface[];
   reminder: Date;
   roomDetails: {

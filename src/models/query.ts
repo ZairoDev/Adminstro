@@ -182,6 +182,9 @@ const querySchema = new Schema(
     roomDetails: {
       type: Object,
     },
+    BoostID: {
+      type: String,
+    },
     updatedBy: {
       type: [String],
       default: [],

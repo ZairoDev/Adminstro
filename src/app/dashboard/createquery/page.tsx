@@ -142,6 +142,7 @@ const SalesDashboard = () => {
       roomPassword: "",
     },
     messageStatus:"None",
+    BoostID:"",
   });
 
 //   const locationList = [ {
@@ -331,7 +332,11 @@ const SalesDashboard = () => {
         },
         leadQualityByCreator: "",
         messageStatus: "",
+<<<<<<< Updated upstream
         metroZone: "", // ✅ Make sure metroZone exists in formData reset
+=======
+        BoostID: "",
+>>>>>>> Stashed changes
       });
     } catch (error: any) {
       console.error("Error:", error.response?.data?.error);
@@ -1025,6 +1030,7 @@ const SalesDashboard = () => {
                     </div>
 
                     {/* Area */}
+<<<<<<< Updated upstream
 
                     <div>
                       <Label>Metro Zone</Label>
@@ -1048,6 +1054,16 @@ const SalesDashboard = () => {
                                             ))}
                                           </SelectContent>
                       </Select>
+=======
+                    <div className="w-full mt-2 ml-1 mb-2">
+                      <Label>BoostID</Label>
+                      <Input
+                        name="BoostID"
+                        value={formData.BoostID}
+                        placeholder="Enter BoostID"
+                        onChange={handleInputChange}
+                      />
+>>>>>>> Stashed changes
                     </div>
                   </div>
                 </ScrollArea>

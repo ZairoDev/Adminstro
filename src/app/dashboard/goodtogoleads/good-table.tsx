@@ -75,6 +75,7 @@ import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "../spreadsheet/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";
+import { options } from "@fullcalendar/core/preact.js";
 
 
 interface Timers {
@@ -137,29 +138,6 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     }
   }, []);
 
-  const handleQualityChange = async (
-    leadQualityByReviewer: string,
-    id: any,
-    index: number
-  ) => {
-    setLoading(true);
-    try {
-      const response = axios.post("/api/sales/reviewLeadQuality", {
-        id,
-        leadQualityByReviewer,
-      });
-      toast({
-        description: "Status updated succefully",
-      });
-      queries[index].leadQualityByReviewer = leadQualityByReviewer;
-      setLoading(false);
-    } catch (error: any) {
-      setLoading(false);
-      toast({
-        description: "Error occurred while updating status",
-      });
-    }
-  };
 
   const IsView = async (id: any, index: any) => {
     try {
@@ -208,8 +186,8 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   };
 
   const getRecommendations = (id: any, index: number) => {
-    router.push(`/dashboard/recommendations/${id}`);
-  }
+    window.open(`/dashboard/recommendations/${id}`, "_blank");
+  };
 
   const handleDisposition = async (
     id: any,

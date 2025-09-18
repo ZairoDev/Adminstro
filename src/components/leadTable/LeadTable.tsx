@@ -424,7 +424,10 @@ const handleSave = async (
     fetchTargets();
   }, []);
 
-
+  // Add getRecommendations function
+  const getRecommendations = (id: any, index: number) => {
+    window.open(`/dashboard/recommendations/${id}`, "_blank");
+  };
 
   return (
     <div className=" w-full">
@@ -657,9 +660,9 @@ const handleSave = async (
                     <CustomTooltip
                       icon={
                         query?.billStatus === "Without Bill" ? (
-                          <BookX size={18} />
+                          <BookX size={18} color="red"/>
                         ) : (
-                          <ReceiptText size={18} />
+                          <ReceiptText size={18} color="green"/>
                         )
                       }
                       desc={
@@ -907,7 +910,6 @@ const handleSave = async (
                       )}
                       <Link
                         onClick={() => IsView(query?._id, index)}
-                        // target="_blank"
                         href={`/dashboard/createquery/${query?._id}`}
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
@@ -936,6 +938,14 @@ const handleSave = async (
                           </AlertDialog>
                         </>
                       )}
+                      <DropdownMenuItem    
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          getRecommendations(query._id, index);
+                        }}
+                      >
+                        Get Recommendation
+                      </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

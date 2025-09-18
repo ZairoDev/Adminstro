@@ -95,7 +95,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/spreadsheet",
-      label: "Spreadsheet Data",
+      label: "Owners List",
       Icon: <PencilLine size={18} />,
     },
     {
@@ -175,7 +175,7 @@ const roleRoutes: Record<string, Route[]> = {
   SuperAdmin: [
     {
       path: "/dashboard/target",
-      label: "Create Target",
+      label: "Add Area",
       Icon: <PencilLine size={18} />,
     },
 
@@ -186,7 +186,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/spreadsheet",
-      label: "Spreadsheet Data",
+      label: "Owners List",
       Icon: <FileSpreadsheet size={18} />,
     },
     {
@@ -395,7 +395,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/spreadsheet",
-      label: "Spreadsheet Data",
+      label: "Owners List",
       Icon: <FileSpreadsheet size={18} />,
     },
     {
@@ -610,7 +610,7 @@ const dashboardManagementRoutes = [
   },
   {
     path: "/dashboard/target",
-    label: "Create Target",
+    label: "Add Area",
     Icon: <PencilLine size={18} />,
   },
   {
@@ -632,7 +632,7 @@ const leadManagementRoutes = [
   },
   {
     path: "/dashboard/spreadsheet",
-    label: "Spreadsheet Data",
+    label: "Owners List",
     Icon: <PencilLine size={18} />,
   },
   {

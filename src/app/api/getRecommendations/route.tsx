@@ -69,8 +69,8 @@ export async function POST(req: NextRequest) {
           availability,
           $expr: {
             $and: [
-              { $gte: [{ $toDouble: "$price" }, query.minBudget - 50] },
-              { $lte: [{ $toDouble: "$price" }, query.maxBudget + 50] },
+              { $gte: [{ $toDouble: "$price" }, query.minBudget - 250] },
+              { $lte: [{ $toDouble: "$price" }, query.maxBudget + 250] },
             ],
           },
         },

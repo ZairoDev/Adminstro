@@ -42,6 +42,7 @@ import LeadsFilter, {
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
 import GoodTable from "./good-table";
+import CreateLeadDialog from "./createLead";
 
 interface WordsCount {
   "1bhk": number;
@@ -326,6 +327,9 @@ export const GoodToGoLeads = () => {
           </div>
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
+          <div>
+            <CreateLeadDialog />
+          </div>
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
               // token?.role === "Sales-TeamLead" ||

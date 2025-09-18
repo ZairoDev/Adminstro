@@ -1,12 +1,12 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
 
 import { TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -73,6 +73,7 @@ import { list } from "postcss";
 // import { UnregisteredOwnersTable } from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { useRouter } from "next/navigation";
 import BookingDetails from "@/hooks/(VS)/useBookingDetails";
+import ListingCounts from "@/hooks/(VS)/useListingCounts";
 
 //  const chartConfig = {
 //   greece: {
@@ -116,6 +117,18 @@ interface StatusCount {
   Null: number;
 }
 
+ const chartData = [ { month: "January", desktop: 186, mobile: 80 }, { month: "February", desktop: 305, mobile: 200 }, { month: "March", desktop: 237, mobile: 120 }, { month: "April", desktop: 73, mobile: 190 }, { month: "May", desktop: 209, mobile: 130 }, { month: "June", desktop: 214, mobile: 140 }, ] 
+
+
+ 
+ const chartConfig = {
+   listings: {
+     label: "Listings",
+     color: "hsl(var(--chart-3))", // you can use tailwind variable
+   },
+ } satisfies ChartConfig;
+ 
+
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -134,13 +147,17 @@ const Dashboard = () => {
     createdBy?: string;
   }>({});
 
-  const [visitsFilter,setVisitsFilter] = useState<{
+  const [visitsFilter, setVisitsFilter] = useState<{
     days?: string;
   }>({});
 
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
     createdBy?: string;
+  }>({});
+
+  const [listingFilters, setListingFilter] = useState<{
+    days?: string;
   }>({});
 
   const [reviewsFilters, setReviewsFilters] = useState<{
@@ -191,11 +208,38 @@ const Dashboard = () => {
     // average,
   } = useTodayLeads();
 
-  const { loading,setloading, visits, fetchVisits, visitsToday ,fetchVisitsToday,goodVisits,fetchGoodVisitsCount,unregisteredOwners,fetchUnregisteredVisits} = WeeksVisit();
+  const {
+    loading,
+    setloading,
+    visits,
+    fetchVisits,
+    visitsToday,
+    fetchVisitsToday,
+    goodVisits,
+    fetchGoodVisitsCount,
+    unregisteredOwners,
+    fetchUnregisteredVisits,
+  } = WeeksVisit();
+
+  const { totalListings,fetchListingCounts } = ListingCounts();
+
+  // Transform data for recharts (make sure counts are numbers)
+  const chartData = useMemo(
+    () =>
+      totalListings.map((item) => ({
+        date: item.date,
+        total : Number(item.total), // this is the line you plot
+        shortTerm: Number(item.shortTerm),
+        longTerm: Number(item.longTerm),
+      })),
+    [totalListings]
+  );
+  
+
   // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
     reviews,
-    revLoading, 
+    revLoading,
     setRevLoading,
     revError,
     setRevError,
@@ -204,26 +248,21 @@ const Dashboard = () => {
     fetchReviews,
   } = useReview();
 
-  const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
+  // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
   const router = useRouter();
 
-  const handleClick = ()=>{
-    const serialized = encodeURIComponent(JSON.stringify(unregisteredOwners));
-    router.push(`dashboard/unregistered-owner?owners=${serialized}`);
-  }
+  const handleClick = () => {
+    // const serialized = encodeURIComponent(JSON.stringify(unregisteredOwners));
+    router.push(`dashboard/unregistered-owner`);
+  };
 
-  console.log("Booking Details0",bookingDetails); 
-
-const handlfetch = async()=>{
-
-  fetchUnregisteredVisits();
-  fetchVisitsToday({days:"today"});
-  fetchVisits({days:"today"});
-  fetchGoodVisitsCount({days:"today"});
- 
-}
-
+  const handlfetch = async () => {
+    fetchUnregisteredVisits();
+    fetchVisitsToday({ days: "today" });
+    fetchVisits({ days: "today" });
+    fetchGoodVisitsCount({ days: "today" });
+  };
 
   const todaysLeadChartData = todayLeads?.map((lead) => {
     const label = lead.createdBy;
@@ -239,7 +278,7 @@ const handlfetch = async()=>{
   });
 
   const emp = allEmployees.length;
-  console.log(emp);
+  // console.log(emp);
 
   const averagedata = (average / 30).toFixed(0);
   const averagedata1 = (Number(averagedata) / emp).toFixed(0);
@@ -281,63 +320,62 @@ const handlfetch = async()=>{
     "Agents Commision",
     "Received Amount/Final Amount",
   ];
-  const FinalAmount = ((bookingDetails?.ownerAmount ?? 0) + (bookingDetails?.travellerAmount ??0)) - ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
+  // const FinalAmount = ((bookingDetails?.ownerAmount ?? 0) + (bookingDetails?.travellerAmount ??0)) - ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
 
-  const finalReceived = ((bookingDetails?.totalOwnerReceived ?? 0) + (bookingDetails?.totalTravellerReceived ?? 0))- ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
-
+  // const finalReceived = ((bookingDetails?.totalOwnerReceived ?? 0) + (bookingDetails?.totalTravellerReceived ?? 0))- ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
 
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Property Count */}
-     <div className="w-full flex flex-wrap gap-6 justify-center p-4">
-  {/* Circle 1 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.First}
-    </div>
-    <p className="text-sm font-medium text-gray-700">First Text</p>
-  </div>
+      <div className="w-full flex flex-wrap gap-6 justify-center p-4">
+        {/* Circle 1 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.First}
+          </div>
+          <p className="text-sm font-medium text-gray-700">First Text</p>
+        </div>
 
-  {/* Circle 2 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.Second}
-    </div>
-    <p className="text-sm font-medium text-gray-700">Second Text</p>
-  </div>
+        {/* Circle 2 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.Second}
+          </div>
+          <p className="text-sm font-medium text-gray-700">Second Text</p>
+        </div>
 
-  {/* Circle 3 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.Third}
-    </div>
-    <p className="text-sm font-medium text-gray-700">Third Text</p>
-  </div>
+        {/* Circle 3 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.Third}
+          </div>
+          <p className="text-sm font-medium text-gray-700">Third Text</p>
+        </div>
 
-  {/* Circle 4 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.Fourth}
-    </div>
-    <p className="text-sm font-medium text-gray-700">Fourth Text</p>
-  </div>
+        {/* Circle 4 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.Fourth}
+          </div>
+          <p className="text-sm font-medium text-gray-700">Fourth Text</p>
+        </div>
 
-  {/* Circle 5 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.Options}
-    </div>
-    <p className="text-sm font-medium text-gray-700">Options</p>
-  </div>
+        {/* Circle 5 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.Options}
+          </div>
+          <p className="text-sm font-medium text-gray-700">Options</p>
+        </div>
 
-  {/* Circle 6 */}
-  <div className="flex flex-col items-center space-y-2">
-    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-      {messageStatus?.Visit}
-    </div>
-    <p className="text-sm font-medium text-gray-700">Visit</p>
-  </div>
-</div>
+        {/* Circle 6 */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
+            {messageStatus?.Visit}
+          </div>
+          <p className="text-sm font-medium text-gray-700">Visit</p>
+        </div>
+      </div>
       {token?.role === "SuperAdmin" && (
         <div className=" border rounded-md p-2">
           {/* Select country */}
@@ -387,6 +425,118 @@ const handlfetch = async()=>{
             />
           </div>
         </div>
+      )}
+
+      {/* Listings Dashboard */}
+      {/* Listings Dashboard */}
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
+        <section className="relative my-10">
+          <h1 className="text-3xl font-bold mb-6">Lead-Gen Dashboard</h1>
+
+          <div className="w-full mx-auto">
+            <Card className="shadow-md rounded-2xl">
+              <CardHeader>
+                <CardTitle>Listings Created</CardTitle>
+                <CardDescription>
+                  {listingFilters?.days || "Last 12 Days"}
+                </CardDescription>
+
+                {/* Range Selector */}
+                <CustomSelect
+                  itemList={["12 days", "1 year", "last 3 years"]}
+                  triggerText="Select range"
+                  defaultValue={listingFilters?.days || "12 days"}
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...listingFilters };
+                    newLeadFilters.days = value;
+                    fetchListingCounts(newLeadFilters);
+                  }}
+                  triggerClassName="w-32 absolute right-2 top-2"
+                />
+              </CardHeader>
+
+              <CardContent className="h-[400px]">
+                {loading ? (
+                  <p className="text-center text-muted-foreground">
+                    Loading...
+                  </p>
+                ) : isError ? (
+                  <p className="text-center text-red-500">Error: {error}</p>
+                ) : chartData.length === 0 ? (
+                  <p className="text-center text-muted-foreground">
+                    No data available
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData
+                        .map((item) => ({
+                          date: item.date,
+                          shortTerm: item.shortTerm,
+                          longTerm: item.longTerm,
+                          total: item.total,
+                        }))
+                        .sort(
+                          (a, b) =>
+                            new Date(a.date).getTime() -
+                            new Date(b.date).getTime()
+                        )}
+                      margin={{ left: 0, right: 16 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={4}
+                        tickFormatter={(value) => {
+                          if (listingFilters?.days === "last 3 years")
+                            return value; // Year
+                          if (listingFilters?.days === "1 year") return value; // Month
+                          return value; // Day + Month
+                        }}
+                      />
+                      <YAxis />
+                      <Tooltip
+                        cursor={false}
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white shadow-md p-3 rounded-lg border">
+                                <p className="font-semibold">{label}</p>
+                                <p className="text-sm text-blue-600">
+                                  Short-Term: {data.shortTerm}
+                                </p>
+                                <p className="text-sm text-green-600">
+                                  Long-Term: {data.longTerm}
+                                </p>
+                                <p className="text-sm font-bold">
+                                  Total: {data.total}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line
+                        dataKey="total"
+                        type="monotone"
+                        stroke={chartConfig.listings.color}
+                        strokeWidth={2}
+                        dot={{ fill: chartConfig.listings.color }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+
+              <CardFooter className="flex-col items-start gap-2 text-sm" />
+            </Card>
+          </div>
+        </section>
       )}
 
       {/* Leads Generation Dashboard*/}
@@ -881,10 +1031,11 @@ const handlfetch = async()=>{
           </div>
         </div>
       )}
-      {token?.role === "SuperAdmin" && (
-        <div className="flex flex-col md:flex-row gap-6 mt-8">
-          {/* Properties Shown Summary (larger width) */}
-          <div className="relative flex-1 p-6 border rounded-xl shadow-md">
+      <div>
+        {token?.role === "SuperAdmin" && (
+          <div className="flex flex-col md:flex-row gap-6 mt-8">
+            {/* Properties Shown Summary (larger width) */}
+            {/* <div className="relative flex-1 p-6 border rounded-xl shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
               Booking Summary
             </h2>
@@ -906,7 +1057,7 @@ const handlfetch = async()=>{
                 const newLeadFilters = {} as { days: string };
                 newLeadFilters.days = value;
                 // setReviewsFilters(newLeadFilters);
-                fetchBookingDetails (newLeadFilters);
+                fetchBookingDetails(newLeadFilters);
               }}
               triggerClassName="w-32 absolute right-6 top-4"
             />
@@ -960,9 +1111,10 @@ const handlfetch = async()=>{
                 </h1>
               </div>
             )}
+          </div> */}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

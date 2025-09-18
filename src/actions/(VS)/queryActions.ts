@@ -11,6 +11,7 @@ import { from } from "form-data";
 import Visits from "@/models/visit";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import Bookings from "@/models/booking";
+import { unregisteredOwner } from "@/models/unregisteredOwner";
 
 connectDb();
 
@@ -757,6 +758,104 @@ export const getWeeksVisit = async ({ days }: { days?: string }) => {
 // const formatDate = (date: Date) =>
 //   date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
 
+export const getListingCounts = async ({
+  days,
+}: {
+  days?: string;
+}) => {
+  await connectDb();
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let groupFormat: any;
+
+  switch (days?.toLowerCase()) {
+    case "12 days":
+      start.setDate(now.getDate() - 11); // last 12 days including today
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = { $dateToString: { format: "%Y-%m", date: "$createdAt" } }; // monthly
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = { $dateToString: { format: "%Y", date: "$createdAt" } }; // yearly
+      break;
+
+    default:
+      throw new Error(
+        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+      );
+  }
+
+  const result = await Property.aggregate([
+    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $group: {
+        _id: { date: groupFormat, type: "$rentalType" }, // shortTerm or longTerm
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: { $push: { type: "$_id.type", count: "$count" } },
+        total: { $sum: "$count" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  return result.map((item: any) => {
+    const dateObj = new Date(item._id + (days === "1 year" ? "-01" : "")); // fix for monthly aggregation
+    const formattedDate =
+      days === "12 days"
+        ? `${dateObj.getDate()} ${months[dateObj.getMonth()]}`
+        : days === "1 year"
+        ? `${months[dateObj.getMonth()]}`
+        : item._id; // yearly shows year only
+
+    const shortTerm =
+      item.counts.find((c: any) => c.type === "Short Term")?.count || 0;
+    const longTerm =
+      item.counts.find((c: any) => c.type === "Long Term")?.count || 0;
+
+    return {
+      date: formattedDate,
+      shortTerm,
+      longTerm,
+      total: item.total,
+    };
+  });
+};
+
+
 export const getVisitsToday = async({days}:{days?:string})=>{
    const now = new Date();
   let start = new Date();
@@ -990,7 +1089,25 @@ export const getUnregisteredOwners = async () => {
     },
   ];
 
-  const unregisteredOwners = await Visits.aggregate(pipeline);
+  const pipeline2 = [
+    {
+      $match: {
+        link: { $in: [null, ""] },
+        $or: [{ imageUrls: { $exists: false } }, { imageUrls: { $size: 0 } }],
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        ownerPhone: "$phoneNumber",
+        ownerName: "$name", // rename 'name' to 'customerName'
+      },
+    },
+  ];
+
+  const unregisteredOwners1 = await Visits.aggregate(pipeline);
+  const unregisteredOwners2 = await unregisteredOwner.aggregate(pipeline2);
+  const unregisteredOwners = [...unregisteredOwners1, ...unregisteredOwners2];
   // console.log("unregisteredOwners: ", unregisteredOwners);
   return { unregisteredOwners };
 }

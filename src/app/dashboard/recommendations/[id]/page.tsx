@@ -48,10 +48,9 @@ interface RecommendationResponse {
 
 export default function RecommendationPage() {
   const [availableGroups, setAvailableGroups] = useState<PropertyGroup[]>([]);
-  const [unavailableGroups, setUnavailableGroups] = useState<PropertyGroup[]>(
-    []
-  );
+  const [unavailableGroups, setUnavailableGroups] = useState<PropertyGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [toggling, setToggling] = useState<string | null>(null); // property id being toggled
 
   const params = useParams();
   const router = useRouter();
@@ -94,6 +93,41 @@ export default function RecommendationPage() {
 
     fetchRecommendations();
   }, [queryId, router, toast]);
+
+  // Toggle availability handler
+  const handleToggleAvailability = async (
+    property: PropertyItem,
+    isAvailable: boolean
+  ) => {
+    if (!property._id || !property.availability) return;
+    setToggling(property._id);
+
+    const newAvailability = isAvailable ? "Not Available" : "Available";
+
+    try {
+      await axios.put(`/api/unregisteredOwners/updateData/${property._id}`, {
+        field: "availability",
+        value: newAvailability,
+      });
+
+      toast({
+        description: `Availability changed to ${newAvailability}`,
+      });
+
+      // Optimistically update UI
+      property.availability = newAvailability;
+      // Optionally, you can trigger a refetch or update local state
+    } catch (error) {
+      console.error(error);
+      toast({
+        description: "Error updating availability",
+        variant: "destructive",
+      });
+    } finally {
+      setToggling(null);
+    }
+  };
+  
 
   if (isLoading) {
     return (
@@ -174,15 +208,24 @@ export default function RecommendationPage() {
             VS Link
           </a>
         )}
-        {/* <Button
-          className="w-full"
-          disabled={!isAvailable}
-          variant={isAvailable ? "default" : "outline"}
-        >
-          {isAvailable ? "Select Property" : "Coming Soon"}
-        </Button> */}
+        {/* Toggle Availability Button */}
+        {item._id && item.availability && (
+          <Button
+            variant={isAvailable ? "outline" : "default"}
+            size="sm"
+            disabled={toggling === item._id}
+            onClick={() => handleToggleAvailability(item, isAvailable)}
+            className="w-full mt-2"
+          >
+            {toggling === item._id
+              ? "Updating..."
+              : isAvailable
+              ? "Mark Unavailable"
+              : "Mark Available"}
+          </Button>
+        )}
       </CardContent>
-    </Card>
+    </Card> 
   );
 
   return (
@@ -190,14 +233,14 @@ export default function RecommendationPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Button
+          {/* <Button
             variant="ghost"
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/dashboard/rolebaseLead")}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
-          </Button>
+          </Button> */}
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Your Recommendations
           </h1>

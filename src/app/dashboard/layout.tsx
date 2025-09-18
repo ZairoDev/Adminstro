@@ -9,6 +9,7 @@ import { Notifications } from "@/components/Notifications/Notifications";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
 import { useState } from "react";
+import InfoCard from "@/components/infoCard/InfoCard";
 
 export default function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default function DashboardLayout({
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
+            <InfoCard />
             {<LeadSearch />}
             {(token?.role === "SuperAdmin" ||
               token?.role === "Sales" ||

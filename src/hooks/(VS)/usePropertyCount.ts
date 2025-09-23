@@ -17,11 +17,17 @@ interface CountryRentalStats {
   total: number;
 }
 
+interface CountryWisePropertyCount {
+  city: string;
+  "Short Term": number;
+  "Long Term": number;
+}
+
 const usePropertyCount = () => {
   const [properties, setProperties] = useState<CountryRentalStats[]>();
   const [totalProperties, setTotalProperties] = useState(0);
   const [countryWiseProperties, setCountryWiseProperties] = useState<
-    CountryRentalStats[]
+    CountryWisePropertyCount[]
   >([]);
   const [countryWiseTotalProperties, setCountryWiseTotalProperties] =
     useState(0);

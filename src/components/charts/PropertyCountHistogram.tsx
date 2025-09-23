@@ -33,10 +33,11 @@ interface HistogramProps {
   heading: string;
   subHeading?: string;
   chartData: {
-    country: string;
+  country?: string;
   "Short Term": number;
   "Long Term": number;
-  total: number;
+  total?: number;
+  city?: string
   }[];
   footer?: string;
 }
@@ -48,9 +49,12 @@ export function PropertyCountHistogram({
   footer,
 }: HistogramProps) {
   const newChartData = chartData.map((item) => ({
-    label: item.country,
+    ...(item.city || item.country
+      ? { label: item.city ?? item.country }
+      : {}),
     "Short Term": item["Short Term"],
     "Long Term": item["Long Term"],
+    total: item.total,
   }));
 
   return (

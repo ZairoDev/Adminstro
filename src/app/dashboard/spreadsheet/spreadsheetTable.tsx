@@ -28,6 +28,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { EditableCell } from "./EditableCell";
 import axios from "axios";
 import type { unregisteredOwners } from "@/util/type";
@@ -48,6 +55,7 @@ import { saveAs } from "file-saver";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
+import { CiTextAlignCenter } from "react-icons/ci";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -438,6 +446,16 @@ export function SpreadsheetTable({
   interface UploadCellProps {
     item: unregisteredOwners;
   }
+
+  interface RemarksDropdownProps {
+    item: unregisteredOwners;
+    onSave: (
+      id: string,
+      field: keyof unregisteredOwners,
+      value: string
+    ) => void;
+  }
+
   function UploadCell({ item }: UploadCellProps) {
     const { uploadFiles, loading } = useBunnyUpload();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -541,6 +559,84 @@ export function SpreadsheetTable({
       >
         <Download className="h-5 w-5 text-gray-500" />
       </Button>
+    );
+  }
+
+  function RemarksDropdown({ item, onSave }: RemarksDropdownProps) {
+    // Ensure remarks is always an array
+    const initialRemarks = item.remarks ? item.remarks.split("\n") : [];
+
+
+    const [remarks, setRemarks] = useState<string[]>(initialRemarks);
+    const [newRemark, setNewRemark] = useState("");
+
+    const handleAddRemark = () => {
+      if (!newRemark.trim()) return;
+      const updatedRemarks = [...remarks, newRemark];
+      setRemarks(updatedRemarks);
+      onSave(item._id, "remarks", updatedRemarks.join("\n"));
+      setNewRemark("");
+    };
+
+    const handleDeleteRemark = (index: number) => {
+      const updatedRemarks = remarks.filter((_, i) => i !== index);
+      setRemarks(updatedRemarks);
+      onSave(item._id, "remarks", updatedRemarks.join("\n"));
+    };
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="truncate max-w-[120px] text-xs"
+            title={remarks.join(", ")}
+          >
+            {/* {remarks.length > 0
+              ? `${remarks[remarks.length - 1]}`
+              : "Add Remark"} */}
+            <CiTextAlignCenter />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent className="w-74 p-3 space-y-3">
+          <div className="space-y-2 max-h-54 overflow-y-auto">
+            <p className="text-sm font-medium">Previous Remarks:</p>
+            {remarks.length > 0 ? (
+              remarks.map((remark, index) => (
+                <div
+                  key={index}
+                  className="flex justify-between items-center text-sm bg-gray-800 p-2 rounded-md"
+                >
+                  <span className="break-words">{remark}</span>
+                  <button
+                    className="ml-2 text-red-500 hover:text-red-700"
+                    onClick={() => handleDeleteRemark(index)}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">No remarks yet</p>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="flex gap-2">
+            <Input
+              value={newRemark}
+              onChange={(e) => setNewRemark(e.target.value)}
+              placeholder="Add a remark"
+              className="text-sm"
+            />
+            <Button size="sm" onClick={handleAddRemark}>
+              Save
+            </Button>
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
@@ -845,14 +941,15 @@ export function SpreadsheetTable({
                 className="text-right truncate max-w-[120px]"
                 title={item.remarks}
               >
-                <EditableCell
+                {/* <EditableCell
                   value={item.remarks}
                   onSave={(newValue) =>
                     handleSave(item._id, "remarks", newValue)
                   }
                   maxWidth="120px"
                   // placeholder="Remarks"
-                />
+                /> */}
+                <RemarksDropdown item={item} onSave={handleSave} />
               </TableCell>
               {/*Date*/}
               <TableCell>

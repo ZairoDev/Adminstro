@@ -79,7 +79,7 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.2",
     "jszip": "^3.10.1",
-    "libphonenumber-js": "^1.11.8",
+    "libphonenumber-js": "^1.12.18",
     "lodash.debounce": "^4.0.8",
     "lowlight": "^3.1.0",
     "lucide-react": "^0.438.0",

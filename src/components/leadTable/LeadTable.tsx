@@ -461,7 +461,7 @@ const handleSave = async (
               key={query?._id}
               className={`
               ${
-                query?.BoostID 
+                query?.BoostID
                   ? "bg-orange-300/40"
                   : query?.isViewed
                   ? "bg-transparent hover:bg-transparent"
@@ -660,9 +660,9 @@ const handleSave = async (
                     <CustomTooltip
                       icon={
                         query?.billStatus === "Without Bill" ? (
-                          <BookX size={18} color="red"/>
+                          <BookX size={18} color="red" />
                         ) : (
-                          <ReceiptText size={18} color="green"/>
+                          <ReceiptText size={18} color="green" />
                         )
                       }
                       desc={
@@ -689,13 +689,17 @@ const handleSave = async (
                   <AreaSelect
                     data={
                       targets
-                        .find((target) => target.city.toLowerCase() === query.location.toLowerCase())
+                        .find(
+                          (target) =>
+                            target.city.toLowerCase() ===
+                            query.location.toLowerCase()
+                        )
                         ?.areas.map((area) => ({
                           value: area.name,
                           label: area.name,
                         })) ?? []
                     }
-                  value={query.area ?? ""}
+                    value={query.area ?? ""}
                     save={(val) => handleSave(query._id!, "area", val)}
                     tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
                     icon={<span className="text-green-500">✅</span>}
@@ -713,7 +717,17 @@ const handleSave = async (
                           ? "N"
                           : query?.zone === "South"
                           ? "S"
-                          : "C"
+                          : query?.zone === "Center"
+                          ? "C"
+                          : query?.zone === "North-East"
+                          ? "NE"
+                          : query?.zone === "North-West"
+                          ? "NW"
+                          : query?.zone === "South-East"
+                          ? "SE"
+                          : query?.zone === "South-West"
+                          ? "SW"
+                          : "A"
                       }
                       desc={
                         query?.zone === "East"
@@ -724,7 +738,19 @@ const handleSave = async (
                           ? "North"
                           : query?.zone === "South"
                           ? "South"
-                          : "Center"
+                          : query?.zone === "Center"
+                          ? "Center"
+                          : query?.zone === "North-East"
+                          ? "North-East"
+                          : query?.zone === "North-West"
+                          ? "North-West"
+                          : query?.zone === "South-East"
+                          ? "South-East"
+                          : query?.zone === "South-West"
+                          ? "South-West"
+                          : query?.zone === "Anywhere"
+                          ? "Anywhere"
+                          : "All"
                       }
                     />
                   </Badge>
@@ -938,7 +964,7 @@ const handleSave = async (
                           </AlertDialog>
                         </>
                       )}
-                      <DropdownMenuItem    
+                      <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
                           getRecommendations(query._id, index);

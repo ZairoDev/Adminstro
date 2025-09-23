@@ -17,7 +17,6 @@ import {
   Mail,
   MailCheck,
   MailX,
-
   MessageSquareX,
 } from "lucide-react";
 import axios from "axios";
@@ -77,7 +76,6 @@ import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { options } from "@fullcalendar/core/preact.js";
 
-
 interface Timers {
   current: { [key: string]: NodeJS.Timeout };
 }
@@ -93,7 +91,13 @@ interface TargetType {
   areas: AreaType[];
 }
 
-export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], setQueries: React.Dispatch<React.SetStateAction<IQuery[]>> }) {
+export default function GoodTable({
+  queries,
+  setQueries,
+}: {
+  queries: IQuery[];
+  setQueries: React.Dispatch<React.SetStateAction<IQuery[]>>;
+}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -107,8 +111,8 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     ("Low" | "High" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
-    const [messageStatus, setMessageStatus] = useState<
-    ( "First" | "Second" | "Third" | "Fourth" | "Options" | "Visit" | "None")[]
+  const [messageStatus, setMessageStatus] = useState<
+    ("First" | "Second" | "Third" | "Fourth" | "Options" | "Visit" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
   const [loading, setLoading] = useState(false);
@@ -117,8 +121,9 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
     new Date(Date.now())
   );
-  const [recommendationData, setRecommendationData] =
-    useState<unregisteredOwners[]>([]);
+  const [recommendationData, setRecommendationData] = useState<
+    unregisteredOwners[]
+  >([]);
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
   const [page, setPage] = useState(1);
@@ -130,14 +135,13 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   );
   const [targets, setTargets] = useState<TargetType[]>([]);
 
-//   const timers:Timers = useRef({});
+  //   const timers:Timers = useRef({});
 
   useEffect(() => {
     if (searchParams.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
   }, []);
-
 
   const IsView = async (id: any, index: any) => {
     try {
@@ -239,29 +243,28 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   };
 
   const handleSave = async (
-      _id: string,
-      key: keyof IQuery,
-      newValue: string
-    ) => {
-      // optimistic UI update
-      const prev = queries;
-      const updatedData = queries.map((item) =>
-        item._id === _id ? { ...item, [key]: newValue } : item
-      );
-      setQueries(updatedData);
-      try {
-        await axios.put(`/api/leads/updateData/${_id}`, {
-          field: key,
-          value: newValue,
-        });
-      } catch (error) {
-        console.error("Update failed", error);
-        // rollback if API fails
-        setQueries(prev);
-      }
-    };
+    _id: string,
+    key: keyof IQuery,
+    newValue: string
+  ) => {
+    // optimistic UI update
+    const prev = queries;
+    const updatedData = queries.map((item) =>
+      item._id === _id ? { ...item, [key]: newValue } : item
+    );
+    setQueries(updatedData);
+    try {
+      await axios.put(`/api/leads/updateData/${_id}`, {
+        field: key,
+        value: newValue,
+      });
+    } catch (error) {
+      console.error("Update failed", error);
+      // rollback if API fails
+      setQueries(prev);
+    }
+  };
 
- 
   const handleMessageStatus = (leadId: string | undefined, index: number) => {
     if (!leadId) return;
 
@@ -273,7 +276,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     // } else if (newMessageStatus[index] === "First") {
     //   newMessageStatus[index] = "Second";
     //   queries[index].messageStatus = "Second";
-     if (newMessageStatus[index] === "None") {
+    if (newMessageStatus[index] === "None") {
       newMessageStatus[index] = "Options";
       queries[index].messageStatus = "Options";
     } else if (newMessageStatus[index] === "Options") {
@@ -318,7 +321,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     []
   );
 
-    const changeMessageStatus = useCallback(
+  const changeMessageStatus = useCallback(
     debounce(async (leadId: string, status: string) => {
       const response = await axios.post("/api/sales/updateMessageStatus", {
         leadId,
@@ -331,10 +334,11 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
   const debouncersRef = useRef<{ [leadId: string]: Function }>({});
 
   const debouncedUpdate = (leadId: string, value: number, type: string) => {
-
-    setQueries((prev :IQuery[])=>{
-      return prev.map(q=> q._id === leadId ? {...q, propertyShown: value} : q)
-    })
+    setQueries((prev: IQuery[]) => {
+      return prev.map((q) =>
+        q._id === leadId ? { ...q, propertyShown: value } : q
+      );
+    });
     // If a debouncer doesn't exist for this lead, create one
     if (!debouncersRef.current[leadId]) {
       debouncersRef.current[leadId] = debounce(
@@ -355,7 +359,6 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                 "Unable to update property shown! Please try again later.",
             });
           }
-          
         },
         500, // debounce delay (ms)
         { leading: false, trailing: true }
@@ -374,13 +377,12 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     //   return newRows;
     // });
     debouncedUpdate(leadId, current + 1, "increase");
-    
   };
 
-  const Decrease = (leadId: string, current: number,index: number) => {
+  const Decrease = (leadId: string, current: number, index: number) => {
     // updatePropertyShown(leadId, Math.max(0, current),"decrease");
     // setQueries((prev)=>{
-    //   const newRows = [...prev]; 
+    //   const newRows = [...prev];
     //   newRows[index].propertyShown = Math.max(0, current - 1);
     //   return newRows;
     // })
@@ -443,25 +445,24 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
     }
   };
 
-  const formatDuration = (duration: string , startDate: string) => {
-    if(!duration || !startDate){
+  const formatDuration = (duration: string, startDate: string) => {
+    if (!duration || !startDate) {
       return "";
     }
 
-    let shortDuration = duration
+    let shortDuration = duration;
 
     shortDuration = shortDuration
-    .replace(/years?/gi, "(Y)")
-    .replace(/months?/gi, "(M)")
-    .replace(/days?/gi, "(D)")
-    .replace(/\s+/g, "");
+      .replace(/years?/gi, "(Y)")
+      .replace(/months?/gi, "(M)")
+      .replace(/days?/gi, "(D)")
+      .replace(/\s+/g, "");
 
     const date = new Date(startDate);
     const month = date.toLocaleString("default", { month: "short" });
 
     return `${shortDuration} ${month}`;
-
-  }
+  };
   useEffect(() => {
     const fetchTargets = async () => {
       try {
@@ -716,9 +717,9 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                     <CustomTooltip
                       icon={
                         query?.billStatus === "Without Bill" ? (
-                          <BookX size={18} />
+                          <BookX size={18} color="red" />
                         ) : (
-                          <ReceiptText size={18} />
+                          <ReceiptText size={18} color="green" />
                         )
                       }
                       desc={
@@ -759,10 +760,9 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                           label: area.name.toLowerCase(),
                         })) ?? []
                     }
-                    value={query.area ?? "" }
+                    value={query.area ?? ""}
                     save={(val) => handleSave(query._id!, "area", val)}
                     tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
-                    icon={<span className="text-green-500">✅</span>}
                     maxWidth="150px"
                   />
                   <div>|</div>
@@ -777,7 +777,17 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                           ? "N"
                           : query?.zone === "South"
                           ? "S"
-                          : "C"
+                          : query?.zone === "Center"
+                          ? "C"
+                          : query?.zone === "North-East"
+                          ? "NE"
+                          : query?.zone === "North-West"
+                          ? "NW"
+                          : query?.zone === "South-East"
+                          ? "SE"
+                          : query?.zone === "South-West"
+                          ? "SW"
+                          : "A"
                       }
                       desc={
                         query?.zone === "East"
@@ -788,7 +798,19 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                           ? "North"
                           : query?.zone === "South"
                           ? "South"
-                          : "Center"
+                          : query?.zone === "Center"
+                          ? "Center"
+                          : query?.zone === "North-East"
+                          ? "North-East"
+                          : query?.zone === "North-West"
+                          ? "North-West"
+                          : query?.zone === "South-East"
+                          ? "South-East"
+                          : query?.zone === "South-West"
+                          ? "South-West"
+                          : query?.zone === "Anywhere"
+                          ? "Anywhere"
+                          : "All"
                       }
                     />
                   </Badge>
@@ -981,7 +1003,7 @@ export default function GoodTable({ queries ,setQueries }: { queries: IQuery[], 
                         </>
                       )}
                       <>
-                        <DropdownMenuItem    
+                        <DropdownMenuItem
                           onSelect={(e) => {
                             e.preventDefault();
                             getRecommendations(query._id, index);

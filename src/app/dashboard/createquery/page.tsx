@@ -62,6 +62,7 @@ import {
 import SearchableAreaSelect from "./SearchAndSelect";
 import { metroLines } from "../target/components/editArea";
 import { apartmentTypes } from "../spreadsheet/spreadsheetTable";
+import parsePhoneNumberFromString from "libphonenumber-js";
 
 interface ApiResponse {
   data: IQuery[];
@@ -213,25 +214,36 @@ const SalesDashboard = () => {
         setNumberStatus("Please enter a phone number.");
         return;
       }
+
+      const parsed = parsePhoneNumberFromString(phone);
+      if (!parsed || !parsed.isValid()) {
+        setNumberStatus("❌ Invalid phone number.");
+        return;
+      }
+
+      // Only digits, remove +
+      const digitsOnly = parsed.number.replace("+", ""); // e.g., 9170939951
+
       setChecking(true);
-      console.log("handle search: ", phone);
+      console.log("handle search (digits only): ", digitsOnly);
+
       const response = await axios.post("/api/sales/checkNumber", {
-        phoneNo: String(phone).replace(/\D/g, ""),
+        phoneNo: digitsOnly,
       });
+
       if (response.data.success) {
         if (response.data.exists) {
           setNumberStatus("❌ Phone number already exists.");
         } else {
           setNumberStatus("✅ Phone number is available.");
         }
-        setChecking(false);
       } else {
         setNumberStatus("Error checking the phone number. Try again.");
       }
-      setChecking(false);
     } catch (error) {
       console.error("Error:", error);
       setNumberStatus("Server error. Please try again later.");
+    } finally {
       setChecking(false);
     }
   };

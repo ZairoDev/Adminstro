@@ -621,8 +621,8 @@ const NewUser = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {city.map((country: String,index) => (
-                              <SelectItem key = {index} value={country.toString()}>
-                                {country}
+                              <SelectItem key = {index} value={country.toString().toLowerCase()}>
+                                {country.toLowerCase()}
                               </SelectItem>
                             ))}
                             {/* <SelectItem value="Intern">Intern</SelectItem> */}

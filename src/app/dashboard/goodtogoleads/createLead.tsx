@@ -77,6 +77,7 @@ export default function CreateLeadDialog({
     maxBudget: 0,
     noOfBeds: 0,
     location: "",
+    leadStatus: "active",
     bookingTerm: "",
     zone: "",
     metroZone: "",

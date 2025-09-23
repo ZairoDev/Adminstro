@@ -959,23 +959,55 @@ export const getVisitsToday = async({days}:{days?:string})=>{
 }
 export const getPropertyCount = async () => {
   const pipeline = [
-    {
-      $group: {
-        _id: "$country",
-        count: { $sum: 1 },
+  {
+    $group: {
+      _id: { country: "$country", rentalType: "$rentalType" },
+      count: { $sum: 1 },
+    },
+  },
+  {
+    $group: {
+      _id: "$_id.country",
+      counts: {
+        $push: {
+          k: { $ifNull: ["$_id.rentalType", "Unknown"] },
+          v: "$count",
+        },
       },
     },
-    {
-      $sort: {
-        count: -1 as const,
-      },
+  },
+  {
+    $addFields: { counts: { $arrayToObject: "$counts" } },
+  },
+  {
+    $addFields: {
+      "Short Term": { $ifNull: ["$counts.Short Term", 0] },
+      "Long Term": { $ifNull: ["$counts.Long Term", 0] },
     },
-    {
-      $limit: 5,
+  },
+  {
+    $addFields: { total: { $add: ["$Short Term", "$Long Term"] } },
+  },
+  {
+    $project: {
+      _id: 0,
+      country: "$_id",
+      "Short Term": 1,
+      "Long Term": 1,
+      total: 1,
     },
-  ];
+  },
+  {
+    $sort: { total: -1 as const},
+  },
+  {
+    $limit: 5,
+  },
+];
+
 
   const propertyCount = await Property.aggregate(pipeline);
+  // console.log("propertyCount: ", propertyCount);
   const totalPropertyCount = await Property.countDocuments({});
 
   return { propertyCount, totalPropertyCount };
@@ -1254,30 +1286,66 @@ export const getCountryWisePropertyCount = async ({
   country: string;
 }) => {
   const pipeline = [
-    {
-      $match: {
-        country: country,
-      },
-    },
-    {
-      $group: {
-        _id: "$city",
-        count: {
-          $sum: 1,
-        },
-      },
-    },
-    {
-      $sort: {
-        count: -1 as const,
-      },
-    },
-    {
-      $limit: 5,
-    },
-  ];
+  // Step 1: filter by country
+  {
+    $match: { country: country }
+  },
+  // Step 2: group by city and rentalType
+  {
+    $group: {
+      _id: { city: "$city", rentalType: "$rentalType" },
+      count: { $sum: 1 }
+    }
+  },
+  // Step 3: group by city, pushing rentalType counts
+  {
+    $group: {
+      _id: "$_id.city",
+      counts: {
+        $push: {
+          k: { $ifNull: ["$_id.rentalType", "Unknown"] },
+          v: "$count"
+        }
+      }
+    }
+  },
+  // Step 4: convert counts array to object
+  {
+    $addFields: { counts: { $arrayToObject: "$counts" } }
+  },
+  // Step 5: ensure Short Term and Long Term exist
+  {
+    $addFields: {
+      "Short Term": { $ifNull: ["$counts.Short Term", 0] },
+      "Long Term": { $ifNull: ["$counts.Long Term", 0] }
+    }
+  },
+  // Step 6: total per city
+  {
+    $addFields: { total: { $add: ["$Short Term", "$Long Term"] } }
+  },
+  // Step 7: project final fields
+  {
+    $project: {
+      _id: 0,
+      city: "$_id",
+      "Short Term": 1,
+      "Long Term": 1,
+      total: 1
+    }
+  },
+  // Step 8: sort by total descending
+  {
+    $sort: { total: -1 as const }
+  },
+  // Step 9: limit top 5 cities
+  {
+    $limit: 5
+  }
+];
 
   const countryWisePropertyCount = await Property.aggregate(pipeline);
+  console.log("countryWisePropertyCount",countryWisePropertyCount);
   const totalPropertyCount = await Property.countDocuments({
     country: country,
   });

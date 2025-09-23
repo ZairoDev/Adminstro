@@ -74,6 +74,7 @@ import { list } from "postcss";
 import { useRouter } from "next/navigation";
 import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
+import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 
 //  const chartConfig = {
 //   greece: {
@@ -403,7 +404,7 @@ const Dashboard = () => {
 
           {/* country-wise property count */}
           <div className=" mt-2">
-            <PropertyCountBarChart
+            {/* <PropertyCountBarChart
               heading={`Property Count - ${
                 selectedCountry === "All"
                   ? totalProperties
@@ -418,6 +419,23 @@ const Dashboard = () => {
                   ? countryWiseProperties
                   : []
               }
+            /> */}
+            <PropertyCountHistogram
+              heading={`Property Count - ${
+                selectedCountry === "All"
+                  ? totalProperties
+                  : countryWiseTotalProperties
+              }`}
+              chartData={
+                selectedCountry === "All"
+                  ? properties
+                    ? properties
+                    : []
+                  : countryWiseProperties
+                  ? countryWiseProperties
+                  : []
+              }
+
             />
           </div>
         </div>

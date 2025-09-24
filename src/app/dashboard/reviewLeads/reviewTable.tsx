@@ -52,7 +52,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogTrigger,
-} from "../ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuSub,
@@ -65,16 +65,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
-} from "../ui/dropdown-menu";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
-import { Textarea } from "../ui/textarea";
-import CustomTooltip from "../CustomToolTip";
+} from "@/components/ui/dropdown-menu";
+
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
-import { AreaSelect} from "../leadTableSearch/page";
+import CustomTooltip from "@/components/CustomToolTip";
+import { Badge } from "@/components/ui/badge";
+import { AreaSelect } from "@/components/leadTableSearch/page";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+// import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+
 
 interface AreaType {
   _id: string;
@@ -123,20 +127,20 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
   }, []);
 
   const handleQualityChange = async (
-    leadQualityByReviewer: string,
+    leadQualityByTeamLead: string,
     id: any,
     index: number
   ) => {
     setLoading(true);
     try {
-      const response = axios.post("/api/sales/reviewLeadQuality", {
+      const response = axios.post("/api/sales/reviewByTeamLead", {
         id,
-        leadQualityByReviewer,
+        leadQualityByTeamLead,
       });
       toast({
         description: "Status updated succefully",
       });
-      queries[index].leadQualityByReviewer = leadQualityByReviewer;
+      queries[index].leadQualityByTeamLead = leadQualityByTeamLead;
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -435,13 +439,6 @@ const handleSave = async (
         <TableHeader>
           <TableRow>
             <TableHead>S.No.</TableHead>
-            {(token?.role === "Sales" ||
-              token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Status</TableHead>}
-
-            {(token?.role === "Sales" ||
-              token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -461,11 +458,6 @@ const handleSave = async (
               key={query?._id}
               className={`
               ${
-                query?.leadQualityByTeamLead  === "Approved" 
-                  ? "bg-green-300/40"
-                  : query?.leadQualityByTeamLead === "Not Approved"
-                  ? "bg-red-300/40"
-                  :
                 query?.BoostID
                   ? "bg-orange-300/40"
                   : query?.isViewed
@@ -476,85 +468,6 @@ const handleSave = async (
             `}
             >
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
-              {(token?.role === "Sales" ||
-                token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
-                <TableCell
-                  className=" cursor-pointer relative "
-                  onClick={() => handleMessageStatus(query?._id, index)}
-                >
-                  {query?.reminder === null && (
-                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">
-                        Reminder
-                      </p>
-                    </div>
-                  )}
-                  {query.messageStatus === "First" ? (
-                    <CustomTooltip
-                      icon={<Mail color="green" />}
-                      desc="First Message"
-                    />
-                  ) : query.messageStatus === "Second" ? (
-                    <CustomTooltip
-                      icon={<MailCheck color="yellow" />}
-                      desc="Second Message"
-                    />
-                  ) : query.messageStatus === "Third" ? (
-                    <CustomTooltip
-                      icon={<MailX color="magenta" />}
-                      desc="Shared Options"
-                    />
-                  ) : query.messageStatus === "Fourth" ? (
-                    <CustomTooltip
-                      icon={<MessageSquareX color="red" />}
-                      desc="Visit Scheduled"
-                    />
-                  ) : (
-                    <CustomTooltip
-                      icon={<CircleDot fill="" color="gray" />}
-                      desc="No Status"
-                    />
-                  )}
-                </TableCell>
-              )}
-              {(token?.role === "Sales" ||
-                token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
-                <TableCell
-                  className=" cursor-pointer relative "
-                  onClick={() => handleSalesPriority(query?._id, index)}
-                >
-                  {query?.reminder === null && (
-                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">
-                        Reminder
-                      </p>
-                    </div>
-                  )}
-                  {query.salesPriority === "High" ? (
-                    <CustomTooltip
-                      icon={<ArrowBigUpDash fill="green" color="green" />}
-                      desc="High Priority"
-                    />
-                  ) : query.salesPriority === "Low" ? (
-                    <CustomTooltip
-                      icon={<ArrowBigDownDash fill="red" color="red" />}
-                      desc="Low Priority"
-                    />
-                  ) : query.salesPriority === "Medium" ? (
-                    <CustomTooltip
-                      icon={<Info fill="" color="blue" />}
-                      desc="Need Information"
-                    />
-                  ) : (
-                    <CustomTooltip
-                      icon={<CircleDot fill="" color="gray" />}
-                      desc="No Priority"
-                    />
-                  )}
-                </TableCell>
-              )}
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${
@@ -637,9 +550,9 @@ const handleSave = async (
               <TableCell>
                 <div className="flex gap-x-2">
                   <TooltipEditableCell
-                    value={`€${query?.maxBudget?.toString() ?? ""}`}
+                    value={`€${query?.maxBudget.toString() ?? ""}`}
                     onSave={(val) => handleSave(query._id!, "maxBudget", val)}
-                    tooltipText={`€ ${query?.minBudget} - € ${query?.maxBudget}`}
+                    tooltipText={`€ ${query.minBudget} - € ${query.maxBudget}`}
                   />
                   <div>|</div>
                   <Badge>
@@ -697,7 +610,7 @@ const handleSave = async (
                         .find(
                           (target) =>
                             target.city.toLowerCase() ===
-                            query?.location.toLowerCase()
+                            query.location.toLowerCase()
                         )
                         ?.areas.map((area) => ({
                           value: area.name,
@@ -770,7 +683,7 @@ const handleSave = async (
                       <Loader2 size={18} className="animate-spin" />
                     ) : (
                       <Button variant="ghost">
-                        {query.leadQualityByReviewer || "Review"}
+                        {query.leadQualityByTeamLead || "Review"}
                       </Button>
                     )}
                   </DropdownMenuTrigger>
@@ -783,34 +696,18 @@ const handleSave = async (
                     <DropdownMenuItem
                       className="cursor-pointer"
                       onClick={() =>
-                        handleQualityChange("Good", query?._id, index)
+                        handleQualityChange("Approved", query?._id, index)
                       }
                     >
-                      Good
+                      Approved
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer"
                       onClick={() =>
-                        handleQualityChange("Very Good", query?._id, index)
+                        handleQualityChange("Not Approved", query?._id, index)
                       }
                     >
-                      Very Good
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Average", query?._id, index)
-                      }
-                    >
-                      Average
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handleQualityChange("Below Average", query?._id, index)
-                      }
-                    >
-                      Below Average
+                      Not Approved
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -859,233 +756,14 @@ const handleSave = async (
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      {(token?.role === "Sales" ||
-                        token?.role === "Sales-TeamLead" ||
-                        token?.role === "SuperAdmin") && (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => handleCreateRoom(index)}
-                          >
-                            Create Room
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            onClick={() => {
-                              sessionStorage.setItem(
-                                "previousPath",
-                                window.location.pathname
-                              );
-                              router.push(
-                                `${process.env.NEXT_PUBLIC_URL}/dashboard/room/${query?.roomDetails?.roomId}-${query?.roomDetails?.roomPassword}`
-                              );
-                            }}
-                          >
-                            Join Room
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem>
-                            <div
-                              onClick={(e) => {
-                                e.preventDefault(); // Prevent dropdown click default behavior
-                                e.stopPropagation(); // Stop the event from bubbling
-                              }}
-                            >
-                              <AlertDialog
-                                onOpenChange={(isOpen) => {
-                                  if (!isOpen) ellipsisRef.current?.focus();
-                                }}
-                              >
-                                <AlertDialogTrigger
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                  asChild
-                                >
-                                  <button type="button">Set Reminder</button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent
-                                  className=" flex flex-col items-center"
-                                  onCloseAutoFocus={(event) => {
-                                    event.preventDefault(); // Prevent default focus-restoring behavior if needed
-                                    document.body.style.pointerEvents = "";
-                                  }}
-                                >
-                                  <div className=" z-10">
-                                    <Calendar
-                                      mode="single"
-                                      selected={reminderDate}
-                                      onSelect={(date) => {
-                                        setReminderDate(date);
-                                      }}
-                                      className="rounded-md border shadow"
-                                    />
-                                    <div className=" flex justify-between w-full gap-x-4 mt-2">
-                                      <AlertDialogCancel className=" w-1/2">
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className=" w-1/2"
-                                        onClick={() =>
-                                          addReminder(query?._id, index)
-                                        }
-                                      >
-                                        Continue
-                                      </AlertDialogAction>
-                                    </div>
-                                  </div>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </DropdownMenuItem>
-                        </>
-                      )}
                       <Link
                         onClick={() => IsView(query?._id, index)}
                         href={`/dashboard/createquery/${query?._id}`}
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
-                      {path.toString().trim().split("/")[2] ===
-                        "goodtogoleads" && (
-                        <>
-                          <DropdownMenuItem
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              setActiveModalRow(index);
-                            }}
-                          >
-                            Set Visit
-                          </DropdownMenuItem>
+                    </DropdownMenuGroup>
 
-                          <AlertDialog open={activeModalRow === index}>
-                            <AlertDialogContent>
-                              <VisitModal
-                                leadId={query._id!}
-                                onOpenChange={() => {
-                                  setActiveModalRow(-1);
-                                }}
-                              />
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          getRecommendations(query._id, index);
-                        }}
-                      >
-                        Get Recommendation
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuSub>
-                        {/* {(token?.role === "SuperAdmin" ||
-                          token?.role === "Sales-TeamLead") && ( */}
-                        <>
-                          {path.toString().trim().split("/")[2] ===
-                            "rolebaseLead" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleDisposition(query?._id, index, "active")
-                              }
-                              className=" flex items-center gap-x-2"
-                            >
-                              Good To Go <ThumbsUp size={16} />
-                            </DropdownMenuItem>
-                          )}
-                          {path.toString().trim().split("/")[2] ===
-                            "rolebaseLead" && (
-                            <DropdownMenuSubTrigger className="w-40 truncate">
-                              Rej re:
-                              <span className="ml-2">
-                                {query.rejectionReason}
-                              </span>
-                            </DropdownMenuSubTrigger>
-                          )}
-                          {path.toString().trim().split("/")[2] ===
-                            "goodtogoleads" && (
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger>
-                                Decline
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                                  {[
-                                    "Blocked on whatsapp",
-                                    "Late Response",
-                                    "Delayed the travelling",
-                                    "Already got it",
-                                    "Didn't like the option",
-                                    "Different Area",
-                                    "Agency Fees",
-                                  ].map((declineReason, ind) => (
-                                    <DropdownMenuItem
-                                      key={ind}
-                                      onClick={() =>
-                                        handleDisposition(
-                                          query?._id,
-                                          index,
-                                          "declined",
-                                          `${declineReason}`
-                                        )
-                                      }
-                                    >
-                                      {`${declineReason}`}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuPortal>
-                            </DropdownMenuSub>
-                            // <DropdownMenuItem
-                            //   onClick={() =>
-                            //     handleDisposition(
-                            //       query?._id,
-                            //       index,
-                            //       "declined"
-                            //     )
-                            //   }
-                            //   className=" flex items-center gap-x-2"
-                            // >
-                            //   Decline
-                            // </DropdownMenuItem>
-                          )}
-                        </>
-                        {/* )}*/}
-                        <DropdownMenuPortal>
-                          <DropdownMenuSubContent>
-                            {[
-                              "Not on whatsapp",
-                              "Not Replying",
-                              "Low Budget",
-                              "Blocked on whatsapp",
-                              "Late Response",
-                              "Delayed the travelling",
-                              "Off Location",
-                              "Number of people exceeded",
-                              "Already got it",
-                              "Different Area",
-                              "Agency Fees",
-                              "Low Duration",
-                            ].map((reason, ind) => (
-                              <DropdownMenuItem
-                                key={ind}
-                                onClick={() =>
-                                  handleRejectionReason(
-                                    `${reason}`,
-                                    query?._id,
-                                    index
-                                  )
-                                }
-                              >
-                                {`${reason}`}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                      </DropdownMenuSub>
-                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">

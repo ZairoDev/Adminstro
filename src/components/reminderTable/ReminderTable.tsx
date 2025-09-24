@@ -107,18 +107,24 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
-  const remainingDays = (date: Date) => {
-    const todayDate = new Date();
-    const reminderDate = new Date(date);
+  const remainingDays = (date: string | Date | undefined) => {
+    if (!date) return "N/A"; // handle missing date
 
-    todayDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const reminderDate = new Date(date);
+    if (isNaN(reminderDate.getTime())) return "N/A"; // invalid date
+
     reminderDate.setHours(0, 0, 0, 0);
 
-    const timeDiff: number = reminderDate.getTime() - todayDate.getTime();
-    const daysDifference = timeDiff / (1000 * 3600 * 24);
+    const diffTime = reminderDate.getTime() - today.getTime();
+    const daysDiff = Math.ceil(diffTime / (1000 * 3600 * 24));
 
-    return Math.floor(daysDifference);
+    if (daysDiff < 0) return "Already Passed"; // past dates
+    return daysDiff;
   };
+  
 
   const addBackToLeads = async (leadId: string | undefined) => {
     if (!leadId) return;
@@ -306,8 +312,14 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p>{remainingDays(query?.reminder)}&nbsp; Days To Go</p>
+                  <p>
+                    {remainingDays(query?.reminder)}{" "}
+                    {typeof remainingDays(query?.reminder) === "number"
+                      ? "Days To Go"
+                      : ""}
+                  </p>
                 </TableCell>
+
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

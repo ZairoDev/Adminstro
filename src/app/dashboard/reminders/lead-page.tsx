@@ -166,7 +166,7 @@ export const LeadPage = () => {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      // console.log("response of new leads: ", response);
+      console.log("response of new leads: ", response);          
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);

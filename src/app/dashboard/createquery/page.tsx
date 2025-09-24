@@ -688,6 +688,15 @@ const SalesDashboard = () => {
                         }
                       />
                     </div>
+                    <div>
+                      <Label>Id Name</Label>
+                      <Input
+                        name="idName"
+                        value={formData.idName}
+                        onChange={handleInputChange}
+                        placeholder="Enter the Id Name"                        
+                      />    
+                    </div>
                   </div>
 
                   {/* Section 2: Booking Details */}

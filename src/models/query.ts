@@ -113,6 +113,10 @@ const querySchema = new Schema(
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
     },
+    leadQualityByTeamLead: {
+      type: String,
+      enum: ["Approved", "Not Approved"],
+    },
     rejectionReason: {
       type: String,
       enum: [
@@ -193,6 +197,10 @@ const querySchema = new Schema(
       type: [String],
       default: [],
     },
+    idName:{
+      type: String,
+      default: "",
+    }
   },
   { timestamps: true }
 );

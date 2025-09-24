@@ -10,12 +10,24 @@ interface PropertyCountInterface {
   _id: string;
   count: number;
 }
+interface CountryRentalStats {
+  country: string;
+  "Short Term": number;
+  "Long Term": number;
+  total: number;
+}
+
+interface CountryWisePropertyCount {
+  city: string;
+  "Short Term": number;
+  "Long Term": number;
+}
 
 const usePropertyCount = () => {
-  const [properties, setProperties] = useState<PropertyCountInterface[]>();
+  const [properties, setProperties] = useState<CountryRentalStats[]>();
   const [totalProperties, setTotalProperties] = useState(0);
   const [countryWiseProperties, setCountryWiseProperties] = useState<
-    PropertyCountInterface[]
+    CountryWisePropertyCount[]
   >([]);
   const [countryWiseTotalProperties, setCountryWiseTotalProperties] =
     useState(0);

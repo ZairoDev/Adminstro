@@ -281,6 +281,7 @@ export interface IQuery {
   minBudget: number;
   maxBudget: number;
   leadQualityByCreator?: string;
+  leadQualityByTeamLead?: string;
   name: string;
   email: string;
   propertyShown?: number;
@@ -313,6 +314,7 @@ export interface IQuery {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  idName?: string;
 }
 
 export interface VisitInterface {

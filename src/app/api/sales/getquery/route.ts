@@ -41,11 +41,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let query: Record<string, any> = {};
 
     if (searchTerm) {
-      if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
-      } else {
+
         query[searchType] = regex;
-      }
+      
     }
 
     // console.log("search query: ", query);

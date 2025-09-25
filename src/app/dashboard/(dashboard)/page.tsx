@@ -75,6 +75,7 @@ import { useRouter } from "next/navigation";
 import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
+import { MoleculeVisualization } from "@/components/molecule_visual";
 
 //  const chartConfig = {
 //   greece: {
@@ -216,7 +217,10 @@ const Dashboard = () => {
     fetchGoodVisitsCount,
     unregisteredOwners,
     fetchUnregisteredVisits,
+    ownersCount,
   } = WeeksVisit();
+
+  console.log("OwnersCount", ownersCount);
 
   const { totalListings,fetchListingCounts } = ListingCounts();
 
@@ -435,7 +439,6 @@ const Dashboard = () => {
                   ? countryWiseProperties
                   : []
               }
-
             />
           </div>
         </div>
@@ -964,87 +967,95 @@ const Dashboard = () => {
       )}
 
       {token?.role === "SuperAdmin" && (
-        <div className="flex flex-col md:flex-row gap-6 mt-8">
-          {/* Properties Shown Summary (larger width) */}
-          <div className="relative flex-1 p-6 border rounded-xl shadow-md">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
-              Properties Shown Summary
-            </h2>
-            <CustomSelect
-              itemList={[
-                "Today",
-                "All",
-                "yesterday",
-                "last month",
-                "this month",
-                "10 days",
-                "15 days",
-                "1 month",
-                "3 months",
-              ]}
-              triggerText="Select days"
-              defaultValue="Today"
-              onValueChange={(value) => {
-                const newLeadFilters = {} as { days: string };
-                newLeadFilters.days = value;
-                // setReviewsFilters(newLeadFilters);
-                fetchGoodVisitsCount(newLeadFilters);
-              }}
-              triggerClassName="w-32 absolute right-6 top-4"
-            />
-            {goodVisits ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
-                  <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    <tr>
-                      <th className="px-4 py-2 font-semibold border-b">
-                        Total Leads
-                      </th>
-                      {labels.map((label) => (
-                        <th
-                          key={label}
-                          className="px-4 py-2 font-semibold border-b"
-                        >
-                          {label} Shown
+        <>
+          <div className="flex flex-col md:flex-row gap-6 mt-8">
+            {/* Properties Shown Summary (larger width) */}
+            <div className="relative flex-1 p-6 border rounded-xl shadow-md">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+                Properties Shown Summary
+              </h2>
+              <CustomSelect
+                itemList={[
+                  "Today",
+                  "All",
+                  "yesterday",
+                  "last month",
+                  "this month",
+                  "10 days",
+                  "15 days",
+                  "1 month",
+                  "3 months",
+                ]}
+                triggerText="Select days"
+                defaultValue="Today"
+                onValueChange={(value) => {
+                  const newLeadFilters = {} as { days: string };
+                  newLeadFilters.days = value;
+                  // setReviewsFilters(newLeadFilters);
+                  fetchGoodVisitsCount(newLeadFilters);
+                }}
+                triggerClassName="w-32 absolute right-6 top-4"
+              />
+              {goodVisits ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
+                    <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                      <tr>
+                        <th className="px-4 py-2 font-semibold border-b">
+                          Total Leads
                         </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-white dark:bg-gray-950">
-                      <td className="px-4 py-2 border-b">{goodVisits.total}</td>
-                      {labels.map((label) => (
-                        <td key={label} className="px-4 py-2 border-b">
-                          {goodVisits[label]}
+                        {labels.map((label) => (
+                          <th
+                            key={label}
+                            className="px-4 py-2 font-semibold border-b"
+                          >
+                            {label} Shown
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="bg-white dark:bg-gray-950">
+                        <td className="px-4 py-2 border-b">
+                          {goodVisits.total}
                         </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="flex justify-center items-center h-24">
-                <h1 className="text-xl text-gray-500 dark:text-gray-400">
-                  No Data Available
-                </h1>
-              </div>
-            )}
-          </div>
+                        {labels.map((label) => (
+                          <td key={label} className="px-4 py-2 border-b">
+                            {goodVisits[label]}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex justify-center items-center h-24">
+                  <h1 className="text-xl text-gray-500 dark:text-gray-400">
+                    No Data Available
+                  </h1>
+                </div>
+              )}
+            </div>
 
-          {/* Unregistered Owners (smaller box) */}
-          <div className="w-full md:w-[250px] p-6 border rounded-xl shadow-md">
-            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-              Unregistered Owners
-            </h2>
-            <div
-              onClick={handleClick}
-              className="text-3xl mt-6 font-bold text-center cursor-pointer text-indigo-600 dark:text-indigo-400"
-            >
-              {unregisteredOwners.length}
+            {/* Unregistered Owners (smaller box) */}
+            <div className="w-full md:w-[250px] p-6 border rounded-xl shadow-md">
+              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+                Unregistered Owners
+              </h2>
+              <div
+                onClick={handleClick}
+                className="text-3xl mt-6 font-bold text-center cursor-pointer text-indigo-600 dark:text-indigo-400"
+              >
+                {unregisteredOwners.length}
+              </div>
             </div>
           </div>
-        </div>
+          <div>
+            <MoleculeVisualization data={ownersCount} />
+          </div>
+        </>
       )}
+
       <div>
         {token?.role === "SuperAdmin" && (
           <div className="flex flex-col md:flex-row gap-6 mt-8">

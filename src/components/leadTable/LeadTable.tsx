@@ -461,12 +461,11 @@ const handleSave = async (
               key={query?._id}
               className={`
               ${
-                query?.leadQualityByTeamLead  === "Approved" 
+                query?.leadQualityByTeamLead === "Approved"
                   ? "bg-green-300/40"
                   : query?.leadQualityByTeamLead === "Not Approved"
                   ? "bg-red-300/40"
-                  :
-                query?.BoostID
+                  : query?.BoostID
                   ? "bg-orange-300/40"
                   : query?.isViewed
                   ? "bg-transparent hover:bg-transparent"
@@ -937,6 +936,14 @@ const handleSave = async (
                               </AlertDialog>
                             </div>
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              getRecommendations(query._id, index);
+                            }}
+                          >
+                            Get Recommendation
+                          </DropdownMenuItem>
                         </>
                       )}
                       <Link
@@ -969,14 +976,6 @@ const handleSave = async (
                           </AlertDialog>
                         </>
                       )}
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          getRecommendations(query._id, index);
-                        }}
-                      >
-                        Get Recommendation
-                      </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

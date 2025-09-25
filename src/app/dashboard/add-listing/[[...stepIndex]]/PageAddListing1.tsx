@@ -219,6 +219,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
               <SelectItem value="Resort">Resort</SelectItem>
               <SelectItem value="House">House</SelectItem>
               <SelectItem value="Holiday homes">Holiday homes</SelectItem>
+              <SelectItem value="Detached House">Detached House</SelectItem>
             </SelectContent>
           </Select>
         </FormItem>

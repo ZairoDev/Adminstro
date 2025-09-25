@@ -97,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     query = { ...query, ...dateQuery };
 
-    if (token.role != "SuperAdmin") query.createdBy = token.email;
+    if (token.role != "SuperAdmin" && token.role != "LeadGen-TeamLead") query.createdBy = token.email;
 
     const allquery = await Query.aggregate([
       { $match: query },

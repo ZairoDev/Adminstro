@@ -18,6 +18,7 @@ import {
   MailCheck,
   MailX,
   MessageSquareX,
+  MessageSquareOff,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -108,7 +109,7 @@ export default function GoodTable({
   const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "None")[]
+    ("Low" | "High" | "NR" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
   const [messageStatus, setMessageStatus] = useState<
@@ -301,6 +302,9 @@ export default function GoodTable({
     } else if (newSalesPriorities[index] === "Low") {
       newSalesPriorities[index] = "High";
       queries[index].salesPriority = "High";
+    }  else if (newSalesPriorities[index] === "High") {
+      newSalesPriorities[index] = "NR";
+      queries[index].salesPriority = "NR";
     } else {
       newSalesPriorities[index] = "None";
       queries[index].salesPriority = "None";
@@ -595,6 +599,11 @@ export default function GoodTable({
                     <CustomTooltip
                       icon={<ArrowBigDownDash fill="red" color="red" />}
                       desc="Low Priority"
+                    />
+                  ) : query.salesPriority === "NR" ? (
+                    <CustomTooltip
+                      icon={<MessageSquareOff fill="" color="yellow" />}
+                      desc="Not Replying"
                     />
                   ) : (
                     <CustomTooltip

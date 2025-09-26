@@ -172,7 +172,7 @@ const querySchema = new Schema(
     },
     salesPriority: {
       type: String,
-      enum: ["High", "Low", "Medium", "None"],
+      enum: ["High", "Low", "Medium","NR", "None"],
       require: [true, "Priority must be provided"],
       default: "None",
     },

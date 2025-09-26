@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export interface FilterState {
+  createdBy?: string;
+  salesPriority?: string;
   searchType?: string;
   searchTerm?: string;
   dateFilter: string;
@@ -31,6 +33,7 @@ export interface FilterState {
   allotedArea: string;
   typeOfProperty?: string;
   rejectionReason?: string;
+  leadQualityByTeamLead?: string;
 }
 
 interface FilterProps {

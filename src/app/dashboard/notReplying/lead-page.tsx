@@ -63,6 +63,7 @@ export const NotReplyingLeads = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
+    salesPriority: "NR",
     searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
@@ -79,7 +80,6 @@ export const NotReplyingLeads = () => {
     budgetTo: "",
     leadQuality: "",
     allotedArea: token?.allotedArea || "",
-    rejectionReason: "Not Replying",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
@@ -100,7 +100,7 @@ export const NotReplyingLeads = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+    // console.log("sorting field: ", queries);
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -163,7 +163,7 @@ export const NotReplyingLeads = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getRejectedLeads", {
+      const response = await axios.post("/api/leads/getAllLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });

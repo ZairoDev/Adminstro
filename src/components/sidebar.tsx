@@ -152,6 +152,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Not Replying Leads",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/compareLeads",
+      label: "Compare Leads",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   Admin: [
     {
@@ -409,6 +414,11 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/notReplying",
       label: "Not Replying Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/compareLeads",
+      label: "Compare Leads",
       Icon: <PencilLine size={18} />,
     },
   ],
@@ -703,6 +713,11 @@ const leadManagementRoutes = [
   {
     path: "/dashboard/notReplying",
     label: "Not Replying Leads",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/compareLeads",
+    label: "Compare Leads",
     Icon: <PencilLine size={18} />,
   },
 ];

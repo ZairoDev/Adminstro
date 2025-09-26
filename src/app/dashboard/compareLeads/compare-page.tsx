@@ -41,9 +41,10 @@ import LeadsFilter, {
 } from "@/components/lead-component/NewLeadFilter";
 
 import HandLoader from "@/components/HandLoader";
-import LeadTable from "./reviewTable";
+import CompareTable from "./compareTable";
 
-export const ReviewLeads = () => {
+
+export const CompareLeadsPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
@@ -163,23 +164,35 @@ export const ReviewLeads = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getLeads", {
-        filters: filtersToUse ? filtersToUse : filters,
-        page: newPage,
+
+      const appliedFilters = filtersToUse ?? filters;
+
+      const params = new URLSearchParams({
+        page: String(newPage),
+
+        searchTerm: appliedFilters.searchTerm ?? "",
+        searchType: appliedFilters.searchType ?? "name",
+        dateFilter: appliedFilters.dateFilter ?? "",
+        customDays: appliedFilters.customDays?.toString() ?? "0",
+
       });
-      // console.log("response of new leads: ", response);
+
+      const response = await axios.get(
+        `/api/sales/getquery?${params.toString()}`
+      );
+
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
     } catch (err: any) {
-      console.log("error in getting leads: ", err);
+      console.error("Error in getting leads:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    filterLeads(1, filters);
+    filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams.get("page") ?? "1"));
     const getAllotedArea = async () => {
       try {
@@ -364,7 +377,7 @@ export const ReviewLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} setQueries={setQueries} />
+              <CompareTable queries={queries} setQueries={setQueries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

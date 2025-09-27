@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
       leadQuality,
       allotedArea,
       typeOfProperty,
-      leadQualityByTeamLead
+      createdBy,
+      salesPriority,
     } = reqBody.filters;
     const PAGE = reqBody.page;
 
@@ -137,42 +138,28 @@ export async function POST(req: NextRequest) {
     if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
     if (typeOfProperty) query.typeOfProperty = typeOfProperty;
-    if (leadQualityByTeamLead){
-      if (leadQualityByTeamLead === "Not Approved") {
-        query.leadQualityByTeamLead = "Not Approved";
+
+
+      if(role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead"){
+        query.createdBy = token.email;
       }
-      else{
-
-      }
-    } 
-
-
-    {
-      /* Searching in non rejected Leads and leads with no reminders */
-    }
-    query = {
-      ...query,
-      ...dateQuery,
-      leadStatus: "fresh",
-    };
-
+      if(salesPriority) query.salesPriority = salesPriority;
+    
     {
       /* Only search leads for alloted area, but only in case of agents not for TL and SuperAdmin */
     }
     
-    if (allotedArea) {
-      query.location = new RegExp(allotedArea, "i");
-    } else {
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead") {
-        if (Array.isArray(assignedArea)) {
-          query.location = { $in: assignedArea };
-        } else {
-          query.location = assignedArea;
-        }
-      }
-    }
-
-    console.log("query after leadQualityByTeamLead: ", query);
+    // if (allotedArea) {
+    //   query.location = new RegExp(allotedArea, "i");
+    // } else {
+    //   if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead") {
+    //     if (Array.isArray(assignedArea)) {
+    //       query.location = { $in: assignedArea };
+    //     } else {
+    //       query.location = assignedArea;
+    //     }
+    //   }
+    // }
 
     // console.log("created query: ", query);
 

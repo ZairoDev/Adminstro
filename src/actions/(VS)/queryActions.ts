@@ -12,6 +12,7 @@ import Visits from "@/models/visit";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
 
 connectDb();
 
@@ -1143,6 +1144,179 @@ export const getUnregisteredOwners = async () => {
   // console.log("unregisteredOwners: ", unregisteredOwners);
   return { unregisteredOwners };
 }
+
+export const OwnersCount = async (): Promise<RegistrationData> => {
+  const pipeline = [
+    {
+      $addFields: {
+        isRegistered: {
+          $or: [
+            { $and: [{ $ifNull: ["$link", false] }, { $ne: ["$link", ""] }] },
+            { $and: [{ $ifNull: ["$VSID", false] }, { $ne: ["$VSID", ""] }] },
+          ],
+        },
+        hasReference: {
+          $and: [
+            { $ifNull: ["$referenceLink", false] },
+            { $ne: ["$referenceLink", ""] },
+          ],
+        },
+        hasImages: {
+          $gt: [{ $size: { $ifNull: ["$imageUrls", []] } }, 0],
+        },
+      },
+    },
+    {
+      $facet: {
+        byCity: [
+          {
+            $group: {
+              _id: "$location",
+              registeredCount: { $sum: { $cond: ["$isRegistered", 1, 0] } },
+              unregisteredCount: { $sum: { $cond: ["$isRegistered", 0, 1] } },
+
+              // unregistered with only referenceLink
+              unregisteredWithReferenceLink: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasReference",
+                        { $not: ["$hasImages"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+
+              // unregistered with only images
+              unregisteredWithImages: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasImages",
+                        { $not: ["$hasReference"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+
+              // unregistered with both
+              unregisteredWithBoth: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasReference",
+                        "$hasImages",
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              city: "$_id",
+              registeredCount: 1,
+              unregisteredCount: 1,
+              unregisteredWithReferenceLink: 1,
+              unregisteredWithImages: 1,
+              unregisteredWithBoth: 1,
+              _id: 0,
+            },
+          },
+        ],
+        totals: [
+          {
+            $group: {
+              _id: null,
+              totalRegistered: { $sum: { $cond: ["$isRegistered", 1, 0] } },
+              totalUnregistered: { $sum: { $cond: ["$isRegistered", 0, 1] } },
+
+              totalUnregisteredWithReferenceLink: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasReference",
+                        { $not: ["$hasImages"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              totalUnregisteredWithImages: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasImages",
+                        { $not: ["$hasReference"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              totalUnregisteredWithBoth: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$isRegistered", false] },
+                        "$hasReference",
+                        "$hasImages",
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalRegistered: 1,
+              totalUnregistered: 1,
+              totalUnregisteredWithReferenceLink: 1,
+              totalUnregisteredWithImages: 1,
+              totalUnregisteredWithBoth: 1,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const res = await unregisteredOwner.aggregate(pipeline).exec();
+
+  return (
+    res[0]
+  );
+};
+
+
+
 
 export const getGoodVisitsCount = async({days}:{days?:string})=>{
   const filters: Record<string, any> = {};

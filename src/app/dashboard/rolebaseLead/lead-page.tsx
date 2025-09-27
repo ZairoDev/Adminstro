@@ -17,6 +17,7 @@ import {
   SheetTrigger,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; 
 import {
   Select,
   SelectItem,
@@ -68,6 +69,9 @@ export const LeadPage = () => {
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
+  const [activeTab, setActiveTab] = useState<"approved" | "notApproved">(
+    "approved"
+  );
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -95,10 +99,11 @@ export const LeadPage = () => {
     leadQuality: "",
     allotedArea: "",
     typeOfProperty: "",
+    leadQualityByTeamLead: "Approved",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
-
+               
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
@@ -196,7 +201,7 @@ export const LeadPage = () => {
   };
 
   useEffect(() => {
-    filterLeads(1, defaultFilters);
+    filterLeads(1, filters);
     setPage(parseInt(searchParams.get("page") ?? "1"));
     const getAllotedArea = async () => {
       try {
@@ -207,7 +212,7 @@ export const LeadPage = () => {
       }
     };
     getAllotedArea();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     const pusher = new Pusher("1725fd164206c8aa520b", {
@@ -264,7 +269,10 @@ export const LeadPage = () => {
           {/* heading component where all leads is*/}
           <Heading heading="Fresh Leads" subheading="" />
           <div className="w-full flex flex-wrap gap-4 justify-center ">
-            <div onClick={() => handlePropertyCountFilter("Apartment","1")} className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "1")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
               <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
                 {wordsCount[0]?.["1bhk"]}
               </p>
@@ -272,7 +280,10 @@ export const LeadPage = () => {
                 1 BHK
               </p>
             </div>
-            <div onClick={() => handlePropertyCountFilter("Apartment","2")} className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "2")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
               <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
                 {wordsCount[0]?.["2bhk"]}
               </p>
@@ -280,7 +291,10 @@ export const LeadPage = () => {
                 2 BHK
               </p>
             </div>
-            <div onClick={() => handlePropertyCountFilter("Apartment","3")} className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "3")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
               <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
                 {wordsCount[0]?.["3bhk"]}
               </p>
@@ -288,7 +302,10 @@ export const LeadPage = () => {
                 3 BHK
               </p>
             </div>
-            <div onClick={() => handlePropertyCountFilter("Apartment","4")} className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <div
+              onClick={() => handlePropertyCountFilter("Apartment", "4")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
               <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
                 {wordsCount[0]?.["4bhk"]}
               </p>
@@ -296,7 +313,10 @@ export const LeadPage = () => {
                 4 BHK
               </p>
             </div>
-            <div onClick={() => handlePropertyCountFilter("Studio","1")}  className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <div
+              onClick={() => handlePropertyCountFilter("Studio", "1")}
+              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
+            >
               <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
                 {wordsCount[0]?.["studio"]}
               </p>
@@ -323,7 +343,8 @@ export const LeadPage = () => {
           <div className="flex w-full items-center gap-x-2">
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
-              token?.role === "Sales-TeamLead" || token?.email === "tyagimokshda@gmail.com") && (
+              token?.role === "Sales-TeamLead" ||
+              token?.email === "tyagimokshda@gmail.com") && (
               <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {
@@ -455,7 +476,7 @@ export const LeadPage = () => {
                         click of the Apply button !
                       </p>
                     </div>
-                  </SheetFooter>  
+                  </SheetFooter>
                 </SheetContent>
               </Sheet>
             </div>
@@ -471,25 +492,56 @@ export const LeadPage = () => {
         </div>
       ) : view === "Table View" ? (
         <div className="">
-          <div>
-            <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} setQueries={setQueries}/>
-            </div>
-            <div className="flex items-center justify-between p-2 w-full">
-              <div className="">
-                <p className="text-xs ">
+          <Tabs
+            value={activeTab}
+            onValueChange={(val) => {
+              setActiveTab(val as "approved" | "notApproved");
+              setFilters({
+                ...filters,
+                leadQualityByTeamLead:
+                  val === "approved" ? "Approved" : "Not Approved",
+              });
+            }}
+          >
+            <TabsList className="mt-4">
+              <TabsTrigger value="approved">All Leads</TabsTrigger>
+              <TabsTrigger value="notApproved">Not Approved Leads</TabsTrigger>
+            </TabsList>
+
+            {/* Approved Leads Table */}
+            <TabsContent value="approved">
+              <div className="mt-2 border rounded-lg min-h-[90vh]">
+                <LeadTable queries={queries} setQueries={setQueries} />
+              </div>
+              <div className="flex items-center justify-between p-2 w-full">
+                <p className="text-xs">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>
-              </div>
-              <div>
-                <Pagination className="flex items-center">
-                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
+                <Pagination>
+                  <PaginationContent>
                     {renderPaginationItems()}
                   </PaginationContent>
                 </Pagination>
               </div>
-            </div>
-          </div>
+            </TabsContent>
+
+            {/* Not Approved Leads Table */}
+            <TabsContent value="notApproved">
+              <div className="mt-2 border rounded-lg min-h-[90vh]">
+                <LeadTable queries={queries} setQueries={setQueries} />
+              </div>
+              <div className="flex items-center justify-between p-2 w-full">
+                <p className="text-xs">
+                  Page {page} of {totalPages} — {totalQuery} total results
+                </p>
+                <Pagination>
+                  <PaginationContent>
+                    {renderPaginationItems()}
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         // card view

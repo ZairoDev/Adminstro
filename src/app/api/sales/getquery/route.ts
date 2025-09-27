@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
-    const limit = Number(url.searchParams.get("limit")) || 12;
+    const limit = Number(url.searchParams.get("limit")) || 50;
     const skip = (page - 1) * limit;
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "name";
@@ -41,11 +41,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let query: Record<string, any> = {};
 
     if (searchTerm) {
-      if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
-      } else {
+
         query[searchType] = regex;
-      }
+      
     }
 
     // console.log("search query: ", query);
@@ -97,7 +95,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     query = { ...query, ...dateQuery };
 
-    if (token.role != "SuperAdmin") query.createdBy = token.email;
+    if (token.role != "SuperAdmin" && token.role != "LeadGen-TeamLead") query.createdBy = token.email;
 
     const allquery = await Query.aggregate([
       { $match: query },

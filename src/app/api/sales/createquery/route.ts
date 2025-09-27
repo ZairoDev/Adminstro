@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       propertyType,
       priority,
       BoostID,
+      idName,
       leadQualityByCreator,
     } = await req.json();
 
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
       priority,
       BoostID,
       leadQualityByCreator,
+      idName,
       createdBy: token.email,
       leadStatus: "fresh",
     });
@@ -118,6 +120,7 @@ export async function POST(req: NextRequest) {
       typeOfProperty: newQuery.typeOfProperty,
       propertyType: newQuery.propertyType,
       priority: newQuery.priority,
+      idName: newQuery.idName,
       BoostID: newQuery.BoostID,
       leadQualityByCreator: newQuery.leadQualityByCreator,
     });

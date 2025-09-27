@@ -51,7 +51,7 @@ export default function BoostPropertiesPage() {
 
   if (properties.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-center space-y-4">
+      <div className="min-h-screen items-center justify-center text-center space-y-4">
         <p className="text-2xl font-semibold text-muted-foreground">No boosted properties yet.</p>
         <p className="text-muted-foreground">Check back later for new listings!</p>
       </div>

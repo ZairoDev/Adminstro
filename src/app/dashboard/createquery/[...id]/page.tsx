@@ -9,6 +9,7 @@ import {
   Loader2,
   FileText,
   CalendarIcon,
+  Rocket,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -73,6 +74,7 @@ const QueryDetails = ({ params }: PageProps) => {
     try {
       setLoading(true);
       const data = await axios.post("/api/sales/getQuerybyId", { id });
+      
       setApiData(data.data.data);
       setLoading(false);
     } catch (error: any) {
@@ -415,6 +417,15 @@ const QueryDetails = ({ params }: PageProps) => {
                     disabled={editDisabled}
                   />
                 </div>
+
+                {apiData?.BoostID && (
+                  <div className=" flex items-center gap-x-2 text-neutral-500">
+                    <p className=" font-medium text-lg">Boost ID:</p>
+                    <p>{apiData.BoostID}</p>
+                  </div>
+                )}
+
+
                 {apiData?.leadStatus === "rejected" &&
                   (
                     <div>

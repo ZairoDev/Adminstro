@@ -1,4 +1,4 @@
-Earlier Updates
+Earlier Update
 
 1. Added new route: /dashboard/owners
 

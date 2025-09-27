@@ -113,6 +113,10 @@ const querySchema = new Schema(
       type: String,
       enum: ["Good", "Very Good", "Average", "Below Average"],
     },
+    leadQualityByTeamLead: {
+      type: String,
+      enum: ["Approved", "Not Approved"],
+    },
     rejectionReason: {
       type: String,
       enum: [
@@ -168,7 +172,7 @@ const querySchema = new Schema(
     },
     salesPriority: {
       type: String,
-      enum: ["High", "Low", "Medium", "None"],
+      enum: ["High", "Low", "Medium","NR", "None"],
       require: [true, "Priority must be provided"],
       default: "None",
     },
@@ -193,6 +197,10 @@ const querySchema = new Schema(
       type: [String],
       default: [],
     },
+    idName:{
+      type: String,
+      default: "",
+    }
   },
   { timestamps: true }
 );

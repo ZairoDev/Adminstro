@@ -115,6 +115,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Lead",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/notReplying",
+      label: "Not Replying Leads",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   "LeadGen-TeamLead": [
     {
@@ -135,6 +140,21 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/employee",
       label: "Employees",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/reviewLeads",
+      label: "Review Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/notReplying",
+      label: "Not Replying Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/compareLeads",
+      label: "Compare Leads",
       Icon: <PencilLine size={18} />,
     },
   ],
@@ -384,6 +404,21 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/invoice/list",
       label: "List Invoice",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/reviewLeads",
+      label: "Review Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/notReplying",
+      label: "Not Replying Leads",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/compareLeads",
+      label: "Compare Leads",
       Icon: <PencilLine size={18} />,
     },
   ],
@@ -669,6 +704,21 @@ const leadManagementRoutes = [
     path: "/dashboard/reminders",
     label: "Reminders",
     Icon: <BellDot size={18} />,
+  },
+  {
+    path: "/dashboard/reviewLeads",
+    label: "Review Leads",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/notReplying",
+    label: "Not Replying Leads",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/compareLeads",
+    label: "Compare Leads",
+    Icon: <PencilLine size={18} />,
   },
 ];
 const visitsManagementRoutes = [

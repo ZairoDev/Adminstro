@@ -40,10 +40,10 @@ import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
 import { InfinityLoader } from "@/components/Loaders";
-import ReminderTable from "@/components/reminderTable/ReminderTable";
+import LeadTable from "@/components/leadTable/LeadTable";
 import HandLoader from "@/components/HandLoader";
 
-export const LeadPage = () => {
+export const NotReplyingLeads = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
@@ -63,6 +63,7 @@ export const LeadPage = () => {
   const [allotedArea, setAllotedArea] = useState("");
 
   const defaultFilters: FilterState = {
+    salesPriority: "NR",
     searchType: "phoneNo",
     searchTerm: "",
     dateFilter: "all",
@@ -70,6 +71,7 @@ export const LeadPage = () => {
     fromDate: undefined,
     toDate: undefined,
     sortBy: "None",
+    status: "None",
     guest: "0",
     noOfBeds: "0",
     propertyType: "",
@@ -77,7 +79,7 @@ export const LeadPage = () => {
     budgetFrom: "",
     budgetTo: "",
     leadQuality: "",
-    allotedArea: "",
+    allotedArea: token?.allotedArea || "",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
@@ -86,7 +88,6 @@ export const LeadPage = () => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    // console.log("area ::", area);
     filterLeads(newPage, { ...filters, allotedArea: area });
 
     setPage(newPage);
@@ -99,7 +100,7 @@ export const LeadPage = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+    // console.log("sorting field: ", queries);
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -162,11 +163,11 @@ export const LeadPage = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getReminderLeads", {
+      const response = await axios.post("/api/leads/getAllLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);          
+      // console.log("response of new leads: ", response);
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -214,7 +215,7 @@ export const LeadPage = () => {
 
   useEffect(() => {
     // debounce(filterLeads, 500);
-    filterLeads(1);
+    filterLeads(1, { ...filters, allotedArea: area });
   }, [filters.searchTerm]);
 
   return (
@@ -363,7 +364,7 @@ export const LeadPage = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <ReminderTable queries={queries} />
+              <LeadTable queries={queries} setQueries={setQueries} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

@@ -16,7 +16,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Admin: [
     "/",
-    "/admin", 
+    "/admin",
     "/dashboard",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
@@ -47,7 +47,12 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/newproperty\/.*$/,
     /^\/dashboard\/newproperty\/editPortionAvailability\/.*$/,
   ],
-  LeadGen: ["/", "/dashboard/createquery", /^\/dashboard\/createquery\/.*$/],
+  LeadGen: [
+    "/",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery\/.*$/,
+    "/dashboard/notReplying",
+  ],
   "LeadGen-TeamLead": [
     "/",
     "/dashboard",
@@ -59,6 +64,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/employee",
     /^\/dashboard\/lead-location-group\/.*$/,
     /^\/dashboard\/lead-agent-group\/.*$/,
+    "/dashboard/notReplying",
+    "/dashboard/reviewLeads",
   ],
   Content: [
     "/",
@@ -83,9 +90,9 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/declinedleads",
     "/dashboard/reminders",
     "/dashboard/catalogue",
-    "/dashboard/propertyBoost",
-    "/dashboard/propertyBoost/list",
-     /^\/dashboard\/propertyBoost\/list\/.*$/,
+    // "/dashboard/propertyBoost",
+    // "/dashboard/propertyBoost/list",
+    //  /^\/dashboard\/propertyBoost\/list\/.*$/,
     "/dashboard/newproperty/filteredProperties",
   ],
   "Sales-TeamLead": [

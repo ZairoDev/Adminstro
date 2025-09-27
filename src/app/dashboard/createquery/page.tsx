@@ -274,6 +274,13 @@ const SalesDashboard = () => {
         return;
       }
 
+      if(numberStatus === "" ||numberStatus === "❌ Invalid phone number." || numberStatus ==="❌ Phone number already exists."){
+        toast({
+          description: "Please check the phone number validity",
+        });
+        return;
+      }
+
       // ✅ Check other required fields
       Object.entries(formData).forEach(([key, value]) => {
         if (
@@ -687,6 +694,15 @@ const SalesDashboard = () => {
                           }))
                         }
                       />
+                    </div>
+                    <div>
+                      <Label>Id Name</Label>
+                      <Input
+                        name="idName"
+                        value={formData.idName}
+                        onChange={handleInputChange}
+                        placeholder="Enter the Id Name"                        
+                      />    
                     </div>
                   </div>
 

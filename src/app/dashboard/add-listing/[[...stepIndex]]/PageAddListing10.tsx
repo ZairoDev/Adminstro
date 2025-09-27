@@ -146,10 +146,12 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     localStorage.removeItem("isPropertyPictures");
   };
 
-  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(() => {
-    const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
-    return savedPage || "";
-  });
+  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(
+    () => {
+      const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
+      return savedPage || "";
+    }
+  );
 
   const [page3, setPage3] = useState<Page3State>(() => {
     const savedPage = localStorage.getItem("page3") || "";
@@ -228,6 +230,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyVSID, setPropertyVSID] = useState<string>();
+  const [vsidList, setVsidList] = useState<string[]>([]);
+  const [propertyIdList, setPropertyIdList] = useState<string[]>([]);
 
   const [user, setuser] = useState<UserInterface>();
 
@@ -340,11 +344,15 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
-      const response2 = await axios.post("/api/createnewproperty/newProperties", data);
-      if (response.status === 200) {
+      const response2 = await axios.post(
+        "/api/createnewproperty/newProperties",
+        data
+      );
+      console.log("response 2: ", response2);
+      if (response2.status === 200) {
         setIsLiveDisabled(true);
-        setPropertyVSID(response.data.VSID);
-        setPropertyId(response.data._id);
+        setPropertyIdList(response2.data.mongoIds);
+        setVsidList(response2.data.propertyIds);
         toast({
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
@@ -355,7 +363,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       toast({
         variant: "destructive",
         title: "Some error occurred",
-        description: "There are some issues with your request. Please try again.",
+        description:
+          "There are some issues with your request. Please try again.",
       });
       console.log(error);
     } finally {
@@ -417,7 +426,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                     <Button
                       className="w-full"
                       onClick={handleGoLive}
-                      disabled={isLiveDisabled || !combinedData?.placeName || loading}
+                      disabled={
+                        isLiveDisabled || !combinedData?.placeName || loading
+                      }
                     >
                       Go live 🚀
                     </Button>
@@ -437,19 +448,25 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         </div>
 
         <div className="flex flex-col ml-2 gap-2">
-          {propertyVSID && (
+          {vsidList.length > 0 && (
             <div className="flex items-center gap-2">
               <div className="text-xs">Your VSID: {propertyVSID}</div>
-              <Button
-                onClick={() => navigator.clipboard.writeText(propertyVSID)}
-                className=""
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
+              {
+                vsidList.map((vsid, index) => (
+                  <Button
+                    onClick={() => navigator.clipboard.writeText(vsid)}
+                    className=""
+                    key={index}
+                  >
+                    {vsid}
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                ))
+              }
             </div>
           )}
 
-          {propertyId && (
+          {/* {propertyId && (
             <div className="flex items-center gap-2">
               <div className="text-xs">
                 Your Property Link:{" "}
@@ -474,7 +491,33 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-          )}
+          )} */}
+          {propertyIdList.map((propertyId, index) => (
+            <div className="flex items-center gap-2" key={index}>
+              <div className="text-xs">
+                Your Property Link:{" "}
+                <a
+                  href={`https://www.vacationsaga.com/listing-stay-detail/${propertyId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                >
+                  https://www.vacationsaga.com/listing-stay-detail/
+                  {propertyId}
+                </a>
+              </div>
+              <Button
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `https://www.vacationsaga.com/listing-stay-detail/${propertyId}`
+                  )
+                }
+                className=""
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
 

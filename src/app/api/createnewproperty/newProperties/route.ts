@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       isLive,
     }: Property = data;
 
+    const mongoIds = [];
     const propertyIds = [];
     const commonId = generateCommonId(7);
 
@@ -170,8 +171,9 @@ export async function POST(request: Request) {
 
       // console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
       propertyIds.push(newProperty.VSID);
+      mongoIds.push(newProperty._id);
     }
-    return NextResponse.json({ propertyIds }, { status: 200 });
+    return NextResponse.json({ propertyIds, mongoIds }, { status: 200 });
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(

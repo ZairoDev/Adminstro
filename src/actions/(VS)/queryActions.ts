@@ -13,6 +13,7 @@ import { MonthlyTarget } from "@/models/monthlytarget";
 import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
+import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 
 connectDb();
 
@@ -1315,7 +1316,77 @@ export const OwnersCount = async (): Promise<RegistrationData> => {
   );
 };
 
+export const getNewOwnersCount = async ({
+  days,
+  location,
+}: {
+  days?: string;
+  location?: string;
+}) => {
+  const dateFilter: Record<string, any> = {};
+  console.log("days, location: ", days, location);
+  // ✅ Days filter
+  if (days && days !== "All") {
+    let fromDate: Date | undefined;
+    let toDate: Date = new Date();
 
+    
+  switch (days.toLowerCase()) {
+    case "today":
+      fromDate = new Date();
+      fromDate.setHours(0, 0, 0, 0); // start of today
+      toDate = new Date();
+      toDate.setHours(23, 59, 59, 999); // end of today
+      break;
+
+    case "15 days":
+      fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 15);
+      break;
+
+    case "1 month":
+      fromDate = new Date();
+      fromDate.setMonth(fromDate.getMonth() - 1);
+      break;
+
+    case "3 months":
+      fromDate = new Date();
+      fromDate.setMonth(fromDate.getMonth() - 3);
+      break;
+
+    // "all" or anything else → no date filter
+  }
+
+  if (fromDate) {
+    dateFilter.createdAt = { $gte: fromDate, $lte: toDate };
+  }
+
+  }
+
+  // ✅ Location filter
+  const cityFilter = location && location !== "All" ? { location: location } : {};
+
+  const pipeline2 = [
+    {
+      $match: {
+        ...dateFilter,
+        ...cityFilter,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        ownerPhone: "$phoneNumber",
+        ownerName: "$name",
+        city: 1,
+        createdAt: 1,
+      },
+    },
+  ];
+
+  const newOwnersCount = await unregisteredOwner.aggregate(pipeline2);
+  return { newOwnersCount: newOwnersCount }; // return count, not array
+};
 
 
 export const getGoodVisitsCount = async({days}:{days?:string})=>{

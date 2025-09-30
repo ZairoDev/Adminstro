@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean();
+    const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean().sort({ createdAt: -1 }      );
      const total = await unregisteredOwner.countDocuments(query);
     // console.log(data);
     return NextResponse.json({data,total    }, {status: 200});

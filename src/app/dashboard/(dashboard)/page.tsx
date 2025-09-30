@@ -164,6 +164,11 @@ const Dashboard = () => {
     createdBy?: string;
   }>({});
 
+  const [unregisteredOwnersFilters, setUnregisteredOwnersFilters] = useState<{
+    days?: string;
+    location?: string;
+  }>({});
+
   const { token } = useAuthStore();
 
   //  Property Count
@@ -218,6 +223,7 @@ const Dashboard = () => {
     unregisteredOwners,
     fetchUnregisteredVisits,
     ownersCount,
+    newOwnersCount,                                 
   } = WeeksVisit();
 
   console.log("OwnersCount", ownersCount);
@@ -259,7 +265,7 @@ const Dashboard = () => {
   };
 
   const handlfetch = async () => {
-    fetchUnregisteredVisits();
+    fetchUnregisteredVisits({ days: "today" ,location:"All"});
     fetchVisitsToday({ days: "today" });
     fetchVisits({ days: "today" });
     fetchGoodVisitsCount({ days: "today" });
@@ -1038,7 +1044,7 @@ const Dashboard = () => {
             </div>
 
             {/* Unregistered Owners (smaller box) */}
-            <div className="w-full md:w-[250px] p-6 border rounded-xl shadow-md">
+            <div className="relative w-full md:w-[250px] p-6 border rounded-xl shadow-md">
               <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
                 Unregistered Owners
               </h2>
@@ -1050,8 +1056,61 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          <div>
+          <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
+            {/* Visualization on the left */}
             <MoleculeVisualization data={ownersCount} />
+
+            {/* Filter + count card */}
+            <div className="relative  w-full p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
+              {/* Filters row */}
+              <div className="flex items-center justify-between mb-6">
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "Athens",
+                    "Milan",
+                    "Rome",
+                    "Chania",
+                    "thessaloniki",
+                  ]}
+                  triggerText="Select Location"
+                  defaultValue="All"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...unregisteredOwnersFilters };
+                    newLeadFilters.location = value;
+                    fetchUnregisteredVisits(newLeadFilters);
+                  }}
+                  triggerClassName="w-36"
+                />
+                <CustomSelect
+                  itemList={["All", "Today", "15 days", "1 month", "3 months"]}
+                  triggerText="Select Days"
+                  defaultValue="Today"
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...unregisteredOwnersFilters };
+                    newLeadFilters.days = value;
+                    setUnregisteredOwnersFilters(newLeadFilters);
+                    fetchUnregisteredVisits(newLeadFilters);
+                  }}
+                  triggerClassName="w-36"
+                />
+              </div>
+
+              {/* Title */}
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center">
+                New Owners
+              </h2>
+
+              {/* Count */}
+              <div
+                // onClick={handleClick}
+                className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400 transition-transform duration-200 hover:scale-110"
+              >
+                {newOwnersCount.length}
+              </div>
+
+             
+            </div>
           </div>
         </>
       )}

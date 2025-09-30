@@ -29,39 +29,34 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
 
-  const [propertyType, setPropertyType] = useState<string>(() => {
-    const savedPage = localStorage.getItem("page1") || "";
-    return savedPage ? JSON.parse(savedPage)["propertyType"] : "Hotel";
-  });
+  // ✅ Set safe defaults that work on SSR
+  const [propertyType, setPropertyType] = useState<string>("Hotel");
+  const [placeName, setPlaceName] = useState<string>("");
+  const [rentalForm, setRentalForm] = useState<string>("Private room");
+  const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
+  const [showPortionsInput, setShowPortionsInput] = useState<boolean>(false);
+  const [rentalType, setRentalType] = useState<string>("Short Term");
 
-  const [placeName, setPlaceName] = useState<string>(() => {
-    const savedPage = localStorage.getItem("page1") || "";
-    return savedPage ? JSON.parse(savedPage)["placeName"] : "";
-  });
+  useEffect(() => {
+    // ✅ Only runs in the browser
+    const savedPage = localStorage.getItem("page1");
+    if (savedPage) {
+      try {
+        const parsed = JSON.parse(savedPage);
 
-  const [rentalForm, setRentalForm] = useState<string>(() => {
-    const savedPage = localStorage.getItem("page1") || "";
-    return savedPage ? JSON.parse(savedPage)["rentalForm"] : "Private room";
-  });
-
-  const [numberOfPortions, setNumberOfPortions] = useState<number>(() => {
-    const savedPage = localStorage.getItem("page1") || "";
-    return savedPage
-      ? parseInt(JSON.parse(savedPage)["numberOfPortions"], 10)
-      : 1;
-  });
-
-  const [showPortionsInput, setShowPortionsInput] = useState<boolean>(() => {
-    const savedPage = localStorage.getItem("page1") || "";
-    return savedPage ? JSON.parse(savedPage)["showPortionsInput"] : false;
-  });
-
-  const [rentalType, setRentalType] = useState<string>(() => {
-    const savedRentalType = localStorage.getItem("page1") || "";
-    return savedRentalType
-      ? JSON.parse(savedRentalType)["rentalType"]
-      : "Short Term";
-  });
+        setPropertyType(parsed.propertyType || "Hotel");
+        setPlaceName(parsed.placeName || "");
+        setRentalForm(parsed.rentalForm || "Private room");
+        setNumberOfPortions(
+          parsed.numberOfPortions ? parseInt(parsed.numberOfPortions, 10) : 1
+        );
+        setShowPortionsInput(parsed.showPortionsInput || false);
+        setRentalType(parsed.rentalType || "Short Term");
+      } catch (err) {
+        console.error("Failed to parse saved page1:", err);
+      }
+    }
+  }, []);
 
   console.log(propertyType, placeName, rentalForm, numberOfPortions);
 

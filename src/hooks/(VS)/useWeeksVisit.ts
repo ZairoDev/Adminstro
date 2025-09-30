@@ -1,4 +1,5 @@
-import { getGoodVisitsCount, getUnregisteredOwners, getVisitsToday, getWeeksVisit, OwnersCount } from "@/actions/(VS)/queryActions";
+import { getGoodVisitsCount, getNewOwnersCount, getUnregisteredOwners, getVisitsToday, getWeeksVisit, OwnersCount } from "@/actions/(VS)/queryActions";
+import { set } from "mongoose";
 import { useEffect, useState } from "react"
 import { Week } from "react-big-calendar";
 import { DateRange } from "react-day-picker";
@@ -57,6 +58,8 @@ const WeeksVisit = ()=>{
    const [goodVisits1, setGoodVisits] = useState<GoodVisitsInterface[]>([]);
    const [visitsToday,setVisitsToday] = useState<any[]>([]);
    const [unregisteredOwners,setUnregisteredOwners] = useState<UnregisteredOwnersInterface[]>([]);
+   const [newOwnersCount, setNewOwnersCount] =
+     useState<UnregisteredOwnersInterface[]>([]);
    const [ownersCount, setOwnersCount] = useState<RegistrationData>({
      byCity: [],
      totals: [
@@ -142,18 +145,20 @@ goodVisits1.forEach(item=>{
          setloading(false);
       }
    }
-   const fetchUnregisteredVisits = async () => {
+   const fetchUnregisteredVisits = async ({days,location}:{days?:string,location?:string}) => {
      try {
        setloading(true);
        setIsError(false);
        setError("");
-
-       const [response, responseCount] = await Promise.all([
+      console.log("fetchUnregisteredVisits called with:", { days,location });
+       const [response,ownersCount, responseCount] = await Promise.all([
          getUnregisteredOwners(),
+         getNewOwnersCount({ days, location }),
          OwnersCount(),
        ]);
 
        setUnregisteredOwners(response.unregisteredOwners || []);
+       setNewOwnersCount(ownersCount.newOwnersCount ?? 0);
        setOwnersCount(responseCount);
      } catch (err: any) {
        console.error(err);
@@ -168,7 +173,7 @@ goodVisits1.forEach(item=>{
       fetchVisits({days:"Today"});
       fetchVisitsToday({days:"Today"});
       fetchGoodVisitsCount({days:"Today"});
-      fetchUnregisteredVisits();
+      fetchUnregisteredVisits({days:"Today",location:"All"});
    },[])
    return {
       loading,
@@ -183,7 +188,8 @@ goodVisits1.forEach(item=>{
       fetchGoodVisitsCount,
       unregisteredOwners,
       fetchUnregisteredVisits
-      ,ownersCount
+      ,ownersCount,
+      newOwnersCount
    }
 
 }

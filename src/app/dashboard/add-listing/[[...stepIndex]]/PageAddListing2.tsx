@@ -16,7 +16,7 @@ import {
   SelectContent,
 } from "@/components/ui/select"; 
 import { Input } from "@/components/ui/input";
-import LocationMap from "@/components/LocationMap";
+// import LocationMap from "@/components/LocationMap";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
@@ -70,199 +70,33 @@ const PageAddListing2: FC = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
+  const [type, setType] = useState<string>("");
+  const [targets, setTargets] = useState<TargetType[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [areas, setAreas] = useState<AreaType[]>([]);
 
-  const [type, setType] = useState<string>();
-   const [targets, setTargets] = useState<TargetType[]>([]);
-       const [selectedLocation, setSelectedLocation] = useState<string>("");
-       const [areas,setAreas]=useState<AreaType[]>([]);
-
-  const [rentalType, SetRentalType] = useState(() => {
-    const type = localStorage.getItem("page1");
-    if (!type) {
-      setType("");
-    } else {
-      const parsedData = JSON.parse(type);
-      console.log(parsedData);
-      setType(parsedData.rentalType);
-    }
-  });
-
-  const [constructionYear, setConstructionYear] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["constructionYear"];
-    }
-  });
-
-  const [heatingType, setHeatingType] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["heatingType"];
-    }
-  });
-
-  const [energyClass, setEnergyClass] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["energyClass"];
-    }
-  });
-
-  const [heatingMedium, setHeatingMedium] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["heatingMedium"];
-    }
-  });
-
-  const [monthlyExpenses, setMonthlyExpenses] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["monthlyExpenses"];
-    }
-  });
-
-  const [isSuitableForStudents, setisSuitableForStudents] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return true;
-    } else {
-      return JSON.parse(saved)["isSuitableForStudents"] || true;
-    }
-  });
-
-  const [propertyStyle, setPropetyStyle] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["propertyStyle"];
-    }
-  });
-
-  const [zones, setZones] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["zones"];
-    }
-  });
-
-  const [levels, setLevel] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["levels"];
-    }
-  });
-
-  const [orientation, setOrientation] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["orientation"];
-    }
-  });
-
-  const [isTopFloor, setTopFloor] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return false;
-    } else {
-      return JSON.parse(saved)["isTopFloor"] || false;
-    }
-  });
-
-  const [area, setArea] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["area"];
-    }
-  });
-
-  const [neighbourhood, setNeighborhood] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["neighbourhood"];
-    }
-  });
-
-  const [subarea, setSubArea] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["subarea"];
-    }
-  });
-
-  const [floor, setFloor] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["floor"];
-    }
-  });
-
-  const [address, setAddress] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["address"];
-  });
-
-  const [country, setCountry] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["country"];
-  });
-
-  const [state, setState] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["state"];
-  });
-
-  const [city, setCity] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["city"];
-  });
-
-  const [street, setStreet] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["street"];
-  });
-
-  const [postalCode, setPostalCode] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["postalCode"];
-  });
+  const [constructionYear, setConstructionYear] = useState<string>("");
+  const [heatingType, setHeatingType] = useState<string>("");
+  const [energyClass, setEnergyClass] = useState<string>("");
+  const [heatingMedium, setHeatingMedium] = useState<string>("");
+  const [monthlyExpenses, setMonthlyExpenses] = useState<string>("");
+  const [isSuitableForStudents, setisSuitableForStudents] =
+    useState<string>("");
+  const [propertyStyle, setPropetyStyle] = useState<string>("");
+  const [zones, setZones] = useState<string>("");
+  const [levels, setLevel] = useState<string>("");
+  const [orientation, setOrientation] = useState<string>("");
+  const [isTopFloor, setTopFloor] = useState<string>("");
+  const [area, setArea] = useState<string>("");
+  const [neighbourhood, setNeighborhood] = useState<string>("");
+  const [subarea, setSubArea] = useState<string>("");
+  const [floor, setFloor] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [country, setCountry] = useState<string>("");
+  const [state, setState] = useState<string>("");
+  const [city, setCity] = useState<string>("");
+  const [street, setStreet] = useState<string>("");
+  const [postalCode, setPostalCode] = useState<string>("");
 
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 0,
@@ -270,18 +104,73 @@ const PageAddListing2: FC = () => {
   });
 
   const [nearbyLocations, setNearByLocations] =
-    useState<nearbyLocationInterface>(() => {
-      const saved = localStorage.getItem("page2");
-      if (!saved) {
-        const newObj: nearbyLocationInterface = {
-          nearbyLocationName: [],
-          nearbyLocationDistance: [],
-          nearbyLocationTag: [],
-          nearbyLocationUrl: [],
-        };
-        return newObj;
-      } else return JSON.parse(saved)["nearbyLocations"];
+    useState<nearbyLocationInterface>({
+      nearbyLocationName: [],
+      nearbyLocationDistance: [],
+      nearbyLocationTag: [],
+      nearbyLocationUrl: [],
     });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Load page1 data
+      const page1 = localStorage.getItem("page1");
+      if (page1) {
+        try {
+          const parsedData = JSON.parse(page1);
+          setType(parsedData.rentalType || "");
+        } catch (e) {
+          setType("");
+        }
+      }
+
+      // Load page2 data
+      const page2 = localStorage.getItem("page2");
+      if (page2) {
+        try {
+          const parsedData = JSON.parse(page2);
+
+          setConstructionYear(parsedData["constructionYear"] || "");
+          setHeatingType(parsedData["heatingType"] || "");
+          setEnergyClass(parsedData["energyClass"] || "");
+          setHeatingMedium(parsedData["heatingMedium"] || "");
+          setMonthlyExpenses(parsedData["monthlyExpenses"] || "");
+          setisSuitableForStudents(
+            parsedData["isSuitableForStudents"] !== undefined
+              ? parsedData["isSuitableForStudents"]
+              : ""
+          );
+          setPropetyStyle(parsedData["propertyStyle"] || "");
+          setZones(parsedData["zones"] || "");
+          setLevel(parsedData["levels"] || "");
+          setOrientation(parsedData["orientation"] || "");
+          setTopFloor(parsedData["isTopFloor"] || "");
+          setArea(parsedData["area"] || "");
+          setNeighborhood(parsedData["neighbourhood"] || "");
+          setSubArea(parsedData["subarea"] || "");
+          setFloor(parsedData["floor"] || "");
+          setAddress(parsedData["address"] || "");
+          setCountry(parsedData["country"] || "");
+          setState(parsedData["state"] || "");
+          setCity(parsedData["city"] || "");
+          setStreet(parsedData["street"] || "");
+          setPostalCode(parsedData["postalCode"] || "");
+          setCenter(parsedData["center"] || { lat: 0, lng: 0 });
+
+          setNearByLocations(
+            parsedData["nearbyLocations"] || {
+              nearbyLocationName: [],
+              nearbyLocationDistance: [],
+              nearbyLocationTag: [],
+              nearbyLocationUrl: [],
+            }
+          );
+        } catch (e) {
+          console.error("Error parsing page2", e);
+        }
+      }
+    }
+  }, []);
 
   const [nearbyLocationInput, setNearbyLocationInput] = useState({
     nearbyLocationName: "",
@@ -326,10 +215,10 @@ const PageAddListing2: FC = () => {
     area,
     subarea,
     neighbourhood,
-    floor,
+    floor: Number(floor) || 0,
     isTopFloor,
     orientation,
-    levels,
+    levels: Number(levels) || 0,
     zones,
     propertyStyle,
     isSuitableForStudents,
@@ -345,11 +234,11 @@ const PageAddListing2: FC = () => {
       nearbyLocationUrl: [],
     },
   });
+  
 
   useEffect(() => {
     const newPage2: Page2State = {
       country,
-
       street,
       city,
       state,
@@ -359,13 +248,14 @@ const PageAddListing2: FC = () => {
       area,
       subarea,
       neighbourhood,
-      floor,
-      isTopFloor,
+      floor: Number(floor) || 0,
+      isTopFloor: isTopFloor === "true" ? "true" : "false", // Keep string but match your Page2State expectations
       orientation,
-      levels,
+      levels: Number(levels) || 0,
       zones,
       propertyStyle,
-      isSuitableForStudents,
+      isSuitableForStudents:
+        isSuitableForStudents === "true" ? "true" : "false", // same approach
       monthlyExpenses,
       heatingMedium,
       energyClass,
@@ -373,6 +263,7 @@ const PageAddListing2: FC = () => {
       constructionYear,
       nearbyLocations,
     };
+
     setPage2(newPage2);
     localStorage.setItem("page2", JSON.stringify(newPage2));
   }, [
@@ -399,6 +290,7 @@ const PageAddListing2: FC = () => {
     constructionYear,
     nearbyLocations,
   ]);
+  
 
   // Validation function
   const [isValidForm, setIsValidForm] = useState(false);
@@ -660,7 +552,7 @@ const PageAddListing2: FC = () => {
           </div>
           <div className="mt-4">
             <div className="aspect-w-5 aspect-h-5 sm:aspect-h-3">
-              <LocationMap latitude={center.lat} longitude={center.lng} />
+              <Map latitude={center.lat} longitude={center.lng} />
             </div>
           </div>
         </div>
@@ -884,7 +776,7 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setTopFloor(value)}
               >
                 <SelectTrigger>
-                  <span>{isTopFloor}</span>
+                  <span>{isTopFloor === "true" ? "true" : "false"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">true</SelectItem>
@@ -1030,7 +922,7 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setisSuitableForStudents(value)}
               >
                 <SelectTrigger>
-                  <span>{isSuitableForStudents}</span>
+                  <span>{isSuitableForStudents === "true" ? "True" : "False"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">True</SelectItem>

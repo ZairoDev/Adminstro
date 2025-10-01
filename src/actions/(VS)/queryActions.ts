@@ -518,6 +518,106 @@ export const getDashboardData = async ({
   return { dashboardData };
 };
 
+export const getLeadGenLeadsCount = async (
+  period: "month" | "year" | "30days"
+) => {
+  let dateFormat: string;
+  let matchStage: Record<string, any> = {};
+
+  const now = new Date();
+
+  if (period === "month") {
+    dateFormat = "%Y-%m-%d";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+        $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      },
+    };
+  } else if (period === "year") {
+    dateFormat = "%Y-%m";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getFullYear(), 0, 1),
+        $lt: new Date(now.getFullYear() + 1, 0, 1),
+      },
+    };
+  } else if (period === "30days") {
+    dateFormat = "%Y-%m-%d";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        $lt: now,
+      },
+    };
+  } else {
+    throw new Error("Invalid period. Use 'month', 'year', or '30days'");
+  }
+
+  const result = await Query.aggregate([
+    { $match: matchStage },
+
+    // 🔹 Lookup Employee collection to get name
+    {
+      $lookup: {
+        from: "employees", // name of your employees collection
+        localField: "createdBy", // email in Query
+        foreignField: "email", // email in Employee
+        as: "employeeInfo",
+      },
+    },
+
+    // 🔹 Unwind so we can access employeeInfo directly
+    { $unwind: { path: "$employeeInfo", preserveNullAndEmptyArrays: true } },
+
+    {
+      $group: {
+        _id: {
+          createdBy: "$employeeInfo.name", // employee name instead of email
+          date: {
+            $dateToString: { format: dateFormat, date: "$createdAt" },
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: {
+          $push: {
+            createdBy: { $ifNull: ["$_id.createdBy", "Unknown"] },
+            count: "$count",
+          },
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+    {
+      $project: {
+        date: "$_id",
+        counts: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  const chartData: Record<string, any>[] = [];
+
+  result.forEach((entry) => {
+    const dataPoint: Record<string, any> = { date: entry.date };
+    entry.counts.forEach((c: any) => {
+      dataPoint[c.createdBy || "Unknown"] = c.count;
+    });
+    chartData.push(dataPoint);
+  });
+
+  console.log(chartData);
+  return { chartData };
+};
+
+
+
 export const getTodayLeads = async () => {
   const now = new Date();
   const startOfDay = new Date(now);

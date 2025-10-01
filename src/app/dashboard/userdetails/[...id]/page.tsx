@@ -205,8 +205,7 @@ export default function UserProfilePage({ params }: PageProps) {
                 >
                   <Link
                     href={{
-                      pathname: `https://www.vacationsaga.com/listing-stay-detail`,
-                      query: { id: property._id },
+                      pathname: `https://www.vacationsaga.com/listing-stay-detail/${property._id}`,
                     }}
                   >
                     <img

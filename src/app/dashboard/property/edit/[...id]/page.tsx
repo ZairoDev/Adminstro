@@ -25,6 +25,8 @@ import {
   SelectValue,
   SelectTrigger,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   AlertDialog,
@@ -50,12 +52,26 @@ import CustomTooltip from "@/components/CustomToolTip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { imageInterface, Property, propertyTypes } from "@/util/type";
+import SearchableAreaSelect from "@/app/dashboard/createquery/SearchAndSelect";
 
 interface PageProps {
   params: {
     id: string;
   };
 }
+
+interface TargetType {
+  _id: string;
+  city: string;
+  areas: AreaType[];
+}
+interface AreaType {
+  _id: string;
+  city: string;
+  name: string;
+}
+
+
 // TODO : Generate Lat-Lng from pincode
 const getCoordinatesFromPincode = async (pincode: any) => {
   const url = `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&format=json&limit=1`;
@@ -81,6 +97,10 @@ const EditPropertyPage = ({ params }: PageProps) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
 
+  const [targets, setTargets] = useState<TargetType[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [areas1, setAreas1] = useState<AreaType[]>([]);
+
   const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>("");
 
   const [propertyPictureUrls, setPropertyPictureUrls] = useState<string[]>(
@@ -99,9 +119,20 @@ const EditPropertyPage = ({ params }: PageProps) => {
       const savedUrls = localStorage.getItem("portionPictureUrls");
       const arrayOf5 = Array(5).fill("");
 
-      return savedUrls ? JSON.parse(savedUrls) : Array(portions).fill(arrayOf5);
+      try {
+        return savedUrls && savedUrls !== "undefined"
+          ? JSON.parse(savedUrls)
+          : Array(portions).fill(arrayOf5);
+      } catch (error) {
+        console.error(
+          "Error parsing portionPictureUrls from localStorage:",
+          error
+        );
+        return Array(portions).fill(arrayOf5);
+      }
     }
   );
+  
 
   // ! Array to delete images from bunny
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
@@ -129,6 +160,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
     city: property?.city,
     state: property?.state,
     country: property?.country,
+    internalCity: property?.internalCity,
+    internalArea: property?.internalArea,
 
     portionName: property?.portionName,
     portionSize: property?.portionSize,
@@ -212,6 +245,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   useEffect(() => {
     if (property) {
+      console.log("property: ", property);
+      console.log(property.internalCity + " " + property.internalArea);
       setFormData({
         VSID: property.VSID,
         rentalType: property.rentalType,
@@ -237,6 +272,8 @@ const EditPropertyPage = ({ params }: PageProps) => {
         bathroom: property.bathroom,
         kitchen: property.kitchen,
         childrenAge: property.childrenAge,
+        internalCity: property.internalCity,
+        internalArea: property.internalArea,
 
         center: property.center,
         basePrice: property.basePrice,
@@ -411,6 +448,29 @@ const EditPropertyPage = ({ params }: PageProps) => {
       }));
     }
   };
+
+  useEffect(() => {
+    const fetchTargets = async () => {
+      try {
+        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
+        // const data = await res.json();
+        setTargets(res.data.data);
+        console.log("targets: ", res.data.data);
+      } catch (error) {
+        console.error("Error fetching targets:", error);
+      }
+    };
+    fetchTargets();  
+  }, []);
+
+  useEffect(() => {
+    const target = targets.find((t) => t.city === formData?.internalCity);
+    if (target) {
+      setAreas1(target.areas);
+    } else {
+      setAreas1([]);
+    }
+  }, [formData?.internalCity, targets]);
 
   // ! state to open the dropdown on clicking on portion number
   const [isPortionOpen, setIsPortionOpen] = useState<boolean[]>(() =>
@@ -1093,6 +1153,52 @@ const EditPropertyPage = ({ params }: PageProps) => {
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className="w-full ml-1 mb-2">
+                <Label>Location</Label>
+                <Select
+                  onValueChange={(value) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      internalCity: value,
+                      internalArea: "",
+                    }));
+                    setSelectedLocation(value);
+                  }}
+                  value={formData?.internalCity || ""} // ✅ ensure it always has a string
+                >
+                  <SelectTrigger className=" w-44 border border-neutral-700">
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Locations</SelectLabel>
+                      {targets.map((loc: TargetType) => (
+                        <SelectItem key={loc._id} value={loc.city}>
+                          <div className="flex justify-between items-center w-full">
+                            <span>{loc.city}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="w-full ml-1 mb-2">
+                <Label>Area</Label>
+                <SearchableAreaSelect
+                  areas={areas1}
+                  onSelect={(area: any) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      internalArea: area.name,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                FormData {formData?.internalCity + " " + formData?.internalArea}
               </div>
 
               <div className="">

@@ -19,6 +19,8 @@ const propertyValidationSchema = z.object({
   street: z.string().optional(),
   postalCode: z.string().optional(),
   city: z.string().optional(),
+  internalCity: z.string().optional(),
+  internalArea: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
   center: z

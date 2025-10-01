@@ -76,6 +76,7 @@ import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { MoleculeVisualization } from "@/components/molecule_visual";
+import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 
 //  const chartConfig = {
 //   greece: {
@@ -169,6 +170,8 @@ const Dashboard = () => {
     location?: string;
   }>({});
 
+  const [leadGenLeadsCount, setLeadGenLeadsCount] = useState();
+
   const { token } = useAuthStore();
 
   //  Property Count
@@ -208,6 +211,8 @@ const Dashboard = () => {
     totalLeads: totalTodayLeads,
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
+    fetchLeadsByLeadGen,
+    chartData1,
     // average,
   } = useTodayLeads();
 
@@ -1058,10 +1063,12 @@ const Dashboard = () => {
           </div>
           <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
             {/* Visualization on the left */}
-            <MoleculeVisualization data={ownersCount} />
+            <div className="flex md:w-1/2 h-[600px]">
+              <MoleculeVisualization data={ownersCount} />
+            </div>
 
-            {/* Filter + count card */}
-            <div className="relative  w-full p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
+            {/* Filter + Count Card */}
+            <div className="relative w-full md:w-1/2 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
               {/* Filters row */}
               <div className="flex items-center justify-between mb-6">
                 <CustomSelect
@@ -1082,6 +1089,7 @@ const Dashboard = () => {
                   }}
                   triggerClassName="w-36"
                 />
+
                 <CustomSelect
                   itemList={["All", "Today", "15 days", "1 month", "3 months"]}
                   triggerText="Select Days"
@@ -1103,13 +1111,11 @@ const Dashboard = () => {
 
               {/* Count */}
               <div
-                // onClick={handleClick}
-                className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400 transition-transform duration-200 hover:scale-110"
+                className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400
+                 transition-transform duration-200 hover:scale-110"
               >
                 {newOwnersCount.length}
               </div>
-
-             
             </div>
           </div>
         </>
@@ -1198,6 +1204,10 @@ const Dashboard = () => {
           </div> */}
           </div>
         )}
+      </div>
+
+      <div>
+        <ChartAreaMultiple data={chartData1} />
       </div>
     </div>
   );

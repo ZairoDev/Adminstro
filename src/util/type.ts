@@ -174,6 +174,8 @@ export interface Property {
   childrenAge?: number[];
 
   longTermMonths?: number[];
+  internalCity?: string;
+  internalArea?: string;
 
   rentalType?: string;
 

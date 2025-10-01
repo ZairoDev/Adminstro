@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import internal from "stream";
 
 export type PageAddListing10Props = {};
 
@@ -95,6 +96,8 @@ interface CombinedData {
   area?: string;
   subarea?: string;
   neighbourhood?: string;
+  internalCity?: string;
+  internalArea?: string;
   floor?: number;
   isTopFloor?: string;
   constructionYear?: number;
@@ -332,7 +335,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       datesPerPortion: combinedData?.datesPerPortion,
 
       hostedBy: loggedInUserEmail,
-
+      
+      internalArea:combinedData?.internalArea,
+      internalCity:combinedData?.internalCity,
       area: combinedData?.area,
       subarea: combinedData?.subarea,
       constructionYear: combinedData?.constructionYear,

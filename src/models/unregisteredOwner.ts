@@ -56,7 +56,7 @@ petStatus: {
   remarks:{
     type: String
   },
-  availability:{
+  availability:{  
     type: String,
     default: "Available"
   },

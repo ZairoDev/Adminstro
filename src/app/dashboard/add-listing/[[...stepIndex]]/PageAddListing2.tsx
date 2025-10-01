@@ -3,7 +3,9 @@
 import React, { FC, useEffect, useState } from "react";
 import FormItem from "../FormItem";
 import dynamic from "next/dynamic";
-import { LoadScript } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Autocomplete } from "@react-google-maps/api";
+
+const libraries: "places"[] = ["places"];
 import { useToast } from "@/hooks/use-toast";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import {
@@ -27,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
 import axios from "axios";
 import { AreaSelect } from "@/components/leadTableSearch/page";
+import SearchableAreaSelect from "../../createquery/SearchAndSelect";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
@@ -43,6 +46,8 @@ interface Page2State {
   state: string;
   postalCode: string;
   address: string;
+  internalCity:string;
+  internalArea:string;
   center: { lat: number; lng: number };
   area: string;
   subarea: string;
@@ -74,7 +79,8 @@ const PageAddListing2: FC = () => {
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [areas, setAreas] = useState<AreaType[]>([]);
-
+  const [internalCity,setInternalCity]=useState<string>("");
+  const [internalArea,setInternalArea]=useState<string>("");
   const [constructionYear, setConstructionYear] = useState<string>("");
   const [heatingType, setHeatingType] = useState<string>("");
   const [energyClass, setEnergyClass] = useState<string>("");
@@ -97,11 +103,14 @@ const PageAddListing2: FC = () => {
   const [city, setCity] = useState<string>("");
   const [street, setStreet] = useState<string>("");
   const [postalCode, setPostalCode] = useState<string>("");
-
+  const [areas1, setAreas1] = useState<AreaType[]>([]);
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 0,
     lng: 0,
   });
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);    
+  const [autocomplete, setAutocomplete] =
+    useState<google.maps.places.Autocomplete | null>(null);
 
   const [nearbyLocations, setNearByLocations] =
     useState<nearbyLocationInterface>({
@@ -140,6 +149,8 @@ const PageAddListing2: FC = () => {
               ? parsedData["isSuitableForStudents"]
               : ""
           );
+          setInternalCity(parsedData["internalCity"] || "");
+          setInternalArea(parsedData["internalArea"] || "");
           setPropetyStyle(parsedData["propertyStyle"] || "");
           setZones(parsedData["zones"] || "");
           setLevel(parsedData["levels"] || "");
@@ -179,36 +190,38 @@ const PageAddListing2: FC = () => {
     nearbyLocationUrl: "",
   });
 
-  const handlePlaceSelected = (place: any) => {
-    setAddress(place.address);
-    setCountry(place.country);
-    setState(place.state);
-    setCity(place.city);
-    setStreet(place.street);
-    setPostalCode(place.postalCode);
-    setArea(place.area);
-    setNeighborhood(place.neighbourhood);
-    setSubArea(place.subArea);
-    setFloor(place.floor);
-    setTopFloor(place.topFloor);
-    setOrientation(place.orientation);
-    setCenter({ lat: place.lat, lng: place.lng });
-    setConstructionYear(place.constructionYear);
-    setHeatingType(place.heatingType);
-    setEnergyClass(place.energyClass);
-    setHeatingMedium(place.heatingmedium);
-    setMonthlyExpenses(place.commonExpenses);
-    setisSuitableForStudents(place.isStudentLive);
-    setZones(place.zones);
-    setLevel(place.level);
-    setPropetyStyle(place.propertyStyle);
-  };
+  // const handlePlaceSelected = (place: any) => {
+  //   setAddress(place.address);
+  //   setCountry(place.country);
+  //   setState(place.state);
+  //   setCity(place.city);
+  //   setStreet(place.street);
+  //   setPostalCode(place.postalCode);
+  //   setArea(place.area);
+  //   setNeighborhood(place.neighbourhood);
+  //   setSubArea(place.subArea);
+  //   setFloor(place.floor);
+  //   setTopFloor(place.topFloor);
+  //   setOrientation(place.orientation);
+  //   setCenter({ lat: place.lat, lng: place.lng });
+  //   setConstructionYear(place.constructionYear);
+  //   setHeatingType(place.heatingType);
+  //   setEnergyClass(place.energyClass);
+  //   setHeatingMedium(place.heatingmedium);
+  //   setMonthlyExpenses(place.commonExpenses);
+  //   setisSuitableForStudents(place.isStudentLive);
+  //   setZones(place.zones);
+  //   setLevel(place.level);
+  //   setPropetyStyle(place.propertyStyle);
+  // };
 
   const [page2, setPage2] = useState<Page2State>({
     country,
     street,
     city,
     state,
+    internalCity,
+    internalArea,
     postalCode,
     center,
     address,
@@ -245,6 +258,8 @@ const PageAddListing2: FC = () => {
       postalCode,
       center,
       address,
+      internalCity,
+      internalArea,
       area,
       subarea,
       neighbourhood,
@@ -270,6 +285,8 @@ const PageAddListing2: FC = () => {
     country,
     street,
     city,
+    internalCity,
+    internalArea,
     state,
     postalCode,
     center,
@@ -361,6 +378,47 @@ const PageAddListing2: FC = () => {
     setNearByLocations(newObj);
   };
 
+  const handleLoad = (auto: google.maps.places.Autocomplete) => {
+    setAutocomplete(auto);
+  };
+
+  const handlePlaceChanged = () => {
+    if (autocomplete) {
+      const place = autocomplete.getPlace();
+      console.log("place: ", place);
+
+      if (place.formatted_address) {
+        handlePlaceSelected(place);
+      }
+    }
+  };
+
+  const handlePlaceSelected = (place: google.maps.places.PlaceResult) => {
+    // Helper to extract component by type
+    const getComponent = (type: string) => {
+      const comp = place.address_components?.find((c) =>
+        c.types.includes(type)
+      );
+      return comp ? comp.long_name : "";
+    };
+
+    const lat = place.geometry?.location?.lat() ?? 0;
+    const lng = place.geometry?.location?.lng() ?? 0;
+
+    setAddress(place.formatted_address ?? "");
+    setCountry(getComponent("country"));
+    setState(getComponent("administrative_area_level_1"));
+    setCity(
+      getComponent("locality") || getComponent("administrative_area_level_2")
+    );
+    setStreet(getComponent("route"));
+    setPostalCode(getComponent("postal_code"));
+    setArea(getComponent("sublocality") || getComponent("neighborhood"));
+    setNeighborhood(getComponent("neighborhood"));
+    setSubArea(getComponent("sublocality_level_1"));
+    setCenter({ lat, lng });
+  };
+
   useEffect(() => {
     validateForm();
   }, [country, street, city, state, postalCode]);
@@ -378,6 +436,15 @@ const PageAddListing2: FC = () => {
     };
     fetchTargets();
   }, []);
+
+    useEffect(() => {
+      const target = targets.find((t) => t.city === selectedLocation);
+      if (target) {
+        setAreas1(target.areas);
+      } else {
+        setAreas1([]);
+      }
+    }, [selectedLocation, targets]);
 
 
   return (
@@ -422,15 +489,33 @@ const PageAddListing2: FC = () => {
       <div className="flex flex-col my-4">
         <div className="ml-2 ">
           <LoadScript
-            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-            libraries={["places"]}
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
+            libraries={libraries}
+            onLoad={() => setIsGoogleLoaded(true)}
+            onError={() =>
+              toast({
+                variant: "destructive",
+                title: "Google Maps failed to load",
+                description: "Please refresh or verify your API key/network.",
+              })
+            }
           >
-            <div className="mt-2 mb-2">
-              <PlacesAutocomplete
-                onPlaceSelected={handlePlaceSelected}
-                countryCode={country}
-              />
-            </div>
+            {/* Ensure all Google Maps related components (like Autocomplete) 
+        are children of LoadScript and/or guarded by isGoogleLoaded if outside. */}
+            {isGoogleLoaded && (
+              <Autocomplete
+                onLoad={handleLoad}
+                onPlaceChanged={handlePlaceChanged}
+              >
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Search Address"
+                  className="w-full p-2 border rounded"
+                />
+              </Autocomplete>
+            )}
           </LoadScript>
         </div>
 
@@ -464,8 +549,7 @@ const PageAddListing2: FC = () => {
           </Select>
         </div> */}
 
-
-               {/* <div className="w-44">
+        {/* <div className="w-44">
           <AreaSelect
             maxWidth="100%"
             data={
@@ -495,6 +579,42 @@ const PageAddListing2: FC = () => {
               }}
             />
           </FormItem>
+        </div>
+      </div>
+      <div>
+        <div className="w-full ml-1 mb-2">
+          <Label>Location</Label>
+          <Select
+            onValueChange={(value) => {
+              setInternalCity(value);
+              setSelectedLocation(value);
+            }}
+            value={internalCity}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Locations</SelectLabel>
+                {targets.map((loc: any) => (
+                  <SelectItem key={loc.city} value={loc.city}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc.city}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full ml-1 mb-2">
+          <Label>Area</Label>
+          <SearchableAreaSelect
+            areas={areas1}
+            onSelect={(area) => setInternalArea(area.name)}
+          />
         </div>
       </div>
       <div className="space-y-8">
@@ -922,7 +1042,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setisSuitableForStudents(value)}
               >
                 <SelectTrigger>
-                  <span>{isSuitableForStudents === "true" ? "True" : "False"}</span>
+                  <span>
+                    {isSuitableForStudents === "true" ? "True" : "False"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">True</SelectItem>

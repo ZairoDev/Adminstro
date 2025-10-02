@@ -175,7 +175,7 @@ export async function POST(request: Request) {
       const newProperty = await Properties.create(propertyData);
 
       // Insert into second collection
-      const newListing = await ListingModel.create(propertyData);
+      // const newListing = await ListingModel.create(propertyData);
 
       propertyIds.push(newProperty.VSID);
       mongoIds.push(newProperty._id.toString());

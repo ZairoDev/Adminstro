@@ -5,6 +5,7 @@ import { DataTable } from "./data-table";
 import debounce from "lodash.debounce";
 import axios from "axios";
 import { UserInterface } from "@/util/type";
+import { set } from "mongoose";
 
 export default function TablePage() {
   const [data, setData] = useState<UserInterface[]>([]);
@@ -46,7 +47,7 @@ export default function TablePage() {
     <div className="">
       <DataTable
         data={data}
-        columns={columns}
+        columns={columns(setData)}
         setPage={setPage}
         setSearch={setSearch}
         setQueryType={setQueryType}

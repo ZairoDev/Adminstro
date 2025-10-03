@@ -63,6 +63,10 @@ petStatus: {
   imageUrls:{
     type: [String],
     default: []
+  },
+  isVerified:{
+    type: String,
+    default: "None"
   }
 
 },

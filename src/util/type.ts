@@ -533,7 +533,7 @@ export interface  unregisteredOwners {
   availability: string;
   petStatus: string;
   imageUrls: string[];
-
+  isVerified: string;
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

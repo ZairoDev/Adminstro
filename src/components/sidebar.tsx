@@ -69,6 +69,11 @@ type Route = {
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
     {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
       path: "/dashboard/addons",
       label: "Add Ons",
       Icon: <Swords size={18} />,

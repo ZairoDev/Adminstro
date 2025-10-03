@@ -57,14 +57,33 @@ export async function POST(req: NextRequest) {
         query.area = { $in: areaNames };
       }
     }
-    if(filters.maxPrice && filters.minPrice) query["price"] = { $gte: filters.minPrice, $lte: filters.maxPrice };
-    else if(filters.maxPrice) query["price"] = { $lte: filters.maxPrice };
-    else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
+    if (filters.minPrice || filters.maxPrice) {
+      query["$expr"] = { $and: [] };
 
- 
+      const priceField = {
+        $convert: {
+          input: { $trim: { input: "$price" } },
+          to: "double",
+          onError: null, // skip invalid values
+          onNull: null, // skip null values
+        },
+      };
 
+      if (filters.minPrice) {
+        query["$expr"].$and.push({
+          $gte: [priceField, filters.minPrice],
+        });
+      }
+
+      if (filters.maxPrice) {
+        query["$expr"].$and.push({
+          $lte: [priceField, filters.maxPrice],
+        });
+      }
+    }
+    
     const skip = (page - 1) * limit;
-
+    console.log("Query: ", query)
     const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean().sort({ createdAt: -1 }      );
      const total = await unregisteredOwner.countDocuments(query);
     // console.log(data);

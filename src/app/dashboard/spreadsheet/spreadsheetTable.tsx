@@ -16,6 +16,7 @@ import {
   Ban,
   Calendar,
   Check,
+  CheckCheck,
   CircleDot,
   Copy,
   Download,
@@ -120,7 +121,8 @@ export function SpreadsheetTable({
   const [petStatus, setPetStatus] = useState<
     ("Allowed" | "Not Allowed" | "None")[]
   >(Array.from({ length: tableData?.length }, () => "None"));
-
+  const [filterMode, setFilterMode] = useState<0 | 1 | 2>(0);
+  // 0 = default, 1 = refLink/images, 2 = missing everything
 
   const interiorStatus = [
     { label: "F", value: "Fully Furnished" },
@@ -141,6 +143,54 @@ export function SpreadsheetTable({
 
   const token = useAuthStore((state: any) => state.token);
   console.log("token: ", token);
+
+  const handleResponseStatus = async (id: string, index: number) => {
+    const newStatus =
+      tableData[index].isVerified === "Verified" ? "None" : "Verified";
+
+    // Optimistic UI update
+    const updatedData = [...tableData];
+    updatedData[index].isVerified = newStatus;
+    setTableData(updatedData);
+
+    try {
+      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
+        field: "responseStatus",
+        value: newStatus,
+      });
+    } catch (error) {
+      console.error("Response status update failed", error);
+      // Rollback if error
+      updatedData[index].isVerified = tableData[index].isVerified;
+      setTableData(updatedData);
+    }
+  };
+
+  const applyFilter = (data: unregisteredOwners[]) => {
+    if (filterMode === 1) {
+      return data.filter(
+        (item) =>
+          ((item.referenceLink && item.referenceLink.trim() !== "") ||
+          (item.imageUrls && item.imageUrls.length > 0)) && (
+            !item.VSID ||item.VSID.trim() === "" &&
+            !item.link || item.link.trim() === ""
+          )
+      );
+    }
+
+    if (filterMode === 2) {
+      return data.filter(
+        (item) =>
+          (!item.VSID || item.VSID.trim() === "") &&
+          (!item.link || item.link.trim() === "") &&
+          (!item.referenceLink || item.referenceLink.trim() === "") &&
+          (!item.imageUrls || item.imageUrls.length === 0)
+      );
+    }
+
+    return data; // filterMode === 0 → default
+  };
+  
 
   useEffect(() => {
     if (sortBy) {
@@ -223,6 +273,7 @@ export function SpreadsheetTable({
       availability: "Available",
       date: new Date(),
       imageUrls: [],
+      isVerified: "None",
     };
     const tempId = `temp_${Date.now()}_${Math.random()
       .toString(36)
@@ -566,7 +617,6 @@ export function SpreadsheetTable({
     // Ensure remarks is always an array
     const initialRemarks = item.remarks ? item.remarks.split("\n") : [];
 
-
     const [remarks, setRemarks] = useState<string[]>(initialRemarks);
     const [newRemark, setNewRemark] = useState("");
 
@@ -653,6 +703,16 @@ export function SpreadsheetTable({
           <Plus className="h-4 w-4" />
           Add New Lead
         </Button>
+        <Button
+          variant="outline"
+          onClick={() =>
+            setFilterMode((prevMode) => ((prevMode + 1) % 3) as 0 | 1 | 2)
+          }
+        >
+          {filterMode === 0 && "Show Filter Options"}
+          {filterMode === 1 && "Show Missing Everything"}
+          {filterMode === 2 && "Show All"}
+        </Button>
       </div>
 
       <Table>
@@ -688,260 +748,301 @@ export function SpreadsheetTable({
 
         {/* Table Body */}
         <TableBody>
-          {sortedData.map((item: unregisteredOwners, index: number) => (
-            <TableRow
-              key={item?._id}
-              onClick={() => setSelectedRow(item._id)}
-              className={`cursor-pointer ${
-                selectedRow === item._id ? " bg-gray-900" : ""
-              }`}
-            >
-              <TableCell className="font-medium">{index + 1}</TableCell>
-
-              {/*VSID*/}
-
-              {/* Name */}
-              <TableCell className="font-medium truncate max-w-[150px]">
-                <EditableCell
-                  value={item.name}
-                  onSave={(newValue) => handleSave(item?._id, "name", newValue)}
-                  maxWidth="150px"
-                  // placeholder="Enter name"
-                />
-              </TableCell>
-
-              {/* Phone Number */}
-              <TableCell>
-                <EditableCopyCell
-                  value={item?.phoneNumber?.toString()}
-                  onSave={(newValue) =>
-                    handleSave(item._id, "phoneNumber", newValue)
-                  }
-                />
-              </TableCell>
-
-              {/* Location */}
-              <TableCell
-                className="truncate max-w-[150px]"
-                title={item.location}
+          {applyFilter(sortedData).map(
+            (item: unregisteredOwners, index: number) => (
+              <TableRow
+                key={item?._id}
+                onClick={() => setSelectedRow(item._id)}
+                className={`cursor-pointer ${
+                  selectedRow === item._id ? "bg-gray-900" : ""
+                } ${
+                  (!item.VSID || item.VSID.trim() === "") &&
+                  (!item.link || item.link.trim() === "") &&
+                  (!item.referenceLink || item.referenceLink.trim() === "") &&
+                  (!item.imageUrls || item.imageUrls.length === 0)
+                    ? "bg-red-900 opacity-80" // red if all three are missing
+                    : (!item.VSID || item.VSID.trim() === "") &&
+                      (!item.link || item.link.trim() === "")
+                    ? "bg-blue-800 opacity-90" // blue if VSID & link missing
+                    : ""
+                }`}
               >
-                <SelectableCell
-                  maxWidth="100px"
-                  value={item.location}
-                  data={targets.map((target) => target.city)}
-                  save={(newValue: string) =>
-                    handleSave(item._id, "location", newValue)
-                  }
-                />
-              </TableCell>
+                <TableCell className="font-medium flex items-center gap-2">
+                  {index + 1}
 
-              {/* Price */}
+                  {(token?.role === "Sales" ||
+                    token?.role === "Sales-TeamLead" ||
+                    token?.role === "SuperAdmin" ||
+                    token?.role === "Advert") && (
+                    <span
+                      className="cursor-pointer"
+                      onClick={() => handleResponseStatus(item?._id, index)}
+                    >
+                      {item?.isVerified === "Verified" ? (
+                        <CustomTooltip
+                          icon={<CheckCheck color="green" />}
+                          desc="Verified"
+                        />
+                      ) : (
+                        <CustomTooltip
+                          icon={<CircleDot color="gray" />}
+                          desc="None"
+                        />
+                      )}
+                    </span>
+                  )}
+                </TableCell>
 
-              <TableCell>
-                <EditableCell
-                  maxWidth="70px"
-                  value={item.price}
-                  onSave={(newValue) => handleSave(item._id, "price", newValue)}
-                  // placeholder="Price"
-                />
-              </TableCell>
+                {/*VSID*/}
 
-              <TableCell>
-                <AreaSelect
-                  maxWidth="100px"
-                  data={(
-                    targets.find((t) => t.city === item.location)?.areas || []
-                  )
-                    .map((a) => ({
-                      label: a.name,
-                      value: a.name,
-                    }))
-                    .sort((a, b) => a.label.localeCompare(b.label))}
-                  value={item.area || ""}
-                  save={(newValue: string) =>
-                    handleSave(item._id, "area", newValue)
-                  }
-                  tooltipText="Select an area"
-                />
-              </TableCell>
+                {/* Name */}
+                <TableCell className="font-medium truncate max-w-[150px]">
+                  <EditableCell
+                    value={item.name}
+                    onSave={(newValue) =>
+                      handleSave(item?._id, "name", newValue)
+                    }
+                    maxWidth="150px"
+                    // placeholder="Enter name"
+                  />
+                </TableCell>
 
-              <TableCell>
-                <SelectableCell
-                  maxWidth="100px"
-                  data={avail}
-                  value={item.availability}
-                  save={(newValue: string) =>
-                    handleSave(item._id, "availability", newValue)
-                  }
-                />
-              </TableCell>
-              {/* Int. Status */}
-              <TableCell>
-                <SelectableCell
-                  maxWidth="200px"
-                  data={interiorStatus}
-                  value={item.interiorStatus}
-                  save={(newValue: string) =>
-                    handleSave(item._id, "interiorStatus", newValue)
-                  }
-                />
-              </TableCell>
+                {/* Phone Number */}
+                <TableCell>
+                  <EditableCopyCell
+                    value={item?.phoneNumber?.toString()}
+                    onSave={(newValue) =>
+                      handleSave(item._id, "phoneNumber", newValue)
+                    }
+                  />
+                </TableCell>
 
-              <TableCell
-                className=" cursor-pointer relative "
-                onClick={() => handlePetStatus(item?._id, index)}
-              >
-                {/* {query?.reminder === null && (
+                {/* Location */}
+                <TableCell
+                  className="truncate max-w-[150px]"
+                  title={item.location}
+                >
+                  <SelectableCell
+                    maxWidth="100px"
+                    value={item.location}
+                    data={targets.map((target) => target.city)}
+                    save={(newValue: string) =>
+                      handleSave(item._id, "location", newValue)
+                    }
+                  />
+                </TableCell>
+
+                {/* Price */}
+
+                <TableCell>
+                  <EditableCell
+                    maxWidth="70px"
+                    value={item.price}
+                    onSave={(newValue) =>
+                      handleSave(item._id, "price", newValue)
+                    }
+                    // placeholder="Price"
+                  />
+                </TableCell>
+
+                <TableCell>
+                  <AreaSelect
+                    maxWidth="100px"
+                    data={(
+                      targets.find((t) => t.city === item.location)?.areas || []
+                    )
+                      .map((a) => ({
+                        label: a.name,
+                        value: a.name,
+                      }))
+                      .sort((a, b) => a.label.localeCompare(b.label))}
+                    value={item.area || ""}
+                    save={(newValue: string) =>
+                      handleSave(item._id, "area", newValue)
+                    }
+                    tooltipText="Select an area"
+                  />
+                </TableCell>
+
+                <TableCell>
+                  <SelectableCell
+                    maxWidth="100px"
+                    data={avail}
+                    value={item.availability}
+                    save={(newValue: string) =>
+                      handleSave(item._id, "availability", newValue)
+                    }
+                  />
+                </TableCell>
+                {/* Int. Status */}
+                <TableCell>
+                  <SelectableCell
+                    maxWidth="200px"
+                    data={interiorStatus}
+                    value={item.interiorStatus}
+                    save={(newValue: string) =>
+                      handleSave(item._id, "interiorStatus", newValue)
+                    }
+                  />
+                </TableCell>
+
+                <TableCell
+                  className=" cursor-pointer relative "
+                  onClick={() => handlePetStatus(item?._id, index)}
+                >
+                  {/* {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
                     <p className=" rotate-90 text-xs font-semibold mt-1">
                     Reminder
                     </p>
                     </div>
                     )} */}
-                {item.petStatus === "Allowed" ? (
-                  <CustomTooltip
-                    icon={<PawPrint color="green" />}
-                    desc="First Message"
-                  />
-                ) : item.petStatus === "Not Allowed" ? (
-                  <CustomTooltip
-                    icon={<Ban color="yellow" />}
-                    desc="Second Message"
-                  />
-                ) : (
-                  <CustomTooltip
-                    icon={<CircleDot fill="" color="gray" />}
-                    desc="No Status"
-                  />
-                )}
-              </TableCell>
-
-              {/* Property Type */}
-              <TableCell>
-                <SelectableCell
-                  maxWidth="200px"
-                  data={apartmentTypes}
-                  value={item.propertyType}
-                  save={(newValue: string) =>
-                    handleSave(item?._id, "propertyType", newValue)
-                  }
-                />
-              </TableCell>
-
-              {/* Address */}
-              <TableCell
-                className="truncate max-w-[150px]"
-                title={item.address}
-              >
-                <EditableCell
-                  maxWidth="200px"
-                  value={item.address}
-                  onSave={(newValue) =>
-                    handleSave(item._id, "address", newValue)
-                  }
-                  // placeholder="Address"
-                />
-              </TableCell>
-
-              {/* Ref. Link */}
-              <TableCell
-                className="text-right truncate max-w-[60px]"
-                title={item.referenceLink}
-              >
-                <div className="flex items-center gap-1">
-                  <EditableCell
-                    value={item.referenceLink}
-                    onSave={(newValue) =>
-                      handleSave(item._id, "referenceLink", newValue)
-                    }
-                    maxWidth="60px"
-                    // placeholder="Ref URL"
-                  />
-                </div>
-                {item.referenceLink && item.referenceLink !== "-" && (
-                  <a
-                    href={
-                      item.referenceLink.startsWith("http")
-                        ? item.referenceLink
-                        : `https://${item.referenceLink}`
-                    }
-                    target="_blank"
-                    className="text-blue-500 hover:text-blue-700 ml-1"
-                    rel="noreferrer"
-                    title="Open reference link in new tab"
-                  >
-                    🔗
-                  </a>
-                )}
-              </TableCell>
-              {/* Link */}
-              <TableCell
-                className="text-right truncate max-w-[60px]"
-                title={item.link}
-              >
-                <div className="flex items-center gap-1">
-                  {["Advert", "SuperAdmin"].includes(token?.role) ? (
-                    <EditableCell
-                      value={item.link}
-                      onSave={(newValue) =>
-                        handleSave(item._id, "link", newValue)
-                      }
-                      maxWidth="60px"
+                  {item.petStatus === "Allowed" ? (
+                    <CustomTooltip
+                      icon={<PawPrint color="green" />}
+                      desc="First Message"
+                    />
+                  ) : item.petStatus === "Not Allowed" ? (
+                    <CustomTooltip
+                      icon={<Ban color="yellow" />}
+                      desc="Second Message"
                     />
                   ) : (
-                    <span className="truncate block max-w-[60px]">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="ml-1 text-xs"
-                        onClick={() => navigator.clipboard.writeText(item.link)}
-                      >
-                        <Copy />
-                      </Button>
+                    <CustomTooltip
+                      icon={<CircleDot fill="" color="gray" />}
+                      desc="No Status"
+                    />
+                  )}
+                </TableCell>
+
+                {/* Property Type */}
+                <TableCell>
+                  <SelectableCell
+                    maxWidth="200px"
+                    data={apartmentTypes}
+                    value={item.propertyType}
+                    save={(newValue: string) =>
+                      handleSave(item?._id, "propertyType", newValue)
+                    }
+                  />
+                </TableCell>
+
+                {/* Address */}
+                <TableCell
+                  className="truncate max-w-[150px]"
+                  title={item.address}
+                >
+                  <EditableCell
+                    maxWidth="200px"
+                    value={item.address}
+                    onSave={(newValue) =>
+                      handleSave(item._id, "address", newValue)
+                    }
+                    // placeholder="Address"
+                  />
+                </TableCell>
+
+                {/* Ref. Link */}
+                <TableCell
+                  className="text-right truncate max-w-[60px]"
+                  title={item.referenceLink}
+                >
+                  <div className="flex items-center gap-1">
+                    <EditableCell
+                      value={item.referenceLink}
+                      onSave={(newValue) =>
+                        handleSave(item._id, "referenceLink", newValue)
+                      }
+                      maxWidth="60px"
+                      // placeholder="Ref URL"
+                    />
+                  </div>
+                  {item.referenceLink && item.referenceLink !== "-" && (
+                    <a
+                      href={
+                        item.referenceLink.startsWith("http")
+                          ? item.referenceLink
+                          : `https://${item.referenceLink}`
+                      }
+                      target="_blank"
+                      className="text-blue-500 hover:text-blue-700 ml-1"
+                      rel="noreferrer"
+                      title="Open reference link in new tab"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </TableCell>
+                {/* Link */}
+                <TableCell
+                  className="text-right truncate max-w-[60px]"
+                  title={item.link}
+                >
+                  <div className="flex items-center gap-1">
+                    {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                      <EditableCell
+                        value={item.link}
+                        onSave={(newValue) =>
+                          handleSave(item._id, "link", newValue)
+                        }
+                        maxWidth="60px"
+                      />
+                    ) : (
+                      <span className="truncate block max-w-[60px]">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="ml-1 text-xs"
+                          onClick={() =>
+                            navigator.clipboard.writeText(item.link)
+                          }
+                        >
+                          <Copy />
+                        </Button>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 🔗 Open link button (for all roles) */}
+                  {item.link && item.link !== "-" && (
+                    <a
+                      href={
+                        item.link.startsWith("http")
+                          ? item.link
+                          : `https://${item.link}`
+                      }
+                      target="_blank"
+                      className="text-blue-500 hover:text-blue-700 ml-1"
+                      rel="noreferrer"
+                      title="Open link in new tab"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </TableCell>
+
+                {/* VSID */}
+                <TableCell className="font-medium truncate max-w-[150px]">
+                  {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                    <EditableCell
+                      value={item.VSID}
+                      onSave={(newValue) =>
+                        handleSave(item?._id, "VSID", newValue)
+                      }
+                      maxWidth="150px"
+                    />
+                  ) : (
+                    <span className="truncate block max-w-[150px]">
+                      {item.VSID}
                     </span>
                   )}
-                </div>
-
-                {/* 🔗 Open link button (for all roles) */}
-                {item.link && item.link !== "-" && (
-                  <a
-                    href={
-                      item.link.startsWith("http")
-                        ? item.link
-                        : `https://${item.link}`
-                    }
-                    target="_blank"
-                    className="text-blue-500 hover:text-blue-700 ml-1"
-                    rel="noreferrer"
-                    title="Open link in new tab"
-                  >
-                    🔗
-                  </a>
-                )}
-              </TableCell>
-
-              {/* VSID */}
-              <TableCell className="font-medium truncate max-w-[150px]">
-                {["Advert", "SuperAdmin"].includes(token?.role) ? (
-                  <EditableCell
-                    value={item.VSID}
-                    onSave={(newValue) =>
-                      handleSave(item?._id, "VSID", newValue)
-                    }
-                    maxWidth="150px"
-                  />
-                ) : (
-                  <span className="truncate block max-w-[150px]">
-                    {item.VSID}
-                  </span>
-                )}
-              </TableCell>
-              {/* Remarks */}
-              <TableCell
-                className="text-right truncate max-w-[120px]"
-                title={item.remarks}
-              >
-                {/* <EditableCell
+                </TableCell>
+                {/* Remarks */}
+                <TableCell
+                  className="text-right truncate max-w-[120px]"
+                  title={item.remarks}
+                >
+                  {/* <EditableCell
                   value={item.remarks}
                   onSave={(newValue) =>
                     handleSave(item._id, "remarks", newValue)
@@ -949,20 +1050,21 @@ export function SpreadsheetTable({
                   maxWidth="120px"
                   // placeholder="Remarks"
                 /> */}
-                <RemarksDropdown item={item} onSave={handleSave} />
-              </TableCell>
-              {/*Date*/}
-              <TableCell>
-                <DateCell item={item} handleSave={handleSave} />
-              </TableCell>
+                  <RemarksDropdown item={item} onSave={handleSave} />
+                </TableCell>
+                {/*Date*/}
+                <TableCell>
+                  <DateCell item={item} handleSave={handleSave} />
+                </TableCell>
 
-              {/*Download*/}
-              <TableCell>
-                <UploadCell item={item} />
-                <DownloadCell item={item} />
-              </TableCell>
-            </TableRow>
-          ))}
+                {/*Download*/}
+                <TableCell>
+                  <UploadCell item={item} />
+                  <DownloadCell item={item} />
+                </TableCell>
+              </TableRow>
+            )
+          )}
         </TableBody>
       </Table>
     </div>

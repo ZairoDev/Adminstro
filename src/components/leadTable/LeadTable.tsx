@@ -480,7 +480,8 @@ const handleSave = async (
 
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
+              token?.role === "SuperAdmin" ||
+              token?.role === "LeadGen") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -577,7 +578,8 @@ const handleSave = async (
                   )}
 
                   {/* 🔹 For LeadGen: Only Replying & NR */}
-                  {token?.role === "LeadGen" ? (
+                  {token?.role === "LeadGen" &&
+                  path.toString().trim().split("/")[2] !== "notReplying" ? (
                     query.salesPriority === "Replying" ? (
                       <CustomTooltip
                         icon={<CheckCheck color="green" />}

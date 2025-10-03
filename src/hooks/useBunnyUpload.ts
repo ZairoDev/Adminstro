@@ -24,7 +24,10 @@ export const useBunnyUpload = () => {
         !(
           file.type === "image/jpeg" ||
           file.type === "image/png" ||
-          file.type === "image/webp"
+          file.type === "image/webp" ||
+          file.type === "video/mp4" ||
+          file.type === "video/webm" ||
+          file.type === "video/ogg"
         )
       ) {
         return {

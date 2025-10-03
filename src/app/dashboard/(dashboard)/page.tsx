@@ -457,7 +457,7 @@ const Dashboard = () => {
 
       {/* Listings Dashboard */}
       {/* Listings Dashboard */}
-      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
         <section className="relative my-10">
           <h1 className="text-3xl font-bold mb-6">Lead-Gen Dashboard</h1>
 
@@ -741,9 +741,7 @@ const Dashboard = () => {
       )}
 
       {/* Sales Generation Dashboard*/}
-      {(token?.role === "SuperAdmin" ||
-        token?.role === "LeadGen-TeamLead" ||
-        token?.email === "vikas@vacationsaga.com") && (
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
         <section>
           <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
           <Card>
@@ -1061,63 +1059,72 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
-            {/* Visualization on the left */}
-            <div className="flex md:w-1/2 h-[600px]">
-              <MoleculeVisualization data={ownersCount} />
-            </div>
-
-            {/* Filter + Count Card */}
-            <div className="relative w-full md:w-1/2 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
-              {/* Filters row */}
-              <div className="flex items-center justify-between mb-6">
-                <CustomSelect
-                  itemList={[
-                    "All",
-                    "Athens",
-                    "Milan",
-                    "Rome",
-                    "Chania",
-                    "thessaloniki",
-                  ]}
-                  triggerText="Select Location"
-                  defaultValue="All"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...unregisteredOwnersFilters };
-                    newLeadFilters.location = value;
-                    fetchUnregisteredVisits(newLeadFilters);
-                  }}
-                  triggerClassName="w-36"
-                />
-
-                <CustomSelect
-                  itemList={["All", "Today", "15 days", "1 month", "3 months"]}
-                  triggerText="Select Days"
-                  defaultValue="Today"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...unregisteredOwnersFilters };
-                    newLeadFilters.days = value;
-                    setUnregisteredOwnersFilters(newLeadFilters);
-                    fetchUnregisteredVisits(newLeadFilters);
-                  }}
-                  triggerClassName="w-36"
-                />
+          {(token?.role === "SuperAdmin" ||
+            token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
+            <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
+              {/* Visualization on the left */}
+              <div className="flex md:w-1/2 h-[600px]">
+                <MoleculeVisualization data={ownersCount} />
               </div>
 
-              {/* Title */}
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center">
-                New Owners
-              </h2>
+              {/* Filter + Count Card */}
+              <div className="relative w-full md:w-1/2 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
+                {/* Filters row */}
+                <div className="flex items-center justify-between mb-6">
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "Athens",
+                      "Milan",
+                      "Rome",
+                      "Chania",
+                      "thessaloniki",
+                    ]}
+                    triggerText="Select Location"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...unregisteredOwnersFilters };
+                      newLeadFilters.location = value;
+                      fetchUnregisteredVisits(newLeadFilters);
+                    }}
+                    triggerClassName="w-36"
+                  />
 
-              {/* Count */}
-              <div
-                className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400
-                 transition-transform duration-200 hover:scale-110"
-              >
-                {newOwnersCount.length}
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "Today",
+                      "15 days",
+                      "1 month",
+                      "3 months",
+                    ]}
+                    triggerText="Select Days"
+                    defaultValue="Today"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...unregisteredOwnersFilters };
+                      newLeadFilters.days = value;
+                      setUnregisteredOwnersFilters(newLeadFilters);
+                      fetchUnregisteredVisits(newLeadFilters);
+                    }}
+                    triggerClassName="w-36"
+                  />
+                </div>
+
+                {/* Title */}
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center">
+                  New Owners
+                </h2>
+
+                {/* Count */}
+                <div
+                  className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400
+          transition-transform duration-200 hover:scale-110"
+                >
+                  {newOwnersCount.length}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -1207,7 +1214,10 @@ const Dashboard = () => {
       </div>
 
       <div>
-        <ChartAreaMultiple data={chartData1} />
+        {(token?.role === "SuperAdmin" ||
+          token?.role === "LeadGen-TeamLead") && (
+          <ChartAreaMultiple data={chartData1} />
+        )}
       </div>
     </div>
   );

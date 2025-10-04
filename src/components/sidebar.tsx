@@ -125,6 +125,13 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Not Replying Leads",
       Icon: <PencilLine size={18} />,
     },
+    {
+    path: "/dashboard/propertyBoost/list",
+    label: "Property List",
+    Icon: <List size={18} />,
+  },
+    
+
   ],
   "LeadGen-TeamLead": [
     {
@@ -375,7 +382,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Owners",
       Icon: <PersonStanding size={18} />,
     },
-    // ✅ Added missing Subscription-Sales routes
+    
     {
       path: "/dashboard/sales-offer/not-connected",
       label: "Not Connected",
@@ -426,6 +433,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Compare Leads",
       Icon: <PencilLine size={18} />,
     },
+    {
+    path: "/dashboard/propertyBoost",
+    label: "Property Boost",
+    Icon: <Rocket size={18} />,
+  },
+  {
+    path: "/dashboard/propertyBoost/list",
+    label: "Property List",
+    Icon: <List size={18} />,
+  },
   ],
   Sales: [
     {
@@ -504,6 +521,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Create Invoice",
       Icon: <PencilLine size={18} />,
     },
+    {
+    path: "/dashboard/propertyBoost",
+    label: "Property Boost",
+    Icon: <Rocket size={18} />,
+  },
+  {
+    path: "/dashboard/propertyBoost/list",
+    label: "Property List",
+    Icon: <List size={18} />,
+  },
   ],
   "Sales-TeamLead": [
     {
@@ -566,6 +593,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Sales Offer",
       Icon: <ClipboardPaste size={18} />,
     },
+    {
+    path: "/dashboard/propertyBoost",
+    label: "Property Boost",
+    Icon: <Rocket size={18} />,
+  },
+  {
+    path: "/dashboard/propertyBoost/list",
+    label: "Property List",
+    Icon: <List size={18} />,
+  },
   ],
   HR: [
     {
@@ -926,6 +963,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const roomRoute = inGroup(roomRoutes);
     const catalogueRoute = inGroup(catalogueRoutes);
     const invoiceRoute = inGroup(InvoiceRoutes);
+    const propertyBoostRoute = inGroup(propertyBoostRoutes);
 
     return (
       <>
@@ -1019,7 +1057,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         />
         <SidebarSection
           title="Property Boost"
-          routes={propertyBoostRoutes}
+          routes={propertyBoostRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

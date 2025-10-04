@@ -77,6 +77,8 @@ import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { MoleculeVisualization } from "@/components/molecule_visual";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
+import { StatsCard } from "@/components/leadCountCard/page";
+import useLeadStats from "@/hooks/(VS)/useLeadStats";
 
 //  const chartConfig = {
 //   greece: {
@@ -120,6 +122,18 @@ interface StatusCount {
   Null: number;
 }
 
+interface LeadStats {
+  location: string;
+  target: number;
+  achieved: number;
+  today: number;
+  yesterday: number;
+  dailyrequired: number;
+  currentAverage: number; // dailyAchieved in StatsCard
+  rate: number;
+}
+
+
  const chartConfig = {
    listings: {
      label: "Listings",
@@ -131,6 +145,8 @@ interface StatusCount {
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const locations = ["Athens", "Thessaloniki", "Chania", "Milan"];
+  // const [todayLeadStats, setTodayLeadStats] = useState<Record<string, number>>({});
   const [selectedCountry, setSelectedCountry] = useState("All");
   const [leadCountDateModal, setLeadCountDateModal] = useState(false);
   const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
@@ -213,6 +229,8 @@ const Dashboard = () => {
     isLoading: isLoadingTodayLeads,
     fetchLeadsByLeadGen,
     chartData1,
+    todayLeadStats
+    
     // average,
   } = useTodayLeads();
 
@@ -259,6 +277,17 @@ const Dashboard = () => {
     setRevErr,
     fetchReviews,
   } = useReview();
+
+  const {
+    leadStats,
+    statsLoading,
+    setStatsLoading,
+    statsError,
+    setStatsError,
+    statsErrMsg,
+    setStatsErrMsg,
+    fetchLeadStats,
+  } = useLeadStats()
 
   // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
@@ -323,6 +352,27 @@ const Dashboard = () => {
   );
 
   const labels = ["0", "1", "2", "3", "4", "5+"];
+
+  // useEffect(() => {
+  //   const fetchLeads = async () => {
+  //     try {
+  //       const res = await axios.get("/api/getLeadStats");
+  //       const data: { location: string; totalLeads: number }[] = res.data;
+
+  //       const leadsMap: Record<string, number> = {};
+  //       locations.forEach((loc) => {
+  //         const found = data.find((d) => d.location === loc);
+  //         leadsMap[loc] = found?.totalLeads || 0;
+  //       });
+
+  //       setTodayLeadStats(leadsMap);
+  //     } catch (err) {
+  //       console.error(err);
+  //     }
+  //   };
+
+  //   fetchLeads();
+  // }, []);
 
   const bookingLabels = [
     "Total Amount",
@@ -1125,6 +1175,27 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+         <div className="flex items-center">
+          <div className=" p-2 rounded-lg mb-4 relative w-[600px] h-[600px]">
+  <MoleculeVisualization data={ownersCount} />
+  
+</div>
+
+         {leadStats.map((loc: LeadStats,index:number) => (
+        <StatsCard
+          className="mr-8"
+          key={index}
+          title={loc.location}
+          target={loc.target}
+          achieved={loc.achieved}
+          today={loc.today} 
+          yesterday={loc.yesterday}
+          dailyrequired={loc.dailyrequired}
+          dailyAchieved={loc.currentAverage}
+          rate={loc.rate}
+        />
+      ))}
+         </div>
         </>
       )}
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/AuthStore";
 
 interface Property {
   _id: string;
@@ -21,6 +22,8 @@ export default function BoostPropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const { token } = useAuthStore();
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -106,7 +109,7 @@ export default function BoostPropertiesPage() {
                 <div className="flex-1 space-y-2">
                   <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold text-foreground">{prop.title}</h2>
-                    <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                    <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1  rounded-full border border-primary/20">
                       {prop.BoostID}
                     </span>
                   </div>

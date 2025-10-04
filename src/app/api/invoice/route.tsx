@@ -10,9 +10,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("body: ", body);
     // If invoiceNumber is missing, auto-generate one
-
+    if (!body.invoiceNumber){
       const count = await Invoice.countDocuments();
-      body.invoiceNumber = `ZI-${count + 1}`;
+      body.invoiceNumber = `ZI-${count + 1}`;}
     console.log("invoiceNo: ", body)
 
     // Save invoice to MongoDB

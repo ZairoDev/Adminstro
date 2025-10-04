@@ -18,7 +18,7 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
       unique: true, // make sure it matches DB index
     },
-
+    nationality: { type: String },
     amount: { type: Number },
     sgst: { type: Number, default: 0 },
     igst: { type: Number, default: 0 },

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import Bookings from "@/models/booking";
+import { connectDb } from "@/util/db";
 
 export async function POST(req: NextRequest) {
+  connectDb();
   const { bookingId } = await req.json();
 
   try {

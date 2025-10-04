@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Ellipsis } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 
 import {
   Table,
@@ -21,28 +24,29 @@ import {
   DropdownMenuContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useAuthStore } from "@/AuthStore";
-import { toast, useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { BookingInterface } from "@/util/type";
 import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
-import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
-import axios from "axios";
 
-export default function BookingTable({
-  bookings,
-}: {
+type Props = {
   bookings: BookingInterface[];
-}) {
-  const searchParams = useSearchParams();
+  onUpdate?: (updated: BookingInterface[]) => void; // optional callback to let parent update
+};
 
+export default function BookingTable({ bookings, onUpdate }: Props) {
+  const searchParams = useSearchParams();
   const ellipsisRef = useRef<HTMLButtonElement>(null);
-  const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [page, setPage] = useState(1);
-  console.log("bookings: ", bookings);  
 
+  // ✅ Sync page with URL params
+  useEffect(() => {
+    setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+  }, [searchParams]);
+
+  // ✅ Update payment status safely
   const handlePaymentStatus = async (
     paymentStatus: "pending" | "paid" | "failed" | "partial",
     bookingId: string,
@@ -53,10 +57,20 @@ export default function BookingTable({
         paymentStatus,
         bookingId,
       });
+
       toast({
         title: "Payment status updated successfully",
       });
-      bookings[index].payment.status = paymentStatus;
+
+      // ✅ immutably update
+      if (onUpdate) {
+        const updatedBookings = bookings.map((b, i) =>
+          i === index
+            ? { ...b, payment: { ...b.payment, status: paymentStatus } }
+            : b
+        );
+        onUpdate(updatedBookings);
+      }
     } catch (err) {
       toast({
         title: "Unable to update payment status",
@@ -65,114 +79,109 @@ export default function BookingTable({
     }
   };
 
-  useEffect(() => {
-    if (searchParams.get("page")) {
-      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
-    }
-  }, []);
-
   return (
-    <div className=" w-full">
+    <div className="w-full">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>S.No.</TableHead>
             <TableHead>Check In</TableHead>
             <TableHead>Check Out</TableHead>
-            <TableHead>Pitched Amount</TableHead>
+            {/* <TableHead>Pitched Amount</TableHead> */}
             <TableHead>Final Amount</TableHead>
             <TableHead>Owner Payment</TableHead>
             <TableHead>Traveller Payment</TableHead>
             <TableHead>Payment Status</TableHead>
-            <TableHead>Actions </TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {bookings?.map((booking, index) => (
             <TableRow key={booking?._id}>
+              {/* Serial Number */}
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
 
+              {/* Check In */}
               <TableCell>
-                <Badge>{format(booking?.checkIn?.date, "MM-dd-yyyy")}</Badge>
-                {"  "}
-                <Badge>{booking?.checkIn?.time}</Badge>
+                <Badge>
+                  {booking?.checkIn?.date
+                    ? format(new Date(booking.checkIn.date), "MM-dd-yyyy")
+                    : "N/A"}
+                </Badge>{" "}
+                <Badge>{booking?.checkIn?.time || "N/A"}</Badge>
               </TableCell>
 
+              {/* Check Out */}
               <TableCell>
-                <Badge>{format(booking?.checkOut?.date, "MM-dd-yyyy")}</Badge>
-                {"  "}
-                <Badge>{booking?.checkOut?.time}</Badge>
+                <Badge>
+                  {booking?.checkOut?.date
+                    ? format(new Date(booking.checkOut.date), "MM-dd-yyyy")
+                    : "N/A"}
+                </Badge>{" "}
+                <Badge>{booking?.checkOut?.time || "N/A"}</Badge>
               </TableCell>
 
-              <TableCell>1000</TableCell>
+              {/* Pitched Amount */}
+              {/* <TableCell>{booking?.pitchedAmount ?? "—"}</TableCell> */}
 
-              <TableCell>{booking?.finalAmount}</TableCell>
+              {/* Final Amount */}
+              <TableCell>{booking?.finalAmount ?? "—"}</TableCell>
 
+              {/* Owner Payment */}
               <TableCell>
                 <Badge>
                   <CustomTooltip
-                    text={`${booking?.ownerPayment?.amountRecieved} / ${booking?.ownerPayment?.finalAmount}`}
+                    text={`${booking?.ownerPayment?.amountRecieved ?? 0} / ${
+                      booking?.ownerPayment?.finalAmount ?? 0
+                    }`}
                     desc="Received Amt. / Final Amt."
                   />
                 </Badge>
               </TableCell>
 
+              {/* Traveller Payment */}
               <TableCell>
                 <Badge>
                   <CustomTooltip
-                    text={`${booking?.travellerPayment?.amountRecieved} / ${booking?.travellerPayment?.finalAmount}`}
+                    text={`${
+                      booking?.travellerPayment?.amountRecieved ?? 0
+                    } / ${booking?.travellerPayment?.finalAmount ?? 0}`}
                     desc="Received Amt. / Final Amt."
                   />
                 </Badge>
               </TableCell>
 
+              {/* Payment Status Dropdown */}
               <TableCell>
-                {" "}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost">
-                      {booking?.payment.status?.toUpperCase()}
+                      {booking?.payment?.status?.toUpperCase() ?? "UNKNOWN"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">
                     <DropdownMenuLabel>Payment Status</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handlePaymentStatus("pending", booking._id, index)
-                      }
-                    >
-                      Pending
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handlePaymentStatus("partial", booking._id, index)
-                      }
-                    >
-                      Partial
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handlePaymentStatus("failed", booking._id, index)
-                      }
-                    >
-                      Failed
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() =>
-                        handlePaymentStatus("paid", booking._id, index)
-                      }
-                    >
-                      Paid
-                    </DropdownMenuItem>
+                    {["pending", "partial", "failed", "paid"].map((status) => (
+                      <DropdownMenuItem
+                        key={status}
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handlePaymentStatus(
+                            status as "pending" | "partial" | "failed" | "paid",
+                            booking._id,
+                            index
+                          )
+                        }
+                      >
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
 
+              {/* Actions */}
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -184,8 +193,8 @@ export default function BookingTable({
                       <Ellipsis size={18} />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <Link href={`/dashboard/createquery/${booking._id}`}>

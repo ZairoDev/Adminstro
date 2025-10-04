@@ -44,7 +44,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CopyCell } from "@/components/Copy";
 import { EditableCopyCell } from "./EditableCopyCell";
 import { get } from "http";
-import toast from "react-hot-toast";
+import {toast} from "react-hot-toast";
 import CustomTooltip from "@/components/CustomToolTip";
 import { table } from "console";
 
@@ -380,8 +380,20 @@ export function SpreadsheetTable({
         field: key,
         value: newValue,
       });
+      toast(
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4" />
+          Lead deleted successfully
+        </div>
+      );
     } catch (error) {
       console.error("Update failed", error);
+      toast(
+        <div className="flex items-center gap-2">
+          <X className="h-4 w-4" />
+          Error deleting lead
+        </div>
+      );
       // rollback if API fails
       setTableData(prev);
     }

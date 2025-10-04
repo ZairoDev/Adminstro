@@ -112,7 +112,7 @@ export const BookingPage = () => {
       const response = await axios.post("/api/bookings/getBookings", {});
       setBookings(response.data.data);
       setTotalPages(response.data.totalPages);
-      setTotalBookings(response.data.t);
+      setTotalBookings(response.data.totalBookings);
     } catch (err) {
       toast({
         title: "Unable to fetch visits",
@@ -142,7 +142,7 @@ export const BookingPage = () => {
 
   useEffect(() => {
     filterBookings();
-  }, [filters.searchTerm]);
+  }, [filters, page]);
 
   return (
     <div className=" w-full">

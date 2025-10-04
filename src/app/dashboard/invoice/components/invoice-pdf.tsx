@@ -1,7 +1,7 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import * as pdfFonts from "pdfmake/build/vfs_fonts";
 import { COMPANY_INFO } from "./invoice-shared";
-import { ComputedTotals, InvoiceData } from "../page";
+import type { ComputedTotals, InvoiceData } from "../page";
 
 // Set virtual file system for pdfMake
 (pdfMake as any).vfs = (pdfFonts as any).vfs;
@@ -68,6 +68,7 @@ export function generateInvoicePdf(
               ...(value.email ? [{ text: value.email }] : []),
               ...(value.phoneNumber ? [{ text: value.phoneNumber }] : []),
               ...(value.address ? [{ text: value.address }] : []),
+              ...(value.nationality ? [{ text: value.nationality }] : []),
             ],
           },
           {
@@ -99,13 +100,13 @@ export function generateInvoicePdf(
             // Header
             [
               { text: "Description", bold: true },
-              { text: "SAC Code", bold: true, alignment: "right" },
+              { text: "SAC Code", bold: true, alignment: "center" },
               { text: "Amount", bold: true, alignment: "right" },
             ],
             // Service row
             [
               { text: value.description || value.bookingType },
-              { text: value.sacCode || "-", alignment: "right" },
+              { text: value.sacCode || "-", alignment: "center" },
               { text: `€${value.amount}`, alignment: "right" },
             ],
             // Check-in/out as part of Description column
@@ -119,27 +120,27 @@ export function generateInvoicePdf(
             [
               {},
               { text: "Sub Total:", alignment: "right" },
-              { text: `€${computed.subTotal}`, alignment: "right" },
+              { text: `€${computed.subTotal}`, alignment: "left" },
             ],
             [
               {},
               { text: "SGST:", alignment: "right" },
-              { text: `€${computed.taxes.sgst}`, alignment: "right" },
+              { text: `€${computed.taxes.sgst}`, alignment: "left" },
             ],
             [
               {},
               { text: "CGST:", alignment: "right" },
-              { text: `€${computed.taxes.cgst}`, alignment: "right" },
+              { text: `€${computed.taxes.cgst}`, alignment: "left" },
             ],
             [
               {},
               { text: "IGST:", alignment: "right" },
-              { text: `€${computed.taxes.igst}`, alignment: "right" },
+              { text: `€${computed.taxes.igst}`, alignment: "left" },
             ],
             [
               {},
               { text: "Total:", bold: true, alignment: "right" },
-              { text: `€${computed.total}`, bold: true, alignment: "right" },
+              { text: `€${computed.total}`, bold: true, alignment: "left" },
             ],
           ],
         },
@@ -170,34 +171,20 @@ Branch: ${COMPANY_INFO.bank.branch}`,
             alignment: "right",
             stack: [
               {
-                text: "*For TERMS AND CONDITIONS please visit our website.",
-                fontSize: 10,
-                margin: [0, 20, 0, 0],
+                text: "Contact",
+                bold: true,
+                margin: [0, 20, 0, 5],
+                alignment: "right",
               },
               {
-                text: [
-                  "For assistance: ",
-                  {
-                    text: COMPANY_INFO.company.supportEmail,
-                    link: `mailto:${COMPANY_INFO.company.supportEmail}`,
-                    decoration: "underline",
-                    color: "blue",
-                  },
-                ],
+                text: "support@vacationsaga.com",
                 fontSize: 10,
-                margin: [0, 5, 0, 0],
+                alignment: "right",
               },
               {
-                text: [
-                  {
-                    text: COMPANY_INFO.company.website,
-                    link: `https://${COMPANY_INFO.company.website}`,
-                    decoration: "underline",
-                    color: "blue",
-                  },
-                ],
+                text: "www.vacationsaga.com",
                 fontSize: 10,
-                margin: [0, 2, 0, 0],
+                alignment: "right",
               },
             ],
           },
@@ -205,6 +192,12 @@ Branch: ${COMPANY_INFO.bank.branch}`,
         columnGap: 20,
       },
     ],
+    footer: {
+      text: "For TERMS AND CONDITIONS please visit our website. For any other assistance contact us on: support@vacationsaga.com www.vacationsaga.com",
+      alignment: "center",
+      fontSize: 8,
+      margin: [40, 0, 40, 20],
+    },
   };
 
   pdfMake.createPdf(docDefinition).open();

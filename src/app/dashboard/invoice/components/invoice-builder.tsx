@@ -25,7 +25,7 @@ const INITIAL_DATA: InvoiceData = {
   totalAmount: 0,
   status: "unpaid",
   date: "",
-
+  nationality: "",
   // Booking
   checkIn: "",
   checkOut: "",
@@ -87,6 +87,7 @@ export default function InvoiceBuilder() {
       sgst: 0,
       igst: 0,
       cgst: 0,
+      nationality: "Indian",
       sacCode: 9985,
       status: "paid",
       date: "2025-08-25",

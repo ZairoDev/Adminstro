@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
-// import type { InvoiceData, ComputedTotals } from "./types";
 import { eur } from "./format";
 import type { ComputedTotals, InvoiceData } from "../page";
 
@@ -11,24 +10,24 @@ type Props = {
   onChange: (patch: Partial<InvoiceData>) => void;
 };
 type AddonType = "Listing Subscription" | "Booking Commission";
+
 export function InvoiceForm({ value, onChange, computed }: Props) {
   const [addonType, setAddonType] = useState<AddonType>("Listing Subscription");
   const [sacCode, setSacCode] = useState("9983");
 
   const handleAddonChange = (value: AddonType) => {
     setAddonType(value);
-
     if (value === "Listing Subscription") {
       setSacCode("9983");
     } else if (value === "Booking Commission") {
       setSacCode("9985");
-      // you can also trigger additional booking-commission logic here
     }
     onChange({
       bookingType: value,
       sacCode: value === "Listing Subscription" ? 9983 : 9985,
     });
   };
+
   const handle =
     (key: keyof InvoiceData) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -100,6 +99,14 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
         </legend>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
           <label className="grid gap-1">
+            <span className="text-sm">Invoice No.</span>
+            <input
+              className="h-9 rounded-md border bg-muted px-3"
+              value={value.invoiceNumber || ""}
+              onChange={handle("invoiceNumber")}
+            />
+          </label>
+          <label className="grid gap-1">
             <span className="text-sm">Date</span>
             <input
               type="date"
@@ -135,9 +142,7 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
             <select
               className="h-9 rounded-md border bg-background px-3"
               value={value.bookingType}
-              onChange={(e) => {
-                handleAddonChange(e.target.value as AddonType);
-              }}
+              onChange={(e) => handleAddonChange(e.target.value as AddonType)}
             >
               <option value="Booking Commission">Booking Commission</option>
               <option value="Listing Subscription">Listing Subscription</option>
@@ -187,7 +192,6 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
               className="h-9 rounded-md border bg-background px-3"
               value={sacCode}
               readOnly
-              // onChange={handle("sacCode")}
             />
           </label>
         </div>
@@ -209,6 +213,16 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
               {eur(computed.total)}
             </div>
           </div>
+          <label className="grid gap-1">
+            <span className="text-sm">Nationality</span>
+            <input
+              type="text"
+              className="h-9 rounded-md border bg-background px-3"
+              value={value.nationality}
+              onChange={handle("nationality")}
+              placeholder="Enter Nationality"
+            />
+          </label>
         </div>
       </fieldset>
 
@@ -257,10 +271,6 @@ export function InvoiceForm({ value, onChange, computed }: Props) {
           <span>Sub Total</span>
           <span>{eur(computed.subTotal)}</span>
         </div>
-        {/* <div className="flex items-center justify-between">
-          <span>Discount</span>
-          <span>{eur(computed.discount)}</span>
-        </div> */}
         <div className="flex items-center justify-between">
           <span>IGST</span>
           <span>{eur(computed.taxes.igst)}</span>

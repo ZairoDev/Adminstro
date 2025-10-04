@@ -63,7 +63,7 @@ export function InvoicePreview({ value, computed }: Props) {
       {/* Meta */}
       <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <div className="text-sm font-medium">Bill TO</div>
+          <div className="text-sm font-medium">Bill To</div>
           <div className="mt-1">
             <div className="font-medium">{value.name || "-"}</div>
             {value.email && <div className="text-sm">{value.email}</div>}
@@ -71,6 +71,7 @@ export function InvoicePreview({ value, computed }: Props) {
               <div className="text-sm">{value.phoneNumber}</div>
             )}
             {value.address && <div className="text-sm">{value.address}</div>}
+            {value.nationality && (<div className="text-sm">{value.nationality}</div>)}
           </div>
         </div>
 

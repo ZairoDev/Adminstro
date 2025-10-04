@@ -52,6 +52,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/createquery",
     /^\/dashboard\/createquery\/.*$/,
     "/dashboard/notReplying",
+    "/dashboard/propertyBoost/list",
+     /^\/dashboard\/propertyBoost\/list\/.*$/,
   ],
   "LeadGen-TeamLead": [
     "/",
@@ -90,9 +92,10 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/declinedleads",
     "/dashboard/reminders",
     "/dashboard/catalogue",
-    // "/dashboard/propertyBoost",
-    // "/dashboard/propertyBoost/list",
-    //  /^\/dashboard\/propertyBoost\/list\/.*$/,
+    "/dashboard/propertyBoost",
+    "/dashboard/propertyBoost/list",
+     /^\/dashboard\/propertyBoost\/list\/.*$/,
+  /^\/dashboard\/recommendations\/.*$/,
     "/dashboard/newproperty/filteredProperties",
   ],
   "Sales-TeamLead": [

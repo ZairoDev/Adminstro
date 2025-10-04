@@ -683,6 +683,8 @@ export const getTodayLeads = async () => {
   return { serializedLeads: leadsByAgentName, totalLeads };
 };
 
+
+
 export const getAverage = async()=>{
   const start = new Date(new Date().setDate(new Date().getDate() - 7));
   const end = new Date();
@@ -717,6 +719,110 @@ export const getAverage = async()=>{
   // console.log(totalTarget);
   return { totalTarget: totalTarget[0].totalLeads };
 }
+
+
+
+export const getLocationLeadStats = async () => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // UTC safe boundaries
+  const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
+  const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
+
+  const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
+  const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
+
+  const startOfMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0));
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysPassedInMonth = today.getDate(); // current day of the month
+
+  // ----------------------------
+  // Queries aggregation (case-insensitive)
+  // ----------------------------
+  const queryAgg = await Query.aggregate([
+    {
+      $facet: {
+        today: [
+          { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              todayCount: { $sum: 1 }
+            }
+          },
+        ],
+        yesterday: [
+          { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              yesterdayCount: { $sum: 1 }
+            }
+          },
+        ],
+        month: [
+          { $match: { createdAt: { $gte: startOfMonth, $lte: endOfToday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              monthCount: { $sum: 1 }
+            }
+          },
+        ],
+      },
+    },
+  ]);
+
+  console.log("queryAgg: ", queryAgg);
+
+  // Maps for quick lookup
+  const todayMap = Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]));
+  const yesterdayMap = Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
+  const monthMap = Object.fromEntries(queryAgg[0].month.map((d: any) => [d._id, d.monthCount]));
+
+  // ----------------------------
+  // Monthly targets
+  // ----------------------------
+  const monthlyTargets = await MonthlyTarget.find({}).lean();
+
+  // ----------------------------
+  // Merge results
+  // ----------------------------
+  const visits = monthlyTargets.map(mt => {
+    const loc = mt.city.toLowerCase();
+    const target = mt.leads;
+    const achieved = monthMap[loc] || 0;
+    const todayCount = todayMap[loc] || 0;
+    const yesterdayCount = yesterdayMap[loc] || 0;
+    const dailyRequired = Math.ceil(target / daysInMonth);
+    const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
+
+    // New metrics
+    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : 0;
+    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : 0;
+
+    return {
+      location: mt.city,
+      target,
+      achieved,
+      today: todayCount,
+      yesterday: yesterdayCount,
+      dailyrequired: dailyRequired,
+      rate,
+      currentAverage: Number(currentAverage),
+      successRate: Number(successRate),
+    };
+  });
+
+  console.log(visits);
+  return { visits };
+};
+
+
+
+
 
 export const getWeeksVisit = async ({ days }: { days?: string }) => {
   const filters: Record<string, any> = {};
@@ -1690,7 +1796,7 @@ export const getCountryWisePropertyCount = async ({
 ];
 
   const countryWisePropertyCount = await Property.aggregate(pipeline);
-  console.log("countryWisePropertyCount",countryWisePropertyCount);
+  //console.log("countryWisePropertyCount",countryWisePropertyCount);
   const totalPropertyCount = await Property.countDocuments({
     country: country,
   });
@@ -1786,7 +1892,7 @@ export const getAmountDetails = async ({
     {
       $unwind: {
         path: "$visitDetails",
-        preserveNullAndEmptyArrays: true, // optional if some payments may not have a visit
+        preserveNullAndEmptyArrays: true, 
       },
     },
     {

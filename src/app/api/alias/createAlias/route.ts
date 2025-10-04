@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ alias }, { status: 201 });
   } catch (err: any) {
-    console.log("error in creating alias: ", err);
+   // console.log("error in creating alias: ", err);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

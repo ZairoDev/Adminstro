@@ -88,9 +88,9 @@ export function MoleculeVisualization({ data }: MoleculeVisualizationProps) {
     : null;
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div className="relative w-full h-full  flex items-center justify-center">
       {/* SVG Diagram */}
-      <svg width={600} height={600} className="absolute inset-0">
+      <svg viewBox="0 0 600 600" className="w-full h-full">
         {/* Orbit Circle */}
         <circle
           cx={centerX}

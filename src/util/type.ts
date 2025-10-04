@@ -110,6 +110,11 @@ export interface PropertiesDataType {
   updatedAt: Date;
 }
 
+export interface VSID {
+  _id: string;
+  VSID: string;
+}
+
 export interface UserInterface {
   _id: string;
   address: string;
@@ -130,6 +135,8 @@ export interface UserInterface {
   spokenLanguage: string;
   updatedAt: string;
   isActive: boolean;
+  vsids?: VSID[];
+  vsids2?: VSID[];
 }
 
 export interface nearbyLocationInterface {
@@ -174,6 +181,8 @@ export interface Property {
   childrenAge?: number[];
 
   longTermMonths?: number[];
+  internalCity?: string;
+  internalArea?: string;
 
   rentalType?: string;
 
@@ -524,7 +533,7 @@ export interface  unregisteredOwners {
   availability: string;
   petStatus: string;
   imageUrls: string[];
-
+  isVerified: string;
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

@@ -27,8 +27,9 @@ export async function POST(req: Request) {
       "Number of people exceeded",
       "Already got it",
       "Different Area",
-      "Didn't like the option",
       "Agency Fees",
+      "Didn't like the option",
+      "Low Duration",
     ];
     if (!validLeadQualities.includes(rejectionReason)) {
       return NextResponse.json(

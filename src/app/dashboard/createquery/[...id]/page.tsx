@@ -39,6 +39,17 @@ interface PageProps {
     id: string;
   };
 }
+interface PropertyBooster {
+  _id: string;
+  BoostID?: string;
+  title: string;
+  description: string;
+  url: string;
+  images: string[];
+  createdBy: string;
+  createdAt: string;
+}
+
 
 const QueryDetails = ({ params }: PageProps) => {
   const id = params.id;
@@ -54,6 +65,7 @@ const QueryDetails = ({ params }: PageProps) => {
   const [budgetTo, setBudgetTo] = useState(0);
   const [budgetFrom, setBudgetFrom] = useState(0);
   const [createdByEmail, setCreatedByEmail] = useState<string>("");
+  const [booster, setBooster] = useState<PropertyBooster | null>(null);
 
   // const handleSave = async () => {
   //   try {
@@ -154,6 +166,25 @@ const QueryDetails = ({ params }: PageProps) => {
       console.log("error in fetching employee details: ", err);
     }
   };
+
+   useEffect(() => {
+    const getBooster = async () => {
+      try {
+        if (apiData?.BoostID) {
+          const res = await axios.post<PropertyBooster>("/api/getPropertyBoosterId", {
+  BoostID: apiData.BoostID,
+});
+setBooster(res.data);
+
+
+        }
+      } catch (error) {
+        console.error("Error fetching booster by BoostID:", error);
+      }
+    };
+
+    getBooster();
+  }, [apiData?.BoostID]);
 
   return (
     <>
@@ -418,12 +449,17 @@ const QueryDetails = ({ params }: PageProps) => {
                   />
                 </div>
 
-                {apiData?.BoostID && (
-                  <div className=" flex items-center gap-x-2 text-neutral-500">
-                    <p className=" font-medium text-lg">Boost ID:</p>
-                    <p>{apiData.BoostID}</p>
-                  </div>
-                )}
+                {apiData?.BoostID && booster && (
+        <div className="flex items-center gap-x-2 text-neutral-500">
+          <p className="font-medium text-lg">Boost ID:</p>
+          <Link
+            href={`/dashboard/propertyBoost/list/${booster?._id}`}
+            className="text-blue-600 hover:underline"
+          >
+            {apiData.BoostID}
+          </Link>
+        </div>
+      )}
 
 
                 {apiData?.leadStatus === "rejected" &&

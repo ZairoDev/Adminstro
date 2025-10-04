@@ -113,9 +113,9 @@ const SalesDashboard = () => {
     start: "",
     end: "",
   });
-     const [targets, setTargets] = useState<TargetType[]>([]);
-       const [selectedLocation, setSelectedLocation] = useState<string>("");
-       const [areas1,setAreas1]=useState<AreaType[]>([]);
+  const [targets, setTargets] = useState<TargetType[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [areas1, setAreas1] = useState<AreaType[]>([]);
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -142,40 +142,38 @@ const SalesDashboard = () => {
       roomId: "",
       roomPassword: "",
     },
-    messageStatus:"None",
-    BoostID:"",
+    messageStatus: "None",
+    BoostID: "",
   });
 
-//   const locationList = [ {
-//     id:1,
-//     label: "Athens",
-//     value: "athens",
-//   },
-//   {
-//     id:2,
-//     label: "Thessaloniki",
-//     value: "thessaloniki",
-//   },
-//   {
-//     id:3,
-//     label: "Milan",
-//     value: "milan",
-//   },
-//   { 
-//     id:4,
-//     label: "Rome",
-//     value: "rome",
-//   },
-//   {
-//     id:5,
-//     label: "Chania",
-//     value: "chania",
-//   },
-// ]
+  //   const locationList = [ {
+  //     id:1,
+  //     label: "Athens",
+  //     value: "athens",
+  //   },
+  //   {
+  //     id:2,
+  //     label: "Thessaloniki",
+  //     value: "thessaloniki",
+  //   },
+  //   {
+  //     id:3,
+  //     label: "Milan",
+  //     value: "milan",
+  //   },
+  //   {
+  //     id:4,
+  //     label: "Rome",
+  //     value: "rome",
+  //   },
+  //   {
+  //     id:5,
+  //     label: "Chania",
+  //     value: "chania",
+  //   },
+  // ]
 
-
-  const [location,setLocation] = useState([]);
-  
+  const [location, setLocation] = useState([]);
 
   const limit: number = 12;
 
@@ -198,16 +196,16 @@ const SalesDashboard = () => {
 
   const [checking, setChecking] = useState(false);
 
-  const fetchLocations =async()=>{
-    try{
+  const fetchLocations = async () => {
+    try {
       const response = await axios.get(`/api/addons/target/getAlLocations`);
       setLocation(response.data.data);
-      
-      console.log("fetched Locations",response.data.data);  
-    }catch(err){
+
+      console.log("fetched Locations", response.data.data);
+    } catch (err) {
       console.log(err);
     }
-  } 
+  };
   const handleNumberSearch = async () => {
     try {
       if (!phone) {
@@ -274,7 +272,11 @@ const SalesDashboard = () => {
         return;
       }
 
-      if(numberStatus === "" ||numberStatus === "❌ Invalid phone number." || numberStatus ==="❌ Phone number already exists."){
+      if (
+        numberStatus === "" ||
+        numberStatus === "❌ Invalid phone number." ||
+        numberStatus === "❌ Phone number already exists."
+      ) {
         toast({
           description: "Please check the phone number validity",
         });
@@ -365,7 +367,6 @@ const SalesDashboard = () => {
       setSubmitQuery(false);
     }
   };
-  
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -521,9 +522,9 @@ const SalesDashboard = () => {
     };
   }, [queries, allotedArea]);
 
-  useEffect(()=>{
+  useEffect(() => {
     fetchLocations();
-  },[])
+  }, []);
 
   useEffect(() => {
     const fetchTargets = async () => {
@@ -701,8 +702,8 @@ const SalesDashboard = () => {
                         name="idName"
                         value={formData.idName}
                         onChange={handleInputChange}
-                        placeholder="Enter the Id Name"                        
-                      />    
+                        placeholder="Enter the Id Name"
+                      />
                     </div>
                   </div>
 
@@ -926,159 +927,146 @@ const SalesDashboard = () => {
                   </div>
 
                   {/* Section 5: Property Details */}
-                
-                    <h3 className="text-lg font-semibold border-b pb-1 pt-4">
-                      Property Details
-                    </h3>
 
-                    {/* Type of Property & Lead Quality */}
-                    <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                      {/* Type of Property */}
-                      <div className="ml-1">
-                        <Label>Type of Property</Label>
-                        <Select
-                          value={formData.typeOfProperty}
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              typeOfProperty: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {
-                              apartmentTypes.map((propertyType, index) => (
-                                <SelectItem
-                                  key={index}
-                                  value={propertyType.value}
-                                >
-                                  {propertyType.label}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <h3 className="text-lg font-semibold border-b pb-1 pt-4">
+                    Property Details
+                  </h3>
 
-                      {/* Lead Quality */}
-                      <div>
-                        <Label>Lead Quality</Label>
-                        <Select
-                          value={formData.leadQualityByCreator}
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              leadQualityByCreator: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Priority" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Good">Good</SelectItem>
-                            <SelectItem value="Very Good">Very Good</SelectItem>
-                            <SelectItem value="Average">Average</SelectItem>
-                            <SelectItem value="Below Average">
-                              Below Average
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Property Type */}
-                      <div className="ml-1">
-                        <Label>Property Type</Label>
-                        <Select
-                          value={formData.propertyType}
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              propertyType: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Furnished">Furnished</SelectItem>
-                            <SelectItem value="Unfurnished">
-                              Unfurnished
-                            </SelectItem>
-                            <SelectItem value="Semi-furnished">
-                              Semi-furnished
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Zone */}
-                      <div>
-                        <Label>Zone</Label>
-                        <Select
-                          value={formData.zone}
-                          onValueChange={(value) =>
-                            setFormData((prevData) => ({
-                              ...prevData,
-                              zone: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select zone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="East">East</SelectItem>
-                            <SelectItem value="West">West</SelectItem>
-                            <SelectItem value="North">North</SelectItem>
-                            <SelectItem value="South">South</SelectItem>
-                            <SelectItem value="Center">Center</SelectItem>
-                            <SelectItem value="North-East">
-                              North-East
-                            </SelectItem>
-                            <SelectItem value="North-West">
-                              North-West
-                            </SelectItem>
-                            <SelectItem value="South-East">
-                              South-East
-                            </SelectItem>
-                            <SelectItem value="South-West">
-                              South-West
-                            </SelectItem>
-                            <SelectItem value="Anywhere">Anywhere</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Area */}
-
-                    <div>
-                      <Label>Metro Zone</Label>
+                  {/* Type of Property & Lead Quality */}
+                  <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                    {/* Type of Property */}
+                    <div className="ml-1">
+                      <Label>Type of Property</Label>
                       <Select
-                        value={formData.metroZone}
+                        value={formData.typeOfProperty}
                         onValueChange={(value) =>
                           setFormData((prevData) => ({
                             ...prevData,
-                            metroZone: value,
+                            typeOfProperty: value,
                           }))
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select Metro Line" />
+                          <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
-                                            {metroLines.map((line) => (
-                                              <SelectItem key={line.value} value={line.label}>
-                                                {line.label}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
+                          {apartmentTypes.map((propertyType, index) => (
+                            <SelectItem key={index} value={propertyType.value}>
+                              {propertyType.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Lead Quality */}
+                    <div>
+                      <Label>Lead Quality</Label>
+                      <Select
+                        value={formData.leadQualityByCreator}
+                        onValueChange={(value) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            leadQualityByCreator: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="">
+                          <SelectValue placeholder="Select Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Good">Good</SelectItem>
+                          <SelectItem value="Very Good">Very Good</SelectItem>
+                          <SelectItem value="Average">Average</SelectItem>
+                          <SelectItem value="Below Average">
+                            Below Average
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Property Type */}
+                    <div className="ml-1">
+                      <Label>Property Type</Label>
+                      <Select
+                        value={formData.propertyType}
+                        onValueChange={(value) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            propertyType: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Furnished">Furnished</SelectItem>
+                          <SelectItem value="Unfurnished">
+                            Unfurnished
+                          </SelectItem>
+                          <SelectItem value="Semi-furnished">
+                            Semi-furnished
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Zone */}
+                    <div>
+                      <Label>Zone</Label>
+                      <Select
+                        value={formData.zone}
+                        onValueChange={(value) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            zone: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select zone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="East">East</SelectItem>
+                          <SelectItem value="West">West</SelectItem>
+                          <SelectItem value="North">North</SelectItem>
+                          <SelectItem value="South">South</SelectItem>
+                          <SelectItem value="Center">Center</SelectItem>
+                          <SelectItem value="North-East">North-East</SelectItem>
+                          <SelectItem value="North-West">North-West</SelectItem>
+                          <SelectItem value="South-East">South-East</SelectItem>
+                          <SelectItem value="South-West">South-West</SelectItem>
+                          <SelectItem value="Anywhere">Anywhere</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Area */}
+
+                  <div>
+                    <Label>Metro Zone</Label>
+                    <Select
+                      value={formData.metroZone}
+                      onValueChange={(value) =>
+                        setFormData((prevData) => ({
+                          ...prevData,
+                          metroZone: value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Metro Line" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {metroLines.map((line) => (
+                          <SelectItem key={line.value} value={line.label}>
+                            {line.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="w-full mt-2 ml-1 mb-2">
                       <Label>BoostID</Label>
                       <Input

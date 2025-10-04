@@ -56,13 +56,17 @@ petStatus: {
   remarks:{
     type: String
   },
-  availability:{
+  availability:{  
     type: String,
     default: "Available"
   },
   imageUrls:{
     type: [String],
     default: []
+  },
+  isVerified:{
+    type: String,
+    default: "None"
   }
 
 },

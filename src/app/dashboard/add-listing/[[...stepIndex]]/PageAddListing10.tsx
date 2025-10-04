@@ -4,16 +4,17 @@ import axios from "axios";
 import Link from "next/link";
 import { Copy, Pencil } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import React, { FC, useEffect, useState } from "react";
+import { type FC, useEffect, useState } from "react";
 
 import Heading from "@/components/Heading";
-import { UserInterface } from "@/util/type";
+import type { UserInterface } from "@/util/type";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import internal from "stream";
 
-export interface PageAddListing10Props {}
+export type PageAddListing10Props = {};
 
 interface Page3State {
   beds: number[];
@@ -95,6 +96,8 @@ interface CombinedData {
   area?: string;
   subarea?: string;
   neighbourhood?: string;
+  internalCity?: string;
+  internalArea?: string;
   floor?: number;
   isTopFloor?: string;
   constructionYear?: number;
@@ -128,43 +131,54 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   const [loggedInUserEmail, setLoggedInUserEmail] = useState<string>("");
 
   const clearLocalStorage = () => {
-    localStorage.removeItem("page1");
-    localStorage.removeItem("page2");
-    localStorage.removeItem("page3");
-    // localStorage.removeItem("page4");
-    localStorage.removeItem("page5");
-    localStorage.removeItem("page6");
-    localStorage.removeItem("page8");
-    localStorage.removeItem("page9");
-    localStorage.removeItem("propertyCoverFileUrl");
-    localStorage.removeItem("propertyPictureUrls");
-    localStorage.removeItem("portionCoverFileUrls");
-    localStorage.removeItem("portionPictureUrls");
-    // localStorage.removeItem("AmenitiesToRetrieve");
-    localStorage.removeItem("isImages");
-    localStorage.removeItem("isPortionPictures");
-    localStorage.removeItem("isPropertyPictures");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("page1");
+      localStorage.removeItem("page2");
+      localStorage.removeItem("page3");
+      // localStorage.removeItem("page4");
+      localStorage.removeItem("page5");
+      localStorage.removeItem("page6");
+      localStorage.removeItem("page8");
+      localStorage.removeItem("page9");
+      localStorage.removeItem("propertyCoverFileUrl");
+      localStorage.removeItem("propertyPictureUrls");
+      localStorage.removeItem("portionCoverFileUrls");
+      localStorage.removeItem("portionPictureUrls");
+      // localStorage.removeItem("AmenitiesToRetrieve");
+      localStorage.removeItem("isImages");
+      localStorage.removeItem("isPortionPictures");
+      localStorage.removeItem("isPropertyPictures");
+    }
   };
 
-  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(() => {
-    const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
-    return savedPage || "";
-  });
+  const [propertyCoverFileUrl, setPropertyCoverFileUrl] = useState<string>(
+    () => {
+      if (typeof window !== "undefined") {
+        const savedPage = localStorage.getItem("propertyCoverFileUrl") || "";
+        return savedPage || "";
+      }
+      return "";
+    }
+  );
 
   const [page3, setPage3] = useState<Page3State>(() => {
-    const savedPage = localStorage.getItem("page3") || "";
-    if (savedPage) {
-      return JSON.parse(savedPage);
+    if (typeof window !== "undefined") {
+      const savedPage = localStorage.getItem("page3") || "";
+      if (savedPage) {
+        return JSON.parse(savedPage);
+      }
     }
-    return "";
+    return {} as Page3State;
   });
 
   const [page2, setPage2] = useState<Page2State>(() => {
-    const savedPage = localStorage.getItem("page2") || "";
-    if (savedPage) {
-      return JSON.parse(savedPage);
+    if (typeof window !== "undefined") {
+      const savedPage = localStorage.getItem("page2") || "";
+      if (savedPage) {
+        return JSON.parse(savedPage);
+      }
     }
-    return "";
+    return {} as Page2State;
   });
 
   const createPricePerDayArray = (portions: number) => {
@@ -183,51 +197,57 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   const [combinedData, setCombinedData] = useState<CombinedData>();
 
-  // ! useEffect for extracting data from local storage of all the pages from 1 to 9
   useEffect(() => {
     const fetchDataFromLocalStorage = () => {
-      const page1 = JSON.parse(localStorage.getItem("page1") || "{}");
-      const page2 = JSON.parse(localStorage.getItem("page2") || "{}");
-      const page3 = JSON.parse(localStorage.getItem("page3") || "{}");
-      const page4 = JSON.parse(localStorage.getItem("page4") || "[{}, {}, {}]");
-      const page5 = JSON.parse(localStorage.getItem("page5") || "{}");
-      const page6 = JSON.parse(localStorage.getItem("page6") || "{}");
-      // const page7 = JSON.parse(localStorage.getItem('page7') || '{}');
-      const page8 = JSON.parse(localStorage.getItem("page8") || "{}");
-      const page9 = JSON.parse(localStorage.getItem("page9") || "{}");
+      if (typeof window !== "undefined") {
+        const page1 = JSON.parse(localStorage.getItem("page1") || "{}");
+        const page2 = JSON.parse(localStorage.getItem("page2") || "{}");
+        const page3 = JSON.parse(localStorage.getItem("page3") || "{}");
+        const page4 = JSON.parse(
+          localStorage.getItem("page4") || "[{}, {}, {}]"
+        );
+        const page5 = JSON.parse(localStorage.getItem("page5") || "{}");
+        const page6 = JSON.parse(localStorage.getItem("page6") || "{}");
+        // const page7 = JSON.parse(localStorage.getItem('page7') || '{}');
+        const page8 = JSON.parse(localStorage.getItem("page8") || "{}");
+        const page9 = JSON.parse(localStorage.getItem("page9") || "{}");
 
-      const propertyPictureUrls = JSON.parse(
-        localStorage.getItem("propertyPictureUrls") || "[]"
-      );
-      const portionCoverFileUrls = JSON.parse(
-        localStorage.getItem("portionCoverFileUrls") || "[]"
-      );
-      const portionPictureUrls = JSON.parse(
-        localStorage.getItem("portionPictureUrls") || "[[]]"
-      );
-      const combinedData = {
-        ...page1,
-        ...page2,
-        ...page3,
-        ...page4,
-        ...page5,
-        ...page6,
-        ...page8,
-        ...page9,
-        propertyCoverFileUrl,
-        propertyPictureUrls,
-        portionCoverFileUrls,
-        portionPictureUrls,
-      };
-      setCombinedData(combinedData);
-      return combinedData;
+        const propertyPictureUrls = JSON.parse(
+          localStorage.getItem("propertyPictureUrls") || "[]"
+        );
+        const portionCoverFileUrls = JSON.parse(
+          localStorage.getItem("portionCoverFileUrls") || "[]"
+        );
+        const portionPictureUrls = JSON.parse(
+          localStorage.getItem("portionPictureUrls") || "[[]]"
+        );
+        const combinedData = {
+          ...page1,
+          ...page2,
+          ...page3,
+          ...page4,
+          ...page5,
+          ...page6,
+          ...page8,
+          ...page9,
+          propertyCoverFileUrl,
+          propertyPictureUrls,
+          portionCoverFileUrls,
+          portionPictureUrls,
+        };
+        setCombinedData(combinedData);
+        return combinedData;
+      }
+      return {};
     };
 
     const data = fetchDataFromLocalStorage();
-  }, []);
+  }, [propertyCoverFileUrl]);
 
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyVSID, setPropertyVSID] = useState<string>();
+  const [vsidList, setVsidList] = useState<string[]>([]);
+  const [propertyIdList, setPropertyIdList] = useState<string[]>([]);
 
   const [user, setuser] = useState<UserInterface>();
 
@@ -235,6 +255,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   useEffect(() => {
     const fetchuser = async () => {
+      if (!userId) return;
+
       setLoading(true);
       try {
         const user = await axios.post("/api/user/getuserbyid", {
@@ -251,7 +273,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       }
     };
     fetchuser();
-  }, []);
+  }, [userId]);
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
@@ -313,7 +335,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       datesPerPortion: combinedData?.datesPerPortion,
 
       hostedBy: loggedInUserEmail,
-
+      
+      internalArea:combinedData?.internalArea,
+      internalCity:combinedData?.internalCity,
       area: combinedData?.area,
       subarea: combinedData?.subarea,
       constructionYear: combinedData?.constructionYear,
@@ -340,11 +364,15 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
     try {
       const response = await axios.post("/api/createnewproperty", data);
-      const response2 = await axios.post("/api/createnewproperty/newProperties", data);
-      if (response.status === 200) {
+      const response2 = await axios.post(
+        "/api/createnewproperty/newProperties",
+        data
+      );
+      console.log("response 2: ", response2);
+      if (response2.status === 200) {
         setIsLiveDisabled(true);
-        setPropertyVSID(response.data.VSID);
-        setPropertyId(response.data._id);
+        setPropertyIdList(response2.data.mongoIds);
+        setVsidList(response2.data.propertyIds);
         toast({
           title: "Your Property is Now Live!",
           description: `Your property for ${user?.name} is now live!`,
@@ -355,7 +383,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       toast({
         variant: "destructive",
         title: "Some error occurred",
-        description: "There are some issues with your request. Please try again.",
+        description:
+          "There are some issues with your request. Please try again.",
       });
       console.log(error);
     } finally {
@@ -378,7 +407,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
               {propertyCoverFileUrl ? (
                 <AspectRatio ratio={16 / 9}>
                   <img
-                    src={propertyCoverFileUrl}
+                    src={propertyCoverFileUrl || "/placeholder.svg"}
                     alt="coverImage"
                     className="card-img-top rounded-xl object-cover"
                   />
@@ -417,7 +446,9 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                     <Button
                       className="w-full"
                       onClick={handleGoLive}
-                      disabled={isLiveDisabled || !combinedData?.placeName || loading}
+                      disabled={
+                        isLiveDisabled || !combinedData?.placeName || loading
+                      }
                     >
                       Go live 🚀
                     </Button>
@@ -437,36 +468,40 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         </div>
 
         <div className="flex flex-col ml-2 gap-2">
-          {propertyVSID && (
+          {vsidList.length > 0 && (
             <div className="flex items-center gap-2">
               <div className="text-xs">Your VSID: {propertyVSID}</div>
-              <Button
-                onClick={() => navigator.clipboard.writeText(propertyVSID)}
-                className=""
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
+              {vsidList.map((vsid, index) => (
+                <Button
+                  onClick={() => navigator.clipboard.writeText(vsid)}
+                  className=""
+                  key={index}
+                >
+                  {vsid}
+                  <Copy className="h-4 w-4" />
+                </Button>
+              ))}
             </div>
           )}
 
-          {propertyId && (
-            <div className="flex items-center gap-2">
+          {propertyIdList.map((propertyId, index) => (
+            <div className="flex items-center gap-2" key={index}>
               <div className="text-xs">
                 Your Property Link:{" "}
                 <a
-                  href={`https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`}
+                  href={`https://www.vacationsaga.com/listing-stay-detail/${propertyId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 underline"
                 >
-                  https://www.vacationsaga.com/listing-stay-detail?id=
+                  https://www.vacationsaga.com/listing-stay-detail/
                   {propertyId}
                 </a>
               </div>
               <Button
                 onClick={() =>
                   navigator.clipboard.writeText(
-                    `https://www.vacationsaga.com/listing-stay-detail?id=${propertyId}`
+                    `https://www.vacationsaga.com/listing-stay-detail/${propertyId}`
                   )
                 }
                 className=""
@@ -474,7 +509,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-          )}
+          ))}
         </div>
       </div>
 

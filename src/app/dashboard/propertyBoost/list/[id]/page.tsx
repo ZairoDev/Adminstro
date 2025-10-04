@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-
+import { useAuthStore } from "@/AuthStore";
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label";
+import axios from "axios";
 interface Property {
   _id: string;
   title: string;
+  url?: string;
   description: string;
   images: string[];
 }
@@ -20,6 +24,9 @@ export default function PropertyDetails() {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [url, setUrl] = useState("");
+
+  const { token } = useAuthStore();
 
   useEffect(() => {
     async function fetchProperty() {
@@ -28,6 +35,7 @@ export default function PropertyDetails() {
         if (!res.ok) throw new Error("Failed to fetch property");
         const data = await res.json();
         setProperty(data);
+        setUrl(data.url ?? "");
       } catch (err) {
         console.error(err);
       } finally {
@@ -77,6 +85,19 @@ export default function PropertyDetails() {
     );
   }
 
+  const handleSaveUrl = async () => {
+    if (!url) return;
+    try {
+      await axios.post("/api/saveboosterUrl", {
+        id: property?._id,
+        url,
+      });
+      setProperty((prev) => (prev ? { ...prev, url } : prev));
+    } catch (err) {
+      console.error("Error saving URL:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen">
      <div className="  flex flex-col justify-end p-8 rounded-b-2xl">
@@ -111,6 +132,33 @@ export default function PropertyDetails() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+       {(token?.role === "SuperAdmin" || token?.role === "LeadGen") && (
+          <div className="space-y-2">
+            <Label htmlFor="facebookPostUrl">Post URL</Label>
+            {property.url ? (
+              <a
+                href={property.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                {property.url}
+              </a>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  id="facebookPostUrl"
+                  placeholder="https://facebook.com/..."
+                  className="min-h-[50px] whitespace-pre-wrap"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+                <Button onClick={handleSaveUrl}>Save</Button>
+              </div>
+            )}
           </div>
         )}
 

@@ -76,6 +76,9 @@ import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { MoleculeVisualization } from "@/components/molecule_visual";
+import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
+import { StatsCard } from "@/components/leadCountCard/page";
+import useLeadStats from "@/hooks/(VS)/useLeadStats";
 
 //  const chartConfig = {
 //   greece: {
@@ -119,6 +122,18 @@ interface StatusCount {
   Null: number;
 }
 
+interface LeadStats {
+  location: string;
+  target: number;
+  achieved: number;
+  today: number;
+  yesterday: number;
+  dailyrequired: number;
+  currentAverage: number; // dailyAchieved in StatsCard
+  rate: number;
+}
+
+
  const chartConfig = {
    listings: {
      label: "Listings",
@@ -130,6 +145,8 @@ interface StatusCount {
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const locations = ["Athens", "Thessaloniki", "Chania", "Milan"];
+  // const [todayLeadStats, setTodayLeadStats] = useState<Record<string, number>>({});
   const [selectedCountry, setSelectedCountry] = useState("All");
   const [leadCountDateModal, setLeadCountDateModal] = useState(false);
   const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
@@ -163,6 +180,13 @@ const Dashboard = () => {
     location?: string;
     createdBy?: string;
   }>({});
+
+  const [unregisteredOwnersFilters, setUnregisteredOwnersFilters] = useState<{
+    days?: string;
+    location?: string;
+  }>({});
+
+  const [leadGenLeadsCount, setLeadGenLeadsCount] = useState();
 
   const { token } = useAuthStore();
 
@@ -203,6 +227,10 @@ const Dashboard = () => {
     totalLeads: totalTodayLeads,
     refetch: refetchTodayLeads,
     isLoading: isLoadingTodayLeads,
+    fetchLeadsByLeadGen,
+    chartData1,
+    todayLeadStats
+    
     // average,
   } = useTodayLeads();
 
@@ -218,6 +246,7 @@ const Dashboard = () => {
     unregisteredOwners,
     fetchUnregisteredVisits,
     ownersCount,
+    newOwnersCount,                                 
   } = WeeksVisit();
 
   console.log("OwnersCount", ownersCount);
@@ -249,6 +278,17 @@ const Dashboard = () => {
     fetchReviews,
   } = useReview();
 
+  const {
+    leadStats,
+    statsLoading,
+    setStatsLoading,
+    statsError,
+    setStatsError,
+    statsErrMsg,
+    setStatsErrMsg,
+    fetchLeadStats,
+  } = useLeadStats()
+
   // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
   const router = useRouter();
@@ -259,7 +299,7 @@ const Dashboard = () => {
   };
 
   const handlfetch = async () => {
-    fetchUnregisteredVisits();
+    fetchUnregisteredVisits({ days: "today" ,location:"All"});
     fetchVisitsToday({ days: "today" });
     fetchVisits({ days: "today" });
     fetchGoodVisitsCount({ days: "today" });
@@ -312,6 +352,27 @@ const Dashboard = () => {
   );
 
   const labels = ["0", "1", "2", "3", "4", "5+"];
+
+  // useEffect(() => {
+  //   const fetchLeads = async () => {
+  //     try {
+  //       const res = await axios.get("/api/getLeadStats");
+  //       const data: { location: string; totalLeads: number }[] = res.data;
+
+  //       const leadsMap: Record<string, number> = {};
+  //       locations.forEach((loc) => {
+  //         const found = data.find((d) => d.location === loc);
+  //         leadsMap[loc] = found?.totalLeads || 0;
+  //       });
+
+  //       setTodayLeadStats(leadsMap);
+  //     } catch (err) {
+  //       console.error(err);
+  //     }
+  //   };
+
+  //   fetchLeads();
+  // }, []);
 
   const bookingLabels = [
     "Total Amount",
@@ -446,7 +507,7 @@ const Dashboard = () => {
 
       {/* Listings Dashboard */}
       {/* Listings Dashboard */}
-      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
         <section className="relative my-10">
           <h1 className="text-3xl font-bold mb-6">Lead-Gen Dashboard</h1>
 
@@ -730,9 +791,7 @@ const Dashboard = () => {
       )}
 
       {/* Sales Generation Dashboard*/}
-      {(token?.role === "SuperAdmin" ||
-        token?.role === "LeadGen-TeamLead" ||
-        token?.email === "vikas@vacationsaga.com") && (
+      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
         <section>
           <h1 className="text-3xl font-bold my-6">Sales Dashboard</h1>
           <Card>
@@ -1038,7 +1097,7 @@ const Dashboard = () => {
             </div>
 
             {/* Unregistered Owners (smaller box) */}
-            <div className="w-full md:w-[250px] p-6 border rounded-xl shadow-md">
+            <div className="relative w-full md:w-[250px] p-6 border rounded-xl shadow-md">
               <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
                 Unregistered Owners
               </h2>
@@ -1050,9 +1109,93 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          <div>
-            <MoleculeVisualization data={ownersCount} />
-          </div>
+          {(token?.role === "SuperAdmin" ||
+            token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
+            <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
+              {/* Visualization on the left */}
+              <div className="flex md:w-1/2 h-[600px]">
+                <MoleculeVisualization data={ownersCount} />
+              </div>
+
+              {/* Filter + Count Card */}
+              <div className="relative w-full md:w-1/2 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
+                {/* Filters row */}
+                <div className="flex items-center justify-between mb-6">
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "Athens",
+                      "Milan",
+                      "Rome",
+                      "Chania",
+                      "thessaloniki",
+                    ]}
+                    triggerText="Select Location"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...unregisteredOwnersFilters };
+                      newLeadFilters.location = value;
+                      fetchUnregisteredVisits(newLeadFilters);
+                    }}
+                    triggerClassName="w-36"
+                  />
+
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "Today",
+                      "15 days",
+                      "1 month",
+                      "3 months",
+                    ]}
+                    triggerText="Select Days"
+                    defaultValue="Today"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...unregisteredOwnersFilters };
+                      newLeadFilters.days = value;
+                      setUnregisteredOwnersFilters(newLeadFilters);
+                      fetchUnregisteredVisits(newLeadFilters);
+                    }}
+                    triggerClassName="w-36"
+                  />
+                </div>
+
+                {/* Title */}
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center">
+                  New Owners
+                </h2>
+
+                {/* Count */}
+                <div
+                  className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400
+          transition-transform duration-200 hover:scale-110"
+                >
+                  {newOwnersCount.length}
+                </div>
+              </div>
+            </div>
+          )}
+         <div className="flex items-center">
+          <div className=" p-2 rounded-lg mb-4 relative w-[600px] h-[600px]">
+  <MoleculeVisualization data={ownersCount} />
+  
+</div>
+
+         {leadStats.map((loc: LeadStats,index:number) => (
+        <StatsCard
+          className="mr-8"
+          key={index}
+          title={loc.location}
+          target={loc.target}
+          achieved={loc.achieved}
+          today={loc.today} 
+          yesterday={loc.yesterday}
+          dailyrequired={loc.dailyrequired}
+          dailyAchieved={loc.currentAverage}
+          rate={loc.rate}
+        />
+      ))}
+         </div>
         </>
       )}
 
@@ -1138,6 +1281,13 @@ const Dashboard = () => {
             )}
           </div> */}
           </div>
+        )}
+      </div>
+
+      <div>
+        {(token?.role === "SuperAdmin" ||
+          token?.role === "LeadGen-TeamLead") && (
+          <ChartAreaMultiple data={chartData1} />
         )}
       </div>
     </div>

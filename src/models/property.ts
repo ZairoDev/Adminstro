@@ -40,6 +40,8 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     street: String,
     postalCode: String,
     city: String,
+    internalCity: String,
+    internalArea: String,
     state: String,
     country: String,
     center: {

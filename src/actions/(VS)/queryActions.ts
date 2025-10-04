@@ -13,6 +13,7 @@ import { MonthlyTarget } from "@/models/monthlytarget";
 import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
+import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 
 connectDb();
 
@@ -517,6 +518,106 @@ export const getDashboardData = async ({
   return { dashboardData };
 };
 
+export const getLeadGenLeadsCount = async (
+  period: "month" | "year" | "30days"
+) => {
+  let dateFormat: string;
+  let matchStage: Record<string, any> = {};
+
+  const now = new Date();
+
+  if (period === "month") {
+    dateFormat = "%Y-%m-%d";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+        $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      },
+    };
+  } else if (period === "year") {
+    dateFormat = "%Y-%m";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getFullYear(), 0, 1),
+        $lt: new Date(now.getFullYear() + 1, 0, 1),
+      },
+    };
+  } else if (period === "30days") {
+    dateFormat = "%Y-%m-%d";
+    matchStage = {
+      createdAt: {
+        $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        $lt: now,
+      },
+    };
+  } else {
+    throw new Error("Invalid period. Use 'month', 'year', or '30days'");
+  }
+
+  const result = await Query.aggregate([
+    { $match: matchStage },
+
+    // 🔹 Lookup Employee collection to get name
+    {
+      $lookup: {
+        from: "employees", // name of your employees collection
+        localField: "createdBy", // email in Query
+        foreignField: "email", // email in Employee
+        as: "employeeInfo",
+      },
+    },
+
+    // 🔹 Unwind so we can access employeeInfo directly
+    { $unwind: { path: "$employeeInfo", preserveNullAndEmptyArrays: true } },
+
+    {
+      $group: {
+        _id: {
+          createdBy: "$employeeInfo.name", // employee name instead of email
+          date: {
+            $dateToString: { format: dateFormat, date: "$createdAt" },
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: {
+          $push: {
+            createdBy: { $ifNull: ["$_id.createdBy", "Unknown"] },
+            count: "$count",
+          },
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+    {
+      $project: {
+        date: "$_id",
+        counts: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  const chartData: Record<string, any>[] = [];
+
+  result.forEach((entry) => {
+    const dataPoint: Record<string, any> = { date: entry.date };
+    entry.counts.forEach((c: any) => {
+      dataPoint[c.createdBy || "Unknown"] = c.count;
+    });
+    chartData.push(dataPoint);
+  });
+
+  console.log(chartData);
+  return { chartData };
+};
+
+
+
 export const getTodayLeads = async () => {
   const now = new Date();
   const startOfDay = new Date(now);
@@ -582,6 +683,8 @@ export const getTodayLeads = async () => {
   return { serializedLeads: leadsByAgentName, totalLeads };
 };
 
+
+
 export const getAverage = async()=>{
   const start = new Date(new Date().setDate(new Date().getDate() - 7));
   const end = new Date();
@@ -616,6 +719,110 @@ export const getAverage = async()=>{
   // console.log(totalTarget);
   return { totalTarget: totalTarget[0].totalLeads };
 }
+
+
+
+export const getLocationLeadStats = async () => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // UTC safe boundaries
+  const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
+  const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
+
+  const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
+  const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
+
+  const startOfMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0));
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysPassedInMonth = today.getDate(); // current day of the month
+
+  // ----------------------------
+  // Queries aggregation (case-insensitive)
+  // ----------------------------
+  const queryAgg = await Query.aggregate([
+    {
+      $facet: {
+        today: [
+          { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              todayCount: { $sum: 1 }
+            }
+          },
+        ],
+        yesterday: [
+          { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              yesterdayCount: { $sum: 1 }
+            }
+          },
+        ],
+        month: [
+          { $match: { createdAt: { $gte: startOfMonth, $lte: endOfToday } } },
+          {
+            $group: {
+              _id: { $toLower: "$location" },
+              monthCount: { $sum: 1 }
+            }
+          },
+        ],
+      },
+    },
+  ]);
+
+  console.log("queryAgg: ", queryAgg);
+
+  // Maps for quick lookup
+  const todayMap = Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]));
+  const yesterdayMap = Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
+  const monthMap = Object.fromEntries(queryAgg[0].month.map((d: any) => [d._id, d.monthCount]));
+
+  // ----------------------------
+  // Monthly targets
+  // ----------------------------
+  const monthlyTargets = await MonthlyTarget.find({}).lean();
+
+  // ----------------------------
+  // Merge results
+  // ----------------------------
+  const visits = monthlyTargets.map(mt => {
+    const loc = mt.city.toLowerCase();
+    const target = mt.leads;
+    const achieved = monthMap[loc] || 0;
+    const todayCount = todayMap[loc] || 0;
+    const yesterdayCount = yesterdayMap[loc] || 0;
+    const dailyRequired = Math.ceil(target / daysInMonth);
+    const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
+
+    // New metrics
+    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : 0;
+    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : 0;
+
+    return {
+      location: mt.city,
+      target,
+      achieved,
+      today: todayCount,
+      yesterday: yesterdayCount,
+      dailyrequired: dailyRequired,
+      rate,
+      currentAverage: Number(currentAverage),
+      successRate: Number(successRate),
+    };
+  });
+
+  console.log(visits);
+  return { visits };
+};
+
+
+
+
 
 export const getWeeksVisit = async ({ days }: { days?: string }) => {
   const filters: Record<string, any> = {};
@@ -1315,7 +1522,77 @@ export const OwnersCount = async (): Promise<RegistrationData> => {
   );
 };
 
+export const getNewOwnersCount = async ({
+  days,
+  location,
+}: {
+  days?: string;
+  location?: string;
+}) => {
+  const dateFilter: Record<string, any> = {};
+  console.log("days, location: ", days, location);
+  // ✅ Days filter
+  if (days && days !== "All") {
+    let fromDate: Date | undefined;
+    let toDate: Date = new Date();
 
+    
+  switch (days.toLowerCase()) {
+    case "today":
+      fromDate = new Date();
+      fromDate.setHours(0, 0, 0, 0); // start of today
+      toDate = new Date();
+      toDate.setHours(23, 59, 59, 999); // end of today
+      break;
+
+    case "15 days":
+      fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 15);
+      break;
+
+    case "1 month":
+      fromDate = new Date();
+      fromDate.setMonth(fromDate.getMonth() - 1);
+      break;
+
+    case "3 months":
+      fromDate = new Date();
+      fromDate.setMonth(fromDate.getMonth() - 3);
+      break;
+
+    // "all" or anything else → no date filter
+  }
+
+  if (fromDate) {
+    dateFilter.createdAt = { $gte: fromDate, $lte: toDate };
+  }
+
+  }
+
+  // ✅ Location filter
+  const cityFilter = location && location !== "All" ? { location: location } : {};
+
+  const pipeline2 = [
+    {
+      $match: {
+        ...dateFilter,
+        ...cityFilter,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        ownerPhone: "$phoneNumber",
+        ownerName: "$name",
+        city: 1,
+        createdAt: 1,
+      },
+    },
+  ];
+
+  const newOwnersCount = await unregisteredOwner.aggregate(pipeline2);
+  return { newOwnersCount: newOwnersCount }; // return count, not array
+};
 
 
 export const getGoodVisitsCount = async({days}:{days?:string})=>{
@@ -1519,7 +1796,7 @@ export const getCountryWisePropertyCount = async ({
 ];
 
   const countryWisePropertyCount = await Property.aggregate(pipeline);
-  console.log("countryWisePropertyCount",countryWisePropertyCount);
+  //console.log("countryWisePropertyCount",countryWisePropertyCount);
   const totalPropertyCount = await Property.countDocuments({
     country: country,
   });
@@ -1615,7 +1892,7 @@ export const getAmountDetails = async ({
     {
       $unwind: {
         path: "$visitDetails",
-        preserveNullAndEmptyArrays: true, // optional if some payments may not have a visit
+        preserveNullAndEmptyArrays: true, 
       },
     },
     {

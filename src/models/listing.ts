@@ -22,6 +22,8 @@ export interface IProperty extends Document {
   street?: string;
   postalCode?: string;
   city?: string;
+  internalCity?: string;
+  internalArea?: string;
   state?: string;
   country?: string;
   center?: {
@@ -116,6 +118,8 @@ const PropertySchema: Schema = new Schema(
     street: String,
     postalCode: String,
     city: String,
+    internalCity: String,
+    internalArea: String,
     state: String,
     country: String,
     center: {

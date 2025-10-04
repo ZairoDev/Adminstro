@@ -3,7 +3,9 @@
 import React, { FC, useEffect, useState } from "react";
 import FormItem from "../FormItem";
 import dynamic from "next/dynamic";
-import { LoadScript } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Autocomplete } from "@react-google-maps/api";
+
+const libraries: "places"[] = ["places"];
 import { useToast } from "@/hooks/use-toast";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import {
@@ -16,7 +18,7 @@ import {
   SelectContent,
 } from "@/components/ui/select"; 
 import { Input } from "@/components/ui/input";
-import LocationMap from "@/components/LocationMap";
+// import LocationMap from "@/components/LocationMap";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
@@ -27,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
 import axios from "axios";
 import { AreaSelect } from "@/components/leadTableSearch/page";
+import SearchableAreaSelect from "../../createquery/SearchAndSelect";
 
 const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
 
@@ -43,6 +46,8 @@ interface Page2State {
   state: string;
   postalCode: string;
   address: string;
+  internalCity:string;
+  internalArea:string;
   center: { lat: number; lng: number };
   area: string;
   subarea: string;
@@ -70,218 +75,113 @@ const PageAddListing2: FC = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params.get("userId");
-
-  const [type, setType] = useState<string>();
-   const [targets, setTargets] = useState<TargetType[]>([]);
-       const [selectedLocation, setSelectedLocation] = useState<string>("");
-       const [areas,setAreas]=useState<AreaType[]>([]);
-
-  const [rentalType, SetRentalType] = useState(() => {
-    const type = localStorage.getItem("page1");
-    if (!type) {
-      setType("");
-    } else {
-      const parsedData = JSON.parse(type);
-      console.log(parsedData);
-      setType(parsedData.rentalType);
-    }
-  });
-
-  const [constructionYear, setConstructionYear] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["constructionYear"];
-    }
-  });
-
-  const [heatingType, setHeatingType] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["heatingType"];
-    }
-  });
-
-  const [energyClass, setEnergyClass] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["energyClass"];
-    }
-  });
-
-  const [heatingMedium, setHeatingMedium] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["heatingMedium"];
-    }
-  });
-
-  const [monthlyExpenses, setMonthlyExpenses] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["monthlyExpenses"];
-    }
-  });
-
-  const [isSuitableForStudents, setisSuitableForStudents] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return true;
-    } else {
-      return JSON.parse(saved)["isSuitableForStudents"] || true;
-    }
-  });
-
-  const [propertyStyle, setPropetyStyle] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["propertyStyle"];
-    }
-  });
-
-  const [zones, setZones] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["zones"];
-    }
-  });
-
-  const [levels, setLevel] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["levels"];
-    }
-  });
-
-  const [orientation, setOrientation] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["orientation"];
-    }
-  });
-
-  const [isTopFloor, setTopFloor] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return false;
-    } else {
-      return JSON.parse(saved)["isTopFloor"] || false;
-    }
-  });
-
-  const [area, setArea] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["area"];
-    }
-  });
-
-  const [neighbourhood, setNeighborhood] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["neighbourhood"];
-    }
-  });
-
-  const [subarea, setSubArea] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["subarea"];
-    }
-  });
-
-  const [floor, setFloor] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else {
-      return JSON.parse(saved)["floor"];
-    }
-  });
-
-  const [address, setAddress] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["address"];
-  });
-
-  const [country, setCountry] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["country"];
-  });
-
-  const [state, setState] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["state"];
-  });
-
-  const [city, setCity] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["city"];
-  });
-
-  const [street, setStreet] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["street"];
-  });
-
-  const [postalCode, setPostalCode] = useState(() => {
-    const saved = localStorage.getItem("page2");
-    if (!saved) {
-      return "";
-    } else return JSON.parse(saved)["postalCode"];
-  });
-
+  const [type, setType] = useState<string>("");
+  const [targets, setTargets] = useState<TargetType[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [areas, setAreas] = useState<AreaType[]>([]);
+  const [internalCity,setInternalCity]=useState<string>("");
+  const [internalArea,setInternalArea]=useState<string>("");
+  const [constructionYear, setConstructionYear] = useState<string>("");
+  const [heatingType, setHeatingType] = useState<string>("");
+  const [energyClass, setEnergyClass] = useState<string>("");
+  const [heatingMedium, setHeatingMedium] = useState<string>("");
+  const [monthlyExpenses, setMonthlyExpenses] = useState<string>("");
+  const [isSuitableForStudents, setisSuitableForStudents] =
+    useState<string>("");
+  const [propertyStyle, setPropetyStyle] = useState<string>("");
+  const [zones, setZones] = useState<string>("");
+  const [levels, setLevel] = useState<string>("");
+  const [orientation, setOrientation] = useState<string>("");
+  const [isTopFloor, setTopFloor] = useState<string>("");
+  const [area, setArea] = useState<string>("");
+  const [neighbourhood, setNeighborhood] = useState<string>("");
+  const [subarea, setSubArea] = useState<string>("");
+  const [floor, setFloor] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [country, setCountry] = useState<string>("");
+  const [state, setState] = useState<string>("");
+  const [city, setCity] = useState<string>("");
+  const [street, setStreet] = useState<string>("");
+  const [postalCode, setPostalCode] = useState<string>("");
+  const [areas1, setAreas1] = useState<AreaType[]>([]);
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 0,
     lng: 0,
   });
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);    
+  const [autocomplete, setAutocomplete] =
+    useState<google.maps.places.Autocomplete | null>(null);
 
   const [nearbyLocations, setNearByLocations] =
-    useState<nearbyLocationInterface>(() => {
-      const saved = localStorage.getItem("page2");
-      if (!saved) {
-        const newObj: nearbyLocationInterface = {
-          nearbyLocationName: [],
-          nearbyLocationDistance: [],
-          nearbyLocationTag: [],
-          nearbyLocationUrl: [],
-        };
-        return newObj;
-      } else return JSON.parse(saved)["nearbyLocations"];
+    useState<nearbyLocationInterface>({
+      nearbyLocationName: [],
+      nearbyLocationDistance: [],
+      nearbyLocationTag: [],
+      nearbyLocationUrl: [],
     });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Load page1 data
+      const page1 = localStorage.getItem("page1");
+      if (page1) {
+        try {
+          const parsedData = JSON.parse(page1);
+          setType(parsedData.rentalType || "");
+        } catch (e) {
+          setType("");
+        }
+      }
+
+      // Load page2 data
+      const page2 = localStorage.getItem("page2");
+      if (page2) {
+        try {
+          const parsedData = JSON.parse(page2);
+
+          setConstructionYear(parsedData["constructionYear"] || "");
+          setHeatingType(parsedData["heatingType"] || "");
+          setEnergyClass(parsedData["energyClass"] || "");
+          setHeatingMedium(parsedData["heatingMedium"] || "");
+          setMonthlyExpenses(parsedData["monthlyExpenses"] || "");
+          setisSuitableForStudents(
+            parsedData["isSuitableForStudents"] !== undefined
+              ? parsedData["isSuitableForStudents"]
+              : ""
+          );
+          setInternalCity(parsedData["internalCity"] || "");
+          setInternalArea(parsedData["internalArea"] || "");
+          setPropetyStyle(parsedData["propertyStyle"] || "");
+          setZones(parsedData["zones"] || "");
+          setLevel(parsedData["levels"] || "");
+          setOrientation(parsedData["orientation"] || "");
+          setTopFloor(parsedData["isTopFloor"] || "");
+          setArea(parsedData["area"] || "");
+          setNeighborhood(parsedData["neighbourhood"] || "");
+          setSubArea(parsedData["subarea"] || "");
+          setFloor(parsedData["floor"] || "");
+          setAddress(parsedData["address"] || "");
+          setCountry(parsedData["country"] || "");
+          setState(parsedData["state"] || "");
+          setCity(parsedData["city"] || "");
+          setStreet(parsedData["street"] || "");
+          setPostalCode(parsedData["postalCode"] || "");
+          setCenter(parsedData["center"] || { lat: 0, lng: 0 });
+
+          setNearByLocations(
+            parsedData["nearbyLocations"] || {
+              nearbyLocationName: [],
+              nearbyLocationDistance: [],
+              nearbyLocationTag: [],
+              nearbyLocationUrl: [],
+            }
+          );
+        } catch (e) {
+          console.error("Error parsing page2", e);
+        }
+      }
+    }
+  }, []);
 
   const [nearbyLocationInput, setNearbyLocationInput] = useState({
     nearbyLocationName: "",
@@ -290,46 +190,48 @@ const PageAddListing2: FC = () => {
     nearbyLocationUrl: "",
   });
 
-  const handlePlaceSelected = (place: any) => {
-    setAddress(place.address);
-    setCountry(place.country);
-    setState(place.state);
-    setCity(place.city);
-    setStreet(place.street);
-    setPostalCode(place.postalCode);
-    setArea(place.area);
-    setNeighborhood(place.neighbourhood);
-    setSubArea(place.subArea);
-    setFloor(place.floor);
-    setTopFloor(place.topFloor);
-    setOrientation(place.orientation);
-    setCenter({ lat: place.lat, lng: place.lng });
-    setConstructionYear(place.constructionYear);
-    setHeatingType(place.heatingType);
-    setEnergyClass(place.energyClass);
-    setHeatingMedium(place.heatingmedium);
-    setMonthlyExpenses(place.commonExpenses);
-    setisSuitableForStudents(place.isStudentLive);
-    setZones(place.zones);
-    setLevel(place.level);
-    setPropetyStyle(place.propertyStyle);
-  };
+  // const handlePlaceSelected = (place: any) => {
+  //   setAddress(place.address);
+  //   setCountry(place.country);
+  //   setState(place.state);
+  //   setCity(place.city);
+  //   setStreet(place.street);
+  //   setPostalCode(place.postalCode);
+  //   setArea(place.area);
+  //   setNeighborhood(place.neighbourhood);
+  //   setSubArea(place.subArea);
+  //   setFloor(place.floor);
+  //   setTopFloor(place.topFloor);
+  //   setOrientation(place.orientation);
+  //   setCenter({ lat: place.lat, lng: place.lng });
+  //   setConstructionYear(place.constructionYear);
+  //   setHeatingType(place.heatingType);
+  //   setEnergyClass(place.energyClass);
+  //   setHeatingMedium(place.heatingmedium);
+  //   setMonthlyExpenses(place.commonExpenses);
+  //   setisSuitableForStudents(place.isStudentLive);
+  //   setZones(place.zones);
+  //   setLevel(place.level);
+  //   setPropetyStyle(place.propertyStyle);
+  // };
 
   const [page2, setPage2] = useState<Page2State>({
     country,
     street,
     city,
     state,
+    internalCity,
+    internalArea,
     postalCode,
     center,
     address,
     area,
     subarea,
     neighbourhood,
-    floor,
+    floor: Number(floor) || 0,
     isTopFloor,
     orientation,
-    levels,
+    levels: Number(levels) || 0,
     zones,
     propertyStyle,
     isSuitableForStudents,
@@ -345,27 +247,30 @@ const PageAddListing2: FC = () => {
       nearbyLocationUrl: [],
     },
   });
+  
 
   useEffect(() => {
     const newPage2: Page2State = {
       country,
-
       street,
       city,
       state,
       postalCode,
       center,
       address,
+      internalCity,
+      internalArea,
       area,
       subarea,
       neighbourhood,
-      floor,
-      isTopFloor,
+      floor: Number(floor) || 0,
+      isTopFloor: isTopFloor === "true" ? "true" : "false", // Keep string but match your Page2State expectations
       orientation,
-      levels,
+      levels: Number(levels) || 0,
       zones,
       propertyStyle,
-      isSuitableForStudents,
+      isSuitableForStudents:
+        isSuitableForStudents === "true" ? "true" : "false", // same approach
       monthlyExpenses,
       heatingMedium,
       energyClass,
@@ -373,12 +278,15 @@ const PageAddListing2: FC = () => {
       constructionYear,
       nearbyLocations,
     };
+
     setPage2(newPage2);
     localStorage.setItem("page2", JSON.stringify(newPage2));
   }, [
     country,
     street,
     city,
+    internalCity,
+    internalArea,
     state,
     postalCode,
     center,
@@ -399,6 +307,7 @@ const PageAddListing2: FC = () => {
     constructionYear,
     nearbyLocations,
   ]);
+  
 
   // Validation function
   const [isValidForm, setIsValidForm] = useState(false);
@@ -469,6 +378,47 @@ const PageAddListing2: FC = () => {
     setNearByLocations(newObj);
   };
 
+  const handleLoad = (auto: google.maps.places.Autocomplete) => {
+    setAutocomplete(auto);
+  };
+
+  const handlePlaceChanged = () => {
+    if (autocomplete) {
+      const place = autocomplete.getPlace();
+      console.log("place: ", place);
+
+      if (place.formatted_address) {
+        handlePlaceSelected(place);
+      }
+    }
+  };
+
+  const handlePlaceSelected = (place: google.maps.places.PlaceResult) => {
+    // Helper to extract component by type
+    const getComponent = (type: string) => {
+      const comp = place.address_components?.find((c) =>
+        c.types.includes(type)
+      );
+      return comp ? comp.long_name : "";
+    };
+
+    const lat = place.geometry?.location?.lat() ?? 0;
+    const lng = place.geometry?.location?.lng() ?? 0;
+
+    setAddress(place.formatted_address ?? "");
+    setCountry(getComponent("country"));
+    setState(getComponent("administrative_area_level_1"));
+    setCity(
+      getComponent("locality") || getComponent("administrative_area_level_2")
+    );
+    setStreet(getComponent("route"));
+    setPostalCode(getComponent("postal_code"));
+    setArea(getComponent("sublocality") || getComponent("neighborhood"));
+    setNeighborhood(getComponent("neighborhood"));
+    setSubArea(getComponent("sublocality_level_1"));
+    setCenter({ lat, lng });
+  };
+
   useEffect(() => {
     validateForm();
   }, [country, street, city, state, postalCode]);
@@ -486,6 +436,15 @@ const PageAddListing2: FC = () => {
     };
     fetchTargets();
   }, []);
+
+    useEffect(() => {
+      const target = targets.find((t) => t.city === selectedLocation);
+      if (target) {
+        setAreas1(target.areas);
+      } else {
+        setAreas1([]);
+      }
+    }, [selectedLocation, targets]);
 
 
   return (
@@ -530,15 +489,33 @@ const PageAddListing2: FC = () => {
       <div className="flex flex-col my-4">
         <div className="ml-2 ">
           <LoadScript
-            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-            libraries={["places"]}
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
+            libraries={libraries}
+            onLoad={() => setIsGoogleLoaded(true)}
+            onError={() =>
+              toast({
+                variant: "destructive",
+                title: "Google Maps failed to load",
+                description: "Please refresh or verify your API key/network.",
+              })
+            }
           >
-            <div className="mt-2 mb-2">
-              <PlacesAutocomplete
-                onPlaceSelected={handlePlaceSelected}
-                countryCode={country}
-              />
-            </div>
+            {/* Ensure all Google Maps related components (like Autocomplete) 
+        are children of LoadScript and/or guarded by isGoogleLoaded if outside. */}
+            {isGoogleLoaded && (
+              <Autocomplete
+                onLoad={handleLoad}
+                onPlaceChanged={handlePlaceChanged}
+              >
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Search Address"
+                  className="w-full p-2 border rounded"
+                />
+              </Autocomplete>
+            )}
           </LoadScript>
         </div>
 
@@ -572,8 +549,7 @@ const PageAddListing2: FC = () => {
           </Select>
         </div> */}
 
-
-               {/* <div className="w-44">
+        {/* <div className="w-44">
           <AreaSelect
             maxWidth="100%"
             data={
@@ -603,6 +579,42 @@ const PageAddListing2: FC = () => {
               }}
             />
           </FormItem>
+        </div>
+      </div>
+      <div>
+        <div className="w-full ml-1 mb-2">
+          <Label>Location</Label>
+          <Select
+            onValueChange={(value) => {
+              setInternalCity(value);
+              setSelectedLocation(value);
+            }}
+            value={internalCity}
+          >
+            <SelectTrigger className=" w-44 border border-neutral-700">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Locations</SelectLabel>
+                {targets.map((loc: any) => (
+                  <SelectItem key={loc.city} value={loc.city}>
+                    <div className="flex justify-between items-center w-full">
+                      <span>{loc.city}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full ml-1 mb-2">
+          <Label>Area</Label>
+          <SearchableAreaSelect
+            areas={areas1}
+            onSelect={(area) => setInternalArea(area.name)}
+          />
         </div>
       </div>
       <div className="space-y-8">
@@ -660,7 +672,7 @@ const PageAddListing2: FC = () => {
           </div>
           <div className="mt-4">
             <div className="aspect-w-5 aspect-h-5 sm:aspect-h-3">
-              <LocationMap latitude={center.lat} longitude={center.lng} />
+              <Map latitude={center.lat} longitude={center.lng} />
             </div>
           </div>
         </div>
@@ -884,7 +896,7 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setTopFloor(value)}
               >
                 <SelectTrigger>
-                  <span>{isTopFloor}</span>
+                  <span>{isTopFloor === "true" ? "true" : "false"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">true</SelectItem>
@@ -1030,7 +1042,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setisSuitableForStudents(value)}
               >
                 <SelectTrigger>
-                  <span>{isSuitableForStudents}</span>
+                  <span>
+                    {isSuitableForStudents === "true" ? "True" : "False"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">True</SelectItem>

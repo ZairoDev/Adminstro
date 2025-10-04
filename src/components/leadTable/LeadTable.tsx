@@ -22,6 +22,7 @@ import {
   MessageSquareX,
   MessageSquareDashed,
   MessageSquareOff,
+  CheckCheck,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -89,7 +90,7 @@ interface TargetType {
   areas: AreaType[];
 }
 
-export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
+export default function      LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -100,9 +101,10 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
   const [activeModalRow, setActiveModalRow] = useState(-1);
 
   const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "Medium" | "NR" | "None")[]
+    ("Low" | "High" | "Medium" | "NR" | "Replying" | "Block" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
 
+    
   const [messageStatus, setMessageStatus] = useState<
     ("First" | "Second" | "Third" | "Fourth" | "None")[]
   >(Array.from({ length: queries?.length }, () => "None"));
@@ -148,6 +150,31 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
     }
   };
 
+  const handleLeadGenResponse = (leadId: string | undefined, index: number) => {
+    if (!leadId) return;
+
+    const newSalesPriorities = [...salesPriority];
+    const current = newSalesPriorities[index];
+
+    // Cycle: None → Replying → NR → Block → Replying
+    if (current === "Replying") {
+      newSalesPriorities[index] = "NR";
+      queries[index].salesPriority = "NR";
+    } else if (current === "NR") {
+      newSalesPriorities[index] = "Block";
+      queries[index].salesPriority = "Block";
+    } else {
+      newSalesPriorities[index] = "Replying";
+      queries[index].salesPriority = "Replying";
+    }
+
+    setSalesPriority(newSalesPriorities);
+
+    // update backend
+    changeSalesPriority(leadId, newSalesPriorities[index]);
+  };
+  
+  
 const handleSave = async (
   _id: string,
   key: keyof IQuery,
@@ -288,6 +315,12 @@ const handleSave = async (
     else if (newSalesPriorities[index] === "Medium") {
       newSalesPriorities[index] = "NR";
       queries[index].salesPriority = "NR";
+    } else if (newSalesPriorities[index] === "NR") {
+      newSalesPriorities[index] = "Replying";
+      queries[index].salesPriority = "Replying";
+    } else if (newSalesPriorities[index] === "Block") {
+      newSalesPriorities[index] = "Block";
+      queries[index].salesPriority = "Block";
     } else {
       newSalesPriorities[index] = "None";
       queries[index].salesPriority = "None";
@@ -447,7 +480,8 @@ const handleSave = async (
 
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
+              token?.role === "SuperAdmin" ||
+              token?.role === "LeadGen") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -513,7 +547,7 @@ const handleSave = async (
                   ) : query.messageStatus === "Fourth" ? (
                     <CustomTooltip
                       icon={<MessageSquareX color="red" />}
-                      desc="Visit Scheduled"
+                      desc="Lead Rejected"
                     />
                   ) : (
                     <CustomTooltip
@@ -525,10 +559,15 @@ const handleSave = async (
               )}
               {(token?.role === "Sales" ||
                 token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
+                token?.role === "SuperAdmin" ||
+                token?.role === "LeadGen") && (
                 <TableCell
                   className=" cursor-pointer relative "
-                  onClick={() => handleSalesPriority(query?._id, index)}
+                  onClick={() =>
+                    token?.role === "LeadGen"
+                      ? handleLeadGenResponse(query?._id, index)
+                      : handleSalesPriority(query?._id, index)
+                  }
                 >
                   {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
@@ -537,34 +576,75 @@ const handleSave = async (
                       </p>
                     </div>
                   )}
-                  {query.salesPriority === "High" ? (
-                    <CustomTooltip
-                      icon={<ArrowBigUpDash fill="green" color="green" />}
-                      desc="High Priority"
-                    />
-                  ) : query.salesPriority === "Low" ? (
-                    <CustomTooltip
-                      icon={<ArrowBigDownDash fill="red" color="red" />}
-                      desc="Low Priority"
-                    />
-                  ) : query.salesPriority === "Medium" ? (
-                    <CustomTooltip
-                      icon={<Info fill="" color="blue" />}
-                      desc="Need Information"
-                    />
-                  ) : query.salesPriority === "NR" ? (
-                    <CustomTooltip
-                      icon={<MessageSquareOff fill="" color="yellow" />}
-                      desc="Not Replying"
-                    />
-                  ): (
-                    <CustomTooltip
-                      icon={<CircleDot fill="" color="gray" />}
-                      desc="No Priority"
-                    />
+
+                  {/* 🔹 For LeadGen: Only Replying & NR */}
+                  {token?.role === "LeadGen" &&
+                  path.toString().trim().split("/")[2] !== "notReplying" ? (
+                    query.salesPriority === "Replying" ? (
+                      <CustomTooltip
+                        icon={<CheckCheck color="green" />}
+                        desc="Replying"
+                      />
+                    ) : query.salesPriority === "NR" ? (
+                      <CustomTooltip
+                        icon={<MessageSquareOff color="yellow" />}
+                        desc="Not Replying"
+                      />
+                    ) : query.salesPriority === "Block" ? (
+                      <CustomTooltip
+                        icon={<MessageSquareX color="red" />}
+                        desc="Block"
+                      />
+                    ) : (
+                      <CustomTooltip
+                        icon={<CircleDot color="gray" />}
+                        desc="No Response"
+                      />
+                    )
+                  ) : (
+                    /* 🔹 For Sales / TeamLead / SuperAdmin: Full cycle */
+                    <>
+                      {query.salesPriority === "High" ? (
+                        <CustomTooltip
+                          icon={<ArrowBigUpDash fill="green" color="green" />}
+                          desc="High Priority"
+                        />
+                      ) : query.salesPriority === "Low" ? (
+                        <CustomTooltip
+                          icon={<ArrowBigDownDash fill="red" color="red" />}
+                          desc="Low Priority"
+                        />
+                      ) : query.salesPriority === "Medium" ? (
+                        <CustomTooltip
+                          icon={<Info fill="" color="blue" />}
+                          desc="Need Information"
+                        />
+                      ) : query.salesPriority === "NR" ? (
+                        <CustomTooltip
+                          icon={<MessageSquareOff fill="" color="yellow" />}
+                          desc="Not Replying"
+                        />
+                      ) : query.salesPriority === "Replying" ? (
+                        <CustomTooltip
+                          icon={<CheckCheck color="green" />}
+                          desc="Replying"
+                        />
+                      ) : query.salesPriority === "Block" ? (
+                        <CustomTooltip
+                          icon={<MessageSquareX color="red" />}
+                          desc="Block"
+                        />
+                      ) : (
+                        <CustomTooltip
+                          icon={<CircleDot fill="" color="gray" />}
+                          desc="No Priority"
+                        />
+                      )}
+                    </>
                   )}
                 </TableCell>
               )}
+
               <TableCell className="flex gap-x-1">
                 <Badge
                   className={` ${

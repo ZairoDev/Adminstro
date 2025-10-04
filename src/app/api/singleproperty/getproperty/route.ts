@@ -2,6 +2,7 @@ import { Property } from "@/models/listing";
 import { NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
+import { Properties } from "@/models/property";
 
 connectDb();
 
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const property = await Property.findById(id);
+    const property = await Properties.findById(id);
 
     if (!id) {
       return NextResponse.json(

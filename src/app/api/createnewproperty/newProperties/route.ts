@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Property } from "@/util/type";
+
 import { sendUserDetailsToCompany } from "@/util/gmailmailer";
-import { Properties } from "@/models/property";
+import { Properties } from "@/models/property"; // First collection
+import { Property as ListingModel } from "@/models/listing"; // Second collection
+import { Property as PropertyType } from "@/util/type"; // Type only
 import { customAlphabet } from "nanoid";
 
 connectDb();
@@ -15,7 +17,7 @@ const generateCommonId = (length: number): string => {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
+    const data: PropertyType = await request.json();
     const host = request.headers.get("host");
 
     const {
@@ -35,6 +37,8 @@ export async function POST(request: Request) {
       center,
       portionName,
       portionSize,
+      internalCity,
+      internalArea,
       guests,
       bedrooms,
       beds,
@@ -78,25 +82,22 @@ export async function POST(request: Request) {
       energyClass,
       heatingType,
       constructionYear,
-
       nearbyLocations,
-
       hostedBy,
       rentalType,
       basePriceLongTerm,
       monthlyDiscountLongTerm,
       longTermMonths,
       isLive,
-    }: Property = data;
+    } = data;
 
-    const propertyIds = [];
+    const mongoIds: string[] = [];
+    const propertyIds: string[] = [];
     const commonId = generateCommonId(7);
 
     for (let i = 0; i < (numberOfPortions ?? 1); i++) {
-      // console.log("LOOP: ", i);
-      // console.log("userId: ", userId, "email: ", email);
-      const newProperty = await Properties.create({
-        commonId: commonId,
+      const propertyData = {
+        commonId,
         userId,
         email,
         rentalType,
@@ -111,6 +112,8 @@ export async function POST(request: Request) {
         state,
         country,
         center,
+        internalCity,
+        internalArea,
         size: portionSize?.[i],
         guests: guests?.[i],
         bedrooms: bedrooms?.[i],
@@ -166,12 +169,19 @@ export async function POST(request: Request) {
         lastUpdates: [],
         longTermMonths,
         isLive,
-      });
+      };
 
-      // console.log(newProperty._id, newProperty.VSID, newProperty.commonId);
+      // Insert into first collection
+      const newProperty = await Properties.create(propertyData);
+
+      // Insert into second collection
+      // const newListing = await ListingModel.create(propertyData);
+
       propertyIds.push(newProperty.VSID);
+      mongoIds.push(newProperty._id.toString());
     }
-    return NextResponse.json({ propertyIds }, { status: 200 });
+
+    return NextResponse.json({ propertyIds, mongoIds }, { status: 200 });
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(

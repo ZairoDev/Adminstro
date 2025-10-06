@@ -20,13 +20,13 @@ const onUpload = (file: File) => {
       promise.then(async (res) => {
         if (res.status === 201) {
           const url = `https://vacationsaga.b-cdn.net/${file.name}`;
-          console.log(url);
+
           const image = new Image();
           image.src = url;
           image.onload = () => {
             resolve(url);
           };
-          console.log(url);
+
         } else if (res.status === 401) {
           resolve(file);
           throw new Error("Bunny CDN AccessKey is incorrect.");

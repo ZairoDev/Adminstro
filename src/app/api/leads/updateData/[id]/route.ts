@@ -6,9 +6,9 @@ export async function PUT(req: NextRequest,{ params }: { params: { id: string } 
   try{
 
     const body = await req.json();
-    console.log("body: ", body);
+    // console.log("body: ", body);
     const { id } = params;
-    console.log("_id: ", params);
+    // console.log("_id: ", params);
     const data = await Query.findById( id );
     if (data) {
       data[body.field] = body.value;

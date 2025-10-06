@@ -4,7 +4,6 @@ import Image from "next/image";
 import { eur, formatDisplayDate } from "./format";
 import type { ComputedTotals, InvoiceData } from "../page";
 import { COMPANY_INFO } from "./invoice-shared";
-// import { COMPANY_INFO } from "./invoice-shared";
 
 type Props = {
   value: InvoiceData;
@@ -17,21 +16,18 @@ export function InvoicePreview({ value, computed }: Props) {
 
   return (
     <div
-      className="relative mx-auto max-w-[900px] bg-white p-6 text-black print:p-8"
+      className="relative mx-auto max-w-[900px] bg-white p-6 text-black print:p-8 border border-gray-200 shadow"
       aria-label="Invoice preview"
     >
-      {/* PAID stamp */}
+      {/* PAID Stamp */}
       {isPaid && (
-        <div
-          aria-label="Paid stamp"
-          className="pointer-events-none absolute right-6 top-6 rotate-[-12deg] rounded border-2 border-orange-500 px-6 py-2 text-xl font-bold uppercase text-orange-600 opacity-90"
-        >
+        <div className="absolute right-6 top-6 rotate-[-12deg] rounded border-2 border-orange-500 px-6 py-2 text-xl font-bold uppercase text-orange-600 opacity-90">
           PAID
         </div>
       )}
 
       {/* Header */}
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex items-start justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-3">
           <Image
             src="/vsround.png"
@@ -41,18 +37,16 @@ export function InvoicePreview({ value, computed }: Props) {
             className="rounded"
           />
           <div>
-            <h1 className="text-xl font-semibold">
-              {COMPANY_INFO.company.title}
-            </h1>
+            <h1 className="text-xl font-bold">{COMPANY_INFO.company.title}</h1>
             {COMPANY_INFO.company.tagline && (
-              <p className="text-sm leading-5 text-neutral-600">
+              <p className="text-sm text-gray-600">
                 {COMPANY_INFO.company.tagline}
               </p>
             )}
           </div>
         </div>
 
-        <div className="text-right text-sm">
+        <div className="text-right text-sm space-y-1">
           <div className="font-medium">{COMPANY_INFO.company.legalName}</div>
           <div>{COMPANY_INFO.company.gstin}</div>
           <div>{COMPANY_INFO.company.cin}</div>
@@ -60,31 +54,35 @@ export function InvoicePreview({ value, computed }: Props) {
         </div>
       </header>
 
-      {/* Meta */}
-      <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* Bill To & Meta */}
+      <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 border-b pb-4">
+        {/* Bill To */}
         <div>
-          <div className="text-sm font-medium">Bill To</div>
-          <div className="mt-1">
-            <div className="font-medium">{value.name || "-"}</div>
-            {value.email && <div className="text-sm">{value.email}</div>}
+          <h2 className="text-sm font-semibold">Bill To</h2>
+          <div className="mt-1 space-y-1">
+            <div className="font-medium">Name: {value.name || "-"}</div>
+            {value.email && <div className="text-sm">Email: {value.email}</div>}
             {value.phoneNumber && (
-              <div className="text-sm">{value.phoneNumber}</div>
+              <div className="text-sm">Phone Number: {value.phoneNumber}</div>
             )}
-            {value.address && <div className="text-sm">{value.address}</div>}
-            {value.nationality && (<div className="text-sm">{value.nationality}</div>)}
+            {value.address && (
+              <div className="text-sm">Address: {value.address}</div>
+            )}
+            {value.nationality && (
+              <div className="text-sm">Nationality: {value.nationality}</div>
+            )}
           </div>
         </div>
 
+        {/* Invoice Meta */}
         <div className="md:text-right">
-          <div className="text-md">
-            <span className="font-medium">Export Invoice </span>
-          </div>
+          <h2 className="text-sm font-semibold">Export Invoice</h2>
           <div className="text-sm">
-            <span className="font-medium">Invoice No. </span>
+            <span className="font-medium">Invoice No.: </span>
             <span>{value.invoiceNumber || "-"}</span>
           </div>
           <div className="text-sm">
-            <span className="font-medium">Date </span>
+            <span className="font-medium">Date: </span>
             <span>{formatDisplayDate(value.date) || "-"}</span>
           </div>
         </div>
@@ -95,24 +93,22 @@ export function InvoicePreview({ value, computed }: Props) {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-neutral-50 text-left">
-                <th className="border px-3 py-2">Description</th>
-                <th className="border px-3 py-2 text-right">SAC Code</th>
+              <tr className="bg-gray-100">
+                <th className="border px-3 py-2 text-left">Description</th>
+                <th className="border px-3 py-2 text-center">SAC Code</th>
                 <th className="border px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td className="border px-3 py-2">
-                  <div className="flex flex-row gap-3">
-                    <span className="font-medium">Service:</span>
-                    <span className="text-gray-600">
-                      {value.description || value.bookingType}
-                    </span>
-                  </div>
+                  <span className="font-medium">Service:</span>{" "}
+                  <span className="text-gray-600">
+                    {value.description || value.bookingType}
+                  </span>
                 </td>
-                <td className="border px-3 py-2 text-right">
-                  {value.sacCode || 0}
+                <td className="border px-3 py-2 text-center">
+                  {value.sacCode || "-"}
                 </td>
                 <td className="border px-3 py-2 text-right">
                   {eur(value.amount)}
@@ -125,6 +121,8 @@ export function InvoicePreview({ value, computed }: Props) {
                     {value.checkIn ? formatDisplayDate(value.checkIn) : "-"}
                   </span>
                 </td>
+                <td className="border px-3 py-2"></td>
+                <td className="border px-3 py-2"></td>
               </tr>
               <tr>
                 <td className="border px-3 py-2">
@@ -133,26 +131,26 @@ export function InvoicePreview({ value, computed }: Props) {
                     {value.checkOut ? formatDisplayDate(value.checkOut) : "-"}
                   </span>
                 </td>
-                <td className="border px-3 py-2 text-right ">
-                  <div className="w-full max-w-sm text-sm">
-                    <div className="flex items-center justify-between">
-                      <span>Sub Total :</span>
+                <td className="border px-3 py-2 text-right">
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Sub Total:</span>
                       <span>{eur(computed.subTotal)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>SGST :</span>
+                    <div className="flex justify-between">
+                      <span>SGST:</span>
                       <span>{eur(computed.taxes.sgst)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>CGST :</span>
+                    <div className="flex justify-between">
+                      <span>CGST:</span>
                       <span>{eur(computed.taxes.cgst)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>IGST :</span>
+                    <div className="flex justify-between">
+                      <span>IGST:</span>
                       <span>{eur(computed.taxes.igst)}</span>
                     </div>
-                    <div className="flex items-center justify-between font-medium">
-                      <span>Total :</span>
+                    <div className="flex justify-between font-medium">
+                      <span>Total:</span>
                       <span>{eur(computed.total)}</span>
                     </div>
                   </div>
@@ -163,23 +161,21 @@ export function InvoicePreview({ value, computed }: Props) {
         </div>
       </section>
 
-      {/* Bank details */}
-      <section className="mt-6 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+      {/* Bank Details */}
+      <section className="mt-6 grid grid-cols-1 gap-2 text-sm md:grid-cols-2 border-t pt-4">
         <div>
           <div className="font-medium">Bank Details</div>
-          <div>Bank name: {COMPANY_INFO.bank.bankName}</div>
-          <div>Name: {COMPANY_INFO.bank.accountName}</div>
-          <div>Account number: {COMPANY_INFO.bank.accountNumber}</div>
+          <div>Bank Name: {COMPANY_INFO.bank.bankName}</div>
+          <div>Account Name: {COMPANY_INFO.bank.accountName}</div>
+          <div>Account Number: {COMPANY_INFO.bank.accountNumber}</div>
           <div>IFSC: {COMPANY_INFO.bank.ifsc}</div>
-          <div>SWIFT code: {COMPANY_INFO.bank.swift}</div>
+          <div>SWIFT Code: {COMPANY_INFO.bank.swift}</div>
           <div>Branch: {COMPANY_INFO.bank.branch}</div>
         </div>
-        <div className="md:text-right">
-          <div className="text-sm">
-            *For TERMS AND CONDITIONS please visit our website.
-          </div>
+        <div className="md:text-right text-sm space-y-1">
+          <div>*For TERMS AND CONDITIONS please visit our website.</div>
           <div>
-            For any other assistance contact us on:{" "}
+            For assistance contact:{" "}
             <a
               className="underline"
               href={`mailto:${COMPANY_INFO.company.supportEmail}`}

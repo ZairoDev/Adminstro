@@ -104,7 +104,7 @@ const AccountPage = ({ params }: PageProps) => {
       const response = await axios.get(
         `/api/addons/target/getLocations?target=${target}`
       );
-      console.log(response.data);
+      // console.log(response.data);
       if (target === "country") {
         setSelectCountry(response.data.data);
       } else {

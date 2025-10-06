@@ -115,11 +115,11 @@ export const sendEmail = async ({
 
     // Check if the email was rejected
     if (mailResponse.rejected.length > 0) {
-      console.log("Email rejected:", mailResponse.rejected);
+
       return { success: false, message: "Email does not exist." };
     }
 
-    console.log("Email sent successfully");
+
     return { success: true, message: "Email sent successfully." };
   } catch (error: any) {
     console.error("Error sending email:", error);

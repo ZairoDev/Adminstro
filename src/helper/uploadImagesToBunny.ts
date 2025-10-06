@@ -17,7 +17,7 @@ const uploadImagesToBunny = async ({
   setImageUrls,
 }: UploadImagesToBunnyProps) => {
   const files = event?.target.files;
-  console.log("uploaded filed: ", files);
+
 
   if (!files || files.length === 0) {
     toast({
@@ -70,7 +70,7 @@ const uploadImagesToBunny = async ({
         }
       );
 
-      console.log("bunny response: ", response);
+
 
       const imageUrl = `https://vacationsaga.b-cdn.net/${propertyName}/${time}-${files[i].name}`;
 
@@ -86,7 +86,7 @@ const uploadImagesToBunny = async ({
       break;
     }
   }
-  console.log("saved Images: ", savedUrls);
+
   setImageUrls(savedUrls);
 };
 

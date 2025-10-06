@@ -14,7 +14,7 @@ const CustomDayPicker: React.FC<CustomDayPickerProps> = ({
   datesPerPortion,
   setDatesPerPortion,
 }) => {
-  console.log(index, datesPerPortion);
+
   const handleDayClick = (date: Date) => {
     const newDate = date.getTime();
     setDatesPerPortion((prevState) => {

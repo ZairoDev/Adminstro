@@ -16,6 +16,16 @@ import axios from "axios";
 
 const renderCell = (value: any) => (value ? value : "NA");
 
+const handleDelete = (id: string) => async () => {
+  const confirmed = window.confirm("Are you sure you want to delete this user?");
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/user/deleteUser/${id}`);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 export const columns = (
   setData: React.Dispatch<React.SetStateAction<UserInterface[]>>
 ): ColumnDef<UserInterface>[] => [
@@ -227,6 +237,9 @@ export const columns = (
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Link href="/">Ban User</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <button onClick={handleDelete(user._id)}>Delete User</button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

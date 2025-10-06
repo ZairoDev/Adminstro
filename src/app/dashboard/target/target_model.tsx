@@ -42,11 +42,11 @@ const TargetModal = ({open, onOpenChange,getAllTargets}: PageProps) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const val = Object.fromEntries(formData);
-    console.log(val);
+
     try{
       setLoading(true);
       const response = await axios.post("/api/addons/target/addTarget", val);
-      console.log(response);
+
       toast({
         title: "Success",
         description: "Target added successfully",

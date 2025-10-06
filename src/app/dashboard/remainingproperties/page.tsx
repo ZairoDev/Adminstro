@@ -46,9 +46,9 @@ const CompletedProperties: React.FC = () => {
   const router = useRouter();
 
   const handleEditDescription = (propertyId: string) => {
-    console.log(propertyId, "Up");
+
     router.push(`/dashboard/remainingproperties/description/${propertyId}`);
-    console.log(propertyId, "Down");
+
   };
 
   const fetchProperties = useCallback(
@@ -60,7 +60,7 @@ const CompletedProperties: React.FC = () => {
           `/api/remainingproperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
         );
         const data: ApiResponse = await response.json();
-        console.log(data);
+
         if (response.ok) {
           setProperties(data.data);
           setTotalPages(data.totalPages);

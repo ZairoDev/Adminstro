@@ -322,7 +322,6 @@ export const RejectedLeads = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

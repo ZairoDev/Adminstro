@@ -17,7 +17,7 @@ const pusher = new Pusher({
 export async function PATCH(req: NextRequest) {
   try {
     const { roomId, propertyIds, client } = await req.json();
-    console.log("roomId: ", roomId, propertyIds, "**", client, "**");
+
 
     if (!roomId) {
       return NextResponse.json(

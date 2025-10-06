@@ -15,7 +15,7 @@ interface Page6State {
 const PageAddListing6: FC<PageAddListing6Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
+
 
   let portions = 0;
   const data = localStorage.getItem("page1") || "";

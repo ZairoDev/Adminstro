@@ -74,7 +74,7 @@ const OwnerPage = () => {
     let emptyFieldsCount = 0;
     const canBeEmptyField = ["note"];
 
-    console.log("owner data: ", ownerData);
+    // console.log("owner data: ", ownerData);
 
     for (const key in ownerData) {
       if (

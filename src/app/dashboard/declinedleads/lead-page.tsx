@@ -99,7 +99,6 @@ export const DeclinedLeads = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -321,7 +320,7 @@ export const DeclinedLeads = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
+
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

@@ -98,7 +98,7 @@ const EditDates = ({ params }: PageProps) => {
       setBookedDates((prev) => {
         const newState = [...prev];
         newState.splice(ind, 1);
-        console.log("newState");
+
         return newState;
       });
       return;
@@ -113,7 +113,7 @@ const EditDates = ({ params }: PageProps) => {
 
   //! method called when an already set event is clicked
   const handleEventClick = (info: any) => {
-    console.log("info: ", info);
+
     if (info.event.title === "Booked") {
       info.jsEvent.preventDefault();
       alert("This date is blocked.");
@@ -157,7 +157,7 @@ const EditDates = ({ params }: PageProps) => {
     // }
 
     const url = icalLinks?.["Airbnb"];
-    console.log("url: ", url);
+
     setIcalLinks((prev) => [...prev, url]);
     const bookedDatesinAirbnb = await fetchAndParseICal(url);
 
@@ -191,7 +191,7 @@ const EditDates = ({ params }: PageProps) => {
   };
 
   const fetchPropertyPrice = async () => {
-    console.log("fetch property");
+
     try {
       const response = await axios.post("/api/singleproperty/getproperty", {
         propertyId: params.id,
@@ -286,7 +286,7 @@ const EditDates = ({ params }: PageProps) => {
         price: priceInputRef.current?.value,
         dateRange: date,
       });
-      console.log(response);
+
       setRefreshEditPriceState((prev) => !prev);
       toast({
         title: "Success!",

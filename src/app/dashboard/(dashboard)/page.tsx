@@ -256,7 +256,7 @@ const Dashboard = () => {
     newOwnersCount,
   } = WeeksVisit();
 
-  console.log("OwnersCount", ownersCount);
+
 
   const { totalListings, fetchListingCounts } = ListingCounts();
 

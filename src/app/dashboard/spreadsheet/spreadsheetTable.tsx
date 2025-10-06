@@ -142,7 +142,7 @@ export function SpreadsheetTable({
   ];
 
   const token = useAuthStore((state: any) => state.token);
-  console.log("token: ", token);
+
 
   const handleResponseStatus = async (id: string, index: number) => {
     const newStatus =
@@ -210,10 +210,7 @@ export function SpreadsheetTable({
         );
 
         setLocationws(fetchedCities);
-        console.log(
-          "fetched Locations that has been selected in get allocations",
-          locationws
-        );
+
 
         // make city → area mapping (just area names)
         const cityAreaMap: Record<string, string[]> = {};
@@ -235,7 +232,7 @@ export function SpreadsheetTable({
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }
@@ -298,7 +295,7 @@ export function SpreadsheetTable({
       setTableData((prev) => {
         const updatedData = prev.map((item) => {
           if (item._id === tempId) {
-            console.log("Replacing temp row with real row:", savedRow);
+
             return { ...savedRow };
           }
           return item;
@@ -408,7 +405,7 @@ export function SpreadsheetTable({
       if (e.ctrlKey && e.key === "Delete" && selectedRow) {
         setTableData((prev) => prev.filter((row) => row._id !== selectedRow));
         setSelectedRow(null);
-        console.log("Deleted row with ID:", selectedRow);
+
         const res = await axios.delete(
           `/api/unregisteredOwners/updateData/${selectedRow}`
         );

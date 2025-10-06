@@ -5,14 +5,13 @@ import { SalesOfferInterface } from "@/util/type";
 
 export async function POST(req: NextRequest) {
   const { phoneNumber } = await req.json();
-  console.log("phoneNumber: ", phoneNumber);
+
 
   try {
     const existingPhone = (await Offer.find({
       phoneNumber,
     })) as SalesOfferInterface[];
 
-    console.log("phoneNumber in try: ", phoneNumber, !!existingPhone);
 
     if (existingPhone.length > 0) {
       let onVS = false;

@@ -4,7 +4,7 @@ import { connectDb } from "@/util/db";
 export async function POST(req: Request) {
   try {
     const { id, rejectionReason, status } = await req.json();
-    console.log("Request body:", { id, rejectionReason, status });
+
 
     if (!id || !rejectionReason || !status) {
       return new Response(

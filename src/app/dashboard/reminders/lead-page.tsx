@@ -99,7 +99,7 @@ export const LeadPage = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -166,7 +166,7 @@ export const LeadPage = () => {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);          
+      
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -321,7 +321,6 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

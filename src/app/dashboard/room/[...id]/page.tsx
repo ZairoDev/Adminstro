@@ -251,7 +251,7 @@ const Page = ({ params }: pageProps) => {
     const channel = pusher.subscribe(`room-${roomId}`);
 
     channel.bind("showcasePropertyAdded", (data: any) => {
-      console.log("data in showcase: ", data);
+
       setShowcaseProperties((prev) => {
         const newProperties = [...prev];
         newProperties.push(data.data);

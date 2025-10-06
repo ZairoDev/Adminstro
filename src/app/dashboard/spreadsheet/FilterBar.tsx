@@ -137,7 +137,7 @@ const parsedAllocations = typeof allocations === "string"
         availability:
           selectedTab === "available" ? "Available" : "Not Available",
       });
-      console.log("Counts/api response:", res.data.counts);
+
       setTypeCounts(res.data.counts || {});
     } catch (err) {
       console.error("Failed to fetch counts:", err);
@@ -156,10 +156,7 @@ const parsedAllocations = typeof allocations === "string"
         );
 
         setLocationws(fetchedCities);
-        console.log(
-          "fetched Locations that has been selected in get allocations",
-          locationws
-        );
+
       } catch (error) {
         console.error("Error fetching locations:", error);
         setLocationws([]);
@@ -175,7 +172,6 @@ const parsedAllocations = typeof allocations === "string"
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
       } catch (error) {
         console.error("Error fetching targets:", error);
       }
@@ -202,9 +198,9 @@ const parsedAllocations = typeof allocations === "string"
     setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
   }, [selectedLocation, targets]);
 
-  useEffect(() => {
-    console.log("filters updated:", filters);
-  }, [filters]);
+  // useEffect(() => {
+  //   console.log("filters updated:", filters);
+  // }, [filters]);
 
 // derive filteredTargets from parsedAllocations + targets (case-insensitive)
 const filteredTargets = useMemo(() => {
@@ -323,14 +319,6 @@ useEffect(() => {
               <SelectGroup>
                 <SelectLabel>Property Type</SelectLabel>
                 {apartmentTypes.sort().map((type) => {
-                  console.log(
-                    "Type:",
-                    type,
-                    "Count:",
-                    typeCounts[type],
-                    "All counts:",
-                    typeCounts
-                  );
                   return (
                     <SelectItem key={type} value={type}>
                       <div className="flex justify-between items-center w-full">

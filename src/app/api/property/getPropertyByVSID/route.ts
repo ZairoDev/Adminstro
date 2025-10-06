@@ -18,7 +18,7 @@ const projection = {
 
 export async function POST(req: NextRequest) {
   const { VSID } = await req.json();
-  console.log("vsid: ", VSID);
+  // console.log("vsid: ", VSID);
 
   try {
     const property = await Properties.findOne({ VSID: VSID }, projection);
@@ -30,19 +30,18 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
-    console.log("yes");
     let owner = await Users.findById(
       new mongoose.Types.ObjectId(property.userId)
     );
     if (!owner) {
       owner = await Users.findOne({ email: property.email });
     }
-    console.log("owner: ", owner);
+
     const propertyObj = {
       ...property.toObject(),
       ownerName: owner.name,
     };
-    console.log("pobj: ", propertyObj);
+
 
     return NextResponse.json({ data: propertyObj }, { status: 200 });
   } catch (err: any) {

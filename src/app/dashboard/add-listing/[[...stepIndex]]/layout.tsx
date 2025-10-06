@@ -46,7 +46,6 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
     }
   }, [index, nextBtnText]);
 
-  console.log
 
   return (
     <>

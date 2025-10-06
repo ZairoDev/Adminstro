@@ -329,19 +329,19 @@ const PageAddListing2: FC = () => {
   };
 
   const addNearByLocation = () => {
-    console.log("clicked");
+
     if (
       nearbyLocationInput.nearbyLocationName === "" ||
       nearbyLocationInput.nearbyLocationDistance === 0 ||
       nearbyLocationInput.nearbyLocationTag === ""
     ) {
-      console.log("returning");
+
       return;
     }
-    console.log("nearbyLocation: ", nearbyLocations);
+
     setNearByLocations((prev) => {
       const newObj = { ...prev };
-      console.log("newObj: ", newObj);
+
       newObj["nearbyLocationName"] = [
         ...newObj["nearbyLocationName"],
         nearbyLocationInput.nearbyLocationName,
@@ -385,7 +385,7 @@ const PageAddListing2: FC = () => {
   const handlePlaceChanged = () => {
     if (autocomplete) {
       const place = autocomplete.getPlace();
-      console.log("place: ", place);
+
 
       if (place.formatted_address) {
         handlePlaceSelected(place);
@@ -429,7 +429,7 @@ const PageAddListing2: FC = () => {
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data); 
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       } 
@@ -727,7 +727,7 @@ const PageAddListing2: FC = () => {
                   value={nearbyLocationInput?.["nearbyLocationTag"]}
                   onValueChange={(value) => {
                     setNearbyLocationInput((prev) => {
-                      console.log("value changed: ", value);
+
                       const newObj = { ...prev };
                       newObj["nearbyLocationTag"] = value;
                       return newObj;

@@ -18,7 +18,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
 	const { roomId, propertyId } = await req.json();
-	console.log("rroomId: ", roomId, propertyId);
+
 
 	let quickListing = false;
 

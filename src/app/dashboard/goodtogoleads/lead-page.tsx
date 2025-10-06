@@ -179,7 +179,7 @@ export const GoodToGoLeads = () => {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);
+
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -235,7 +235,7 @@ export const GoodToGoLeads = () => {
     typeOfProperty: string,
     noOfBeds?: string
   ) => {
-    console.log("filtering leads and clicked", typeOfProperty, noOfBeds);
+
     setFilters((prevFilters) => ({
       ...prevFilters,
       typeOfProperty: typeOfProperty,

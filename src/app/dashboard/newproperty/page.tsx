@@ -47,7 +47,7 @@ const PropertyPage: React.FC = () => {
           `/api/property/getAllProperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
         );
         const data = await response.json();
-        console.log("allproperties: ", data);
+
         if (response.ok) {
           setProperties(data.data);
           setProperty(data.data);
@@ -114,7 +114,7 @@ const PropertyPage: React.FC = () => {
   }, [searchTerm, page]);
 
   useEffect(() => {
-    console.log("property: ", property);
+    // console.log("property: ", property);
   }, [property]);
 
   // const response = async () => {

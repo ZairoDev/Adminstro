@@ -8,7 +8,6 @@ connectDb();
 export async function POST(req: NextRequest) {
   try {
     const { leadId, changedPriority } = await req.json();
-    console.log("lead: ", leadId, changedPriority);
 
     if (!leadId || !changedPriority) {
       return NextResponse.json({ error: "Insufficient data" }, { status: 400 });

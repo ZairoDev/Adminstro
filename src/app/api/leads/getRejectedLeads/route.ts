@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
-    console.log("req body in filter route: ", assignedArea, reqBody);
+    // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
       searchType,

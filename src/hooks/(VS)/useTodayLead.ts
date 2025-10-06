@@ -60,7 +60,7 @@ const useTodayLeads = () => {
     setError("");
     try {
       const response = await getLeadGenLeadsCount("30days");
-      console.log("response", response);
+
       setChartData(response.chartData as LeadGenChartData[]);
     } catch (err: any) {
       const error = new Error(err);

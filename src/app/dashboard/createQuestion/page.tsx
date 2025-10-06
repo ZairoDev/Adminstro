@@ -28,7 +28,7 @@ const CreateQuestion = () => {
       toast({
         description: "Question created successfully",
       });
-      console.log(response.data);
+
     } catch (error: any) {
       setMessage(error.response?.data?.message || "Failed to save question.");
     } finally {

@@ -8,7 +8,7 @@ connectDb();
 export async function POST(request: NextRequest) {
   const reqBody = await request.json();
   const { pId, data } = reqBody;
-  console.log("data in delete images: ", pId, data);
+  // console.log("data in delete images: ", pId, data);
 
   try {
     const property = await Properties.findById(pId);

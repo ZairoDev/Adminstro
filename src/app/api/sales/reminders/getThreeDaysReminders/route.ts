@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
     const threeDaysLater = new Date(todayDate);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
-    console.log("todayDate", todayDate, "threeDaysLater", threeDaysLater);
 
     const allReminders = await Query.find({
       //   $and: [{ reminder: { $exists: true } }, { reminder: { $ne: null } }],

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import InvoicePdfButton from "../../invoice/components/invoice-pdf-button";
+import { computeTotals } from "../../invoice/components/format";
+import PaymentLinkButton from "@/components/razorpayButton";
 
 interface PageProps {
   params: {
@@ -86,7 +89,7 @@ const BookingPage = ({ params }: PageProps) => {
       const response = await axios.post("/api/bookings/getBookingById", {
         bookingId: params.id,
       });
-      console.log("booking data: ", response.data);
+
       setBooking(response.data.data);
     } catch (err) {
       toast({
@@ -102,6 +105,49 @@ const BookingPage = ({ params }: PageProps) => {
     fetchBooking();
   }, []);
 
+  // ✅ Create invoice data from booking
+  // ✅ Create invoice data from booking
+  const invoiceData = useMemo(() => {
+    return {
+      name: booking?.lead.name ?? "",
+      email: booking?.lead.email ?? "",
+      phoneNumber: booking?.lead.phoneNo?.toString() ?? "",
+      address: booking?.lead.location ?? "",
+      amount: booking?.finalAmount ?? 0,
+      sgst: 0,
+      igst: 0,
+      cgst: 0,
+      totalAmount: booking?.finalAmount ?? 0,
+      status: (booking?.payment.status?.toLowerCase() === "paid"
+        ? "paid"
+        : "unpaid") as "paid" | "unpaid",
+
+      date: booking?.createdAt ? format(booking.createdAt, "yyyy-MM-dd") : "",
+      nationality: "Indian",
+      checkIn: booking?.checkIn?.date
+        ? format(booking.checkIn.date, "yyyy-MM-dd")
+        : "",
+      checkOut: booking?.checkOut?.date
+        ? format(booking.checkOut.date, "yyyy-MM-dd")
+        : "",
+      bookingType: "Booking Commission",
+      companyAddress: "117/N/70, 3rd Floor Kakadeo, Kanpur - 208025, UP, India",
+      invoiceNumber: booking?._id ? `ZI-${booking._id.slice(-5)}` : "ZI-XXXXX",
+      sacCode: 9985,
+      description: `Booking commission for ${booking?.visit.VSID ?? ""}`,
+    };
+  }, [booking]);
+  
+
+  const computed = useMemo(() => {
+    return computeTotals({
+      amount: invoiceData.amount,
+      sgst: invoiceData.sgst,
+      igst: invoiceData.igst,
+      cgst: invoiceData.cgst,
+    });
+  }, [invoiceData]);
+
   if (!booking) {
     return <div>No Booking</div>;
   }
@@ -114,6 +160,18 @@ const BookingPage = ({ params }: PageProps) => {
           <div>
             <h1 className="text-3xl font-bold ">Booking Details</h1>
             <p className=" mt-1">Booking ID: {booking._id}</p>
+          </div>
+          <div>
+            <InvoicePdfButton value={invoiceData} computed={computed} />
+          </div>
+          <div>
+            <PaymentLinkButton
+              amount={booking.finalAmount}
+              name={booking.lead.name}
+              email={booking.lead.email}
+              phone={booking.lead.phoneNo?.toString()}
+              description={booking.visit.VSID}
+            />
           </div>
           {/* <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm">

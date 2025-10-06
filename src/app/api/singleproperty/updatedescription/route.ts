@@ -51,17 +51,17 @@ export async function POST(request: NextRequest) {
     try {// ! updating the words count in content writer's profile
 
       const newWords: number = newReviews.split(" ").filter((item: string) => item != "").length;
-      console.log("newWords: ", newWords);
+
 
       const token: any = await getDataFromToken(request);
       const { email } = token;
-      console.log("email: ", email);
+
       const employee = await Employees.findOneAndUpdate({email}, {
         $inc: {
           "extras.wordsCount": newWords
         }
       });
-      console.log("document updated successfully!");
+
     } catch (err: any) {
       console.log("words count not updated", err);
     }

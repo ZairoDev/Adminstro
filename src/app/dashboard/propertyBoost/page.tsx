@@ -119,8 +119,6 @@ const handleSubmit = async () => {
     };
 
     const res = await axios.post("/api/propertyBoost", payload);
-
-    console.log("Property Saved:", res.data);
     alert("Property saved successfully!");
     clearAll();
     setDescription("");

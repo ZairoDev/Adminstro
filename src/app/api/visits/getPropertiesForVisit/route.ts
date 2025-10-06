@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
     const userId = user._id.toString();
     let totalProperties: any[] = [];
-    console.log("userId: ", userId);
+
     if (userId) {
       const siteListings = await Properties.find({ userId: userId });
       if (siteListings) totalProperties = [...siteListings];

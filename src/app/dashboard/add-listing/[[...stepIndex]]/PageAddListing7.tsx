@@ -17,7 +17,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
   const params = useSearchParams();
 
   const userId = params.get("userId");
-  console.log(userId);
+
 
   let portions = 0;
   const data = localStorage.getItem("page1") || "";
@@ -201,7 +201,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
         }
       );
 
-      console.log("response: ", response);
+
       const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${file.name}`;
 
       setPortionCoverFileUrls((prevState) => {
@@ -273,7 +273,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
         }
       );
 
-      console.log("response: ", response);
+
       const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${file.name}`;
       setPropertyCoverFileUrl(imageUrl);
       setPropertyCoverFileLoading(false);
@@ -362,7 +362,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
           }
         );
 
-        console.log("response: ", response);
+
 
         const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${files[i].name}`;
 
@@ -437,7 +437,6 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
           }
         );
 
-        console.log("response: ", response);
         const imageUrl = `https://vacationsaga.b-cdn.net/${placeName}/${files[i].name}`;
         savedUrls[i] = imageUrl;
         setPropertyPicturesLoading(false);

@@ -45,7 +45,7 @@ export const sendEmail = async ({
 
     // Send email
     await transporter.sendMail(mailOptions);
-    console.log("No-reply email sent successfully");
+
   } catch (error) {
     console.error("Error sending no-reply email:", error);
     throw new Error("Could not send no-reply email");
@@ -93,7 +93,7 @@ export const sendUserDetailsToCompany = async (
     // Send email
     await transporter.sendMail(mailOptions);
 
-    console.log("User details sent to company email successfully");
+
   } catch (error) {
     console.error("Error sending user details to company email:", error);
     throw new Error("Could not send user details to company email");

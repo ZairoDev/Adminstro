@@ -11,14 +11,14 @@ export async function GET(req: Request) {
     const month = searchParams.get("month");
     const year = searchParams.get("year");
 
-    console.log("month: ", month, "year: ", year);
+    // console.log("month: ", month, "year: ", year);
 
     let query: any = {};
 
     if (month && year) {
       const start = new Date(Number(year), Number(month) - 1, 1);
       const end = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
-      console.log("start: ", start, "end: ", end);
+      // console.log("start: ", start, "end: ", end);
 
       query.createdAt = { $gte: start, $lte: end };
     } else if (year) {

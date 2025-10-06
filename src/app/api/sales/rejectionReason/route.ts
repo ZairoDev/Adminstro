@@ -8,7 +8,6 @@ export async function POST(req: Request) {
   try {
     const { id, rejectionReason } = await req.json();
 
-    console.log("id: ", id);
 
     if (!id || !rejectionReason) {
       return NextResponse.json(
@@ -42,7 +41,6 @@ export async function POST(req: Request) {
       { $set: { leadStatus: "rejected", reason: rejectionReason } },
       { new: true }
     );
-    console.log("updated: ", updatedQuery);
     if (!updatedQuery) {
       return NextResponse.json(
         { success: false, message: "Query not found" },

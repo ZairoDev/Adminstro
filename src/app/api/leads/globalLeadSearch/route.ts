@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }  
 
     const leads = await Query.findOne({ phoneNo: { $regex: phoneNo, $options: "i" } });
-    console.log(leads);
+    // console.log(leads);
     return NextResponse.json(leads);
   }
   catch(err){

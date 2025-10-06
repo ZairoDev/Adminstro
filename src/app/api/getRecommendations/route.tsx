@@ -97,9 +97,9 @@ export async function POST(req: NextRequest) {
       (g) => g.sampleProperties
     );
 
-    console.log(
-      `Generated ${allAvailable.length} available and ${allUnavailable.length} unavailable recommendations for query ${id}`
-    );
+    // console.log(
+    //   `Generated ${allAvailable.length} available and ${allUnavailable.length} unavailable recommendations for query ${id}`
+    // );
 
     return NextResponse.json({
       success: true,

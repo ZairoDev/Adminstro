@@ -93,7 +93,7 @@ const NewUser = () => {
   const fetchCountry = async ({ target }: { target: String }) => {
     try {
       const response = await axios.get(`/api/addons/target/getLocations?target=${target}`);
-      console.log(response.data);
+
       if(target === 'country'){
         setCountry(response.data.data);
       }
@@ -145,7 +145,7 @@ const NewUser = () => {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data: EmployeeSchema) => {
-    console.log(data, "I am submitting");
+
     setLoading(true);
     const userData = {
       ...data,

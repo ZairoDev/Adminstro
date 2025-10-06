@@ -18,7 +18,7 @@ interface RequestBody {
 export async function PUT(request: Request): Promise<NextResponse> {
   try {
     const body: RequestBody = await request.json();
-    console.log("Received body:", body);
+    // console.log("Received body:", body);
 
     const { _id, ...updateFields } = body;
 
@@ -44,7 +44,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
     if (updateFields.phone) updateData.phone = updateFields.phone;
     if (updateFields.address) updateData.address = updateFields.address;
 
-    console.log("Update data:", updateData);
+    // console.log("Update data:", updateData);
 
     const user = await User.findOneAndUpdate(
       { _id },

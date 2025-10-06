@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
     else if(filters.maxPrice) query["price"] = { $lte: filters.maxPrice };
     else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
     else if(filters.place) query["location"] = filters.place;
-    console.log("query: ", query);
+
     const data = await unregisteredOwner.find(query);
-    console.log(data);  
+
     return NextResponse.json({data}, {status: 200});
   }catch(err){
     console.log(err);

@@ -58,7 +58,7 @@ const Addons = () => {
   const [openList, setOpenList] = useState(false);
   const [list, setList] = useState<Area[]>([]);
   const { token } = useAuthStore();
-  console.log(token);
+
 
   const [DeleteDialog, confirmDelete] = useConfirm(
     "Delete Agent",
@@ -85,7 +85,7 @@ const Addons = () => {
     try {
       setLoading(true);
       const response = await axios.get("/api/addons/target/getAllTargets");
-      console.log(response.data.data);
+
       const sortedData = response.data.data.sort(
         (a: any, b: any) => a.country.localeCompare(b.country) // alphabetically by country
       );

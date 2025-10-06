@@ -368,7 +368,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         "/api/createnewproperty/newProperties",
         data
       );
-      console.log("response 2: ", response2);
+
       if (response2.status === 200) {
         setIsLiveDisabled(true);
         setPropertyIdList(response2.data.mongoIds);

@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
           effectivePrice: offerData.effectivePrice,
         },
       });
-      console.log("mail respones: ", mailResponse);
     }
 
     return NextResponse.json({ message: "offer added successfully" }, { status: 201 });

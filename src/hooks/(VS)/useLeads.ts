@@ -103,7 +103,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     try {
       const response = await getAllAgent();
       setAllEmployees(response);
-      console.log("all employees: ", response);
+
     } catch (err: any) {
       const error = new Error(err);
       setIsError(true);

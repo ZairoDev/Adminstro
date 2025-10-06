@@ -245,8 +245,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   useEffect(() => {
     if (property) {
-      console.log("property: ", property);
-      console.log(property.internalCity + " " + property.internalArea);
       setFormData({
         VSID: property.VSID,
         rentalType: property.rentalType,
@@ -455,7 +453,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }
@@ -911,7 +909,6 @@ const EditPropertyPage = ({ params }: PageProps) => {
       };
 
       const bunnyDeleteResponse = await axios(deleteOptions);
-      console.log("Bunny CDN file deleted:", bunnyDeleteResponse.data);
     } catch (bunnyError) {
       console.error("Error deleting file from Bunny CDN:", bunnyError);
       toast({

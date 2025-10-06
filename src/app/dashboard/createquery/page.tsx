@@ -201,7 +201,7 @@ const SalesDashboard = () => {
       const response = await axios.get(`/api/addons/target/getAlLocations`);
       setLocation(response.data.data);
 
-      console.log("fetched Locations", response.data.data);
+
     } catch (err) {
       console.log(err);
     }
@@ -223,7 +223,7 @@ const SalesDashboard = () => {
       const digitsOnly = parsed.number.replace("+", ""); // e.g., 9170939951
 
       setChecking(true);
-      console.log("handle search (digits only): ", digitsOnly);
+
 
       const response = await axios.post("/api/sales/checkNumber", {
         phoneNo: digitsOnly,
@@ -532,7 +532,7 @@ const SalesDashboard = () => {
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }

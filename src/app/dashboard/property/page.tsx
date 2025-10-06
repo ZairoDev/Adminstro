@@ -73,7 +73,7 @@ const PropertyPage: React.FC = () => {
           `/api/getallproperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
         );
         const data: ApiResponse = await response.json();
-        console.log(data);
+        // console.log(data);
         if (response.ok) {
           setProperties(data.data);
           setTotalPages(data.totalPages);
@@ -89,7 +89,7 @@ const PropertyPage: React.FC = () => {
     [page, searchType, limit]
   );
 
-  console.log(properties);
+  // console.log(properties);
 
   useEffect(() => {
     fetchProperties(searchTerm);
@@ -103,7 +103,7 @@ const PropertyPage: React.FC = () => {
         isLive: true,
       });
 
-      console.log(response.data);
+      // console.log(response.data);
 
       setProperties((prevProps) =>
         prevProps.map((property) =>
@@ -124,7 +124,7 @@ const PropertyPage: React.FC = () => {
         id: propertyId,
         isLive: false,
       });
-      console.log(response.data);
+      // console.log(response.data);
       setProperties((prevProps) =>
         prevProps.map((property) =>
           property._id === propertyId

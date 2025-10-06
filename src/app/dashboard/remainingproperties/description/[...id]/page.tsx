@@ -41,7 +41,7 @@ const Page = ({ params }: PageProps) => {
           const response = await axios.post("/api/singleproperty/getproperty", {
             propertyId: params.id,
           });
-          console.log(response.data);
+
           setProperty(response.data);
           setNumberOfPortions(response.data.basePrice.length);
           setLoading(false);

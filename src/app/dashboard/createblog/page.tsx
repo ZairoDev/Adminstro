@@ -104,7 +104,7 @@ const BlogPage = () => {
       setUploading(false);
     }
   };
-  console.log(content, "Content");
+
   const isFormValid = () => {
     return title && content && maintext && banner && tags.length > 0;
   };

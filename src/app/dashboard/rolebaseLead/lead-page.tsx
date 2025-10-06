@@ -121,7 +121,7 @@ export const LeadPage = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -242,7 +242,7 @@ export const LeadPage = () => {
 
 
    const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
-    console.log("filtering leads and clicked", typeOfProperty, noOfBeds);
+
     setFilters((prevFilters) => ({
       ...prevFilters,
       typeOfProperty: typeOfProperty,
@@ -450,7 +450,6 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

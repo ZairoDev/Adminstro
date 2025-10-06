@@ -455,7 +455,7 @@ const handleSave = async (
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }

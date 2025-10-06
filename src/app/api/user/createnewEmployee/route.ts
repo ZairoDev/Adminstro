@@ -11,7 +11,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const dt = new Date(reqBody.dateOfJoining);
     reqBody.dateOfJoining = dt;
     const parsedBody = employeeSchema.parse(reqBody);
-    console.log(parsedBody);
+    // console.log(parsedBody);
     const {
       name,
       email,

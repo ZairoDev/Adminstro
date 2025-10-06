@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
+import Bookings from "@/models/booking";
+import "@/models/booking";
+import "@/models/visit";
+import "@/models/query";
 
 export async function POST(req: NextRequest) {
-  connectDb();
+  await connectDb();
+
   const { bookingId } = await req.json();
 
   try {
@@ -28,7 +32,7 @@ export async function POST(req: NextRequest) {
     console.log("error in fetching booking: ", err);
     return NextResponse.json(
       { error: "Unable to fetch booking" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
-    console.log("req body in filter route: ", assignedArea, reqBody);
+    // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
       searchType,
@@ -337,11 +337,11 @@ export async function POST(req: NextRequest) {
 ]
 
   const statusCount= await Query.aggregate(statusPipeline);
-    console.log("statusCount: ", statusCount);
+    // console.log("statusCount: ", statusCount);
 
 
     const wordsCount = await Query.aggregate(pipeline);
-     console.log("wordsCount: ", wordsCount);
+    //  console.log("wordsCount: ", wordsCount);
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / LIMIT);

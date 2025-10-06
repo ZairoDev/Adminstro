@@ -38,10 +38,6 @@ export async function POST(request: NextRequest) {
     } = await request.json();
     const skip = (page - 1) * limit;
 
-    console.log(`data in reminder: page: ${page}, skip: ${skip}, searchTerm: ${searchTerm}, searchType: ${searchType},
-    dateFilter: ${dateFilter}, sortingField: ${sortingField}, customDays: ${customDays}, allotedArea: ${allotedArea},
-    limit: ${limit}, startDate: ${startDate}, endDate: ${endDate}`);
-
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
 

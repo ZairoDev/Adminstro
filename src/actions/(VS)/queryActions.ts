@@ -612,7 +612,7 @@ export const getLeadGenLeadsCount = async (
     chartData.push(dataPoint);
   });
 
-  console.log(chartData);
+  // console.log(chartData);
   return { chartData };
 };
 
@@ -775,7 +775,7 @@ export const getLocationLeadStats = async () => {
     },
   ]);
 
-  console.log("queryAgg: ", queryAgg);
+  // console.log("queryAgg: ", queryAgg);
 
   // Maps for quick lookup
   const todayMap = Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]));
@@ -816,7 +816,7 @@ export const getLocationLeadStats = async () => {
     };
   });
 
-  console.log(visits);
+  // console.log(visits);
   return { visits };
 };
 
@@ -1530,7 +1530,7 @@ export const getNewOwnersCount = async ({
   location?: string;
 }) => {
   const dateFilter: Record<string, any> = {};
-  console.log("days, location: ", days, location);
+  // console.log("days, location: ", days, location);
   // ✅ Days filter
   if (days && days !== "All") {
     let fromDate: Date | undefined;

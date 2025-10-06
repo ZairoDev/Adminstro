@@ -24,7 +24,6 @@ export function LeadSearch() {
       const phoneNo = formData.get("phoneNo") as string;
       const res = await axios.post("/api/leads/globalLeadSearch", { phoneNo });
       const data = res.data;
-      console.log("data: ", data);
       if (data.leadStatus === "fresh") {
         router.push("/dashboard/rolebaseLead");
       } else if (data.leadStatus === "active") {

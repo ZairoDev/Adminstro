@@ -22,7 +22,7 @@ type MainState = {
 const PageAddListing4: FC<PageAddListing4Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
+
 
   const savedAmenities =
     typeof window !== "undefined"

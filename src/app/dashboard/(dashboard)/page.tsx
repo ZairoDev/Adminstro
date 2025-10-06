@@ -4,9 +4,19 @@ import { use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
-
 import { TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -133,15 +143,12 @@ interface LeadStats {
   rate: number;
 }
 
-
- const chartConfig = {
-   listings: {
-     label: "Listings",
-     color: "hsl(var(--chart-3))", // you can use tailwind variable
-   },
- } satisfies ChartConfig;
- 
-
+const chartConfig = {
+  listings: {
+    label: "Listings",
+    color: "hsl(var(--chart-3))", // you can use tailwind variable
+  },
+} satisfies ChartConfig;
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -229,8 +236,8 @@ const Dashboard = () => {
     isLoading: isLoadingTodayLeads,
     fetchLeadsByLeadGen,
     chartData1,
-    todayLeadStats
-    
+    todayLeadStats,
+
     // average,
   } = useTodayLeads();
 
@@ -246,25 +253,24 @@ const Dashboard = () => {
     unregisteredOwners,
     fetchUnregisteredVisits,
     ownersCount,
-    newOwnersCount,                                 
+    newOwnersCount,
   } = WeeksVisit();
 
   console.log("OwnersCount", ownersCount);
 
-  const { totalListings,fetchListingCounts } = ListingCounts();
+  const { totalListings, fetchListingCounts } = ListingCounts();
 
   // Transform data for recharts (make sure counts are numbers)
   const chartData = useMemo(
     () =>
       totalListings.map((item) => ({
         date: item.date,
-        total : Number(item.total), // this is the line you plot
+        total: Number(item.total), // this is the line you plot
         shortTerm: Number(item.shortTerm),
         longTerm: Number(item.longTerm),
       })),
     [totalListings]
   );
-  
 
   // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
@@ -287,7 +293,7 @@ const Dashboard = () => {
     statsErrMsg,
     setStatsErrMsg,
     fetchLeadStats,
-  } = useLeadStats()
+  } = useLeadStats();
 
   // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
@@ -299,7 +305,7 @@ const Dashboard = () => {
   };
 
   const handlfetch = async () => {
-    fetchUnregisteredVisits({ days: "today" ,location:"All"});
+    fetchUnregisteredVisits({ days: "today", location: "All" });
     fetchVisitsToday({ days: "today" });
     fetchVisits({ days: "today" });
     fetchGoodVisitsCount({ days: "today" });
@@ -507,113 +513,20 @@ const Dashboard = () => {
 
       {/* Listings Dashboard */}
       {/* Listings Dashboard */}
-      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
+      {(token?.role === "SuperAdmin" ||
+        token?.role === "LeadGen-TeamLead" ||
+        token?.role === "Advert") && (
         <section className="relative my-10">
           <h1 className="text-3xl font-bold mb-6">Lead-Gen Dashboard</h1>
 
-          <div className="w-full mx-auto">
-            <Card className="shadow-md rounded-2xl">
-              <CardHeader>
-                <CardTitle>Listings Created</CardTitle>
-                <CardDescription>
-                  {listingFilters?.days || "Last 12 Days"}
-                </CardDescription>
+          
 
-                {/* Range Selector */}
-                <CustomSelect
-                  itemList={["12 days", "1 year", "last 3 years"]}
-                  triggerText="Select range"
-                  defaultValue={listingFilters?.days || "12 days"}
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...listingFilters };
-                    newLeadFilters.days = value;
-                    fetchListingCounts(newLeadFilters);
-                  }}
-                  triggerClassName="w-32 absolute right-2 top-2"
-                />
-              </CardHeader>
-
-              <CardContent className="h-[400px]">
-                {loading ? (
-                  <p className="text-center text-muted-foreground">
-                    Loading...
-                  </p>
-                ) : isError ? (
-                  <p className="text-center text-red-500">Error: {error}</p>
-                ) : chartData.length === 0 ? (
-                  <p className="text-center text-muted-foreground">
-                    No data available
-                  </p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={chartData
-                        .map((item) => ({
-                          date: item.date,
-                          shortTerm: item.shortTerm,
-                          longTerm: item.longTerm,
-                          total: item.total,
-                        }))
-                        .sort(
-                          (a, b) =>
-                            new Date(a.date).getTime() -
-                            new Date(b.date).getTime()
-                        )}
-                      margin={{ left: 0, right: 16 }}
-                    >
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={4}
-                        tickFormatter={(value) => {
-                          if (listingFilters?.days === "last 3 years")
-                            return value; // Year
-                          if (listingFilters?.days === "1 year") return value; // Month
-                          return value; // Day + Month
-                        }}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        cursor={false}
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-white shadow-md p-3 rounded-lg border">
-                                <p className="font-semibold">{label}</p>
-                                <p className="text-sm text-blue-600">
-                                  Short-Term: {data.shortTerm}
-                                </p>
-                                <p className="text-sm text-green-600">
-                                  Long-Term: {data.longTerm}
-                                </p>
-                                <p className="text-sm font-bold">
-                                  Total: {data.total}
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Line
-                        dataKey="total"
-                        type="monotone"
-                        stroke={chartConfig.listings.color}
-                        strokeWidth={2}
-                        dot={{ fill: chartConfig.listings.color }}
-                        activeDot={{ r: 5 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-
-              <CardFooter className="flex-col items-start gap-2 text-sm" />
-            </Card>
-          </div>
+                <div>
+        {(token?.role === "SuperAdmin" ||
+          token?.role === "LeadGen-TeamLead") && (
+          <ChartAreaMultiple data={chartData1} />
+        )}
+      </div>
         </section>
       )}
 
@@ -765,6 +678,23 @@ const Dashboard = () => {
                 />
               </div>
             )}
+
+            <div className="flex items-center rounded-lg m-4">
+            {leadStats.map((loc: LeadStats, index: number) => (
+              <StatsCard
+                className="m-8"
+                key={index}
+                title={loc.location}
+                target={loc.target}
+                achieved={loc.achieved}
+                today={loc.today}
+                yesterday={loc.yesterday}
+                dailyrequired={loc.dailyrequired}
+                dailyAchieved={loc.currentAverage}
+                rate={loc.rate}
+              />
+            ))}
+          </div>
 
             {/* <Card className="shadow-md">
           <CardHeader>
@@ -1110,7 +1040,8 @@ const Dashboard = () => {
             </div>
           </div>
           {(token?.role === "SuperAdmin" ||
-            token?.role === "LeadGen-TeamLead" || token?.role === "Advert") && (
+            token?.role === "LeadGen-TeamLead" ||
+            token?.role === "Advert") && (
             <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
               {/* Visualization on the left */}
               <div className="flex md:w-1/2 h-[600px]">
@@ -1175,27 +1106,7 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-         <div className="flex items-center">
-          <div className=" p-2 rounded-lg mb-4 relative w-[600px] h-[600px]">
-  <MoleculeVisualization data={ownersCount} />
-  
-</div>
-
-         {leadStats.map((loc: LeadStats,index:number) => (
-        <StatsCard
-          className="mr-8"
-          key={index}
-          title={loc.location}
-          target={loc.target}
-          achieved={loc.achieved}
-          today={loc.today} 
-          yesterday={loc.yesterday}
-          dailyrequired={loc.dailyrequired}
-          dailyAchieved={loc.currentAverage}
-          rate={loc.rate}
-        />
-      ))}
-         </div>
+          
         </>
       )}
 
@@ -1284,12 +1195,109 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div>
-        {(token?.role === "SuperAdmin" ||
-          token?.role === "LeadGen-TeamLead") && (
-          <ChartAreaMultiple data={chartData1} />
-        )}
-      </div>
+      <div className="w-full mx-auto">
+            <Card className="shadow-md rounded-2xl">
+              <CardHeader>
+                <CardTitle>Listings Created</CardTitle>
+                <CardDescription>
+                  {listingFilters?.days || "Last 12 Days"}
+                </CardDescription>
+
+                {/* Range Selector */}
+                <CustomSelect
+                  itemList={["12 days", "1 year", "last 3 years"]}
+                  triggerText="Select range"
+                  defaultValue={listingFilters?.days || "12 days"}
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...listingFilters };
+                    newLeadFilters.days = value;
+                    fetchListingCounts(newLeadFilters);
+                  }}
+                  triggerClassName="w-32 absolute right-2 top-2"
+                />
+              </CardHeader>
+
+              <CardContent className="h-[400px]">
+                {loading ? (
+                  <p className="text-center text-muted-foreground">
+                    Loading...
+                  </p>
+                ) : isError ? (
+                  <p className="text-center text-red-500">Error: {error}</p>
+                ) : chartData.length === 0 ? (
+                  <p className="text-center text-muted-foreground">
+                    No data available
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData
+                        .map((item) => ({
+                          date: item.date,
+                          shortTerm: item.shortTerm,
+                          longTerm: item.longTerm,
+                          total: item.total,
+                        }))
+                        .sort(
+                          (a, b) =>
+                            new Date(a.date).getTime() -
+                            new Date(b.date).getTime()
+                        )}
+                      margin={{ left: 0, right: 16 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={4}
+                        tickFormatter={(value) => {
+                          if (listingFilters?.days === "last 3 years")
+                            return value; // Year
+                          if (listingFilters?.days === "1 year") return value; // Month
+                          return value; // Day + Month
+                        }}
+                      />
+                      <YAxis />
+                      <Tooltip
+                        cursor={false}
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white shadow-md p-3 rounded-lg border">
+                                <p className="font-semibold">{label}</p>
+                                <p className="text-sm text-blue-600">
+                                  Short-Term: {data.shortTerm}
+                                </p>
+                                <p className="text-sm text-green-600">
+                                  Long-Term: {data.longTerm}
+                                </p>
+                                <p className="text-sm font-bold">
+                                  Total: {data.total}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line
+                        dataKey="total"
+                        type="monotone"
+                        stroke={chartConfig.listings.color}
+                        strokeWidth={2}
+                        dot={{ fill: chartConfig.listings.color }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+
+              <CardFooter className="flex-col items-start gap-2 text-sm" />
+            </Card>
+          </div>
     </div>
   );
 };

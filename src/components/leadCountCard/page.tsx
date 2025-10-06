@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
+import { Dot, TrendingDown, TrendingUp } from "lucide-react";
+import { useMemo } from "react";
 
 interface StatsCardProps {
   title?: string;
@@ -26,7 +27,21 @@ export function StatsCard({
   position,
   className = "",
 }: StatsCardProps) {
-//   const total = registered + unregistered;
+  //   const total = registered + unregistered;
+
+  const requiredRunRate = useMemo(() => {
+    const today = new Date();
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of the month
+    let remainingDays = 0;
+
+    for (let d = new Date(today); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() !== 0) remainingDays++; // Exclude Sundays (0 = Sunday)
+    }
+
+    if (remainingDays === 0) return 0; // avoid division by zero
+
+    return (target - achieved) / remainingDays; // optional 2 decimal places
+  }, [target, achieved]);
 
   return (
     <Card
@@ -58,7 +73,11 @@ export function StatsCard({
           <h3 className="font-bold text-xl text-stone-100 tracking-tight">
             {title}
           </h3>
-          <TrendingUp className="w-5 h-5 text-emerald-500" />
+          {dailyAchieved >= requiredRunRate ? (
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-rose-500" />
+          )}
         </div>
 
         <div className="space-y-2.5">
@@ -78,11 +97,23 @@ export function StatsCard({
 
         <div className="border-t border-stone-700/50 pt-3 space-y-2.5">
           <div className="flex items-center justify-between group">
-            <span className="text-stone-400 text-sm">Today</span>
+            <div className="flex items-center gap-1">
+              <span className="text-stone-400 text-sm">Today</span>
+              {(() => {
+                const percentage = (today / dailyrequired) * 100;
+
+                let color = "text-red-400"; // default
+                if (percentage >= 90) color = "text-green-400";
+                else if (percentage >= 60) color = "text-yellow-400";
+
+                return <Dot className={`w-10 h-10 ${color}`} />;
+              })()}
+            </div>
             <span className="text-amber-400 font-semibold font-mono text-base tabular-nums group-hover:text-amber-300 transition-colors">
               {today}
             </span>
           </div>
+
           <div className="flex items-center justify-between group">
             <span className="text-stone-400 text-sm">Yesterday</span>
             <span className="text-sky-400 font-semibold font-mono text-base tabular-nums group-hover:text-sky-300 transition-colors">
@@ -97,15 +128,23 @@ export function StatsCard({
           </div>
           <div className="flex items-center justify-between group">
             <span className="text-stone-400 text-sm">Current Average</span>
-            <span className="text-violet-400 font-semibold font-mono text-base tabular-nums group-hover:text-violet-300 transition-colors">
+            <span className="text-pink-400 font-semibold font-mono text-base tabular-nums group-hover:text-violet-300 transition-colors">
               {dailyAchieved}
+            </span>
+          </div>
+          <div className="flex items-center justify-between group">
+            <span className="text-stone-400 text-sm">Required Rate</span>
+            <span className="text-orange-400 font-semibold font-mono text-base tabular-nums group-hover:text-violet-300 transition-colors">
+              {requiredRunRate.toFixed(2)}
             </span>
           </div>
         </div>
 
         <div className="border-t border-stone-700/50 pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-stone-400 text-sm font-medium">Success Rate</span>
+            <span className="text-stone-400 text-sm font-medium">
+              Success Rate
+            </span>
             <div className="flex items-baseline gap-1">
               <span className="text-stone-100 font-bold text-2xl tabular-nums">
                 {rate}

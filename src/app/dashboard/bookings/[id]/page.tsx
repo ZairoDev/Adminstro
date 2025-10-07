@@ -171,6 +171,20 @@ const BookingPage = ({ params }: PageProps) => {
               email={booking.lead.email}
               phone={booking.lead.phoneNo?.toString()}
               description={booking.visit.VSID}
+              numberOfPeople={booking.lead.guest}
+              bookingId={booking._id}
+              propertyOwner={booking.visit.ownerName}
+              address={booking.lead.area}
+              checkIn={
+                booking.checkIn.date
+                  ? format(booking.checkIn.date, "yyyy-MM-dd")
+                  : ""
+              }
+              checkOut={
+                booking.checkOut.date
+                  ? format(booking.checkOut.date, "yyyy-MM-dd")
+                  : ""  
+              }
             />
           </div>
           {/* <div className="flex flex-wrap gap-2">

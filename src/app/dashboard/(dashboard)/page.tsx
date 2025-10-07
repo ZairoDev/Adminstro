@@ -1195,7 +1195,7 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="w-full mx-auto">
+      <div className="relative w-full mx-auto">
             <Card className="shadow-md rounded-2xl">
               <CardHeader>
                 <CardTitle>Listings Created</CardTitle>

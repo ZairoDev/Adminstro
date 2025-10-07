@@ -1,7 +1,7 @@
 "use client";
 
-import { useRazorpayLink } from "@/hooks/useRazorpay";
-
+import { useState } from "react";
+import axios from "axios";
 
 type Props = {
   amount: number;
@@ -9,6 +9,12 @@ type Props = {
   email: string;
   phone: string;
   description?: string;
+  bookingId?: string;
+  numberOfPeople?: number;
+  propertyOwner?: string;
+  address?: string;
+  checkIn?: string;
+  checkOut?: string;
 };
 
 export default function PaymentLinkButton({
@@ -17,13 +23,50 @@ export default function PaymentLinkButton({
   email,
   phone,
   description,
+  bookingId,
+  numberOfPeople,
+  propertyOwner,
+  address,
+  checkIn,
+  checkOut,
 }: Props) {
-  const { createPaymentLink, link, loading, error } = useRazorpayLink();
+  const [loading, setLoading] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const handleClick = () => {
+  const handleClick = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const { data } = await axios.post("/api/payment-link", {
+        amount,
+        name,
+        email,
+        phone,
+        description,
+        bookingId,
+        numberOfPeople,
+        propertyOwner,
+        address,
+        checkIn,
+        checkOut,
+      });
 
-    createPaymentLink({ amount, name, email, phone, description });
-  };        
+      if (data?.success) {
+        setLink(data.link);
+        setMessage("Payment link created and PDF emailed to customer.");
+      } else {
+        setError(data?.error || "Unexpected response from server");
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "Request failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <button
@@ -31,17 +74,18 @@ export default function PaymentLinkButton({
         disabled={loading}
         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
       >
-        {loading ? "Creating Link..." : "Create Payment Link"}
+        {loading ? "Processing..." : "Create Payment Link + Send PDF"}
       </button>
 
+      {message && <p className="text-green-600">{message}</p>}
       {link && (
         <a
           href={link}
           target="_blank"
-          rel="noopener noreferrer"
-          className="text-green-600 underline"
+          rel="noreferrer"
+          className="text-blue-600 underline"
         >
-          View Payment Link
+          Open Payment Link
         </a>
       )}
 

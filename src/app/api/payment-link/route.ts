@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import fs from "fs";
 import path from "path";
+import Bookings from "@/models/booking";
 
 type RequestBody = {
   amount: number;
@@ -59,119 +60,259 @@ async function generatePdfBuffer(data: {
   } = data;
 
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  // A4 page
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+  // Fonts
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontSize = 12;
-  let y = 760;
 
-  // === 🔶 ORANGE BANNER HEADER ===
-  const bannerHeight = 50;
-  const bannerColor = rgb(1, 0.55, 0); // orange color (R=1,G=0.55,B=0)
-  page.drawRectangle({
-    x: 0,
-    y: 841.89 - bannerHeight,
-    width: 595.28,
-    height: bannerHeight,
-    color: bannerColor,
-  });
+  // Helpers
+  let y = pageHeight - 100;
+  const baseFontSize = 12;
+  const gray = (v: number) => rgb(v, v, v);
+  const brand = rgb(1, 0.55, 0); // orange brand color
 
-  // Centered "Vacation Saga" text
-  const title = "Vacation Saga";
-  const textWidth = bold.widthOfTextAtSize(title, 20);
-  const textX = (595.28 - textWidth) / 2;
-  const textY = 841.89 - bannerHeight / 2 - 7;
-  page.drawText(title, {
-    x: textX,
-    y: textY,
-    size: 20,
-    font: bold,
-    color: rgb(1, 1, 1), // white text
-  });
-
-  // === CONTENT BELOW HEADER ===
-  y = 760;
-
-  const drawText = (
+  const drawCentered = (
     text: string,
-    options?: { bold?: boolean; color?: [number, number, number] }
+    size = baseFontSize,
+    useBold = false,
+    color = rgb(0, 0, 0),
+    offsetY = 0
   ) => {
-    const usedFont = options?.bold ? bold : font;
-    const color = options?.color ? rgb(...options.color) : rgb(0, 0, 0);
-    page.drawText(text, { x: 50, y, size: fontSize, font: usedFont, color });
-    y -= 18;
+    const usedFont = useBold ? bold : font;
+    const textWidth = usedFont.widthOfTextAtSize(text, size);
+    const x = (pageWidth - textWidth) / 2;
+    page.drawText(text, { x, y: y + offsetY, size, font: usedFont, color });
+    y -= size + 8;
   };
 
-  drawText("Booking Confirmation", { bold: true });
-  y -= 6;
+  const drawLabelValue = (
+    label: string,
+    value: string,
+    size = baseFontSize
+  ) => {
+    const leftX = 50;
+    const gapX = 200;
+    page.drawText(label, {
+      x: leftX,
+      y,
+      size,
+      font: bold,
+      color: rgb(0, 0, 0),
+    });
+    page.drawText(value, { x: gapX, y, size, font: font, color: gray(0) });
+    y -= size + 8;
+  };
 
-  if (bookingId) drawText(`Booking ID: ${bookingId}`);
-  else drawText("Booking ID: -");
+  // === Header banner ===
+  const bannerHeight = 90;
+  page.drawRectangle({
+    x: 0,
+    y: pageHeight - bannerHeight,
+    width: pageWidth,
+    height: bannerHeight,
+    color: brand,
+  });
 
-  y -= 8;
-  drawText(`Dear ${name},`);
-  drawText(
-    "We congratulate you and thank you for booking through us; the details of the reservation are here under:"
+  // === Centered Logo ===
+  // Try placeholder PNG bundled in project; fallbacks handled gracefully
+  try {
+    const logoPath = path.join(process.cwd(), "public", "vs.png");
+    const logoBuffer = fs.readFileSync(logoPath);
+    const logoImage = await pdfDoc.embedPng(new Uint8Array(logoBuffer));
+
+    // Scale to a "decent" size while preserving aspect ratio
+    const maxLogoW = 160;
+    const maxLogoH = 60;
+    const scale = Math.min(
+      maxLogoW / logoImage.width,
+      maxLogoH / logoImage.height
+    );
+    const logoW = logoImage.width * scale;
+    const logoH = logoImage.height * scale;
+
+    const logoX = (pageWidth - logoW) / 2;
+    const logoY = pageHeight - bannerHeight + (bannerHeight - logoH) / 2;
+
+    page.drawImage(logoImage, {
+      x: logoX,
+      y: logoY,
+      width: logoW,
+      height: logoH,
+    });
+  } catch (err) {
+    console.error("❌ Logo not found, skipping:", err);
+  }
+
+  // Reset Y for content below banner
+  y = pageHeight - bannerHeight - 40;
+
+  // Title
+  drawCentered(
+    "Booking Confirmation / Payment Request",
+    18,
+    true,
+    rgb(0, 0, 0)
   );
-  y -= 8;
 
-  const details: Array<[string, string]> = [
-    ["Number of People", numberOfPeople != null ? String(numberOfPeople) : "-"],
-    ["Guest Name", name || "-"],
-    ["Phone Number", phone || "-"],
-    ["Email Address", email || "-"],
-    ["Amount", `${amount}`],
-    ["Description", description || "-"],
-    ["Property Owner’s Name", propertyOwner || "-"],
-    ["Property Address", address || "-"],
-    ["Check in date", checkIn || "-"],
-    ["Check out date", checkOut || "-"],
-  ];
-
-  details.forEach(([label, value]) => {
-    drawText(`${label}:`, { bold: true });
-    drawText(`   ${value}`);
+  // Divider
+  page.drawRectangle({
+    x: 50,
+    y: y + 6,
+    width: pageWidth - 100,
+    height: 1,
+    color: gray(0.75),
   });
-
-  y -= 4;
-  drawText("Please complete your payment using the link below:", {
-    bold: true,
-  });
-  drawText(link);
-
-  y -= 8;
-  drawText("Website Name: www.vacationsaga.com");
-  drawText("Company Name: ZAIRO INTERNATIONAL PRIVATE LIMITED");
-  drawText("CIN Number: U93090UP2017PTC089137");
-  drawText("Email address: info@vacationsaga.com or support@vacationsaga.com");
-
   y -= 12;
-  drawText("Concerned Person from Vacation Saga: Miss. Ankita Nigam");
+
+  // Greeting
+  page.drawText(`Dear ${name},`, {
+    x: 50,
+    y,
+    size: baseFontSize,
+    font,
+    color: rgb(0, 0, 0),
+  });
+  y -= baseFontSize + 8;
+  page.drawText(
+    "Thank you for booking with us. Your reservation details are listed below:",
+    {
+      x: 50,
+      y,
+      size: baseFontSize,
+      font,
+      color: rgb(0, 0, 0),
+    }
+  );
+  y -= baseFontSize + 14;
+
+  // Details section container (subtle border)
+  const sectionTopY = y + 8;
+  const sectionLeftX = 40;
+  const sectionWidth = pageWidth - 80;
+
+  // Details
+  drawLabelValue("Booking ID", bookingId ?? "-");
+  drawLabelValue(
+    "Number of People",
+    numberOfPeople != null ? String(numberOfPeople) : "-"
+  );
+  drawLabelValue("Guest Name", name || "-");
+  drawLabelValue("Phone Number", phone || "-");
+  drawLabelValue("Email Address", email || "-");
+  drawLabelValue("Amount (INR)", `${amount}`);
+  drawLabelValue("Description", description || "-");
+  drawLabelValue("Property Owner’s Name", propertyOwner || "-");
+  drawLabelValue("Property Address", address || "-");
+  drawLabelValue("Check-in Date", checkIn || "-");
+  drawLabelValue("Check-out Date", checkOut || "-");
+
+  // Draw section border after details are rendered
+  page.drawRectangle({
+    x: sectionLeftX,
+    y: y - 10,
+    width: sectionWidth,
+    height: sectionTopY - (y - 10),
+    borderColor: gray(0.8),
+    borderWidth: 1,
+    // color: rgb(1, 1, 1),
+  });
 
   y -= 24;
-  drawText("Signature:", { bold: true });
-  y -= 40;
 
-  // === 🖋 SIGNATURE IMAGE ===
+  // Payment link
+  page.drawText("Please complete your payment using the link below:", {
+    x: 50,
+    y,
+    size: baseFontSize,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  y -= baseFontSize + 6;
+
+  // Make the link stand out in blue
+  page.drawText(link, {
+    x: 50,
+    y,
+    size: baseFontSize,
+    font,
+    color: rgb(0.1, 0.3, 0.85),
+  });
+  y -= baseFontSize + 16;
+
+  // Company info (subtle)
+  const infoLines = [
+    "Website: www.vacationsaga.com",
+    "Company: ZAIRO INTERNATIONAL PRIVATE LIMITED",
+    "CIN: U93090UP2017PTC089137",
+    "Email: info@vacationsaga.com / support@vacationsaga.com",
+    "Concerned Person: Miss. Ankita Nigam",
+  ];
+  infoLines.forEach((t) => {
+    page.drawText(t, { x: 50, y, size: 10, font, color: gray(0.2) });
+    y -= 14;
+  });
+
+  y -= 10;
+  page.drawText("Signature:", {
+    x: 50,
+    y,
+    size: baseFontSize,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  y -= 36;
+
+  // === Signature image with fallback ===
+  const tryEmbedImage = async (relPath: string) => {
+    const abs = path.join(process.cwd(), relPath);
+    if (!fs.existsSync(abs)) return null;
+    const buff = fs.readFileSync(abs);
+    const isPng = relPath.toLowerCase().endsWith(".png");
+    try {
+      return isPng
+        ? await pdfDoc.embedPng(new Uint8Array(buff))
+        : await pdfDoc.embedJpg(new Uint8Array(buff));
+    } catch {
+      return null;
+    }
+  };
+
   try {
-    const signaturePath = path.join(process.cwd(), "public", "sign.png");
-    const signatureBuffer = fs.readFileSync(signaturePath);
-    const signatureImage = await pdfDoc.embedPng(
-      new Uint8Array(signatureBuffer)
-    );
+    // try custom sign.png first, then fallback to placeholder-user.jpg
+    const signatureImage =
+      (await tryEmbedImage(path.join("public", "sign.png"))) ||
+      (await tryEmbedImage(path.join("public", "placeholder-user.jpg")));
 
-    const imgWidth = 120;
-    const imgHeight = 50;
-
-    page.drawImage(signatureImage, {
-      x: 50,
-      y: y,
-      width: imgWidth,
-      height: imgHeight,
-    }); 
+    if (signatureImage) {
+      const maxW = 140;
+      const maxH = 60;
+      const s = Math.min(
+        maxW / signatureImage.width,
+        maxH / signatureImage.height
+      );
+      const w = signatureImage.width * s;
+      const h = signatureImage.height * s;
+      page.drawImage(signatureImage, { x: 50, y: y, width: w, height: h });
+      y -= h + 10;
+    } else {
+      console.warn("No signature image found, skipping signature image.");
+    }
   } catch (err) {
-    console.error("Signature image not found, skipping...");
+    console.error("Signature image error, skipping:", err);
   }
+
+  // Footer line
+  page.drawRectangle({
+    x: 50,
+    y: 40,
+    width: pageWidth - 100,
+    height: 1,
+    color: gray(0.85),
+  });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
@@ -196,7 +337,6 @@ function createTransporter() {
   });
 }
 
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as RequestBody;
@@ -220,6 +360,13 @@ export async function POST(req: Request) {
       notify: { sms: true, email: true },
       reminder_enable: true,
       notes: { purpose: description ?? "Payment" },
+    });
+
+    await Bookings.findByIdAndUpdate(body.bookingId, {
+      $set: {
+        "payment.orderId": paymentLinkResponse.id,
+        "payment.status": "pending",
+      },
     });
 
     const shortUrl =

@@ -66,7 +66,7 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
       if (onUpdate) {
         const updatedBookings = bookings.map((b, i) =>
           i === index
-            ? { ...b, payment: { ...b.payment, status: paymentStatus } }
+            ? { ...b, payment: { ...b.travellerPayment, status: paymentStatus } }
             : b
         );
         onUpdate(updatedBookings);
@@ -156,7 +156,7 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost">
-                      {booking?.payment?.status?.toUpperCase() ?? "UNKNOWN"}
+                      {booking?.travellerPayment?.status?.toUpperCase() ?? "UNKNOWN"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">
@@ -169,7 +169,7 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
                         onClick={() =>
                           handlePaymentStatus(
                             status as "pending" | "partial" | "failed" | "paid",
-                            booking._id,
+                            booking?.bookingId || booking._id!,
                             index
                           )
                         }

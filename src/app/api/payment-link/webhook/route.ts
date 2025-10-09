@@ -10,9 +10,6 @@ export async function POST(req: Request) {
     const body = await req.text();
     const signature = req.headers.get("x-razorpay-signature") as string;
 
-    console.log("🔔 Razorpay webhook received");
-    console.log("Raw body:", body);
-
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET!)
       .update(body)
@@ -25,51 +22,98 @@ export async function POST(req: Request) {
 
     const event = JSON.parse(body);
     const eventType = event.event;
-    console.log("Event Type:", eventType);
-    console.log("Full Event:", JSON.stringify(event, null, 2));
 
-    const paymentLinkEntity = event.payload?.payment_link?.entity;
-    const paymentEntity = event.payload?.payment?.entity;
+    console.log("🔔 Razorpay webhook received:", eventType);
 
-    if (!paymentLinkEntity) {
-      console.warn("⚠️ Payment link entity missing in webhook payload");
-      return NextResponse.json(
-        { error: "Invalid webhook payload" },
-        { status: 400 }
-      );
+    let booking: any;
+    let paymentEntity: any;
+    let orderId: string | undefined;
+
+    if (eventType === "payment.captured") {
+      paymentEntity = event.payload.payment.entity;
+      orderId = paymentEntity.description?.replace("#", "plink_");
+
+      booking = await Bookings.findOne({ "travellerPayment.orderId": orderId });
+    } else if (eventType.startsWith("payment_link")) {
+      const paymentLinkEntity = event.payload.payment_link?.entity;
+      paymentEntity = event.payload.payment?.entity;
+
+      if (!paymentLinkEntity) {
+        return NextResponse.json(
+          { error: "Missing payment link entity" },
+          { status: 400 }
+        );
+      }
+      orderId = paymentLinkEntity.id;
+      booking = await Bookings.findOne({ "travellerPayment.orderId": orderId });
     }
 
-    const booking = await Bookings.findOne({
-      "payment.orderId": paymentLinkEntity.id,
-    });
-
     if (!booking) {
-      console.warn(
-        "⚠️ Booking not found for payment link:",
-        paymentLinkEntity.id
-      );
+      console.warn("⚠️ Booking not found for orderId:", orderId);
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    if (eventType === "payment_link.paid") {
-      booking.payment.status = "paid";
-      booking.payment.paymentId = paymentEntity?.id ?? "";
-      booking.payment.paidAt = new Date();
-      booking.payment.remainingAmount = 0;
-      booking.travellerPayment.amountRecieved = paymentEntity?.amount
-        ? paymentEntity.amount / 100
-        : booking.travellerPayment.amountRecieved;
+    // Amount paid
+    const amountPaid = paymentEntity?.amount ? paymentEntity.amount / 100 : 0;
 
-      await booking.save();
-      console.log("✅ Booking payment updated:", booking._id);
-    } else if (
+    // Append payment history if this is a successful payment
+    if (eventType === "payment.captured" || eventType === "payment_link.paid") {
+      if (!booking.travellerPayment.history)
+        booking.travellerPayment.history = [];
+
+      booking.travellerPayment.history.push({
+        amount: amountPaid,
+        date: paymentEntity?.created_at
+          ? new Date(paymentEntity.created_at * 1000)
+          : new Date(),
+        method: paymentEntity?.method || "Unknown",
+        status: "paid",
+        linkId: orderId,
+        paymentId: paymentEntity?.id || paymentEntity?.id || "",
+      });
+
+      // Update main travellerPayment fields
+      booking.travellerPayment.paymentId =
+        paymentEntity?.id || booking.travellerPayment.paymentId;
+      booking.travellerPayment.amountRecieved =
+        (booking.travellerPayment.amountRecieved || 0) + amountPaid;
+      booking.travellerPayment.currency =
+        paymentEntity?.currency || booking.travellerPayment.currency;
+      booking.travellerPayment.method =
+        paymentEntity?.method || booking.travellerPayment.method;
+      booking.travellerPayment.paidAt = paymentEntity?.created_at
+        ? new Date(paymentEntity.created_at * 1000)
+        : new Date();
+      booking.travellerPayment.customerEmail =
+        paymentEntity?.email || booking.travellerPayment.customerEmail;
+      booking.travellerPayment.customerPhone =
+        paymentEntity?.contact || booking.travellerPayment.customerPhone;
+
+      // Compute remaining and status
+      const finalAmount = booking.travellerPayment.finalAmount || 0;
+      const received = booking.travellerPayment.amountRecieved || 0;
+      booking.travellerPayment.amountRemaining = Math.max(
+        finalAmount - received,
+        0
+      );
+      booking.travellerPayment.status =
+        received === 0
+          ? "pending"
+          : received < finalAmount
+          ? "partial"
+          : "paid";
+    }
+
+    // Handle failed / cancelled links
+    if (
       eventType === "payment_link.expired" ||
       eventType === "payment_link.cancelled"
     ) {
-      booking.payment.status = "failed";
-      await booking.save();
-      console.log(`⚠️ Payment link ${eventType} for booking:`, booking._id);
+      booking.travellerPayment.status = "failed";
     }
+
+    await booking.save();
+    console.log("✅ Booking updated for", eventType, booking._id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

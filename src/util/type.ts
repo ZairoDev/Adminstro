@@ -358,10 +358,13 @@ export interface VisitInterface {
   createdBy: string;
 }
 
+
 export interface BookingInterface {
-  _id: string;
-  lead: string;
-  visit: string;
+  _id?: string;
+  bookingId: string;
+  lead: string; // ObjectId as string
+  visit: string; // ObjectId as string
+
   checkIn: {
     date: Date;
     time: string;
@@ -370,28 +373,46 @@ export interface BookingInterface {
     date: Date;
     time: string;
   };
+
   contract?: string;
+  leadClosingBy?: string;
+
   finalAmount: number;
+
   ownerPayment: {
     finalAmount: number;
     amountRecieved: number;
   };
+
   travellerPayment: {
     finalAmount: number;
     amountRecieved: number;
+    orderId?: string; // plink_xxx or order_xxx
+    paymentId?: string;
+    status: "pending" | "partial" | "paid" | "failed";
+    amountPaid: number;
+    amountRemaining: number;
+    currency?: string;
+    method?: string;
+    paidAt?: Date;
+    customerEmail?: string;
+    customerPhone?: string;
+    history: {
+      amount: number;
+      date: Date;
+      method: string;
+      linkId?: string;
+      paymentId?: string;
+      status?: "paid" | "failed" | "pending";
+    }[];
   };
-  payment: {
-    orderId: string;
-    paymentId: string;
-    status: "pending" | "paid" | "failed" | "partial";
-    remainingAmount: number;
-    paidAt: Date;
-  };
+
   note?: string;
   createdBy: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
+
 
 export interface AgentInterface {
   _id: string;

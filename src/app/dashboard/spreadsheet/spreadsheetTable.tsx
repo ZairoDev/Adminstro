@@ -44,7 +44,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CopyCell } from "@/components/Copy";
 import { EditableCopyCell } from "./EditableCopyCell";
 import { get } from "http";
-import {toast} from "react-hot-toast";
 import CustomTooltip from "@/components/CustomToolTip";
 import { table } from "console";
 
@@ -57,6 +56,7 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
 import { CiTextAlignCenter } from "react-icons/ci";
+import { useToast } from "@/hooks/use-toast";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -140,6 +140,7 @@ export function SpreadsheetTable({
       value: "Not Available",
     },
   ];
+  const { toast } = useToast();
 
   const token = useAuthStore((state: any) => state.token);
 
@@ -156,9 +157,18 @@ export function SpreadsheetTable({
     try {
       await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
         field: "responseStatus",
-        value: newStatus,
+        value: newStatus, 
+      });
+      toast({
+        title: "Response status updated",
+        description: "Owner verified successfully.",
+        variant: "default",
       });
     } catch (error) {
+    toast({
+        title: "Failed to update the Owner status",
+        variant: "destructive",
+      });
       console.error("Response status update failed", error);
       // Rollback if error
       updatedData[index].isVerified = tableData[index].isVerified;
@@ -377,20 +387,18 @@ export function SpreadsheetTable({
         field: key,
         value: newValue,
       });
-      toast(
-        <div className="flex items-center gap-2">
-          <Check className="h-4 w-4" />
-          Lead deleted successfully
-        </div>
-      );
+      toast({
+        title: "Response status updated",
+        description: "Lead verified successfully.",
+        variant: "default", // optional
+      });
+      
     } catch (error) {
       console.error("Update failed", error);
-      toast(
-        <div className="flex items-center gap-2">
-          <X className="h-4 w-4" />
-          Error deleting lead
-        </div>
-      );
+      toast({
+        title: "Error deleting lead",
+        variant: "destructive",
+      });
       // rollback if API fails
       setTableData(prev);
     }
@@ -410,19 +418,17 @@ export function SpreadsheetTable({
           `/api/unregisteredOwners/updateData/${selectedRow}`
         );
         if (res.status === 200) {
-          toast(
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4" />
-              Lead deleted successfully
-            </div>
-          );
+          toast({
+            title: "Response status updated",
+            description: "Owner Deleted successfully.",
+            variant: "default", // optional
+          });
+          
         } else {
-          toast(
-            <div className="flex items-center gap-2">
-              <X className="h-4 w-4" />
-              Error deleting lead
-            </div>
-          );
+          toast({
+            title: "Error deleting Owner",
+            variant: "destructive",
+          });
         }
       }
     };
@@ -522,39 +528,49 @@ export function SpreadsheetTable({
     const [uploaded, setUploaded] = useState(
       !!(item.imageUrls && item.imageUrls.length > 0)
     );
+    const { toast } = useToast();
 
     const handleFileChange = async (
       event: React.ChangeEvent<HTMLInputElement>
     ) => {
-      const files = event.target.files;
-      if (!files) return;
+      const input = event.target;
+      const files = input.files;
+      if (!files || files.length === 0) return;
 
       const fileArray = Array.from(files);
       const { imageUrls, error } = await uploadFiles(fileArray, "Uploads");
 
       if (error) {
-        alert(error);
+        toast({
+          title: "Upload failed",
+          description: error,
+          variant: "destructive",
+        });
         return;
       }
 
-      // Save uploaded URLs to your table row (uploadLink or any field)
+      try {
+        await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
+          field: "imageUrls",
+          value: imageUrls,
+        });
 
-      if (imageUrls.length > 0) {
-        try {
-          await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
-            field: "imageUrls",
-            value: imageUrls,
-          });
-
-          setUploaded(true);
-        } catch (err) {
-          console.error("Failed to update images:", err);
-        }
+        toast({
+          title: "Images uploaded successfully",
+          description: `${imageUrls.length} image(s) uploaded.`,
+        });
+        setUploaded(true);
+      } catch (err) {
+        toast({
+          title: "Failed to update images",
+          description: "Server error occurred.",
+          variant: "destructive",
+        });
+        console.error("Failed to update images:", err);
       }
-      // Reset input so selecting same file works next time
-      event.target.value = "";
+
+      input.value = ""; // ✅ reset so re-upload works
     };
-    const hasImages = item.imageUrls && item.imageUrls.length > 0;
 
     return (
       <>
@@ -571,7 +587,12 @@ export function SpreadsheetTable({
           size="icon"
           className="p-0"
           disabled={loading}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ""; // ✅ ensure first click works
+              fileInputRef.current.click();
+            }
+          }}
         >
           <ImageUp
             className={`h-5 w-5 ${
@@ -582,6 +603,7 @@ export function SpreadsheetTable({
       </>
     );
   }
+  
 
   function DownloadCell({ item }: { item: unregisteredOwners }) {
     const handleDownloadZip = async () => {

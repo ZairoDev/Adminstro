@@ -118,7 +118,7 @@ const BookingPage = ({ params }: PageProps) => {
       igst: 0,
       cgst: 0,
       totalAmount: booking?.finalAmount ?? 0,
-      status: (booking?.payment.status?.toLowerCase() === "paid"
+      status: (booking?.travellerPayment.status?.toLowerCase() === "paid"
         ? "paid"
         : "unpaid") as "paid" | "unpaid",
 
@@ -167,6 +167,8 @@ const BookingPage = ({ params }: PageProps) => {
           <div>
             <PaymentLinkButton
               amount={booking.finalAmount}
+              amountRecieved={booking.travellerPayment.amountRecieved}
+              finalPrice={booking.travellerPayment.finalAmount}
               name={booking.lead.name}
               email={booking.lead.email}
               phone={booking.lead.phoneNo?.toString()}
@@ -183,7 +185,7 @@ const BookingPage = ({ params }: PageProps) => {
               checkOut={
                 booking.checkOut.date
                   ? format(booking.checkOut.date, "yyyy-MM-dd")
-                  : ""  
+                  : ""
               }
             />
           </div>
@@ -214,9 +216,9 @@ const BookingPage = ({ params }: PageProps) => {
                 <div>
                   <p className="text-sm ">Payment Status</p>
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(booking.payment.status)}
-                    <Badge className={getStatusColor(booking.payment.status)}>
-                      {booking.payment.status.toUpperCase()}
+                    {getStatusIcon(booking.travellerPayment.status)}
+                    <Badge className={getStatusColor(booking.travellerPayment.status)}>
+                      {booking.travellerPayment.status.toUpperCase()}
                     </Badge>
                   </div>
                 </div>
@@ -480,10 +482,16 @@ const BookingPage = ({ params }: PageProps) => {
                     </span>
                   </div>
                   <div className="text-sm text-green-700">
-                    <p>Order ID: {booking.payment.orderId}</p>
-                    <p>Payment ID: {booking.payment.paymentId}</p>
+                    <p>Order ID: {booking?.travellerPayment.orderId}</p>
+                    <p>Payment ID: {booking?.travellerPayment.paymentId}</p>
                     <p>
-                      Paid on: {format(booking.payment.paidAt, "MMM d, yyyy")}
+                      Paid on:{" "}
+                      {booking?.travellerPayment?.paidAt
+                        ? format(
+                            new Date(booking.travellerPayment.paidAt),
+                            "MMM d, yyyy"
+                          )
+                        : "N/A"}
                     </p>
                   </div>
                 </div>

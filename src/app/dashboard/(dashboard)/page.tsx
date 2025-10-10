@@ -182,6 +182,11 @@ const Dashboard = () => {
     days?: string;
   }>({});
 
+
+  const [leadCountFilters, setLeadCountFilters] = useState<{
+    days?: string;
+  }>({});
+
   const [reviewsFilters, setReviewsFilters] = useState<{
     days?: string;
     location?: string;
@@ -262,15 +267,24 @@ const Dashboard = () => {
 
   // Transform data for recharts (make sure counts are numbers)
   const chartData = useMemo(
-    () =>
-      totalListings.map((item) => ({
-        date: item.date,
-        total: Number(item.total), // this is the line you plot
-        shortTerm: Number(item.shortTerm),
-        longTerm: Number(item.longTerm),
-      })),
-    [totalListings]
-  );
+  () =>
+    totalListings.map((item) => ({
+      date: item.date,
+      total:
+        item.total === null || item.total === undefined
+          ? 0
+          : Number(item.total),
+      shortTerm:
+        item.shortTerm === null || item.shortTerm === undefined
+          ? 0
+          : Number(item.shortTerm),
+      longTerm:
+        item.longTerm === null || item.longTerm === undefined
+          ? 0
+          : Number(item.longTerm),
+    })),
+  [totalListings]
+);
 
   // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
@@ -519,14 +533,23 @@ const Dashboard = () => {
         <section className="relative my-10">
           <h1 className="text-3xl font-bold mb-6">Lead-Gen Dashboard</h1>
 
-          
+          <CustomSelect
+            itemList={["month", "year", "30days"]}
+            triggerText="Select range"
+            defaultValue={leadCountFilters?.days || "month"}
+            onValueChange={(value) => {
+              setLeadCountFilters({ days: value });
+              fetchLeadsByLeadGen(value as "month" | "year" | "30days");
+            }}
+            triggerClassName="w-32 absolute right-2 top-2"
+          />
 
-                <div>
-        {(token?.role === "SuperAdmin" ||
-          token?.role === "LeadGen-TeamLead") && (
-          <ChartAreaMultiple data={chartData1} />
-        )}
-      </div>
+          <div>
+            {(token?.role === "SuperAdmin" ||
+              token?.role === "LeadGen-TeamLead") && (
+              <ChartAreaMultiple data={chartData1} />
+            )}
+          </div>
         </section>
       )}
 
@@ -680,21 +703,21 @@ const Dashboard = () => {
             )}
 
             <div className="flex items-center rounded-lg m-4">
-            {leadStats.map((loc: LeadStats, index: number) => (
-              <StatsCard
-                className="m-8"
-                key={index}
-                title={loc.location}
-                target={loc.target}
-                achieved={loc.achieved}
-                today={loc.today}
-                yesterday={loc.yesterday}
-                dailyrequired={loc.dailyrequired}
-                dailyAchieved={loc.currentAverage}
-                rate={loc.rate}
-              />
-            ))}
-          </div>
+              {leadStats.map((loc: LeadStats, index: number) => (
+                <StatsCard
+                  className="m-8"
+                  key={index}
+                  title={loc.location}
+                  target={loc.target}
+                  achieved={loc.achieved}
+                  today={loc.today}
+                  yesterday={loc.yesterday}
+                  dailyrequired={loc.dailyrequired}
+                  dailyAchieved={loc.currentAverage}
+                  rate={loc.rate}
+                />
+              ))}
+            </div>
 
             {/* <Card className="shadow-md">
           <CardHeader>
@@ -893,7 +916,8 @@ const Dashboard = () => {
             />
           </span>
           <div className="grid grid-cols-2 gap-4">
-            <div className="relative  mt-8">
+
+            {/* <div className="relative  mt-8">
               <CustomSelect
                 itemList={[
                   "Today",
@@ -915,13 +939,17 @@ const Dashboard = () => {
                   fetchVisits(newLeadFilters);
                 }}
                 triggerClassName=" w-32 absolute left-2 top-2"
-              />
-              <VisitsCountBarChart
-                heading={"Visits Dashboard  "}
+              /> */}
+              {/* <VisitsCountBarChart
+                heading={"Visits Dashboard"}
                 chartData={visits}
-              />
-            </div>
-            <div className="relative  mt-8">
+              /> */}
+
+              <p>Visits dashboard</p>
+
+              
+            {/* </div>  */}
+            {/* <div className="relative  mt-8">
               <CustomSelect
                 itemList={[
                   "Today",
@@ -950,7 +978,8 @@ const Dashboard = () => {
                 heading={"Visits Dashboard  "}
                 chartData={visitsToday}
               />
-            </div>
+            </div> */}
+            
           </div>
         </div>
       )}
@@ -1106,7 +1135,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-          
         </>
       )}
 
@@ -1196,108 +1224,107 @@ const Dashboard = () => {
       </div>
 
       <div className="relative w-full mx-auto">
-            <Card className="shadow-md rounded-2xl">
-              <CardHeader>
-                <CardTitle>Listings Created</CardTitle>
-                <CardDescription>
-                  {listingFilters?.days || "Last 12 Days"}
-                </CardDescription>
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader>
+            <CardTitle>Listings Created</CardTitle>
+            <CardDescription>
+              {listingFilters?.days || "Last 12 Days"}
+            </CardDescription>
 
-                {/* Range Selector */}
-                <CustomSelect
-                  itemList={["12 days", "1 year", "last 3 years"]}
-                  triggerText="Select range"
-                  defaultValue={listingFilters?.days || "12 days"}
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...listingFilters };
-                    newLeadFilters.days = value;
-                    fetchListingCounts(newLeadFilters);
-                  }}
-                  triggerClassName="w-32 absolute right-2 top-2"
-                />
-              </CardHeader>
+            {/* Range Selector */}
+            
+            <CustomSelect
+              itemList={["12 days", "1 year", "last 3 years"]}
+              triggerText="Select range"
+              defaultValue={listingFilters?.days || "12 days"}
+              onValueChange={(value) => {
+                const newLeadFilters = { ...listingFilters };
+                newLeadFilters.days = value;
+                fetchListingCounts(newLeadFilters);
+              }}
+              triggerClassName="w-32 absolute right-2 top-2"
+            />
+          </CardHeader>
 
-              <CardContent className="h-[400px]">
-                {loading ? (
-                  <p className="text-center text-muted-foreground">
-                    Loading...
-                  </p>
-                ) : isError ? (
-                  <p className="text-center text-red-500">Error: {error}</p>
-                ) : chartData.length === 0 ? (
-                  <p className="text-center text-muted-foreground">
-                    No data available
-                  </p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={chartData
-                        .map((item) => ({
-                          date: item.date,
-                          shortTerm: item.shortTerm,
-                          longTerm: item.longTerm,
-                          total: item.total,
-                        }))
-                        .sort(
-                          (a, b) =>
-                            new Date(a.date).getTime() -
-                            new Date(b.date).getTime()
-                        )}
-                      margin={{ left: 0, right: 16 }}
-                    >
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={4}
-                        tickFormatter={(value) => {
-                          if (listingFilters?.days === "last 3 years")
-                            return value; // Year
-                          if (listingFilters?.days === "1 year") return value; // Month
-                          return value; // Day + Month
-                        }}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        cursor={false}
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-white shadow-md p-3 rounded-lg border">
-                                <p className="font-semibold">{label}</p>
-                                <p className="text-sm text-blue-600">
-                                  Short-Term: {data.shortTerm}
-                                </p>
-                                <p className="text-sm text-green-600">
-                                  Long-Term: {data.longTerm}
-                                </p>
-                                <p className="text-sm font-bold">
-                                  Total: {data.total}
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Line
-                        dataKey="total"
-                        type="monotone"
-                        stroke={chartConfig.listings.color}
-                        strokeWidth={2}
-                        dot={{ fill: chartConfig.listings.color }}
-                        activeDot={{ r: 5 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
+          <CardContent className="h-[400px]">
+            {loading ? (
+              <p className="text-center text-muted-foreground">Loading...</p>
+            ) : isError ? (
+              <p className="text-center text-red-500">Error: {error}</p>
+            ) : chartData.length === 0 ? (
+              <p className="text-center text-muted-foreground">
+                No data available
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartData
+                    .map((item) => ({
+                      date: item.date,
+                      shortTerm: item.shortTerm,
+                      longTerm: item.longTerm,
+                      total: item.total,
+                    }))
+                    .sort(
+                      (a, b) =>
+                        new Date(a.date).getTime() - new Date(b.date).getTime()
+                    )}
+                  margin={{ left: 0, right: 16 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={4}
+                    tickFormatter={(value) => {
+                      if (listingFilters?.days === "last 3 years") return value; // Year
+                      if (listingFilters?.days === "1 year") return value; // Month
+                      return value; // Day + Month
+                    }}
+                  />
+                 <YAxis />
 
-              <CardFooter className="flex-col items-start gap-2 text-sm" />
-            </Card>
-          </div>
+
+                  <Tooltip
+                    cursor={false}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white shadow-md p-3 rounded-lg border">
+                            <p className="font-semibold">{label}</p>
+                            <p className="text-sm text-blue-600">
+                              Short-Term: {data.shortTerm}
+                            </p>
+                            <p className="text-sm text-green-600">
+                              Long-Term: {data.longTerm}
+                            </p>
+                            <p className="text-sm font-bold">
+                              Total: {data.total}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    dataKey="total"
+                    type="monotone"
+                    stroke={chartConfig.listings.color}
+                    strokeWidth={2}
+                    dot={{ fill: chartConfig.listings.color }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex-col items-start gap-2 text-sm" />
+        </Card>
+      </div>
     </div>
   );
 };

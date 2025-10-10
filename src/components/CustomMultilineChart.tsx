@@ -131,19 +131,28 @@ export function ChartAreaMultiple({ data }: ChartBarMultipleProps) {
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={20}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                });
-              }}
-            />
+  dataKey="date"
+  tickLine={false}
+  axisLine={false}
+  tickMargin={8}
+  minTickGap={20}
+  tickFormatter={(value) => {
+    // Handle month-level data like "2025-05"
+    if (/^\d{4}-\d{2}$/.test(value)) {
+      const [year, month] = value.split("-");
+      const monthName = new Date(Number(year), Number(month) - 1)
+        .toLocaleString("en-US", { month: "short" });
+      return `${monthName}`; // → "May 25"
+    }
+
+    // Fallback for day-level data like "2025-05-12"
+    const date = new Date(value);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }}
+/>
             <YAxis />
             <ChartTooltip
               content={

@@ -8,9 +8,9 @@ export async function POST(req: Request) {
     await connectDb();
     const body = await req.json();
 
-    const { title, description, images, createdBy } = body;
+    const { title,location, description, images, createdBy } = body;
 
-    if (!title || !description || !images?.length) {
+    if (!title ||!location|| !description || !images?.length) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
 
     const property = await Boosters.create({
       title,
+      location,
       description,
       images,
       createdBy,

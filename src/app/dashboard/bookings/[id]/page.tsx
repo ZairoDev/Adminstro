@@ -113,11 +113,11 @@ const BookingPage = ({ params }: PageProps) => {
       email: booking?.lead.email ?? "",
       phoneNumber: booking?.lead.phoneNo?.toString() ?? "",
       address: booking?.lead.location ?? "",
-      amount: booking?.finalAmount ?? 0,
+      amount: booking?.travellerPayment.finalAmount ?? 0,
       sgst: 0,
       igst: 0,
       cgst: 0,
-      totalAmount: booking?.finalAmount ?? 0,
+      totalAmount: booking?.travellerPayment.finalAmount ?? 0,
       status: (booking?.travellerPayment.status?.toLowerCase() === "paid"
         ? "paid"
         : "unpaid") as "paid" | "unpaid",

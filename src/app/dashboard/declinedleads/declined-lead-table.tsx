@@ -625,7 +625,8 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                       {(token?.role === "SuperAdmin" ||
-                        token?.role === "Sales-TeamLead") && (
+                        token?.role === "Sales-TeamLead" ||
+                        token?.role === "Sales") && (
                         <DropdownMenuItem
                           onClick={() => removeDisposition(query?._id, index)}
                         >

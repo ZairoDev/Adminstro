@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import Bookings from "@/models/booking";
 import Query from "@/models/query";
+import { BookingInterface } from "@/util/type";
 
 type RequestBody = {
   amount: number;
@@ -167,7 +168,7 @@ async function generatePdfBuffer(data: {
   drawLabelValue("Guest Name", name || "-");
   drawLabelValue("Phone", phone || "-");
   drawLabelValue("Email", email || "-");
-  drawLabelValue("Total Amount (INR)", `₹ ${finalPrice?.toFixed(2)}`);
+  drawLabelValue("Total Amount (INR)", ` ${finalPrice?.toFixed(2)}`);
   drawLabelValue("Paid Amount (INR)", `${amount}`);
   drawLabelValue(
     "Number of People",
@@ -264,8 +265,8 @@ export async function POST(req: Request) {
     const body = (await req.json()) as RequestBody;
     const { amount, name, email, phone, description, bookingId, email_id } =
       body;
+    console.log("body: ", body);
 
-    // 🧩 Validation
     if (!amount || !name || !email || !phone) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -273,13 +274,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 💳 Razorpay setup
     const razorpay = getRazorpay();
 
-    // 🧾 Create payment link
     const paymentLinkResponse: any = await razorpay.paymentLink.create({
       amount: Math.round(amount * 100),
-      currency: "INR",
+      currency: "EUR",
       description: description ?? "Payment Request",
       customer: { name, email, contact: phone },
       notify: { sms: true, email: true },
@@ -296,7 +295,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // === ✅ Update booking record according to new schema ===
     const updateData: any = {
       "travellerPayment.orderId": paymentLinkResponse.id,
       "travellerPayment.status": "pending",
@@ -304,11 +302,9 @@ export async function POST(req: Request) {
       "travellerPayment.currency": "INR",
       "travellerPayment.customerEmail": email,
       "travellerPayment.customerPhone": phone,
-
-      // Optionally, append a pending entry in history
       $push: {
         "travellerPayment.history": {
-          amount: amount,
+          amount,
           method: "link",
           linkId: paymentLinkResponse.id,
           status: "pending",
@@ -317,11 +313,22 @@ export async function POST(req: Request) {
       },
     };
 
-    // ✅ Update email in booking if provided
     if (email_id) updateData.email = email_id;
     else if (email) updateData.email = email;
 
-    await Bookings.findByIdAndUpdate(bookingId, { $set: updateData });
+    // ✅ Update Booking
+    const updatedBooking = await Bookings.findByIdAndUpdate(
+      bookingId,
+      { $set: updateData },
+      { new: true }
+    ).lean<BookingInterface | null>();
+
+    // ✅ Update Query collection email if booking has a leads reference
+    if (updatedBooking?.lead) {
+      await Query.findByIdAndUpdate(updatedBooking.lead, {
+        $set: { email: email_id ?? email },
+      });
+    }
 
     // === 📄 Generate PDF invoice ===
     const pdfBuffer = await generatePdfBuffer({
@@ -354,10 +361,9 @@ export async function POST(req: Request) {
       ],
     });
 
-    // ✅ Final response
     return NextResponse.json({
       success: true,
-      message: "Payment link created, email sent, and booking updated",
+      message: "Payment link created, email sent, and booking/query updated",
       link: shortUrl,
     });
   } catch (err: any) {

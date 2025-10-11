@@ -146,7 +146,7 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
       toast({
         description: "Disposition updated succefully",
       });
-      queries[index].leadStatus = "goodtogo";
+      queries[index].leadStatus = "active";
       setLoading(false);
     } catch (error: any) {
       setLoading(false);

@@ -841,49 +841,132 @@ export const getLocationLeadStats = async () => {
   return { visits };
 };
 
-export const getVisitLeadStats = async () => {
+
+
+export const getLocationVisitStats = async () => {
   const today = new Date();
-  const yesterday =new Date(today);
-  yesterday.setDate(yesterday.getDate()-1);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
-  const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(),today.getDate(),0,0,0));
-  const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(),today.getDate(),23,59,59,999));
+  // UTC boundaries
+  const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
+  const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
 
-  const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(),yesterday.getDate(),0,0,0));
-  const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(),yesterday.getDate(),23,59,59,999));
+  const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
+  const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
 
   const startOfMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0));
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const daysPassedInMonth = today.getDate(); // current day of the month
+  const daysPassedInMonth = today.getDate();
 
-  const queryAgg = await Visits.aggregate([
+  // ----------------------------
+  // Aggregation with correct lookup and grouping by `leadInfo.location`
+  // ----------------------------
+  const visitAgg = await Visits.aggregate([
     {
       $facet: {
         today: [
           { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
           {
+            $lookup: {
+              from: "queries",
+              localField: "lead",
+              foreignField: "_id",
+              as: "leadInfo",
+            },
+          },
+          { $unwind: "$leadInfo" },
+          {
             $group: {
-              _id: { $toLower: "$location" },
-              todayCount: { $sum: 1 }
-            }
+              _id: { $toLower: "$leadInfo.location" },
+              todayCount: { $sum: 1 },
+            },
           },
         ],
         yesterday: [
           { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
           {
+            $lookup: {
+              from: "queries",
+              localField: "lead",
+              foreignField: "_id",
+              as: "leadInfo",
+            },
+          },
+          { $unwind: "$leadInfo" },
+          {
             $group: {
-              _id: { $toLower: "$lead" },
-              yesterdayCount: { $sum: 1 }
-            }
+              _id: { $toLower: "$leadInfo.location" },
+              yesterdayCount: { $sum: 1 },
+            },
+          },
+        ],
+        month: [
+          { $match: { createdAt: { $gte: startOfMonth, $lte: endOfToday } } },
+          {
+            $lookup: {
+              from: "queries",
+              localField: "lead",
+              foreignField: "_id",
+              as: "leadInfo",
+            },
+          },
+          { $unwind: "$leadInfo" },
+          {
+            $group: {
+              _id: { $toLower: "$leadInfo.location" },
+              monthCount: { $sum: 1 },
+            },
           },
         ],
       },
-    }
+    },
+  ]);
 
-    
-  ])
-}
+  console.log("🔍 visit aggregation result:", JSON.stringify(visitAgg, null, 2));
 
+  // ----------------------------
+  // Convert to maps for easy lookup
+  // ----------------------------
+  const todayMap = Object.fromEntries(visitAgg[0].today.map((d: any) => [d._id, d.todayCount]));
+  const yesterdayMap = Object.fromEntries(visitAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
+  const monthMap = Object.fromEntries(visitAgg[0].month.map((d: any) => [d._id, d.monthCount]));
+
+  // ----------------------------
+  // Get monthly targets
+  // ----------------------------
+  const monthlyTargets = await MonthlyTarget.find({}).lean();
+
+  // ----------------------------
+  // Merge and calculate stats
+  // ----------------------------
+  const visits = monthlyTargets.map((mt) => {
+    const loc = mt.city.toLowerCase();
+    const target = mt.visits || 0;
+    const achieved = monthMap[loc] || 0;
+    const todayCount = todayMap[loc] || 0;
+    const yesterdayCount = yesterdayMap[loc] || 0;
+    const dailyRequired = target > 0 ? Math.ceil(target / daysInMonth) : 0;
+    const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
+    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : 0;
+    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : 0;
+
+    return {
+      location: mt.city,
+      target,
+      achieved,
+      today: todayCount,
+      yesterday: yesterdayCount,
+      dailyRequired,
+      rate,
+      currentAverage: Number(currentAverage),
+      successRate: Number(successRate),
+    };
+  });
+
+  console.log("📊 Final visits data:", visits);
+  return { visits };
+};
 
 
 

@@ -89,6 +89,7 @@ import { MoleculeVisualization } from "@/components/molecule_visual";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 import { StatsCard } from "@/components/leadCountCard/page";
 import useLeadStats from "@/hooks/(VS)/useLeadStats";
+import useVisitStats from "@/hooks/(VS)/useVisitStats";
 
 //  const chartConfig = {
 //   greece: {
@@ -142,6 +143,17 @@ interface LeadStats {
   currentAverage: number; // dailyAchieved in StatsCard
   rate: number;
 }
+interface VisitStats {
+  location: string;
+  target: number;
+  achieved: number;
+  today: number;
+  yesterday: number;
+  dailyRequired: number;
+  currentAverage: number; // dailyAchieved in StatsCard
+  rate: number;
+}
+
 
 const chartConfig = {
   listings: {
@@ -308,6 +320,17 @@ const Dashboard = () => {
     setStatsErrMsg,
     fetchLeadStats,
   } = useLeadStats();
+
+   const {
+    visitStats,
+    visitStatsLoading,
+    setVisitStatsLoading,
+    visitStatsError,
+    setVisitStatsError,
+    visitStatsErrMsg,
+    setVisitStatsErrMsg,
+    fetchVisitStats,
+  } = useVisitStats();
 
   // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
@@ -905,17 +928,12 @@ const Dashboard = () => {
 
       {token?.role === "SuperAdmin" && (
         <div className="relative">
-          <span
-            onClick={handlfetch}
-            className="bg-white p-1 absolute right-1/2 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 rounded-lg"
-          >
-            <RotateCw
-              className={loading ? "animate-spin" : ""}
-              color="black"
-              size={32}
-            />
-          </span>
-          <div className="grid grid-cols-2 gap-4">
+          <div className=" flex flex-col gap-y-4 mt-4">
+            <h1 className=" mt-2 text-3xl font-semibold ">
+              Visits Dashboard
+            </h1>
+         
+          
 
             {/* <div className="relative  mt-8">
               <CustomSelect
@@ -945,7 +963,23 @@ const Dashboard = () => {
                 chartData={visits}
               /> */}
 
-              <p>Visits dashboard</p>
+     
+              <div className="flex items-center rounded-lg m-4">
+              {visitStats.map((loc: VisitStats, index: number) => (
+                <StatsCard
+                  className="m-8"
+                  key={index}
+                  title={loc.location}
+                  target={loc.target}
+                  achieved={loc.achieved}
+                  today={loc.today}
+                  yesterday={loc.yesterday}
+                  dailyrequired={loc.dailyRequired}
+                  dailyAchieved={loc.currentAverage}
+                  rate={loc.rate}
+                />
+              ))}
+            </div>
 
               
             {/* </div>  */}

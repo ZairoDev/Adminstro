@@ -1,0 +1,182 @@
+"use client";
+import { TrendingDown, TrendingUp, Target, Calendar, Zap, Activity } from "lucide-react";
+import { useMemo } from "react";
+
+interface StatsCardProps {
+  title?: string;
+  target: number;
+  achieved: number;
+  today: number;
+  yesterday: number;
+  dailyrequired: number;
+  dailyAchieved: number;
+  rate: number;
+  position?: { x: number; y: number };
+  className?: string;
+}
+
+export function VisitStatsCard({
+  title = "Unknown",
+  target,
+  achieved,
+  today,
+  yesterday,
+  dailyrequired,
+  dailyAchieved,
+  rate,
+  position,
+  className = "",
+}: StatsCardProps) {
+  const requiredRunRate = useMemo(() => {
+    const today = new Date();
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    let remainingDays = 0;
+
+    for (let d = new Date(today); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() !== 0) remainingDays++;
+    }
+
+    if (remainingDays === 0) return 0;
+
+    return (target - achieved) / remainingDays;
+  }, [target, achieved]);
+
+  const todayPercentage = (today / dailyrequired) * 100;
+  const isOnTrack = dailyAchieved >= requiredRunRate;
+
+  const getDotColor = () => {
+    if (todayPercentage >= 90) return "bg-emerald-400";
+    if (todayPercentage >= 60) return "bg-amber-400";
+    return "bg-rose-400";
+  };
+
+  return (
+    <div
+      className={`
+        relative overflow-hidden
+        bg-stone-800
+        rounded-xl
+        border border-slate-700/30
+        shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+        transition-all duration-500
+        hover:shadow-[0_20px_60px_rgba(0,0,0,0.6)]
+        hover:border-slate-600/50
+        hover:-translate-y-1
+        ${className}
+      `}
+      style={
+        position
+          ? {
+              top: position.y + 20,
+              left: position.x + 20,
+              minWidth: "240px",
+            }
+          : { minWidth: "240px" }
+      }
+    >
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-cyan-500/10 via-transparent to-transparent blur-2xl" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-radial from-purple-500/10 via-transparent to-transparent blur-2xl" />
+
+      <div className="relative p-4 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-0.5">
+            <h3 className="font-bold text-lg text-white tracking-tight">
+              {title}
+            </h3>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isOnTrack ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
+              <span className={`text-[10px] font-medium ${isOnTrack ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {isOnTrack ? 'On Track' : 'Behind'}
+              </span>
+            </div>
+          </div>
+          <div className={`
+            p-1.5 rounded-lg
+            ${isOnTrack ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-rose-500/10 border border-rose-500/30'}
+            transition-all duration-300
+          `}>
+            {isOnTrack ? (
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <TrendingDown className="w-4 h-4 text-rose-400" />
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-3 rounded-lg border border-slate-700/30 backdrop-blur-sm">
+          <div className="flex justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Target className="w-3 h-3 text-green-400" />
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Target</span>
+            </div>
+            <div className="text-base font-bold text-green-300 tabular-nums">{target}</div>
+          </div>
+
+          <div className="flex justify-between">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-red-400" />
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Done</span>
+            </div>
+            <div className="text-base font-bold text-red-300 tabular-nums">{achieved}</div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 border border-slate-700/20 hover:bg-slate-800/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <div className={`w-1.5 h-1.5 rounded-full ${getDotColor()}`} />
+              <span className="text-xs font-medium text-slate-300">Today</span>
+            </div>
+            <span className="text-sm font-bold text-white tabular-nums">{today}</span>
+          </div>
+
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 border border-slate-700/20 hover:bg-slate-800/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3 h-3 text-blue-400" />
+              <span className="text-xs font-medium text-slate-300">Yesterday</span>
+            </div>
+            <span className="text-sm font-bold text-white tabular-nums">{yesterday}</span>
+          </div>
+
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 border border-slate-700/20 hover:bg-slate-800/50 transition-colors">
+            <span className="text-xs font-medium text-slate-300">Daily Required</span>
+            <span className="text-sm font-bold text-white tabular-nums">{dailyrequired}</span>
+          </div>
+
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/30 border border-slate-700/20 hover:bg-slate-800/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Activity className="w-3 h-3 text-teal-400" />
+              <span className="text-xs font-medium text-slate-300">Current Avg</span>
+            </div>
+            <span className="text-sm font-bold text-white tabular-nums">{dailyAchieved}</span>
+          </div>
+
+          <div className="flex items-center justify-between p-2 rounded-lg bg-gradient-to-r from-orange-500/10 to-pink-500/10 border border-orange-500/30">
+            <span className="text-xs font-semibold text-orange-300">Required Rate</span>
+            <span className="text-sm font-bold text-orange-200 tabular-nums">{requiredRunRate.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="pt-2 space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider">Success Rate</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-2xl font-black bg-gradient-to-r from-green-400 to-green-500 bg-clip-text text-transparent tabular-nums">
+                {rate}
+              </span>
+              <span className="text-base font-bold text-slate-400">%</span>
+            </div>
+          </div>
+
+          <div className="relative h-2 bg-slate-800/50 rounded-full overflow-hidden border border-slate-700/30">
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-700/50 to-transparent" />
+            <div
+              className="absolute h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-700 ease-out shadow-lg shadow-green-500/30"
+              style={{ width: `${rate}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

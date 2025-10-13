@@ -968,6 +968,73 @@ export const getLocationVisitStats = async () => {
   return { visits };
 };
 
+export const getMonthlyVisitStats = async (monthName?: string) => {
+  const today = new Date();
+
+  // 🗓️ Determine month and year
+  const monthNames = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december"
+  ];
+
+  let monthIndex = today.getMonth(); // default current month
+  let year = today.getFullYear();
+
+  if (monthName) {
+    const idx = monthNames.indexOf(monthName.toLowerCase());
+    if (idx !== -1) {
+      monthIndex = idx;
+      // handle case where month is in future (previous year)
+      if (idx > today.getMonth()) {
+        year = year - 1;
+      }
+    }
+  }
+
+  // 🕐 Start & end of month (UTC safe)
+  const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
+  const endOfMonth = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+
+  console.log(`📆 Fetching visits for: ${monthNames[monthIndex]} ${year}`);
+  console.log(`Range: ${startOfMonth.toISOString()} → ${endOfMonth.toISOString()}`);
+
+  // ----------------------------
+  // MongoDB aggregation pipeline
+  // ----------------------------
+  const result = await Visits.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+      },
+    },
+    {
+      $lookup: {
+        from: "queries",
+        localField: "lead",
+        foreignField: "_id",
+        as: "leadInfo",
+      },
+    },
+    { $unwind: "$leadInfo" },
+    {
+      $group: {
+        _id: { $toLower: "$leadInfo.location" },
+        visits: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        location: { $ifNull: ["$_id", "Unknown"] },
+        visits: 1,
+      },
+    },
+    { $sort: { visits: -1 } },
+  ]);
+
+  console.log("📊 Monthly Visit Stats:", result);
+  return result;
+};
 
 
 
@@ -1769,13 +1836,14 @@ export const getNewOwnersCount = async ({
         _id: 0,
         ownerPhone: "$phoneNumber",
         ownerName: "$name",
-        city: 1,
+        location: 1,
         createdAt: 1,
       },
     },
   ];
 
   const newOwnersCount = await unregisteredOwner.aggregate(pipeline2);
+  console.log("newOwnersCount: ", newOwnersCount);
   return { newOwnersCount: newOwnersCount }; // return count, not array
 };
 

@@ -19,6 +19,7 @@ interface GoodVisitsInterface {
 interface UnregisteredOwnersInterface {
   ownerName: string;
   ownerPhone: string;
+  city: string;
 }
 
 interface CityData {
@@ -159,6 +160,7 @@ goodVisits1.forEach(item=>{
 
        setUnregisteredOwners(response.unregisteredOwners || []);
        setNewOwnersCount(ownersCount.newOwnersCount ?? 0);
+       console.log("responseCount: ", ownersCount.newOwnersCount);
        setOwnersCount(responseCount);
      } catch (err: any) {
        console.error(err);

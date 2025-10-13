@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, RotateCw } from "lucide-react";
 
@@ -90,6 +90,9 @@ import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 import { StatsCard } from "@/components/leadCountCard/page";
 import useLeadStats from "@/hooks/(VS)/useLeadStats";
 import useVisitStats from "@/hooks/(VS)/useVisitStats";
+import { VisitStatsCard } from "@/components/visitCountCard/page";
+import { CityVisitsChart } from "@/components/charts/VisitsHorizontalChart";
+import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 
 //  const chartConfig = {
 //   greece: {
@@ -333,6 +336,13 @@ const Dashboard = () => {
   } = useVisitStats();
 
   // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
+
+  const {
+     monthlyStats,
+    errMsg,
+    fetchMonthlyVisitStats,
+  } = useMonthlyVisitStats();
+  
 
   const router = useRouter();
 
@@ -929,11 +939,7 @@ const Dashboard = () => {
       {token?.role === "SuperAdmin" && (
         <div className="relative">
           <div className=" flex flex-col gap-y-4 mt-4">
-            <h1 className=" mt-2 text-3xl font-semibold ">
-              Visits Dashboard
-            </h1>
-         
-          
+            <h1 className=" mt-2 text-3xl font-semibold ">Visits Dashboard</h1>
 
             {/* <div className="relative  mt-8">
               <CustomSelect
@@ -958,30 +964,38 @@ const Dashboard = () => {
                 }}
                 triggerClassName=" w-32 absolute left-2 top-2"
               /> */}
-              {/* <VisitsCountBarChart
+            {/* <VisitsCountBarChart
                 heading={"Visits Dashboard"}
                 chartData={visits}
               /> */}
 
-     
-              <div className="flex items-center rounded-lg m-4">
-              {visitStats.map((loc: VisitStats, index: number) => (
-                <StatsCard
-                  className="m-8"
-                  key={index}
-                  title={loc.location}
-                  target={loc.target}
-                  achieved={loc.achieved}
-                  today={loc.today}
-                  yesterday={loc.yesterday}
-                  dailyrequired={loc.dailyRequired}
-                  dailyAchieved={loc.currentAverage}
-                  rate={loc.rate}
+            <div className="flex  items-start justify-between gap-6 m-4 w-full">
+              <div className="flex   items-start justify-between gap-6">
+                {visitStats.map((loc: VisitStats, index: number) => (
+                  <VisitStatsCard
+                    key={index}
+                    className="m-4"
+                    title={loc.location}
+                    target={loc.target}
+                    achieved={loc.achieved}
+                    today={loc.today}
+                    yesterday={loc.yesterday}
+                    dailyrequired={loc.dailyRequired}
+                    dailyAchieved={loc.currentAverage}
+                    rate={loc.rate}
+                  />
+                ))}
+              </div>
+
+              <div className="w-full">
+                <CityVisitsChart
+                  chartData={monthlyStats}
+                  title="City Visit Stats"
+                  description="Top cities by visit count"
                 />
-              ))}
+              </div>
             </div>
 
-              
             {/* </div>  */}
             {/* <div className="relative  mt-8">
               <CustomSelect
@@ -1013,7 +1027,6 @@ const Dashboard = () => {
                 chartData={visitsToday}
               />
             </div> */}
-            
           </div>
         </div>
       )}
@@ -1105,67 +1118,57 @@ const Dashboard = () => {
           {(token?.role === "SuperAdmin" ||
             token?.role === "LeadGen-TeamLead" ||
             token?.role === "Advert") && (
-            <div className="flex flex-col md:flex-row justify-center gap-6 mt-8">
-              {/* Visualization on the left */}
-              <div className="flex md:w-1/2 h-[600px]">
+            <div className="flex flex-col border border-red-500 justify-evenly md:flex-row  gap-6 mt-8">
+              <div className="flex border border-blue-500 justify-center md:w-1/2 h-[600px]">
                 <MoleculeVisualization data={ownersCount} />
               </div>
 
-              {/* Filter + Count Card */}
-              <div className="relative w-full md:w-1/2 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900">
-                {/* Filters row */}
-                <div className="flex items-center justify-between mb-6">
-                  <CustomSelect
-                    itemList={[
-                      "All",
-                      "Athens",
-                      "Milan",
-                      "Rome",
-                      "Chania",
-                      "thessaloniki",
-                    ]}
-                    triggerText="Select Location"
-                    defaultValue="All"
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...unregisteredOwnersFilters };
-                      newLeadFilters.location = value;
-                      fetchUnregisteredVisits(newLeadFilters);
-                    }}
-                    triggerClassName="w-36"
-                  />
+              <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-6  rounded-xl shadow-md border border-green-300">
+  {/* Filter Select */}
+  <CustomSelect
+    itemList={["All", "Today", "15 days", "1 month", "3 months"]}
+    triggerText="Select Days"
+    defaultValue="Today"
+    onValueChange={(value) => {
+      const newLeadFilters = { ...unregisteredOwnersFilters, days: value };
+      setUnregisteredOwnersFilters(newLeadFilters);
+      fetchUnregisteredVisits(newLeadFilters);
+    }}
+    triggerClassName="w-36 mb-4"
+  />
 
-                  <CustomSelect
-                    itemList={[
-                      "All",
-                      "Today",
-                      "15 days",
-                      "1 month",
-                      "3 months",
-                    ]}
-                    triggerText="Select Days"
-                    defaultValue="Today"
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...unregisteredOwnersFilters };
-                      newLeadFilters.days = value;
-                      setUnregisteredOwnersFilters(newLeadFilters);
-                      fetchUnregisteredVisits(newLeadFilters);
-                    }}
-                    triggerClassName="w-36"
-                  />
-                </div>
+  {/* Heading */}
+  <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 text-center mb-6">
+    New Owners
+  </h2>
 
-                {/* Title */}
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center">
-                  New Owners
-                </h2>
+  {/* Total Count */}
+  <div className="text-4xl md:text-5xl font-extrabold text-indigo-600 dark:text-indigo-400 mb-6">
+    {newOwnersCount.length}
+  </div>
 
-                {/* Count */}
-                <div
-                  className="mt-6 text-5xl font-extrabold text-center cursor-pointer text-indigo-600 dark:text-indigo-400
-          transition-transform duration-200 hover:scale-110"
-                >
-                  {newOwnersCount.length}
-                </div>
+  {/* Location Counts */}
+  <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {Object.entries(
+      newOwnersCount.reduce((acc: any, item: any) => {
+        acc[item.location] = (acc[item.location] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([location, count], index) => (
+      <div
+        key={index}
+        className="flex flex-col items-center justify-center p-4 bg-indigo-50 dark:bg-indigo-900 rounded-lg shadow hover:shadow-lg transition-shadow duration-200"
+      >
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{location}</p>
+        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{(count)as ReactNode}</p>
+      </div>
+    ))}
+  </div>
+</div>
+
+
+              <div className="flex flex-col items-center justify-center md:w-1/2 border border-yellow-500">
+                <CityVisitsChart chartData={monthlyStats} />
               </div>
             </div>
           )}
@@ -1266,7 +1269,7 @@ const Dashboard = () => {
             </CardDescription>
 
             {/* Range Selector */}
-            
+
             <CustomSelect
               itemList={["12 days", "1 year", "last 3 years"]}
               triggerText="Select range"
@@ -1317,8 +1320,7 @@ const Dashboard = () => {
                       return value; // Day + Month
                     }}
                   />
-                 <YAxis />
-
+                  <YAxis />
 
                   <Tooltip
                     cursor={false}

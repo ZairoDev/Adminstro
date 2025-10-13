@@ -27,15 +27,20 @@ export default function BoostPropertiesPage() {
 
   useEffect(() => {
     const fetchProperties = async () => {
-      try {
-        const res = await axios.get("/api/propertyBoost");
-        setProperties(res.data);
-      } catch (err) {
-        console.error("Failed to fetch properties", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    const res = await axios.get("/api/propertyBoost");
+    const sorted = res.data.sort(
+      (a: Property, b: Property) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    setProperties(sorted);
+  } catch (err) {
+    console.error("Failed to fetch properties", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     fetchProperties();
   }, []);

@@ -2,7 +2,7 @@
 
 import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { Loader2, RotateCw } from "lucide-react";
+import { ChartLine, Loader2, RotateCw } from "lucide-react";
 
 import { TrendingUp } from "lucide-react";
 import {
@@ -93,6 +93,7 @@ import useVisitStats from "@/hooks/(VS)/useVisitStats";
 import { VisitStatsCard } from "@/components/visitCountCard/page";
 import { CityVisitsChart } from "@/components/charts/VisitsHorizontalChart";
 import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
+import { ChartLineDefault } from "@/components/charts/VisitsLineChart";
 
 //  const chartConfig = {
 //   greece: {
@@ -1168,7 +1169,7 @@ const Dashboard = () => {
 
 
               <div className="flex flex-col items-center justify-center md:w-1/2 border border-yellow-500">
-                <CityVisitsChart chartData={monthlyStats} />
+                <ChartLineDefault />
               </div>
             </div>
           )}

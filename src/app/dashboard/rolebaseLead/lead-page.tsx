@@ -344,7 +344,7 @@ export const LeadPage = () => {
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
               token?.role === "Sales-TeamLead" ||
-              token?.email === "tyagimokshda@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" || token?.email === "shailvinaprakash007@gmail.com") && (
               <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {

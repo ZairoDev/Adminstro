@@ -1,6 +1,4 @@
 "use client"
-
-import { TrendingUp } from "lucide-react"
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
 import {
   Card,
@@ -17,47 +15,49 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-export const description = "Unregistered owners registered in the last 12 days"
-
-interface VisitData {
+interface LineChartData {
   date: string
-  count: number
+  owners: number 
 }
 
-// Example data — replace this with your API data
-const chartData: VisitData[] = [
-  { date: "Oct 3", count: 8 },
-  { date: "Oct 4", count: 12 },
-  { date: "Oct 5", count: 7 },
-  { date: "Oct 6", count: 14 },
-  { date: "Oct 7", count: 10 },
-  { date: "Oct 8", count: 18 },
-  { date: "Oct 9", count: 16 },
-  { date: "Oct 10", count: 22 },
+interface LineChartProps {
+  title: string
+  description?: string
+  data: LineChartData[]
+  dataKey?: string 
+  label?: string 
+  color?: string 
+  trendText?: string 
+  showFooter?: boolean
+}
 
+export function ReusableLineChart({
+  title,
+  description,
+  data,
+  dataKey = "owners",
+  label = "Owners",
+  color = "hsl(var(--chart-2))",
 
-]
+}: LineChartProps) {
+  const chartConfig = {
+    [dataKey]: {
+      label,
+      color,
+    },
+  } satisfies ChartConfig
 
-const chartConfig = {
-  count: {
-    label: "Registered Owners",
-    color: "hsl(var(--chart-1))",
-  },
-} satisfies ChartConfig
-
-export function ChartLineDefault() {
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>New Owner Registrations</CardTitle>
-        <CardDescription>Last 12 Days</CardDescription>
+    <Card className="w-full h-full flex flex-col justify-evenly">
+      <CardHeader className="">
+        <CardTitle>{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-
-      <CardContent>
+      <CardContent className="  p-2">
         <ChartContainer config={chartConfig}>
           <LineChart
             accessibilityLayer
-            data={chartData}
+            data={data}
             margin={{ left: 12, right: 12 }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -72,9 +72,9 @@ export function ChartLineDefault() {
               content={<ChartTooltipContent hideLabel />}
             />
             <Line
-              dataKey="count"
+              dataKey={dataKey}
               type="monotone"
-              stroke="var(--color-count)"
+              stroke={color}
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 5 }}
@@ -82,15 +82,6 @@ export function ChartLineDefault() {
           </LineChart>
         </ChartContainer>
       </CardContent>
-
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 leading-none font-medium">
-          Trending up by 12.5% this week <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">
-          Showing the number of unregistered owners registered over the last 12 days
-        </div>
-      </CardFooter>
     </Card>
   )
 }

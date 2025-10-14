@@ -923,7 +923,7 @@ export const getLocationVisitStats = async () => {
     },
   ]);
 
-  console.log("🔍 visit aggregation result:", JSON.stringify(visitAgg, null, 2));
+  // console.log("🔍 visit aggregation result:", JSON.stringify(visitAgg, null, 2));
 
   // ----------------------------
   // Convert to maps for easy lookup
@@ -964,7 +964,7 @@ export const getLocationVisitStats = async () => {
     };
   });
 
-  console.log("📊 Final visits data:", visits);
+  // console.log("📊 Final visits data:", visits);
   return { visits };
 };
 
@@ -995,8 +995,8 @@ export const getMonthlyVisitStats = async (monthName?: string) => {
   const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
   const endOfMonth = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
 
-  console.log(`📆 Fetching visits for: ${monthNames[monthIndex]} ${year}`);
-  console.log(`Range: ${startOfMonth.toISOString()} → ${endOfMonth.toISOString()}`);
+  // console.log(`📆 Fetching visits for: ${monthNames[monthIndex]} ${year}`);
+  // console.log(`Range: ${startOfMonth.toISOString()} → ${endOfMonth.toISOString()}`);
 
   // ----------------------------
   // MongoDB aggregation pipeline
@@ -1032,7 +1032,7 @@ export const getMonthlyVisitStats = async (monthName?: string) => {
     { $sort: { visits: -1 } },
   ]);
 
-  console.log("📊 Monthly Visit Stats:", result);
+  // console.log("📊 Monthly Visit Stats:", result);
   return result;
 };
 
@@ -1311,8 +1311,117 @@ if (days === "12 days") {
     });
   }
 }
-
+// console.log("here is the output",output);
 return output;
+};
+
+export const getUnregisteredOwnerCounts = async ({
+  days,
+}: {
+  days?: string;
+}) => {
+  await connectDb();
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let groupFormat: any;
+
+  switch (days?.toLowerCase()) {
+    case "12 days":
+      start.setDate(now.getDate() - 11); // last 12 days including today
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    default:
+      throw new Error(
+        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+      );
+  }
+
+  // ---------- AGGREGATION PIPELINE ----------
+  const result = await unregisteredOwner.aggregate([
+    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $group: {
+        _id: groupFormat,
+        owners: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  // ---------- FORMAT OUTPUT ----------
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const resultMap = new Map<string, number>();
+  for (const item of result) {
+    resultMap.set(item._id, item.owners);
+  }
+
+  const output: { date: string; owners: number }[] = [];
+
+  if (days === "12 days") {
+    const temp = new Date(start);
+    while (temp <= end) {
+      const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const owners = resultMap.get(key) ?? 0;
+      const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      output.push({ date: formattedDate, owners });
+      temp.setDate(temp.getDate() + 1);
+    }
+  } else if (days === "1 year") {
+    for (let i = 0; i < 12; i++) {
+      const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
+      const owners = resultMap.get(dateKey) ?? 0;
+      output.push({ date: months[i], owners });
+    }
+  } else if (days === "last 3 years") {
+    const currentYear = now.getFullYear();
+    for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
+      const owners = resultMap.get(String(i)) ?? 0;
+      output.push({ date: String(i), owners });
+    }
+  }
+
+  console.log("Unregistered Owner Counts Output:", output);
+  return output;
 };
 
 
@@ -1414,7 +1523,6 @@ export const getVisitsToday = async({days}:{days?:string})=>{
     }
   ];
   const count = await Visits.aggregate(pipeline);
-  // console.log("count: ", count);
   return { count };
 }
 export const getPropertyCount = async () => {
@@ -1467,7 +1575,7 @@ export const getPropertyCount = async () => {
 
 
   const propertyCount = await Property.aggregate(pipeline);
-  // console.log("propertyCount: ", propertyCount);
+
   const totalPropertyCount = await Property.countDocuments({});
 
   return { propertyCount, totalPropertyCount };
@@ -1539,7 +1647,6 @@ export const getReviews = async({days,location,createdBy}:{days?:string;location
   ];
 
   const reviews = await Query.aggregate(pipeline);
-  // console.log("reviews: ", reviews);
   return {reviews}
 }
 
@@ -1555,21 +1662,21 @@ export const getUnregisteredOwners = async () => {
     },
     {
       $group: {
-        _id: "$ownerPhone", // Use ownerPhone as _id
-        ownerName: { $first: "$ownerName" }, // Capture first occurrence of ownerName
+        _id: "$ownerPhone",
+        ownerName: { $first: "$ownerName" }, 
       },
     },
     {
       $lookup: {
         from: "owners",
-        localField: "_id", // _id holds ownerPhone
+        localField: "_id",
         foreignField: "phoneNumber",
         as: "result",
       },
     },
     {
       $match: {
-        result: { $eq: [] }, // Only where no match found in owners
+        result: { $eq: [] }, 
       },
     },
     {
@@ -1592,7 +1699,7 @@ export const getUnregisteredOwners = async () => {
       $project: {
         _id: 0,
         ownerPhone: "$phoneNumber",
-        ownerName: "$name", // rename 'name' to 'customerName'
+        ownerName: "$name", 
       },
     },
   ];
@@ -1600,7 +1707,6 @@ export const getUnregisteredOwners = async () => {
   const unregisteredOwners1 = await Visits.aggregate(pipeline);
   const unregisteredOwners2 = await unregisteredOwner.aggregate(pipeline2);
   const unregisteredOwners = [...unregisteredOwners1, ...unregisteredOwners2];
-  // console.log("unregisteredOwners: ", unregisteredOwners);
   return { unregisteredOwners };
 }
 
@@ -1782,8 +1888,6 @@ export const getNewOwnersCount = async ({
   location?: string;
 }) => {
   const dateFilter: Record<string, any> = {};
-  // console.log("days, location: ", days, location);
-  // ✅ Days filter
   if (days && days !== "All") {
     let fromDate: Date | undefined;
     let toDate: Date = new Date();
@@ -1792,9 +1896,9 @@ export const getNewOwnersCount = async ({
   switch (days.toLowerCase()) {
     case "today":
       fromDate = new Date();
-      fromDate.setHours(0, 0, 0, 0); // start of today
+      fromDate.setHours(0, 0, 0, 0); 
       toDate = new Date();
-      toDate.setHours(23, 59, 59, 999); // end of today
+      toDate.setHours(23, 59, 59, 999); 
       break;
 
     case "15 days":
@@ -1811,8 +1915,6 @@ export const getNewOwnersCount = async ({
       fromDate = new Date();
       fromDate.setMonth(fromDate.getMonth() - 3);
       break;
-
-    // "all" or anything else → no date filter
   }
 
   if (fromDate) {
@@ -1821,9 +1923,8 @@ export const getNewOwnersCount = async ({
 
   }
 
-  // ✅ Location filter
+  
   const cityFilter = location && location !== "All" ? { location: location } : {};
-
   const pipeline2 = [
     {
       $match: {
@@ -1843,8 +1944,7 @@ export const getNewOwnersCount = async ({
   ];
 
   const newOwnersCount = await unregisteredOwner.aggregate(pipeline2);
-  console.log("newOwnersCount: ", newOwnersCount);
-  return { newOwnersCount: newOwnersCount }; // return count, not array
+  return { newOwnersCount: newOwnersCount }; 
 };
 
 
@@ -1972,7 +2072,6 @@ export const getGoodVisitsCount = async({days}:{days?:string})=>{
   {
     $project: {
       _id: 0,
-      // leadStatus: "$_id.leadStatus",
       propertyShown: "$_id.propertyShown",
       count: 1
     }
@@ -1980,7 +2079,6 @@ export const getGoodVisitsCount = async({days}:{days?:string})=>{
 ];
 
 const count = await Query.aggregate(pipeline);
-// console.log("count: ", count);
 return { count };
 }
 
@@ -2049,7 +2147,6 @@ export const getCountryWisePropertyCount = async ({
 ];
 
   const countryWisePropertyCount = await Property.aggregate(pipeline);
-  //console.log("countryWisePropertyCount",countryWisePropertyCount);
   const totalPropertyCount = await Property.countDocuments({
     country: country,
   });
@@ -2166,6 +2263,5 @@ export const getAmountDetails = async ({
   
 
   const amountDetails = await Bookings.aggregate(pipeline);
-  // console.log("amountDetails: ", amountDetails);
   return { amountDetails };
 };

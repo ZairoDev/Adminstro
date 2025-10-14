@@ -28,6 +28,7 @@ const ListingCounts = ()=>{
         })
       );
       setTotalListings(transformedResponse);
+      console.log("Listing counts response:", transformedResponse);
       // setTotalListings(response.totalListings);
       // setActiveListings(response.activeListings);
       // setInactiveListings(response.inactiveListings);

@@ -1,141 +1,89 @@
-"use client";
-import axios from "axios";
-import { SpreadsheetTable } from "./spreadsheetTable";
-import { useEffect, useState, useRef, useCallback } from "react";
-import { unregisteredOwners } from "@/util/type";
-import { FilteredPropertiesInterface, FiltersInterface } from "../newproperty/filteredProperties/page";
-import FilterBar, { FiltersInterfaces } from "./FilterBar";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { useAuthStore } from "@/AuthStore";
-import _ from "lodash";
+"use client"
+import axios from "axios"
+import { SpreadsheetTable } from "./spreadsheetTable"
+import { useEffect, useState, useRef } from "react"
+import type { unregisteredOwners } from "@/util/type"
+import type { FilteredPropertiesInterface } from "../newproperty/filteredProperties/page"
+import FilterBar, { type FiltersInterfaces } from "./FilterBar"
+import PaginationControls from "@/components/pagination-controls"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuthStore } from "@/AuthStore"
 
-const LIMIT = 50;
+const DEFAULT_LIMIT = 50
 
 const Spreadsheet = () => {
-  const [data, setData] = useState<unregisteredOwners[]>([]);
-  const [properties, setProperties] = useState<FilteredPropertiesInterface[]>([]);
-  const [availableCount, setAvailableCount] = useState(0);
-const [notAvailableCount, setNotAvailableCount] = useState(0);
+  const [data, setData] = useState<unregisteredOwners[]>([])
+  const [properties, setProperties] = useState<FilteredPropertiesInterface[]>([])
+  const [availableCount, setAvailableCount] = useState(0)
+  const [notAvailableCount, setNotAvailableCount] = useState(0)
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [selectedTab, setSelectedTab] = useState("available");
-  const observerRef = useRef<HTMLDivElement | null>(null);
-  const observerInstance = useRef<IntersectionObserver | null>(null);
-  const token = useAuthStore((state) => state.token);
+  const [isLoading, setIsLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [selectedTab, setSelectedTab] = useState("available")
+  const observerRef = useRef<HTMLDivElement | null>(null)
+  const observerInstance = useRef<IntersectionObserver | null>(null)
+  const token = useAuthStore((state) => state.token)
 
-  const role = token?.role;
- const allocations = token?.allotedArea || [];
-const parsedAllocations =
-  typeof allocations === "string"
-    ? allocations.split(",").filter(Boolean)
-    : allocations;
-  
+  const role = token?.role
+  const allocations = token?.allotedArea || []
+  const parsedAllocations = typeof allocations === "string" ? allocations.split(",").filter(Boolean) : allocations
+
   const [filters, setFilters] = useState<FiltersInterfaces>({
     searchType: "",
     searchValue: "",
     propertyType: "",
-     place: parsedAllocations.length === 1
-    ? [parsedAllocations[0]]
-    : parsedAllocations.length > 1
-    ? parsedAllocations
-    : [],
-    area: "",
+    place:
+      parsedAllocations.length === 1 ? [parsedAllocations[0]] : parsedAllocations.length > 1 ? parsedAllocations : [],
+    area: [],
     zone: "",
     metroZone: "",
-    // rentalType: "Short Term",
-    minPrice:  0,
-    maxPrice:  0,
+    minPrice: 0,
+    maxPrice: 0,
     beds: 0,
     dateRange: undefined,
-  });
+  })
 
-  
+  const [limit, setLimit] = useState(DEFAULT_LIMIT)
 
-  // const getData = async (tab: string, currentPage: number) => {
-  //   try {
-  //     setIsLoading(true);
-  //     const endpoint =
-  //       tab === "available"
-  //         ? "/api/unregisteredOwners/getAvailableList"
-  //         : "/api/unregisteredOwners/getNotAvailableList";
-
-  //          let effectiveFilters = { ...filters };
-  //   if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-  //     effectiveFilters = {
-  //       ...effectiveFilters,
-  //       place: parsedAllocations,
-  //     };
-  //   }  
-
-  //     const response = await axios.post(endpoint, {
-  //       filters: effectiveFilters,
-  //       page: currentPage,
-  //       limit: LIMIT,
-  //     });
-
-  //     const newData = Array.isArray(response.data.data)
-  //       ? response.data.data
-  //       : [response.data.data];
-
-  //     setData((prev) => (currentPage === 1 ? newData : [...prev, ...newData]));
-  //     setTotal(response.data.total || 0);
-  //   } catch (error) {
-  //     console.error("Failed to fetch data:", error);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-  
   const getData = async (
     tab: string,
     currentPage: number,
-    appliedFilters?: FiltersInterfaces
+    appliedFilters?: FiltersInterfaces,
+    pageSize: number = limit,
   ) => {
-    if (isLoading) return;
+    if (isLoading) return
     try {
-      setIsLoading(true);
+      setIsLoading(true)
       const endpoint =
-        tab === "available"
-          ? "/api/unregisteredOwners/getAvailableList"
-          : "/api/unregisteredOwners/getNotAvailableList";
+        tab === "available" ? "/api/unregisteredOwners/getAvailableList" : "/api/unregisteredOwners/getNotAvailableList"
 
-      let effectiveFilters = { ...(appliedFilters ?? filters) };
+      const effectiveFilters = { ...(appliedFilters ?? filters) }
       if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-        effectiveFilters.place = parsedAllocations;
+        effectiveFilters.place = parsedAllocations
       }
 
       const response = await axios.post(endpoint, {
         filters: effectiveFilters,
         page: currentPage,
-        limit: LIMIT,
-      });
+        limit: pageSize,
+      })
 
-      const newData = Array.isArray(response.data.data)
-        ? response.data.data
-        : [response.data.data];
+      const newData = Array.isArray(response.data.data) ? response.data.data : [response.data.data]
 
-      setData((prev) => (currentPage === 1 ? newData : [...prev, ...newData]));
-      setTotal(response.data.total || 0);
+      setData(newData)
+      setTotal(response.data.total || 0)
     } catch (error) {
-      console.error("Failed to fetch data:", error);
+      console.error("Failed to fetch data:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
-  
-    
+  }
 
   const handleSubmit = () => {
-    setPage(1);
-    getData(selectedTab, 1);
-  };
+    setPage(1)
+    getData(selectedTab, 1, undefined, limit)
+  }
 
   const handleClear = () => {
     const resetFilters = {
@@ -143,115 +91,68 @@ const parsedAllocations =
       searchValue: "",
       propertyType: "",
       place:
-        parsedAllocations.length === 1
-          ? [parsedAllocations[0]]
-          : parsedAllocations.length > 1
-          ? parsedAllocations
-          : [],
-      area: "",
+        parsedAllocations.length === 1 ? [parsedAllocations[0]] : parsedAllocations.length > 1 ? parsedAllocations : [],
+      area: [],
       zone: "",
       metroZone: "",
       minPrice: 0,
       maxPrice: 0,
       beds: 0,
       dateRange: undefined,
-    };
-
-    setFilters(resetFilters);
-    setPage(1);
-    setData([]);
-    getData(selectedTab, 1, resetFilters);
-  };
-  
-
-  useEffect(() => {
-    setPage(1);
-    getData(selectedTab, 1);
-  }, [selectedTab]);
-
-  // const loadMore = useCallback(() => {
-  //   if (isLoading || data.length >= total) return; 
-  //   const nextPage = page + 1;
-  //   setPage(nextPage);
-  //   getData(selectedTab, nextPage);
-  // }, [isLoading, data, total, page, selectedTab]);
-
-   const loadMore = useCallback(
-    _.throttle(() => {
-      if (!isLoading && data.length < total) {
-        setPage((prev) => prev + 1);
-      }
-    }, 500),
-    [isLoading, data, total]
-  );
-  useEffect(() => {
-    if (page > 1) {
-      getData(selectedTab, page);
-    }
-  }, [page, selectedTab]); 
-  
-
-  useEffect(() => {
-    if (!observerRef.current) return;
-
-    if (observerInstance.current) {
-      observerInstance.current.disconnect();
     }
 
-    observerInstance.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isLoading) {
-          loadMore();
-        }
-      },
-      {
-        root: null, 
-        rootMargin: "600px", 
-        threshold: 0, 
-      }
-    );
+    setFilters(resetFilters)
+    setPage(1)
+    setData([])
+    getData(selectedTab, 1, resetFilters, limit)
+  }
 
-    observerInstance.current.observe(observerRef.current);
+  useEffect(() => {
+    setPage(1)
+    getData(selectedTab, 1, undefined, limit)
+  }, [selectedTab, limit])
 
-    return () => {
-      if (observerInstance.current) observerInstance.current.disconnect();
-    };
-  }, [loadMore, isLoading]);
+  useEffect(() => {
+    if (page > 1 || page === 1) {
+      getData(selectedTab, page, undefined, limit)
+    }
+  }, [page, selectedTab, limit])
 
   const getCounts = async () => {
-  try {
-    let effectiveFilters = { ...filters };
-    if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-      effectiveFilters = {
-        ...effectiveFilters,
-        place: parsedAllocations,
-      };
+    try {
+      let effectiveFilters = { ...filters }
+      if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
+        effectiveFilters = {
+          ...effectiveFilters,
+          place: parsedAllocations,
+        }
+      }
+
+      const [availRes, notAvailRes] = await Promise.all([
+        axios.post("/api/unregisteredOwners/getAvailableList", {
+          filters: effectiveFilters,
+          page: 1,
+          limit: 1, // only need total
+        }),
+        axios.post("/api/unregisteredOwners/getNotAvailableList", {
+          filters: effectiveFilters,
+          page: 1,
+          limit: 1,
+        }),
+      ])
+
+      setAvailableCount(availRes.data.total || 0)
+      setNotAvailableCount(notAvailRes.data.total || 0)
+    } catch (error) {
+      console.error("Failed to fetch counts:", error)
     }
-
-    const [availRes, notAvailRes] = await Promise.all([
-      axios.post("/api/unregisteredOwners/getAvailableList", {
-        filters: effectiveFilters,
-        page: 1,
-        limit: 1, // only need total
-      }),
-      axios.post("/api/unregisteredOwners/getNotAvailableList", {
-        filters: effectiveFilters,
-        page: 1,
-        limit: 1,
-      }),
-    ]);
-
-    setAvailableCount(availRes.data.total || 0);
-    setNotAvailableCount(notAvailRes.data.total || 0);
-  } catch (error) {
-    console.error("Failed to fetch counts:", error);
   }
-};
 
-useEffect(() => {
-  getCounts();
-}, [filters, parsedAllocations]);
+  useEffect(() => {
+    getCounts()
+  }, [filters, parsedAllocations])
 
+  const serialOffset = (page - 1) * limit
 
   return (
     <div>
@@ -260,31 +161,9 @@ useEffect(() => {
       <Tabs
         value={selectedTab}
         onValueChange={(val) => {
-          setSelectedTab(val);
-
-          setFilters({
-            searchType: "",
-            searchValue: "",
-            propertyType: "",
-            place:
-              parsedAllocations.length === 1
-                ? [parsedAllocations[0]]
-                : parsedAllocations.length > 1
-                ? parsedAllocations
-                : [],
-            area: "",
-            zone: "",
-            metroZone: "",
-            // rentalType: "Short Term",
-            minPrice: null,
-            maxPrice: null,
-            beds: 0,
-
-            dateRange: undefined,
-          });
-
-          setPage(1);
-          setData([]);
+          setSelectedTab(val)
+          setPage(1)
+          setData([])
         }}
       >
         <TabsList>
@@ -305,13 +184,35 @@ useEffect(() => {
             handleClear={handleClear}
             selectedTab={selectedTab}
           />
-          <SpreadsheetTable tableData={data} setTableData={setData} />
+          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)} />
           {isLoading && <p className="text-center">Loading...</p>}
-          {!isLoading && data.length >= total && (
-            <p className="text-center text-gray-500 my-2">No more records</p>
-          )}
-
-          <div ref={observerRef} className="h-10" />
+          {!isLoading && total === 0 && <p className="text-center text-muted-foreground my-2">No records found</p>}
+          <div className="flex items-center justify-between mt-4 gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">Rows per page:</label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  const next = Number(e.target.value)
+                  setLimit(next)
+                  setPage(1)
+                }}
+                className="border rounded px-2 py-1 bg-background text-foreground text-sm"
+                aria-label="Rows per page"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <PaginationControls
+              currentPage={page}
+              total={total}
+              pageSize={limit}
+              onPageChange={(p) => setPage(p)}
+              isLoading={isLoading}
+            />
+          </div>
         </TabsContent>
 
         {/* Not Available Tab */}
@@ -323,14 +224,39 @@ useEffect(() => {
             handleClear={handleClear}
             selectedTab={selectedTab}
           />
-          <SpreadsheetTable tableData={data} setTableData={setData} />
+          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)} />
           {isLoading && <p className="text-center">Loading...</p>}
-          <div ref={observerRef} className="h-10" />
+          {!isLoading && total === 0 && <p className="text-center text-muted-foreground my-2">No records found</p>}
+          <div className="flex items-center justify-between mt-4 gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">Rows per page:</label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  const next = Number(e.target.value)
+                  setLimit(next)
+                  setPage(1)
+                }}
+                className="border rounded px-2 py-1 bg-background text-foreground text-sm"
+                aria-label="Rows per page"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <PaginationControls
+              currentPage={page}
+              total={total}
+              pageSize={limit}
+              onPageChange={(p) => setPage(p)}
+              isLoading={isLoading}
+            />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
-  );
-};
+  )
+}
 
-export default Spreadsheet;
-
+export default Spreadsheet

@@ -21,6 +21,7 @@ import {
   Copy,
   Download,
   ImageUp,
+  Loader2,
   Mail,
   MailCheck,
   PawPrint,
@@ -74,9 +75,11 @@ export const apartmentTypes = [
 export function SpreadsheetTable({
   tableData,
   setTableData,
+  serialOffset
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
+  serialOffset: number
 }) {
   const columns = [
     { label: "S.No", field: "serial", sortable: false },
@@ -521,89 +524,104 @@ export function SpreadsheetTable({
       value: string
     ) => void;
   }
+function UploadCell({ item }: UploadCellProps) {
+  const { uploadFiles, loading } = useBunnyUpload();
+  const [uploaded, setUploaded] = useState(
+    !!(item.imageUrls && item.imageUrls.length > 0)
+  );
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { toast } = useToast();
 
-  function UploadCell({ item }: UploadCellProps) {
-    const { uploadFiles, loading } = useBunnyUpload();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [uploaded, setUploaded] = useState(
-      !!(item.imageUrls && item.imageUrls.length > 0)
-    );
-    const { toast } = useToast();
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    const handleFileChange = async (
-      event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-      const input = event.target;
-      const files = input.files;
-      if (!files || files.length === 0) return;
+    // 🔧 Immediately reset before async call (ensures re-trigger)
+    const currentInput = event.target;
+    const fileList = Array.from(files);
+    currentInput.value = "";
 
-      const fileArray = Array.from(files);
-      const { imageUrls, error } = await uploadFiles(fileArray, "Uploads");
+    setIsUploading(true);
+    await new Promise((r) => setTimeout(r, 100)); // slight debounce
 
-      if (error) {
-        toast({
-          title: "Upload failed",
-          description: error,
-          variant: "destructive",
-        });
-        return;
-      }
+    const { imageUrls, error } = await uploadFiles(fileList, "Uploads");
 
-      try {
-        await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
-          field: "imageUrls",
-          value: imageUrls,
-        });
+    if (error || !imageUrls?.length) {
+      toast({
+        title: "Upload failed",
+        description: error || "No URLs returned.",
+        variant: "destructive",
+      });
+      setIsUploading(false);
+      return;
+    }
 
-        toast({
-          title: "Images uploaded successfully",
-          description: `${imageUrls.length} image(s) uploaded.`,
-        });
-        setUploaded(true);
-      } catch (err) {
-        toast({
-          title: "Failed to update images",
-          description: "Server error occurred.",
-          variant: "destructive",
-        });
-        console.error("Failed to update images:", err);
-      }
+    try {
+      await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
+        field: "imageUrls",
+        value: imageUrls,
+      });
 
-      input.value = ""; // ✅ reset so re-upload works
-    };
+      toast({
+        title: "Uploaded successfully",
+        description: `${imageUrls.length} image(s) uploaded.`,
+      });
 
-    return (
-      <>
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          multiple
-          accept="image/png,image/jpeg,image/webp"
-          onChange={handleFileChange}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="p-0"
-          disabled={loading}
-          onClick={() => {
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ""; // ✅ ensure first click works
-              fileInputRef.current.click();
-            }
-          }}
-        >
+      // 🔧 Update local state after upload
+      setUploaded(true);
+    } catch (err) {
+      toast({
+        title: "Failed to update server",
+        description: "An error occurred while saving image URLs.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        multiple
+        accept="image/png,image/jpeg,image/webp"
+        onChange={handleFileChange}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="p-0"
+        disabled={loading || isUploading}
+        onClick={() => {
+          if (loading || isUploading) return;
+          // 🔧 always reset value before click
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+            fileInputRef.current.click();
+          }
+        }}
+      >
+        {isUploading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+        ) : (
           <ImageUp
             className={`h-5 w-5 ${
               uploaded ? "text-green-500" : "text-gray-500"
             }`}
           />
-        </Button>
-      </>
-    );
-  }
-  
+        )}
+      </Button>
+    </>
+  );
+}
+
+
 
   function DownloadCell({ item }: { item: unregisteredOwners }) {
     const handleDownloadZip = async () => {
@@ -799,7 +817,7 @@ export function SpreadsheetTable({
                 }`}
               >
                 <TableCell className="font-medium flex items-center gap-2">
-                  {index + 1}
+                  {serialOffset+index + 1}
 
                   {(token?.role === "Sales" ||
                     token?.role === "Sales-TeamLead" ||

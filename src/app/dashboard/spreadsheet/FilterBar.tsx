@@ -1,5 +1,4 @@
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+
 
 import {
   Select,
@@ -10,19 +9,9 @@ import {
   SelectTrigger,
   SelectContent,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuLabel,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-// import { propertyTypes } from "@/util/type";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-// import { Switch } from "@/components/ui/switch";
-// import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -38,6 +27,7 @@ import { set } from "mongoose";
 import { Area } from "../target/page";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
+import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 interface PageProps {
   filters: FiltersInterfaces;
   setFilters: React.Dispatch<React.SetStateAction<FiltersInterfaces>>;
@@ -56,17 +46,18 @@ interface AreaType {
   name: string;
 }
 
-export interface FiltersInterfaces {
+ export interface FiltersInterfaces {
   searchType: string;
   searchValue: string;
   propertyType: string;
   place: string[];
-  area:string;
+  area:string[];
   zone:string;
   metroZone:string;
   // rentalType?: "Short Term" | "Long Term";
   minPrice: number | null;
   maxPrice: number | null;
+    sortByPrice?: "asc" | "desc" | "";
   beds: number;
   // bedrooms: number;
   // bathroom: number;
@@ -105,26 +96,11 @@ const FilterBar = ({
 
   const token = useAuthStore((state) => state.token);
 const allocations = token?.allotedArea || []; 
-// If it's a string, split it:
+
 const parsedAllocations = typeof allocations === "string"
   ? allocations.split(",").filter(Boolean)
   : allocations;
-  // const longTermDateSelect = (value: DateRange | undefined) => {
-  //   const from = value?.from;
-  //   const to = value?.to;
-  //   if (from && to) {
-  //     const numberOfDays = Math.floor(
-  //       (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
-  //     );
-  //     if (numberOfDays < 28 && filters.rentalType === "Long Term") {
-  //       alert("Minimum stay for long term rentals is 28 days.");
-  //       return;
-  //     }
-  //   }
-  //   setFilters({ ...filters, dateRange: value });
-  // };
 
-  // console.log("filters: ", filterCount(filters), filters);
  useEffect(() => {
   const fetchCounts = async () => {
     try {
@@ -132,7 +108,7 @@ const parsedAllocations = typeof allocations === "string"
       const res = await axios.post(endpoint, {
         filters: {
           ...filters,
-          allocations: parsedAllocations, // ✅ allocations merged into filters
+          allocations: parsedAllocations, 
         },
         availability:
           selectedTab === "available" ? "Available" : "Not Available",
@@ -179,15 +155,6 @@ const parsedAllocations = typeof allocations === "string"
     fetchTargets();
   }, []);
 
-  //  const selectedTarget:any = targets.find((t:any) => t.city === selectedLocation);
-  //  console.log("selectedTarget: ", selectedTarget);
-  // useEffect(() => {
-  //   if (selectedTarget) {
-  //     const areas = selectedTarget.areas.map((area: any) => area.name);
-  //     setAreas(areas);
-  //   }
-  // }, [selectedTarget]);
-
   useEffect(() => {
     const target = targets.find((t) => t.city === selectedLocation);
     if (target) {
@@ -195,14 +162,10 @@ const parsedAllocations = typeof allocations === "string"
     } else {
       setAreas([]);
     }
-    setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
+    setFilters((prev) => ({ ...prev, area: [] })); // Clear old area
   }, [selectedLocation, targets]);
 
-  // useEffect(() => {
-  //   console.log("filters updated:", filters);
-  // }, [filters]);
-
-// derive filteredTargets from parsedAllocations + targets (case-insensitive)
+ 
 const filteredTargets = useMemo(() => {
   if (!targets || targets.length === 0) return [];
   if (!parsedAllocations || parsedAllocations.length === 0) return targets;
@@ -211,9 +174,6 @@ const filteredTargets = useMemo(() => {
   return targets.filter((t) => lowerAlloc.includes(t.city.toLowerCase()));
 }, [parsedAllocations, targets]);
 
-// Ensure filters.place is valid for current allocations/targets.
-// - If there's exactly 1 allowed target, set that value (after targets load).
-// - If current filters.place is not in filteredTargets, clear it (unless single target).
 useEffect(() => {
   if (!filteredTargets) return;
 
@@ -231,18 +191,16 @@ useEffect(() => {
       setFilters((prev) => ({ ...prev, place: [] }));
     }
   }
-  // only depend on filteredTargets (which already depends on parsedAllocations & targets)
+
 }, [filteredTargets]); // eslint-disable-line react-hooks/exhaustive-deps
 
-// Update areas and selectedLocation whenever filters.place or targets change.
-// This derives selectedLocation/areas from the authoritative `targets` data.
 useEffect(() => {
   const place = filters.place && filters.place.length > 0 ? filters.place[0] : "";
 
   if (!place) {
     setAreas([]);
     setSelectedLocation("");
-    if (filters.area) setFilters((prev) => ({ ...prev, area: "" }));
+    if (filters.area) setFilters((prev) => ({ ...prev, area: [] }));
     return;
   }
 
@@ -260,7 +218,7 @@ useEffect(() => {
   }
 
   // reset area only if it was non-empty
-  if (filters.area) setFilters((prev) => ({ ...prev, area: "" }));
+  if (filters.area) setFilters((prev) => ({ ...prev, area: [] }));
 }, [filters.place, targets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   
@@ -304,7 +262,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Property Type */}
         <div>
           <Select
             value={filters.propertyType}
@@ -337,46 +294,9 @@ useEffect(() => {
           </Select>
         </div>
 
-        {/* Location */}
-        {/* <div>
-          <Input
-            type="text"
-            placeholder="Enter location"
-            onChange={(e) => setFilters({ ...filters, place: e.target.value })}
-            value={filters.place}
-          />
-        </div> */}
-        {/* <div>
-          <Select
-            onValueChange={(value) => {
-              setFilters({ ...filters, place:[ value ]});
-              setSelectedLocation(value);
-            }}
-            value={filters.place[0]}
-          >
-            <SelectTrigger className=" w-44 border border-neutral-700">
-              <SelectValue placeholder="Select location" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Locations</SelectLabel>
-                {targets.map((loc: any) => (
-                  <SelectItem key={loc.city} value={loc.city}>
-                    <div className="flex justify-between items-center w-full">
-                      <span>{loc.city}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-                {}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div> */}
-
         <div>
           <Select
             onValueChange={(value) => {
-              // only set filters.place here — selectedLocation and areas are derived from that
               setFilters({ ...filters, place: value ? [value] : [] });
             }}
             value={filters.place.length > 0 ? filters.place[0] : ""}
@@ -408,8 +328,6 @@ useEffect(() => {
                   </SelectItem>
                 ))}
 
-                {/* if filteredTargets is empty (allocation names not found in targets),
-            you can optionally show the raw parsedAllocations as fallback */}
                 {filteredTargets.length === 0 &&
                   parsedAllocations.length > 0 &&
                   parsedAllocations.map((city: string) => (
@@ -421,45 +339,8 @@ useEffect(() => {
             </SelectContent>
           </Select>
         </div>
-
-        {/* <div>
-           <Select
-            onValueChange={(value) =>
-
-              {
-setFilters({ ...filters, area: value });
-
-              }
-              
-              
-            }
-            value={filters.area}
-          >
-            <SelectTrigger className=" w-44 border border-neutral-700">
-              <SelectValue placeholder="Select Area" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Areas</SelectLabel>
-                {[...areas] 
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((loc: Area) => (
-            <SelectItem key={loc._id} value={loc.name}>
-              <div className="flex justify-between items-center w-full">
-                <span>{loc.name}</span>
-              </div>
-            </SelectItem>
-          ))}
-               
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div> */}
-
-        {/* <AreaSelect areas={areas} filters={filters} setFilters={setFilters} /> */}
-
         <div className="w-44">
-          <AreaSelect
+          {/* <AreaSelect
             key={filters.place.join(",")}
             maxWidth="100%"
             data={[...areas] // ✅ copy array
@@ -473,6 +354,20 @@ setFilters({ ...filters, area: value });
               setFilters({ ...filters, area: newValue });
             }}
             tooltipText="Select an area"
+          /> */}
+          <MultiAreaSelect
+            maxWidth="100%"
+            data={[...areas]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((loc: AreaType) => ({
+                label: loc.name,
+                value: loc.name,
+              }))}
+            values={Array.isArray(filters.area) ? filters.area : []}
+            save={(newValues: string[]) =>
+              setFilters({ ...filters, area: newValues })
+            }
+            tooltipText="Select one or more areas"
           />
         </div>
 
@@ -487,13 +382,7 @@ setFilters({ ...filters, area: value });
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Zones</SelectLabel>
-                {/* {targets.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    <div className="flex justify-between items-center w-full">
-                      <span>{loc}</span>
-                    </div>
-                  </SelectItem>
-                ))} */}
+
                 <SelectItem value="North">North</SelectItem>
                 <SelectItem value="South">South</SelectItem>
                 <SelectItem value="East">East</SelectItem>
@@ -521,13 +410,7 @@ setFilters({ ...filters, area: value });
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Metro Line</SelectLabel>
-                {/* {locationws.sort().map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    <div className="flex justify-between items-center w-full">
-                      <span>{loc}</span>
-                    </div>
-                  </SelectItem>
-                ))} */}
+
                 <SelectItem value="Red Line">Red Line</SelectItem>
                 <SelectItem value="Blue Line">Blue Line</SelectItem>
                 <SelectItem value="Green Line">Green Line</SelectItem>
@@ -539,56 +422,79 @@ setFilters({ ...filters, area: value });
         </div>
 
         {/* Price & Beds */}
-        <div className=" w-28 gap-x-1 flex justify-between">
-          {/* Price */}
-          <div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="bg-white text-black">
-                  Price Range
-                </Button>
-              </PopoverTrigger>
+        <div className="flex gap-x-2">
+  {/* Price Range Filter */}
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button variant="outline" className="bg-white text-black">
+        Price Range
+      </Button>
+    </PopoverTrigger>
 
-              <PopoverContent className="w-56 p-2" align="start">
-                <div className="flex gap-x-4">
-                  <div>
-                    <Label htmlFor="minPrice">Min Price</Label>
-                    <Input
-                      id="minPrice"
-                      value={filters.minPrice === null ? "" : filters.minPrice}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFilters({
-                          ...filters,
-                          minPrice: value === "" ? null : parseInt(value, 10),
-                        });
-                      }}
-                      type="number"
-                      placeholder="0"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxPrice">Max Price</Label>
-                    <Input
-                      id="maxPrice"
-                      value={filters.maxPrice === null ? "" : filters.maxPrice}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFilters({
-                          ...filters,
-                          maxPrice: value === "" ? null : parseInt(value, 10),
-                        });
-                      }}
-                      type="number"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+    <PopoverContent className="w-56 p-2" align="start">
+      <div className="flex gap-x-4">
+        <div>
+          <Label htmlFor="minPrice">Min Price</Label>
+          <Input
+            id="minPrice"
+            value={filters.minPrice === null ? "" : filters.minPrice}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilters({
+                ...filters,
+                minPrice: value === "" ? null : parseInt(value, 10),
+              });
+            }}
+            type="number"
+            placeholder="0"
+            autoFocus
+          />
         </div>
+        <div>
+          <Label htmlFor="maxPrice">Max Price</Label>
+          <Input
+            id="maxPrice"
+            value={filters.maxPrice === null ? "" : filters.maxPrice}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilters({
+                ...filters,
+                maxPrice: value === "" ? null : parseInt(value, 10),
+              });
+            }}
+            type="number"
+            placeholder="0"
+          />
+        </div>
+      </div>
+    </PopoverContent>
+  </Popover>
+
+  {/* Sort by Price Button */}
+  <Button
+    variant="outline"
+    className="bg-white text-black"
+    onClick={() => {
+      // toggle sort order between 'asc' and 'desc'
+      setFilters({
+        ...filters,
+        sortByPrice:
+          filters.sortByPrice === "asc"
+            ? "desc"
+            : filters.sortByPrice === "desc"
+            ? ""
+            : "asc",
+      });
+    }}
+  >
+    {filters.sortByPrice === "asc"
+      ? "↑ Increasing"
+      : filters.sortByPrice === "desc"
+      ? "↓ Decreasing"
+      : "Sort by Price"}
+  </Button>
+</div>
+
       </div>
 
       <div className="  flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">

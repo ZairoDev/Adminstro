@@ -73,6 +73,7 @@ export const useBunnyUpload = () => {
       );
 
       setLoading(false);
+     
       return { imageUrls, error: null };
     } catch (error) {
       setLoading(false);
@@ -82,7 +83,7 @@ export const useBunnyUpload = () => {
       };
     }
   };
-
+  
   return { uploadFiles, loading };
 };
 

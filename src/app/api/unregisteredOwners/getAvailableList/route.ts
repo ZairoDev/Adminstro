@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
     }));
   }
 }
-    if(filters.area) query["area"] = filters.area;
+     if (filters.area?.length) {
+      // exact match any of selected areas (case-insensitive)
+      query["area"] = { $in: filters.area.map((a) => new RegExp(`^${a}$`, "i")) };
+    }
      if (filters.place && filters.zone) {
       const areasInZone = await Area.find({ zone: filters.zone })
         .select("name")
@@ -84,7 +87,37 @@ export async function POST(req: NextRequest) {
     
     const skip = (page - 1) * limit;
 
-    const data = await unregisteredOwner.find(query).skip(skip).limit(limit).lean().sort({ createdAt: -1 }      );
+let data;
+if (filters.sortByPrice) {
+  // ✅ Use aggregation when sorting by price (string → number conversion)
+  data = await unregisteredOwner.aggregate([
+    { $match: query },
+    {
+      $addFields: {
+        numericPrice: {
+          $convert: {
+            input: { $trim: { input: "$price" } },
+            to: "double",
+            onError: null,
+            onNull: null,
+          },
+        },
+      },
+    },
+    { $sort: { numericPrice: filters.sortByPrice === "asc" ? 1 : -1 } },
+    { $skip: (page - 1) * limit },
+    { $limit: limit },
+  ]);
+} else {
+  // ✅ Normal sorting by creation date
+  data = await unregisteredOwner
+    .find(query)
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean()
+    .sort({ createdAt: -1 });
+}
+
      const total = await unregisteredOwner.countDocuments(query);
     // console.log(data);
     return NextResponse.json({data,total    }, {status: 200});

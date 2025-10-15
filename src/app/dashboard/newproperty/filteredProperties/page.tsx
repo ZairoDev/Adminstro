@@ -22,6 +22,7 @@ export interface FiltersInterface {
   rentalType: "Short Term" | "Long Term";
   minPrice: number ;
   maxPrice: number ;
+  sortByPrice?: "asc" | "desc" | "";
   beds: number;
   bedrooms: number;
   bathroom: number;

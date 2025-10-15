@@ -19,11 +19,6 @@ import {
 } from "recharts";
 import {
   ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart";
 
 import {
@@ -40,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import useTodayLeads from "@/hooks/(VS)/useTodayLead";
 // import { LeadsByAgent } from "@/components/VS/dashboard/lead-by-agents";
 import { LabelledPieChart } from "@/components/charts/LabelledPieChart";
-import { DatePickerWithRange } from "@/components/Date-picker-with-range";
+// import { DatePickerWithRange } from "@/components/Date-picker-with-range";
 import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 // import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 // import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,8 +48,8 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
-import { PropertyCountBarChart } from "@/components/charts/PropertyCountBarChart";
+// import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
+// import { PropertyCountBarChart } from "@/components/charts/PropertyCountBarChart";
 import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
 import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
 import { useAuthStore } from "@/AuthStore";
@@ -71,18 +66,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// import { Input } from "@/components/ui/input";
+// import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
-import { VisitsCountBarChart } from "@/components/charts/VisitsCountBarChart";
+// import { VisitsCountBarChart } from "@/components/charts/VisitsCountBarChart";
 import useReview from "@/hooks/(VS)/useReviews";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
-import { table } from "console";
-import { list } from "postcss";
+// import { table } from "console";
+// import { list } from "postcss";
 // import { UnregisteredOwnersTable } from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { useRouter } from "next/navigation";
-import BookingDetails from "@/hooks/(VS)/useBookingDetails";
+// import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { MoleculeVisualization } from "@/components/molecule_visual";
@@ -96,37 +91,6 @@ import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import {  ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 
-//  const chartConfig = {
-//   greece: {
-//     label: "Greece",
-//     color: "hsl(var(--chart-1))",
-//   },
-//   italy: {
-//     label: "Italy",
-//     color: "hsl(var(--chart-2))",
-//   },
-//   croatia: {
-//     label: "Croatia",
-//     color: "hsl(var(--chart-3))",
-//   },
-//   spain: {
-//     label: "Spain",
-//     color: "hsl(var(--chart-4))",
-//   },
-//   portugal: {
-//     label: "Portugal",
-//     color: "hsl(var(--chart-5))",
-//   },
-// } satisfies ChartConfig;
-
-// interface BookingDetailsIn {
-//   _id: string;
-//   "Total Amount": number;
-//   "Owner Amount": number;
-//   totalOwnerReceived: number;
-//   "Traveller Amount": number;
-//   totalTravellerReceived: number;
-// }
 interface StatusCount {
   First: number;
   Second: number;
@@ -176,9 +140,9 @@ const Dashboard = () => {
   const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
     new Date(2025, 5, 12)
   );
-  const [listUnregisteredOwners, setUnregisteredOwners] = useState(false);
+  // const [listUnregisteredOwners, setUnregisteredOwners] = useState(false);
 
-  const [fetchloading, setFetchLoading] = useState(false);
+  // const [fetchloading, setFetchLoading] = useState(false);
 
   const [leadsFilters, setLeadsFilters] = useState<{
     days?: string;
@@ -258,17 +222,11 @@ const Dashboard = () => {
     isLoading: isLoadingTodayLeads,
     fetchLeadsByLeadGen,
     chartData1,
-    todayLeadStats,
-
-    // average,
   } = useTodayLeads();
 
   const {
     loading,
-    setloading,
-    visits,
     fetchVisits,
-    visitsToday,
     fetchVisitsToday,
     goodVisits,
     fetchGoodVisitsCount,
@@ -304,41 +262,18 @@ const Dashboard = () => {
   [totalListings]
 );
 
-  // const {visitsCount,fetchVisitsCount} = VisitsCount();
   const {
     reviews,
-    revLoading,
-    setRevLoading,
-    revError,
-    setRevError,
-    revErr,
-    setRevErr,
     fetchReviews,
   } = useReview();
 
   const {
     leadStats,
-    statsLoading,
-    setStatsLoading,
-    statsError,
-    setStatsError,
-    statsErrMsg,
-    setStatsErrMsg,
-    fetchLeadStats,
   } = useLeadStats();
 
    const {
     visitStats,
-    visitStatsLoading,
-    setVisitStatsLoading,
-    visitStatsError,
-    setVisitStatsError,
-    visitStatsErrMsg,
-    setVisitStatsErrMsg,
-    fetchVisitStats,
   } = useVisitStats();
-
-  // const { bookingDetails, bookingLoading, fetchBookingDetails } = BookingDetails();
 
   const {
      monthlyStats,
@@ -350,7 +285,6 @@ const Dashboard = () => {
   const router = useRouter();
 
   const handleClick = () => {
-    // const serialized = encodeURIComponent(JSON.stringify(unregisteredOwners));
     router.push(`dashboard/unregistered-owner`);
   };
 
@@ -409,27 +343,6 @@ const Dashboard = () => {
 
   const labels = ["0", "1", "2", "3", "4", "5+"];
 
-  // useEffect(() => {
-  //   const fetchLeads = async () => {
-  //     try {
-  //       const res = await axios.get("/api/getLeadStats");
-  //       const data: { location: string; totalLeads: number }[] = res.data;
-
-  //       const leadsMap: Record<string, number> = {};
-  //       locations.forEach((loc) => {
-  //         const found = data.find((d) => d.location === loc);
-  //         leadsMap[loc] = found?.totalLeads || 0;
-  //       });
-
-  //       setTodayLeadStats(leadsMap);
-  //     } catch (err) {
-  //       console.error(err);
-  //     }
-  //   };
-
-  //   fetchLeads();
-  // }, []);
-
   const bookingLabels = [
     "Total Amount",
     "Traveller Received / Amount",
@@ -438,9 +351,6 @@ const Dashboard = () => {
     "Agents Commision",
     "Received Amount/Final Amount",
   ];
-  // const FinalAmount = ((bookingDetails?.ownerAmount ?? 0) + (bookingDetails?.travellerAmount ??0)) - ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
-
-  // const finalReceived = ((bookingDetails?.totalOwnerReceived ?? 0) + (bookingDetails?.totalTravellerReceived ?? 0))- ((bookingDetails?.totalDocumentationCommission ?? 0) - (bookingDetails?.totalAgentCommission ?? 0));
   const previousSum = unregisteredOwnerCounts
   .slice(0, -1) // all except last day
   .reduce((acc, curr) => acc + curr.owners, 0);
@@ -529,22 +439,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
           {/* country-wise property count */}
           <div className=" mt-2">
-            {/* <PropertyCountBarChart
-              heading={`Property Count - ${
-                selectedCountry === "All"
-                  ? totalProperties
-                  : countryWiseTotalProperties
-              }`}
-              chartData={
-                selectedCountry === "All"
-                  ? properties
-                    ? properties
-                    : []
-                  : countryWiseProperties
-                  ? countryWiseProperties
-                  : []
-              }
-            /> */}
+         
             <PropertyCountHistogram
               heading={`Property Count - ${
                 selectedCountry === "All"
@@ -604,8 +499,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 heading={`Today Leads - ${totalTodayLeads}`}
                 subHeading="Leads by Agent"
                 chartData={todaysLeadChartData ? todaysLeadChartData : []}
-                // footer = {`${totalTodayLeads} leads`}
-                // requiredLeads={`${averagedata}`}
+
               />
               <Button
                 size={"sm"}
@@ -626,25 +520,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
           {/* Date Filter */}
           <div className="flex justify-end gap-4 mt-4">
-            {/* <Select onValueChange={(value) => handleDateFilter(value)}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue placeholder="Select filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Fruits</SelectLabel>
-              <SelectItem value="7 days">7 days</SelectItem>
-              <SelectItem value="10 days">10 days</SelectItem>
-              <SelectItem value="15 days">15 days</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select> */}
-
-            {/* Date Picker */}
-            {/* <DatePickerWithRange date={date} setDate={setDate} className="" /> */}
-
-            {/* <Button onClick={refetch}>Apply</Button>
-        <Button onClick={reset}>Reset</Button> */}
+      
           </div>
 
           {/* Leads by Location and Agent */}
@@ -735,9 +611,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 />
                 <ReviewPieChart
                   chartData={reviews}
-                  // heading="Leads By Location"
-                  // // footer="Footer data"
-                  // key="fdg"
                 />
               </div>
             )}
@@ -759,26 +632,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
               ))}
             </div>
 
-            {/* <Card className="shadow-md">
-          <CardHeader>
-          <CardTitle>Leads by Location</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LeadsByLocation leadsByLocation={leads.leadsByLocation} />
-            </CardContent>
-        </Card> */}
-
-            {/* Right Column */}
-            {/* <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Leads by Agent</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LeadsByAgent leadsByAgent={leads.leadsByAgent} />
-          </CardContent>
-        </Card> */}
-
-            {/* Right Column */}
+         
           </div>
         </section>
       )}
@@ -1205,84 +1059,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
       <div>
         {token?.role === "SuperAdmin" && (
           <div className="flex flex-col md:flex-row gap-6 mt-8">
-            {/* Properties Shown Summary (larger width) */}
-            {/* <div className="relative flex-1 p-6 border rounded-xl shadow-md">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
-              Booking Summary
-            </h2>
-            <CustomSelect
-              itemList={[
-                "Today",
-                "All",
-                "yesterday",
-                "last month",
-                "this month",
-                "10 days",
-                "15 days",
-                "1 month",
-                "3 months",
-              ]}
-              triggerText="Select days"
-              defaultValue="Today"
-              onValueChange={(value) => {
-                const newLeadFilters = {} as { days: string };
-                newLeadFilters.days = value;
-                // setReviewsFilters(newLeadFilters);
-                fetchBookingDetails(newLeadFilters);
-              }}
-              triggerClassName="w-32 absolute right-6 top-4"
-            />
-            {bookingDetails ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
-                  <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    <tr>
-                      {bookingLabels.map((label) => (
-                        <th
-                          key={label}
-                          scope="col"
-                          className="px-4 py-2 text-xs font-semibold text-left border-b"
-                        >
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-white dark:bg-gray-950 text-center">
-                      <td className="px-4 py-2 border-b">
-                        €{bookingDetails?.totalAmount ?? 0}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        €{bookingDetails?.totalTravellerReceived ?? 0} / €
-                        {bookingDetails?.travellerAmount ?? 0}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        €{bookingDetails?.totalOwnerReceived ?? 0} / €
-                        {bookingDetails?.ownerAmount ?? 0}
-                      </td>
-
-                      <td className="px-4 py-2 border-b">
-                        €{bookingDetails?.totalAgentCommission ?? 0}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        €{bookingDetails?.totalDocumentationCommission ?? 0}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        €{finalReceived ?? 0} / €{FinalAmount ?? 0}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="flex justify-center items-center h-24">
-                <h1 className="text-xl text-gray-500 dark:text-gray-400">
-                  No Data Available
-                </h1>
-              </div>
-            )}
-          </div> */}
           </div>
         )}
       </div>

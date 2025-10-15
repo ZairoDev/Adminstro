@@ -20,10 +20,7 @@ export async function GET() {
         areas: matchingAreas, 
       };
     });
-
     
-    // console.log("result fro the getAreaFilterTarget: ", result);
-
     return NextResponse.json({ data: result }, { status: 200 });
   } catch (err) {
     console.error("Error fetching targets:", err);

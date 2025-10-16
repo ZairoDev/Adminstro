@@ -27,7 +27,7 @@ export type InvoiceData = {
   cgst: number;
   nationality: string;
   totalAmount: number; // final payable
-  status: "paid" | "unpaid";
+  status: string;
   sacCode: number;
   invoiceNumber?: string;
 };

@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import nodemailer from "nodemailer";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb } from "pdf-lib";
 import fs from "fs";
 import path from "path";
 import Bookings from "@/models/booking";
-import Query from "@/models/query";
-import { BookingInterface } from "@/util/type";
+import { connectDb } from "@/util/db";
+import documents from "razorpay/dist/types/documents";
+
+// ✅ Updated Owner type with idNumber
+export type Owner = {
+  name: string;
+  email: string;
+  phoneNo: string;
+  idNumber?: string;
+  documents: string[];
+};
 
 type RequestBody = {
   amount: number;
@@ -16,12 +25,17 @@ type RequestBody = {
   phone: string;
   description?: string;
   bookingId?: string;
+  booking_Id?: string;
   numberOfPeople?: number;
   propertyOwner?: string;
   address?: string;
+  guests?: Owner[];
   checkIn?: string;
   checkOut?: string;
-  email_id?: string; // ✅ new optional field
+  paymentType?: "full" | "partial" | "remaining" | "split";
+  partialAmount?: number;
+  rentPayable: number;
+  depositPaid: number;
 };
 
 // --- RAZORPAY INIT ---
@@ -37,34 +51,35 @@ function getRazorpay() {
 
 // --- PDF GENERATOR ---
 async function generatePdfBuffer(data: {
-  name: string;
-  email: string;
-  phone: string;
   amount: number;
   finalPrice?: number;
   link: string;
   description?: string;
   bookingId?: string;
+  booking_Id?: string;
+  guests?: Owner[];
   numberOfPeople?: number;
   propertyOwner?: string;
   address?: string;
   checkIn?: string;
   checkOut?: string;
+  paymentType?: string;
+  partialAmount?: number;      
 }) {
   const {
-    name,
-    email,
-    phone,
     amount,
     finalPrice,
     link,
     description,
     bookingId,
+    booking_Id,
     numberOfPeople,
     propertyOwner,
     address,
     checkIn,
     checkOut,
+    guests = [],
+    paymentType,
   } = data;
 
   const pdfDoc = await PDFDocument.create();
@@ -78,7 +93,7 @@ async function generatePdfBuffer(data: {
   let y = pageHeight - 100;
   const baseFontSize = 12;
   const gray = (v: number) => rgb(v, v, v);
-  const brand = rgb(1, 0.55, 0); // Vacation Saga brand orange
+  const brand = rgb(1, 0.55, 0); // Vacation Saga orange
 
   const drawCentered = (
     text: string,
@@ -97,11 +112,11 @@ async function generatePdfBuffer(data: {
     const leftX = 50;
     const gapX = 200;
     page.drawText(label, { x: leftX, y, size: baseFontSize, font: bold });
-    page.drawText(value, { x: gapX, y, size: baseFontSize, font });
+    page.drawText(value || "-", { x: gapX, y, size: baseFontSize, font });
     y -= baseFontSize + 8;
   };
 
-  // === Header Banner ===
+  // === Header ===
   const bannerHeight = 90;
   page.drawRectangle({
     x: 0,
@@ -132,8 +147,6 @@ async function generatePdfBuffer(data: {
   }
 
   y = pageHeight - bannerHeight - 40;
-
-  // === Title ===
   drawCentered("Booking Confirmation / Payment Request", 18, true);
 
   // Divider
@@ -146,30 +159,18 @@ async function generatePdfBuffer(data: {
   });
   y -= 18;
 
-  // === Content ===
-  page.drawText(`Dear ${name},`, { x: 50, y, size: baseFontSize, font });
-  y -= baseFontSize + 10;
-  page.drawText(
-    "Thank you for booking with us. Here are your reservation details:",
-    {
-      x: 50,
-      y,
-      size: baseFontSize,
-      font,
-    }
-  );
-  y -= baseFontSize + 12;
+  // === Booking Details ===
+  drawLabelValue("Booking ID", booking_Id ?? "-");
 
-  const sectionTopY = y + 12;
-  const sectionLeftX = 40;
-  const sectionWidth = pageWidth - 80;
+  // 🟠 If owners exist → skip guest name/email/phone in main section
+  // if (guests.length === 0) {
+  //   drawLabelValue("Guest Name", name || "-");
+  //   drawLabelValue("Phone", phone || "-");
+  //   drawLabelValue("Email", email || "-");
+  // }
 
-  drawLabelValue("Booking ID", bookingId ?? "-");
-  drawLabelValue("Guest Name", name || "-");
-  drawLabelValue("Phone", phone || "-");
-  drawLabelValue("Email", email || "-");
-  drawLabelValue("Total Amount (INR)", ` ${finalPrice?.toFixed(2)}`);
-  drawLabelValue("Paid Amount (INR)", `${amount}`);
+  drawLabelValue("Total Amount (INR)", `${amount}`);
+  drawLabelValue("Paid Amount (INR)", `${finalPrice?.toFixed(2) ?? "-"}`);
   drawLabelValue(
     "Number of People",
     numberOfPeople ? String(numberOfPeople) : "-"
@@ -179,36 +180,66 @@ async function generatePdfBuffer(data: {
   drawLabelValue("Address", address || "-");
   drawLabelValue("Check-in", checkIn || "-");
   drawLabelValue("Check-out", checkOut || "-");
+  y -= 20;
 
-  // Border around section
-  page.drawRectangle({
-    x: sectionLeftX,
-    y: y - 10,
-    width: sectionWidth,
-    height: sectionTopY - (y - 10),
-    borderColor: gray(0.8),
-    borderWidth: 1,
-  });
-  y -= 30;
+  // === Owners Section ===
+  if (guests.length > 0) {
+    page.drawText("Guest(s) Details:", {
+      x: 50,
+      y,
+      size: baseFontSize + 1,
+      font: bold,
+    });
+    y -= baseFontSize + 6;
 
-  // Payment link
-  page.drawText("Please complete your payment using the link below:", {
-    x: 50,
-    y,
-    size: baseFontSize,
-    font: bold,
-  });
-  y -= baseFontSize + 6;
-  page.drawText(link, {
+    guests.forEach((owner, i) => {
+      drawLabelValue(`Guest ${i + 1} Name`, owner.name);
+      drawLabelValue(`Email`, owner.email);
+      drawLabelValue(`Phone`, owner.phoneNo);
+      drawLabelValue(`ID Number`, owner.idNumber || "-");
+      y -= 10;
+    });
+    y -= 10;
+  }
+
+  // === Payment Link ===
+  const payNowText = "Pay Now";
+  const textWidth = font.widthOfTextAtSize(payNowText, baseFontSize);
+
+  page.drawText(payNowText, {
     x: 50,
     y,
     size: baseFontSize,
     font,
     color: rgb(0.1, 0.3, 0.85),
   });
+
+  // Create a clickable annotation for the text
+  const linkAnnotation = page.doc.context.obj({
+    Type: PDFName.of("Annot"),
+    Subtype: PDFName.of("Link"),
+    Rect: page.doc.context.obj([50, y, 50 + textWidth, y + baseFontSize]),
+    Border: page.doc.context.obj([0, 0, 0]), // removes underline box
+    A: page.doc.context.obj({
+      Type: PDFName.of("Action"),
+      S: PDFName.of("URI"),
+      URI: PDFString.of(link),
+    }),
+  });
+
+  // Get or create the Annots array for the page
+  let annots = page.node.Annots();
+
+  if (!annots) {
+    annots = page.doc.context.obj([]);
+    page.node.set(PDFName.of("Annots"), annots);
+  }
+
+  // Append the annotation to the page
+  (annots as PDFArray).push(linkAnnotation);
   y -= baseFontSize + 16;
 
-  // Company info
+  // === Company Info ===
   const infoLines = [
     "Website: www.vacationsaga.com",
     "Company: ZAIRO INTERNATIONAL PRIVATE LIMITED",
@@ -216,6 +247,7 @@ async function generatePdfBuffer(data: {
     "Email: info@vacationsaga.com / support@vacationsaga.com",
     "Concerned Person: Miss. Ankita Nigam",
   ];
+
   infoLines.forEach((t) => {
     page.drawText(t, { x: 50, y, size: 10, font, color: gray(0.2) });
     y -= 14;
@@ -244,12 +276,10 @@ async function generatePdfBuffer(data: {
   return Buffer.from(pdfBytes);
 }
 
+
 // --- NODEMAILER TRANSPORTER ---
 function createTransporter() {
-  if (!process.env.GMAIL_APP_PASSWORD) {
-    throw new Error("Missing Gmail app password in env");
-  }
-
+  if (!process.env.GMAIL_APP_PASSWORD) return null;
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -262,109 +292,373 @@ function createTransporter() {
 // --- MAIN API HANDLER ---
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as RequestBody;
-    const { amount, name, email, phone, description, bookingId, email_id } =
-      body;
-    console.log("body: ", body);
+    await connectDb();
 
-    if (!amount || !name || !email || !phone) {
+    const body = (await req.json()) as RequestBody;
+    const {
+      amount,
+      description,
+      bookingId,
+      numberOfPeople,
+      propertyOwner,
+      address,
+      guests = [],
+      checkIn,
+      checkOut,
+      paymentType = "full",
+      partialAmount,
+      rentPayable,
+      depositPaid,
+    } = body;
+
+    if (!amount || !guests.length) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields or guests" },
         { status: 400 }
       );
     }
-
-    const razorpay = getRazorpay();
-
-    const paymentLinkResponse: any = await razorpay.paymentLink.create({
-      amount: Math.round(amount * 100),
-      currency: "EUR",
-      description: description ?? "Payment Request",
-      customer: { name, email, contact: phone },
-      notify: { sms: true, email: true },
-      reminder_enable: true,
-      notes: { purpose: description ?? "Payment" },
-    });
-
-    const shortUrl =
-      paymentLinkResponse.short_url ?? paymentLinkResponse.url ?? "";
-    if (!shortUrl) {
+    if (!bookingId) {
       return NextResponse.json(
-        { error: "Failed to generate payment link" },
-        { status: 500 }
-      );
+        { error: "bookingId is required" },
+        { status: 400 }
+      );  
     }
 
-    const updateData: any = {
-      "travellerPayment.orderId": paymentLinkResponse.id,
-      "travellerPayment.status": "pending",
-      "travellerPayment.method": "link",
-      "travellerPayment.currency": "INR",
-      "travellerPayment.customerEmail": email,
-      "travellerPayment.customerPhone": phone,
-      $push: {
-        "travellerPayment.history": {
-          amount,
-          method: "link",
-          linkId: paymentLinkResponse.id,
-          status: "pending",
-          date: new Date(),
+    const razorpay = getRazorpay();
+    const transporter = createTransporter();
+
+    // Compute finalAmount for this link
+    let finalAmount = amount;
+    if (paymentType === "partial") {
+      if (!partialAmount || partialAmount <= 0) {
+        return NextResponse.json(
+          { error: "Invalid partial amount" },
+          { status: 400 }
+        );
+      }
+      finalAmount = partialAmount;
+    } else if (paymentType === "remaining") {
+      // API caller should compute remaining before calling; we accept it as provided
+      finalAmount = amount;
+    }
+
+    // Split payment: generate one link per guest and update guests + history
+    if (paymentType === "split") {
+      const perGuest = +(amount / guests.length).toFixed(2);
+      const createdLinks: Array<{
+        name: string;
+        email: string;
+        linkId: string;
+        link: string;
+        amount: number;
+      }> = [];
+
+      for (const guest of guests) {
+        const resp: any = await razorpay.paymentLink.create({
+          amount: Math.round(perGuest * 100),
+          currency: "INR",
+          description: description ?? "Payment Request",
+          customer: {
+            name: guest.name,
+            email: guest.email,
+            contact: guest.phoneNo,
+          },
+          notify: { sms: true, email: true },
+          reminder_enable: true,
+          notes: { purpose: "split" },
+        });
+        const shortUrl = resp.short_url ?? resp.url ?? "";
+        if (!shortUrl) continue;
+
+        // Email PDF per guest (optional)
+        if (transporter) {
+          const pdfBuffer = await generatePdfBuffer({
+            amount: perGuest,
+            link: shortUrl,
+            description,
+            bookingId,
+            numberOfPeople,
+            propertyOwner,
+            address,
+            checkIn,
+            checkOut,
+            guests: [guest],
+          });
+          await transporter.sendMail({
+            from: '"Vacation Saga" <zairo.domain@gmail.com>',
+            to: guest.email,
+            subject: `Payment Request - ${bookingId}`.trim(),
+            html: `
+              <div style="font-family: Arial, sans-serif; color: #222; line-height: 1.6;">
+                <div style="background-color: #004aad; color: white; padding: 14px 24px; font-size: 20px; font-weight: bold; border-radius: 6px 6px 0 0;">
+                  Vacation Saga
+                </div>
+          
+                <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 6px 6px;">
+                  <p>Hey ${guest.name},</p>
+          
+                  <p>Thank you for booking your stay with <strong>Vacation Saga</strong>.</p>
+          
+                  <p>Here are the booking details for your upcoming stay in <strong>${
+              address || "Greece"
+                  }</strong> from 
+                  <strong>${checkIn || "TBA"}</strong> to <strong>${
+              checkOut || "TBA"
+            }</strong>.</p>
+          
+                  <p><strong>Price Breakdown:</strong></p>
+                  <ul style="margin-left: 16px;">
+                    <li>Deposit Paid: <strong>€${depositPaid ?? 0}</strong></li>
+                    <li>Rent Payable: <strong>€${rentPayable ?? 0}</strong></li>
+                    <li>Commission Payable: <strong>€${
+                      amount ?? 0
+                    }</strong></li>
+                  </ul>
+          
+                  <p>In order to complete the agency fees, kindly follow the link below:</p>
+                  <p>
+                    <a href="${shortUrl}" 
+                       style="background-color:#004aad; color:white; text-decoration:none; padding:10px 20px; border-radius:5px; display:inline-block;">
+                       Pay Now
+                    </a>
+                  </p>
+          
+                  <p>Once you pay the commission, you will receive a paid invoice.</p>
+                  <p>Please find your contract attached below.</p>
+          
+                  <p>Hope we are able to serve you better!</p>
+          
+                  <p style="margin-top: 24px;">Best regards,<br/>
+                  <strong>VS Team</strong><br/>
+                  Vacation Saga</p>
+          
+                  <hr style="margin: 24px 0;" />
+                  <p style="font-size: 13px; color: #666;">
+                    <strong>Director:</strong> Zaid Bin Hashmat<br/>
+                    <strong>Zairo International Pvt Ltd</strong><br/>
+                    +91 9598023492<br/>
+                    Skype: Zaid860
+                  </p>
+                </div>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: `booking-details-${guest.name}.pdf`,
+                content: pdfBuffer,
+              },
+            ],
+          });
+          
+        }
+
+        createdLinks.push({
+          name: guest.name,
+          email: guest.email,
+          linkId: resp.id,
+          link: shortUrl,
+          amount: perGuest,
+        });
+      }
+      const guestUpdates = guests.map((g, i) => ({
+        name: g.name,
+        email: g.email,
+        phone: g.phoneNo,
+        amountDue: perGuest,
+        amountPaid: 0,
+        status: "pending",
+        documents:g.documents,
+        payments: [
+          {
+            amount: perGuest,
+            linkId: createdLinks[i].linkId,
+            status: "pending",
+            method: "split",
+            date: new Date(),
+          },
+        ],
+      }));
+
+      const historyUpdates = guestUpdates.map((g) => ({
+        amount: g.amountDue,
+        method: "split",
+        paidBy: g.email,
+        linkId: g.payments[0].linkId,
+        status: "pending",
+        date: new Date(),
+      }));
+
+      // Update booking: set paymentType, guests with amountDue, and history entries
+      await Bookings.findByIdAndUpdate(
+        bookingId,
+        {
+          $set: {
+            "travellerPayment.paymentType": "split",
+            "travellerPayment.status": "pending",
+            "travellerPayment.guests": guestUpdates,
+            "travellerPayment.finalAmount": amount, // total split base amount
+            "travellerPayment.rentPayable": rentPayable,
+            "travellerPayment.depositPaid": depositPaid,
+          },
+          $push: {
+            "travellerPayment.history": { $each: historyUpdates },
+          },
         },
-      },
-    };
+        { new: true }
+      );
 
-    if (email_id) updateData.email = email_id;
-    else if (email) updateData.email = email;
-
-    // ✅ Update Booking
-    const updatedBooking = await Bookings.findByIdAndUpdate(
-      bookingId,
-      { $set: updateData },
-      { new: true }
-    ).lean<BookingInterface | null>();
-
-    // ✅ Update Query collection email if booking has a leads reference
-    if (updatedBooking?.lead) {
-      await Query.findByIdAndUpdate(updatedBooking.lead, {
-        $set: { email: email_id ?? email },
+      return NextResponse.json({
+        success: true,
+        message: "Split payment links created and emailed to guests.",
+        links: createdLinks,
       });
     }
 
-    // === 📄 Generate PDF invoice ===
-    const pdfBuffer = await generatePdfBuffer({
-      name,
-      email,
-      phone,
-      amount,
-      link: shortUrl,
-      description,
-      bookingId,
-      numberOfPeople: body.numberOfPeople,
-      propertyOwner: body.propertyOwner,
-      address: body.address,
-      checkIn: body.checkIn,
-      checkOut: body.checkOut,
+    // Full/partial/remaining: one link for all
+    const mainGuest = guests[0];
+    const resp: any = await razorpay.paymentLink.create({
+      amount: Math.round(finalAmount * 100),
+      currency: "INR",
+      description: description ?? "Payment Request",
+      customer: {
+        name: mainGuest.name,
+        email: mainGuest.email,
+        contact: mainGuest.phoneNo,
+      },
+      notify: { sms: true, email: true },
+      reminder_enable: true,
+      notes: { purpose: paymentType },
     });
 
-    // === ✉️ Send email ===
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: "zairo.domain@gmail.com",
-      to: email,
-      subject: `Payment Request / Invoice - ${bookingId ?? ""}`.trim(),
-      text: `Hi ${name},\n\nPlease find attached your payment invoice.\n\nComplete your payment using this link: ${shortUrl}\n\nThanks,\nVacation Saga`,
-      attachments: [
+    const link = resp.short_url ?? resp.url ?? "";
+    if (!link) throw new Error("Failed to generate payment link");
+
+    if (transporter) {
+      const pdfBuffer = await generatePdfBuffer({
+        amount: finalAmount,
+        link,
+        description,
+        bookingId,
+        numberOfPeople,
+        propertyOwner,
+        address,
+        checkIn,
+        checkOut,
+        guests,
+      });
+      await transporter.sendMail({
+        from: '"Vacation Saga" <zairo.domain@gmail.com>',
+        to: mainGuest.email,
+        subject: `Payment Request - ${bookingId}`.trim(),
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #222; line-height: 1.6;">
+            <div style="background-color: #004aad; color: white; padding: 14px 24px; font-size: 20px; font-weight: bold; border-radius: 6px 6px 0 0;">
+              Vacation Saga
+            </div>
+      
+            <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 6px 6px;">
+              <p>Hey ${mainGuest.name},</p>
+      
+              <p>Thank you for booking your stay with <strong>Vacation Saga</strong>.</p>
+      
+              <p>Here are the booking details for your upcoming stay in <strong>${
+                address || "Greece"
+              }</strong> from 
+              <strong>${checkIn || "TBA"}</strong> to <strong>${
+          checkOut || "TBA"
+        }</strong>.</p>
+      
+              <p><strong>Price Breakdown:</strong></p>
+              <ul style="margin-left: 16px;">
+                <li>Deposit Paid: <strong>€${depositPaid ?? 0}</strong></li>
+                <li>Rent Payable: <strong>€${rentPayable ?? 0}</strong></li>
+                <li>Commission Payable: <strong>€${amount ?? 0}</strong></li>
+              </ul>
+      
+              <p>In order to complete the agency fees, kindly follow the link below:</p>
+              <p>
+                <a href="${link}" 
+                   style="background-color:#004aad; color:white; text-decoration:none; padding:10px 20px; border-radius:5px; display:inline-block;">
+                   Pay Now
+                </a>
+              </p>
+      
+              <p>Once you pay the commission, you will receive a paid invoice.</p>
+              <p>Please find your contract attached below.</p>
+      
+              <p>Hope we are able to serve you better!</p>
+      
+              <p style="margin-top: 24px;">Best regards,<br/>
+              <strong>VS Team</strong><br/>
+              Vacation Saga</p>
+      
+              <hr style="margin: 24px 0;" />
+              <p style="font-size: 13px; color: #666;">
+                <strong>Director:</strong> Zaid Bin Hashmat<br/>
+                <strong>Zairo International Pvt Ltd</strong><br/>
+                +91 9598023492<br/>
+                Skype: Zaid860
+              </p>
+            </div>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `booking-details-${mainGuest.name}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+    }
+
+    const guestUpdates = guests.map((g) => ({
+      name: g.name,
+      email: g.email,
+      phone: g.phoneNo,
+      amountDue: finalAmount,
+      amountPaid: 0,
+      status: "pending",
+      documents: g.documents,
+      payments: [
         {
-          filename: `invoice-${Date.now()}.pdf`,
-          content: pdfBuffer,
+          amount: finalAmount,
+          linkId: resp.id,
+          status: "pending",
+          method: paymentType,
+          date: new Date(),
         },
       ],
-    });
+    }));
+
+    // Update booking: set paymentType and push pending history
+    await Bookings.findByIdAndUpdate(
+      bookingId,
+      {
+        $set: {
+          "travellerPayment.paymentType": paymentType,
+          "travellerPayment.status": "pending",
+          "travellerPayment.guests": guestUpdates,
+          "travellerPayment.rentPayable": rentPayable,
+          "travellerPayment.depositPaid": depositPaid,
+        },
+        $push: {
+          "travellerPayment.history": {
+            amount: finalAmount,
+            method: paymentType,
+            paidBy: mainGuest.email,
+            linkId: resp.id,
+            status: "pending",
+            date: new Date(),
+          },
+        },
+      },
+      { new: true }
+    );
 
     return NextResponse.json({
       success: true,
-      message: "Payment link created, email sent, and booking/query updated",
-      link: shortUrl,
+      message: "Payment link created and email sent successfully.",
+      link,
     });
   } catch (err: any) {
     console.error("❌ /api/payment-link error:", err);
@@ -374,4 +668,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

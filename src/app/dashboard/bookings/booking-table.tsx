@@ -125,14 +125,14 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
               {/* <TableCell>{booking?.pitchedAmount ?? "—"}</TableCell> */}
 
               {/* Final Amount */}
-              <TableCell>{booking?.finalAmount ?? "—"}</TableCell>
+              <TableCell>{booking?.travellerPayment?.finalAmount ?? "—"}</TableCell>
 
               {/* Owner Payment */}
               <TableCell>
                 <Badge>
                   <CustomTooltip
-                    text={`${booking?.ownerPayment?.amountRecieved ?? 0} / ${
-                      booking?.ownerPayment?.finalAmount ?? 0
+                    text={`${booking?.ownerPayment?.amountReceived ?? 0} / ${
+                      booking?.ownerPayment?.totalAmount ?? 0
                     }`}
                     desc="Received Amt. / Final Amt."
                   />
@@ -144,7 +144,7 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
                 <Badge>
                   <CustomTooltip
                     text={`${
-                      booking?.travellerPayment?.amountRecieved ?? 0
+                      booking?.travellerPayment?.amountReceived ?? 0
                     } / ${booking?.travellerPayment?.finalAmount ?? 0}`}
                     desc="Received Amt. / Final Amt."
                   />
@@ -156,7 +156,8 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost">
-                      {booking?.travellerPayment?.status?.toUpperCase() ?? "UNKNOWN"}
+                      {booking?.travellerPayment?.status?.toUpperCase() ??
+                        "UNKNOWN"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40">

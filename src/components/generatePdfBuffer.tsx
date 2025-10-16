@@ -33,16 +33,7 @@ export async function generateInvoicePdfBuffer(
   const { width, height } = page.getSize();
   let yPosition = height - 40;
 
-  if (value.status === "paid") {
-    page.drawText("PAID", {
-      x: width - 110,
-      y: yPosition,
-      size: 28,
-      font: helveticaBoldFont,
-      color: rgb(0.95, 0.4, 0.1),
-    });
-    yPosition -= 45; // extra space below PAID
-  }
+
   // ================= HEADER =================
   const textStartX = 50 + logoDims.width + 10;
   page.drawText("Vacation Saga", {
@@ -141,6 +132,17 @@ export async function generateInvoicePdfBuffer(
     size: 12,
     font: helveticaFont,
   });
+  rightY -= 30;
+  if (value.status === "paid") {
+    page.drawText("PAID", {
+      x: rightX,
+      y: rightY,
+      size: 28,
+      font: helveticaBoldFont,
+      color: rgb(0.95, 0.4, 0.1),
+    });
+    rightY -= 45; // extra space below PAID
+  }
 
   const tableStartY = sectionStartY - 130; // move down a bit for spacing
   const tableX = 50;

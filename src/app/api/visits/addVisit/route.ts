@@ -8,7 +8,9 @@ export async function POST(req: NextRequest) {
 
   const newVisitData = {
     ...visitData,
-    ownerPhone: visitData.ownerPhone.replace(/\D/g, ""),
+    ...(visitData.ownerPhone
+      ? { ownerPhone: visitData.ownerPhone.replace(/\D/g, "") }
+      : {}),
     createdBy: token.email,
   };
 

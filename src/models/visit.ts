@@ -11,7 +11,7 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   propertyId: { type: String},
   VSID: { type: String },
   ownerName: { type: String, required: true },
-  ownerPhone: { type: String, required: true },
+  ownerPhone: { type: String },
   ownerEmail: { type: String, required: true },
   schedule: [
     {

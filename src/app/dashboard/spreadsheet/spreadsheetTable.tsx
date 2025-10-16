@@ -149,35 +149,44 @@ export function SpreadsheetTable({
 
 
   const handleResponseStatus = async (id: string, index: number) => {
-    const newStatus =
-      tableData[index].isVerified === "Verified" ? "None" : "Verified";
+    const currentStatus = tableData[index].isVerified;
+    const newStatus = currentStatus === "Verified" ? "None" : "Verified";
 
-    // Optimistic UI update
-    const updatedData = [...tableData];
-    updatedData[index].isVerified = newStatus;
+    // Optimistic UI update — create deep copy of the target object
+    const updatedData = tableData.map((item, i) =>
+      i === index ? { ...item, isVerified: newStatus } : item
+    );
     setTableData(updatedData);
 
     try {
       await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
-        field: "responseStatus",
-        value: newStatus, 
+        field: "isVerified",
+        value: newStatus,
       });
+
+      
+
       toast({
         title: "Response status updated",
         description: "Owner verified successfully.",
         variant: "default",
       });
     } catch (error) {
-    toast({
+      console.error("Response status update failed", error);
+
+      // Rollback to previous state
+      const rollbackData = tableData.map((item, i) =>
+        i === index ? { ...item, isVerified: currentStatus } : item
+      );
+      setTableData(rollbackData);
+
+      toast({
         title: "Failed to update the Owner status",
         variant: "destructive",
       });
-      console.error("Response status update failed", error);
-      // Rollback if error
-      updatedData[index].isVerified = tableData[index].isVerified;
-      setTableData(updatedData);
     }
   };
+  
 
   const applyFilter = (data: unregisteredOwners[]) => {
     if (filterMode === 1) {
@@ -512,7 +521,7 @@ export function SpreadsheetTable({
     );
   }
 
-  interface UploadCellProps {
+interface UploadCellProps {
     item: unregisteredOwners;
   }
 

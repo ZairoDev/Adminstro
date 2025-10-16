@@ -121,7 +121,6 @@ const VisitModal = ({
 
     if (!vsid && !phoneDigits) missing.push("VSID");
 
-
     if (missing.length > 0) {
       toast({
         title: "Missing required fields",
@@ -137,6 +136,19 @@ const VisitModal = ({
     ) {
       toast({
         title: "Traveller and Owner Commission cannot be zero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Schedule check
+    if (
+      !visitFormValues.schedule ||
+      visitFormValues.schedule.length === 0 ||
+      visitFormValues.schedule[0].date === ""
+    ) {
+      toast({
+        title: "Schedule cannot be empty",
         variant: "destructive",
       });
       return;
@@ -190,6 +202,7 @@ const VisitModal = ({
         VSID: VSID.trim(),
       });
       setProperty(response.data.data);
+      console.log(response.data.data);
       setVisitFormValues((prev) => ({
         ...prev,
         propertyId: response.data.data._id,

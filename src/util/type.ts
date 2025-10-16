@@ -361,9 +361,10 @@ export interface VisitInterface {
 
 export interface BookingInterface {
   _id?: string;
-  bookingId: string;
-  lead: string; // ObjectId as string
-  visit: string; // ObjectId as string
+  bookingId?: string;
+
+  lead: Types.ObjectId;
+  visit: Types.ObjectId;
 
   checkIn: {
     date: Date;
@@ -373,42 +374,62 @@ export interface BookingInterface {
     date: Date;
     time: string;
   };
-
   contract?: string;
-  leadClosingBy?: string;
 
-  finalAmount: number;
-
-  ownerPayment: {
-    finalAmount: number;
-    amountRecieved: number;
-  };
+  address?: string;
+  propertyName?: string;
 
   travellerPayment: {
     finalAmount: number;
-    amountRecieved: number;
-    orderId?: string; // plink_xxx or order_xxx
-    paymentId?: string;
-    status: "pending" | "partial" | "paid" | "failed";
-    amountPaid: number;
-    amountRemaining: number;
-    currency?: string;
-    method?: string;
-    paidAt?: Date;
-    customerEmail?: string;
-    customerPhone?: string;
-    history: {
-      amount: number;
-      date: Date;
-      method: string;
+    amountReceived?: number;
+    paymentType?: string;
+    status?: string;
+    rentPayable?: number;
+    depositPaid?: number;
+    guests?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      amountDue?: number;
+      amountPaid?: number;
+      paymentLink?: string;
+      status?: string;
+      payments?: {
+        amount?: number;
+        date?: Date;
+        method?: string;
+        linkId?: string;
+        paymentId?: string;
+        status?: string;
+      }[];
+    }[];
+    history?: {
+      amount?: number;
+      date?: Date;
+      method?: string;
+      paidBy?: string;
       linkId?: string;
       paymentId?: string;
-      status?: "paid" | "failed" | "pending";
+      status?: string;
+    }[];
+  };
+
+  ownerPayment?: {
+    totalAmount?: number;
+    amountReceived?: number;
+    status?: string;
+    payments?: {
+      amount?: number;
+      date?: Date;
+      method?: string;
+      paymentId?: string;
+      status?: string;
     }[];
   };
 
   note?: string;
   createdBy: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 }

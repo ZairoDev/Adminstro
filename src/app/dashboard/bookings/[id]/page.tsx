@@ -23,7 +23,6 @@ import {
 import axios from "axios";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { BookingInterface, IQuery, VisitInterface } from "@/util/type";
@@ -159,15 +158,15 @@ const BookingPage = ({ params }: PageProps) => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold ">Booking Details</h1>
-            <p className=" mt-1">Booking ID: {booking._id}</p>
+            <p className=" mt-1">Booking ID: {booking._id?.toString()}</p>
           </div>
           <div>
             <InvoicePdfButton value={invoiceData} computed={computed} />
           </div>
           <div>
             <PaymentLinkButton
-              amount={booking.finalAmount}
-              amountRecieved={booking.travellerPayment.amountRecieved}
+              amount={booking.travellerPayment.finalAmount}
+              amountRecieved={booking.travellerPayment.amountReceived}
               finalPrice={booking.travellerPayment.finalAmount}
               name={booking.lead.name}
               email={booking.lead.email}
@@ -175,6 +174,7 @@ const BookingPage = ({ params }: PageProps) => {
               description={booking.visit.VSID}
               numberOfPeople={booking.lead.guest}
               bookingId={booking._id}
+              booking_Id={booking.bookingId}
               propertyOwner={booking.visit.ownerName}
               address={booking.lead.area}
               checkIn={
@@ -216,9 +216,13 @@ const BookingPage = ({ params }: PageProps) => {
                 <div>
                   <p className="text-sm ">Payment Status</p>
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(booking.travellerPayment.status)}
-                    <Badge className={getStatusColor(booking.travellerPayment.status)}>
-                      {booking.travellerPayment.status.toUpperCase()}
+                    {getStatusIcon(booking?.travellerPayment?.status ?? "")}
+                    <Badge
+                      className={getStatusColor(
+                        booking.travellerPayment.status ?? ""
+                      )}
+                    >
+                      {booking.travellerPayment.status?.toUpperCase() ?? ""}
                     </Badge>
                   </div>
                 </div>
@@ -230,7 +234,7 @@ const BookingPage = ({ params }: PageProps) => {
                 <div>
                   <p className="text-sm ">Total Amount</p>
                   <p className="font-semibold text-lg">
-                    €{booking.finalAmount.toLocaleString()}
+                    €{booking.travellerPayment.finalAmount.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -266,59 +270,154 @@ const BookingPage = ({ params }: PageProps) => {
                   <User className="w-5 h-5" />
                   Customer Information
                 </CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Payment Type : {booking?.travellerPayment?.paymentType}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src="/placeholder-user.jpg" />
-                    <AvatarFallback>
-                      {booking.lead.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {booking.lead.name}
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm ">
-                      <div className="flex items-center gap-1">
-                        <Mail className="w-4 h-4" />
-                        {booking.lead.email}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Phone className="w-4 h-4" />
-                        +91 {booking.lead.phoneNo}
+
+              <CardContent className="space-y-6">
+                {Array.isArray(booking.travellerPayment?.guests) &&
+                booking.travellerPayment.guests.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {booking.travellerPayment.guests.map(
+                      (guest: any, index: number) => (
+                        <Card
+                          key={index}
+                          className="shadow-sm border "
+                        >
+                          <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                            <Avatar className="w-12 h-12">
+                              <AvatarImage src="/placeholder-user.jpg" />
+                              <AvatarFallback>
+                                {guest.name
+                                  ?.split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h3 className="font-semibold text-lg">
+                                {guest.name}
+                              </h3>
+                              <div className="text-sm text-gray-600 flex flex-col">
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-4 h-4" />{" "}
+                                  {guest.email || "N/A"}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-4 h-4" />{" "}
+                                  {guest.phone || "N/A"}
+                                </span>
+                              </div>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Amount Due:</span>
+                              <span className="font-medium">
+                                €{guest.amountDue ?? 0}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Amount Paid:</span>
+                              <span className="font-medium">
+                                €{guest.amountPaid ?? 0}
+                              </span>
+                            </div>
+
+                            <Badge
+                              className={getStatusColor(
+                                guest.status ?? "pending"
+                              )}
+                              variant="outline"
+                            >
+                              {guest.status?.toUpperCase() ?? "PENDING"}
+                            </Badge>
+
+                            {/* Documents section */}
+                            {guest.documents && guest.documents.length > 0 && (
+                              <div className="mt-3 space-y-1">
+                                <p className="font-medium text-sm flex items-center gap-1">
+                                  <FileText className="w-4 h-4" />
+                                  Uploaded Documents:
+                                </p>
+                                {guest.documents.map(
+                                  (doc: string, i: number) => (
+                                    <Button
+                                      key={i}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full justify-start  hover:bg-gray-800"
+                                      onClick={() => window.open(doc, "_blank")}
+                                    >
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Document {i + 1}
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  // ✅ Default lead display when no guests present
+                  <div className="flex items-center gap-4">
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src="/placeholder-user.jpg" />
+                      <AvatarFallback>
+                        {booking.lead.name
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {booking.lead.name}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-4 h-4" />
+                          {booking.lead.email}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-4 h-4" /> +91{" "}
+                          {booking.lead.phoneNo}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <Separator />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Lead summary info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className=" font-medium">Location Preference</p>
+                    <p className="font-medium">Location Preference</p>
                     <p className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
                       {booking.lead.location}
                     </p>
                   </div>
                   <div>
-                    <p className=" font-medium">Budget Range</p>
+                    <p className="font-medium">Budget Range</p>
                     <p>
                       € {booking.lead.minBudget} - € {booking.lead.maxBudget}
                     </p>
                   </div>
                   <div>
-                    <p className=" font-medium ">Property Type</p>
+                    <p className="font-medium">Property Type</p>
                     <p>
                       {booking.lead.propertyType} {booking.lead.typeOfProperty}
                     </p>
                   </div>
                   <div>
-                    <p className=" font-medium ">Bedrooms</p>
+                    <p className="font-medium">Bedrooms</p>
                     <p>{booking.lead.noOfBeds} BHK</p>
                   </div>
                 </div>
@@ -482,13 +581,20 @@ const BookingPage = ({ params }: PageProps) => {
                     </span>
                   </div>
                   <div className="text-sm text-green-700">
-                    <p>Order ID: {booking?.travellerPayment.orderId}</p>
-                    <p>Payment ID: {booking?.travellerPayment.paymentId}</p>
+                    <p>
+                      Order ID:{" "}
+                      {booking?.travellerPayment?.history?.[0]?.linkId ?? "N/A"}
+                    </p>
+                    <p>
+                      Payment ID:{" "}
+                      {booking?.travellerPayment?.history?.[0]?.paymentId ??
+                        "N/A"}
+                    </p>
                     <p>
                       Paid on:{" "}
-                      {booking?.travellerPayment?.paidAt
+                      {booking?.travellerPayment?.history?.[0]?.date
                         ? format(
-                            new Date(booking.travellerPayment.paidAt),
+                            new Date(booking.travellerPayment?.history[0].date),
                             "MMM d, yyyy"
                           )
                         : "N/A"}

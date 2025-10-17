@@ -24,6 +24,8 @@ export default function PropertyBoost() {
   const [dragActive, setDragActive] = useState(false)
   const [description, setDescription] = useState("")
   const [title, setTitle] = useState("")
+  const [ownerName, setOwnerName] = useState("")
+  const [ownerPhone, setOwnerPhone] = useState("")
   const [location, setLocation] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -98,7 +100,7 @@ export default function PropertyBoost() {
     if (isSubmitting) return
 
     try {
-      if (images.length === 0 || !description || !title) {
+      if (images.length === 0 || !description || !title || !ownerName || !ownerPhone || !location) {
         return
       }
 
@@ -115,6 +117,8 @@ export default function PropertyBoost() {
       const payload = {
         title: title,
         location: location,
+        ownerName: ownerName,
+        ownerPhone: ownerPhone,
         description,
         images: imageUrls,
         createdBy: token.name,
@@ -132,6 +136,8 @@ export default function PropertyBoost() {
         clearAll()
         setDescription("")
         setTitle("")
+        setOwnerName("")
+        setOwnerPhone("")
         setLocation("")
         setIsSubmitting(false)
         setSaveSuccess(false)
@@ -229,7 +235,32 @@ export default function PropertyBoost() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="title" className="text-sm font-semibold text-gray-700 block">
+                <label htmlFor="Owner-name" className="text-sm font-semibold text-gray-700 block">
+                  Owner Name
+                </label>
+                <Input
+                  id="ownerName"
+                  placeholder="e.g., John Doe"
+                  className="text-base"
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  value={ownerName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="Owner-Phone" className="text-sm font-semibold text-gray-700 block">
+                  Owner Phone
+                </label>
+                <Input
+                  id="ownerPhone"
+                  placeholder="e.g., +1 (123) 456-7890"
+                  className="text-base"
+                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  value={ownerPhone}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="location" className="text-sm font-semibold text-gray-700 block">
                   Location
                 </label>
                 <Input

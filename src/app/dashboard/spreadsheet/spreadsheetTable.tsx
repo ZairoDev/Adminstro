@@ -523,6 +523,7 @@ export function SpreadsheetTable({
 
 interface UploadCellProps {
     item: unregisteredOwners;
+     onUploadComplete?: (id: string, newUrls: string[]) => void;
   }
 
   interface RemarksDropdownProps {
@@ -533,55 +534,78 @@ interface UploadCellProps {
       value: string
     ) => void;
   }
-function UploadCell({ item }: UploadCellProps) {
+function UploadCell({ item, onUploadComplete }: UploadCellProps) {
   const { uploadFiles, loading } = useBunnyUpload();
-  const [uploaded, setUploaded] = useState(
+  const [isUploading, setIsUploading] = useState(false);
+  const [hasImages, setHasImages] = useState(
     !!(item.imageUrls && item.imageUrls.length > 0)
   );
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+
+  // Update hasImages when item.imageUrls changes
+  useEffect(() => {
+    setHasImages(!!(item.imageUrls && item.imageUrls.length > 0));
+  }, [item.imageUrls]);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      console.log("No files selected");
+      return;
+    }
 
-    // 🔧 Immediately reset before async call (ensures re-trigger)
+    console.log("Files selected:", files.length);
     const currentInput = event.target;
     const fileList = Array.from(files);
     currentInput.value = "";
 
     setIsUploading(true);
-    await new Promise((r) => setTimeout(r, 100)); // slight debounce
-
-    const { imageUrls, error } = await uploadFiles(fileList, "Uploads");
-
-    if (error || !imageUrls?.length) {
-      toast({
-        title: "Upload failed",
-        description: error || "No URLs returned.",
-        variant: "destructive",
-      });
-      setIsUploading(false);
-      return;
-    }
 
     try {
-      await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
+      console.log("Starting upload...");
+      const { imageUrls, error } = await uploadFiles(fileList, "Uploads");
+      console.log("Upload result:", { imageUrls, error });
+
+      if (error || !imageUrls?.length) {
+        console.error("Upload failed:", error);
+        toast({
+          title: "Upload failed",
+          description: error || "No URLs returned.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
+
+      const existingUrls = item.imageUrls || [];
+      const allImageUrls = [...existingUrls, ...imageUrls];
+      console.log("Saving to server:", allImageUrls);
+
+      const response = await axios.put(`/api/unregisteredOwners/updateData/${item._id}`, {
         field: "imageUrls",
-        value: imageUrls,
+        value: allImageUrls,
       });
+      console.log("Server response:", response.status);
+
+      // Update parent state immediately
+      if (onUploadComplete) {
+        onUploadComplete(item._id, allImageUrls);
+        console.log("Parent state updated");
+      }
+
+      // Update local state immediately for instant visual feedback
+      setHasImages(true);
 
       toast({
         title: "Uploaded successfully",
         description: `${imageUrls.length} image(s) uploaded.`,
       });
 
-      // 🔧 Update local state after upload
-      setUploaded(true);
     } catch (err) {
+      console.error("Upload error:", err);
       toast({
         title: "Failed to update server",
         description: "An error occurred while saving image URLs.",
@@ -589,11 +613,12 @@ function UploadCell({ item }: UploadCellProps) {
       });
     } finally {
       setIsUploading(false);
+      console.log("Upload process complete");
     }
   };
 
   return (
-    <>
+    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <input
         type="file"
         ref={fileInputRef}
@@ -601,19 +626,28 @@ function UploadCell({ item }: UploadCellProps) {
         multiple
         accept="image/png,image/jpeg,image/webp"
         onChange={handleFileChange}
+        key={item._id}
       />
       <Button
         variant="ghost"
         size="icon"
         className="p-0"
         disabled={loading || isUploading}
-        onClick={() => {
-          if (loading || isUploading) return;
-          // 🔧 always reset value before click
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          console.log("Button clicked!");
+          if (loading || isUploading) {
+            console.log("Blocked: loading or uploading");
+            return;
+          }
           if (fileInputRef.current) {
-            fileInputRef.current.value = "";
+            console.log("Triggering file input click");
             fileInputRef.current.click();
           }
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
         }}
       >
         {isUploading ? (
@@ -621,15 +655,14 @@ function UploadCell({ item }: UploadCellProps) {
         ) : (
           <ImageUp
             className={`h-5 w-5 ${
-              uploaded ? "text-green-500" : "text-gray-500"
+              hasImages ? "text-green-500" : "text-gray-500"
             }`}
           />
         )}
       </Button>
-    </>
+    </div>
   );
 }
-
 
 
   function DownloadCell({ item }: { item: unregisteredOwners }) {
@@ -1116,8 +1149,17 @@ function UploadCell({ item }: UploadCellProps) {
                 </TableCell>
 
                 {/*Download*/}
-                <TableCell>
-                  <UploadCell item={item} />
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                 <UploadCell 
+    item={item} 
+    onUploadComplete={(id, newUrls) => {
+      setTableData(prev => 
+        prev.map(row => 
+          row._id === id ? { ...row, imageUrls: newUrls } : row
+        )
+      );
+    }}
+  />
                   <DownloadCell item={item} />
                 </TableCell>
               </TableRow>

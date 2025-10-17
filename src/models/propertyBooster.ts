@@ -18,6 +18,16 @@ const propertyBoosterSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    ownerName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    ownerPhone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     description: {
       type: String,
       required: true,

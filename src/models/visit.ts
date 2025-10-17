@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 import { VisitValidationSchema } from "@/schemas/visit.schema";
 
+
 const visitSchema: Schema = new Schema<VisitValidationSchema>({
   lead: {
     type: mongoose.Schema.Types.ObjectId,

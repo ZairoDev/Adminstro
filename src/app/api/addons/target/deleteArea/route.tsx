@@ -16,7 +16,6 @@ export async function DELETE(req: NextRequest) {
     }
 
     const updatedDoc = await Area.findOneAndDelete({ _id:areaName });
-
     if (!updatedDoc) {
       return NextResponse.json({ error: "City not found" }, { status: 404 });
     }

@@ -5,13 +5,19 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { X, Upload, Eye, Loader2, CheckCircle2 } from "lucide-react"
+import { X, Upload, Eye, Loader2, CheckCircle2, LucideLoader2, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useBunnyUpload } from "@/hooks/useBunnyUpload"
 import { useAuthStore } from "@/AuthStore"
 import axios from "axios"
 import { triggerConfetti } from "@/lib/confetti"
+import { Label } from "@/components/ui/label"
+import { PhoneInput } from "@/components/phone-input"
+import { toast } from "@/hooks/use-toast"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { Property } from "@/models/listing"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ImageData {
   id: string
@@ -19,20 +25,76 @@ interface ImageData {
   url: string
 }
 
-export default function PropertyBoost() {
+interface PropertyByPhone {
+  propertyId: string
+  VSID: string
+  propertyImages: string[]
+  isQuickListing: boolean
+  ownerName: string
+  ownerEmail: string
+  address: string
+}
+
+interface VisitFromSchema {
+  VSID: string
+  propertyId: string
+  ownerName: string
+  ownerPhone: string
+  ownerEmail: string
+  address: string
+  propertyUrl: string
+  schedule: { date: string; time: string }[]
+  agentName: string
+  agentPhone: string
+  pitchAmount: number
+  vsFinal: number
+  ownerCommission: number
+  travellerCommission: number
+  agentCommission: number
+  documentationCharges: number
+  visitType: "physical" | "virtual"
+}
+
+export default function PropertyBooster() {
   const [images, setImages] = useState<ImageData[]>([])
+  const [properties, setProperties] = useState<PropertyByPhone[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [description, setDescription] = useState("")
   const [title, setTitle] = useState("")
   const [ownerName, setOwnerName] = useState("")
   const [ownerPhone, setOwnerPhone] = useState("")
+  const [ownerEmail, setOwnerEmail] = useState("")
+  const [vsid, setVsid] = useState("")
   const [location, setLocation] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
   const { uploadFiles } = useBunnyUpload()
   const token = useAuthStore((state: any) => state.token)
+  const LOCATIONS = ["Athens", "Milan", "Chania", "thessaloniki"]
+
+  const [visitFormValues, setVisitFormValues] = useState<VisitFromSchema>({
+    VSID: "",
+    propertyId: "",
+    ownerName: "",
+    ownerPhone: "",
+    ownerEmail: "",
+    address: "",
+    propertyUrl: "",
+    schedule: [{ date: "", time: "" }],
+    agentName: "",
+    agentPhone: "",
+    pitchAmount: 0,
+    vsFinal: 0,
+    ownerCommission: 0,
+    travellerCommission: 0,
+    agentCommission: 0,
+    documentationCharges: 0,
+    visitType: "physical",
+  })
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleFiles = (files: FileList) => {
     const newImages: ImageData[] = []
@@ -60,6 +122,84 @@ export default function PropertyBoost() {
     } else if (e.type === "dragleave") {
       setDragActive(false)
     }
+  }
+
+  const loadPropertyImages = async (imageUrls: string[]) => {
+    const newImages: ImageData[] = []
+
+    for (const url of imageUrls) {
+      try {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        const file = new File([blob], `property-image-${Date.now()}.jpg`, { type: "image/jpeg" })
+        const id = Math.random().toString(36).substr(2, 9)
+        const objectUrl = URL.createObjectURL(file)
+
+        newImages.push({
+          id,
+          file,
+          url: objectUrl,
+        })
+      } catch (error) {
+        console.error("Failed to load image:", url, error)
+      }
+    }
+
+    setImages(newImages)
+  }
+
+  const getPropertiesByPhoneNumber = async () => {
+    if (!visitFormValues.ownerPhone) return
+    console.log("onwer phone",visitFormValues.ownerPhone)
+    setIsLoading(true)
+    try {
+      const response = await axios.post("/api/visits/getPropertiesForVisit", {
+        userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
+      })
+      console.log("response for getting phone number  ",response.data)
+      setProperties(response.data)
+    } catch (err: unknown) {
+      setProperties([])
+      toast({
+        title: "Error",
+        description: "Property does not exist for this phone number",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePropertySelect = async (property: PropertyByPhone) => {
+    setSelectedPropertyId(property.propertyId)
+
+    // Auto-fill form fields
+    setTitle(property.address || "")
+    setOwnerName(property.ownerName || "")
+    setOwnerEmail(property.ownerEmail)
+    setOwnerPhone(visitFormValues.ownerPhone)
+    setVsid(property.VSID)
+    setLocation(property.address || "")
+   
+    // Update visit form values
+    setVisitFormValues((prev) => ({
+      ...prev,
+      propertyId: property.propertyId,
+      VSID: property.VSID,
+      ownerName: property.ownerName,
+      ownerEmail: property.ownerEmail,
+      address: property.address,
+    }))
+
+    // Load property images
+    if (property.propertyImages && property.propertyImages.length > 0) {
+      await loadPropertyImages(property.propertyImages)
+    }
+
+    toast({
+      title: "Success",
+      description: "Property details loaded successfully",
+    })
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -92,8 +232,8 @@ export default function PropertyBoost() {
     images.forEach((image) => URL.revokeObjectURL(image.url))
     setImages([])
     if (fileInputRef.current) {
-    fileInputRef.current.value = "" 
-  }
+      fileInputRef.current.value = ""
+    }
   }
 
   const handleSubmit = async () => {
@@ -119,8 +259,11 @@ export default function PropertyBoost() {
         location: location,
         ownerName: ownerName,
         ownerPhone: ownerPhone,
+        ownerEmail: ownerEmail,
+        vsid: vsid,
         description,
         images: imageUrls,
+        propertyId: selectedPropertyId,
         createdBy: token.name,
       }
 
@@ -138,7 +281,10 @@ export default function PropertyBoost() {
         setTitle("")
         setOwnerName("")
         setOwnerPhone("")
+        setOwnerEmail("")
+        setVsid("")
         setLocation("")
+        setSelectedPropertyId(null)
         setIsSubmitting(false)
         setSaveSuccess(false)
       }, 2000)
@@ -154,13 +300,87 @@ export default function PropertyBoost() {
     <div className="min-h-screen  p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-3 pt-8">
-          <h1 className="text-4xl font-bold">
-            Property Boost
-          </h1>
+          <h1 className="text-4xl font-bold">Property Boost</h1>
           <p className="text-gray-600 text-lg">Upload and showcase your properties with ease</p>
         </div>
 
         <div className="max-w-6xl mx-auto space-y-8">
+          <Card className="shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6 space-y-6">
+              <div className=" flex justify-between items-center gap-x-2 w-full">
+                <div className="w-full py-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <PhoneInput
+  className="phone-input border-red-500"
+  placeholder="Enter phone number"
+  type="text"
+  value={visitFormValues.ownerPhone}
+  international
+  countryCallingCodeEditable={false}
+  onChange={(value) => {
+    const phoneValue = value?.toString() || "";
+    setVisitFormValues((prev) => ({
+      ...prev,
+      ownerPhone: phoneValue,
+    }));
+    setOwnerPhone(phoneValue); // ADD THIS LINE
+  }}
+/>
+                </div>
+                <div className="mt-6 ml-1">
+                  <Button
+                    type="button"
+                    onClick={getPropertiesByPhoneNumber}
+                    disabled={!visitFormValues.ownerPhone || isLoading}
+                  >
+                    {isLoading ? <LucideLoader2 size={18} className=" animate-spin" /> : <Search size={18} />}
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                {properties.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-700">Select a property to auto-fill details:</p>
+                    <ScrollArea className="whitespace-nowrap rounded-md border w-full">
+                      <div className="flex w-max space-x-4 p-4">
+                        {properties?.map((property) => {
+                          const isSelected = selectedPropertyId === property.propertyId
+                          return (
+                            <figure key={property.propertyId} className="shrink-0">
+                              <div
+                                className={`overflow-hidden rounded-md relative border-2 cursor-pointer transition-all ${
+                                  isSelected
+                                    ? "border-blue-500 ring-2 ring-blue-300"
+                                    : "border-gray-200 hover:border-blue-400"
+                                }`}
+                                onClick={() => handlePropertySelect(property)}
+                              >
+                                <img
+                                  src={property?.propertyImages[0] || "/placeholder.svg"}
+                                  alt={`property-${property.propertyId}`}
+                                  className=" w-28 h-28 object-cover"
+                                />
+                                {isSelected && (
+                                  <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                    <CheckCircle2 className="w-8 h-8 text-blue-600" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-xs text-center mt-2 font-medium truncate w-28">{property.VSID}</p>
+                              <p>{property.ownerName }</p>
+                            </figure>
+                          )
+                        })}
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-2 border-dashed border-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl">
             <CardContent className="p-8">
               <div
@@ -176,12 +396,8 @@ export default function PropertyBoost() {
               >
                 <Upload className="mx-auto h-16 w-16  mb-4 transition-transform duration-300 hover:scale-110" />
                 <div className="space-y-3">
-                  <p className="text-xl font-semibold text-gray-800">
-                    Drop your images here, or click to browse
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Supports JPG, PNG, GIF, WebP. Multiple files allowed.
-                  </p>
+                  <p className="text-xl font-semibold text-gray-800">Drop your images here, or click to browse</p>
+                  <p className="text-sm text-gray-500">Supports JPG, PNG, GIF, WebP. Multiple files allowed.</p>
                 </div>
 
                 <input
@@ -208,7 +424,7 @@ export default function PropertyBoost() {
                   <Button
                     variant="outline"
                     onClick={clearAll}
-                    className="flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 shadow-md hover:shadow-lg transition-all bg-transparent"
                     size="lg"
                   >
                     <X className="h-5 w-5" />
@@ -237,6 +453,7 @@ export default function PropertyBoost() {
               <div className="space-y-2">
                 <label htmlFor="Owner-name" className="text-sm font-semibold text-gray-700 block">
                   Owner Name
+                  
                 </label>
                 <Input
                   id="ownerName"
@@ -248,35 +465,54 @@ export default function PropertyBoost() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="Owner-Phone" className="text-sm font-semibold text-gray-700 block">
-                  Owner Phone
+                <label htmlFor="ownerEmail" className="text-sm font-semibold text-gray-700 block">
+                  Owner Email
                 </label>
                 <Input
-                  id="ownerPhone"
-                  placeholder="e.g., +1 (123) 456-7890"
+                  id="ownerEmail"
+                  type="email"
+                  placeholder="e.g., john@example.com"
                   className="text-base"
-                  onChange={(e) => setOwnerPhone(e.target.value)}
-                  value={ownerPhone}
+                  onChange={(e) => setOwnerEmail(e.target.value)}
+                  value={ownerEmail}
                 />
               </div>
+
+              <div className="space-y-2">
+                <label htmlFor="vsid" className="text-sm font-semibold text-gray-700 block">
+                  VSID
+                </label>
+                <Input
+                  id="vsid"
+                  placeholder="e.g., VS123456"
+                  className="text-base"
+                  onChange={(e) => setVsid(e.target.value)}
+                  value={vsid}
+                />
+              </div>
+
               <div className="space-y-2">
                 <label htmlFor="location" className="text-sm font-semibold text-gray-700 block">
                   Location
                 </label>
-                <Input
-                  id="location"
-                  placeholder="for example: chania , milan , athens, thessaloniki"
-                  className="text-base"
-                  onChange={(e) => setLocation(e.target.value)}
-                  value={location}
-                />
+                <Select value={location} onValueChange={setLocation}>
+                  <SelectTrigger className="text-base">
+                    <SelectValue placeholder="Select a location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCATIONS.map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-
 
               <div className="space-y-2">
                 <label htmlFor="property-description" className="text-sm font-semibold text-gray-700 block">
                   Property Description
+                  
                 </label>
                 <Textarea
                   id="property-description"
@@ -304,9 +540,7 @@ export default function PropertyBoost() {
                 <Card key={image.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 group">
                   <CardHeader className="p-4 bg-gradient-to-r from-blue-50 to-slate-50">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium truncate text-gray-700">
-                        {image.file.name}
-                      </CardTitle>
+                      <CardTitle className="text-sm font-medium truncate text-gray-700">{image.file.name}</CardTitle>
                       <Button
                         size="sm"
                         variant="destructive"
@@ -329,9 +563,7 @@ export default function PropertyBoost() {
                         <Eye className="h-10 w-10 text-white drop-shadow-lg" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {(image.file.size / 1024).toFixed(1)} KB
-                    </p>
+                    <p className="text-xs text-gray-500 mt-2">{(image.file.size / 1024).toFixed(1)} KB</p>
                   </CardContent>
                 </Card>
               ))}
@@ -348,9 +580,8 @@ export default function PropertyBoost() {
                 </div>
                 <div className="space-y-3">
                   <h3 className="text-2xl font-semibold text-gray-200">No images uploaded yet</h3>
-                  <p className="text-gray-500 text-lg">
-                    Upload your first images to get started with previews
-                  </p>
+                  <p className="text-gray-500 text-lg">Upload your first images to get started with previews</p>
+
                 </div>
               </div>
             </CardContent>

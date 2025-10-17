@@ -5,9 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const { userMobile } = await req.json();
+  // console.log(userMobile);
 
   try {
     const user = await Users.findOne({ phone: userMobile });
+   
 
     if (!user) {
       return NextResponse.json(

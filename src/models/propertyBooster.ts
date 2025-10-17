@@ -13,6 +13,10 @@ const propertyBoosterSchema = new mongoose.Schema(
       type: String,
       default: () => generateBoostID(6),
     },
+    vsid: {
+      type: String,
+
+    },
     title: {
       type: String,
       required: true,

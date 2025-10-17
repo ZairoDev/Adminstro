@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     await connectDb();
     const body = await req.json();
 
-    const { title,location, description,ownerName,ownerPhone, images, createdBy } = body;
+    const { title,location, description,ownerName,ownerPhone, images, createdBy, vsid} = body;
 
     if (!title ||!location|| !description ||!ownerName||!ownerPhone||  !images?.length) {
       return NextResponse.json(
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
       title,
       location,
       ownerName,
+      vsid,
       ownerPhone,
       description,
       images,

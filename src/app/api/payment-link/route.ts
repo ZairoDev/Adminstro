@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import nodemailer from "nodemailer";
-import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb } from "pdf-lib";
+import {
+  PDFArray,
+  PDFDocument,
+  PDFName,
+  PDFString,
+  StandardFonts,
+  rgb,
+} from "pdf-lib";
 import fs from "fs";
 import path from "path";
 import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
-import documents from "razorpay/dist/types/documents";
 
 // ✅ Updated Owner type with idNumber
 export type Owner = {
@@ -64,7 +70,7 @@ async function generatePdfBuffer(data: {
   checkIn?: string;
   checkOut?: string;
   paymentType?: string;
-  partialAmount?: number;      
+  partialAmount?: number;
 }) {
   const {
     amount,
@@ -93,7 +99,7 @@ async function generatePdfBuffer(data: {
   let y = pageHeight - 100;
   const baseFontSize = 12;
   const gray = (v: number) => rgb(v, v, v);
-  const brand = rgb(1, 0.55, 0); // Vacation Saga orange
+  const brand = rgb(1, 0.55, 0);
 
   const drawCentered = (
     text: string,
@@ -149,7 +155,6 @@ async function generatePdfBuffer(data: {
   y = pageHeight - bannerHeight - 40;
   drawCentered("Booking Confirmation / Payment Request", 18, true);
 
-  // Divider
   page.drawRectangle({
     x: 50,
     y: y + 6,
@@ -161,14 +166,6 @@ async function generatePdfBuffer(data: {
 
   // === Booking Details ===
   drawLabelValue("Booking ID", booking_Id ?? "-");
-
-  // 🟠 If owners exist → skip guest name/email/phone in main section
-  // if (guests.length === 0) {
-  //   drawLabelValue("Guest Name", name || "-");
-  //   drawLabelValue("Phone", phone || "-");
-  //   drawLabelValue("Email", email || "-");
-  // }
-
   drawLabelValue("Total Amount (INR)", `${amount}`);
   drawLabelValue("Paid Amount (INR)", `${finalPrice?.toFixed(2) ?? "-"}`);
   drawLabelValue(
@@ -182,7 +179,7 @@ async function generatePdfBuffer(data: {
   drawLabelValue("Check-out", checkOut || "-");
   y -= 20;
 
-  // === Owners Section ===
+  // === Guests Section ===
   if (guests.length > 0) {
     page.drawText("Guest(s) Details:", {
       x: 50,
@@ -214,12 +211,11 @@ async function generatePdfBuffer(data: {
     color: rgb(0.1, 0.3, 0.85),
   });
 
-  // Create a clickable annotation for the text
   const linkAnnotation = page.doc.context.obj({
     Type: PDFName.of("Annot"),
     Subtype: PDFName.of("Link"),
     Rect: page.doc.context.obj([50, y, 50 + textWidth, y + baseFontSize]),
-    Border: page.doc.context.obj([0, 0, 0]), // removes underline box
+    Border: page.doc.context.obj([0, 0, 0]),
     A: page.doc.context.obj({
       Type: PDFName.of("Action"),
       S: PDFName.of("URI"),
@@ -227,15 +223,11 @@ async function generatePdfBuffer(data: {
     }),
   });
 
-  // Get or create the Annots array for the page
   let annots = page.node.Annots();
-
   if (!annots) {
     annots = page.doc.context.obj([]);
     page.node.set(PDFName.of("Annots"), annots);
   }
-
-  // Append the annotation to the page
   (annots as PDFArray).push(linkAnnotation);
   y -= baseFontSize + 16;
 
@@ -275,7 +267,6 @@ async function generatePdfBuffer(data: {
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
-
 
 // --- NODEMAILER TRANSPORTER ---
 function createTransporter() {
@@ -321,7 +312,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "bookingId is required" },
         { status: 400 }
-      );  
+      );
     }
 
     const razorpay = getRazorpay();
@@ -338,11 +329,10 @@ export async function POST(req: Request) {
       }
       finalAmount = partialAmount;
     } else if (paymentType === "remaining") {
-      // API caller should compute remaining before calling; we accept it as provided
       finalAmount = amount;
     }
 
-    // Split payment: generate one link per guest and update guests + history
+    // Split payment: generate one link per guest
     if (paymentType === "split") {
       const perGuest = +(amount / guests.length).toFixed(2);
       const createdLinks: Array<{
@@ -370,7 +360,7 @@ export async function POST(req: Request) {
         const shortUrl = resp.short_url ?? resp.url ?? "";
         if (!shortUrl) continue;
 
-        // Email PDF per guest (optional)
+        // Email PDF per guest
         if (transporter) {
           const pdfBuffer = await generatePdfBuffer({
             amount: perGuest,
@@ -400,7 +390,7 @@ export async function POST(req: Request) {
                   <p>Thank you for booking your stay with <strong>Vacation Saga</strong>.</p>
           
                   <p>Here are the booking details for your upcoming stay in <strong>${
-              address || "Greece"
+                    address || "Greece"
                   }</strong> from 
                   <strong>${checkIn || "TBA"}</strong> to <strong>${
               checkOut || "TBA"
@@ -449,7 +439,6 @@ export async function POST(req: Request) {
               },
             ],
           });
-          
         }
 
         createdLinks.push({
@@ -460,35 +449,42 @@ export async function POST(req: Request) {
           amount: perGuest,
         });
       }
+
+      // ✅ Build guest objects with proper structure matching schema
       const guestUpdates = guests.map((g, i) => ({
         name: g.name,
         email: g.email,
         phone: g.phoneNo,
+        idNumber: g.idNumber,
         amountDue: perGuest,
         amountPaid: 0,
         status: "pending",
-        documents:g.documents,
+        documents: g.documents || [],
+        paymentLink: createdLinks[i].link,
         payments: [
           {
             amount: perGuest,
-            linkId: createdLinks[i].linkId,
-            status: "pending",
-            method: "split",
             date: new Date(),
+            method: "split",
+            linkId: createdLinks[i].linkId,
+            paymentId: "", // Will be filled when payment is completed
+            status: "pending",
           },
         ],
       }));
 
+      // ✅ Build history entries (one per guest)
       const historyUpdates = guestUpdates.map((g) => ({
         amount: g.amountDue,
-        method: "split",
-        paidBy: g.email,
-        linkId: g.payments[0].linkId,
-        status: "pending",
         date: new Date(),
+        method: "split",
+        paidBy: g.email, // Use email as identifier
+        linkId: g.payments[0].linkId,
+        paymentId: "", // Will be filled when payment is completed
+        status: "pending",
       }));
 
-      // Update booking: set paymentType, guests with amountDue, and history entries
+      // Update booking with proper structure
       await Bookings.findByIdAndUpdate(
         bookingId,
         {
@@ -496,12 +492,11 @@ export async function POST(req: Request) {
             "travellerPayment.paymentType": "split",
             "travellerPayment.status": "pending",
             "travellerPayment.guests": guestUpdates,
-            "travellerPayment.finalAmount": amount, // total split base amount
+            "travellerPayment.finalAmount": amount,
+            "travellerPayment.amountReceived": 0,
             "travellerPayment.rentPayable": rentPayable,
             "travellerPayment.depositPaid": depositPaid,
-          },
-          $push: {
-            "travellerPayment.history": { $each: historyUpdates },
+            "travellerPayment.history": historyUpdates,
           },
         },
         { new: true }
@@ -514,7 +509,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Full/partial/remaining: one link for all
+    // Full/partial/remaining: one link for all guests
     const mainGuest = guests[0];
     const resp: any = await razorpay.paymentLink.create({
       amount: Math.round(finalAmount * 100),
@@ -611,26 +606,30 @@ export async function POST(req: Request) {
       });
     }
 
+    // ✅ Build guest objects with proper structure for full/partial payment
     const guestUpdates = guests.map((g) => ({
       name: g.name,
       email: g.email,
       phone: g.phoneNo,
+      idNumber: g.idNumber,
       amountDue: finalAmount,
       amountPaid: 0,
       status: "pending",
-      documents: g.documents,
+      documents: g.documents || [],
+      paymentLink: link,
       payments: [
         {
           amount: finalAmount,
-          linkId: resp.id,
-          status: "pending",
-          method: paymentType,
           date: new Date(),
+          method: paymentType,
+          linkId: resp.id,
+          paymentId: "", // Will be filled when payment is completed
+          status: "pending",
         },
       ],
     }));
 
-    // Update booking: set paymentType and push pending history
+    // Update booking with proper structure
     await Bookings.findByIdAndUpdate(
       bookingId,
       {
@@ -638,18 +637,21 @@ export async function POST(req: Request) {
           "travellerPayment.paymentType": paymentType,
           "travellerPayment.status": "pending",
           "travellerPayment.guests": guestUpdates,
+          "travellerPayment.finalAmount": amount,
+          "travellerPayment.amountReceived": 0,
           "travellerPayment.rentPayable": rentPayable,
           "travellerPayment.depositPaid": depositPaid,
-        },
-        $push: {
-          "travellerPayment.history": {
-            amount: finalAmount,
-            method: paymentType,
-            paidBy: mainGuest.email,
-            linkId: resp.id,
-            status: "pending",
-            date: new Date(),
-          },
+          "travellerPayment.history": [
+            {
+              amount: finalAmount,
+              date: new Date(),
+              method: paymentType,
+              paidBy: mainGuest.email, // Use email as identifier
+              linkId: resp.id,
+              paymentId: "", // Will be filled when payment is completed
+              status: "pending",
+            },
+          ],
         },
       },
       { new: true }

@@ -1178,13 +1178,78 @@ export const getWeeksVisit = async ({ days }: { days?: string }) => {
   return { visits };
 };
 
+export const getSalesCardDetails = async ({ days }: { days?: string }) => {
+  await connectDb();
+
+  const now = new Date();
+
+  // Default: leads created today
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  // Yesterday’s range
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  const yesterdayEnd = new Date(todayEnd);
+  yesterdayEnd.setDate(todayEnd.getDate() - 1);
+
+  // If days is provided, adjust the range (e.g., last 7 days)
+  let queryRange = { $gte: todayStart, $lte: todayEnd };
+  if (days) {
+    const pastDate = new Date(now);
+    pastDate.setDate(now.getDate() - Number(days));
+    queryRange = { $gte: pastDate, $lte: now };
+  }
+
+  // Fetch today’s leads (or leads within given range)
+  const leadsToday = await Query.find({
+    createdAt: queryRange,
+  }).lean();
+
+  // Fetch yesterday’s leads
+  const leadsYesterday = await Query.find({
+    createdAt: { $gte: yesterdayStart, $lte: yesterdayEnd },
+  }).lean();
+
+  const todayCount = leadsToday.length;
+  const yesterdayCount = leadsYesterday.length;
+
+  // Calculate difference percentage or absolute
+  const difference = todayCount - yesterdayCount;
+  const percentageChange =
+    yesterdayCount === 0
+      ? 100
+      : ((difference / yesterdayCount) * 100).toFixed(2);
+
+  // ✅ Fix: convert ObjectIds and Dates to plain strings
+  const safeLeads = leadsToday.map((lead) => ({
+    ...lead,
+    _id: lead._id?.toString(),
+    createdAt: lead.createdAt?.toISOString?.() ?? null,
+    updatedAt: lead.updatedAt?.toISOString?.() ?? null,
+  }));
+
+  return {
+    todayCount,
+    yesterdayCount,
+    difference,
+    percentageChange: Number(percentageChange),
+    leads: safeLeads, // ✅ safe, serializable leads
+  };
+};
+
+
 // const formatDate = (date: Date) =>
 //   date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
 
 export const getListingCounts = async ({
   days,
 }: {
-  days?: string;
+  days?: string;  
 }) => {
   await connectDb();
   const now = new Date();

@@ -33,6 +33,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import InvoicePdfButton from "../../invoice/components/invoice-pdf-button";
 import { computeTotals } from "../../invoice/components/format";
 import PaymentLinkButton from "@/components/razorpayButton";
+import { ManualPaymentModal } from "../manual-payment-component";
+
+
 
 interface PageProps {
   params: {
@@ -81,6 +84,8 @@ const getStatusIcon = (status: string) => {
 const BookingPage = ({ params }: PageProps) => {
   const [booking, setBooking] = useState<ExtendedBookingInterface>();
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchBooking = async () => {
     try {
@@ -99,6 +104,34 @@ const BookingPage = ({ params }: PageProps) => {
       setIsLoading(false);
     }
   };
+
+    const handleAddPayment = (booking: any) => {
+
+    setIsModalOpen(true)
+  }
+
+  const handlePaymentSuccess = async (bookingId: string) => {
+    setRefreshingId(bookingId);
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`);
+      if (!response.ok) throw new Error("Failed to refresh booking");
+      const updatedBooking = await response.json();
+      toast({
+        title: "Success",
+        description: "Booking updated with new payment",
+      });
+
+    } catch (error) {
+      console.error("[v0] Failed to refresh booking:", error);
+      toast({
+        title: "Info",
+        description: "Payment recorded. Refresh the page to see updates.",
+      });
+    } finally {
+      setRefreshingId(null);
+    }
+  };
+
 
   useEffect(() => {
     fetchBooking();
@@ -189,6 +222,29 @@ const BookingPage = ({ params }: PageProps) => {
               }
             />
           </div>
+          {booking._id !== undefined && (
+            <ManualPaymentModal
+              bookingId={booking._id}
+              guests={
+                booking.travellerPayment.guests?.map((guest) => ({
+                  ...guest,
+                  name: guest.name ?? "",
+                  email: guest.email ?? "",
+                })) ?? []
+              }
+              onPaymentSuccess={() => handlePaymentSuccess(booking._id ?? "")}
+              trigger={
+                <Button
+                  className="w-full"
+                  disabled={refreshingId === booking._id}
+                >
+                  {refreshingId === booking._id
+                    ? "Updating..."
+                    : "Add Manual Payment"}
+                </Button>
+              }
+            />
+          )}
           {/* <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm">
               <Edit className="w-4 h-4 mr-2" />
@@ -281,10 +337,7 @@ const BookingPage = ({ params }: PageProps) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {booking.travellerPayment.guests.map(
                       (guest: any, index: number) => (
-                        <Card
-                          key={index}
-                          className="shadow-sm border "
-                        >
+                        <Card key={index} className="shadow-sm border ">
                           <CardHeader className="flex flex-row items-center gap-3 pb-2">
                             <Avatar className="w-12 h-12">
                               <AvatarImage src="/placeholder-user.jpg" />

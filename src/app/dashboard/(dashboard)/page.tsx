@@ -455,7 +455,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
           {/* country-wise property count */}
           <div className=" mt-2">
-         
             <PropertyCountHistogram
               heading={`Property Count - ${
                 selectedCountry === "All"
@@ -515,7 +514,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 heading={`Today Leads - ${totalTodayLeads}`}
                 subHeading="Leads by Agent"
                 chartData={todaysLeadChartData ? todaysLeadChartData : []}
-
               />
               <Button
                 size={"sm"}
@@ -535,9 +533,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           </div>
 
           {/* Date Filter */}
-          <div className="flex justify-end gap-4 mt-4">
-      
-          </div>
+          <div className="flex justify-end gap-4 mt-4"></div>
 
           {/* Leads by Location and Agent */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
@@ -625,9 +621,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                   }}
                   triggerClassName=" w-32 absolute left-2 top-16 "
                 />
-                <ReviewPieChart
-                  chartData={reviews}
-                />
+                <ReviewPieChart chartData={reviews} />
               </div>
             )}
 
@@ -647,9 +641,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 />
               ))}
             </div>
-
-
-         
           </div>
         </section>
       )}
@@ -1060,7 +1051,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                   <div>
                     {previousSum} + {todayOwners}
                   </div>
-                
                 </div>
 
                 <ReusableLineChart
@@ -1075,8 +1065,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
       <div>
         {token?.role === "SuperAdmin" && (
-          <div className="flex flex-col md:flex-row gap-6 mt-8">
-          </div>
+          <div className="flex flex-col md:flex-row gap-6 mt-8"></div>
         )}
       </div>
 
@@ -1182,7 +1171,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
         </Card>
       </div>
 
-     <div className="relative w-full mx-auto mt-10">
+      <div className="relative w-full mx-auto mt-10">
         <Card className="shadow-md rounded-2xl">
           <CardHeader>
             <CardTitle>Property Boost Created</CardTitle>
@@ -1216,18 +1205,20 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
               </p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={boostChartData
-                    .map((item) => ({
-                      date: item.date,
-                      total: item.total,
-                    }))
-                    .sort(
-                      (a, b) =>
-                        new Date(a.date).getTime() - new Date(b.date).getTime()
-                    )}
-                  margin={{ left: 0, right: 16 }}
-                >
+                  <LineChart
+                    data={boostChartData
+                      .map((item) => ({
+                        date: item.date,
+                        newBoosts: item.newBoosts,
+                        reboosts: item.reboosts,
+                        total: item.total,
+                      }))
+                      .sort(
+                        (a, b) =>
+                          new Date(a.date).getTime() - new Date(b.date).getTime()
+                      )}
+                    margin={{ left: 0, right: 16 }}
+                  >
                   <CartesianGrid vertical={false} />
                   <XAxis
                     dataKey="date"
@@ -1242,7 +1233,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                   />
                   <YAxis />
 
-                   <Tooltip
+                  <Tooltip
                     cursor={false}
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
@@ -1254,7 +1245,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                               New Boosts: {data.newBoosts}
                             </p>
                             <p className="text-sm text-green-600">
-                              Re-Boosts: {data.reboost}
+                              Re-Boosts: {data.reboosts}
                             </p>
                             <p className="text-sm font-bold">
                               Total: {data.total}
@@ -1266,7 +1257,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                     }}
                   />
 
-                  
                   <Line
                     dataKey="total"
                     type="monotone"

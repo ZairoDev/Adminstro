@@ -39,10 +39,29 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     await connectDb();
-    const properties = await Boosters.find({});
-    return NextResponse.json(properties);
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+
+    // Fetch all properties
+    const properties = await Boosters.find({}).lean();
+
+    // Sort by most recent activity (lastReboostedAt or createdAt)
+    const sortedProperties = properties.sort((a, b) => {
+      const aDate = a.lastReboostedAt 
+        ? new Date(a.lastReboostedAt).getTime() 
+        : new Date(a.createdAt).getTime();
+      
+      const bDate = b.lastReboostedAt 
+        ? new Date(b.lastReboostedAt).getTime() 
+        : new Date(b.createdAt).getTime();
+      
+      return bDate - aDate;
+    });
+
+    return NextResponse.json(sortedProperties);
+  } catch (error: any) {
+    console.error("Error fetching properties:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch properties" },
+      { status: 500 }
+    );
   }
 }

@@ -60,24 +60,15 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
-// import { VisitsCountBarChart } from "@/components/charts/VisitsCountBarChart";
 import useReview from "@/hooks/(VS)/useReviews";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
-// import { table } from "console";
-// import { list } from "postcss";
-// import { UnregisteredOwnersTable } from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { useRouter } from "next/navigation";
-// import BookingDetails from "@/hooks/(VS)/useBookingDetails";
 import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { MoleculeVisualization } from "@/components/molecule_visual";
@@ -90,6 +81,7 @@ import { CityVisitsChart } from "@/components/charts/VisitsHorizontalChart";
 import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import {  ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
+import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
 
 interface StatusCount {
   First: number;
@@ -109,7 +101,7 @@ interface LeadStats {
   today: number;
   yesterday: number;
   dailyrequired: number;
-  currentAverage: number; // dailyAchieved in StatsCard
+  currentAverage: number; 
   rate: number;
 }
 interface VisitStats {
@@ -119,30 +111,29 @@ interface VisitStats {
   today: number;
   yesterday: number;
   dailyRequired: number;
-  currentAverage: number; // dailyAchieved in StatsCard
+  currentAverage: number; 
   rate: number;
 }
-
 
 const chartConfig = {
   listings: {
     label: "Listings",
-    color: "hsl(var(--chart-3))", // you can use tailwind variable
+    color: "hsl(var(--chart-3))", 
   },
+  Boosts: {
+    label: "Boosts",
+    color: "hsl(var(--chart-4))",
+  }
 } satisfies ChartConfig;
 
 const Dashboard = () => {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const locations = ["Athens", "Thessaloniki", "Chania", "Milan"];
-  // const [todayLeadStats, setTodayLeadStats] = useState<Record<string, number>>({});
   const [selectedCountry, setSelectedCountry] = useState("All");
   const [leadCountDateModal, setLeadCountDateModal] = useState(false);
   const [leadCountDate, setLeadCountDate] = useState<Date | undefined>(
     new Date(2025, 5, 12)
   );
-  // const [listUnregisteredOwners, setUnregisteredOwners] = useState(false);
-
-  // const [fetchloading, setFetchLoading] = useState(false);
 
   const [leadsFilters, setLeadsFilters] = useState<{
     days?: string;
@@ -160,6 +151,10 @@ const Dashboard = () => {
   }>({});
 
   const [listingFilters, setListingFilter] = useState<{
+    days?: string;
+  }>({});
+
+  const [BoostFilters, setBoostFilters] = useState<{
     days?: string;
   }>({});
 
@@ -239,6 +234,7 @@ const Dashboard = () => {
 
 
   const { totalListings, fetchListingCounts } = ListingCounts();
+  const { totalBoosts,fetchBoostCounts, activeBoosts } = BoostCounts();
   const {  unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
 
   // Transform data for recharts (make sure counts are numbers)
@@ -260,6 +256,27 @@ const Dashboard = () => {
           : Number(item.longTerm),
     })),
   [totalListings]
+);
+
+const boostChartData = useMemo(
+  () =>
+    totalBoosts.map((item) => ({
+      date: item.date,
+      total:
+        item.total === null || item.total === undefined
+          ? 0
+          : Number(item.total),
+      newBoosts:
+        item.newBoosts === null || item.newBoosts === undefined
+          ? 0
+          : Number(item.newBoosts),
+      reboosts:
+        item.reboosts === null || item.reboosts === undefined
+          ? 0
+          : Number(item.reboosts),    
+     
+    })),
+  [totalBoosts]
 );
 
   const {
@@ -309,8 +326,7 @@ const Dashboard = () => {
   });
 
   const emp = allEmployees.length;
-  // console.log(emp);
-
+  
   const averagedata = (average / 30).toFixed(0);
   const averagedata1 = (Number(averagedata) / emp).toFixed(0);
 
@@ -631,6 +647,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 />
               ))}
             </div>
+
 
          
           </div>
@@ -1154,6 +1171,108 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                     stroke={chartConfig.listings.color}
                     strokeWidth={2}
                     dot={{ fill: chartConfig.listings.color }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex-col items-start gap-2 text-sm" />
+        </Card>
+      </div>
+
+     <div className="relative w-full mx-auto mt-10">
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader>
+            <CardTitle>Property Boost Created</CardTitle>
+            <CardDescription>
+              {BoostFilters?.days || "Last 12 Days"}
+            </CardDescription>
+
+            {/* Range Selector */}
+
+            <CustomSelect
+              itemList={["12 days", "1 year", "last 3 years"]}
+              triggerText="Select range"
+              defaultValue={BoostFilters?.days || "12 days"}
+              onValueChange={(value) => {
+                const newBoostFilters = { ...BoostFilters };
+                newBoostFilters.days = value;
+                fetchBoostCounts(newBoostFilters);
+              }}
+              triggerClassName="w-32 absolute right-2 top-2"
+            />
+          </CardHeader>
+
+          <CardContent className="h-[400px]">
+            {loading ? (
+              <p className="text-center text-muted-foreground">Loading...</p>
+            ) : isError ? (
+              <p className="text-center text-red-500">Error: {error}</p>
+            ) : boostChartData.length === 0 ? (
+              <p className="text-center text-muted-foreground">
+                No data available
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={boostChartData
+                    .map((item) => ({
+                      date: item.date,
+                      total: item.total,
+                    }))
+                    .sort(
+                      (a, b) =>
+                        new Date(a.date).getTime() - new Date(b.date).getTime()
+                    )}
+                  margin={{ left: 0, right: 16 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={4}
+                    tickFormatter={(value) => {
+                      if (BoostFilters?.days === "last 3 years") return value; // Year
+                      if (BoostFilters?.days === "1 year") return value; // Month
+                      return value; // Day + Month
+                    }}
+                  />
+                  <YAxis />
+
+                   <Tooltip
+                    cursor={false}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white shadow-md p-3 rounded-lg border">
+                            <p className="font-semibold">{label}</p>
+                            <p className="text-sm text-blue-600">
+                              New Boosts: {data.newBoosts}
+                            </p>
+                            <p className="text-sm text-green-600">
+                              Re-Boosts: {data.reboost}
+                            </p>
+                            <p className="text-sm font-bold">
+                              Total: {data.total}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+
+                  
+                  <Line
+                    dataKey="total"
+                    type="monotone"
+                    stroke={chartConfig.Boosts.color}
+                    strokeWidth={2}
+                    dot={{ fill: chartConfig.Boosts.color }}
                     activeDot={{ r: 5 }}
                   />
                 </LineChart>

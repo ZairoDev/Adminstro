@@ -14,6 +14,7 @@ import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
 import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
+import { Boosters } from "@/models/propertyBooster";
 
 connectDb();
 
@@ -1313,6 +1314,138 @@ if (days === "12 days") {
 }
 // console.log("here is the output",output);
 return output;
+};
+
+export const getBoostCounts = async ({
+  days,
+}: {
+  days?: string;
+}) => {
+  await connectDb();
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let groupFormat: any;
+
+  switch (days?.toLowerCase()) {
+    case "12 days":
+      start.setDate(now.getDate() - 11); // last 12 days including today
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Kolkata" },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = { $dateToString: { format: "%Y-%m", date: "$createdAt", timezone: "Asia/Kolkata" } }; // monthly
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = { $dateToString: { format: "%Y", date: "$createdAt", timezone: "Asia/Kolkata" } }; // yearly
+      break;
+
+    default:
+      throw new Error(
+        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+      );
+  }
+
+  const result = await Boosters.aggregate([
+    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $group: {
+        _id: { date: groupFormat, reboost: "$reboost" },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: { $push: { reboost: "$_id.reboost", count: "$count" } },
+        total: { $sum: "$count" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const resultMap = new Map<string, { newBoosts: number; reboosts: number; total: number }>();
+
+  for (const item of result) {
+    const newBoosts =
+      item.counts.find((c: any) => c.reboost === false)?.count || 0;
+    const reboosts =
+      item.counts.find((c: any) => c.reboost === true)?.count || 0;
+    resultMap.set(item._id, {
+      newBoosts,
+      reboosts,
+      total: item.total,
+    });
+  }
+
+  const output: any[] = [];
+  
+  if (days === "12 days") {
+    const temp = new Date(start);
+    while (temp <= end) {
+      const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+      const item = resultMap.get(key);
+      const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      output.push({
+        date: formattedDate,
+        newBoosts: item?.newBoosts ?? 0,
+        reboosts: item?.reboosts ?? 0,
+        total: item?.total ?? 0,
+      });
+      temp.setDate(temp.getDate() + 1);
+    }
+  } else if (days === "1 year") {
+    for (let i = 0; i < 12; i++) {
+      const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
+      const item = resultMap.get(dateKey);
+      output.push({
+        date: months[i],
+        newBoosts: item?.newBoosts ?? 0,
+        reboosts: item?.reboosts ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  } else if (days === "last 3 years") {
+    const currentYear = now.getFullYear();
+    for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
+      const item = resultMap.get(String(i));
+      output.push({
+        date: String(i),
+        newBoosts: item?.newBoosts ?? 0,
+        reboosts: item?.reboosts ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  }
+  console.log("output from the getBoost", output);
+  return output;
 };
 
 export const getUnregisteredOwnerCounts = async ({

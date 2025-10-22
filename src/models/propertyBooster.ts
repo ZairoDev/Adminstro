@@ -51,6 +51,11 @@ const propertyBoosterSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    reboost: {
+      type: Boolean,
+      default: false,
+    },
+     lastReboostedAt: { type: Date, default: null },
     createdAt: {
       type: Date,
       default: Date.now,

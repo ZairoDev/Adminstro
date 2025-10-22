@@ -1329,11 +1329,11 @@ export const getBoostCounts = async ({
 
   switch (days?.toLowerCase()) {
     case "12 days":
-      start.setDate(now.getDate() - 11); // last 12 days including today
+      start.setDate(now.getDate() - 11);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
-        $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Kolkata" },
+        $dateToString: { format: "%Y-%m-%d", date: "$effectiveDate", timezone: "Asia/Kolkata" },
       };
       break;
 
@@ -1341,14 +1341,14 @@ export const getBoostCounts = async ({
       start.setFullYear(now.getFullYear() - 1);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y-%m", date: "$createdAt", timezone: "Asia/Kolkata" } }; // monthly
+      groupFormat = { $dateToString: { format: "%Y-%m", date: "$effectiveDate", timezone: "Asia/Kolkata" } };
       break;
 
     case "last 3 years":
       start.setFullYear(now.getFullYear() - 3);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y", date: "$createdAt", timezone: "Asia/Kolkata" } }; // yearly
+      groupFormat = { $dateToString: { format: "%Y", date: "$effectiveDate", timezone: "Asia/Kolkata" } };
       break;
 
     default:
@@ -1358,7 +1358,25 @@ export const getBoostCounts = async ({
   }
 
   const result = await Boosters.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $addFields: {
+        // Use lastReboostedAt if it exists and reboost is true, otherwise use createdAt
+        effectiveDate: {
+          $cond: {
+            if: { $and: [{ $eq: ["$reboost", true] }, { $ne: ["$lastReboostedAt", null] }] },
+            then: "$lastReboostedAt",
+            else: "$createdAt"
+          }
+        },
+        // Ensure reboost field exists and defaults to false
+        reboost: { $ifNull: ["$reboost", false] }
+      }
+    },
+    { 
+      $match: { 
+        effectiveDate: { $gte: start, $lte: end } 
+      } 
+    },
     {
       $group: {
         _id: { date: groupFormat, reboost: "$reboost" },
@@ -1374,6 +1392,8 @@ export const getBoostCounts = async ({
     },
     { $sort: { _id: 1 } },
   ]);
+
+  console.log("Aggregation result:", JSON.stringify(result, null, 2));
 
   const months = [
     "Jan",
@@ -1397,10 +1417,11 @@ export const getBoostCounts = async ({
       item.counts.find((c: any) => c.reboost === false)?.count || 0;
     const reboosts =
       item.counts.find((c: any) => c.reboost === true)?.count || 0;
+    
     resultMap.set(item._id, {
       newBoosts,
       reboosts,
-      total: item.total,
+      total: newBoosts + reboosts,
     });
   }
 
@@ -1417,7 +1438,7 @@ export const getBoostCounts = async ({
         date: formattedDate,
         newBoosts: item?.newBoosts ?? 0,
         reboosts: item?.reboosts ?? 0,
-        total: item?.total ?? 0,
+        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
       });
       temp.setDate(temp.getDate() + 1);
     }
@@ -1429,7 +1450,7 @@ export const getBoostCounts = async ({
         date: months[i],
         newBoosts: item?.newBoosts ?? 0,
         reboosts: item?.reboosts ?? 0,
-        total: item?.total ?? 0,
+        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
       });
     }
   } else if (days === "last 3 years") {
@@ -1440,10 +1461,11 @@ export const getBoostCounts = async ({
         date: String(i),
         newBoosts: item?.newBoosts ?? 0,
         reboosts: item?.reboosts ?? 0,
-        total: item?.total ?? 0,
+        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
       });
     }
   }
+  
   console.log("output from the getBoost", output);
   return output;
 };

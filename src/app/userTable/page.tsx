@@ -27,6 +27,8 @@ export default function TablePage() {
             userInput: search,
           },
         });
+        const res = await axios.get(`/api/testing`);
+        console.log("res: ", res);
         setData(response.data.allUsers);
         setTotalUser(response.data.totalUsers);
         setTotalPages(Math.ceil(response.data.totalUsers / 10));

@@ -2,7 +2,7 @@
 
 import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { ChartLine, Loader2, RotateCw } from "lucide-react";
+import { ChartLine, Loader2, RotateCw, TrendingDown, TrendingUp, Users } from "lucide-react";
 
 
 import {
@@ -82,6 +82,9 @@ import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import {  ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
+import SmallCard from "@/components/reusableCard";
+import LocationCard from "@/components/reusableCard";
+import SalesCard from "@/hooks/(VS)/useSalesCard";
 
 interface StatusCount {
   First: number;
@@ -230,6 +233,13 @@ const Dashboard = () => {
     ownersCount,
     newOwnersCount,
   } = WeeksVisit();
+
+  const {salesCardData} = SalesCard();
+
+  console.log("Sales Card Data from Dashboard:", salesCardData);
+
+  
+      
 
 
 
@@ -1273,7 +1283,42 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <CardFooter className="flex-col items-start gap-2 text-sm" />
         </Card>
       </div>
+
+      <div>
+        {token?.role === "SuperAdmin" && (
+          <div className="flex flex-col justify-evenly md:flex-row gap-6 mt-8">
+            <div className="flex border rounded-xl shadow-md justify-center md:w-1/2 h-[100px]">
+              <LocationCard
+                title="Fresh Leads"
+                stats={[
+                  {
+                    icon: Users,
+                    value: salesCardData?.todayCount ?? 0,
+                    label: "Today",
+                    color: "text-blue-600",
+                  },
+                  {
+                    icon: TrendingUp,
+                    value: `${salesCardData?.percentageChange}%`,
+                    label: "Change",
+                    color:
+                      salesCardData && salesCardData.percentageChange >= 0
+                        ? "text-green-600"
+                        : "text-red-600",
+                  },
+                  {
+                    icon: TrendingDown,
+                    value: salesCardData?.yesterdayCount ?? 0,
+                    label: "Yesterday",
+                    color: "text-gray-500",
+                  },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+};  
 export default Dashboard;

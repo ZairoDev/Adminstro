@@ -167,39 +167,83 @@ bookingSchema.pre("save", async function (next) {
   /* ---------------- TRAVELLER PAYMENT STATUS BASED ON HISTORY ---------------- */
   if (this.travellerPayment) {
     const history = this.travellerPayment.history || [];
-    console.log("history: ", history);  
+    console.log("history: ", history);
 
-    // 1️⃣ Group payments by guest phone/email/name (or any unique identifier)
+    // 1️⃣ Group payments by guest email (the identifier used in history.paidBy)
     const guestPayments: Record<string, number> = {};
 
     for (const entry of history) {
       if (entry.status === "paid") {
+        // Use email as the key (stored in paidBy field)
         const key = entry.paidBy?.toLowerCase().trim();
-        if (key)
+        if (key) {
           guestPayments[key] = (guestPayments[key] || 0) + (entry.amount || 0);
+        }
       }
     }
 
-    // 2️⃣ Update each guest’s amountPaid + status based on history
+    // 2️⃣ Update each guest's amountPaid + status based on history
     let totalPaid = 0;
     this.travellerPayment.guests.forEach((guest: any) => {
-      const key = guest.paidBy?.toLowerCase().trim();
-      const paid = guestPayments[key] || 0;
+      // Match by guest email (not paidBy - guests don't have paidBy field)
+      const guestEmail = guest.email?.toLowerCase().trim();
+      const paid = guestPayments[guestEmail] || 0;
+
       guest.amountPaid = paid;
       totalPaid += paid;
 
-      if (paid === 0) guest.status = "pending";
-      else if (paid < (guest.amountDue || 0)) guest.status = "partial";
-      else guest.status = "paid";
+      // Update guest status
+      if (paid === 0) {
+        guest.status = "pending";
+      } else if (paid < (guest.amountDue || 0)) {
+        guest.status = "partial";
+      } else {
+        guest.status = "paid";
+      }
+
+      // Also update guest.payments array to match history
+      if (!Array.isArray(guest.payments)) {
+        guest.payments = [];
+      }
+
+      // Sync guest payments from history (filter by this guest's email)
+      const guestHistoryPayments = history.filter(
+        (h: any) =>
+          h.paidBy?.toLowerCase().trim() === guestEmail && h.status === "paid"
+      );
+
+      // Only update if there are new payments in history not in guest.payments
+      const existingPaymentIds = new Set(
+        guest.payments.map((p: any) => p.paymentId)
+      );
+      const newPayments = guestHistoryPayments.filter(
+        (h: any) => !existingPaymentIds.has(h.paymentId)
+      );
+
+      if (newPayments.length > 0) {
+        newPayments.forEach((historyEntry: any) => {
+          guest.payments.push({
+            amount: historyEntry.amount,
+            date: historyEntry.date,
+            method: historyEntry.method,
+            linkId: historyEntry.linkId,
+            paymentId: historyEntry.paymentId,
+            status: historyEntry.status,
+          });
+        });
+      }
     });
 
     // 3️⃣ Update overall travellerPayment totals
     this.travellerPayment.amountReceived = totalPaid;
 
-    if (totalPaid === 0) this.travellerPayment.status = "pending";
-    else if (totalPaid < (this.travellerPayment.finalAmount || 0))
+    if (totalPaid === 0) {
+      this.travellerPayment.status = "pending";
+    } else if (totalPaid < (this.travellerPayment.finalAmount || 0)) {
       this.travellerPayment.status = "partial";
-    else this.travellerPayment.status = "paid";
+    } else {
+      this.travellerPayment.status = "paid";
+    }
   }
 
   /* ---------------- OWNER PAYMENT STATUS ---------------- */
@@ -207,9 +251,13 @@ bookingSchema.pre("save", async function (next) {
     const ownerPaid = this.ownerPayment.amountReceived ?? 0;
     const ownerTotal = this.ownerPayment.totalAmount ?? 0;
 
-    if (ownerPaid === 0) this.ownerPayment.status = "pending";
-    else if (ownerPaid < ownerTotal) this.ownerPayment.status = "partial";
-    else this.ownerPayment.status = "paid";
+    if (ownerPaid === 0) {
+      this.ownerPayment.status = "pending";
+    } else if (ownerPaid < ownerTotal) {
+      this.ownerPayment.status = "partial";
+    } else {
+      this.ownerPayment.status = "paid";
+    }
   }
 
   next();

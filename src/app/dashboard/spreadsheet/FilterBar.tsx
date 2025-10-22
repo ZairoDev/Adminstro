@@ -21,11 +21,7 @@ import {
 import { DateRange } from "react-day-picker";
 
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { set } from "mongoose";
-
-import { Area } from "../target/page";
-import { AreaSelect } from "@/components/leadTableSearch/page";
+import axios from "axios";                                                                                                                         
 import { useAuthStore } from "@/AuthStore";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 interface PageProps {
@@ -244,6 +240,7 @@ useEffect(() => {
                 <SelectItem value="name">Name</SelectItem>
                 {/* <SelectItem value="email">Email</SelectItem> */}
                 <SelectItem value="phoneNumber">Phone</SelectItem>
+                <SelectItem value="VSID">VSID</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -423,78 +420,77 @@ useEffect(() => {
 
         {/* Price & Beds */}
         <div className="flex gap-x-2">
-  {/* Price Range Filter */}
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button variant="outline" className="bg-white text-black">
-        Price Range
-      </Button>
-    </PopoverTrigger>
+          {/* Price Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="bg-white text-black">
+                Price Range
+              </Button>
+            </PopoverTrigger>
 
-    <PopoverContent className="w-56 p-2" align="start">
-      <div className="flex gap-x-4">
-        <div>
-          <Label htmlFor="minPrice">Min Price</Label>
-          <Input
-            id="minPrice"
-            value={filters.minPrice === null ? "" : filters.minPrice}
-            onChange={(e) => {
-              const value = e.target.value;
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="flex gap-x-4">
+                <div>
+                  <Label htmlFor="minPrice">Min Price</Label>
+                  <Input
+                    id="minPrice"
+                    value={filters.minPrice === null ? "" : filters.minPrice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters({
+                        ...filters,
+                        minPrice: value === "" ? null : parseInt(value, 10),
+                      });
+                    }}
+                    type="number"
+                    placeholder="0"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxPrice">Max Price</Label>
+                  <Input
+                    id="maxPrice"
+                    value={filters.maxPrice === null ? "" : filters.maxPrice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters({
+                        ...filters,
+                        maxPrice: value === "" ? null : parseInt(value, 10),
+                      });
+                    }}
+                    type="number"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Sort by Price Button */}
+          <Button
+            variant="outline"
+            className="bg-white text-black"
+            onClick={() => {
+              // toggle sort order between 'asc' and 'desc'
               setFilters({
                 ...filters,
-                minPrice: value === "" ? null : parseInt(value, 10),
+                sortByPrice:
+                  filters.sortByPrice === "asc"
+                    ? "desc"
+                    : filters.sortByPrice === "desc"
+                    ? ""
+                    : "asc",
               });
             }}
-            type="number"
-            placeholder="0"
-            autoFocus
-          />
+          >
+            {filters.sortByPrice === "asc"
+              ? "↑ Increasing"
+              : filters.sortByPrice === "desc"
+              ? "↓ Decreasing"
+              : "Sort by Price"}
+          </Button>
         </div>
-        <div>
-          <Label htmlFor="maxPrice">Max Price</Label>
-          <Input
-            id="maxPrice"
-            value={filters.maxPrice === null ? "" : filters.maxPrice}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFilters({
-                ...filters,
-                maxPrice: value === "" ? null : parseInt(value, 10),
-              });
-            }}
-            type="number"
-            placeholder="0"
-          />
-        </div>
-      </div>
-    </PopoverContent>
-  </Popover>
-
-  {/* Sort by Price Button */}
-  <Button
-    variant="outline"
-    className="bg-white text-black"
-    onClick={() => {
-      // toggle sort order between 'asc' and 'desc'
-      setFilters({
-        ...filters,
-        sortByPrice:
-          filters.sortByPrice === "asc"
-            ? "desc"
-            : filters.sortByPrice === "desc"
-            ? ""
-            : "asc",
-      });
-    }}
-  >
-    {filters.sortByPrice === "asc"
-      ? "↑ Increasing"
-      : filters.sortByPrice === "desc"
-      ? "↓ Decreasing"
-      : "Sort by Price"}
-  </Button>
-</div>
-
       </div>
 
       <div className="  flex justify-around border border-neutral-700 p-2 mx-auto my-2 rounded-lg">

@@ -1,42 +1,96 @@
-// components/SmallCard.tsx
-import React from "react";
-import { LucideIcon } from "lucide-react";
+"use client";
 
-interface CardLineProps {
-  icon?: React.ElementType; // icon component from lucide-react
-  text: string;
+import type React from "react";
+import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
+
+interface StatItem {
+  icon?: LucideIcon;
+  value: string | number;
+  label?: string;
+  color?: string;
 }
 
-const CardLine: React.FC<CardLineProps> = ({ icon: Icon, text }) => {
-  return (
-    <div className="flex items-center gap-2">
-      {Icon && <Icon className="w-4 h-4 text-gray-500" />}
-      <span className="text-gray-800 dark:text-gray-200 text-sm">{text}</span>
-    </div>
-  );
-};
-
-interface SmallCardProps {
+interface LocationCardProps {
   title: string;
-  lines: CardLineProps[]; // lines inside the card
-  className?: string; // for additional customization
+  address?: string;
+  image?: string;
+  imageAlt?: string;
+  stats: StatItem[];
+  className?: string;
+  onClick?: () => void;
 }
 
-const SmallCard: React.FC<SmallCardProps> = ({ title, lines, className }) => {
+const LocationCard: React.FC<LocationCardProps> = ({
+  title,
+  address,
+  image,
+  imageAlt = "Location",
+  stats,
+  className,
+  onClick,
+}) => {
   return (
     <div
-      className={`bg-white dark:bg-stone-800 rounded-lg shadow p-4 space-y-2 ${className}`}
+      onClick={onClick}
+      className={`bg-white dark:bg-stone-800 rounded-2xl shadow overflow-hidden transition-transform hover:shadow-lg ${
+        onClick ? "cursor-pointer hover:scale-105" : ""
+      } ${className}`}
     >
-      <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100">
-        {title}
-      </h3>
-      <div className="space-y-1">
-        {lines.map((line, index) => (
-          <CardLine key={index} {...line} />
-        ))}
+      {image && (
+        <div className="relative w-full h-40 bg-gray-200 dark:bg-stone-700">
+          <Image
+            src={image || "/placeholder.svg"}
+            alt={imageAlt}
+            fill
+            className="object-cover"
+          />
+        </div>
+      )}
+
+      <div className="p-4 flex flex-col gap-3">
+        <div>
+          <h3 className="text-gray-900 dark:text-gray-100 text-base font-semibold">
+            {title}
+          </h3>
+          {address && (
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+              {address}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between gap-2">
+          {stats.map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                <div className="flex items-center gap-1">
+                  {Icon && (
+                    <Icon
+                      className={`w-4 h-4 ${stat.color ?? "text-gray-500"}`}
+                    />
+                  )}
+                  <span
+                    className={`text-sm font-semibold ${
+                      stat.color ?? "text-gray-900 dark:text-gray-100"
+                    }`}
+                  >
+                    {stat.value}
+                  </span>
+                </div>
+                {stat.label && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    {stat.label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 };
 
-export default SmallCard;
+export default LocationCard;

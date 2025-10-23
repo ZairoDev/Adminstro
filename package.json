@@ -54,6 +54,7 @@
     "@tiptap/pm": "^2.7.4",
     "@tiptap/react": "^2.7.4",
     "@tiptap/starter-kit": "^2.7.4",
+    "@tremor/react": "^3.18.7",
     "apollo-server": "^3.13.0",
     "apollo-server-micro": "^3.13.0",
     "axios": "^1.7.7",

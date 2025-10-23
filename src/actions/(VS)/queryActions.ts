@@ -15,6 +15,7 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
 import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { Boosters } from "@/models/propertyBooster";
+import { PipelineStage } from "mongoose";
 
 connectDb();
 
@@ -1380,6 +1381,122 @@ if (days === "12 days") {
 // console.log("here is the output",output);
 return output;
 };
+
+export const getBookingStats = async ({
+  days,
+  location,
+}: {
+  days?: "12 days" | "1 year" | "last 3 years" | "this month";
+  location?: string;
+}) => {
+  await connectDb();
+  const now = new Date();
+  let start = new Date();
+  const end = new Date();
+  let groupFormat: any;
+
+  // Determine the grouping format based on days
+  switch (days?.toLowerCase()) {
+    case "12 days":
+      start.setDate(now.getDate() - 11);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$travellerPayment.history.date",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$travellerPayment.history.date",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y",
+          date: "$travellerPayment.history.date",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "this month":
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$travellerPayment.history.date",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    default:
+      throw new Error(
+        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+      );
+  }
+
+  // Build the aggregation pipeline
+  const pipeline: PipelineStage[] = [
+    // 1️⃣ Join lead to get location
+    {
+      $lookup: {
+        from: "queries", // collection name of your leads
+        localField: "lead",
+        foreignField: "_id",
+        as: "leadData",
+      },
+    },
+    { $unwind: "$leadData" },
+
+    // 2️⃣ Unwind payment history
+    { $unwind: "$travellerPayment.history" },
+
+    // 3️⃣ Match paid payments + date range + optional location
+    {
+      $match: {
+        "travellerPayment.history.status": "paid",
+        "travellerPayment.history.date": { $gte: start, $lte: end },
+        ...(location ? { "leadData.location": location } : {}),
+      },
+    },
+
+    // 4️⃣ Group by day/month/year
+    {
+      $group: {
+        _id: groupFormat,
+        totalPaid: { $sum: "$travellerPayment.history.amount" },
+        count: { $sum: 1 },
+      },
+    },
+
+    // 5️⃣ Sort by date
+    { $sort: { _id: 1 } },
+  ];
+
+  const result = await Bookings.aggregate(pipeline as PipelineStage[]);
+  return result;
+};
+
 
 export const getBoostCounts = async ({
   days,

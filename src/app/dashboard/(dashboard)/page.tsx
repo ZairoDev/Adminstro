@@ -3,6 +3,8 @@
 import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { ChartLine, Loader2, RotateCw, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { AreaChart,  Title } from "@tremor/react";
+import { Card as TremorCard } from "@tremor/react";
 
 
 import {
@@ -85,6 +87,9 @@ import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
 import SmallCard from "@/components/reusableCard";
 import LocationCard from "@/components/reusableCard";
 import SalesCard from "@/hooks/(VS)/useSalesCard";
+import useBookingStats from "@/hooks/(VS)/useBookingStats";
+import BookingChartDynamicAdvanced from "@/components/BookingChart";
+import BookingChartImproved from "@/components/BookingChart";
 
 interface StatusCount {
   First: number;
@@ -236,16 +241,14 @@ const Dashboard = () => {
 
   const {salesCardData} = SalesCard();
 
-  console.log("Sales Card Data from Dashboard:", salesCardData);
-
-  
-      
-
-
-
+  // console.log("Sales Card Data from Dashboard:", salesCardData);
   const { totalListings, fetchListingCounts } = ListingCounts();
   const { totalBoosts,fetchBoostCounts, activeBoosts } = BoostCounts();
   const {  unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
+
+  const { bookingsByDate, fetchBookingStats } = useBookingStats();
+
+  console.log("bookingsByDate:", bookingsByDate);
 
   // Transform data for recharts (make sure counts are numbers)
   const chartData = useMemo(
@@ -434,6 +437,12 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">Visit</p>
         </div>
       </div>
+
+      <div className=" my-2 ">
+        <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1>
+        <BookingChartImproved />
+      </div>
+
       {token?.role === "SuperAdmin" && (
         <div className=" border rounded-md p-2">
           {/* Select country */}
@@ -515,142 +524,177 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
       {/* Leads Generation Dashboard*/}
       {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead") && (
-        <section>
-          <h1 className="text-3xl font-bold my-6">Lead-Gen Dashboard</h1>
+        <section className="space-y-6 p-6">
+          <h1 className="text-3xl font-bold">Lead-Gen Dashboard</h1>
+
           {/* Daily Leads by Agent & Active Employees */}
-          <div className=" w-full grid grid-cols-1 lg:grid-cols-3 gap-y-4 relative">
-            <div className=" w-full flex relative lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  Today Leads - {totalTodayLeads}
+                </h2>
+                <Button size={"sm"} onClick={refetchTodayLeads}>
+                  <RotateCw
+                    className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              </div>
               <CustomStackBarChart
                 heading={`Today Leads - ${totalTodayLeads}`}
                 subHeading="Leads by Agent"
                 chartData={todaysLeadChartData ? todaysLeadChartData : []}
               />
-              <Button
-                size={"sm"}
-                onClick={refetchTodayLeads}
-                className="absolute top-0 right-0"
-              >
-                <RotateCw
-                  className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
-                />
-              </Button>
             </div>
 
             {/* Active Employees */}
-            <div className=" h-full border rounded-md w-72 mx-auto justify-self-center lg:absolute right-0">
+            <div className="border rounded-md h-full flex flex-col gap-2 ">
               <ActiveEmployeeList />
+              {/* Fresh Leads Card */}
+              {token?.role === "SuperAdmin" && (
+                <div className="border shadow-md p-4">
+                  <LocationCard
+                    title="Fresh Leads"
+                    stats={[
+                      {
+                        icon: Users,
+                        value: salesCardData?.todayCount ?? 0,
+                        label: "Today",
+                        color: "text-blue-600",
+                      },
+                      {
+                        icon: TrendingUp,
+                        value: `${salesCardData?.percentageChange}%`,
+                        label: "Change",
+                        color:
+                          salesCardData && salesCardData.percentageChange >= 0
+                            ? "text-green-600"
+                            : "text-red-600",
+                      },
+                      {
+                        icon: TrendingDown,
+                        value: salesCardData?.yesterdayCount ?? 0,
+                        label: "Yesterday",
+                        color: "text-gray-500",
+                      },
+                    ]}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Date Filter */}
-          <div className="flex justify-end gap-4 mt-4"></div>
-
           {/* Leads by Location and Agent */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            {/* Left Column */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column - Leads by Location */}
             {leadByLocationData && (
-              <div className=" relative">
-                <CustomSelect
-                  itemList={[
-                    "All",
-                    "yesterday",
-                    "last month",
-                    "this month",
-                    "10 days",
-                    "15 days",
-                    "1 month",
-                    "3 months",
-                  ]}
-                  triggerText="Select days"
-                  defaultValue="All"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...propertyFilters };
-                    newLeadFilters.days = value;
-                    setPropertyFilters(newLeadFilters);
-                    fetchLeadByLocation(newLeadFilters);
-                  }}
-                  triggerClassName=" w-32 absolute left-2 top-2"
-                />
+              <div className="space-y-4 border rounded-md p-4">
+                <div className="flex gap-3 flex-wrap">
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "yesterday",
+                      "last month",
+                      "this month",
+                      "10 days",
+                      "15 days",
+                      "1 month",
+                      "3 months",
+                    ]}
+                    triggerText="Select days"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...propertyFilters };
+                      newLeadFilters.days = value;
+                      setPropertyFilters(newLeadFilters);
+                      fetchLeadByLocation(newLeadFilters);
+                    }}
+                    triggerClassName="w-32"
+                  />
 
-                <CustomSelect
-                  itemList={["All", ...allEmployees]}
-                  triggerText="Select agent"
-                  defaultValue="All"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...propertyFilters };
-                    newLeadFilters.createdBy = value;
-                    setPropertyFilters(newLeadFilters);
-                    fetchLeadByLocation(newLeadFilters);
-                  }}
-                  triggerClassName=" w-32 absolute left-2 top-16 "
-                />
+                  <CustomSelect
+                    itemList={["All", ...allEmployees]}
+                    triggerText="Select agent"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...propertyFilters };
+                      newLeadFilters.createdBy = value;
+                      setPropertyFilters(newLeadFilters);
+                      fetchLeadByLocation(newLeadFilters);
+                    }}
+                    triggerClassName="w-32"
+                  />
+                </div>
                 <LabelledPieChart
                   chartData={locationLeads.map((lead) => ({
                     label: lead._id,
                     count: lead.count,
                   }))}
                   heading="Leads By Location"
-                  // footer="Footer data"
                   key="fdg"
                 />
               </div>
             )}
-            {reviews && (
-              <div className=" relative">
-                <CustomSelect
-                  itemList={[
-                    "All",
-                    "yesterday",
-                    "last month",
-                    "this month",
-                    "10 days",
-                    "15 days",
-                    "1 month",
-                    "3 months",
-                  ]}
-                  triggerText="Select days"
-                  defaultValue="All"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...reviewsFilters };
-                    newLeadFilters.days = value;
-                    setReviewsFilters(newLeadFilters);
-                    fetchReviews(newLeadFilters);
-                  }}
-                  triggerClassName=" w-32 absolute left-2 top-2"
-                />
 
-                <CustomSelect
-                  itemList={["All", ...allEmployees]}
-                  triggerText="Select agent"
-                  defaultValue="All"
-                  onValueChange={(value) => {
-                    const newLeadFilters = { ...reviewsFilters };
-                    newLeadFilters.createdBy = value;
-                    setReviewsFilters(newLeadFilters);
-                    fetchReviews(newLeadFilters);
-                  }}
-                  triggerClassName=" w-32 absolute left-2 top-16 "
-                />
+            {/* Right Column - Reviews */}
+            {reviews && (
+              <div className="space-y-4 border rounded-md p-4">
+                <div className="flex gap-3 flex-wrap">
+                  <CustomSelect
+                    itemList={[
+                      "All",
+                      "yesterday",
+                      "last month",
+                      "this month",
+                      "10 days",
+                      "15 days",
+                      "1 month",
+                      "3 months",
+                    ]}
+                    triggerText="Select days"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...reviewsFilters };
+                      newLeadFilters.days = value;
+                      setReviewsFilters(newLeadFilters);
+                      fetchReviews(newLeadFilters);
+                    }}
+                    triggerClassName="w-32"
+                  />
+
+                  <CustomSelect
+                    itemList={["All", ...allEmployees]}
+                    triggerText="Select agent"
+                    defaultValue="All"
+                    onValueChange={(value) => {
+                      const newLeadFilters = { ...reviewsFilters };
+                      newLeadFilters.createdBy = value;
+                      setReviewsFilters(newLeadFilters);
+                      fetchReviews(newLeadFilters);
+                    }}
+                    triggerClassName="w-32"
+                  />
+                </div>
                 <ReviewPieChart chartData={reviews} />
               </div>
             )}
+          </div>
 
-            <div className="flex items-center rounded-lg m-4">
-              {leadStats.map((loc: LeadStats, index: number) => (
-                <StatsCard
-                  className="m-8"
-                  key={index}
-                  title={loc.location}
-                  target={loc.target}
-                  achieved={loc.achieved}
-                  today={loc.today}
-                  yesterday={loc.yesterday}
-                  dailyrequired={loc.dailyrequired}
-                  dailyAchieved={loc.currentAverage}
-                  rate={loc.rate}
-                />
-              ))}
-            </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {leadStats.map((loc: LeadStats, index: number) => (
+              <StatsCard
+                key={index}
+                title={loc.location}
+                target={loc.target}
+                achieved={loc.achieved}
+                today={loc.today}
+                yesterday={loc.yesterday}
+                dailyrequired={loc.dailyrequired}
+                dailyAchieved={loc.currentAverage}
+                rate={loc.rate}
+              />
+            ))}
           </div>
         </section>
       )}
@@ -1282,41 +1326,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
 
           <CardFooter className="flex-col items-start gap-2 text-sm" />
         </Card>
-      </div>
-
-      <div>
-        {token?.role === "SuperAdmin" && (
-          <div className="flex flex-col justify-evenly md:flex-row gap-6 mt-8">
-            <div className="flex border rounded-xl shadow-md justify-center md:w-1/2 h-[100px]">
-              <LocationCard
-                title="Fresh Leads"
-                stats={[
-                  {
-                    icon: Users,
-                    value: salesCardData?.todayCount ?? 0,
-                    label: "Today",
-                    color: "text-blue-600",
-                  },
-                  {
-                    icon: TrendingUp,
-                    value: `${salesCardData?.percentageChange}%`,
-                    label: "Change",
-                    color:
-                      salesCardData && salesCardData.percentageChange >= 0
-                        ? "text-green-600"
-                        : "text-red-600",
-                  },
-                  {
-                    icon: TrendingDown,
-                    value: salesCardData?.yesterdayCount ?? 0,
-                    label: "Yesterday",
-                    color: "text-gray-500",
-                  },
-                ]}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

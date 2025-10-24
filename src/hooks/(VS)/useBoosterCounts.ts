@@ -6,7 +6,7 @@ const BoostCounts = () => {
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState("");
   const [totalBoosts, setTotalBoosts] = useState<
-    { date: string; total: number; newBoosts: number; reboosts: number }[]
+    { date: string; total: number; newBoosts: number; reboosts: number ,posted: number}[]
   >([]);
   const [activeBoosts, setActiveBoosts] = useState(0);
   const [inactiveBoosts, setInactiveBoosts] = useState(0);
@@ -19,11 +19,13 @@ const BoostCounts = () => {
       const response = await getBoostCounts({ days });
       console.log("Boost counts response:", response);
       const transformedResponse = response.map(
-        ({ date, total, newBoosts, reboosts }) => ({
+        ({ date, total, newBoosts, reboosts ,posted}) => ({
           date,
           total: total ?? 0,
           newBoosts,
           reboosts,
+          posted
+
         })
       );
       setTotalBoosts(transformedResponse);

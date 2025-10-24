@@ -51,6 +51,10 @@ const propertyBoosterSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    url: {
+      type: String,
+      default:null,
+    },
     reboost: {
       type: Boolean,
       default: false,

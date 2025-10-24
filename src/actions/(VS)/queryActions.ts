@@ -1539,10 +1539,10 @@ export const getBoostCounts = async ({
       );
   }
 
-  const result = await Boosters.aggregate([
+  // First aggregation: Group by reboost status
+  const reboostResult = await Boosters.aggregate([
     {
       $addFields: {
-        // Use lastReboostedAt if it exists and reboost is true, otherwise use createdAt
         effectiveDate: {
           $cond: {
             if: { $and: [{ $eq: ["$reboost", true] }, { $ne: ["$lastReboostedAt", null] }] },
@@ -1550,14 +1550,13 @@ export const getBoostCounts = async ({
             else: "$createdAt"
           }
         },
-        // Ensure reboost field exists and defaults to false
         reboost: { $ifNull: ["$reboost", false] }
       }
     },
-    { 
-      $match: { 
-        effectiveDate: { $gte: start, $lte: end } 
-      } 
+    {
+      $match: {
+        effectiveDate: { $gte: start, $lte: end }
+      }
     },
     {
       $group: {
@@ -1568,87 +1567,157 @@ export const getBoostCounts = async ({
     {
       $group: {
         _id: "$_id.date",
-        counts: { $push: { reboost: "$_id.reboost", count: "$count" } },
+        counts: { 
+          $push: { 
+            reboost: "$_id.reboost", 
+            count: "$count" 
+          } 
+        },
         total: { $sum: "$count" },
       },
     },
     { $sort: { _id: 1 } },
   ]);
 
-  console.log("Aggregation result:", JSON.stringify(result, null, 2));
+  // Second aggregation: Group by posted status (only count properties with URL)
+  // FIXED: Better URL validation
+  const postedResult = await Boosters.aggregate([
+    {
+      $addFields: {
+        effectiveDate: {
+          $cond: {
+            if: { $and: [{ $eq: ["$reboost", true] }, { $ne: ["$lastReboostedAt", null] }] },
+            then: "$lastReboostedAt",
+            else: "$createdAt"
+          }
+        },
+        isPosted: {
+          $cond: {
+            if: { 
+              $and: [
+                { $ne: ["$url", null] },
+                { $ne: ["$url", ""] },
+                { $gt: [{ $strLenCP: { $ifNull: ["$url", ""] } }, 0] }
+              ]
+            },
+            then: true,
+            else: false
+          }
+        }
+      }
+    },
+    {
+      $match: {
+        effectiveDate: { $gte: start, $lte: end }
+      }
+    },
+    {
+      $group: {
+        _id: { date: groupFormat, isPosted: "$isPosted" },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: { 
+          $push: { 
+            isPosted: "$_id.isPosted", 
+            count: "$count" 
+          } 
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  console.log("Reboost Aggregation result:", JSON.stringify(reboostResult, null, 2));
+  console.log("Posted Aggregation result:", JSON.stringify(postedResult, null, 2));
 
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  const resultMap = new Map<string, { newBoosts: number; reboosts: number; total: number }>();
-
-  for (const item of result) {
-    const newBoosts =
-      item.counts.find((c: any) => c.reboost === false)?.count || 0;
-    const reboosts =
-      item.counts.find((c: any) => c.reboost === true)?.count || 0;
+  // Create map for reboost data
+  const reboostMap = new Map<string, { newBoosts: number; reboosts: number; total: number }>();
+  for (const item of reboostResult) {
+    const newBoosts = item.counts.find((c: any) => c.reboost === false)?.count || 0;
+    const reboosts = item.counts.find((c: any) => c.reboost === true)?.count || 0;
     
-    resultMap.set(item._id, {
+    reboostMap.set(item._id, {
       newBoosts,
       reboosts,
-      total: newBoosts + reboosts,
+      total: item.total,
     });
   }
 
+  // Create map for posted data
+  const postedMap = new Map<string, { posted: number; notPosted: number }>();
+  for (const item of postedResult) {
+    const posted = item.counts.find((c: any) => c.isPosted === true)?.count || 0;
+    const notPosted = item.counts.find((c: any) => c.isPosted === false)?.count || 0;
+    
+    postedMap.set(item._id, {
+      posted,
+      notPosted,
+    });
+  }
+
+  // Combine both maps
   const output: any[] = [];
-  
+
   if (days === "12 days") {
     const temp = new Date(start);
     while (temp <= end) {
       const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-
-      const item = resultMap.get(key);
+      const reboostData = reboostMap.get(key);
+      const postedData = postedMap.get(key);
       const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      
       output.push({
         date: formattedDate,
-        newBoosts: item?.newBoosts ?? 0,
-        reboosts: item?.reboosts ?? 0,
-        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
+        newBoosts: reboostData?.newBoosts ?? 0,
+        reboosts: reboostData?.reboosts ?? 0,
+        posted: postedData?.posted ?? 0,
+        notPosted: postedData?.notPosted ?? 0,
+        total: reboostData?.total ?? 0,
       });
       temp.setDate(temp.getDate() + 1);
     }
   } else if (days === "1 year") {
     for (let i = 0; i < 12; i++) {
       const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
-      const item = resultMap.get(dateKey);
+      const reboostData = reboostMap.get(dateKey);
+      const postedData = postedMap.get(dateKey);
+      
       output.push({
         date: months[i],
-        newBoosts: item?.newBoosts ?? 0,
-        reboosts: item?.reboosts ?? 0,
-        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
+        newBoosts: reboostData?.newBoosts ?? 0,
+        reboosts: reboostData?.reboosts ?? 0,
+        posted: postedData?.posted ?? 0,
+        notPosted: postedData?.notPosted ?? 0,
+        total: reboostData?.total ?? 0,
       });
     }
   } else if (days === "last 3 years") {
     const currentYear = now.getFullYear();
     for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
-      const item = resultMap.get(String(i));
+      const reboostData = reboostMap.get(String(i));
+      const postedData = postedMap.get(String(i));
+      
       output.push({
         date: String(i),
-        newBoosts: item?.newBoosts ?? 0,
-        reboosts: item?.reboosts ?? 0,
-        total: (item?.newBoosts ?? 0) + (item?.reboosts ?? 0),
+        newBoosts: reboostData?.newBoosts ?? 0,
+        reboosts: reboostData?.reboosts ?? 0,
+        posted: postedData?.posted ?? 0,
+        notPosted: postedData?.notPosted ?? 0,
+        total: reboostData?.total ?? 0,
       });
     }
   }
-  
-  console.log("output from the getBoost", output);
+
+  console.log("Combined output from getBoostCounts:", output);
   return output;
 };
 

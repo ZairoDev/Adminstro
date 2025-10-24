@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { VisitsPage } from "./visit-page";
+import  VisitsPage  from "./visit-page";
 
 const Visits = () => {
   return (

@@ -90,6 +90,7 @@ import SalesCard from "@/hooks/(VS)/useSalesCard";
 import useBookingStats from "@/hooks/(VS)/useBookingStats";
 import BookingChartDynamicAdvanced from "@/components/BookingChart";
 import BookingChartImproved from "@/components/BookingChart";
+import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 
 interface StatusCount {
   First: number;
@@ -1225,108 +1226,23 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
         </Card>
       </div>
 
+
       <div className="relative w-full mx-auto mt-10">
-        <Card className="shadow-md rounded-2xl">
-          <CardHeader>
-            <CardTitle>Property Boost Created</CardTitle>
-            <CardDescription>
-              {BoostFilters?.days || "Last 12 Days"}
-            </CardDescription>
+  <BoostMultiLineChart
+    data={totalBoosts}
+    filters={BoostFilters}
+    onFilterChange={(value) => {
+      const newBoostFilters = { ...BoostFilters, days: value };
+      setBoostFilters(newBoostFilters);
+      fetchBoostCounts(newBoostFilters);
+    }}
+    loading={loading}
+    isError={isError}
+    error={error}
+  />
+</div>
 
-            {/* Range Selector */}
 
-            <CustomSelect
-              itemList={["12 days", "1 year", "last 3 years"]}
-              triggerText="Select range"
-              defaultValue={BoostFilters?.days || "12 days"}
-              onValueChange={(value) => {
-                const newBoostFilters = { ...BoostFilters };
-                newBoostFilters.days = value;
-                fetchBoostCounts(newBoostFilters);
-              }}
-              triggerClassName="w-32 absolute right-2 top-2"
-            />
-          </CardHeader>
-
-          <CardContent className="h-[400px]">
-            {loading ? (
-              <p className="text-center text-muted-foreground">Loading...</p>
-            ) : isError ? (
-              <p className="text-center text-red-500">Error: {error}</p>
-            ) : boostChartData.length === 0 ? (
-              <p className="text-center text-muted-foreground">
-                No data available
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={boostChartData
-                      .map((item) => ({
-                        date: item.date,
-                        newBoosts: item.newBoosts,
-                        reboosts: item.reboosts,
-                        total: item.total,
-                      }))
-                      .sort(
-                        (a, b) =>
-                          new Date(a.date).getTime() - new Date(b.date).getTime()
-                      )}
-                    margin={{ left: 0, right: 16 }}
-                  >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={4}
-                    tickFormatter={(value) => {
-                      if (BoostFilters?.days === "last 3 years") return value; // Year
-                      if (BoostFilters?.days === "1 year") return value; // Month
-                      return value; // Day + Month
-                    }}
-                  />
-                  <YAxis />
-
-                  <Tooltip
-                    cursor={false}
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-white shadow-md p-3 rounded-lg border">
-                            <p className="font-semibold">{label}</p>
-                            <p className="text-sm text-blue-600">
-                              New Boosts: {data.newBoosts}
-                            </p>
-                            <p className="text-sm text-green-600">
-                              Re-Boosts: {data.reboosts}
-                            </p>
-                            <p className="text-sm font-bold">
-                              Total: {data.total}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-
-                  <Line
-                    dataKey="total"
-                    type="monotone"
-                    stroke={chartConfig.Boosts.color}
-                    strokeWidth={2}
-                    dot={{ fill: chartConfig.Boosts.color }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-
-          <CardFooter className="flex-col items-start gap-2 text-sm" />
-        </Card>
-      </div>
     </div>
   );
 };  

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
+import BookingPage from "./booking-page";
 
-import { BookingPage } from "./booking-page";
 
 const Bookings = () => {
   return (

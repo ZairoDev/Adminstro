@@ -30,11 +30,12 @@ type ChartType = "Area" | "Line" | "Bar";
 type MetricType = "totalPaid" | "count";
 
 const BookingChartImproved = () => {
-  const { bookingsByDate, fetchBookingStats, loading } = useBookingStats();
+  const { bookingsByDate, comparisonData, fetchBookingStats, loading } =
+    useBookingStats();
 
   const [days, setDays] = useState<
     "12 days" | "1 year" | "last 3 years" | "this month"
-  >("12 days");
+  >("this month");
   const [location, setLocation] = useState<string>("");
   const [chartType, setChartType] = useState<ChartType>("Area");
   const [metric, setMetric] = useState<MetricType>("totalPaid");
@@ -43,14 +44,27 @@ const BookingChartImproved = () => {
   );
   const [isDark, setIsDark] = useState(false);
 
+  const [isComparisonEnabled, setIsComparisonEnabled] = useState(false);
+  const [comparisonMonth, setComparisonMonth] = useState<number | null>(null);
+  const [comparisonYear, setComparisonYear] = useState<number | null>(null);
+
   // Determine grouping & fetch data
   useEffect(() => {
     if (days === "12 days" || days === "this month") setGrouping("daily");
     else if (days === "1 year") setGrouping("monthly");
     else if (days === "last 3 years") setGrouping("yearly");
 
-    fetchBookingStats({ days, location });
-  }, [days, location]);
+    fetchBookingStats({
+      days,
+      location,
+      comparisonMonth: isComparisonEnabled
+        ? comparisonMonth ?? undefined
+        : undefined,
+      comparisonYear: isComparisonEnabled
+        ? comparisonYear ?? undefined
+        : undefined,
+    });
+  }, [days, location, isComparisonEnabled, comparisonMonth, comparisonYear]);
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains("dark");
@@ -99,6 +113,10 @@ const BookingChartImproved = () => {
       bookingsByDate.map((item: any) => [item.date, item])
     );
 
+    const comparisonMap = comparisonData
+      ? new Map(comparisonData.map((item: any) => [item.date, item]))
+      : null;
+
     // Generate complete date range
     const completeData = [];
     const currentDate = new Date(startDate);
@@ -122,10 +140,14 @@ const BookingChartImproved = () => {
       }
 
       const existingData = dataMap.get(dateKey);
+      const comparisonItem = comparisonMap?.get(dateKey);
+
       completeData.push({
         date: displayDate,
         totalPaid: existingData?.totalPaid ?? 0,
         count: existingData?.count ?? 0,
+        comparisonTotalPaid: comparisonItem?.totalPaid ?? 0,
+        comparisonCount: comparisonItem?.count ?? 0,
       });
     }
 
@@ -144,6 +166,8 @@ const BookingChartImproved = () => {
     revenueSecondary: "#1e40af",
     countPrimary: "#10b981",
     countSecondary: "#047857",
+    comparisonRevenue: "#f59e0b",
+    comparisonCount: "#8b5cf6",
   };
 
   // Get chart component dynamically
@@ -163,6 +187,20 @@ const BookingChartImproved = () => {
         metric === "totalPaid"
           ? chartColors.revenuePrimary
           : chartColors.countPrimary,
+      isAnimationActive: true,
+    };
+
+    const comparisonProps = {
+      dataKey:
+        metric === "totalPaid" ? "comparisonTotalPaid" : "comparisonCount",
+      stroke:
+        metric === "totalPaid"
+          ? chartColors.comparisonRevenue
+          : chartColors.comparisonCount,
+      fill:
+        metric === "totalPaid"
+          ? chartColors.comparisonRevenue
+          : chartColors.comparisonCount,
       isAnimationActive: true,
     };
 
@@ -203,6 +241,16 @@ const BookingChartImproved = () => {
                 metric === "totalPaid" ? "Total Paid ($)" : "Bookings Count"
               }
             />
+            {isComparisonEnabled && comparisonData && (
+              <Line
+                {...comparisonProps}
+                name={
+                  metric === "totalPaid"
+                    ? "Comparison Total Paid ($)"
+                    : "Comparison Bookings Count"
+                }
+              />
+            )}
           </LineChart>
         );
       case "Bar":
@@ -242,6 +290,17 @@ const BookingChartImproved = () => {
               }
               radius={[8, 8, 0, 0]}
             />
+            {isComparisonEnabled && comparisonData && (
+              <Bar
+                {...comparisonProps}
+                name={
+                  metric === "totalPaid"
+                    ? "Comparison Total Paid ($)"
+                    : "Comparison Bookings Count"
+                }
+                radius={[8, 8, 0, 0]}
+              />
+            )}
           </BarChart>
         );
       default:
@@ -268,6 +327,34 @@ const BookingChartImproved = () => {
                   stopOpacity={0}
                 />
               </linearGradient>
+              {isComparisonEnabled && comparisonData && (
+                <linearGradient
+                  id="comparisonGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor={
+                      metric === "totalPaid"
+                        ? chartColors.comparisonRevenue
+                        : chartColors.comparisonCount
+                    }
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={
+                      metric === "totalPaid"
+                        ? chartColors.comparisonRevenue
+                        : chartColors.comparisonCount
+                    }
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              )}
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
@@ -304,14 +391,33 @@ const BookingChartImproved = () => {
                 metric === "totalPaid" ? "Total Paid ($)" : "Bookings Count"
               }
             />
+            {isComparisonEnabled && comparisonData && (
+              <Area
+                {...comparisonProps}
+                fillOpacity={1}
+                fill="url(#comparisonGradient)"
+                name={
+                  metric === "totalPaid"
+                    ? "Comparison Total Paid ($)"
+                    : "Comparison Bookings Count"
+                }
+              />
+            )}
           </AreaChart>
         );
     }
   };
 
+  const currentDate = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => i);
+  const years = Array.from(
+    { length: 5 },
+    (_, i) => currentDate.getFullYear() - i
+  );
+
   return (
-    <div className="w-full min-h-screen  bg-slate-50  dark:bg-stone-950  ">
-      <div className=" ">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-stone-950">
+      <div className="">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-50 mb-2">
@@ -387,6 +493,76 @@ const BookingChartImproved = () => {
               </select>
             </div>
           </div>
+
+          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-stone-800">
+            <div className="flex items-center gap-4 mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isComparisonEnabled}
+                  onChange={(e) => {
+                    setIsComparisonEnabled(e.target.checked);
+                    if (!e.target.checked) {
+                      setComparisonMonth(null);
+                      setComparisonYear(null);
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-stone-700"
+                />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Enable Comparison
+                </span>
+              </label>
+            </div>
+
+            {isComparisonEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Comparison Month
+                  </label>
+                  <select
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-stone-800 text-slate-900 dark:text-slate-50"
+                    value={comparisonMonth ?? ""}
+                    onChange={(e) =>
+                      setComparisonMonth(
+                        e.target.value ? Number.parseInt(e.target.value) : null
+                      )
+                    }
+                  >
+                    <option value="">Select Month</option>
+                    {months.map((month) => (
+                      <option key={month} value={month}>
+                        {dayjs().month(month).format("MMMM")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Comparison Year
+                  </label>
+                  <select
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-stone-800 text-slate-900 dark:text-slate-50"
+                    value={comparisonYear ?? ""}
+                    onChange={(e) =>
+                      setComparisonYear(
+                        e.target.value ? Number.parseInt(e.target.value) : null
+                      )
+                    }
+                  >
+                    <option value="">Select Year</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Chart Card */}
@@ -400,6 +576,12 @@ const BookingChartImproved = () => {
                 ? "Total payments received"
                 : "Number of bookings"}{" "}
               - {days.toLowerCase()}
+              {isComparisonEnabled &&
+                comparisonMonth !== null &&
+                comparisonYear !== null &&
+                ` (Comparing with ${dayjs()
+                  .month(comparisonMonth)
+                  .format("MMMM")} ${comparisonYear})`}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -413,6 +595,13 @@ const BookingChartImproved = () => {
               <div className="flex items-center justify-center h-96">
                 <div className="text-slate-500 dark:text-slate-400">
                   No data available for the selected period
+                </div>
+              </div>
+            ) : isComparisonEnabled &&
+              (comparisonMonth === null || comparisonYear === null) ? (
+              <div className="flex items-center justify-center h-96">
+                <div className="text-slate-500 dark:text-slate-400">
+                  Please select both month and year to view comparison
                 </div>
               </div>
             ) : (

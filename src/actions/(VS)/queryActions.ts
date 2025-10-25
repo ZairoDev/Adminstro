@@ -1383,9 +1383,13 @@ return output;
 export const getBookingStats = async ({
   days,
   location,
+  comparisonMonth,
+  comparisonYear,
 }: {
   days?: "12 days" | "1 year" | "last 3 years" | "this month";
   location?: string;
+  comparisonMonth?: number; // 0-11
+  comparisonYear?: number;
 }) => {
   await connectDb();
   const now = new Date();
@@ -1393,7 +1397,9 @@ export const getBookingStats = async ({
   const end = new Date();
   let groupFormat: any;
 
-  // Determine the grouping format based on days
+  // ------------------------------
+  // 🧠 Determine grouping and range
+  // ------------------------------
   switch (days?.toLowerCase()) {
     case "12 days":
       start.setDate(now.getDate() - 11);
@@ -1409,12 +1415,12 @@ export const getBookingStats = async ({
       break;
 
     case "1 year":
-      start.setFullYear(now.getFullYear() - 1);
-      start.setHours(0, 0, 0, 0);
+      start = new Date(now.getFullYear(), 0, 1); // Jan 1 this year
+      end.setFullYear(now.getFullYear(), 11, 31);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
         $dateToString: {
-          format: "%Y-%m",
+          format: "%Y-%m", // group by month
           date: "$travellerPayment.history.date",
           timezone: "Asia/Kolkata",
         },
@@ -1422,12 +1428,13 @@ export const getBookingStats = async ({
       break;
 
     case "last 3 years":
-      start.setFullYear(now.getFullYear() - 3);
+      start = new Date(now.getFullYear() - 2, 0, 1); // include 3 full years
       start.setHours(0, 0, 0, 0);
+      end.setFullYear(now.getFullYear(), 11, 31);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
         $dateToString: {
-          format: "%Y",
+          format: "%Y", // group by year
           date: "$travellerPayment.history.date",
           timezone: "Asia/Kolkata",
         },
@@ -1440,7 +1447,7 @@ export const getBookingStats = async ({
       end.setHours(23, 59, 59, 999);
       groupFormat = {
         $dateToString: {
-          format: "%Y-%m-%d",
+          format: "%Y-%m-%d", // group by day
           date: "$travellerPayment.history.date",
           timezone: "Asia/Kolkata",
         },
@@ -1449,27 +1456,24 @@ export const getBookingStats = async ({
 
     default:
       throw new Error(
-        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+        "Invalid period. Use '12 days', '1 year', 'last 3 years', or 'this month'."
       );
   }
 
-  // Build the aggregation pipeline
+  // ------------------------------
+  // 🧩 Main (selected) aggregation
+  // ------------------------------
   const pipeline: PipelineStage[] = [
-    // 1️⃣ Join lead to get location
     {
       $lookup: {
-        from: "queries", // collection name of your leads
+        from: "queries",
         localField: "lead",
         foreignField: "_id",
         as: "leadData",
       },
     },
     { $unwind: "$leadData" },
-
-    // 2️⃣ Unwind payment history
     { $unwind: "$travellerPayment.history" },
-
-    // 3️⃣ Match paid payments + date range + optional location
     {
       $match: {
         "travellerPayment.history.status": "paid",
@@ -1477,8 +1481,6 @@ export const getBookingStats = async ({
         ...(location ? { "leadData.location": location } : {}),
       },
     },
-
-    // 4️⃣ Group by day/month/year
     {
       $group: {
         _id: groupFormat,
@@ -1486,14 +1488,134 @@ export const getBookingStats = async ({
         count: { $sum: 1 },
       },
     },
-
-    // 5️⃣ Sort by date
     { $sort: { _id: 1 } },
   ];
 
   const result = await Bookings.aggregate(pipeline as PipelineStage[]);
-  return result;
+
+  // ------------------------------
+  // 📊 Comparison dataset handling
+  // ------------------------------
+  let comparisonResult = null;
+
+  if (days === "1 year") {
+    // 🧠 Comparison = previous full year
+    const comparisonStart = new Date(now.getFullYear() - 1, 0, 1); // Jan 1 last year
+    const comparisonEnd = new Date(
+      now.getFullYear() - 1,
+      11,
+      31,
+      23,
+      59,
+      59,
+      999
+    );
+
+    const comparisonPipeline: PipelineStage[] = [
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadData",
+        },
+      },
+      { $unwind: "$leadData" },
+      { $unwind: "$travellerPayment.history" },
+      {
+        $match: {
+          "travellerPayment.history.status": "paid",
+          "travellerPayment.history.date": {
+            $gte: comparisonStart,
+            $lte: comparisonEnd,
+          },
+          ...(location ? { "leadData.location": location } : {}),
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: "%Y-%m", // match current grouping (month)
+              date: "$travellerPayment.history.date",
+              timezone: "Asia/Kolkata",
+            },
+          },
+          totalPaid: { $sum: "$travellerPayment.history.amount" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ];
+
+    comparisonResult = await Bookings.aggregate(
+      comparisonPipeline as PipelineStage[]
+    );
+  }
+
+  // ------------------------------
+  // 📆 Comparison for "this month" or "12 days"
+  // ------------------------------
+  else if (comparisonMonth !== undefined && comparisonYear !== undefined) {
+    const comparisonStart = new Date(comparisonYear, comparisonMonth, 1);
+    comparisonStart.setHours(0, 0, 0, 0);
+    const comparisonEnd = new Date(comparisonYear, comparisonMonth + 1, 0);
+    comparisonEnd.setHours(23, 59, 59, 999);
+
+    const comparisonPipeline: PipelineStage[] = [
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadData",
+        },
+      },
+      { $unwind: "$leadData" },
+      { $unwind: "$travellerPayment.history" },
+      {
+        $match: {
+          "travellerPayment.history.status": "paid",
+          "travellerPayment.history.date": {
+            $gte: comparisonStart,
+            $lte: comparisonEnd,
+          },
+          ...(location ? { "leadData.location": location } : {}),
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format:
+                days === "12 days" || days === "this month"
+                  ? "%Y-%m-%d"
+                  : "%Y-%m",
+              date: "$travellerPayment.history.date",
+              timezone: "Asia/Kolkata",
+            },
+          },
+          totalPaid: { $sum: "$travellerPayment.history.amount" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ];
+
+    comparisonResult = await Bookings.aggregate(
+      comparisonPipeline as PipelineStage[]
+    );
+  }
+
+  // ------------------------------
+  // ✅ Return results
+  // ------------------------------
+  return {
+    selectedData: result,
+    comparisonData: comparisonResult,
+  };
 };
+
 
 
 export const getBoostCounts = async ({

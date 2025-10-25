@@ -264,15 +264,7 @@ export function SpreadsheetTable({
     // getAllLocations();
   }, []);
 
-  //     useEffect(() => {
-  //   const target = targets.find((t) => t.city === unregisteredOwners.location);
-  //   if (target) {
-  //     setAreas(target.areas);
-  //   } else {
-  //     setAreas([]);
-  //   }
-  //   setFilters((prev) => ({ ...prev, area: "" })); // Clear old area
-  // }, [selectedLocation, targets]);
+
 
   const handleAddRow = async () => {
     const tempRow: Omit<unregisteredOwners, "_id"> = {
@@ -299,17 +291,13 @@ export function SpreadsheetTable({
       .substring(2, 9)}`;
     const optimisticRow = { ...tempRow, _id: tempId };
 
-    // Add optimistic row to the beginning of the array
+
     setTableData((prev) => [optimisticRow, ...prev]);
 
     try {
       const res = await axios.post(`/api/unregisteredOwners/addUser`, tempRow);
       const savedRow = res.data.data;
 
-      // console.log("Backend response:", savedRow);
-      // console.log("Temp ID to replace:", tempId);
-
-      // Ensure the saved row has an _id field
       if (!savedRow || !savedRow._id) {
         throw new Error("Backend response missing _id field");
       }
@@ -416,10 +404,6 @@ export function SpreadsheetTable({
     }
   };
 
-  // const currentArea = localStorage.getItem("token");
-  // const parsedArea = JSON.parse(currentArea ?? "{}").allotedArea;
-
-  // console.log("currentArea: ", currentArea);
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "Delete" && selectedRow) {
@@ -514,7 +498,7 @@ export function SpreadsheetTable({
             className="p-0"
             onClick={() => setIsEditing(true)}
           >
-            <Calendar className="h-5 w-5 text-gray-500" />
+            <Calendar className="h-5 w-5 text-muted-foreground" />
           </Button>
         )}
       </>
@@ -655,7 +639,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
         ) : (
           <ImageUp
             className={`h-5 w-5 ${
-              hasImages ? "text-green-500" : "text-gray-500"
+              hasImages ? "text-green-600 dark:text-green-500" : "text-muted-foreground"
             }`}
           />
         )}
@@ -699,7 +683,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
         className="p-0"
         onClick={handleDownloadZip}
       >
-        <Download className="h-5 w-5 text-gray-500" />
+        <Download className="h-5 w-5 text-muted-foreground" />
       </Button>
     );
   }
@@ -747,11 +731,11 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
               remarks.map((remark, index) => (
                 <div
                   key={index}
-                  className="flex justify-between items-center text-sm bg-gray-800 p-2 rounded-md"
+                  className="flex justify-between items-center text-sm bg-muted p-2 rounded-md"
                 >
                   <span className="break-words">{remark}</span>
                   <button
-                    className="ml-2 text-red-500 hover:text-red-700"
+                    className="ml-2 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400"
                     onClick={() => handleDeleteRemark(index)}
                   >
                     <X size={14} />
@@ -784,12 +768,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        {/* <div>
-          <h2 className="text-2xl font-bold">Lead Management</h2>
-          <p className="text-muted-foreground">
-            Manage your unregistered property owners and leads
-          </p>
-        </div> */}
+
         <Button onClick={handleAddRow} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add New Lead
@@ -845,16 +824,16 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
                 key={item?._id}
                 onClick={() => setSelectedRow(item._id)}
                 className={`cursor-pointer ${
-                  selectedRow === item._id ? "bg-gray-900" : ""
+                  selectedRow === item._id ? "bg-accent" : ""
                 } ${
                   (!item.VSID || item.VSID.trim() === "") &&
                   (!item.link || item.link.trim() === "") &&
                   (!item.referenceLink || item.referenceLink.trim() === "") &&
                   (!item.imageUrls || item.imageUrls.length === 0)
-                    ? "bg-red-900 opacity-80" // red if all three are missing
+                    ? "bg-red-100 dark:bg-red-900/30" // red if all three are missing
                     : (!item.VSID || item.VSID.trim() === "") &&
                       (!item.link || item.link.trim() === "")
-                    ? "bg-blue-800 opacity-90" // blue if VSID & link missing
+                    ? "bg-blue-100 dark:bg-blue-900/30" // blue if VSID & link missing
                     : ""
                 }`}
               >
@@ -876,7 +855,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
                         />
                       ) : (
                         <CustomTooltip
-                          icon={<CircleDot color="gray" />}
+                          icon={<CircleDot className="text-muted-foreground"/>}
                           desc="None"
                         />
                       )}
@@ -981,13 +960,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
                   className=" cursor-pointer relative "
                   onClick={() => handlePetStatus(item?._id, index)}
                 >
-                  {/* {query?.reminder === null && (
-                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                    <p className=" rotate-90 text-xs font-semibold mt-1">
-                    Reminder
-                    </p>
-                    </div>
-                    )} */}
+
                   {item.petStatus === "Allowed" ? (
                     <CustomTooltip
                       icon={<PawPrint color="green" />}
@@ -1056,7 +1029,7 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
                           : `https://${item.referenceLink}`
                       }
                       target="_blank"
-                      className="text-blue-500 hover:text-blue-700 ml-1"
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-1"
                       rel="noreferrer"
                       title="Open reference link in new tab"
                     >
@@ -1133,14 +1106,6 @@ function UploadCell({ item, onUploadComplete }: UploadCellProps) {
                   className="text-right truncate max-w-[120px]"
                   title={item.remarks}
                 >
-                  {/* <EditableCell
-                  value={item.remarks}
-                  onSave={(newValue) =>
-                    handleSave(item._id, "remarks", newValue)
-                  }
-                  maxWidth="120px"
-                  // placeholder="Remarks"
-                /> */}
                   <RemarksDropdown item={item} onSave={handleSave} />
                 </TableCell>
                 {/*Date*/}

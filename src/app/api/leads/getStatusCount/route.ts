@@ -9,48 +9,88 @@ connectDb();
 export async function GET(req:NextRequest){
     try{
         const statusPipeline = [
-      {
-        $group: {
-          _id: "$messageStatus",
-          count: { $sum: 1 },
+
+  {
+    $match: {
+      leadStatus: { $ne: "rejected" },
+    },
+  },
+
+
+  {
+    $match: {
+      messageStatus: {
+        $in: ["First", "Second", "Third", "Fourth", "Options", "Visit"],
+      },
+    },
+  },
+
+  // 3️⃣ Group by messageStatus and location
+  {
+    $group: {
+      _id: {
+        messageStatus: "$messageStatus",
+        location: { $ifNull: ["$location", "UnknownLocation"] },
+      },
+      count: { $sum: 1 },
+    },
+  },
+
+  // 4️⃣ Regroup by messageStatus to build city:count maps
+  {
+    $group: {
+      _id: "$_id.messageStatus",
+      cities: {
+        $push: {
+          k: "$_id.location",
+          v: "$count",
         },
       },
-      {
-        $group: {
-          _id: null,
-          First: {
-            $sum: { $cond: [{ $eq: ["$_id", "First"] }, "$count", 0] },
-          },
-          Second: {
-            $sum: { $cond: [{ $eq: ["$_id", "Second"] }, "$count", 0] },
-          },
-          Third: {
-            $sum: { $cond: [{ $eq: ["$_id", "Third"] }, "$count", 0] },
-          },
-          Fourth: {
-            $sum: { $cond: [{ $eq: ["$_id", "Fourth"] }, "$count", 0] },
-          },
-          Options: {
-            $sum: { $cond: [{ $eq: ["$_id", "Options"] }, "$count", 0] },
-          },
-          Visit: {
-            $sum: { $cond: [{ $eq: ["$_id", "Visit"] }, "$count", 0] },
-          },
-          None: {
-            $sum: { $cond: [{ $eq: ["$_id", "None"] }, "$count", 0] },
-          },
-          Null: {
-            $sum: { $cond: [{ $eq: ["$_id", null] }, "$count", 0] },
-          },
+    },
+  },
+
+  // 5️⃣ Convert to { city: count }
+  {
+    $project: {
+      _id: 0,
+      messageStatus: "$_id",
+      cityCounts: { $arrayToObject: "$cities" },
+    },
+  },
+
+  // 6️⃣ Combine all statuses into one object
+  {
+    $group: {
+      _id: null,
+      data: {
+        $push: {
+          k: "$messageStatus",
+          v: "$cityCounts",
         },
       },
-      {
-        $project: { _id: 0 },
-      },
-    ];
+    },
+  },
+  {
+    $replaceRoot: {
+      newRoot: { $arrayToObject: "$data" },
+    },
+  },
+
+  // 7️⃣ (Optional) Add empty keys for missing statuses
+  {
+    $addFields: {
+      First: { $ifNull: ["$First", {}] },
+      Second: { $ifNull: ["$Second", {}] },
+      Third: { $ifNull: ["$Third", {}] },
+      Fourth: { $ifNull: ["$Fourth", {}] },
+      Options: { $ifNull: ["$Options", {}] },
+      Visit: { $ifNull: ["$Visit", {}] },
+    },
+  },
+];
 
     const result = await Query.aggregate(statusPipeline);
-
+    console.log("result",result);
     return NextResponse.json({
         success: true,
         statusSummary: result[0] || {},

@@ -56,7 +56,7 @@ export function EditableCell({
                 setIsEditing(false);
               }
             }}
-            className="w-full border px-1 text-sm rounded outline-none"
+            className="w-full border border-input bg-background text-foreground px-1 text-sm rounded outline-none focus:ring-2 focus:ring-ring"
           />
         ) : (
           <input
@@ -73,14 +73,14 @@ export function EditableCell({
                 setIsEditing(false);
               }
             }}
-            className="w-full border px-1 text-sm rounded outline-none"
+            className="w-full border border-input bg-background text-foreground placeholder:text-muted-foreground px-1 text-sm rounded outline-none focus:ring-2 focus:ring-ring"
           />
         )
       ) : (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block bg-slate-950">
+              <span className="truncate block hover:bg-accent/50 px-1 py-0.5 rounded transition-colors">
                 {type === "date" && value
                   ? new Date(value).toLocaleDateString()
                   : value || "—"}{" "}

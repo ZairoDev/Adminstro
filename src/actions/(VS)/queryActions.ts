@@ -635,7 +635,7 @@ export const getLeadGenLeadsCount = async (
     chartData.push(dataPoint);
   });
 
-  // console.log(chartData);
+ 
   return { chartData };
 };
 
@@ -737,9 +737,9 @@ export const getAverage = async()=>{
     },
   ];
   // const weeklyAverage = await Query.aggregate(pipeline1);                
-  // console.log(weeklyAverage);
+ 
   const totalTarget = await MonthlyTarget.aggregate(pipeline2);
-  // console.log(totalTarget);
+
   return { totalTarget: totalTarget[0].totalLeads };
 }
 
@@ -798,8 +798,7 @@ export const getLocationLeadStats = async () => {
     },
   ]);
 
-  // console.log("queryAgg: ", queryAgg);
-
+  
   // Maps for quick lookup
   const todayMap = Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]));
   const yesterdayMap = Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
@@ -839,7 +838,7 @@ export const getLocationLeadStats = async () => {
     };
   });
 
-  // console.log(visits);
+
   return { visits };
 };
 
@@ -925,7 +924,7 @@ export const getLocationVisitStats = async () => {
     },
   ]);
 
-  // console.log("🔍 visit aggregation result:", JSON.stringify(visitAgg, null, 2));
+
 
   // ----------------------------
   // Convert to maps for easy lookup
@@ -966,7 +965,7 @@ export const getLocationVisitStats = async () => {
     };
   });
 
-  // console.log("📊 Final visits data:", visits);
+
   return { visits };
 };
 
@@ -997,8 +996,7 @@ export const getMonthlyVisitStats = async (monthName?: string) => {
   const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
   const endOfMonth = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
 
-  // console.log(`📆 Fetching visits for: ${monthNames[monthIndex]} ${year}`);
-  // console.log(`Range: ${startOfMonth.toISOString()} → ${endOfMonth.toISOString()}`);
+
 
   // ----------------------------
   // MongoDB aggregation pipeline
@@ -1034,7 +1032,7 @@ export const getMonthlyVisitStats = async (monthName?: string) => {
     { $sort: { visits: -1 } },
   ]);
 
-  // console.log("📊 Monthly Visit Stats:", result);
+
   return result;
 };
 
@@ -1378,7 +1376,7 @@ if (days === "12 days") {
     });
   }
 }
-// console.log("here is the output",output);
+
 return output;
 };
 
@@ -1631,8 +1629,6 @@ export const getBoostCounts = async ({
     { $sort: { _id: 1 } },
   ]);
 
-  console.log("Reboost Aggregation result:", JSON.stringify(reboostResult, null, 2));
-  console.log("Posted Aggregation result:", JSON.stringify(postedResult, null, 2));
 
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -1717,7 +1713,7 @@ export const getBoostCounts = async ({
     }
   }
 
-  console.log("Combined output from getBoostCounts:", output);
+
   return output;
 };
 
@@ -1826,7 +1822,6 @@ export const getUnregisteredOwnerCounts = async ({
     }
   }
 
-  console.log("Unregistered Owner Counts Output:", output);
   return output;
 };
 
@@ -1900,7 +1895,7 @@ export const getVisitsToday = async({days}:{days?:string})=>{
   }
 
   }
-  // console.log("date: ", start, end);
+
   const pipeline = [
     {
       $match: {

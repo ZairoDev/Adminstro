@@ -45,7 +45,7 @@ export function SelectableCell({
   return (
     <div
       className={`truncate cursor-pointer inline-block px-2 py-1 rounded-md transition-colors
-        ${editing ? "bg-gray-700" : "hover:bg-gray-500"}`}
+        ${editing ? "bg-accent" : "hover:bg-accent/50"}`}
       style={{ maxWidth }}
       onClick={() => !editing && setEditing(true)}
     >
@@ -58,7 +58,7 @@ export function SelectableCell({
             setEditing(false);
           }}
         >
-          <SelectTrigger className="w-full text-md border border-gray-100 rounded-md p-1  ">
+          <SelectTrigger className="w-full text-md border rounded-md p-1">
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
           <SelectContent>
@@ -81,7 +81,7 @@ export function SelectableCell({
             <TooltipTrigger asChild>
               <span
                 className={`text-md border rounded-md p-1 block ${
-                  value ? "text-gray-200" : "text-gray-400 italic"
+                  value ? "text-foreground" : "text-muted-foreground italic"
                 }`}
               >
                 {value ? getLabel(value) : "Click"}

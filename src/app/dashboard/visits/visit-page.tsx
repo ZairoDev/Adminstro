@@ -4,7 +4,6 @@ import axios from "axios"
 import { SlidersHorizontal, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
   Pagination,
@@ -20,7 +19,6 @@ import HandLoader from "@/components/HandLoader"
 import { Toaster } from "@/components/ui/toaster"
 import VisitFilter, { type VisitFilterState } from "@/app/dashboard/visits/visit-filter"
 import type { VisitInterface } from "@/util/type"
-
 import VisitTable from "./visit-table"
 
 const VisitsPage = () => {

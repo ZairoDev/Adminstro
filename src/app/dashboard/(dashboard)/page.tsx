@@ -389,8 +389,8 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Property Count */}
-      <div className="w-full flex flex-wrap gap-6 justify-center p-4">
-        {/* Circle 1 */}
+      {/* <div className="w-full flex flex-wrap gap-6 justify-center p-4">
+        
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.First}
@@ -398,7 +398,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">First Text</p>
         </div>
 
-        {/* Circle 2 */}
+      
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.Second}
@@ -406,7 +406,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">Second Text</p>
         </div>
 
-        {/* Circle 3 */}
+     
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.Third}
@@ -414,7 +414,6 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">Third Text</p>
         </div>
 
-        {/* Circle 4 */}
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.Fourth}
@@ -422,7 +421,7 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">Fourth Text</p>
         </div>
 
-        {/* Circle 5 */}
+  
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.Options}
@@ -430,14 +429,14 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
           <p className="text-sm font-medium text-gray-700">Options</p>
         </div>
 
-        {/* Circle 6 */}
+        
         <div className="flex flex-col items-center space-y-2">
           <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
             {messageStatus?.Visit}
           </div>
           <p className="text-sm font-medium text-gray-700">Visit</p>
         </div>
-      </div>
+      </div> */}
 
       <div className=" my-2 ">
         <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1>
@@ -866,8 +865,8 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
             <h1 className="mt-2 text-3xl font-semibold">Visits Dashboard</h1>
 
             <div className="flex flex-col lg:flex-row gap-6 m-4 w-full">
-              {/* 🟩 Left Section — Cards (70%) */}
-              <div className="w-full lg:w-[70%] flex flex-wrap justify-start gap-6">
+              {/* 🟩 Left Section — Cards (50%) */}
+              <div className="w-full lg:w-[50%] flex flex-wrap justify-start gap-6">
                 {visitStats.map((loc: VisitStats, index: number) => (
                   <VisitStatsCard
                     key={index}
@@ -884,13 +883,16 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                 ))}
               </div>
 
-              {/* 🟦 Right Section — Chart (30%) */}
-              <div className="w-full lg:w-[30%]">
+              {/* 🟦 Right Section — Chart (50%) */}
+              <div className="w-full flex flex-col lg:w-[50%]">
                 <CityVisitsChart
                   chartData={monthlyStats}
                   title="City Visit Stats"
                   description="Top cities by visit count"
                 />
+                <div>
+                  
+                </div>
               </div>
             </div>
           </div>

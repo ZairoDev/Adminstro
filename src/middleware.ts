@@ -8,6 +8,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/superadmin",
+    "/application-form",
     // "/spreadsheet",
     "/dashboard",
     /^\/dashboard\/recommendations\/.*$/,
@@ -53,7 +54,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createquery\/.*$/,
     "/dashboard/notReplying",
     "/dashboard/propertyBoost/list",
-     /^\/dashboard\/propertyBoost\/list\/.*$/,
+    /^\/dashboard\/propertyBoost\/list\/.*$/,
   ],
   "LeadGen-TeamLead": [
     "/",
@@ -94,8 +95,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/catalogue",
     "/dashboard/propertyBoost",
     "/dashboard/propertyBoost/list",
-     /^\/dashboard\/propertyBoost\/list\/.*$/,
-  /^\/dashboard\/recommendations\/.*$/,
+    /^\/dashboard\/propertyBoost\/list\/.*$/,
+    /^\/dashboard\/recommendations\/.*$/,
     "/dashboard/newproperty/filteredProperties",
   ],
   "Sales-TeamLead": [
@@ -177,6 +178,7 @@ const publicRoutes = [
   /^\/login\/verify-otp\/.+$/,
   "/norole",
   "/dashboard/room/*",
+  "/application-form",
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

@@ -198,10 +198,10 @@ export function ManualPaymentModal({
       }
 
       const amountNum = Number.parseFloat(guest.amount);
-      if (isNaN(amountNum) || amountNum <= 0) {
+      if (isNaN(amountNum) || amountNum < 0) {
         toast({
           title: "Validation Error",
-          description: `Invalid amount for ${guest.name}: must be greater than 0`,
+          description: `Invalid amount for ${guest.name}: must be greater than equal to 0`,
           variant: "destructive",
         });
         return false;

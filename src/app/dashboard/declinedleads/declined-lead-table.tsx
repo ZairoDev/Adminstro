@@ -141,7 +141,7 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
     try {
       axios.post("/api/leads/disposition", {
         id,
-        disposition: "goodtogo",
+        disposition: "active",
       });
       toast({
         description: "Disposition updated succefully",

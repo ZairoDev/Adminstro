@@ -150,14 +150,16 @@ export default function PropertyBooster() {
 
   const getPropertiesByPhoneNumber = async () => {
     if (!visitFormValues.ownerPhone) return
-    console.log("onwer phone",visitFormValues.ownerPhone)
+    console.log("owner phone", visitFormValues.ownerPhone)
     setIsLoading(true)
     try {
       const response = await axios.post("/api/visits/getPropertiesForVisit", {
         userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
       })
-      console.log("response for getting phone number  ",response.data)
+      console.log("response for getting phone number", response.data)
+      
       setProperties(response.data)
+      
     } catch (err: unknown) {
       setProperties([])
       toast({
@@ -170,9 +172,8 @@ export default function PropertyBooster() {
     }
   }
 
+  
   const handlePropertySelect = async (property: PropertyByPhone) => {
-    setSelectedPropertyId(property.propertyId)
-
     // Auto-fill form fields
     setTitle(property.address || "")
     setOwnerName(property.ownerName || "")
@@ -184,7 +185,7 @@ export default function PropertyBooster() {
     // Update visit form values
     setVisitFormValues((prev) => ({
       ...prev,
-      propertyId: property.propertyId,
+      propertyId: property.VSID,
       VSID: property.VSID,
       ownerName: property.ownerName,
       ownerEmail: property.ownerEmail,
@@ -297,35 +298,39 @@ export default function PropertyBooster() {
   const isFormValid = images.length > 0 && description.trim() !== "" && title.trim() !== ""
 
   return (
-    <div className="min-h-screen  p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-3 pt-8">
           <h1 className="text-4xl font-bold">Property Boost</h1>
-          <p className="text-gray-600 text-lg">Upload and showcase your properties with ease</p>
+          <p className="text-gray-600 text-lg">
+            Upload and showcase your properties with ease
+          </p>
         </div>
 
         <div className="max-w-6xl mx-auto space-y-8">
           <Card className="shadow-lg hover:shadow-xl transition-all duration-300">
             <CardContent className="p-6 space-y-6">
-              <div className=" flex justify-between items-center gap-x-2 w-full">
+              <div className="flex justify-between items-center gap-x-2 w-full">
                 <div className="w-full py-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <PhoneInput
-  className="phone-input border-red-500"
-  placeholder="Enter phone number"
-  type="text"
-  value={visitFormValues.ownerPhone}
-  international
-  countryCallingCodeEditable={false}
-  onChange={(value) => {
-    const phoneValue = value?.toString() || "";
-    setVisitFormValues((prev) => ({
-      ...prev,
-      ownerPhone: phoneValue,
-    }));
-    setOwnerPhone(phoneValue); // ADD THIS LINE
-  }}
-/>
+                    className="phone-input border-red-500"
+                    placeholder="Enter phone number"
+                    type="text"
+                    value={visitFormValues.ownerPhone}
+                    international
+                    countryCallingCodeEditable={false}
+                    onChange={(value) => {
+                      const phoneValue = value?.toString() || "";
+                      setVisitFormValues((prev) => ({
+                        ...prev,
+                        ownerPhone: phoneValue,
+                      }));
+                      setOwnerPhone(phoneValue);
+                      setSelectedPropertyId(null);
+                      setProperties([]);
+                    }}
+                  />
                 </div>
                 <div className="mt-6 ml-1">
                   <Button
@@ -333,7 +338,11 @@ export default function PropertyBooster() {
                     onClick={getPropertiesByPhoneNumber}
                     disabled={!visitFormValues.ownerPhone || isLoading}
                   >
-                    {isLoading ? <LucideLoader2 size={18} className=" animate-spin" /> : <Search size={18} />}
+                    {isLoading ? (
+                      <LucideLoader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Search size={18} />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -341,25 +350,44 @@ export default function PropertyBooster() {
               <div>
                 {properties.length > 0 && (
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-gray-700">Select a property to auto-fill details:</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      Select a property to auto-fill details:
+                    </p>
                     <ScrollArea className="whitespace-nowrap rounded-md border w-full">
                       <div className="flex w-max space-x-4 p-4">
                         {properties?.map((property) => {
-                          const isSelected = selectedPropertyId === property.propertyId
+                          const isSelected = selectedPropertyId === property.VSID;
+                          const index = properties.indexOf(property);
+                          console.log('Property:', {
+                            index,
+                            propertyId: property.VSID,
+                            selectedPropertyId: selectedPropertyId,
+                            isSelected: isSelected,
+                            VSID: property.VSID
+                          });
                           return (
-                            <figure key={property.propertyId} className="shrink-0">
+                            <figure
+                              key={property.VSID}
+                              className="shrink-0"
+                            >
                               <div
                                 className={`overflow-hidden rounded-md relative border-2 cursor-pointer transition-all ${
                                   isSelected
                                     ? "border-blue-500 ring-2 ring-blue-300"
                                     : "border-gray-200 hover:border-blue-400"
                                 }`}
-                                onClick={() => handlePropertySelect(property)}
+                                onClick={() => {
+                                  setSelectedPropertyId(property.VSID);
+                                  handlePropertySelect(property);
+                                }}
                               >
                                 <img
-                                  src={property?.propertyImages[0] || "/placeholder.svg"}
-                                  alt={`property-${property.propertyId}`}
-                                  className=" w-28 h-28 object-cover"
+                                  src={
+                                    property?.propertyImages[0] ||
+                                    "/placeholder.svg"
+                                  }
+                                  alt={`property-${property.VSID}`}
+                                  className="w-28 h-28 object-cover"
                                 />
                                 {isSelected && (
                                   <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
@@ -367,10 +395,14 @@ export default function PropertyBooster() {
                                   </div>
                                 )}
                               </div>
-                              <p className="text-xs text-center mt-2 font-medium truncate w-28">{property.VSID}</p>
-                              <p>{property.ownerName }</p>
+                              <p className="text-xs text-center mt-2 font-medium truncate w-28">
+                                {property.VSID}
+                              </p>
+                              <p className="text-xs text-center truncate w-28">
+                                {property.ownerName}
+                              </p>
                             </figure>
-                          )
+                          );
                         })}
                       </div>
                       <ScrollBar orientation="horizontal" />
@@ -394,10 +426,14 @@ export default function PropertyBooster() {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <Upload className="mx-auto h-16 w-16  mb-4 transition-transform duration-300 hover:scale-110" />
+                <Upload className="mx-auto h-16 w-16 mb-4 transition-transform duration-300 hover:scale-110" />
                 <div className="space-y-3">
-                  <p className="text-xl font-semibold text-gray-800">Drop your images here, or click to browse</p>
-                  <p className="text-sm text-gray-500">Supports JPG, PNG, GIF, WebP. Multiple files allowed.</p>
+                  <p className="text-xl font-semibold text-gray-800">
+                    Drop your images here, or click to browse
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Supports JPG, PNG, GIF, WebP. Multiple files allowed.
+                  </p>
                 </div>
 
                 <input
@@ -438,7 +474,10 @@ export default function PropertyBooster() {
           <Card className="shadow-lg hover:shadow-xl transition-all duration-300">
             <CardContent className="p-6 space-y-6">
               <div className="space-y-2">
-                <label htmlFor="title" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="title"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   Property Title
                 </label>
                 <Input
@@ -451,9 +490,11 @@ export default function PropertyBooster() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="Owner-name" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="Owner-name"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   Owner Name
-                  
                 </label>
                 <Input
                   id="ownerName"
@@ -465,7 +506,10 @@ export default function PropertyBooster() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="ownerEmail" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="ownerEmail"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   Owner Email
                 </label>
                 <Input
@@ -479,7 +523,10 @@ export default function PropertyBooster() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="vsid" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="vsid"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   VSID
                 </label>
                 <Input
@@ -492,7 +539,10 @@ export default function PropertyBooster() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="location" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="location"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   Location
                 </label>
                 <Select value={location} onValueChange={setLocation}>
@@ -510,9 +560,11 @@ export default function PropertyBooster() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="property-description" className="text-sm font-semibold text-gray-700 block">
+                <label
+                  htmlFor="property-description"
+                  className="text-sm font-semibold text-gray-700 block"
+                >
                   Property Description
-                  
                 </label>
                 <Textarea
                   id="property-description"
@@ -531,16 +583,23 @@ export default function PropertyBooster() {
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-bold text-gray-800">
                 Uploaded Images
-                <span className="ml-3 text-lg font-normal text-blue-600">({images.length})</span>
+                <span className="ml-3 text-lg font-normal text-blue-600">
+                  ({images.length})
+                </span>
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {images.map((image) => (
-                <Card key={image.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                <Card
+                  key={image.id}
+                  className="overflow-hidden hover:shadow-xl transition-all duration-300 group"
+                >
                   <CardHeader className="p-4 bg-gradient-to-r from-blue-50 to-slate-50">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium truncate text-gray-700">{image.file.name}</CardTitle>
+                      <CardTitle className="text-sm font-medium truncate text-gray-700">
+                        {image.file.name}
+                      </CardTitle>
                       <Button
                         size="sm"
                         variant="destructive"
@@ -563,7 +622,9 @@ export default function PropertyBooster() {
                         <Eye className="h-10 w-10 text-white drop-shadow-lg" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">{(image.file.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {(image.file.size / 1024).toFixed(1)} KB
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -576,12 +637,15 @@ export default function PropertyBooster() {
             <CardContent className="p-16 text-center">
               <div className="space-y-6">
                 <div className="mx-auto w-32 h-32 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center shadow-inner">
-                  <Upload className="h-16 w-16 " />
+                  <Upload className="h-16 w-16" />
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-2xl font-semibold text-gray-200">No images uploaded yet</h3>
-                  <p className="text-gray-500 text-lg">Upload your first images to get started with previews</p>
-
+                  <h3 className="text-2xl font-semibold text-gray-200">
+                    No images uploaded yet
+                  </h3>
+                  <p className="text-gray-500 text-lg">
+                    Upload your first images to get started with previews
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -613,5 +677,5 @@ export default function PropertyBooster() {
         </div>
       </div>
     </div>
-  )
+  );
 }

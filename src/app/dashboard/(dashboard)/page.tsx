@@ -91,6 +91,8 @@ import useBookingStats from "@/hooks/(VS)/useBookingStats";
 import BookingChartDynamicAdvanced from "@/components/BookingChart";
 import BookingChartImproved from "@/components/BookingChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
+import { DonutChart } from "@/components/charts/DonutChart";
+import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 
 interface StatusCount {
   First: number;
@@ -890,8 +892,11 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                   title="City Visit Stats"
                   description="Top cities by visit count"
                 />
+                
                 <div>
-                  
+                  <CityStatsCharts
+                    data={messageStatus}
+                  />
                 </div>
               </div>
             </div>

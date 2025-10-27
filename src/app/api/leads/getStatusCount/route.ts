@@ -1,21 +1,17 @@
 import {NextRequest,NextResponse} from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
-import { stat } from "fs";
-// import { connect } from "http2";
 
 connectDb();
 
 export async function GET(req:NextRequest){
     try{
         const statusPipeline = [
-
   {
     $match: {
       leadStatus: { $ne: "rejected" },
     },
   },
-
 
   {
     $match: {
@@ -25,7 +21,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // 3️⃣ Group by messageStatus and location
+  // Group by messageStatus and location
   {
     $group: {
       _id: {
@@ -36,7 +32,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // 4️⃣ Regroup by messageStatus to build city:count maps
+  // Regroup by messageStatus to build city:count maps
   {
     $group: {
       _id: "$_id.messageStatus",
@@ -49,7 +45,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // 5️⃣ Convert to { city: count }
+  // Convert to { city: count }
   {
     $project: {
       _id: 0,
@@ -58,7 +54,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // 6️⃣ Combine all statuses into one object
+  // Combine all statuses into one object
   {
     $group: {
       _id: null,
@@ -76,7 +72,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // 7️⃣ (Optional) Add empty keys for missing statuses
+  // Add empty keys for missing statuses (will show with 0 values)
   {
     $addFields: {
       First: { $ifNull: ["$First", {}] },
@@ -87,18 +83,40 @@ export async function GET(req:NextRequest){
       Visit: { $ifNull: ["$Visit", {}] },
     },
   },
+
+  // Project in the desired order
+  {
+    $project: {
+      First: 1,
+      Second: 1,
+      Third: 1,
+      Fourth: 1,
+      Options: 1,
+      Visit: 1,
+      _id: 0
+    },
+  },
 ];
 
     const result = await Query.aggregate(statusPipeline);
     console.log("result",result);
+    
     return NextResponse.json({
         success: true,
-        statusSummary: result[0] || {},
+        statusSummary: result[0] || {
+          First: {},
+          Second: {},
+          Third: {},
+          Fourth: {},
+          Options: {},
+          Visit: {}
+        },
     })
     }catch(error){
         console.error("Error fetching status count:", error);
-        return NextResponse.json({ success: false, message: "Error fetching status summary"});
-        {status: 500}
-        
+        return NextResponse.json(
+          { success: false, message: "Error fetching status summary"},
+          {status: 500}
+        );
     }    
 }

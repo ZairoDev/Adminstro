@@ -531,6 +531,11 @@ const roleRoutes: Record<string, Route[]> = {
     label: "Property List",
     Icon: <List size={18} />,
   },
+   {
+    path: "/dashboard/bookings",
+    label: "Bookings",
+    Icon: <Hotel size={18} />,
+  },
   ],
   "Sales-TeamLead": [
     {

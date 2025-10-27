@@ -38,18 +38,19 @@ interface LeadsGroupCount {
   count: number;
 }
 
-
-interface StatusCount {
-  First: number;
-  Second: number;
-  Third: number;
-  Fourth: number;
-  Options: number;
-  Visit: number;
-  None: number;
-  Null: number;
+// Updated type to match API response
+interface CityData {
+  [city: string]: number;
 }
 
+interface MessageStatusData {
+  First: CityData;
+  Second: CityData;
+  Third: CityData;
+  Fourth: CityData;
+  Options: CityData;
+  Visit: CityData;
+}
 
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [leads, setLeads] = useState<GroupedLeads>();
@@ -57,10 +58,11 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
     RejectedLeadGroup[]
   >([]);
-  const [locationLeads,setLocationLeads] = useState<locationLeadsIn[]>([]);
-  const [allEmployees,setAllEmployees] = useState<string[]>([]);
+  const [locationLeads, setLocationLeads] = useState<locationLeadsIn[]>([]);
+  const [allEmployees, setAllEmployees] = useState<string[]>([]);
   const [average, setAverage] = useState(0);
-    const [messageStatus, setMessageStatus] = useState<StatusCount | null>(null);
+  // Fixed type to match actual API response
+  const [messageStatus, setMessageStatus] = useState<MessageStatusData | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -83,12 +85,12 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchLeadByLocation = async({days,createdBy}:{days?:string,createdBy?:string})=>{
+  const fetchLeadByLocation = async({days, createdBy}: {days?: string, createdBy?: string}) => {
     setIsLoading(true);
     setIsError(false);
     setError("");
     try {
-      const response:locationLeadsIn[] = await getLeadsByLocation({days,createdBy});
+      const response: locationLeadsIn[] = await getLeadsByLocation({days, createdBy});
       setLocationLeads(response);
     } catch (err: any) {
       const error = new Error(err);
@@ -99,11 +101,10 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   }
 
-  const fetchAllEmployees = async()=>{
+  const fetchAllEmployees = async() => {
     try {
       const response = await getAllAgent();
       setAllEmployees(response);
-
     } catch (err: any) {
       const error = new Error(err);
       setIsError(true);
@@ -121,7 +122,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     createdBy?: string;
   }) => {
     try {
-      const response = await getLeadsGroupCount({ days, location ,createdBy});
+      const response = await getLeadsGroupCount({ days, location, createdBy });
       setLeadsGroupCount(response.leadsGroupCount);
     } catch (err: any) {
       const error = new Error(err);
@@ -140,7 +141,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     createdBy?: string;
   }) => {
     try {
-      const response = await getRejectedLeadGroup({ days, location,createdBy });
+      const response = await getRejectedLeadGroup({ days, location, createdBy });
       setRejectedLeadGroups(response.rejectedLeadGroup);
     } catch (err: any) {
       const error = new Error(err);
@@ -165,7 +166,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-    const fetchMessageStatus = async () => {
+  const fetchMessageStatus = async () => {
     try {
       const res = await fetch("/api/leads/getStatusCount");
       if (!res.ok) throw new Error("Failed to fetch message status");
@@ -199,7 +200,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     allEmployees,
     rejectedLeadGroups,
     fetchRejectedLeadGroup,
-     messageStatus, 
+    messageStatus, 
     fetchMessageStatus, 
     isLoading,
     isError,

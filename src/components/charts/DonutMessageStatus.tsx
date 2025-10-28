@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import { Label, Pie, PieChart } from "recharts";
 import {
   Card,
@@ -72,7 +72,7 @@ function DonutChart({ title, data }: DonutChartProps) {
     city: city,
     value: value,
     fill: cityColors[city] || "hsl(var(--chart-5))",
-    label: city.charAt(0).toUpperCase() + city.slice(1)
+    label: city.charAt(0).toUpperCase() + city.slice(1),
   }));
 
   const total = React.useMemo(() => {
@@ -84,8 +84,18 @@ function DonutChart({ title, data }: DonutChartProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>City Distribution</CardDescription>
+        <CardTitle>
+          {{
+            First: "First Message",
+            Second: "Second Message",
+            Third: "Third Message",
+            Fourth: "Fourth Message",
+            Options: "Options",
+            Visits: "Visits",
+          }[title] || title}
+        </CardTitle>
+
+        {/* <CardDescription> C i t y D i s t r i b u t i o n </CardDescription> */}
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         {total === 0 ? (
@@ -163,20 +173,28 @@ export default function CityStatsCharts({ data }: CityStatsChartsProps) {
   }
 
   // Define the order and show all categories (even empty ones)
-  const orderedCategories: (keyof MessageStatusData)[] = ['First', 'Second', 'Third', 'Fourth', 'Options', 'Visit'];
-  
-  const categories: [string, CityData][] = orderedCategories.map(key => [key, data[key] || {}]);
+  const orderedCategories: (keyof MessageStatusData)[] = [
+    "First",
+    "Second",
+    "Third",
+    "Fourth",
+    "Options",
+    "Visit",
+  ];
+
+  const categories: [string, CityData][] = orderedCategories.map((key) => [
+    key,
+    data[key] || {},
+  ]);
 
   return (
     <div className="w-full p-8 bg-background">
-      <h1 className="text-3xl font-bold mb-8 text-center">City Statistics Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center">
+        City Statistics Dashboard
+      </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {categories.map(([categoryName, cityData]) => (
-          <DonutChart
-            key={categoryName}
-            title={categoryName}
-            data={cityData}
-          />
+          <DonutChart key={categoryName} title={categoryName} data={cityData} />
         ))}
       </div>
     </div>

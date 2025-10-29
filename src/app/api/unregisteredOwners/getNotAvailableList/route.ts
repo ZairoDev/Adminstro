@@ -104,7 +104,7 @@ if (filters.sortByPrice) {
         },
       },
     },
-    { $sort: { numericPrice: filters.sortByPrice === "asc" ? 1 : -1 } },
+    { $sort: { numericPrice: filters.sortByPrice === "asc" ? 1 : -1 , _id:-1} },
     { $skip: (page - 1) * limit },
     { $limit: limit },
   ]);
@@ -115,7 +115,7 @@ if (filters.sortByPrice) {
     .skip((page - 1) * limit)
     .limit(limit)
     .lean()
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 , _id: -1 });
 }
 
      const total = await unregisteredOwner.countDocuments(query);

@@ -2,10 +2,16 @@
 
 import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { ChartLine, Loader2, RotateCw, TrendingDown, TrendingUp, Users } from "lucide-react";
-import { AreaChart,  Title } from "@tremor/react";
+import {
+  ChartLine,
+  Loader2,
+  RotateCw,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { AreaChart, Title } from "@tremor/react";
 import { Card as TremorCard } from "@tremor/react";
-
 
 import {
   Bar,
@@ -19,9 +25,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  ChartConfig,
-} from "@/components/ui/chart";
+import { ChartConfig } from "@/components/ui/chart";
 
 import {
   Select,
@@ -81,7 +85,7 @@ import useVisitStats from "@/hooks/(VS)/useVisitStats";
 import { VisitStatsCard } from "@/components/visitCountCard/page";
 import { CityVisitsChart } from "@/components/charts/VisitsHorizontalChart";
 import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
-import {  ReusableLineChart } from "@/components/charts/VisitsLineChart";
+import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
 import SmallCard from "@/components/reusableCard";
@@ -112,7 +116,7 @@ interface LeadStats {
   today: number;
   yesterday: number;
   dailyrequired: number;
-  currentAverage: number; 
+  currentAverage: number;
   rate: number;
 }
 interface VisitStats {
@@ -122,19 +126,19 @@ interface VisitStats {
   today: number;
   yesterday: number;
   dailyRequired: number;
-  currentAverage: number; 
+  currentAverage: number;
   rate: number;
 }
 
 const chartConfig = {
   listings: {
     label: "Listings",
-    color: "hsl(var(--chart-3))", 
+    color: "hsl(var(--chart-3))",
   },
   Boosts: {
     label: "Boosts",
     color: "hsl(var(--chart-4))",
-  }
+  },
 } satisfies ChartConfig;
 
 const Dashboard = () => {
@@ -168,7 +172,6 @@ const Dashboard = () => {
   const [BoostFilters, setBoostFilters] = useState<{
     days?: string;
   }>({});
-
 
   const [leadCountFilters, setLeadCountFilters] = useState<{
     days?: string;
@@ -242,12 +245,12 @@ const Dashboard = () => {
     newOwnersCount,
   } = WeeksVisit();
 
-  const {salesCardData} = SalesCard();
+  const { salesCardData } = SalesCard();
 
   // console.log("Sales Card Data from Dashboard:", salesCardData);
   const { totalListings, fetchListingCounts } = ListingCounts();
-  const { totalBoosts,fetchBoostCounts, activeBoosts } = BoostCounts();
-  const {  unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
+  const { totalBoosts, fetchBoostCounts, activeBoosts } = BoostCounts();
+  const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
 
   const { bookingsByDate, fetchBookingStats } = useBookingStats();
 
@@ -255,65 +258,59 @@ const Dashboard = () => {
 
   // Transform data for recharts (make sure counts are numbers)
   const chartData = useMemo(
-  () =>
-    totalListings.map((item) => ({
-      date: item.date,
-      total:
-        item.total === null || item.total === undefined
-          ? 0
-          : Number(item.total),
-      shortTerm:
-        item.shortTerm === null || item.shortTerm === undefined
-          ? 0
-          : Number(item.shortTerm),
-      longTerm:
-        item.longTerm === null || item.longTerm === undefined
-          ? 0
-          : Number(item.longTerm),
-    })),
-  [totalListings]
-);
+    () =>
+      totalListings.map((item) => ({
+        date: item.date,
+        total:
+          item.total === null || item.total === undefined
+            ? 0
+            : Number(item.total),
+        shortTerm:
+          item.shortTerm === null || item.shortTerm === undefined
+            ? 0
+            : Number(item.shortTerm),
+        longTerm:
+          item.longTerm === null || item.longTerm === undefined
+            ? 0
+            : Number(item.longTerm),
+      })),
+    [totalListings]
+  );
+  const previousElevenDaysTotal = chartData
+    .slice(0, -1) // all except last day
+    .reduce((sum, item) => sum + (item.total ?? 0), 0);
 
-const boostChartData = useMemo(
-  () =>
-    totalBoosts.map((item) => ({
-      date: item.date,
-      total:
-        item.total === null || item.total === undefined
-          ? 0
-          : Number(item.total),
-      newBoosts:
-        item.newBoosts === null || item.newBoosts === undefined
-          ? 0
-          : Number(item.newBoosts),
-      reboosts:
-        item.reboosts === null || item.reboosts === undefined
-          ? 0
-          : Number(item.reboosts),    
-     
-    })),
-  [totalBoosts]
-);
+  const todayTotal =
+    chartData.length > 0 ? chartData[chartData.length - 1].total ?? 0 : 0;
 
-  const {
-    reviews,
-    fetchReviews,
-  } = useReview();
+  const boostChartData = useMemo(
+    () =>
+      totalBoosts.map((item) => ({
+        date: item.date,
+        total:
+          item.total === null || item.total === undefined
+            ? 0
+            : Number(item.total),
+        newBoosts:
+          item.newBoosts === null || item.newBoosts === undefined
+            ? 0
+            : Number(item.newBoosts),
+        reboosts:
+          item.reboosts === null || item.reboosts === undefined
+            ? 0
+            : Number(item.reboosts),
+      })),
+    [totalBoosts]
+  );
 
-  const {
-    leadStats,
-  } = useLeadStats();
+  const { reviews, fetchReviews } = useReview();
 
-   const {
-    visitStats,
-  } = useVisitStats();
+  const { leadStats } = useLeadStats();
 
-  const {
-     monthlyStats,
-    errMsg,
-    fetchMonthlyVisitStats,
-  } = useMonthlyVisitStats();
-  
+  const { visitStats } = useVisitStats();
+
+  const { monthlyStats, errMsg, fetchMonthlyVisitStats } =
+    useMonthlyVisitStats();
 
   const router = useRouter();
 
@@ -342,7 +339,7 @@ const boostChartData = useMemo(
   });
 
   const emp = allEmployees.length;
-  
+
   const averagedata = (average / 30).toFixed(0);
   const averagedata1 = (Number(averagedata) / emp).toFixed(0);
 
@@ -384,10 +381,11 @@ const boostChartData = useMemo(
     "Received Amount/Final Amount",
   ];
   const previousSum = unregisteredOwnerCounts
-  .slice(0, -1) // all except last day
-  .reduce((acc, curr) => acc + curr.owners, 0);
+    .slice(0, -1) // all except last day
+    .reduce((acc, curr) => acc + curr.owners, 0);
 
-const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?.owners;
+  const todayOwners =
+    unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?.owners;
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Property Count */}
@@ -892,11 +890,9 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
                   title="City Visit Stats"
                   description="Top cities by visit count"
                 />
-                
+
                 <div>
-                  <CityStatsCharts
-                    data={messageStatus}
-                  />
+                  <CityStatsCharts data={messageStatus} />
                 </div>
               </div>
             </div>
@@ -1140,6 +1136,11 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
             </CardDescription>
 
             {/* Range Selector */}
+            <div className="text-xl font-medium text-muted-foreground mt-1">
+              <span className="font-semibold text-foreground">
+                {previousElevenDaysTotal}+{todayTotal}
+              </span>
+            </div>
 
             <CustomSelect
               itemList={["12 days", "1 year", "last 3 years"]}
@@ -1233,30 +1234,21 @@ const todayOwners = unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?
         </Card>
       </div>
 
-
       <div className="relative w-full mx-auto mt-10">
-  <BoostMultiLineChart
-    data={totalBoosts}
-    filters={BoostFilters}
-    onFilterChange={(value) => {
-      const newBoostFilters = { ...BoostFilters, days: value };
-      setBoostFilters(newBoostFilters);
-      fetchBoostCounts(newBoostFilters);
-    }}
-    loading={loading}
-    isError={isError}
-    error={error}
-  />
-</div>
-
-
+        <BoostMultiLineChart
+          data={totalBoosts}
+          filters={BoostFilters}
+          onFilterChange={(value) => {
+            const newBoostFilters = { ...BoostFilters, days: value };
+            setBoostFilters(newBoostFilters);
+            fetchBoostCounts(newBoostFilters);
+          }}
+          loading={loading}
+          isError={isError}
+          error={error}
+        />
+      </div>
     </div>
   );
-};  
+};
 export default Dashboard;
-       
-
-
-
-
-      

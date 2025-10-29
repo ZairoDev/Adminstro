@@ -576,6 +576,8 @@ export interface  unregisteredOwners {
   petStatus: string;
   imageUrls: string[];
   isVerified: string;
+  isImportant: string;
+  isPinned: string;
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

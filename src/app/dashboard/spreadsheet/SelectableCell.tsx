@@ -1,23 +1,10 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState } from "react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type Option =
-  | { label: string; value: string }
-  | string;
+type Option = { label: string; value: string } | string
 
 export function SelectableCell({
   data,
@@ -25,22 +12,20 @@ export function SelectableCell({
   save,
   maxWidth,
 }: {
-  data: Option[];
-  value: string;
-  save: (val: string) => void;
-  maxWidth?: string;
+  data: Option[]
+  value: string
+  save: (val: string) => void
+  maxWidth?: string
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
 
   // Normalize: get label for display
   const getLabel = (val: string) => {
-    const found = data.find((item) =>
-      typeof item === "string" ? item === val : item.value === val
-    );
-    if (!found) return val;
-    return typeof found === "string" ? found : found.label;
-  };
+    const found = data.find((item) => (typeof item === "string" ? item === val : item.value === val))
+    if (!found) return val
+    return typeof found === "string" ? found : found.label
+  }
 
   return (
     <div
@@ -53,9 +38,9 @@ export function SelectableCell({
         <Select
           defaultValue={draft}
           onValueChange={(val) => {
-            setDraft(val);
-            save(val);
-            setEditing(false);
+            setDraft(val)
+            save(val)
+            setEditing(false)
           }}
         >
           <SelectTrigger className="w-full text-md border rounded-md p-1">
@@ -71,7 +56,7 @@ export function SelectableCell({
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
                 </SelectItem>
-              )
+              ),
             )}
           </SelectContent>
         </Select>
@@ -96,5 +81,5 @@ export function SelectableCell({
         </TooltipProvider>
       )}
     </div>
-  );
+  )
 }

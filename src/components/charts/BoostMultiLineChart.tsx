@@ -80,6 +80,15 @@ export function BoostMultiLineChart({
     [data]
   );
 
+  // Total of all days (previous 11 + today)
+// Get totals for previous 11 days and today's data
+const previousElevenDaysTotal = chartData
+  .slice(0, -1) // all except last day
+  .reduce((sum, item) => sum + (item.total ?? 0), 0);
+
+const todayTotal = chartData.length > 0 ? chartData[chartData.length - 1].total ?? 0 : 0;
+
+
   // Calculate statistics
   const totalBoosts = useMemo(
     () => chartData.reduce((acc, curr) => acc + curr.total, 0),
@@ -100,9 +109,13 @@ export function BoostMultiLineChart({
     <Card className="shadow-md rounded-2xl">
       <CardHeader>
         <CardTitle>Property Boost Analytics</CardTitle>
-        <CardDescription>
-          {filters?.days || "Last 12 Days"}
-        </CardDescription>
+        <CardDescription>{filters?.days || "Last 12 Days"}</CardDescription>
+
+        <div className="text-xl font-medium text-muted-foreground mt-1">
+              <span className="font-semibold text-foreground">
+                {previousElevenDaysTotal}+{todayTotal}
+              </span>
+            </div>
 
         {/* Range Selector */}
         <CustomSelect
@@ -120,9 +133,7 @@ export function BoostMultiLineChart({
         ) : isError ? (
           <p className="text-center text-red-500">Error: {error}</p>
         ) : chartData.length === 0 ? (
-          <p className="text-center text-muted-foreground">
-            No data available
-          </p>
+          <p className="text-center text-muted-foreground">No data available</p>
         ) : (
           <ChartContainer config={chartConfig} className="h-full w-full">
             <LineChart
@@ -156,13 +167,22 @@ export function BoostMultiLineChart({
                       <div className="bg-white dark:bg-gray-800 shadow-md p-3 rounded-lg border">
                         <p className="font-semibold mb-2">{label}</p>
                         <div className="space-y-1">
-                          <p className="text-sm" style={{ color: chartConfig.newBoosts.color }}>
+                          <p
+                            className="text-sm"
+                            style={{ color: chartConfig.newBoosts.color }}
+                          >
                             New Boosts: {data.newBoosts}
                           </p>
-                          <p className="text-sm" style={{ color: chartConfig.reboosts.color }}>
+                          <p
+                            className="text-sm"
+                            style={{ color: chartConfig.reboosts.color }}
+                          >
                             Re-Boosts: {data.reboosts}
                           </p>
-                          <p className="text-sm" style={{ color: chartConfig.posted.color }}>
+                          <p
+                            className="text-sm"
+                            style={{ color: chartConfig.posted.color }}
+                          >
                             Posted: {data.posted}
                           </p>
                           {/* <p className="text-sm" style={{ color: chartConfig.notPosted.color }}>
@@ -219,8 +239,6 @@ export function BoostMultiLineChart({
                 activeDot={{ r: 5 }}
                 strokeDasharray="5 5"
               />
-
-             
             </LineChart>
           </ChartContainer>
         )}
@@ -229,8 +247,6 @@ export function BoostMultiLineChart({
       <CardFooter>
         <div className="flex w-full items-start gap-2 text-sm">
           <div className="grid gap-2 w-full">
-        
-            
             {/* Legend */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2 pt-2 border-t">
               <div className="flex items-center gap-2">
@@ -261,7 +277,6 @@ export function BoostMultiLineChart({
                 />
                 <span className="text-xs">Posted</span>
               </div>
-           
             </div>
           </div>
         </div>

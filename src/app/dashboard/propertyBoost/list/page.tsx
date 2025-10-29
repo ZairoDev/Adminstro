@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Rocket, CheckCircle2, Sparkles } from "lucide-react";
+import { Loader2, Search, Rocket, CheckCircle2, Sparkles, Info } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/AuthStore";
 import axios from "axios";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Property {
   _id: string;
@@ -15,6 +16,7 @@ interface Property {
   description: string;
   images: string[];
   BoostID: string;
+  vsid: string;
   createdAt: string;
   createdBy: string;
   lastReboostedAt?: string;
@@ -28,6 +30,7 @@ export default function BoostPropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+   const [searchFilter, setSearchFilter] = useState<"boostid" | "vsid">("boostid");
   const [reboostingIds, setReboostingIds] = useState<Set<string>>(new Set());
   const [reboostedIds, setReboostedIds] = useState<Set<string>>(new Set());
   
@@ -120,9 +123,14 @@ export default function BoostPropertiesPage() {
     }
   };
 
-  const filteredProperties = properties.filter((property) =>
-    property.BoostID.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+ const filteredProperties = properties.filter((property) => {
+    const searchValue = searchTerm.toLowerCase();
+    if (searchFilter === "boostid") {
+      return property.BoostID.toLowerCase().includes(searchValue);
+    } else {
+      return property?.vsid?.toLowerCase().includes(searchValue);
+    }
+  });
 
   if (loading) {
     return (
@@ -168,16 +176,31 @@ export default function BoostPropertiesPage() {
 
         {/* Search Section */}
         <div className="max-w-2xl mx-auto">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-primary transition-colors" />
-            <Input
-              type="text"
-              placeholder="Search by Boost ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 h-14 text-lg border-2 rounded-xl focus:border-primary/50 transition-all shadow-sm hover:shadow-md"
-            />
+          <div className="flex gap-3">
+            {/* Search Filter Select */}
+            <Select value={searchFilter} onValueChange={(value: "boostid" | "vsid") => setSearchFilter(value)}>
+              <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+                <SelectValue placeholder="Search by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="boostid">Boost ID</SelectItem>
+                <SelectItem value="vsid">VSID</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Search Input */}
+            <div className="relative group flex-1">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-primary transition-colors" />
+              <Input
+                type="text"
+                placeholder={`Search by ${searchFilter === "boostid" ? "Boost ID" : "VSID"}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-14 text-lg border-2 rounded-xl focus:border-primary/50 transition-all shadow-sm hover:shadow-md"
+              />
+            </div>
           </div>
+          
           {searchTerm && (
             <div className="text-center mt-3">
               <span className="inline-flex items-center gap-2 text-sm font-medium bg-primary/10 text-primary px-4 py-2 rounded-full">
@@ -198,7 +221,7 @@ export default function BoostPropertiesPage() {
               No properties found for &quot;{searchTerm}&quot;
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Try searching with a different Boost ID
+              Try searching with a different {searchFilter === "boostid" ? "Boost ID" : "VSID"}
             </p>
           </div>
         ) : (
@@ -238,6 +261,16 @@ export default function BoostPropertiesPage() {
                             {prop.BoostID}
                           </span>
                         </div>
+
+                        {/* Property VSID */}
+                        <div className="flex-shrink-0 w-28">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                            <Info className="h-3 w-3" />
+                            {prop.vsid}
+                          </span>
+                        </div>
+
+
 
                         {/* Property Details */}
                         <div className="flex-1 min-w-0 space-y-1">

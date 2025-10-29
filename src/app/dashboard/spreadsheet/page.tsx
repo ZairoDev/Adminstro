@@ -85,6 +85,11 @@ const Spreadsheet = () => {
     getData(selectedTab, 1, undefined, limit)
   }
 
+  const handleAvailabilityChange = () => {
+    getData(selectedTab, page, undefined, limit);
+  getCounts();
+  }
+
   const handleClear = () => {
     const resetFilters = {
       searchType: "",
@@ -184,7 +189,7 @@ const Spreadsheet = () => {
             handleClear={handleClear}
             selectedTab={selectedTab}
           />
-          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)} />
+          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)} onAvailabilityChange={handleAvailabilityChange} />
           {isLoading && <p className="text-center">Loading...</p>}
           {!isLoading && total === 0 && <p className="text-center text-muted-foreground my-2">No records found</p>}
           <div className="flex items-center justify-between mt-4 gap-4">
@@ -224,7 +229,7 @@ const Spreadsheet = () => {
             handleClear={handleClear}
             selectedTab={selectedTab}
           />
-          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)} />
+          <SpreadsheetTable tableData={data} setTableData={setData} {...({ serialOffset } as any)}  onAvailabilityChange={handleAvailabilityChange} />
           {isLoading && <p className="text-center">Loading...</p>}
           {!isLoading && total === 0 && <p className="text-center text-muted-foreground my-2">No records found</p>}
           <div className="flex items-center justify-between mt-4 gap-4">

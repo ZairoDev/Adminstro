@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       vsid = "",
       commissionFrom = "",
       commissionTo = "",
-      visitCategory = "scheduled", // scheduled or completed
+      visitCategory = "scheduled", 
     } = body;
 
     const filterQuery: any = {};
@@ -112,7 +112,6 @@ export async function POST(req: NextRequest) {
       // Check if visit has a scheduled date
       if (visit.scheduledDate) {
         const scheduledDate = new Date(visit.scheduledDate);
-
         // If scheduled date has passed and visit is still "scheduled"
         // If 4 days have passed since the scheduled date and visit is still "scheduled"
         const diffInMs = currentDate.getTime() - scheduledDate.getTime();

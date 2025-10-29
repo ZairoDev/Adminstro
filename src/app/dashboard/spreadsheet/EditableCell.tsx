@@ -1,39 +1,31 @@
-import { useState, useEffect } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+"use client"
+
+import { useState, useEffect } from "react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type EditableCellProps = {
-  value: string;
-  onSave: (newValue: string) => void;
-  maxWidth?: string;
-  type?: "text" | "date";
-};
+  value: string
+  onSave: (newValue: string) => void
+  maxWidth?: string
+  type?: "text" | "date"
+}
 
-export function EditableCell({
-  maxWidth = "150px",
-  value,
-  onSave,
-  type = "text",
-}: EditableCellProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+export function EditableCell({ maxWidth = "150px", value, onSave, type = "text" }: EditableCellProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
 
   // keep draft in sync if parent updates value externally
   useEffect(() => {
-    setDraft(value);
-  }, [value]);
+    setDraft(value)
+  }, [value])
 
   const handleSave = () => {
-    setIsEditing(false);
+    setIsEditing(false)
     // prevent saving unchanged values
     if (draft !== value) {
-      onSave(draft.trim()); // trim spaces before saving
+      onSave(draft.trim()) // trim spaces before saving
     }
-  };
+  }
 
   return (
     <div
@@ -50,10 +42,10 @@ export function EditableCell({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
+              if (e.key === "Enter") handleSave()
               if (e.key === "Escape") {
-                setDraft(value);
-                setIsEditing(false);
+                setDraft(value)
+                setIsEditing(false)
               }
             }}
             className="w-full border border-input bg-background text-foreground px-1 text-sm rounded outline-none focus:ring-2 focus:ring-ring"
@@ -67,10 +59,10 @@ export function EditableCell({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
+              if (e.key === "Enter") handleSave()
               if (e.key === "Escape") {
-                setDraft(value);
-                setIsEditing(false);
+                setDraft(value)
+                setIsEditing(false)
               }
             }}
             className="w-full border border-input bg-background text-foreground placeholder:text-muted-foreground px-1 text-sm rounded outline-none focus:ring-2 focus:ring-ring"
@@ -81,22 +73,18 @@ export function EditableCell({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="truncate block hover:bg-accent/50 px-1 py-0.5 rounded transition-colors">
-                {type === "date" && value
-                  ? new Date(value).toLocaleDateString()
-                  : value || "—"}{" "}
+                {type === "date" && value ? new Date(value).toLocaleDateString() : value || "—"}{" "}
                 {/* ✅ fallback display, but still editable */}
               </span>
             </TooltipTrigger>
             <TooltipContent>
               <p className="whitespace-pre-wrap">
-                {type === "date" && value
-                  ? new Date(value).toLocaleString()
-                  : value || "No value"}
+                {type === "date" && value ? new Date(value).toLocaleString() : value || "No value"}
               </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}
     </div>
-  );
+  )
 }

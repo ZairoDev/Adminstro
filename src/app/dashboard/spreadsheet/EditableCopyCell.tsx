@@ -1,46 +1,48 @@
-import { Copy } from "lucide-react";
-import { useState } from "react";
+"use client"
+
+import { Copy } from "lucide-react"
+import { useState } from "react"
 
 type EditableCopyCellProps = {
-  value: string | null | undefined;
-  onSave: (newValue: string) => void;
-  maxWidth?: string;
-};
+  value: string | null | undefined
+  onSave: (newValue: string) => void
+  maxWidth?: string
+}
 
 export function EditableCopyCell({
   value,
   onSave,
   maxWidth = "160px", // increased default width
 }: EditableCopyCellProps) {
-  const safeValue = value ?? ""; // fallback to empty string
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(safeValue);
+  const safeValue = value ?? "" // fallback to empty string
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState(safeValue)
 
   const handleCopy = async () => {
     if (!isEditing && safeValue.trim() !== "") {
-      await navigator.clipboard.writeText(safeValue);
+      await navigator.clipboard.writeText(safeValue)
     }
-  };
+  }
 
   const handleSave = () => {
-    const trimmed = draft.trim();
+    const trimmed = draft.trim()
     if (trimmed !== safeValue) {
-      onSave(trimmed);
+      onSave(trimmed)
     }
-    setIsEditing(false);
-  };
+    setIsEditing(false)
+  }
 
   return (
     <div
       style={{ maxWidth }}
       className="flex items-center gap-2 w-full cursor-pointer"
       onClick={(e) => {
-        e.stopPropagation();
-        handleCopy();
+        e.stopPropagation()
+        handleCopy()
       }}
       onDoubleClick={(e) => {
-        e.stopPropagation();
-        setIsEditing(true);
+        e.stopPropagation()
+        setIsEditing(true)
       }}
     >
       {isEditing ? (
@@ -52,10 +54,10 @@ export function EditableCopyCell({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={handleSave}
           onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
+            if (e.key === "Enter") handleSave()
             if (e.key === "Escape") {
-              setDraft(safeValue);
-              setIsEditing(false);
+              setDraft(safeValue)
+              setIsEditing(false)
             }
           }}
         />
@@ -70,5 +72,5 @@ export function EditableCopyCell({
         </div>
       )}
     </div>
-  );
+  )
 }

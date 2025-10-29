@@ -67,7 +67,15 @@ petStatus: {
   isVerified:{
     type: String,
     default: "None"
-  }
+  },
+  isImportant:{
+    type: String,
+    default: "None"
+  },
+  isPinned:{
+    type: String,
+    default: "None"
+  },
 
 },
 {

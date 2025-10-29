@@ -1,5 +1,5 @@
-"use client"
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+"use client";
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
   Card,
   CardContent,
@@ -7,28 +7,28 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 
 interface LineChartData {
-  date: string
-  owners: number 
+  date: string;
+  owners: number;
 }
 
 interface LineChartProps {
-  title: string
-  description?: string
-  data: LineChartData[]
-  dataKey?: string 
-  label?: string 
-  color?: string 
-  trendText?: string 
-  showFooter?: boolean
+  title: string;
+  description?: string;
+  data: LineChartData[];
+  dataKey?: string;
+  label?: string;
+  color?: string;
+  trendText?: string;
+  showFooter?: boolean;
 }
 
 export function ReusableLineChart({
@@ -38,14 +38,13 @@ export function ReusableLineChart({
   dataKey = "owners",
   label = "Owners",
   color = "hsl(var(--chart-2))",
-
 }: LineChartProps) {
   const chartConfig = {
     [dataKey]: {
       label,
       color,
     },
-  } satisfies ChartConfig
+  } satisfies ChartConfig;
 
   return (
     <Card className="w-full h-full flex flex-col justify-evenly">
@@ -65,8 +64,25 @@ export function ReusableLineChart({
               dataKey="date"
               tickLine={false}
               axisLine={false}
-              tickMargin={8}
+              interval="preserveStartEnd"
+              tickMargin={10}
+              height={60} // give space for rotated labels
+              tick={({ x, y, payload }) => (
+                <text
+                  x={x}
+                  y={y + 10}
+                  textAnchor="end"
+                  transform={`rotate(-65, ${x}, ${y + 10})`}
+                  style={{
+                    fontSize: "10px",
+                    fill: "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  {payload.value}
+                </text>
+              )}
             />
+
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
@@ -83,5 +99,5 @@ export function ReusableLineChart({
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }

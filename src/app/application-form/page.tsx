@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import type React from "react";
+
 import {
   Briefcase,
   Upload,
@@ -159,7 +161,7 @@ export default function JobApplicationForm() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl blur-lg opacity-50"></div>
                 <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-3xl shadow-xl">
-                  <Briefcase className="w-14 h-14 text-black" strokeWidth={2} />
+                  <Briefcase className="w-14 h-14 text-white" strokeWidth={2} />
                 </div>
               </div>
             </div>
@@ -177,26 +179,10 @@ export default function JobApplicationForm() {
           </div>
         </div>
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-indigo-100 text-center transform hover:scale-105 transition-transform">
-            <div className="text-3xl font-bold text-indigo-600 mb-1">50+</div>
-            <div className="text-gray-600 font-medium">Countries</div>
-          </div>
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-purple-100 text-center transform hover:scale-105 transition-transform">
-            <div className="text-3xl font-bold text-purple-600 mb-1">5000+</div>
-            <div className="text-gray-600 font-medium">Employees</div>
-          </div>
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-pink-100 text-center transform hover:scale-105 transition-transform">
-            <div className="text-3xl font-bold text-pink-600 mb-1">15+</div>
-            <div className="text-gray-600 font-medium">Years Excellence</div>
-          </div>
-        </div>
-
         {/* Form Card with Enhanced Design */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
           <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8">
-            <h2 className="text-4xl font-bold text-black text-center mb-2">
+            <h2 className="text-4xl font-bold text-white text-center mb-2">
               Career Application Form
             </h2>
             <p className="text-indigo-100 text-center text-lg">
@@ -209,7 +195,7 @@ export default function JobApplicationForm() {
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl">
-                  <User className="w-6 h-6 text-black" />
+                  <User className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-800">
                   Personal Information
@@ -229,7 +215,7 @@ export default function JobApplicationForm() {
                     onChange={handleChange}
                     required
                     placeholder="Enter your full name"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
 
@@ -245,7 +231,7 @@ export default function JobApplicationForm() {
                     onChange={handleChange}
                     required
                     placeholder="your.email@example.com"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
 
@@ -259,7 +245,7 @@ export default function JobApplicationForm() {
                       name="countryCode"
                       value={formData.countryCode}
                       onChange={handleChange}
-                      className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white w-40"
+                      className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50 w-40"
                     >
                       {countryCodes.map((item) => (
                         <option key={item.code} value={item.code}>
@@ -275,7 +261,7 @@ export default function JobApplicationForm() {
                       required
                       placeholder="9876543210"
                       pattern="[0-9]{10}"
-                      className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white"
+                      className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
                     />
                   </div>
                   {errors.phone && (
@@ -295,7 +281,7 @@ export default function JobApplicationForm() {
                     onChange={handleChange}
                     required
                     placeholder="Your city"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
 
@@ -311,7 +297,7 @@ export default function JobApplicationForm() {
                     onChange={handleChange}
                     required
                     placeholder="Your country"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
               </div>
@@ -328,7 +314,7 @@ export default function JobApplicationForm() {
                   required
                   rows={3}
                   placeholder="Street address, building number, apartment/suite number"
-                  className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none bg-gray-50 hover:bg-white"
+                  className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none bg-white hover:bg-gray-50"
                 />
               </div>
             </div>
@@ -337,7 +323,7 @@ export default function JobApplicationForm() {
             <div className="space-y-6 pt-6 border-t-2 border-gray-100">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-xl">
-                  <Award className="w-6 h-6 text-black" />
+                  <Award className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-800">
                   Professional Details
@@ -359,7 +345,7 @@ export default function JobApplicationForm() {
                     min={0}
                     max={50}
                     placeholder="0"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
 
@@ -372,7 +358,7 @@ export default function JobApplicationForm() {
                     name="position"
                     value={formData.position}
                     onChange={handleChange}
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
                   >
                     {positions.map((pos) => (
                       <option key={pos} value={pos}>
@@ -393,7 +379,7 @@ export default function JobApplicationForm() {
                     value={formData.linkedin}
                     onChange={handleChange}
                     placeholder="https://linkedin.com/in/yourprofile"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
                   />
                   {errors.linkedin && (
                     <p className="text-red-500 text-sm mt-1">
@@ -413,7 +399,7 @@ export default function JobApplicationForm() {
                     value={formData.portfolio}
                     onChange={handleChange}
                     placeholder="https://yourportfolio.com"
-                    className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-gray-50 hover:bg-white"
+                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
                   />
                 </div>
               </div>
@@ -429,9 +415,9 @@ export default function JobApplicationForm() {
                   onChange={handleChange}
                   rows={6}
                   placeholder="Tell us why you're the perfect fit for Zairo International. Share your passion, achievements, and what drives you..."
-                  className="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all resize-none bg-gray-50 hover:bg-white"
+                  className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all resize-none bg-white hover:bg-gray-50"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-700 mt-1">
                   {formData.coverLetter.length}/1000 characters
                 </p>
               </div>
@@ -442,10 +428,10 @@ export default function JobApplicationForm() {
                   Resume Upload *
                 </label>
                 {!formData.resume ? (
-                  <label className="relative border-2 border-dashed border-gray-300 rounded-xl px-4 py-12 cursor-pointer transition-all hover:border-purple-500 hover:bg-purple-50 bg-gray-50 group">
+                  <label className="relative border-2 border-dashed border-gray-300 rounded-xl px-4 py-12 cursor-pointer transition-all hover:border-purple-500 hover:bg-purple-50 bg-white group">
                     <div className="flex flex-col items-center justify-center">
                       <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform">
-                        <Upload className="w-10 h-10 text-black" />
+                        <Upload className="w-10 h-10 text-white" />
                       </div>
                       <span className="text-gray-700 font-semibold text-lg mb-1">
                         Click to upload your resume
@@ -466,7 +452,7 @@ export default function JobApplicationForm() {
                   <div className="border-2 border-green-300 bg-green-50 rounded-xl px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="bg-green-500 p-2 rounded-lg">
-                        <FileText className="w-5 h-5 text-black" />
+                        <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <p className="font-semibold text-gray-800 truncate max-w-md">
@@ -496,7 +482,7 @@ export default function JobApplicationForm() {
             <div className="pt-6">
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-black font-bold py-5 rounded-xl transition-all transform hover:scale-105 hover:shadow-2xl text-xl relative overflow-hidden group"
+                className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold py-5 rounded-xl transition-all transform hover:scale-105 hover:shadow-2xl text-xl relative overflow-hidden group"
               >
                 <span className="relative z-10">Submit Application</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>

@@ -1,0 +1,160 @@
+2025-10-29T13:49:19:  ⨯ Failed to start server
+2025-10-29T13:49:19: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:19:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:19:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:19:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:19:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:19:     at new Promise (<anonymous>)
+2025-10-29T13:49:19:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:19:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:19:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:19:   code: 'EADDRINUSE',
+2025-10-29T13:49:19:   errno: -98,
+2025-10-29T13:49:19:   syscall: 'listen',
+2025-10-29T13:49:19:   address: '::',
+2025-10-29T13:49:19:   port: 3000
+2025-10-29T13:49:19: }
+2025-10-29T13:49:19:  ⨯ Failed to start server
+2025-10-29T13:49:19: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:19:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:19:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:19:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:19:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:19:     at new Promise (<anonymous>)
+2025-10-29T13:49:19:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:19:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:19:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:19:   code: 'EADDRINUSE',
+2025-10-29T13:49:19:   errno: -98,
+2025-10-29T13:49:19:   syscall: 'listen',
+2025-10-29T13:49:19:   address: '::',
+2025-10-29T13:49:19:   port: 3000
+2025-10-29T13:49:19: }
+2025-10-29T13:49:20:  ⨯ Failed to start server
+2025-10-29T13:49:20: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:20:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:20:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:20:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:20:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:20:     at new Promise (<anonymous>)
+2025-10-29T13:49:20:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:20:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:20:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:20:   code: 'EADDRINUSE',
+2025-10-29T13:49:20:   errno: -98,
+2025-10-29T13:49:20:   syscall: 'listen',
+2025-10-29T13:49:20:   address: '::',
+2025-10-29T13:49:20:   port: 3000
+2025-10-29T13:49:20: }
+2025-10-29T13:49:21:  ⨯ Failed to start server
+2025-10-29T13:49:21: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:21:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:21:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:21:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:21:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:21:     at new Promise (<anonymous>)
+2025-10-29T13:49:21:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:21:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:21:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:21:   code: 'EADDRINUSE',
+2025-10-29T13:49:21:   errno: -98,
+2025-10-29T13:49:21:   syscall: 'listen',
+2025-10-29T13:49:21:   address: '::',
+2025-10-29T13:49:21:   port: 3000
+2025-10-29T13:49:21: }
+2025-10-29T13:49:21:  ⨯ Failed to start server
+2025-10-29T13:49:21: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:21:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:21:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:21:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:21:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:21:     at new Promise (<anonymous>)
+2025-10-29T13:49:21:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:21:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:21:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:21:   code: 'EADDRINUSE',
+2025-10-29T13:49:21:   errno: -98,
+2025-10-29T13:49:21:   syscall: 'listen',
+2025-10-29T13:49:21:   address: '::',
+2025-10-29T13:49:21:   port: 3000
+2025-10-29T13:49:21: }
+2025-10-29T13:49:22:  ⨯ Failed to start server
+2025-10-29T13:49:22: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:22:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:22:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:22:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:22:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:22:     at new Promise (<anonymous>)
+2025-10-29T13:49:22:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:22:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:22:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:22:   code: 'EADDRINUSE',
+2025-10-29T13:49:22:   errno: -98,
+2025-10-29T13:49:22:   syscall: 'listen',
+2025-10-29T13:49:22:   address: '::',
+2025-10-29T13:49:22:   port: 3000
+2025-10-29T13:49:22: }
+2025-10-29T13:49:23:  ⨯ Failed to start server
+2025-10-29T13:49:23: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:23:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:23:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:23:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:23:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:23:     at new Promise (<anonymous>)
+2025-10-29T13:49:23:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:23:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:23:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:23:   code: 'EADDRINUSE',
+2025-10-29T13:49:23:   errno: -98,
+2025-10-29T13:49:23:   syscall: 'listen',
+2025-10-29T13:49:23:   address: '::',
+2025-10-29T13:49:23:   port: 3000
+2025-10-29T13:49:23: }
+2025-10-29T13:49:25:  ⨯ Failed to start server
+2025-10-29T13:49:25: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:25:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:25:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:25:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:25:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:25:     at new Promise (<anonymous>)
+2025-10-29T13:49:25:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:25:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:25:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:25:   code: 'EADDRINUSE',
+2025-10-29T13:49:25:   errno: -98,
+2025-10-29T13:49:25:   syscall: 'listen',
+2025-10-29T13:49:25:   address: '::',
+2025-10-29T13:49:25:   port: 3000
+2025-10-29T13:49:25: }
+2025-10-29T13:49:27:  ⨯ Failed to start server
+2025-10-29T13:49:27: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:27:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:27:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:27:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:27:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:27:     at new Promise (<anonymous>)
+2025-10-29T13:49:27:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:27:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:27:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:27:   code: 'EADDRINUSE',
+2025-10-29T13:49:27:   errno: -98,
+2025-10-29T13:49:27:   syscall: 'listen',
+2025-10-29T13:49:27:   address: '::',
+2025-10-29T13:49:27:   port: 3000
+2025-10-29T13:49:27: }
+2025-10-29T13:49:30:  ⨯ Failed to start server
+2025-10-29T13:49:30: Error: listen EADDRINUSE: address already in use :::3000
+2025-10-29T13:49:30:     at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+2025-10-29T13:49:30:     at listenInCluster (node:net:1965:12)
+2025-10-29T13:49:30:     at Server.listen (node:net:2067:7)
+2025-10-29T13:49:30:     at /var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:280:16
+2025-10-29T13:49:30:     at new Promise (<anonymous>)
+2025-10-29T13:49:30:     at startServer (/var/www/adminstro/node_modules/next/dist/server/lib/start-server.js:191:11)
+2025-10-29T13:49:30:     at Module.nextStart (/var/www/adminstro/node_modules/next/dist/cli/next-start.js:25:40)
+2025-10-29T13:49:30:     at /var/www/adminstro/node_modules/next/dist/bin/next:105:856 {
+2025-10-29T13:49:30:   code: 'EADDRINUSE',
+2025-10-29T13:49:30:   errno: -98,
+2025-10-29T13:49:30:   syscall: 'listen',
+2025-10-29T13:49:30:   address: '::',
+2025-10-29T13:49:30:   port: 3000
+2025-10-29T13:49:30: }

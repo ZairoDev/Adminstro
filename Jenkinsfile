@@ -226,7 +226,8 @@ pipeline {
               PACKAGE_HASH=$(cat package.json package-lock.json | md5sum | cut -d' ' -f1)
               if [ -f ".package-hash" ] && [ "$PACKAGE_HASH" = "$(cat .package-hash)" ]; then
                 echo "✅ Using cached dependencies"
-                npm install --save-dev @types/jsonwebtoken @types/node || true
+                # Still install type definitions even with cache
+                npm install --save-dev @types/jsonwebtoken @types/node @types/react @types/react-dom
                 echo "$PACKAGE_HASH" > .package-hash
                 exit 0
               fi
@@ -234,9 +235,16 @@ pipeline {
             
             # Fresh install
             echo "⚠️ Installing fresh dependencies..."
-            rm -rf node_modules
-            npm ci --prefer-offline --no-audit --cache ${CACHE_DIR} || npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
-            npm install --save-dev @types/jsonwebtoken @types/node || true
+            rm -rf node_modules package-lock.json
+            
+            # Install all dependencies
+            npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
+            
+            # Explicitly install type definitions (these might not be in your package.json)
+            npm install --save-dev @types/jsonwebtoken @types/node @types/react @types/react-dom
+            
+            # Install missing Next.js ESLint config
+            npm install --save-dev eslint-config-next
             
             # Save hash for next time
             cat package.json package-lock.json | md5sum | cut -d' ' -f1 > .package-hash

@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    NODE_VERSION = '18'
+    NODE_VERSION = '20'
     DEPLOY_DIR = '/var/www/adminstro'
     BACKUP_DIR = '/var/www/adminstro_backups'
     CACHE_DIR = '/var/jenkins_home/.npm-cache'

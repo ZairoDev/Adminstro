@@ -221,28 +221,32 @@ stage('Install Dependencies') {
       sh '''
         cd ${DEPLOY_DIR}
 
-        # Check if we can reuse cached dependencies
-        if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
-          PACKAGE_HASH=$(cat package.json package-lock.json | md5sum | cut -d' ' -f1)
-          if [ -f ".package-hash" ] && [ "$PACKAGE_HASH" = "$(cat .package-hash)" ]; then
-            echo "✅ Using cached dependencies"
-            # Cached dependencies are valid; skip reinstalling
-            exit 0
-          fi
+        # --- AGGRESSIVE CLEANUP BEFORE INSTALL ---
+        echo "🧹 Performing aggressive cleanup..."
+        # Force a global NPM cache clean
+        npm cache clean --force || true
+        # Delete existing modules and lock files for a clean environment
+        rm -rf node_modules package-lock.json .package-hash
+
+        # Ensure correct ownership for Jenkins
+        sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+
+        # --- CI INSTALLATION ---
+        echo "⚠️ Installing fresh dependencies using npm ci..."
+
+        # Attempt a clean, deterministic install using npm ci
+        if ! npm ci --cache ${CACHE_DIR}; then
+          echo "❌ npm ci failed. Attempting cleanup and retry with audit fix..."
+          # Fallback for old npm or corrupted lockfile issues
+          npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
+          npm audit fix --force || true
         fi
 
-        # Fresh install if cache is invalid or missing
-        echo "⚠️ Installing fresh dependencies..."
-        rm -rf node_modules package-lock.json
-
-        # Install all dependencies using cache for faster builds
-        npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
-
-        # Resolve vulnerabilities or version conflicts if any
+        # Resolve vulnerabilities or version conflicts (non-blocking)
         echo "🛠 Attempting to fix dependency vulnerabilities/conflicts..."
         npm audit fix --force || true
 
-        # Save the current package hash for next builds
+        # Save hash for future dependency caching
         cat package.json package-lock.json | md5sum | cut -d' ' -f1 > .package-hash
 
         echo "✅ Dependencies installed successfully"
@@ -251,6 +255,7 @@ stage('Install Dependencies') {
     }
   }
 }
+
 
 
 

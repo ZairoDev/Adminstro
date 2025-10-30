@@ -214,47 +214,59 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        script {
-          echo '📦 Installing dependencies...'
-          sh '''
-            cd ${DEPLOY_DIR}
+stage('Install Dependencies') {
+  steps {
+    script {
+      echo '📦 Installing dependencies...'
+      sh '''
+        cd ${DEPLOY_DIR}
+
+        # Check if we can reuse node_modules
+        if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
+          PACKAGE_HASH=$(cat package.json package-lock.json | md5sum | cut -d' ' -f1)
+          if [ -f ".package-hash" ] && [ "$PACKAGE_HASH" = "$(cat .package-hash)" ]; then
+            echo "✅ Using cached dependencies"
             
-            # Check if we can reuse node_modules
-            if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
-              PACKAGE_HASH=$(cat package.json package-lock.json | md5sum | cut -d' ' -f1)
-              if [ -f ".package-hash" ] && [ "$PACKAGE_HASH" = "$(cat .package-hash)" ]; then
-                echo "✅ Using cached dependencies"
-                # Still install type definitions even with cache
-                npm install --save-dev @types/jsonwebtoken @types/node @types/react @types/react-dom
-                echo "$PACKAGE_HASH" > .package-hash
-                exit 0
-              fi
-            fi
-            
-            # Fresh install
-            echo "⚠️ Installing fresh dependencies..."
-            rm -rf node_modules package-lock.json
-            
-            # Install all dependencies
-            npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
-            
-            # Explicitly install type definitions (these might not be in your package.json)
-            npm install --save-dev @types/jsonwebtoken @types/node @types/react @types/react-dom
-            
-            # Install missing Next.js ESLint config
-            npm install --save-dev eslint-config-next
-            
-            # Save hash for next time
-            cat package.json package-lock.json | md5sum | cut -d' ' -f1 > .package-hash
-            
-            echo "✅ Dependencies installed"
-            echo "node_modules size: $(du -sh node_modules | cut -f1)"
-          '''
-        }
-      }
+            # Ensure essential dev dependencies are present
+            npm install --save-dev \
+              @types/jsonwebtoken \
+              @types/node \
+              @types/react \
+              @types/react-dom \
+              eslint-config-next
+
+            echo "$PACKAGE_HASH" > .package-hash
+            echo "✅ Dependencies verified"
+            echo "📦 node_modules size: $(du -sh node_modules | cut -f1)"
+            exit 0
+          fi
+        fi
+
+        # Fresh install if cache not valid or missing
+        echo "⚠️ Installing fresh dependencies..."
+        rm -rf node_modules package-lock.json
+
+        # Install all dependencies (with cache for faster builds)
+        npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
+
+        # Install necessary dev dependencies explicitly
+        npm install --save-dev \
+          @types/jsonwebtoken \
+          @types/node \
+          @types/react \
+          @types/react-dom \
+          eslint-config-next
+
+        # Save hash for future runs
+        cat package.json package-lock.json | md5sum | cut -d' ' -f1 > .package-hash
+
+        echo "✅ Dependencies installed successfully"
+        echo "📦 node_modules size: $(du -sh node_modules | cut -f1)"
+      '''
     }
+  }
+}
+
 
     stage('Build Project') {
       steps {

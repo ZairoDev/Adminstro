@@ -174,28 +174,48 @@ pipeline {
     }
 
     stage('Sync Code to Deploy Directory') {
-      steps {
-        script {
-          echo '📁 Syncing code to deployment directory...'
-          sh '''
-            # ✅ FIXED: Removed --exclude=.env.production
-            rsync -av --delete \
-              --exclude=node_modules \
-              --exclude=.next \
-              --exclude=.git \
-              --exclude=${BACKUP_DIR} \
-              --exclude=.env.local \
-              ./ ${DEPLOY_DIR}/
-           
-            sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
-           
-            cd ${DEPLOY_DIR}
-            echo "Files synced to ${DEPLOY_DIR}"
-            ls -la
-          '''
-        }
-      }
+  steps {
+    script {
+      echo '📁 Syncing code to deployment directory...'
+      sh '''
+        # First, verify .env.production exists before sync
+        if [ ! -f ${DEPLOY_DIR}/.env.production ]; then
+          echo "❌ ERROR: .env.production not found in ${DEPLOY_DIR}"
+          echo "Creating deployment directory and setting up env file..."
+          mkdir -p ${DEPLOY_DIR}
+          echo "Please add .env.production to ${DEPLOY_DIR} and run again"
+          exit 1
+        fi
+        
+        echo "✅ .env.production exists before sync"
+        
+        # Sync code while protecting .env.production
+        rsync -av --delete \
+          --exclude=node_modules \
+          --exclude=.next \
+          --exclude=.git \
+          --exclude=${BACKUP_DIR} \
+          --exclude=.env.local \
+          --filter='protect .env.production' \
+          ./ ${DEPLOY_DIR}/
+       
+        sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+       
+        cd ${DEPLOY_DIR}
+        echo "Files synced to ${DEPLOY_DIR}"
+        
+        # Verify .env.production still exists after sync
+        if [ ! -f .env.production ]; then
+          echo "❌ CRITICAL: .env.production was deleted during sync!"
+          exit 1
+        fi
+        
+        echo "✅ .env.production preserved after sync"
+        ls -la | grep env || true
+      '''
     }
+  }
+}
 
     stage('Check Dependencies Cache') {
       steps {

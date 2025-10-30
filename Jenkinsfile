@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    DEPLOY_DIR = '/var/www/adminstro'
     PM2_APP_NAME = 'adminstro'
+    DEPLOY_DIR = '/var/www/adminstro'
   }
 
   stages {
@@ -15,29 +15,20 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh '''
-          cd ${DEPLOY_DIR}
-          cp -r $WORKSPACE/* ${DEPLOY_DIR}/
-          npm install
-        '''
-      }
-    }
-
-    stage('Build') {
-      steps {
-        sh '''
-          cd ${DEPLOY_DIR}
-          npm run build
-        '''
-      }
-    }
-
     stage('Deploy') {
       steps {
         sh '''
+          # Copy files
+          cp -r $WORKSPACE/* ${DEPLOY_DIR}/
+          
+          # Install dependencies
           cd ${DEPLOY_DIR}
+          npm install
+          
+          # Build
+          npm run build
+          
+          # Deploy with PM2
           pm2 delete ${PM2_APP_NAME} || true
           pm2 start npm --name ${PM2_APP_NAME} -- start
           pm2 save
@@ -49,6 +40,7 @@ pipeline {
   post {
     success {
       echo '✅ Deployment successful!'
+      sh 'pm2 list'
     }
     failure {
       echo '❌ Deployment failed!'

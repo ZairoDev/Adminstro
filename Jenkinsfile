@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    NODE_VERSION = '20'
+    NODE_VERSION = '20.19.5'
     DEPLOY_DIR = '/var/www/adminstro'
     BACKUP_DIR = '/var/www/adminstro_backups'
     CACHE_DIR = '/var/jenkins_home/.npm-cache'
@@ -221,43 +221,28 @@ stage('Install Dependencies') {
       sh '''
         cd ${DEPLOY_DIR}
 
-        # Check if we can reuse node_modules
+        # Check if we can reuse cached dependencies
         if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
           PACKAGE_HASH=$(cat package.json package-lock.json | md5sum | cut -d' ' -f1)
           if [ -f ".package-hash" ] && [ "$PACKAGE_HASH" = "$(cat .package-hash)" ]; then
             echo "✅ Using cached dependencies"
-            
-            # Ensure essential dev dependencies are present
-            npm install --save-dev \
-              @types/jsonwebtoken \
-              @types/node \
-              @types/react \
-              @types/react-dom \
-              eslint-config-next
-
-            echo "$PACKAGE_HASH" > .package-hash
-            echo "✅ Dependencies verified"
-            echo "📦 node_modules size: $(du -sh node_modules | cut -f1)"
+            # Cached dependencies are valid; skip reinstalling
             exit 0
           fi
         fi
 
-        # Fresh install if cache not valid or missing
+        # Fresh install if cache is invalid or missing
         echo "⚠️ Installing fresh dependencies..."
         rm -rf node_modules package-lock.json
 
-        # Install all dependencies (with cache for faster builds)
+        # Install all dependencies using cache for faster builds
         npm install --prefer-offline --no-audit --cache ${CACHE_DIR}
 
-        # Install necessary dev dependencies explicitly
-        npm install --save-dev \
-          @types/jsonwebtoken \
-          @types/node \
-          @types/react \
-          @types/react-dom \
-          eslint-config-next
+        # Resolve vulnerabilities or version conflicts if any
+        echo "🛠 Attempting to fix dependency vulnerabilities/conflicts..."
+        npm audit fix --force || true
 
-        # Save hash for future runs
+        # Save the current package hash for next builds
         cat package.json package-lock.json | md5sum | cut -d' ' -f1 > .package-hash
 
         echo "✅ Dependencies installed successfully"
@@ -266,6 +251,7 @@ stage('Install Dependencies') {
     }
   }
 }
+
 
 
     stage('Build Project') {

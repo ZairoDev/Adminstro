@@ -349,6 +349,7 @@ pipeline {
           retry(5) {
             sleep(time: 5, unit: 'SECONDS')
             sh """
+              # Check PM2 status
               if ! pm2 describe ${PM2_APP_NAME} | grep 'online' > /dev/null; then
                 echo "❌ Application is not online"
                 pm2 logs ${PM2_APP_NAME} --nostream --lines 20
@@ -405,6 +406,12 @@ pipeline {
           pm2 describe ${PM2_APP_NAME}
           pm2 logs ${PM2_APP_NAME} --lines 20 --nostream
         """
+       
+        // Optional: Send success notification
+        // slackSend(
+        //   color: 'good',
+        //   message: "✅ Deployment successful!\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nCommit: ${env.GIT_COMMIT_SHORT}"
+        // )
       }
     }
     
@@ -460,6 +467,12 @@ pipeline {
           [ -f "${DEPLOY_DIR}/build.log" ] && tail -n 50 ${DEPLOY_DIR}/build.log || true
           pm2 logs ${PM2_APP_NAME} --nostream --lines 30 || true
         """
+       
+        // Optional: Send failure notification
+        // slackSend(
+        //   color: 'danger',
+        //   message: "❌ Deployment failed!\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nCommit: ${env.GIT_COMMIT_SHORT}\nStage: ${env.STAGE_NAME}"
+        // )
       }
     }
     

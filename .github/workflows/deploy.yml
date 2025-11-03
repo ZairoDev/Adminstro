@@ -1,0 +1,71 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: 22
+        command_timeout: 30m
+        script: |
+          set -e
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Starting Deployment"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Go to project
+          cd /var/www/adminstro
+          
+          # Pull latest code
+          echo "📦 Pulling latest code..."
+          git pull origin main
+          
+          # Install dependencies
+          echo "📦 Installing dependencies..."
+          npm install
+          
+          # Build
+          echo "🏗️ Building application..."
+          sudo rm -rf .next
+          sudo chown -R jenkins:jenkins /var/www/adminstro
+          npm run build
+          
+          # Verify build
+          if [ ! -d ".next" ]; then
+            echo "❌ Build failed!"
+            exit 1
+          fi
+          echo "✅ Build successful"
+          
+          # Restart PM2
+          echo "🔄 Restarting application..."
+          pm2 delete adminstro 2>/dev/null || true
+          pm2 start npm --name adminstro -- start
+          pm2 save
+          
+          # Health check
+          echo "🏥 Health check..."
+          sleep 10
+          
+          if pm2 describe adminstro | grep -q "status.*online"; then
+            echo "✅ Deployment successful!"
+            pm2 list
+          else
+            echo "❌ Deployment failed!"
+            pm2 logs adminstro --lines 50
+            exit 1
+          fi
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

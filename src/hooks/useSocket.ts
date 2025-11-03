@@ -19,7 +19,7 @@ export const useSocket = (): UseSocketReturn => {
     const socketUrl =
       process.env.NEXT_PUBLIC_SOCKET_URL ||
       (process.env.NODE_ENV === "production"
-        ? "https://yourdomain.com" // 🔁 Replace with your VPS domain
+        ? "https://adminstro.in" // 🔁 Replace with your VPS domain
         : "http://localhost:3000");
 
     console.log("🔗 Connecting to Socket:", socketUrl);

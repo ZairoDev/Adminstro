@@ -453,6 +453,7 @@ setBooster(res.data);
         <div className="flex items-center gap-x-2 text-neutral-500">
           <p className="font-medium text-lg">Boost ID:</p>
           <Link
+            target="_blank"
             href={`/dashboard/propertyBoost/list/${booster?._id}`}
             className="text-blue-600 hover:underline"
           >

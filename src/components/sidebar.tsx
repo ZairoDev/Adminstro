@@ -64,6 +64,7 @@ type Route = {
   path: string;
   label: string;
   Icon?: JSX.Element;
+   openInNewTab?: boolean;
 };
 
 const roleRoutes: Record<string, Route[]> = {
@@ -99,9 +100,10 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-      path: "/dashboard/spreadsheet",
+      path: "/spreadsheet",
       label: "Owners List",
       Icon: <PencilLine size={18} />,
+      openInNewTab: true
     },
     {
       path: "/dashboard/invoice",
@@ -217,9 +219,10 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <LayoutDashboard size={18} />,
     },
     {
-      path: "/dashboard/spreadsheet",
+      path: "/spreadsheet",
       label: "Owners List",
       Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true
     },
     {
       path: "/dashboard/areadetails",
@@ -451,9 +454,10 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <LayoutDashboard size={18} />,
     },
     {
-      path: "/dashboard/spreadsheet",
+      path: "/spreadsheet",
       label: "Owners List",
       Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
     },
     {
       path: "/dashboard/createquery",
@@ -712,11 +716,12 @@ const leadManagementRoutes = [
     label: "Create Lead",
     Icon: <PencilLine size={18} />,
   },
-  {
-    path: "/dashboard/spreadsheet",
-    label: "Owners List",
-    Icon: <PencilLine size={18} />,
-  },
+    {
+      path: "/spreadsheet",
+      label: "Owners List",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true
+    },
   {
     path: "/dashboard/sales-offer",
     label: "Sales Offer",

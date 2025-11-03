@@ -1,6 +1,6 @@
 
 import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties/page";
-import { FiltersInterfaces } from "@/app/dashboard/spreadsheet/FilterBar";
+import { FiltersInterfaces } from "@/app/spreadsheet/FilterBar";
 import { Area } from "@/models/area";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";

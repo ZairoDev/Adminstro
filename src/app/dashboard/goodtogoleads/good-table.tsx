@@ -72,7 +72,7 @@ import { Calendar } from "../../../components/ui/calendar";
 import { Textarea } from "../../../components/ui/textarea";
 import CustomTooltip from "../../../components/CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
-import { EditableCell } from "../spreadsheet/EditableCell";
+import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { options } from "@fullcalendar/core/preact.js";

@@ -28,20 +28,58 @@ export function VisitStatsCard({
   className = "",
 }: StatsCardProps) {
   const requiredRunRate = useMemo(() => {
-    const today = new Date();
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    // Get current date
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentDate = now.getDate();
+    
+    // Get last day of current month
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    // Calculate remaining working days (excluding Sundays)
     let remainingDays = 0;
-
-    for (let d = new Date(today); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() !== 0) remainingDays++;
+    
+    // Start from tomorrow (since today's work might not be complete)
+    for (let day = currentDate + 1; day <= lastDayOfMonth; day++) {
+      const checkDate = new Date(currentYear, currentMonth, day);
+      // Count all days except Sundays (0 = Sunday)
+      if (checkDate.getDay() !== 0) {
+        remainingDays++;
+      }
     }
+    
+    // Debug logging to help troubleshoot
+    console.log('Required Run Rate Calculation:', {
+      title,
+      target,
+      achieved,
+      remainingTarget: target - achieved,
+      remainingDays,
+      currentDate: now.toDateString(),
+      lastDayOfMonth
+    });
+    
+    // If no remaining days or target already achieved
+    if (remainingDays === 0) {
+      // If it's the last working day, return what's needed today
+      return Math.max(0, target - achieved);
+    }
+    
+    // If target already achieved
+    if (achieved >= target) {
+      return 0;
+    }
+    
+    // Calculate required daily rate
+    const remainingTarget = target - achieved;
+    const calculatedRate = remainingTarget / remainingDays;
+    
+    // Return the calculated rate, ensuring it's not negative
+    return Math.max(0, calculatedRate);
+  }, [target, achieved, title]);
 
-    if (remainingDays === 0) return 0;
-
-    return (target - achieved) / remainingDays;
-  }, [target, achieved]);
-
-  const todayPercentage = (today / dailyrequired) * 100;
+  const todayPercentage = dailyrequired > 0 ? (today / dailyrequired) * 100 : 0;
   const isOnTrack = dailyAchieved >= requiredRunRate;
 
   const getDotColor = () => {
@@ -49,6 +87,9 @@ export function VisitStatsCard({
     if (todayPercentage >= 60) return "bg-amber-500 dark:bg-amber-400";
     return "bg-rose-500 dark:bg-rose-400";
   };
+
+  // Additional helper to show progress percentage
+  const progressPercentage = target > 0 ? (achieved / target) * 100 : 0;
 
   return (
     <div
@@ -93,6 +134,9 @@ export function VisitStatsCard({
               <span className={`text-[10px] font-medium ${isOnTrack ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {isOnTrack ? 'On Track' : 'Behind'}
               </span>
+              <span className="text-[10px] text-muted-foreground">
+                ({progressPercentage.toFixed(1)}% complete)
+              </span>
             </div>
           </div>
           <div className={`
@@ -122,7 +166,9 @@ export function VisitStatsCard({
               <Zap className="w-3 h-3 text-red-600 dark:text-red-400" />
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Done</span>
             </div>
-            <div className="text-base font-bold text-red-700 dark:text-red-300 tabular-nums">{achieved}</div>
+            <div className="text-base font-bold text-red-700 dark:text-red-300 tabular-nums">
+              {achieved} <span className="text-xs text-muted-foreground">({target - achieved} left)</span>
+            </div>
           </div>
         </div>
 
@@ -145,7 +191,7 @@ export function VisitStatsCard({
 
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 dark:bg-slate-800/30 border border-border dark:border-slate-700/20 hover:bg-muted/50 dark:hover:bg-slate-800/50 transition-colors">
             <span className="text-xs font-medium text-foreground dark:text-slate-300">Daily Required</span>
-            <span className="text-sm font-bold text-foreground tabular-nums">{dailyrequired}</span>
+            <span className="text-sm font-bold text-foreground tabular-nums">{dailyrequired.toFixed(1)}</span>
           </div>
 
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 dark:bg-slate-800/30 border border-border dark:border-slate-700/20 hover:bg-muted/50 dark:hover:bg-slate-800/50 transition-colors">
@@ -153,12 +199,19 @@ export function VisitStatsCard({
               <Activity className="w-3 h-3 text-teal-600 dark:text-teal-400" />
               <span className="text-xs font-medium text-foreground dark:text-slate-300">Current Avg</span>
             </div>
-            <span className="text-sm font-bold text-foreground tabular-nums">{dailyAchieved}</span>
+            <span className="text-sm font-bold text-foreground tabular-nums">{dailyAchieved.toFixed(1)}</span>
           </div>
 
           <div className="flex items-center justify-between p-2 rounded-lg bg-gradient-to-r from-orange-500/10 to-pink-500/10 border border-orange-500/30">
             <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">Required Rate</span>
-            <span className="text-sm font-bold text-orange-600 dark:text-orange-200 tabular-nums">{requiredRunRate.toFixed(2)}</span>
+            <span className="text-sm font-bold text-orange-600 dark:text-orange-200 tabular-nums">
+              {requiredRunRate.toFixed(2)}
+              {requiredRunRate === 0 && target > achieved && (
+                <span className="text-[10px] ml-1 text-orange-500">
+                  (check data)
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -167,7 +220,7 @@ export function VisitStatsCard({
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Success Rate</span>
             <div className="flex items-baseline gap-0.5">
               <span className="text-2xl font-black bg-gradient-to-r from-green-600 to-green-700 dark:from-green-400 dark:to-green-500 bg-clip-text text-transparent tabular-nums">
-                {rate}
+                {rate.toFixed(1)}
               </span>
               <span className="text-base font-bold text-muted-foreground">%</span>
             </div>
@@ -177,7 +230,7 @@ export function VisitStatsCard({
             <div className="absolute inset-0 bg-gradient-to-r from-muted-foreground/20 dark:from-slate-700/50 to-transparent" />
             <div
               className="absolute h-full bg-gradient-to-r from-green-600 to-green-700 dark:from-green-400 dark:to-green-500 rounded-full transition-all duration-700 ease-out shadow-lg shadow-green-500/30"
-              style={{ width: `${rate}%` }}
+              style={{ width: `${Math.min(100, rate)}%` }}
             />
           </div>
         </div>

@@ -410,7 +410,8 @@ useEffect(() => {
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
               token?.role === "Sales-TeamLead" ||
-              token?.email === "tyagimokshda@gmail.com" || token?.email === "shailvinaprakash007@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com") && (
               <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {
@@ -441,42 +442,38 @@ useEffect(() => {
               </div>
             )}
             {/* this is phone/email/name filter*/}
-            <div className="">
-              <Select
-                onValueChange={(value: string) =>
-                  setFilters((prev) => ({ ...prev, searchType: value }))
-                }
-                value={filters.searchType}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="phoneNo">Phone No</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="relative w-full">
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={filters.searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  // Auto-detect search type
+                  let detectedType = "name"; // default
+
+                  if (value.includes("@")) {
+                    detectedType = "email";
+                  } else if (/^\d+$/.test(value)) {
+                    detectedType = "phoneNo";
+                  }
+
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: value,
+                    searchType: detectedType,
+                  }));
+                }}
+                className="pr-24"
+              />
+
+              {/* Show detected type as a subtle indicator */}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
+                {filters.searchType === "phoneNo"
+                  ? "Phone"
+                  : filters.searchType}
+              </span>
             </div>
-            {/* search component in the top */}
-            <Input
-              placeholder="Search..."
-              value={filters.searchTerm}
-              onChange={(e) => {
-                if (filters.searchType === "phoneNo") {
-                  const formattedValue = e.target.value.replace(/\D/g, "");
-                  setFilters((prev) => ({
-                    ...prev,
-                    searchTerm: formattedValue,
-                  }));
-                } else {
-                  setFilters((prev) => ({
-                    ...prev,
-                    searchTerm: e.target.value,
-                  }));
-                }
-              }}
-            />
           </div>
 
           {/* options filter button */}

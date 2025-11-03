@@ -10,6 +10,7 @@ type Route = {
   path: string;
   label: string;
   Icon?: JSX.Element;
+  openInNewTab?: boolean;
 };
 
 export default function SidebarSection({
@@ -56,23 +57,39 @@ export default function SidebarSection({
           id={`section-${title}`}
           className={cn("overflow-y-auto", showText ? "pl-2" : "")}
         >
-          {routes.map(({ path, label, Icon }) => {
+          {routes.map(({ path, label, Icon, openInNewTab }) => {
             const active = currentPath === path;
+            
+            const linkClassName = cn(
+              "flex items-center gap-2 py-2 px-3 rounded-l-sm transition-colors",
+              active
+                ? "bg-primary/10 text-primary border-r-4 border-primary"
+                : "hover:bg-accent"
+            );
+
             return (
               <li key={path}>
-                <Link
-                  href={path}
-                  onClick={onNavigate}
-                  className={cn(
-                    "flex items-center gap-2 py-2 px-3 rounded-l-sm transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary border-r-4 border-primary"
-                      : "hover:bg-accent"
-                  )}
-                >
-                  {Icon}
-                  {showText && <span className="text-sm">{label}</span>}
-                </Link>
+                {openInNewTab ? (
+                  <a
+                    href={path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onNavigate}
+                    className={linkClassName}
+                  >
+                    {Icon}
+                    {showText && <span className="text-sm">{label}</span>}
+                  </a>
+                ) : (
+                  <Link
+                    href={path}
+                    onClick={onNavigate}
+                    className={linkClassName}
+                  >
+                    {Icon}
+                    {showText && <span className="text-sm">{label}</span>}
+                  </Link>
+                )}
               </li>
             );
           })}

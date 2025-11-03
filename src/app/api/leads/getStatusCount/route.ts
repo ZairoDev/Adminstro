@@ -9,7 +9,7 @@ export async function GET(req:NextRequest){
         const statusPipeline = [
   {
     $match: {
-      leadStatus: { $ne: ["rejected" , "declined"] },
+      leadStatus: { $nin: ["rejected","declined" ] },
     },
   },
 

@@ -628,7 +628,7 @@ const BookingChartImproved = () => {
             </p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-50">
               {metric === "totalPaid"
-                ? `$${chartData
+                ? `€${chartData
                     .reduce((sum, item) => sum + item.totalPaid, 0)
                     .toLocaleString()}`
                 : chartData
@@ -642,7 +642,7 @@ const BookingChartImproved = () => {
             </p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-50">
               {metric === "totalPaid"
-                ? `$${Math.round(
+                ? `€${Math.round(
                     chartData.reduce((sum, item) => sum + item.totalPaid, 0) /
                       chartData.length
                   ).toLocaleString()}`

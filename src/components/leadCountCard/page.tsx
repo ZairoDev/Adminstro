@@ -29,19 +29,57 @@ export function StatsCard({
 }: StatsCardProps) {
   //   const total = registered + unregistered;
 
-  const requiredRunRate = useMemo(() => {
-    const today = new Date();
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of the month
+    const requiredRunRate = useMemo(() => {
+    // Get current date
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentDate = now.getDate();
+    
+    // Get last day of current month
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    // Calculate remaining working days (excluding Sundays)
     let remainingDays = 0;
-
-    for (let d = new Date(today); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() !== 0) remainingDays++; // Exclude Sundays (0 = Sunday)
+    
+    // Start from tomorrow (since today's work might not be complete)
+    for (let day = currentDate + 1; day <= lastDayOfMonth; day++) {
+      const checkDate = new Date(currentYear, currentMonth, day);
+      // Count all days except Sundays (0 = Sunday)
+      if (checkDate.getDay() !== 0) {
+        remainingDays++;
+      }
     }
-
-    if (remainingDays === 0) return 0; // avoid division by zero
-
-    return (target - achieved) / remainingDays; // optional 2 decimal places
-  }, [target, achieved]);
+    
+    // Debug logging to help troubleshoot
+    console.log('Required Run Rate Calculation:', {
+      title,
+      target,
+      achieved,
+      remainingTarget: target - achieved,
+      remainingDays,
+      currentDate: now.toDateString(),
+      lastDayOfMonth
+    });
+    
+    // If no remaining days or target already achieved
+    if (remainingDays === 0) {
+      // If it's the last working day, return what's needed today
+      return Math.max(0, target - achieved);
+    }
+    
+    // If target already achieved
+    if (achieved >= target) {
+      return 0;
+    }
+    
+    // Calculate required daily rate
+    const remainingTarget = target - achieved;
+    const calculatedRate = remainingTarget / remainingDays;
+    
+    // Return the calculated rate, ensuring it's not negative
+    return Math.max(0, calculatedRate);
+  }, [target, achieved, title]);
 
   return (
     <Card

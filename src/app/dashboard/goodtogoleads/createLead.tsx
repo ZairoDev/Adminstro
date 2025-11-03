@@ -35,7 +35,7 @@ import DatePicker from "@/components/DatePicker";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useForm } from "react-hook-form";
 import { metroLines } from "../target/components/editArea";
-import { apartmentTypes } from "../spreadsheet/spreadsheetTable";
+import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import SearchableAreaSelect from "../createquery/SearchAndSelect";
 
 interface TargetType {

@@ -67,7 +67,7 @@ import {
 } from "@/components/ui/pagination";
 import SearchableAreaSelect from "./SearchAndSelect";
 import { metroLines } from "../target/components/editArea";
-import { apartmentTypes } from "../spreadsheet/spreadsheetTable";
+import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useSocket } from "@/hooks/useSocket";
 

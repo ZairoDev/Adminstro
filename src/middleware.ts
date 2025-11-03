@@ -9,7 +9,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/admin",
     "/superadmin",
     "/application-form",
-    // "/spreadsheet",
+    "/spreadsheet",
     "/dashboard",
     /^\/dashboard\/recommendations\/.*$/,
     /^\/dashboard\/.*$/,
@@ -72,6 +72,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Content: [
     "/",
+     "/spreadsheet",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
@@ -83,7 +84,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Sales: [
     "/",
     "/dashboard",
-    "/dashboard/spreadsheet",
+    "/spreadsheet",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,

@@ -29,10 +29,12 @@ export function SelectableCell({
 
   return (
     <div
-      className={`truncate cursor-pointer inline-block px-2 py-1 rounded-md transition-colors
-        ${editing ? "bg-accent" : "hover:bg-accent/50"}`}
+      className="w-full h-full flex items-center cursor-pointer"
       style={{ maxWidth }}
-      onClick={() => !editing && setEditing(true)}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (!editing) setEditing(true)
+      }}
     >
       {editing ? (
         <Select
@@ -65,7 +67,7 @@ export function SelectableCell({
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                className={`text-md border rounded-md p-1 block ${
+                className={`text-md border truncate rounded-md w-full  p-1 block ${
                   value ? "text-foreground" : "text-muted-foreground italic"
                 }`}
               >

@@ -43,6 +43,7 @@ import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
 import GoodTable from "./good-table";
 import CreateLeadDialog from "./createLead";
+import { useSocket } from "@/hooks/useSocket";
 
 interface WordsCount {
   "1bhk": number;
@@ -64,6 +65,7 @@ export const GoodToGoLeads = () => {
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
+  const { socket, isConnected } = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -71,7 +73,8 @@ export const GoodToGoLeads = () => {
     parseInt(searchParams.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const [allotedArea, setAllotedArea] = useState("");
+  // ✅ FIX: Changed to support both string and array
+  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -104,32 +107,6 @@ export const GoodToGoLeads = () => {
 
     setPage(newPage);
   };
-
-  // const handlePriorityChange = () => {
-  //   const priorityMap = {
-  //     None: 1,
-  //     Low: 2,
-  //     High: 3,
-  //   };
-
-  //   console.log("sorting field: ", queries);
-
-  //   if (sortingField && sortingField !== "None") {
-  //     queries.sort((a, b) => {
-  //       const priorityA =
-  //         priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-  //       const priorityB =
-  //         priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
-
-  //       if (sortingField === "Asc") {
-  //         return priorityA - priorityB;
-  //       } else {
-  //         return priorityB - priorityA;
-  //       }
-  //     });
-  //   }
-  //   // setQueries(sortedQueries);
-  // };
 
   const renderPaginationItems = () => {
     let items = [];
@@ -191,12 +168,15 @@ export const GoodToGoLeads = () => {
     }
   };
 
+  // ✅ Initial data fetch
   useEffect(() => {
     filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams.get("page") ?? "1"));
+
     const getAllotedArea = async () => {
       try {
         const response = await axios.get("/api/getAreaFromToken");
+        console.log("📍 Fetched allotedArea:", response.data.area);
         setAllotedArea(response.data.area);
       } catch (err: any) {
         console.log("error in getting area: ", err);
@@ -205,37 +185,107 @@ export const GoodToGoLeads = () => {
     getAllotedArea();
   }, []);
 
+  // ✅ Socket.IO event handling - FIXED
+  // Improved Socket.IO handler for Good To Go page
+
+  const dispositionsToWatch = [
+    "lead-active",
+    "lead-fresh",
+    "lead-rejected",
+    "lead-declined",
+  ];
+
   useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
+    if (!socket) return;
+
+    const disposition = "active"; // 👈 set based on page context
+    const formattedDisposition = disposition
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+    // Normalize the areas into an array
+    const areas = Array.isArray(allotedArea)
+      ? allotedArea.filter((a) => a && a.trim())
+      : allotedArea
+      ? [allotedArea]
+      : [];
+
+    // 🟢 If no area assigned — join the global fallback room
+    if (areas.length === 0) {
+      const globalArea = "all";
+      const room = { area: globalArea, disposition: formattedDisposition };
+      socket.emit("join-room", room);
+      console.log(
+        `✅ Joined global room: area-all|disposition-${formattedDisposition}`
+      );
+
+      const event = `lead-${formattedDisposition}`;
+
+      socket.on(event, (data: IQuery) => {
+        setQueries((prev) => [data, ...prev]);
+        console.log(`🆕 Global ${formattedDisposition} lead:`, data);
+        toast({
+          title: `New ${disposition} Lead`,
+          description: `Lead from ${data.name || "Unknown"}`,
+        });
+      });
+
+      return () => {
+        socket.off(event);
+        socket.emit("leave-room", room);
+      };
+    }
+
+    // 🟣 Otherwise join each area-specific room
+    areas.forEach((area) => {
+      const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
+      const room = { area: formattedArea, disposition: formattedDisposition };
+      const event = `lead-${formattedDisposition}`;
+
+      socket.emit("join-room", room);
+      console.log(
+        `✅ Joined room: area-${formattedArea}|disposition-${formattedDisposition}`
+      );
+
+      socket.on(event, (data: IQuery) => {
+        const dataArea = data.location
+          ?.trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        if (dataArea === formattedArea) {
+          setQueries((prev) => [data, ...prev]);
+          console.log(
+            `🆕 ${formattedDisposition} lead in ${formattedArea}:`,
+            data
+          );
+          toast({
+            title: `New ${disposition} Lead (${area})`,
+            description: `Lead from ${data.name || "Unknown"}`,
+          });
+        }
+      });
     });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
+
+    // 🧹 Cleanup on unmount or dependency change
     return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
+      const event = `lead-${formattedDisposition}`;
+      areas.forEach((area) => {
+        const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
+        const room = { area: formattedArea, disposition: formattedDisposition };
+        socket.off(event);
+        socket.emit("leave-room", room);
+        console.log(
+          `🚪 Left room: area-${formattedArea}|disposition-${formattedDisposition}`
+        );
+      });
     };
-  }, [queries, allotedArea]);
-
-  // useEffect(() => {
-  //   // debounce(filterLeads, 100);
-  //   filterLeads(1);
-  // }, [filters.searchTerm]);
-
+  }, [socket, allotedArea]);
+  
   const handlePropertyCountFilter = (
     typeOfProperty: string,
     noOfBeds?: string
   ) => {
-
     setFilters((prevFilters) => ({
       ...prevFilters,
       typeOfProperty: typeOfProperty,
@@ -246,7 +296,7 @@ export const GoodToGoLeads = () => {
       ...filters,
       typeOfProperty: typeOfProperty,
       noOfBeds: noOfBeds ?? filters.noOfBeds,
-      allotedArea: allotedArea,
+      allotedArea: area,
     });
   };
 
@@ -320,7 +370,10 @@ export const GoodToGoLeads = () => {
               <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
                 {wordsCount[0]?.["sharedApartment"]}
               </p>
-              <p className="text-white truncate font-medium text-xs  text-center group-hover:text-pink-100" title="Shared " >
+              <p
+                className="text-white truncate font-medium text-xs  text-center group-hover:text-pink-100"
+                title="Shared "
+              >
                 Shard
               </p>
             </div>
@@ -332,8 +385,8 @@ export const GoodToGoLeads = () => {
           </div>
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
-              // token?.role === "Sales-TeamLead" ||
-              token?.email === "tyagimokshda@gmail.com" || token?.email === "shailvinaprakash007@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {
@@ -401,58 +454,56 @@ export const GoodToGoLeads = () => {
                 <SheetContent>
                   {/* Lead Filters */}
                   <div className=" flex flex-col items-center">
-                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
                     <LeadsFilter filters={filters} setFilters={setFilters} />
-                    {/* Apply Button */}
                   </div>
 
                   <SheetFooter className="flex flex-col gap-3 p-4 border-t border-gray-200">
-  {/* Buttons Row */}
-  <div className="flex gap-3">
-    <SheetClose asChild>
-      <Button
-        onClick={() => {
-          const params = new URLSearchParams(Object.entries(filters));
-          setPage(1);
-          router.push(`?${params.toString()}&page=1`);
-          filterLeads(1, { ...filters, allotedArea: area });
-        }}
-        className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
-      >
-        Apply
-      </Button>
-    </SheetClose>
+                    {/* Buttons Row */}
+                    <div className="flex gap-3">
+                      <SheetClose asChild>
+                        <Button
+                          onClick={() => {
+                            const params = new URLSearchParams(
+                              Object.entries(filters)
+                            );
+                            setPage(1);
+                            router.push(`?${params.toString()}&page=1`);
+                            filterLeads(1, { ...filters, allotedArea: area });
+                          }}
+                          className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+                        >
+                          Apply
+                        </Button>
+                      </SheetClose>
 
-    <SheetClose asChild>
-      <Button
-        onClick={() => {
-          router.push(`?page=1`);
-          setFilters({ ...defaultFilters });
-          setPage(1);
-          filterLeads(1, defaultFilters);
-        }}
-        className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
-      >
-        Clear
-      </Button>
-    </SheetClose>
-  </div>
+                      <SheetClose asChild>
+                        <Button
+                          onClick={() => {
+                            router.push(`?page=1`);
+                            setFilters({ ...defaultFilters });
+                            setPage(1);
+                            filterLeads(1, defaultFilters);
+                          }}
+                          className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+                        >
+                          Clear
+                        </Button>
+                      </SheetClose>
+                    </div>
 
-  {/* Select Dropdown */}
-  <div className="w-full">
-    <Select onValueChange={(value) => setView(value)}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select View" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="Table View">Table View</SelectItem>
-        <SelectItem value="Card View">Card View</SelectItem>
-      </SelectContent>
-    </Select>
-  </div>
-</SheetFooter>
-
-
+                    {/* Select Dropdown */}
+                    <div className="w-full">
+                      <Select onValueChange={(value) => setView(value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select View" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Table View">Table View</SelectItem>
+                          <SelectItem value="Card View">Card View</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </SheetFooter>
                 </SheetContent>
               </Sheet>
             </div>
@@ -461,7 +512,6 @@ export const GoodToGoLeads = () => {
       </div>
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
-          {/* <InfinityLoader className=" h-20 w-28" /> */}
           <HandLoader />
         </div>
       ) : view === "Table View" ? (
@@ -515,7 +565,6 @@ export const GoodToGoLeads = () => {
                     guest={query.guest}
                     minBudget={query.minBudget}
                     maxBudget={query.maxBudget}
-                    // budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}

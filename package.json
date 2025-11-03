@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx socket.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production tsx socket.ts",
     "lint": "next lint"
   },
   "dependencies": {
@@ -66,6 +66,7 @@
     "country-state-city": "^3.2.1",
     "date-fns": "^3.6.0",
     "dompurify": "^3.1.7",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.3.0",
     "file-saver": "^2.0.5",
     "form-data": "^4.0.0",
@@ -121,8 +122,8 @@
     "react-virtualized": "^9.22.6",
     "recharts": "^2.15.4",
     "scheduler": "^0.26.0",
-    "socket.io": "^4.8.0",
-    "socket.io-client": "^4.8.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "styled-components": "^6.1.19",
     "tailwind-merge": "^2.5.4",
     "tailwind-scrollbar-hide": "^1.1.7",
@@ -152,11 +153,15 @@
     "@types/react-dom": "^18.3.7",
     "@types/react-lazy-load-image-component": "^1.6.4",
     "@types/react-virtualized": "^9.22.3",
+    "@types/socket.io": "^3.0.1",
     "@types/three": "^0.168.0",
+    "concurrently": "^9.2.1",
     "eslint": "^8",
     "eslint-config-next": "^14.2.33",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }

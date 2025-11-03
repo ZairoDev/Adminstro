@@ -42,6 +42,7 @@ import LeadsFilter, {
 
 import HandLoader from "@/components/HandLoader";
 import CompareTable from "./compareTable";
+import { useSocket } from "@/hooks/useSocket";
 
 
 export const CompareLeadsPage = () => {
@@ -54,6 +55,7 @@ export const CompareLeadsPage = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const { socket, isConnected } = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -206,25 +208,80 @@ export const CompareLeadsPage = () => {
   }, []);
 
   useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
+    if (!socket) return;
+
+    // Normalize the value into an array
+    const areas = Array.isArray(allotedArea)
+      ? allotedArea
+      : allotedArea
+      ? [allotedArea]
+      : [];
+
+    // If no area assigned, join the global room
+    if (areas.length === 0) {
+      socket.emit("join-area", "all");
+      console.log("Joined global room: all");
+
+      socket.on("new-query-all", (data: IQuery) => {
+        setQueries((prev) => [data, ...prev]);
+        console.log("New global query:", data);
+        toast({
+          title: "New Query",
+          description: `Query from ${data.name || "Unknown"}`,
+        });
+      });
+
+      return () => {
+        socket.off("new-query-all");
+        socket.emit("leave-area", "all");
+      };
+    }
+
+    // Otherwise, join each area-specific room
+    areas.forEach((area) => {
+      socket.emit("join-area", area);
+      console.log(`Joined area room: ${area}`);
+
+      socket.on(`new-query-${area}`, (data: IQuery) => {
+        setQueries((prev) => [data, ...prev]);
+        console.log(`New query in ${area}:`, data);
+        toast({
+          title: `New Query (${area})`,
+          description: `Query from ${data.name || "Unknown"}`,
+        });
+      });
     });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
+
+    // Cleanup
     return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
+      areas.forEach((area) => {
+        socket.off(`new-query-${area}`);
+        socket.emit("leave-area", area);
+      });
     };
-  }, [queries, allotedArea]);
+  }, [socket, allotedArea]);
+  
+
+  // useEffect(() => {
+  //   const pusher = new Pusher("1725fd164206c8aa520b", {
+  //     cluster: "ap2",
+  //   });
+  //   const channel = pusher.subscribe("queries");
+  //   // channel.bind("new-query", (data: any) => {
+  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
+  //   // });
+  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
+  //     setQueries((prevQueries) => [data, ...prevQueries]);
+  //   });
+  //   toast({
+  //     title: "Query Created Successfully",
+  //   });
+  //   return () => {
+  //     channel.unbind(`new-query-${allotedArea}`);
+  //     pusher.unsubscribe("queries");
+  //     pusher.disconnect();
+  //   };
+  // }, [queries, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);

@@ -90,7 +90,7 @@ interface TargetType {
   areas: AreaType[];
 }
 
-export default function      LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
+export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -697,7 +697,7 @@ const handleSave = async (
               <TableCell className="">
                 <div className="flex gap-x-2">
                   <TooltipEditableCell
-                    value={query?.guest.toString() ?? ""}
+                    value={query?.guest?.toString() ?? ""}
                     onSave={(val) => handleSave(query._id!, "guest", val)}
                     tooltipText="Number of guests"
                     icon={<Users size={18} />}
@@ -1158,14 +1158,15 @@ const handleSave = async (
                               "Different Area",
                               "Agency Fees",
                               "Low Duration",
-                            ].map((reason, ind) => (
+                            ].map((reason: string, ind) => (
                               <DropdownMenuItem
                                 key={ind}
                                 onClick={() =>
-                                  handleRejectionReason(
-                                    `${reason}`,
+                                  handleDisposition(
                                     query?._id,
-                                    index
+                                    index,
+                                    "rejected",
+                                    `${reason}`,
                                   )
                                 }
                               >

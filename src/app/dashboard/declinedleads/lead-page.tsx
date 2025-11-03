@@ -42,6 +42,7 @@ import LeadsFilter, {
 import DeclinedLeadTable from "./declined-lead-table";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
+import { useSocket } from "@/hooks/useSocket";
 
 export const DeclinedLeads = () => {
   const router = useRouter();
@@ -53,6 +54,7 @@ export const DeclinedLeads = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const {socket,isConnected} = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -191,25 +193,91 @@ export const DeclinedLeads = () => {
   }, []);
 
   useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
+    if (!socket) return;
+
+    const disposition = "declined"; // 👈 set based on page context
+    const formattedDisposition = disposition
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+    // Normalize the areas into an array
+    const areas = Array.isArray(allotedArea)
+      ? allotedArea.filter((a) => a && a.trim())
+      : allotedArea
+      ? [allotedArea]
+      : [];
+
+    // 🟢 If no area assigned — join the global fallback room
+    if (areas.length === 0) {
+      const globalArea = "all";
+      const room = { area: globalArea, disposition: formattedDisposition };
+      socket.emit("join-room", room);
+      console.log(
+        `✅ Joined global room: area-all|disposition-${formattedDisposition}`
+      );
+
+      const event = `lead-${formattedDisposition}`;
+
+      socket.on(event, (data: IQuery) => {
+        setQueries((prev) => [data, ...prev]);
+        console.log(`🆕 Global ${formattedDisposition} lead:`, data);
+        toast({
+          title: `New ${disposition} Lead`,
+          description: `Lead from ${data.name || "Unknown"}`,
+        });
+      });
+
+      return () => {
+        socket.off(event);
+        socket.emit("leave-room", room);
+      };
+    }
+
+    // 🟣 Otherwise join each area-specific room
+    areas.forEach((area) => {
+      const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
+      const room = { area: formattedArea, disposition: formattedDisposition };
+      const event = `lead-${formattedDisposition}`;
+
+      socket.emit("join-room", room);
+      console.log(
+        `✅ Joined room: area-${formattedArea}|disposition-${formattedDisposition}`
+      );
+
+      socket.on(event, (data: IQuery) => {
+        const dataArea = data.location
+          ?.trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        if (dataArea === formattedArea) {
+          setQueries((prev) => [data, ...prev]);
+          console.log(
+            `🆕 ${formattedDisposition} lead in ${formattedArea}:`,
+            data
+          );
+          toast({
+            title: `New ${disposition} Lead (${area})`,
+            description: `Lead from ${data.name || "Unknown"}`,
+          });
+        }
+      });
     });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
+
+    // 🧹 Cleanup on unmount or dependency change
     return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
+      const event = `lead-${formattedDisposition}`;
+      areas.forEach((area) => {
+        const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
+        const room = { area: formattedArea, disposition: formattedDisposition };
+        socket.off(event);
+        socket.emit("leave-room", room);
+        console.log(
+          `🚪 Left room: area-${formattedArea}|disposition-${formattedDisposition}`
+        );
+      });
     };
-  }, [queries, allotedArea]);
+  }, [socket, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);

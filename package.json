@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx socket.ts",
     "build": "next build",
-    "start": "NODE_ENV=production node socket.ts",
+    "start": "NODE_ENV=production tsx socket.ts",
     "lint": "next lint"
   },
   "dependencies": {
@@ -66,6 +66,7 @@
     "country-state-city": "^3.2.1",
     "date-fns": "^3.6.0",
     "dompurify": "^3.1.7",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.3.0",
     "file-saver": "^2.0.5",
     "form-data": "^4.0.0",

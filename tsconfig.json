@@ -29,6 +29,6 @@
     "src/app/api/employee/deleteEmploye",
     "src/createSuggestionItems.js",
     "src/models/offersts"
-  ],
-  "exclude": ["node_modules"]
+, "socket.ts"  ],
+  "exclude": ["node_modules", "dist", "build"]
 }

@@ -191,26 +191,26 @@ export const LeadPage = () => {
     getAllotedArea();
   }, []);
 
-  useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
-    });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
-    return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
-    };
-  }, [queries, allotedArea]);
+  // useEffect(() => {
+  //   const pusher = new Pusher("1725fd164206c8aa520b", {
+  //     cluster: "ap2",
+  //   });
+  //   const channel = pusher.subscribe("queries");
+  //   // channel.bind("new-query", (data: any) => {
+  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
+  //   // });
+  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
+  //     setQueries((prevQueries) => [data, ...prevQueries]);
+  //   });
+  //   toast({
+  //     title: "Query Created Successfully",
+  //   });
+  //   return () => {
+  //     channel.unbind(`new-query-${allotedArea}`);
+  //     pusher.unsubscribe("queries");
+  //     pusher.disconnect();
+  //   };
+  // }, [queries, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);

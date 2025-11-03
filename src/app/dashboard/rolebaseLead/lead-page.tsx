@@ -48,6 +48,7 @@ import LeadsFilter, {
 } from "@/components/lead-component/NewLeadFilter";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
+import { useSocket } from "@/hooks/useSocket";
 
 interface WordsCount {
   "1bhk": number;
@@ -80,6 +81,7 @@ export const LeadPage = () => {
   );
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState("");
+  const {socket, isConnected} = useSocket();
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -214,26 +216,90 @@ export const LeadPage = () => {
     getAllotedArea();
   }, [activeTab]);
 
-  useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
+useEffect(() => {
+  if (!socket) return;
+
+  // Normalize the areas into an array
+  const areas = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea]
+    : [];
+
+  const disposition = "fresh"; // 👈 or "fresh" / "goodtogo" based on page type
+
+  if (areas.length === 0) {
+    // Join a global fallback room
+    socket.emit("join-room", { area: "all", disposition });
+    console.log(`✅ Joined global room: area-all|disposition-${disposition}`);
+
+    // Listen for events from that room
+    socket.on(`lead-${disposition}`, (data: IQuery) => {
+      setQueries((prev) => [data, ...prev]);
+      console.log(`🆕 Global ${disposition} lead:`, data);
+      toast({
+        title: `New ${disposition} Lead`,
+        description: `Lead from ${data.name || "Unknown"}`,
+      });
     });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
+
     return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
+      socket.off(`lead-${disposition}`);
+      socket.emit("leave-room", { area: "all", disposition });
     };
-  }, [queries, allotedArea]);
+  }
+
+  // Otherwise join each area room
+  areas.forEach((area) => {
+    socket.emit("join-room", { area, disposition });
+    console.log(`✅ Joined room: area-${area}|disposition-${disposition}`);
+
+    socket.on(`lead-${disposition}`, (data: IQuery) => {
+      if (
+        data.location?.trim().toLowerCase().replace(/\s+/g, "-") ===
+        area.toLowerCase().replace(/\s+/g, "-")
+      ) {
+        setQueries((prev) => [data, ...prev]);
+        console.log(`🆕 ${disposition} lead in ${area}:`, data);
+        toast({
+          title: `New ${disposition} Lead (${area})`,
+          description: `Lead from ${data.name || "Unknown"}`,
+        });
+      }
+    });
+  });
+
+  // Cleanup
+  return () => {
+    areas.forEach((area) => {
+      socket.off(`lead-${disposition}`);
+      socket.emit("leave-room", { area, disposition });
+    });
+  };
+}, [socket, allotedArea]);
+
+  
+
+  // useEffect(() => {
+  //   const pusher = new Pusher("1725fd164206c8aa520b", {
+  //     cluster: "ap2",
+  //   });
+  //   const channel = pusher.subscribe("queries");
+  //   // channel.bind("new-query", (data: any) => {
+  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
+  //   // });
+  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
+  //     setQueries((prevQueries) => [data, ...prevQueries]);
+  //   });
+  //   toast({
+  //     title: "Query Created Successfully",
+  //   });
+  //   return () => {
+  //     channel.unbind(`new-query-${allotedArea}`);
+  //     pusher.unsubscribe("queries");
+  //     pusher.disconnect();
+  //   };
+  // }, [queries, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);

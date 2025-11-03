@@ -1,4 +1,3 @@
-import Pusher from "pusher";
 import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,14 +6,6 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
-
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
 
 export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
@@ -45,29 +36,24 @@ export async function POST(req: NextRequest) {
       leadQualityByCreator,
     } = await req.json();
 
-    // Check if a query with the same phone number already exists
+    // ✅ Check for duplicates (within same area, less than 30 days old)
     const existingQuery = await Query.findOne({ phoneNo });
-
-    let numberOfDays = 31;
     if (existingQuery) {
       const today = new Date();
-      const leadCreatedDate = existingQuery.createdAt;
-
-      numberOfDays = Math.floor(
-        (today.getTime() - leadCreatedDate.getTime()) / (24 * 60 * 60 * 1000)
+      const daysSinceCreation = Math.floor(
+        (today.getTime() - existingQuery.createdAt.getTime()) /
+          (24 * 60 * 60 * 1000)
       );
+
+      if (daysSinceCreation < 30 && existingQuery.area === area) {
+        return NextResponse.json(
+          { error: "Phone number already exists in this area" },
+          { status: 400 }
+        );
+      }
     }
 
-    // console.log("number of days: ", numberOfDays, area, existingQuery.area);
-
-    if (existingQuery && numberOfDays < 30 && existingQuery.area === area) {
-      return NextResponse.json(
-        { error: "Phone number already exists" },
-        { status: 400 }
-      );
-    }
-
-    // Create a new query if phone number is unique
+    // ✅ Create new lead
     const newQuery = await Query.create({
       name,
       email,
@@ -84,7 +70,7 @@ export async function POST(req: NextRequest) {
       location: location.toLowerCase(),
       bookingTerm,
       zone,
-      metroZone,  
+      metroZone,
       billStatus,
       typeOfProperty,
       propertyType,
@@ -96,43 +82,38 @@ export async function POST(req: NextRequest) {
       leadStatus: "fresh",
     });
 
-    const triggerQuery = `new-query-${location.trim().toLowerCase()}`;
+    // ✅ SOCKET.IO REAL-TIME EMIT
+    const io = (global as any).io;
+    if (io) {
+      const areaSlug =
+        newQuery.location?.trim().toLowerCase().replace(/\s+/g, "-") || "all";
+      const disposition =
+        newQuery.leadStatus?.trim().toLowerCase().replace(/\s+/g, "-") ||
+        "fresh";
 
-    // Trigger Pusher event
-    await pusher.trigger("queries", triggerQuery, {
-      _id: newQuery._id,
-      date: newQuery.date,
-      name: newQuery.name,
-      startDate: newQuery.startDate,
-      endDate: newQuery.endDate,
-      phoneNo: newQuery.phoneNo,
-      duration: newQuery.duration,
-      area: newQuery.area,
-      guest: newQuery.guest,
-      minBudget: newQuery.minBudget,
-      maxBudget: newQuery.maxBudget,
-      noOfBeds: newQuery.noOfBeds,
-      location: newQuery.location,
-      bookingTerm: newQuery.bookingTerm,
-      zone: newQuery.zone,
-      metroZone: newQuery.metroZone,
-      billStatus: newQuery.billStatus,
-      typeOfProperty: newQuery.typeOfProperty,
-      propertyType: newQuery.propertyType,
-      priority: newQuery.priority,
-      idName: newQuery.idName,
-      BoostID: newQuery.BoostID,
-      leadQualityByCreator: newQuery.leadQualityByCreator,
-    });
+      const areaRoom = `area-${areaSlug}|disposition-${disposition}`;
+      const globalRoom = `area-all|disposition-${disposition}`;
+      const event = `lead-${disposition}`;
 
+      // 🎯 Emit to both area-specific and global listeners
+      io.to(areaRoom).emit(event, newQuery);
+      io.to(globalRoom).emit(event, newQuery);
+
+      console.log(`✅ Emitted ${event} → ${areaRoom} & ${globalRoom}`);
+    } else {
+      console.warn("⚠️ Socket.IO instance not found!");
+    }
+
+    // ✅ Return success
     return NextResponse.json(
       { success: true, data: newQuery },
       { status: 201 }
     );
   } catch (error: any) {
-    console.log(error);
-
-    const err = new Error(error);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("❌ Error creating lead:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }

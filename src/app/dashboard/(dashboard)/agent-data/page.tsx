@@ -44,12 +44,12 @@ const AgentWiseData = () => {
     return nameA.localeCompare(nameB);
   })
 
-  console.log("dashboardData: ", dashboardData);
+
 
   const activeEmployees = dashboardData.filter((emp)=> emp.isActive === true);
-  console.log("activeEmployees: ", activeEmployees);
+  // console.log("activeEmployees: ", activeEmployees);
   const inactiveEmployees = dashboardData.filter((emp)=> emp.isActive === false);
-  console.log("inactiveEmployees: ", inactiveEmployees);
+  // console.log("inactiveEmployees: ", inactiveEmployees);
 
   const handleDateFilter = (value: string) => {
     const days = Number(value.split(" ")[0]);

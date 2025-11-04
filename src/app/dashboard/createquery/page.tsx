@@ -9,7 +9,13 @@ import "react-phone-number-input/style.css";
 import { useToast } from "@/hooks/use-toast";
 import PhoneInput from "react-phone-number-input";
 import { CheckCheckIcon, SlidersHorizontal } from "lucide-react";
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 
 import { IQuery } from "@/util/type";
 import Loader from "@/components/loader";
@@ -61,8 +67,9 @@ import {
 } from "@/components/ui/pagination";
 import SearchableAreaSelect from "./SearchAndSelect";
 import { metroLines } from "../target/components/editArea";
-import { apartmentTypes } from "../spreadsheet/spreadsheetTable";
+import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import parsePhoneNumberFromString from "libphonenumber-js";
+import { useSocket } from "@/hooks/useSocket";
 
 interface ApiResponse {
   data: IQuery[];
@@ -96,6 +103,7 @@ const SalesDashboard = () => {
   const [submitQuery, setSubmitQuery] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [phone, setPhone] = useState<string>("");
+  const { socket, isConnected } = useSocket();
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
@@ -116,6 +124,13 @@ const SalesDashboard = () => {
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [areas1, setAreas1] = useState<AreaType[]>([]);
+
+  // ✅ CHANGE 1: Added state to control dialog open/close
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // ✅ CHANGE 2: Added ref to track if we should fetch queries after submission
+  const shouldRefetchRef = useRef(false);
+
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -146,33 +161,6 @@ const SalesDashboard = () => {
     BoostID: "",
   });
 
-  //   const locationList = [ {
-  //     id:1,
-  //     label: "Athens",
-  //     value: "athens",
-  //   },
-  //   {
-  //     id:2,
-  //     label: "Thessaloniki",
-  //     value: "thessaloniki",
-  //   },
-  //   {
-  //     id:3,
-  //     label: "Milan",
-  //     value: "milan",
-  //   },
-  //   {
-  //     id:4,
-  //     label: "Rome",
-  //     value: "rome",
-  //   },
-  //   {
-  //     id:5,
-  //     label: "Chania",
-  //     value: "chania",
-  //   },
-  // ]
-
   const [location, setLocation] = useState([]);
 
   const limit: number = 12;
@@ -200,12 +188,11 @@ const SalesDashboard = () => {
     try {
       const response = await axios.get(`/api/addons/target/getAlLocations`);
       setLocation(response.data.data);
-
-      console.log("fetched Locations", response.data.data);
     } catch (err) {
       console.log(err);
     }
   };
+
   const handleNumberSearch = async () => {
     try {
       if (!phone) {
@@ -219,11 +206,8 @@ const SalesDashboard = () => {
         return;
       }
 
-      // Only digits, remove +
-      const digitsOnly = parsed.number.replace("+", ""); // e.g., 9170939951
-
+      const digitsOnly = parsed.number.replace("+", "");
       setChecking(true);
-      console.log("handle search (digits only): ", digitsOnly);
 
       const response = await axios.post("/api/sales/checkNumber", {
         phoneNo: digitsOnly,
@@ -246,7 +230,6 @@ const SalesDashboard = () => {
     }
   };
 
-  // Handle input changes
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!normalInput) {
       setFormData((prev) => ({ ...prev, duration: e.target.value }));
@@ -255,12 +238,49 @@ const SalesDashboard = () => {
     }
   };
 
+  // ✅ CHANGE 3: Reset form data function
+  const resetFormData = () => {
+    setFormData({
+      startDate: "",
+      duration: "",
+      endDate: "",
+      name: "",
+      email: "-",
+      phoneNo: 0,
+      area: "",
+      guest: 0,
+      minBudget: 0,
+      maxBudget: 0,
+      noOfBeds: 0,
+      location: "",
+      bookingTerm: "",
+      zone: "",
+      metroZone: "",
+      billStatus: "",
+      typeOfProperty: "",
+      propertyType: "",
+      priority: "",
+      salesPriority: "None",
+      reminder: new Date(),
+      roomDetails: {
+        roomId: "",
+        roomPassword: "",
+      },
+      messageStatus: "None",
+      BoostID: "",
+      leadQualityByCreator: "",
+    });
+    setPhone("");
+    setNumberStatus("");
+    setSelectedLocation("");
+    setNormalInput(false);
+  };
+
   const handleSubmit = async () => {
     try {
       const emptyFields: string[] = [];
       const canBeEmptyField = ["salesPriority"];
 
-      // ✅ Check if area, zone, metroZone - at least one is required
       if (
         !formData.area?.trim() &&
         !formData.zone?.trim() &&
@@ -283,7 +303,6 @@ const SalesDashboard = () => {
         return;
       }
 
-      // ✅ Check other required fields
       Object.entries(formData).forEach(([key, value]) => {
         if (
           (value === "" || value === null || value === undefined) &&
@@ -322,41 +341,22 @@ const SalesDashboard = () => {
         formDataToSubmit
       );
 
+      // ✅ CHANGE 4: Add the newly created lead to the top of the list immediately
+      if (response.data.success && response.data.data) {
+        setQueries((prev) => [response.data.data, ...prev]);
+        setTotalQueries((prev) => prev + 1);
+      }
+
       toast({
         description: "Query Created Successfully",
       });
 
-      // ✅ Reset form after submission
-      setFormData({
-        startDate: "",
-        duration: "",
-        endDate: "",
-        name: "",
-        email: "",
-        phoneNo: 0,
-        area: "",
-        guest: 0,
-        minBudget: 0,
-        maxBudget: 0,
-        noOfBeds: 0,
-        location: "",
-        bookingTerm: "",
-        zone: "",
-        billStatus: "",
-        typeOfProperty: "",
-        propertyType: "",
-        priority: "",
-        salesPriority: "",
-        reminder: new Date(),
-        roomDetails: {
-          roomId: "",
-          roomPassword: "",
-        },
-        leadQualityByCreator: "",
-        messageStatus: "",
-        metroZone: "", // ✅ Make sure metroZone exists in formData reset
-        BoostID: "",
-      });
+      // ✅ CHANGE 5: Reset form and close dialog
+      resetFormData();
+      setIsDialogOpen(false);
+
+      // ✅ CHANGE 6: Set flag to refetch data
+      shouldRefetchRef.current = true;
     } catch (error: any) {
       console.error("Error:", error.response?.data?.error);
       toast({
@@ -436,9 +436,24 @@ const SalesDashboard = () => {
     });
   }, [searchTerm, searchType, page]);
 
+  // ✅ CHANGE 7: Refetch when dialog closes after successful submission
+  useEffect(() => {
+    if (!isDialogOpen && shouldRefetchRef.current) {
+      shouldRefetchRef.current = false;
+      fetchQuery({
+        searchTerm,
+        searchType,
+        dateFilter,
+        customDays,
+        customDateRange,
+      });
+    }
+  }, [isDialogOpen]);
+
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
   const renderPaginationItems = () => {
     let items = [];
     const maxVisiblePages = 5;
@@ -479,11 +494,10 @@ const SalesDashboard = () => {
     }
     return items;
   };
+
   useEffect(() => {
     setFormData((prevData) => ({
       ...prevData,
-      // startDate: startDate.toLocaleDateString(),
-      // endDate: endDate.toLocaleDateString(),
       startDate: format(startDate, "MM/dd/yyyy"),
       endDate: format(endDate, "MM/dd/yyyy"),
     }));
@@ -502,27 +516,6 @@ const SalesDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
-    });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
-    return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
-    };
-  }, [queries, allotedArea]);
-
-  useEffect(() => {
     fetchLocations();
   }, []);
 
@@ -530,9 +523,7 @@ const SalesDashboard = () => {
     const fetchTargets = async () => {
       try {
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
-        // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
       } catch (error) {
         console.error("Error fetching targets:", error);
       }
@@ -579,7 +570,8 @@ const SalesDashboard = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Dialog>
+          {/* ✅ CHANGE 8: Added controlled dialog state */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               {token?.role !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
@@ -678,7 +670,6 @@ const SalesDashboard = () => {
                                   </div>
                                 </SelectItem>
                               ))}
-                              {}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
@@ -691,7 +682,7 @@ const SalesDashboard = () => {
                         onSelect={(area) =>
                           setFormData((prev) => ({
                             ...prev,
-                            area: area.name, // only store the name
+                            area: area.name,
                           }))
                         }
                       />
@@ -1043,8 +1034,7 @@ const SalesDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Area */}
-
+                  {/* Metro Zone */}
                   <div>
                     <Label>Metro Zone</Label>
                     <Select
@@ -1085,7 +1075,7 @@ const SalesDashboard = () => {
                       disabled={submitQuery}
                       onClick={handleSubmit}
                     >
-                      Submit Query
+                      {submitQuery ? "Submitting..." : "Submit Query"}
                     </Button>
                   </DialogFooter>
                 </div>

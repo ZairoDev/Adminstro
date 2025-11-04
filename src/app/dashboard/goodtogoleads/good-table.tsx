@@ -72,7 +72,7 @@ import { Calendar } from "../../../components/ui/calendar";
 import { Textarea } from "../../../components/ui/textarea";
 import CustomTooltip from "../../../components/CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
-import { EditableCell } from "../spreadsheet/EditableCell";
+import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { options } from "@fullcalendar/core/preact.js";
@@ -353,7 +353,7 @@ export default function GoodTable({
               value,
               type,
             });
-            console.log("Updated lead:", leadId, res.data);
+
           } catch (err) {
             console.error("API error for leadId:", leadId, err);
             toast({
@@ -473,7 +473,7 @@ export default function GoodTable({
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }

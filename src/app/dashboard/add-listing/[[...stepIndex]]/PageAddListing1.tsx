@@ -58,7 +58,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     }
   }, []);
 
-  console.log(propertyType, placeName, rentalForm, numberOfPortions);
+
 
   const [isFormComplete, setIsFormComplete] = useState<boolean>(false);
   const handlePropertyTypeChange = (value: string) => setPropertyType(value);
@@ -215,6 +215,8 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
               <SelectItem value="House">House</SelectItem>
               <SelectItem value="Holiday homes">Holiday homes</SelectItem>
               <SelectItem value="Detached House">Detached House</SelectItem>
+              <SelectItem value="Shared Apartment">Shared Apartment</SelectItem>
+              <SelectItem value="Shared Room">Shared Room</SelectItem>
             </SelectContent>
           </Select>
         </FormItem>

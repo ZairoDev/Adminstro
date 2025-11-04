@@ -141,12 +141,12 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
     try {
       axios.post("/api/leads/disposition", {
         id,
-        disposition: "goodtogo",
+        disposition: "active",
       });
       toast({
         description: "Disposition updated succefully",
       });
-      queries[index].leadStatus = "goodtogo";
+      queries[index].leadStatus = "active";
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -625,7 +625,8 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
                       {(token?.role === "SuperAdmin" ||
-                        token?.role === "Sales-TeamLead") && (
+                        token?.role === "Sales-TeamLead" ||
+                        token?.role === "Sales") && (
                         <DropdownMenuItem
                           onClick={() => removeDisposition(query?._id, index)}
                         >

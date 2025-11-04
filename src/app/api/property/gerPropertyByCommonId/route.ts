@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Common Id not found" }, { status: 400 });
   }
   try {
-    console.log("commonId: ", commonId);
+    // console.log("commonId: ", commonId);
     const commonIdProperties = await Properties.find({ commonId });
     if (!commonIdProperties) {
       return NextResponse.json(
@@ -18,9 +18,10 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     }
-    console.log("common: ", commonIdProperties);
+    // console.log("common: ", commonIdProperties);
     return NextResponse.json({ commonIdProperties }, { status: 200 });
   } catch (err) {
+    console.log("error in get property by commonId: ", err)
     return NextResponse.json(
       { error: "Something went wrong!" },
       { status: 400 }

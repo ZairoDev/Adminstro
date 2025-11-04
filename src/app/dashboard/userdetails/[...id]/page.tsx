@@ -58,7 +58,7 @@ export default function UserProfilePage({ params }: PageProps) {
         setLoadinguserDetails(false);
       } else {
         setUser(response.data.data);
-        console.log(response.data.data);
+
         setLoadinguserDetails(false);
       }
     } catch (error: any) {
@@ -75,7 +75,7 @@ export default function UserProfilePage({ params }: PageProps) {
     try {
       setLoading(true);
       const response = await axios.post("/api/getpropertybyid", { userId });
-      console.log(response.data.properties, "Response will print hereContext");
+ 
       setProperty(response.data.properties);
       setLoading(false);
     } catch (error: any) {

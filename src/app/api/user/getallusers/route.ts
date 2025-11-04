@@ -64,7 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { $skip: skip },
       { $limit: 20 },
     ]);
-    console.log("Fetched users with VSIDs:", allUsers);
+    // console.log("Fetched users with VSIDs:", allUsers);
     const totalUsers = await Users.countDocuments(query);
 
     return NextResponse.json({ allUsers, totalUsers });

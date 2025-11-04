@@ -32,7 +32,7 @@ const GuestWindow = () => {
       });
       if (response.data.success) {
         if (response.data.exists) {
-          console.log("response of number: ", response.data.data);
+
           setAvailableLeads([response.data.data]);
           setNumberStatus("❌ Phone number already exists.");
         } else {
@@ -52,7 +52,7 @@ const GuestWindow = () => {
   };
 
   const handleNameSearch = async () => {
-    console.log("clicked name search");
+
     try {
       if (!name) return;
       const leads = await axios.post("/api/sales/checkName", { name });
@@ -61,7 +61,7 @@ const GuestWindow = () => {
       } else {
         setAvailableLeads([]);
       }
-      console.log("leads: ", leads.data);
+
     } catch (err) {
       if (axios.isAxiosError(err)) {
         toast({
@@ -75,7 +75,7 @@ const GuestWindow = () => {
   };
 
   useEffect(() => {
-    console.log("available leads: ", availableLeads);
+
   }, [availableLeads]);
 
   return (

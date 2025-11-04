@@ -108,7 +108,7 @@ const NewUser = () => {
   const selectedRole = watch("role");
   const selectedGender = watch("gender");
   useEffect(() => {
-    console.log(selectedRole);
+
   }, [watch]);
 
   const onSubmit = async (data: UserSchema) => {
@@ -120,7 +120,7 @@ const NewUser = () => {
 
     try {
       const response = await axios.post("/api/user/createnewuser", userData);
-      console.log("Inside Api call", response.data);
+
       toast({
         title: "User created successfully",
         description: "Please check your email for verification link",

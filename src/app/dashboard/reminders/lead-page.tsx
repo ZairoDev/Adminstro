@@ -99,7 +99,7 @@ export const LeadPage = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -166,7 +166,7 @@ export const LeadPage = () => {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);          
+      
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
@@ -191,26 +191,26 @@ export const LeadPage = () => {
     getAllotedArea();
   }, []);
 
-  useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
-    });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
-    return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
-    };
-  }, [queries, allotedArea]);
+  // useEffect(() => {
+  //   const pusher = new Pusher("1725fd164206c8aa520b", {
+  //     cluster: "ap2",
+  //   });
+  //   const channel = pusher.subscribe("queries");
+  //   // channel.bind("new-query", (data: any) => {
+  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
+  //   // });
+  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
+  //     setQueries((prevQueries) => [data, ...prevQueries]);
+  //   });
+  //   toast({
+  //     title: "Query Created Successfully",
+  //   });
+  //   return () => {
+  //     channel.unbind(`new-query-${allotedArea}`);
+  //     pusher.unsubscribe("queries");
+  //     pusher.disconnect();
+  //   };
+  // }, [queries, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);
@@ -321,7 +321,6 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

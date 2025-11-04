@@ -25,7 +25,7 @@ const CustomDayPicker = dynamic(() => import("@/components/CustomDayPicker"), {
 const PageAddListing9: FC<PageAddListing9Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
+
 
   const [portions, setPortions] = useState<number>(() => {
     const savedPage = localStorage.getItem("page1") || "";

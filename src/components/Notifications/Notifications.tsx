@@ -28,7 +28,7 @@ export function Notifications() {
       );
       setThreeDaysReminders(response.data.allReminders);
     } catch (err: any) {
-      console.log("No Reminders");
+      console.log("err: ", err);
     } finally {
       setLoading(false);
     }

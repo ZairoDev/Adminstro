@@ -60,7 +60,7 @@ export function AreaSelect({
     setDraft(val);
     save(val);
     setOpen(false);
-    setSearch(""); // clear search after select
+    setSearch("");
   };
 
   const clearSelection = () => {

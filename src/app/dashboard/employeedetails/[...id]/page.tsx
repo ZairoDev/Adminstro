@@ -68,7 +68,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       const response = await axios.post("/api/employee/getEmployeeDetails", {
         userId,
       });
-      console.log(response.data.data);
+      // console.log(response.data.data);
       setIsActive(response.data.data.isActive);
       setIsFeatured(response.data.data.isfeatured);
       if (response.status == 404) {
@@ -80,7 +80,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         setLoadinguserDetails(false);
       } else {
         setUser(response.data.data);
-        console.log(response.data.data);
+        // console.log(response.data.data);
         setLoadinguserDetails(false);
       }
     } catch (error: any) {
@@ -125,10 +125,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       const resposne = await axios.post("/api/generateNewpassword", {
         employeeId: userId,
       });
-      console.log(
-        resposne.data.newPassword,
-        "Password response will be render here"
-      );
+
       setNewPassword(resposne.data.newPassword);
       setGeneratingPassword(false);
     } catch (error: any) {
@@ -160,7 +157,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   };
 
   const handleFeaturedChange = async (featured: boolean) => {
-    console.log("featured: ", featured);
+
     setIsFeatured(featured);
     try {
       await axios.put("/api/employee/editEmployee", {

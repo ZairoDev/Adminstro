@@ -26,14 +26,14 @@ const CatalogueDropdown = ({
   const [categoryList, setCategoryList] = useState<string[]>([]);
 
   useEffect(() => {
-    console.log("selectedCatalogue: ", selectedCatalogueName);
+
     const selectedCatalogue = catalogueList.find((c) => c.name === selectedCatalogueName);
     const categories = catalogueList.find(
       (c) => c.name === selectedCatalogueName
     )?.categories;
     const categoriesName = categories?.map((c) => c.name);
     setCategoryList(categoriesName || []);
-    console.log("selectedCategory: ", selectedCategory);
+
   }, [selectedCatalogueName, selectedCategory]);
 
   const selectCatalogue = () => {
@@ -45,7 +45,7 @@ const CatalogueDropdown = ({
       (c) => c.name === selectedCategory
     )!;
     const properties = categories?.properties.map((p: any) => p.VSID);
-    console.log("clicked");
+
     onAddCatalogue(properties || []);
   };
 

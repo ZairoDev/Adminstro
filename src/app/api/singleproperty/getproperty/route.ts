@@ -12,7 +12,6 @@ export async function POST(request: Request) {
     const { propertyId } = body;
     const id = propertyId[0];
 
-    console.log(id);
 
     if (!id) {
       return NextResponse.json(

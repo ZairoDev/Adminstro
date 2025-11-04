@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
-import { EditableCell } from "../../spreadsheet/EditableCell";
+import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { IoOptions } from "react-icons/io5";
 import BulkInvoiceButton from "./buttonBulk";
 import {

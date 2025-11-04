@@ -21,7 +21,7 @@ interface Page5State {
 const PageAddListing5: FC<PageAddListing5Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
-  console.log(userId);
+
   const handleRadioChange = (name: string, value: string) => {
     setPage5((prevState) => {
       return {

@@ -48,6 +48,7 @@ import LeadsFilter, {
 } from "@/components/lead-component/NewLeadFilter";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
+import { useSocket } from "@/hooks/useSocket";
 
 interface WordsCount {
   "1bhk": number;
@@ -80,6 +81,7 @@ export const LeadPage = () => {
   );
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState("");
+  const {socket, isConnected} = useSocket();
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -121,7 +123,7 @@ export const LeadPage = () => {
       High: 3,
     };
     // const sortedQueries = { ...queries };
-    console.log("sorting field: ", queries);
+
 
     if (sortingField && sortingField !== "None") {
       queries.sort((a, b) => {
@@ -214,26 +216,90 @@ export const LeadPage = () => {
     getAllotedArea();
   }, [activeTab]);
 
-  useEffect(() => {
-    const pusher = new Pusher("1725fd164206c8aa520b", {
-      cluster: "ap2",
+useEffect(() => {
+  if (!socket) return;
+
+  // Normalize the areas into an array
+  const areas = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea]
+    : [];
+
+  const disposition = "fresh"; // 👈 or "fresh" / "goodtogo" based on page type
+
+  if (areas.length === 0) {
+    // Join a global fallback room
+    socket.emit("join-room", { area: "all", disposition });
+    console.log(`✅ Joined global room: area-all|disposition-${disposition}`);
+
+    // Listen for events from that room
+    socket.on(`lead-${disposition}`, (data: IQuery) => {
+      setQueries((prev) => [data, ...prev]);
+      console.log(`🆕 Global ${disposition} lead:`, data);
+      toast({
+        title: `New ${disposition} Lead`,
+        description: `Lead from ${data.name || "Unknown"}`,
+      });
     });
-    const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
-      setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
-    });
+
     return () => {
-      channel.unbind(`new-query-${allotedArea}`);
-      pusher.unsubscribe("queries");
-      pusher.disconnect();
+      socket.off(`lead-${disposition}`);
+      socket.emit("leave-room", { area: "all", disposition });
     };
-  }, [queries, allotedArea]);
+  }
+
+  // Otherwise join each area room
+  areas.forEach((area) => {
+    socket.emit("join-room", { area, disposition });
+    console.log(`✅ Joined room: area-${area}|disposition-${disposition}`);
+
+    socket.on(`lead-${disposition}`, (data: IQuery) => {
+      if (
+        data.location?.trim().toLowerCase().replace(/\s+/g, "-") ===
+        area.toLowerCase().replace(/\s+/g, "-")
+      ) {
+        setQueries((prev) => [data, ...prev]);
+        console.log(`🆕 ${disposition} lead in ${area}:`, data);
+        toast({
+          title: `New ${disposition} Lead (${area})`,
+          description: `Lead from ${data.name || "Unknown"}`,
+        });
+      }
+    });
+  });
+
+  // Cleanup
+  return () => {
+    areas.forEach((area) => {
+      socket.off(`lead-${disposition}`);
+      socket.emit("leave-room", { area, disposition });
+    });
+  };
+}, [socket, allotedArea]);
+
+  
+
+  // useEffect(() => {
+  //   const pusher = new Pusher("1725fd164206c8aa520b", {
+  //     cluster: "ap2",
+  //   });
+  //   const channel = pusher.subscribe("queries");
+  //   // channel.bind("new-query", (data: any) => {
+  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
+  //   // });
+  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
+  //     setQueries((prevQueries) => [data, ...prevQueries]);
+  //   });
+  //   toast({
+  //     title: "Query Created Successfully",
+  //   });
+  //   return () => {
+  //     channel.unbind(`new-query-${allotedArea}`);
+  //     pusher.unsubscribe("queries");
+  //     pusher.disconnect();
+  //   };
+  // }, [queries, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);
@@ -242,7 +308,7 @@ export const LeadPage = () => {
 
 
    const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
-    console.log("filtering leads and clicked", typeOfProperty, noOfBeds);
+
     setFilters((prevFilters) => ({
       ...prevFilters,
       typeOfProperty: typeOfProperty,
@@ -344,7 +410,8 @@ export const LeadPage = () => {
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
               token?.role === "Sales-TeamLead" ||
-              token?.email === "tyagimokshda@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com") && (
               <div className="w-[200px] ">
                 <Select
                   onValueChange={(value: string) => {
@@ -375,42 +442,38 @@ export const LeadPage = () => {
               </div>
             )}
             {/* this is phone/email/name filter*/}
-            <div className="">
-              <Select
-                onValueChange={(value: string) =>
-                  setFilters((prev) => ({ ...prev, searchType: value }))
-                }
-                value={filters.searchType}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="phoneNo">Phone No</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="relative w-full">
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={filters.searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  // Auto-detect search type
+                  let detectedType = "name"; // default
+
+                  if (value.includes("@")) {
+                    detectedType = "email";
+                  } else if (/^\d+$/.test(value)) {
+                    detectedType = "phoneNo";
+                  }
+
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchTerm: value,
+                    searchType: detectedType,
+                  }));
+                }}
+                className="pr-24"
+              />
+
+              {/* Show detected type as a subtle indicator */}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
+                {filters.searchType === "phoneNo"
+                  ? "Phone"
+                  : filters.searchType}
+              </span>
             </div>
-            {/* search component in the top */}
-            <Input
-              placeholder="Search..."
-              value={filters.searchTerm}
-              onChange={(e) => {
-                if (filters.searchType === "phoneNo") {
-                  const formattedValue = e.target.value.replace(/\D/g, "");
-                  setFilters((prev) => ({
-                    ...prev,
-                    searchTerm: formattedValue,
-                  }));
-                } else {
-                  setFilters((prev) => ({
-                    ...prev,
-                    searchTerm: e.target.value,
-                  }));
-                }
-              }}
-            />
           </div>
 
           {/* options filter button */}
@@ -450,7 +513,6 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          console.log("default filters: ", defaultFilters);
                           setFilters({ ...defaultFilters });
                           setPage(1);
                           filterLeads(1, defaultFilters);

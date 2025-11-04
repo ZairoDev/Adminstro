@@ -207,3 +207,4 @@ const querySchema = new Schema(
 
 const Query = models.Query || model("Query", querySchema);
 export default Query;
+

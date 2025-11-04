@@ -6,6 +6,8 @@ html{
   zoom: 0.9;
 }
 
+
+
 .masonry-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

@@ -358,10 +358,14 @@ export interface VisitInterface {
   createdBy: string;
 }
 
+
 export interface BookingInterface {
-  _id: string;
-  lead: string;
-  visit: string;
+  _id?: string;
+  bookingId?: string;
+
+  lead: Types.ObjectId;
+  visit: Types.ObjectId;
+
   checkIn: {
     date: Date;
     time: string;
@@ -371,27 +375,65 @@ export interface BookingInterface {
     time: string;
   };
   contract?: string;
-  finalAmount: number;
-  ownerPayment: {
-    finalAmount: number;
-    amountRecieved: number;
-  };
+
+  address?: string;
+  propertyName?: string;
+
   travellerPayment: {
     finalAmount: number;
-    amountRecieved: number;
+    amountReceived?: number;
+    paymentType?: string;
+    status?: string;
+    rentPayable?: number;
+    depositPaid?: number;
+    guests?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      amountDue?: number;
+      amountPaid?: number;
+      paymentLink?: string;
+      status?: string;
+      payments?: {
+        amount?: number;
+        date?: Date;
+        method?: string;
+        linkId?: string;
+        paymentId?: string;
+        status?: string;
+      }[];
+    }[];
+    history?: {
+      amount?: number;
+      date?: Date;
+      method?: string;
+      paidBy?: string;
+      linkId?: string;
+      paymentId?: string;
+      status?: string;
+    }[];
   };
-  payment: {
-    orderId: string;
-    paymentId: string;
-    status: "pending" | "paid" | "failed" | "partial";
-    remainingAmount: number;
-    paidAt: Date;
+
+  ownerPayment?: {
+    totalAmount?: number;
+    amountReceived?: number;
+    status?: string;
+    payments?: {
+      amount?: number;
+      date?: Date;
+      method?: string;
+      paymentId?: string;
+      status?: string;
+    }[];
   };
+
   note?: string;
   createdBy: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 }
+
 
 export interface AgentInterface {
   _id: string;
@@ -534,6 +576,8 @@ export interface  unregisteredOwners {
   petStatus: string;
   imageUrls: string[];
   isVerified: string;
+  isImportant: string;
+  isPinned: string;
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

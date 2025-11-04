@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 import { VisitValidationSchema } from "@/schemas/visit.schema";
 
+
 const visitSchema: Schema = new Schema<VisitValidationSchema>({
   lead: {
     type: mongoose.Schema.Types.ObjectId,
@@ -11,7 +12,7 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
   propertyId: { type: String},
   VSID: { type: String },
   ownerName: { type: String, required: true },
-  ownerPhone: { type: String, required: true },
+  ownerPhone: { type: String },
   ownerEmail: { type: String, required: true },
   schedule: [
     {

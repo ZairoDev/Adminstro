@@ -1,23 +1,10 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState } from "react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type Option =
-  | { label: string; value: string }
-  | string;
+type Option = { label: string; value: string } | string
 
 export function SelectableCell({
   data,
@@ -25,40 +12,40 @@ export function SelectableCell({
   save,
   maxWidth,
 }: {
-  data: Option[];
-  value: string;
-  save: (val: string) => void;
-  maxWidth?: string;
+  data: Option[]
+  value: string
+  save: (val: string) => void
+  maxWidth?: string
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
 
   // Normalize: get label for display
   const getLabel = (val: string) => {
-    const found = data.find((item) =>
-      typeof item === "string" ? item === val : item.value === val
-    );
-    if (!found) return val;
-    return typeof found === "string" ? found : found.label;
-  };
+    const found = data.find((item) => (typeof item === "string" ? item === val : item.value === val))
+    if (!found) return val
+    return typeof found === "string" ? found : found.label
+  }
 
   return (
     <div
-      className={`truncate cursor-pointer inline-block px-2 py-1 rounded-md transition-colors
-        ${editing ? "bg-gray-700" : "hover:bg-gray-500"}`}
+      className="w-full h-full flex items-center cursor-pointer"
       style={{ maxWidth }}
-      onClick={() => !editing && setEditing(true)}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (!editing) setEditing(true)
+      }}
     >
       {editing ? (
         <Select
           defaultValue={draft}
           onValueChange={(val) => {
-            setDraft(val);
-            save(val);
-            setEditing(false);
+            setDraft(val)
+            save(val)
+            setEditing(false)
           }}
         >
-          <SelectTrigger className="w-full text-md border border-gray-100 rounded-md p-1  ">
+          <SelectTrigger className="w-full text-md border rounded-md p-1">
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
           <SelectContent>
@@ -71,7 +58,7 @@ export function SelectableCell({
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
                 </SelectItem>
-              )
+              ),
             )}
           </SelectContent>
         </Select>
@@ -80,8 +67,8 @@ export function SelectableCell({
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                className={`text-md border rounded-md p-1 block ${
-                  value ? "text-gray-200" : "text-gray-400 italic"
+                className={`text-md border truncate rounded-md w-full  p-1 block ${
+                  value ? "text-foreground" : "text-muted-foreground italic"
                 }`}
               >
                 {value ? getLabel(value) : "Click"}
@@ -96,5 +83,5 @@ export function SelectableCell({
         </TooltipProvider>
       )}
     </div>
-  );
+  )
 }

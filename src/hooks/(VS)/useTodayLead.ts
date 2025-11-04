@@ -54,13 +54,13 @@ const useTodayLeads = () => {
     }
   };
 
-  const fetchLeadsByLeadGen = async () => {
+  const fetchLeadsByLeadGen = async (period: "month" | "year" | "30days") => {
     setIsLoading(true);
     setIsError(false);
     setError("");
     try {
-      const response = await getLeadGenLeadsCount("30days");
-      console.log("response", response);
+      const response = await getLeadGenLeadsCount(period);
+
       setChartData(response.chartData as LeadGenChartData[]);
     } catch (err: any) {
       const error = new Error(err);
@@ -77,7 +77,7 @@ const useTodayLeads = () => {
 
   useEffect(() => {
     fetchLeads();
-    fetchLeadsByLeadGen();
+    fetchLeadsByLeadGen("month");
     // fetchAverage();
   }, []);
 

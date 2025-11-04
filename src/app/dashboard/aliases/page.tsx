@@ -151,7 +151,7 @@ export default function AliasManagement() {
           title: "Alias updated",
           description: `${data.aliasEmail} has been updated successfully.`,
         });
-        console.log("updated data: ", newAlias);
+
         editAlias(newAlias);
       } else {
         // Create new alias

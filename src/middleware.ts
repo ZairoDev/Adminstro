@@ -8,7 +8,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/superadmin",
-    // "/spreadsheet",
+    "/application-form",
+    "/spreadsheet",
     "/dashboard",
     /^\/dashboard\/recommendations\/.*$/,
     /^\/dashboard\/.*$/,
@@ -18,6 +19,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/dashboard",
+    "/spreadsheet",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
     /^\/dashboard\/property$/,
@@ -32,7 +34,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard",
     "/dashboard/addons",
     "/dashboard/createquery",
-    "/dashboard/spreadsheet",
+    "/spreadsheet",
 
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/userdetails\/.*$/,
@@ -53,7 +55,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createquery\/.*$/,
     "/dashboard/notReplying",
     "/dashboard/propertyBoost/list",
-     /^\/dashboard\/propertyBoost\/list\/.*$/,
+    /^\/dashboard\/propertyBoost\/list\/.*$/,
   ],
   "LeadGen-TeamLead": [
     "/",
@@ -71,6 +73,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   Content: [
     "/",
+     "/spreadsheet",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
@@ -82,20 +85,23 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Sales: [
     "/",
     "/dashboard",
-    "/dashboard/spreadsheet",
+    "/spreadsheet",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
     "/dashboard/visits",
+     /^\/dashboard\/visits\/.*$/,
     "/dashboard/rolebaseLead",
     "/dashboard/goodtogoleads",
     "/dashboard/declinedleads",
+    "/dashboard/bookings",
+     /^\/dashboard\/bookings\/.*$/,
     "/dashboard/reminders",
     "/dashboard/catalogue",
     "/dashboard/propertyBoost",
     "/dashboard/propertyBoost/list",
-     /^\/dashboard\/propertyBoost\/list\/.*$/,
-  /^\/dashboard\/recommendations\/.*$/,
+    /^\/dashboard\/propertyBoost\/list\/.*$/,
+    /^\/dashboard\/recommendations\/.*$/,
     "/dashboard/newproperty/filteredProperties",
   ],
   "Sales-TeamLead": [
@@ -177,6 +183,7 @@ const publicRoutes = [
   /^\/login\/verify-otp\/.+$/,
   "/norole",
   "/dashboard/room/*",
+  "/application-form",
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

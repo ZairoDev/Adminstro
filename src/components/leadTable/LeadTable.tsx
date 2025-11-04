@@ -23,6 +23,7 @@ import {
   MessageSquareDashed,
   MessageSquareOff,
   CheckCheck,
+  Copy,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -78,6 +79,7 @@ import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
 import { AreaSelect} from "../leadTableSearch/page";
+import { FaWhatsapp } from "react-icons/fa6";
 
 interface AreaType {
   _id: string;
@@ -90,7 +92,7 @@ interface TargetType {
   areas: AreaType[];
 }
 
-export default function      LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
+export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
@@ -455,7 +457,7 @@ const handleSave = async (
         const res = await axios.get("/api/addons/target/getAreaFilterTarget");
         // const data = await res.json();
         setTargets(res.data.data);
-        console.log("targets: ", res.data.data);
+
       } catch (error) {
         console.error("Error fetching targets:", error);
       }
@@ -483,6 +485,7 @@ const handleSave = async (
               token?.role === "SuperAdmin" ||
               token?.role === "LeadGen") && <TableHead>Response</TableHead>}
             <TableHead>Name</TableHead>
+            <TableHead>Property Type</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
             <TableHead>Duration</TableHead>
@@ -647,17 +650,13 @@ const handleSave = async (
 
               <TableCell className="flex gap-x-1">
                 <Badge
-                  className={` ${
+                  className={`${
                     query.priority === "ASAP"
-                      ? "bg-green-950"
-                      : query.priority === "High"
-                      ? "bg-green-500"
-                      : query.priority === "Medium"
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
-                  } relative`}
+                      ? "bg-green-500 hover:bg-green-600"
+                      : "bg-gray-500 hover:bg-gray-600"
+                  }`}
                 >
-                  <p className="text-white">{query?.name} </p>
+                  <p className="text-white truncate">{query?.name}</p>
                 </Badge>
                 <Badge>
                   <CustomTooltip
@@ -678,42 +677,22 @@ const handleSave = async (
                   />
                 </Badge>
               </TableCell>
-              {/* <TableCell className="">
-                <div className="flex gap-x-2">
-                  <CustomTooltip
-                    icon={<Users size={18} />}
-                    content={query?.guest}
-                    desc="Number of guests"
-                  />
-                  <div> | </div>
-                  <CustomTooltip
-                    icon={<BedSingle size={18} />}
-                    content={query?.noOfBeds}
-                    desc="Number of Beds"
-                  />
-                </div>
-              </TableCell> */}
+
+              <TableCell>{query?.typeOfProperty}</TableCell>
+              
 
               <TableCell className="">
                 <div className="flex gap-x-2">
                   <TooltipEditableCell
-                    value={query?.guest.toString() ?? ""}
+                    value={query?.guest?.toString() ?? ""}
                     onSave={(val) => handleSave(query._id!, "guest", val)}
                     tooltipText="Number of guests"
                     icon={<Users size={18} />}
                     maxWidth="40px"
                   />
-                  {/* <CustomTooltip
-                    icon={<Users size={18} />}
-                    content={query?.guest}
-                    desc="Number of guests"
-                  /> */}
+                 
                   <div> | </div>
-                  {/* <CustomTooltip
-                    icon={<BedSingle size={18} />}
-                    content={query?.noOfBeds}
-                    desc="Number of Beds"
-                  /> */}
+                  
                   <TooltipEditableCell
                     value={query?.noOfBeds.toString() ?? ""}
                     onSave={(val) => handleSave(query._id!, "noOfBeds", val)}
@@ -776,11 +755,7 @@ const handleSave = async (
 
               <TableCell>
                 <div className=" flex gap-x-1">
-                  {/* <TooltipEditableCell
-                    value={query?.area ?? ""}
-                    onSave={(val) => handleSave(query._id!, "area", val)}
-                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
-                  /> */}
+                  
                   <AreaSelect
                     data={
                       targets
@@ -907,32 +882,33 @@ const handleSave = async (
               </TableCell>
               {/*)}*/}
               <TableCell>
-                {/* <Link
-                  href={`https://wa.me/${
-                    query?.phoneNo
-                  }?text=${encodeURIComponent(
-                    `Hello, ${query?.name}, how are you doing?`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    src="https://vacationsaga.b-cdn.net/assets/wsp.png"
-                    alt="icon image"
-                    className="h-8 w-8"
+                <div className=" flex gap-x-1">
+                  <Copy
+                    className="   cursor-pointer hover:bg-neutral-700/60 transition-colors"
+                    size={18}
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${query?.phoneNo}`);
+                      if (query.isViewed === false) {
+                        IsView(query?._id, index);
+                      }
+                    }}
                   />
-                </Link> */}
-                <p
-                  className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${query?.phoneNo}`);
-                    if (query.isViewed === false) {
-                      IsView(query?._id, index);
-                    }
-                  }}
-                >
-                  Details
-                </p>
+                  <Link
+                    href={`https://wa.me/${query?.phoneNo}?text=Hi%20${query?.name}%2C%20my%20name%20is%20${token?.name}%2C%20and%20how%20are%20you%20doing%3F`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FaWhatsapp
+                      className=" cursor-pointer  text-green-500"
+                      size={22}
+                      onClick={() => {
+                        if (query.isViewed === false) {
+                          IsView(query?._id, index);
+                        }
+                      }}
+                    />
+                  </Link>
+                </div>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -1128,18 +1104,7 @@ const handleSave = async (
                                 </DropdownMenuSubContent>
                               </DropdownMenuPortal>
                             </DropdownMenuSub>
-                            // <DropdownMenuItem
-                            //   onClick={() =>
-                            //     handleDisposition(
-                            //       query?._id,
-                            //       index,
-                            //       "declined"
-                            //     )
-                            //   }
-                            //   className=" flex items-center gap-x-2"
-                            // >
-                            //   Decline
-                            // </DropdownMenuItem>
+                            
                           )}
                         </>
                         {/* )}*/}
@@ -1158,14 +1123,15 @@ const handleSave = async (
                               "Different Area",
                               "Agency Fees",
                               "Low Duration",
-                            ].map((reason, ind) => (
+                            ].map((reason: string, ind) => (
                               <DropdownMenuItem
                                 key={ind}
                                 onClick={() =>
-                                  handleRejectionReason(
-                                    `${reason}`,
+                                  handleDisposition(
                                     query?._id,
-                                    index
+                                    index,
+                                    "rejected",
+                                    `${reason}`,
                                   )
                                 }
                               >

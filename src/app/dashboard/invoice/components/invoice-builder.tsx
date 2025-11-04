@@ -25,7 +25,7 @@ const INITIAL_DATA: InvoiceData = {
   totalAmount: 0,
   status: "unpaid",
   date: "",
-
+  nationality: "",
   // Booking
   checkIn: "",
   checkOut: "",
@@ -58,7 +58,7 @@ export default function InvoiceBuilder() {
       try {
         const res = await axios.get("/api/invoice");
         const { count } = res.data;
-        console.log("count: ", count);
+
         setData((prev) => ({ ...prev, invoiceNumber: `ZI-${count + 1}` }));
       } catch (err) {
         console.error("Error fetching invoice count:", err);
@@ -87,6 +87,7 @@ export default function InvoiceBuilder() {
       sgst: 0,
       igst: 0,
       cgst: 0,
+      nationality: "Indian",
       sacCode: 9985,
       status: "paid",
       date: "2025-08-25",
@@ -98,7 +99,7 @@ export default function InvoiceBuilder() {
     const handleSavePdf = ()=>{
       try{
         const res = axios.post("/api/invoice", data);
-        console.log(res);
+
       }
       catch(err){
         console.log(err);

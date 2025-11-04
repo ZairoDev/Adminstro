@@ -2,6 +2,7 @@ import { z } from "zod";
 import mongoose from "mongoose";
 
 const bookingSchema = z.object({
+  bookingId: z.string().optional(),
   lead: z.instanceof(mongoose.Schema.Types.ObjectId),
   visit: z.instanceof(mongoose.Schema.Types.ObjectId),
   checkIn: z.object({

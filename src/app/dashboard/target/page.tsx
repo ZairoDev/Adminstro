@@ -115,7 +115,7 @@ export default function TargetPage() {
       const firstAreas =
         sortedData.find((d) => d.city === firstCity)?.areas || [];
       if (firstAreas.length > 0) {
-        console.log("Default area:", firstAreas[0].name);
+
       }
 
       setLoading(false);

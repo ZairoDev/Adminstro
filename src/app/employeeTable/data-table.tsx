@@ -148,7 +148,6 @@ export function DataTable({
     try {
       setIsPasswordGenerating(true);
       const response = await axios.get("/api/resetAllPasswords");
-      console.log("response of reset password: ", response);
       if (response.status === 200) {
         toast({
           variant: "default",

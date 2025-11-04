@@ -66,7 +66,6 @@ export async function PATCH(req: NextRequest) {
       visitSchedule: property?.visitSchedule ? property?.visitSchedule : "",
     };
 
-    console.log("property object: ", propertyObject);
 
     const room = await Rooms.findOneAndUpdate(
       { _id: roomId },

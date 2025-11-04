@@ -11,7 +11,7 @@ interface RequestBody {
 export async function POST(request: NextRequest) {
   const reqBody: RequestBody = await request.json();
   const { userId } = reqBody;
-  console.log(userId);
+
   const user = await Users.findOne({ _id: userId });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

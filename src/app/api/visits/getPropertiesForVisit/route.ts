@@ -5,9 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const { userMobile } = await req.json();
+  // console.log(userMobile);
 
   try {
     const user = await Users.findOne({ phone: userMobile });
+   
 
     if (!user) {
       return NextResponse.json(
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
     const userId = user._id.toString();
     let totalProperties: any[] = [];
-    console.log("userId: ", userId);
+
     if (userId) {
       const siteListings = await Properties.find({ userId: userId });
       if (siteListings) totalProperties = [...siteListings];

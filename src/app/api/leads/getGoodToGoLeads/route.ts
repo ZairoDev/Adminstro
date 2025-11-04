@@ -255,8 +255,8 @@ export async function POST(req: NextRequest) {
 
 
     
- console.log("alloted area: ", allotedArea);
- console.log("assigned area: ", assignedArea);
+//  console.log("alloted area: ", allotedArea);
+//  console.log("assigned area: ", assignedArea);
 
 
   const pipeline = [
@@ -366,7 +366,7 @@ export async function POST(req: NextRequest) {
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / LIMIT);
 
-    console.log("words count: ", wordsCount);
+    // console.log("words count: ", wordsCount);
     return NextResponse.json({
       data: allquery,
       PAGE,

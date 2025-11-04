@@ -102,7 +102,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
   const getVisitData = async()=>{
     try {
       const response = await axios.post(`/api/visits/getVisitById`, {visitId: visit});
-      console.log(response.data.data);
+
       setVisits(response.data.data);
     } catch (error) {
       console.log(error);
@@ -112,7 +112,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
     try {
       const response = await axios.get(`/api/employee/getSalesEmployee`);
       setEmployees(response.data.emp);
-      console.log(response.data);
+
     } catch (error) {
       console.log(error);
     }
@@ -149,7 +149,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       [key]: typeof value === "string" ? value.trim() : value,
     }));
   };
-  console.log("lead: ", lead, "visit: ", visit);
+
 
   return (
     <div className=" flex flex-col gap-y-2">

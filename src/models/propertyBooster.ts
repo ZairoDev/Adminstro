@@ -13,7 +13,21 @@ const propertyBoosterSchema = new mongoose.Schema(
       type: String,
       default: () => generateBoostID(6),
     },
+    vsid: {
+      type: String,
+
+    },
     title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    ownerName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    ownerPhone: {
       type: String,
       required: true,
       trim: true,
@@ -23,7 +37,8 @@ const propertyBoosterSchema = new mongoose.Schema(
       required: true,
       trim: true, 
     },
-    url: {
+    
+    location: {
       type: String,
     },
     images: [
@@ -36,6 +51,15 @@ const propertyBoosterSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    url: {
+      type: String,
+      default:null,
+    },
+    reboost: {
+      type: Boolean,
+      default: false,
+    },
+     lastReboostedAt: { type: Date, default: null },
     createdAt: {
       type: Date,
       default: Date.now,

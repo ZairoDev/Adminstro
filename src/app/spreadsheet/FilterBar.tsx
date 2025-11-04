@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState, useCallback } from "react";
+
 import {
   Select,
   SelectItem,
@@ -10,19 +12,15 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover";
 
-import { DateRange } from "react-day-picker";
-
-import { useEffect, useMemo, useState, useCallback } from "react";
 import axios from "axios";
+import { DateRange } from "react-day-picker";
+import { X, Search, Star, Pin, Euro, ArrowUp, ArrowDown } from "lucide-react";
+
 import { useAuthStore } from "@/AuthStore";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
-import { X, Search } from "lucide-react";
+
 
 interface PageProps {
   filters: FiltersInterfaces;
@@ -39,7 +37,6 @@ interface AreaType {
   city: string;
   name: string;
 }
-
 export interface FiltersInterfaces {
   searchType: string;
   searchValue: string;
@@ -53,91 +50,20 @@ export interface FiltersInterfaces {
   sortByPrice?: "asc" | "desc" | "";
   beds: number;
   dateRange: DateRange | undefined;
+  isImportant?: boolean;
+  isPinned?: boolean;
 }
 
-const apartmentTypes = [
-  "1 Bedroom",
-  "2 Bedroom",
-  "3 Bedroom",
-  "4 Bedroom",
-  "Villa",
-  "Pent House",
-  "Detached House",
-  "Loft",
-  "Shared Apartment",
-  "Maisotte",
-  "Studio",
-];
+const apartmentTypes = ["1 Bedroom","2 Bedroom","3 Bedroom","4 Bedroom","Villa","Pent House","Detached House","Loft","Shared Apartment","Maisotte","Studio",];
 
 // Common name patterns and indicators
 const NAME_INDICATORS = {
   // Common first name prefixes/suffixes
   prefixes: ["mc", "mac", "van", "von", "de", "la", "el"],
-  suffixes: [
-    "son",
-    "sen",
-    "ez",
-    "es",
-    "is",
-    "os",
-    "us",
-    "ian",
-    "yan",
-    "ski",
-    "sky",
-    "ov",
-    "ova",
-  ],
-
+  suffixes: ["son","sen","ez","es","is","os","us","ian","yan","ski","sky","ov","ova",],
   // Common short names that might look like VSID
-  commonShortNames: [
-    "sam",
-    "max",
-    "ben",
-    "tom",
-    "tim",
-    "jim",
-    "bob",
-    "rob",
-    "dan",
-    "mat",
-    "pat",
-    "joe",
-    "jon",
-    "ann",
-    "amy",
-    "eva",
-    "ada",
-    "may",
-    "kay",
-    "joy",
-    "sue",
-    "kim",
-    "lee",
-    "ray",
-    "roy",
-    "alex",
-    "john",
-    "mary",
-    "jane",
-    "jose",
-    "anna",
-    "nina",
-    "emma",
-    "ella",
-    "sara",
-    "eleni",
-    "elena",
-    "ivan",
-    "igor",
-    "olga",
-    "omar",
-    "alan",
-    "adam",
-    "eric",
-    "evan",
-  ],
-
+  commonShortNames: ["sam","max","ben","tom","tim","jim","bob","rob","dan","mat","pat","joe","jon","ann","amy","eva","ada","may","kay","joy","sue","kim","lee","ray",
+    "roy","alex","john","mary", "jane", "jose", "anna", "nina","emma","ella","sara","eleni", "elena", "ivan", "igor", "olga","omar","alan","adam","eric", "evan", "mike",],
   // Patterns that indicate it's likely a name
   namePatterns: [
     /^[a-z]{2,}[aeiou][a-z]*$/i, // Contains vowels in natural positions
@@ -348,6 +274,8 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [areas, setAreas] = useState<AreaType[]>([]);
+  const [isImportant, setIsImportant] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [localSearchValue, setLocalSearchValue] = useState<string>(
     filters.searchValue || ""
   );
@@ -562,77 +490,103 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
   }, [filters.place, targets]);
 
   const getActiveFilters = () => {
-    const active: Array<{ key: string; label: string; value: any }> = [];
+  const active: Array<{ key: string; label: string; value: any }> = [];
 
-    if (filters.searchType && filters.searchValue) {
+  if (filters.searchType && filters.searchValue) {
+    active.push({
+      key: "search",
+      label: `${filters.searchType}: ${filters.searchValue}`,
+      value: null,
+    });
+  }
+  if (filters.propertyType) {
+    active.push({
+      key: "propertyType",
+      label: `Type: ${filters.propertyType}`,
+      value: null,
+    });
+  }
+  if (filters.place && filters.place.length > 0) {
+    active.push({
+      key: "place",
+      label: `Location: ${filters.place.join(", ")}`,
+      value: null,
+    });
+  }
+  
+  // ✅ CHANGED: Individual area chips instead of combined
+  if (filters.area && filters.area.length > 0) {
+    filters.area.forEach((areaValue) => {
       active.push({
-        key: "search",
-        label: `${filters.searchType}: ${filters.searchValue}`,
-        value: null,
+        key: `area-${areaValue}`,
+        label: `Area: ${areaValue}`,
+        value: areaValue, // ✅ Store the area value for removal
       });
-    }
-    if (filters.propertyType) {
-      active.push({
-        key: "propertyType",
-        label: `Type: ${filters.propertyType}`,
-        value: null,
-      });
-    }
-    if (filters.place && filters.place.length > 0) {
-      active.push({
-        key: "place",
-        label: `Location: ${filters.place.join(", ")}`,
-        value: null,
-      });
-    }
-    if (filters.area && filters.area.length > 0) {
-      active.push({
-        key: "area",
-        label: `Area: ${filters.area.join(", ")}`,
-        value: null,
-      });
-    }
-    if (filters.zone) {
-      active.push({ key: "zone", label: `Zone: ${filters.zone}`, value: null });
-    }
-    if (filters.metroZone) {
-      active.push({
-        key: "metroZone",
-        label: `Metro: ${filters.metroZone}`,
-        value: null,
-      });
-    }
-    if (filters.minPrice !== null && filters.minPrice > 0) {
-      active.push({
-        key: "minPrice",
-        label: `Min: ${filters.minPrice}`,
-        value: null,
-      });
-    }
-    if (filters.maxPrice !== null && filters.maxPrice > 0) {
-      active.push({
-        key: "maxPrice",
-        label: `Max: ${filters.maxPrice}`,
-        value: null,
-      });
-    }
-    if (filters.sortByPrice) {
-      active.push({
-        key: "sortByPrice",
-        label: `Sort: ${filters.sortByPrice}`,
-        value: null,
-      });
-    }
-    if (filters.beds > 0) {
-      active.push({ key: "beds", label: `Beds: ${filters.beds}`, value: null });
-    }
+    });
+  }
+  
+  if (filters.zone) {
+    active.push({ key: "zone", label: `Zone: ${filters.zone}`, value: null });
+  }
+  if (filters.metroZone) {
+    active.push({
+      key: "metroZone",
+      label: `Metro: ${filters.metroZone}`,
+      value: null,
+    });
+  }
+  if (filters.minPrice !== null && filters.minPrice > 0) {
+    active.push({
+      key: "minPrice",
+      label: `Min: ${filters.minPrice}`,
+      value: null,
+    });
+  }
+  if (filters.maxPrice !== null && filters.maxPrice > 0) {
+    active.push({
+      key: "maxPrice",
+      label: `Max: ${filters.maxPrice}`,
+      value: null,
+    });
+  }
+  if (filters.sortByPrice) {
+    active.push({
+      key: "sortByPrice",
+      label: `Sort: ${filters.sortByPrice}`,
+      value: null,
+    });
+  }
+  if (filters.beds > 0) {
+    active.push({ key: "beds", label: `Beds: ${filters.beds}`, value: null });
+  }
 
-    return active;
-  };
+  if (filters.isImportant) {
+    active.push({
+      key: "isImportant",
+      label: "⭐ Important",
+      value: null,
+    });
+  }
 
+  if (filters.isPinned) {
+    active.push({ key: "isPinned", label: "📌 Pinned", value: null });
+  }
+
+  return active;
+};
   const activeFilters = getActiveFilters();
 
   const removeFilter = (key: string) => {
+
+     if (key.startsWith("area-")) {
+    const areaToRemove = key.replace("area-", "");
+    setFilters({
+      ...filters,
+      area: filters.area.filter((a) => a !== areaToRemove),
+    });
+    return; // ✅ Important: return early to skip the switch statement
+  }
+
     const updatedFilters = { ...filters };
 
     switch (key) {
@@ -648,9 +602,9 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
       case "place":
         updatedFilters.place = [];
         break;
-      case "area":
-        updatedFilters.area = [];
-        break;
+      // case "area":
+      //   updatedFilters.area = [];
+      //   break;
       case "zone":
         updatedFilters.zone = "";
         break;
@@ -669,6 +623,11 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
       case "beds":
         updatedFilters.beds = 0;
         break;
+      case "isImportant":
+        updatedFilters.isImportant = false;
+        break;
+      case "isPinned":
+        updatedFilters.isPinned = false;
       default:
         break;
     }
@@ -692,6 +651,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
       sortByPrice: "",
       beds: 0,
       dateRange: undefined,
+      isImportant: false,
     });
   };
 
@@ -767,20 +727,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
               </button>
             </div>
 
-            {/* Helper text with search hints */}
-            {/* {localSearchValue && detectionResult && (
-              <span className="absolute -bottom-5 left-0 text-xs text-muted-foreground">
-                {detectionResult.type === "partialPhone"
-                  ? "Searching phones containing these digits"
-                  : detectionResult.type === "VSID" &&
-                    detectionResult.searchStrategy === "partial"
-                  ? "Partial VSID match"
-                  : detectionResult.confidence === "low"
-                  ? "Unsure of type - will search as: " +
-                    getSearchTypeLabel(detectionResult)
-                  : "Press Enter to search"}
-              </span>
-            )} */}
+            
           </div>
 
           <Select
@@ -857,7 +804,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
             </SelectContent>
           </Select>
 
-          <div className="w-40">
+          <div className="w-50">
             <MultiAreaSelect
               maxWidth="100%"
               data={[...areas]
@@ -874,28 +821,102 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
             />
           </div>
 
-          <Select
-            onValueChange={(value) => setFilters({ ...filters, zone: value })}
-            value={filters.zone}
-          >
-            <SelectTrigger className="w-36 h-9">
-              <SelectValue placeholder="Select Zone" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Zones</SelectLabel>
-                <SelectItem value="North">North</SelectItem>
-                <SelectItem value="South">South</SelectItem>
-                <SelectItem value="East">East</SelectItem>
-                <SelectItem value="West">West</SelectItem>
-                <SelectItem value="Central">Centre</SelectItem>
-                <SelectItem value="North-East">North-East</SelectItem>
-                <SelectItem value="North-West">North-West</SelectItem>
-                <SelectItem value="South-East">South-East</SelectItem>
-                <SelectItem value="South-West">South-West</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+         <Select
+  onValueChange={(value) => setFilters({ ...filters, zone: value })}
+  value={filters.zone}
+>
+  <SelectTrigger
+    className={`w-36 h-9 flex items-center justify-between transition-all border
+      ${
+        filters.zone === "North"
+          ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
+          : filters.zone === "South"
+          ? "border-red-500 text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400"
+          : filters.zone === "East"
+          ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+          : filters.zone === "West"
+          ? "border-yellow-500 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400"
+          : filters.zone === "Centre"
+          ? "border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400"
+          : filters.zone?.includes("North-")
+          ? "border-cyan-500 text-cyan-600 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-400"
+          : filters.zone?.includes("South-")
+          ? "border-pink-500 text-pink-600 bg-pink-50 dark:bg-pink-900/30 dark:text-pink-400"
+          : "border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+      }`}
+  >
+    <SelectValue placeholder="Select Zone" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectGroup>
+      <SelectLabel>Zones</SelectLabel>
+
+      <SelectItem value="North">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+          North
+        </div>
+      </SelectItem>
+
+      <SelectItem value="South">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+          South
+        </div>
+      </SelectItem>
+
+      <SelectItem value="East">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+          East
+        </div>
+      </SelectItem>
+
+      <SelectItem value="West">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+          West
+        </div>
+      </SelectItem>
+
+      <SelectItem value="Centre">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-purple-500" />
+          Centre
+        </div>
+      </SelectItem>
+
+      <SelectItem value="North-East">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-cyan-500" />
+          North-East
+        </div>
+      </SelectItem>
+
+      <SelectItem value="North-West">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-cyan-600" />
+          North-West
+        </div>
+      </SelectItem>
+
+      <SelectItem value="South-East">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-pink-500" />
+          South-East
+        </div>
+      </SelectItem>
+
+      <SelectItem value="South-West">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-pink-600" />
+          South-West
+        </div>
+      </SelectItem>
+    </SelectGroup>
+  </SelectContent>
+</Select>
+
 
           <Select
             onValueChange={(value) =>
@@ -903,7 +924,22 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
             }
             value={filters.metroZone}
           >
-            <SelectTrigger className="w-36 h-9">
+            <SelectTrigger
+              className={`w-36 h-9 flex items-center justify-between transition-all border
+      ${
+        filters.metroZone === "Red Line"
+          ? "border-red-500 text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400"
+          : filters.metroZone === "Blue Line"
+          ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
+          : filters.metroZone === "Green Line"
+          ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+          : filters.metroZone === "Yellow Line"
+          ? "border-yellow-500 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400"
+          : filters.metroZone === "Purple Line"
+          ? "border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400"
+          : "border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+      }`}
+            >
               <SelectValue placeholder="Metro Line" />
             </SelectTrigger>
             <SelectContent>
@@ -920,8 +956,13 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="h-9">
-                Price Range
+              <Button
+                variant="outline"
+                className={`h-9 flex items-center gap-2 px-3 transition-all border text-green-600 border-green-500 
+    hover:bg-green-50 dark:hover:bg-green-900`}
+              >
+                <Euro className="h-4 w-4 text-green-600" />
+                <span>Price Range</span>
               </Button>
             </PopoverTrigger>
 
@@ -966,7 +1007,14 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
 
           <Button
             variant="outline"
-            className="h-9"
+            className={`h-9 flex items-center gap-2 px-3 transition-all border
+    ${
+      filters.sortByPrice === "asc"
+        ? "bg-green-500 hover:bg-green-600 text-white border-green-500 dark:bg-green-400 dark:hover:bg-green-300 dark:text-gray-900"
+        : filters.sortByPrice === "desc"
+        ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500 dark:bg-blue-400 dark:hover:bg-blue-300 dark:text-gray-900"
+        : "text-gray-600 border-gray-400 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+    }`}
             onClick={() => {
               setFilters({
                 ...filters,
@@ -979,11 +1027,74 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
               });
             }}
           >
-            {filters.sortByPrice === "asc"
-              ? "↑ Increasing"
-              : filters.sortByPrice === "desc"
-              ? "↓ Decreasing"
-              : "Sort by Price"}
+            {filters.sortByPrice === "asc" ? (
+              <>
+                <ArrowUp className="h-4 w-4" />
+                <span>Increasing</span>
+              </>
+            ) : filters.sortByPrice === "desc" ? (
+              <>
+                <ArrowDown className="h-4 w-4" />
+                <span>Decreasing</span>
+              </>
+            ) : (
+              <>
+                <ArrowUp className="h-4 w-4 text-gray-500" />
+                <span>Sort by Price</span>
+              </>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            className={`h-9 flex items-center gap-2 px-3 transition-all border
+    ${
+      filters.isImportant
+        ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500 dark:bg-yellow-400 dark:hover:bg-yellow-300 dark:text-gray-900"
+        : "text-yellow-500 border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900"
+    }`}
+            onClick={() => {
+              setFilters({
+                ...filters,
+                isImportant: !filters.isImportant,
+              });
+            }}
+          >
+            <Star
+              className={`h-4 w-4 transition-all
+      ${
+        filters.isImportant
+          ? "fill-white text-white dark:fill-gray-900 dark:text-gray-900"
+          : "text-yellow-500"
+      }`}
+            />
+            <span>Star</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            className={`h-9 flex items-center gap-2 px-3 transition-all border
+    ${
+      filters.isPinned
+        ? "bg-red-500 hover:bg-red-600 text-white border-red-500 dark:bg-red-400 dark:hover:bg-red-300 dark:text-gray-900"
+        : "text-red-500 border-red-500 hover:bg-blue-50 dark:hover:bg-red-900"
+    }`}
+            onClick={() => {
+              setFilters({
+                ...filters,
+                isPinned: !filters.isPinned,
+              });
+            }}
+          >
+            <Pin
+              className={`h-4 w-4 transition-all
+      ${
+        filters.isPinned
+          ? "fill-white text-white dark:fill-gray-900 dark:text-gray-900"
+          : "text-red-500"
+      }`}
+            />
+            <span>Pin</span>
           </Button>
         </div>
       </div>
@@ -1019,4 +1130,6 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
     </div>
   );
 };
+
+
 export default FilterBar;

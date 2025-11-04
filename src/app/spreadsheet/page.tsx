@@ -50,6 +50,8 @@ const Spreadsheet = () => {
     maxPrice: 0,
     beds: 0,
     dateRange: undefined,
+    isImportant:false,
+    isPinned:false
   });
 
   const [limit, setLimit] = useState(DEFAULT_LIMIT);

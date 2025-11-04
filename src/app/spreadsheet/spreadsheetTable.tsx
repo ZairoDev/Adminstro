@@ -800,10 +800,10 @@ export function SpreadsheetTable({
                     (!item.link || item.link.trim() === "") &&
                     (!item.referenceLink || item.referenceLink.trim() === "") &&
                     (!item.imageUrls || item.imageUrls.length === 0)
-                      ? "bg-red-100 dark:bg-red-900/30"
+                      ? "bg-red-100 dark:bg-red-700/30"
                       : (!item.VSID || item.VSID.trim() === "") &&
                         (!item.link || item.link.trim() === "")
-                      ? "bg-blue-100 dark:bg-blue-900/30"
+                      ? "bg-blue-100 dark:bg-blue-700/30"
                       : ""
                   }`}
                 >

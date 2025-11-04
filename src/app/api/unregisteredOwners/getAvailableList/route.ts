@@ -24,6 +24,14 @@ export async function POST(req: NextRequest) {
     if (filters.place) {
   const locations = filters.place.flat().filter(loc => typeof loc === 'string');
 
+  if (filters.isImportant) {
+  query["isImportant"] = "Important"; // or whatever value you use for important items
+}
+
+if (filters.isPinned) {
+  query["isPinned"] = "Pinned"; // or whatever value you use for important items
+}
+
   if (locations.length > 0) {
     query["$or"] = locations.map(loc => ({
       location: { $regex: new RegExp(`^${loc}$`, "i") }

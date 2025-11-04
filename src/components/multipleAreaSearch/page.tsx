@@ -95,22 +95,26 @@ export function MultiAreaSelect({
             <div className="flex items-center gap-2 flex-wrap truncate">
               {icon}
               {values.length > 0 ? (
-                values.map((v) => (
+                <>
                   <Badge
-                    key={v}
                     variant="secondary"
                     className="flex items-center gap-1 text-xs bg-gray-800 border border-gray-600 text-gray-100"
                   >
-                    {getLabel(v)}
+                    {getLabel(values[0])}
                     <X
                       className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRemoveChip(v);
+                        handleRemoveChip(values[0]);
                       }}
                     />
                   </Badge>
-                ))
+                  {values.length > 1 && (
+                    <span className="text-xs text-gray-400">
+                      +{values.length - 1} 
+                    </span>
+                  )}
+                </>
               ) : (
                 <span className="text-gray-400">Select Areas</span>
               )}

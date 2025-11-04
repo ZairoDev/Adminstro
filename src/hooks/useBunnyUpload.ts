@@ -27,8 +27,8 @@ export const useBunnyUpload = () => {
           file.type === "image/webp" ||
           file.type === "video/mp4" ||
           file.type === "video/webm" ||
-          file.type === "video/ogg"
-        )
+          file.type === "video/ogg" ||
+          file.type === "application/pdf"      )
       ) {
         return {
           imageUrls: [],

@@ -7,12 +7,14 @@ type EditableCopyCellProps = {
   value: string | null | undefined
   onSave: (newValue: string) => void
   maxWidth?: string
+  allowOnlyNumbers?: boolean // NEW: Only allow numbers (for phone)
 }
 
 export function EditableCopyCell({
   value,
   onSave,
-  maxWidth = "160px", // increased default width
+  maxWidth = "160px",
+  allowOnlyNumbers = false, // NEW: Default false to not break existing usage
 }: EditableCopyCellProps) {
   const safeValue = value ?? "" // fallback to empty string
   const [isEditing, setIsEditing] = useState(false)
@@ -30,6 +32,17 @@ export function EditableCopyCell({
       onSave(trimmed)
     }
     setIsEditing(false)
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue = e.target.value
+    
+    // If allowOnlyNumbers is true, remove everything except digits
+    if (allowOnlyNumbers) {
+      newValue = newValue.replace(/[^\d]/g, "") // Only keep digits 0-9
+    }
+    
+    setDraft(newValue)
   }
 
   return (
@@ -51,7 +64,7 @@ export function EditableCopyCell({
           className="border rounded px-2 py-1 w-full text-sm"
           autoFocus
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={handleChange}
           onBlur={handleSave}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSave()

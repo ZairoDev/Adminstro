@@ -98,6 +98,7 @@ export  function UploadCell({ item, onUploadComplete }: UploadCellProps) {
 
     return (
       <div
+        className=" w-32"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -113,7 +114,7 @@ export  function UploadCell({ item, onUploadComplete }: UploadCellProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="p-0 h-6 w-6"
+          className=" h-6 w-full"
           disabled={loading || isUploading}
           onClick={(e) => {
             e.stopPropagation();
@@ -135,13 +136,20 @@ export  function UploadCell({ item, onUploadComplete }: UploadCellProps) {
           {isUploading ? (
             <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
           ) : (
-            <ImageUp
-              className={`h-4 w-4 ${
-                hasImages
-                  ? "text-green-600 dark:text-green-500"
-                  : "text-muted-foreground"
-              }`}
-            />
+            <div
+  className={`flex gap-2  cursor-pointer`}
+>
+  <ImageUp
+    className={`h-4 w-4 transition-colors ${
+      hasImages
+        ? "text-green-600 dark:text-green-400"
+        : "text-muted-foreground"
+    }`}
+  /> 
+  <span className="text-sm font-medium">Upload</span>
+</div>
+
+            
           )}
         </Button>
       </div>

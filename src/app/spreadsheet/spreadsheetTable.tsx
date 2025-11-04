@@ -35,6 +35,7 @@ import { DownloadCell } from "./components/cells/DownloadCell";
 import { ActionMenu } from "./components/table/ActionMenu";
 import { SpreadsheetFormulaBar } from "./components/table/SpreadsheetFormulaBar";
 import { SpreadsheetHeader } from "./components/table/SpreadsheetHeader";
+import { formatPhoneNumber } from "./utils/formatters";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -50,7 +51,28 @@ export const apartmentTypes = [
   { label: "Maisotte", value: "Maisotte" },
 ];
 
-const columnWidths = {
+// Small screens
+const smallColumnWidths = {
+  serial: "w-[70px] min-w-[70px] max-w-[70px]",
+  name: "w-[140px] min-w-[140px] max-w-[140px]",
+  phone: "w-[90px] min-w-[90px] max-w-[90px]",
+  location: "w-[100px] min-w-[100px] max-w-[100px]",
+  price: "w-[95px] min-w-[95px] max-w-[95px]",
+  area: "w-[110px] min-w-[110px] max-w-[110px]",
+  availability: "w-[60px] min-w-[60px] max-w-[60px]",
+  interiorStatus: "w-[70px] min-w-[70px] max-w-[70px]",
+  petStatus: "w-[70px] min-w-[70px] max-w-[70px]",
+  propertyType: "w-[130px] min-w-[130px] max-w-[130px]",
+  remarks: "w-[150px] min-w-[150px] max-w-[150px]",
+  refLink: "w-[120px] min-w-[120px] max-w-[120px]",
+  vsLink: "w-[120px] min-w-[120px] max-w-[120px]",
+  vsid: "w-[100px] min-w-[100px] max-w-[100px]",
+  address: "w-[160px] min-w-[160px] max-w-[160px]",
+  actions: "w-[50px] min-w-[50px] max-w-[50px]",
+};
+
+// Large screens
+const largeColumnWidths = {
   serial: "w-[80px] min-w-[80px] max-w-[80px]",
   name: "w-[150px] min-w-[150px] max-w-[150px]",
   phone: "w-[120px] min-w-[120px] max-w-[120px]",
@@ -68,6 +90,7 @@ const columnWidths = {
   address: "w-[180px] min-w-[180px] max-w-[180px]",
   actions: "w-[80px] min-w-[80px] max-w-[80px]",
 };
+
 
 const propertyTypeColors: Record<string, string> = {
   Studio: "bg-blue-200 dark:bg-blue-800/30 text-blue-900 dark:text-blue-200",
@@ -100,6 +123,23 @@ export function SpreadsheetTable({
   serialOffset: number;
   onAvailabilityChange?: () => void;
 }): ReactElement {
+
+  const [isLargeScreen, setIsLargeScreen] = useState(true);
+
+useEffect(() => {
+  const handleResize = () => {
+    // ✅ Treat 1440px and below (MacBook Air or smaller) as "small"
+    setIsLargeScreen(window.innerWidth > 1629);
+  };
+
+  handleResize(); // Run once on mount
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
+
+const columnWidths = isLargeScreen ? largeColumnWidths : smallColumnWidths;
+
+
   const columns = [
     {
       label: "S.No",
@@ -421,11 +461,11 @@ export function SpreadsheetTable({
       VSID: "",
       name: "",
       phoneNumber: "",
-      location: "",
+      location: "Unknown",
       price: "",
       interiorStatus: "Fully Furnished",
       petStatus: "None",
-      propertyType: "studio",
+      propertyType: "Unknown",
       link: "",
       area: "",
       referenceLink: "",
@@ -974,6 +1014,8 @@ export function SpreadsheetTable({
                       onSave={(newValue) =>
                         handleSave(item._id, "phoneNumber", newValue)
                       }
+                      allowOnlyNumbers={true}
+                     
                     />
 
                     <Link

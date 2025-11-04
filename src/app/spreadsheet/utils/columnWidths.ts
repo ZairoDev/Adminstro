@@ -1,5 +1,5 @@
 export const columnWidths = {
-  serial: "w-[80px] min-w-[80px] max-w-[80px]",
+  serial: "w-[40px] min-w-[40px] max-w-[40px]",
   name: "w-[150px] min-w-[150px] max-w-[150px]",
   phone: "w-[120px] min-w-[120px] max-w-[120px]",
   location: "w-[120px] min-w-[120px] max-w-[120px]",

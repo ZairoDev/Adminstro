@@ -34,10 +34,11 @@ export function DownloadCell({ item }: { item: unregisteredOwners }) {
       <Button
         variant="ghost"
         size="icon"
-        className="p-0 h-6 w-6"
+        className="p-0 h-6 w-32 "
         onClick={handleDownloadZip}
       >
         <Download className="h-4 w-4 text-muted-foreground" />
+        <span className="ml-2 text-sm">Download</span>
       </Button>
     );
   }

@@ -19,6 +19,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/dashboard",
+    "/spreadsheet",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
     /^\/dashboard\/property$/,
@@ -33,7 +34,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard",
     "/dashboard/addons",
     "/dashboard/createquery",
-    "/dashboard/spreadsheet",
+    "/spreadsheet",
 
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/userdetails\/.*$/,

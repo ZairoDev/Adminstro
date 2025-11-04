@@ -1,20 +1,26 @@
-"use client";
+'use client';
 import { useState } from "react";
 import type React from "react";
-
 import {
   Briefcase,
   Upload,
   X,
   CheckCircle,
-  MapPin,
-  Mail,
-  Phone,
   User,
   Award,
   FileText,
+  Loader2,
+  AlertCircle,
+  Mail,
+  Phone,
+  MapPin,
   Linkedin,
+  Globe,
 } from "lucide-react";
+import Image from "next/image";
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { toast } from "@/hooks/use-toast";
+import axios from "axios";
 
 const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
 const countryCodes = [
@@ -32,7 +38,10 @@ const countryCodes = [
 
 export default function JobApplicationForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [resume, setResume] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -43,7 +52,7 @@ export default function JobApplicationForm() {
     city: "",
     country: "",
     position: positions[0],
-    resume: null as File | null,
+    resume: "",
     coverLetter: "",
     linkedin: "",
     portfolio: "",
@@ -59,43 +68,163 @@ export default function JobApplicationForm() {
     if (errors[name]) {
       setErrors({ ...errors, [name]: "" });
     }
+    setSubmitError("");
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        setErrors({ ...errors, resume: "File size must be less than 10MB" });
+
+  const { uploadFiles } = useBunnyUpload();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      console.log("No file selected");
+      return;
+    }
+
+    const file = files[0];
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors({ ...errors, resume: "File size must be less than 10MB" });
+      return;
+    }
+
+    e.target.value = ""; // reset input
+
+    try {
+      setLoading(true);
+      console.log("Uploading resume to Bunny...");
+
+      const { imageUrls, error } = await uploadFiles([file], "Resumes");
+
+      if (error || !imageUrls?.length) {
+        console.error("Upload failed:", error);
+        toast({
+          title: "Upload failed",
+          description: error || "No URL returned from Bunny.",
+          variant: "destructive",
+        });
+        setLoading(false);
         return;
       }
-      setFormData({ ...formData, resume: file });
+
+      // Success — store Bunny URL in form data
+      const resumeUrl = imageUrls[0] || "";
+      console.log("Resume uploaded successfully:", resumeUrl);
+
+      setFormData({ ...formData, resume: resumeUrl }); // store URL instead of file
       setErrors({ ...errors, resume: "" });
+
+      toast({
+        title: "Resume uploaded successfully",
+        description: "Your resume has been uploaded to Bunny.",
+      });
+    } catch (err) {
+      console.error("Resume upload error:", err);
+      toast({
+        title: "Upload failed",
+        description: "An unexpected error occurred while uploading.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const removeFile = () => {
-    setFormData({ ...formData, resume: null });
+    setFormData({ ...formData, resume: "" });
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(formData.phone)) {
       newErrors.phone = "Please enter a valid 10-digit phone number";
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = "City is required";
+    }
+
+    if (!formData.country.trim()) {
+      newErrors.country = "Country is required";
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = "Address is required";
+    }
+
+    if (!formData.experience) {
+      newErrors.experience = "Experience is required";
+    }
+
+    if (!formData.resume) {
+      newErrors.resume = "Resume is required";
     }
 
     if (formData.linkedin && !formData.linkedin.includes("linkedin.com")) {
       newErrors.linkedin = "Please enter a valid LinkedIn URL";
     }
 
+    if (formData.portfolio && !/^https?:\/\/.+/.test(formData.portfolio)) {
+      newErrors.portfolio = "Please enter a valid URL";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      console.log(formData);
+    setSubmitError("");
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const submitData = new FormData();
+      submitData.append("name", formData.name);
+      submitData.append("email", formData.email);
+      submitData.append("phone", `${formData.countryCode}${formData.phone}`);
+      submitData.append("experience", formData.experience);
+      submitData.append("address", formData.address);
+      submitData.append("city", formData.city);
+      submitData.append("country", formData.country);
+      submitData.append("position", formData.position);
+      submitData.append("coverLetter", formData.coverLetter);
+      submitData.append("linkedin", formData.linkedin);
+      submitData.append("portfolio", formData.portfolio);
+      if (formData.resume) {
+        submitData.append("resume", formData.resume);
+      }
+
+      // const response = await fetch("/api/job-application/setInterview", {
+      //   method: "POST",
+      //   body: submitData,
+      // });
+
+      const response  = await axios.post("/api/job-application/setInterview", formData);
+
+      // const result = await response.json();
+
+      // if (!response.ok) {
+      //   throw new Error(result.error || "Failed to submit application");
+      // }
+
       setSubmitted(true);
       setTimeout(() => {
         setSubmitted(false);
@@ -109,36 +238,42 @@ export default function JobApplicationForm() {
           city: "",
           country: "",
           position: positions[0],
-          resume: null,
+          resume: "",
           coverLetter: "",
           linkedin: "",
           portfolio: "",
         });
-      }, 4000);
+        setResume(null);
+      }, 5000);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to submit application"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-lg text-center transform animate-pulse">
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
-            <CheckCircle
-              className="relative w-24 h-24 text-green-500 mx-auto"
-              strokeWidth={2}
-            />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6">
+        <div className="bg-card rounded-3xl shadow-[var(--shadow-large)] p-8 sm:p-12 max-w-lg w-full text-center animate-in fade-in duration-500">
+          <div className="relative inline-flex mb-6">
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl"></div>
+            <div className="relative bg-primary/10 rounded-full p-4">
+              <CheckCircle className="w-16 h-16 text-primary" strokeWidth={2} />
+            </div>
           </div>
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Application Submitted Successfully!
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
+            Application Submitted!
           </h2>
-          <p className="text-gray-600 text-lg mb-6">
+          <p className="text-muted-foreground text-sm sm:text-base mb-6 leading-relaxed">
             Thank you for applying to Zairo International. Our HR team will
             review your application and contact you within 3-5 business days.
           </p>
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
-            <p className="text-sm text-gray-600">
-              <strong>Application ID:</strong> ZI-
+          <div className="bg-accent rounded-2xl p-4 border border-border">
+            <p className="text-sm text-foreground">
+              <span className="font-semibold">Application ID:</span> ZI-
               {Date.now().toString().slice(-8)}
             </p>
           </div>
@@ -148,104 +283,136 @@ export default function JobApplicationForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-12 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Enhanced Header */}
-        <div className="text-center mb-12 relative">
-          <div className="absolute inset-0 flex items-center justify-center opacity-10">
-            <div className="w-96 h-96 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-background py-6 sm:py-12 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10 sm:mb-14 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="flex items-center justify-center  w-[260px] h-[140px] mx-auto rounded-lg overflow-hidden shadow-[var(--shadow-medium)]">
+            <Image
+              src="/zairo1.png"
+              alt="Zairo Logo"
+              width={200}
+              height={100}
+              className="object-contain"
+              priority
+            />
           </div>
 
-          <div className="relative">
-            <div className="inline-block mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl blur-lg opacity-50"></div>
-                <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-3xl shadow-xl">
-                  <Briefcase className="w-14 h-14 text-white" strokeWidth={2} />
-                </div>
-              </div>
-            </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-1">
+            Zairo International Pvt. Ltd.
+          </h1>
 
-            <h1 className="text-6xl font-black mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Zairo International
-            </h1>
-            <p className="text-2xl font-semibold text-gray-700 mb-2">
-              Build Your Future With Us
-            </p>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Join a global team of innovators, thinkers, and leaders shaping
-              the future of business
-            </p>
-          </div>
+          <p className="text-lg sm:text-xl font-medium mb-2 text-red-700">
+            Build Your Future With Us
+          </p>
+
+          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
+            Join a global team of innovators shaping the future of business.
+          </p>
         </div>
 
-        {/* Form Card with Enhanced Design */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8">
-            <h2 className="text-4xl font-bold text-white text-center mb-2">
-              Career Application Form
+        {/* Form Card */}
+        <div className="bg-card rounded-2xl sm:rounded-3xl shadow-[var(--shadow-large)] overflow-hidden border border-border animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="bg-foreground p-5 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-primary-foreground text-center">
+              Career Application
             </h2>
-            <p className="text-indigo-100 text-center text-lg">
+            <p className="text-primary-foreground/90 text-center text-xs sm:text-sm mt-1">
               Take the first step towards an exciting career
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-8">
-            {/* Personal Information Section */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl">
-                  <User className="w-6 h-6 text-white" />
+          <form
+            onSubmit={handleSubmit}
+            className="p-5 sm:p-8 space-y-6 sm:space-y-8"
+          >
+            {submitError && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in duration-300">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-destructive text-sm">
+                    Submission Error
+                  </h4>
+                  <p className="text-destructive/90 text-sm mt-1">
+                    {submitError}
+                  </p>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-800">
+              </div>
+            )}
+
+            {/* Personal Information Section */}
+            <div className="space-y-4 sm:space-y-5">
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <div className="bg-primary/10 rounded-lg p-1.5">
+                  <User className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">
                   Personal Information
                 </h3>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <User className="w-4 h-4 text-indigo-600" />
-                    Full Name *
+              <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    Full Name <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    required
-                    placeholder="Enter your full name"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="John Doe"
+                    className={`w-full bg-input border ${
+                      errors.name
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.name && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.name}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-indigo-600" />
-                    Email Address *
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                    Email Address <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    required
-                    placeholder="your.email@example.com"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="john.doe@example.com"
+                    className={`w-full bg-input border ${
+                      errors.email
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.email && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col group md:col-span-2">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-indigo-600" />
-                    Phone Number *
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                    Phone Number <span className="text-destructive">*</span>
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <select
                       name="countryCode"
                       value={formData.countryCode}
                       onChange={handleChange}
-                      className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50 w-40"
+                      className="bg-input border border-transparent rounded-xl px-3 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-28 sm:w-32 text-sm"
                     >
                       {countryCodes.map((item) => (
                         <option key={item.code} value={item.code}>
@@ -258,107 +425,148 @@ export default function JobApplicationForm() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      required
                       placeholder="9876543210"
-                      pattern="[0-9]{10}"
-                      className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
+                      className={`flex-1 bg-input border ${
+                        errors.phone
+                          ? "border-destructive/50"
+                          : "border-transparent"
+                      } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                     />
                   </div>
                   {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.phone}
+                    </p>
                   )}
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-indigo-600" />
-                    City *
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                    City <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
-                    required
-                    placeholder="Your city"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="New York"
+                    className={`w-full bg-input border ${
+                      errors.city
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.city && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.city}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-indigo-600" />
-                    Country *
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                    Country <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
                     name="country"
                     value={formData.country}
                     onChange={handleChange}
-                    required
-                    placeholder="Your country"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="United States"
+                    className={`w-full bg-input border ${
+                      errors.country
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.country && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.country}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-col group">
-                <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-indigo-600" />
-                  Complete Address *
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  Complete Address <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  required
                   rows={3}
-                  placeholder="Street address, building number, apartment/suite number"
-                  className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none bg-white hover:bg-gray-50"
+                  placeholder="Street address, building number, apartment/suite"
+                  className={`w-full bg-input border ${
+                    errors.address
+                      ? "border-destructive/50"
+                      : "border-transparent"
+                  } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all resize-none`}
                 />
+                {errors.address && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.address}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Professional Information Section */}
-            <div className="space-y-6 pt-6 border-t-2 border-gray-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-xl">
-                  <Award className="w-6 h-6 text-white" />
+            <div className="space-y-4 sm:space-y-5">
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <div className="bg-primary/10 rounded-lg p-1.5">
+                  <Award className="w-4 h-4 text-primary" />
                 </div>
-                <h3 className="text-3xl font-bold text-gray-800">
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">
                   Professional Details
                 </h3>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-purple-600" />
-                    Years of Experience *
+              <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    Years of Experience{" "}
+                    <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="number"
                     name="experience"
                     value={formData.experience}
                     onChange={handleChange}
-                    required
                     min={0}
                     max={50}
-                    placeholder="0"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="5"
+                    className={`w-full bg-input border ${
+                      errors.experience
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.experience && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.experience}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-purple-600" />
-                    Position Applying For *
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    Position Applying For{" "}
+                    <span className="text-destructive">*</span>
                   </label>
                   <select
                     name="position"
                     value={formData.position}
                     onChange={handleChange}
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
+                    className="w-full bg-input border border-transparent rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   >
                     {positions.map((pos) => (
                       <option key={pos} value={pos}>
@@ -368,9 +576,9 @@ export default function JobApplicationForm() {
                   </select>
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <Linkedin className="w-4 h-4 text-purple-600" />
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <Linkedin className="w-3.5 h-3.5 text-muted-foreground" />
                     LinkedIn Profile
                   </label>
                   <input
@@ -378,19 +586,24 @@ export default function JobApplicationForm() {
                     name="linkedin"
                     value={formData.linkedin}
                     onChange={handleChange}
-                    placeholder="https://linkedin.com/in/yourprofile"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="linkedin.com/in/yourprofile"
+                    className={`w-full bg-input border ${
+                      errors.linkedin
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
                   {errors.linkedin && (
-                    <p className="text-red-500 text-sm mt-1">
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
                       {errors.linkedin}
                     </p>
                   )}
                 </div>
 
-                <div className="flex flex-col group">
-                  <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-purple-600" />
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                     Portfolio URL
                   </label>
                   <input
@@ -398,45 +611,62 @@ export default function JobApplicationForm() {
                     name="portfolio"
                     value={formData.portfolio}
                     onChange={handleChange}
-                    placeholder="https://yourportfolio.com"
-                    className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all bg-white hover:bg-gray-50"
+                    placeholder="yourportfolio.com"
+                    className={`w-full bg-input border ${
+                      errors.portfolio
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
                   />
+                  {errors.portfolio && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.portfolio}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-col group">
-                <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-600" />
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                   Cover Letter
                 </label>
                 <textarea
                   name="coverLetter"
                   value={formData.coverLetter}
                   onChange={handleChange}
-                  rows={6}
-                  placeholder="Tell us why you're the perfect fit for Zairo International. Share your passion, achievements, and what drives you..."
-                  className="border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all resize-none bg-white hover:bg-gray-50"
+                  rows={4}
+                  maxLength={1000}
+                  placeholder="Tell us why you're the perfect fit for this role..."
+                  className="w-full bg-input border border-transparent rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
                 />
-                <p className="text-sm text-gray-700 mt-1">
+                <p className="text-xs text-muted-foreground">
                   {formData.coverLetter.length}/1000 characters
                 </p>
               </div>
 
-              <div className="flex flex-col group">
-                <label className="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-purple-600" />
-                  Resume Upload *
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                  <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                  Resume Upload <span className="text-destructive">*</span>
                 </label>
                 {!formData.resume ? (
-                  <label className="relative border-2 border-dashed border-gray-300 rounded-xl px-4 py-12 cursor-pointer transition-all hover:border-purple-500 hover:bg-purple-50 bg-white group">
+                  <label
+                    className={`relative border-2 ${
+                      errors.resume
+                        ? "border-destructive/30 bg-destructive/5"
+                        : "border-dashed border-border"
+                    } rounded-xl px-4 py-8 sm:py-10 cursor-pointer transition-all hover:border-primary/50 hover:bg-accent bg-input block`}
+                  >
                     <div className="flex flex-col items-center justify-center">
-                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform">
-                        <Upload className="w-10 h-10 text-white" />
+                      <div className="bg-primary/10 rounded-xl p-3 mb-3">
+                        <Upload className="w-6 h-6 text-primary" />
                       </div>
-                      <span className="text-gray-700 font-semibold text-lg mb-1">
+                      <span className="text-foreground font-medium text-sm mb-1">
                         Click to upload your resume
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         PDF, DOC, DOCX (Max 10MB)
                       </span>
                     </div>
@@ -445,88 +675,88 @@ export default function JobApplicationForm() {
                       accept=".pdf,.doc,.docx"
                       onChange={handleFileChange}
                       className="hidden"
-                      required
                     />
                   </label>
                 ) : (
-                  <div className="border-2 border-green-300 bg-green-50 rounded-xl px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-green-500 p-2 rounded-lg">
-                        <FileText className="w-5 h-5 text-white" />
+                  <div className="border border-primary/30 bg-primary/5 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="bg-primary/10 rounded-lg p-2 flex-shrink-0">
+                        <FileText className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 truncate max-w-md">
-                          {formData.resume.name}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground text-sm truncate">
+                          {resume?.name}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          {(formData.resume.size / 1024).toFixed(2)} KB
+                        <p className="text-xs text-muted-foreground">
+                          {resume?.size
+                            ? (resume.size / 1024).toFixed(1)
+                            : "N/A"}{" "}
+                          KB
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={removeFile}
-                      className="ml-2 p-2 rounded-full hover:bg-red-100 transition-colors group"
+                      className="ml-2 p-2 rounded-lg hover:bg-destructive/10 transition-colors flex-shrink-0"
                     >
-                      <X className="w-5 h-5 text-red-500 group-hover:text-red-700" />
+                      <X className="w-4 h-4 text-destructive" />
                     </button>
                   </div>
                 )}
                 {errors.resume && (
-                  <p className="text-red-500 text-sm mt-1">{errors.resume}</p>
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.resume}
+                  </p>
                 )}
               </div>
             </div>
 
             {/* Submit Button */}
-            <div className="pt-6">
+            <div className="pt-2 space-y-4">
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold py-5 rounded-xl transition-all transform hover:scale-105 hover:shadow-2xl text-xl relative overflow-hidden group"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold py-3.5 rounded-xl transition-all transform hover:scale-[1.02] hover:shadow-[var(--shadow-medium)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               >
-                <span className="relative z-10">Submit Application</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Submit Application
+                  </>
+                )}
               </button>
 
-              <p className="text-center text-sm text-gray-500 mt-4">
-                * Required fields | By submitting, you agree to our{" "}
-                <span className="text-indigo-600 font-semibold cursor-pointer hover:underline">
-                  Terms & Conditions
-                </span>
+              <p className="text-center text-xs text-muted-foreground">
+                <span className="text-destructive">*</span> Required fields
               </p>
             </div>
           </form>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-12 space-y-3">
-          <div className="flex items-center justify-center gap-6 text-sm text-gray-600">
-            <a
-              href="#"
-              className="hover:text-indigo-600 transition-colors font-medium"
-            >
+        <div className="text-center mt-8 space-y-3 px-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
+            <a href="#" className="hover:text-primary transition-colors">
               Privacy Policy
             </a>
-            <span>•</span>
-            <a
-              href="#"
-              className="hover:text-indigo-600 transition-colors font-medium"
-            >
+            <span className="hidden sm:inline">•</span>
+            <a href="#" className="hover:text-primary transition-colors">
               Contact HR
             </a>
-            <span>•</span>
-            <a
-              href="#"
-              className="hover:text-indigo-600 transition-colors font-medium"
-            >
+            <span className="hidden sm:inline">•</span>
+            <a href="#" className="hover:text-primary transition-colors">
               FAQs
             </a>
           </div>
-          <p className="text-gray-600 font-medium">
+          <p className="text-xs text-muted-foreground">
             © 2025 Zairo International. All rights reserved.
-          </p>
-          <p className="text-sm text-gray-500">
-            Empowering careers, transforming lives
           </p>
         </div>
       </div>

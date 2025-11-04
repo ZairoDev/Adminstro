@@ -689,48 +689,13 @@ const dashboardManagementRoutes = [
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
   },
-  {
-    path: "/dashboard/addons",
-    label: "Add Ons",
-    Icon: <Swords size={18} />,
-  },
-  {
-    path: "/dashboard/target",
-    label: "Add Area",
-    Icon: <PencilLine size={18} />,
-  },
-  {
-    path: "/dashboard/areadetails",
-    label: "Area Details",
-    Icon: <TramFront size={18} />,
-  },
-  {
-    path: "/dashboard/areapriceinfo",
-    label: "Area Price Info",
-    Icon: <BadgeEuro size={18} />,
-  },
+
 ];
 const leadManagementRoutes = [
   {
     path: "/dashboard/createquery",
     label: "Create Lead",
     Icon: <PencilLine size={18} />,
-  },
-    {
-      path: "/spreadsheet",
-      label: "Owners List",
-      Icon: <PencilLine size={18} />,
-      openInNewTab: true
-    },
-  {
-    path: "/dashboard/sales-offer",
-    label: "Sales Offer",
-    Icon: <ClipboardPaste size={18} />,
-  },
-  {
-    path: "/dashboard/sales-offer/send-offer",
-    label: "Sent Offer",
-    Icon: <BadgeEuro size={18} />,
   },
   {
     path: "/dashboard/rolebaseLead",
@@ -787,16 +752,12 @@ const bookingsManagementRoutes = [
     Icon: <Hotel size={18} />,
   },
 ];
-const userManagementRoutes = [
+const ownerManagementRoutes = [
   {
-    path: "/dashboard/employee",
-    label: "Manage Employee",
-    Icon: <User2Icon size={18} />,
-  },
-  {
-    path: "/dashboard/employee/employeeList",
-    label: "All Employees",
-    Icon: <IdCardIcon size={18} />,
+    path: "/spreadsheet",
+    label: "Owners List",
+    Icon: <PencilLine size={18} />,
+    openInNewTab: true,
   },
   {
     path: "/dashboard/user",
@@ -804,21 +765,36 @@ const userManagementRoutes = [
     Icon: <User2Icon size={18} />,
   },
   {
-    path: "/dashboard/aliases",
-    label: "Aliases",
-    Icon: <UserRoundCog size={18} />,
-  },
-];
-const propertyManagementRoutes = [
-  {
-    path: "/dashboard/property",
-    label: "Manage Task",
-    Icon: <Check size={18} />,
-  },
-  {
     path: "/dashboard/newproperty",
     label: "Manage Newtask",
     Icon: <Check size={18} />,
+  },
+  {
+    path: "/dashboard/newproperty/filteredProperties",
+    label: "Property Finder",
+    Icon: <SlidersHorizontal size={18} />,
+  },
+];
+// const propertyManagementRoutes = [
+//   {
+//     path: "/dashboard/property",
+//     label: "Manage Task",
+//     Icon: <Check size={18} />,
+//   },
+  
+  
+  
+// ];
+const contentRoutes = [
+  {
+    path: "/dashboard/createblog",
+    label: "Create Blog",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/allblogs",
+    label: "Read Blogs",
+    Icon: <FileSpreadsheet size={18} />,
   },
   {
     path: "/dashboard/remainingproperties",
@@ -830,25 +806,18 @@ const propertyManagementRoutes = [
     label: "Completed Task",
     Icon: <Check size={18} />,
   },
-  {
-    path: "/dashboard/newproperty/filteredProperties",
-    label: "Property Filter",
-    Icon: <SlidersHorizontal size={18} />,
-  },
-];
-const blogRoutes = [
-  {
-    path: "/dashboard/createblog",
-    label: "Create Blog",
-    Icon: <PencilLine size={18} />,
-  },
-  {
-    path: "/dashboard/allblogs",
-    label: "Read Blogs",
-    Icon: <FileSpreadsheet size={18} />,
-  },
 ];
 const candidateRoutes = [
+  {
+    path: "/dashboard/employee",
+    label: "Manage Employee",
+    Icon: <User2Icon size={18} />,
+  },
+  {
+    path: "/dashboard/employee/employeeList",
+    label: "All Employees",
+    Icon: <IdCardIcon size={18} />,
+  },
   {
     path: "/dashboard/candidatePortal",
     label: "Register Candidate",
@@ -864,6 +833,12 @@ const candidateRoutes = [
     label: "Attended Candidate",
     Icon: <PersonStanding size={18} />,
   },
+
+  {
+    path: "/dashboard/aliases",
+    label: "Aliases",
+    Icon: <UserRoundCog size={18} />,
+  },
 ];
 const roomRoutes = [
   {
@@ -877,11 +852,16 @@ const roomRoutes = [
     Icon: <Warehouse size={18} />,
   },
 ];
-const catalogueRoutes = [
+const subscriptionsRoutes = [
   {
-    path: "/dashboard/catalogue",
-    label: "Manage Catalogue",
-    Icon: <Notebook size={18} />,
+    path: "/dashboard/sales-offer",
+    label: "Sales Offer",
+    Icon: <ClipboardPaste size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/send-offer",
+    label: "Sent Offer",
+    Icon: <BadgeEuro size={18} />,
   },
 ];
 const InvoiceRoutes = [
@@ -909,6 +889,29 @@ const propertyBoostRoutes = [
     Icon: <List size={18} />,
   },
 ]
+
+const otherSettingsRoutes = [
+  {
+    path: "/dashboard/addons",
+    label: "Add Ons",
+    Icon: <Swords size={18} />,
+  },
+  {
+    path: "/dashboard/target",
+    label: "Add Area",
+    Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/areadetails",
+    label: "Area Details",
+    Icon: <TramFront size={18} />,
+  },
+  {
+    path: "/dashboard/areapriceinfo",
+    label: "Area Price Info",
+    Icon: <BadgeEuro size={18} />,
+  },
+];
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
   const pathname = usePathname();
@@ -966,14 +969,15 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes);
     const bookingsManagementRoute = inGroup(bookingsManagementRoutes);
-    const userManagementRoute = inGroup(userManagementRoutes);
-    const propertyManagementRoute = inGroup(propertyManagementRoutes);
-    const blogRoute = inGroup(blogRoutes);
+    const ownerManagementRoute = inGroup(ownerManagementRoutes);
+    // const propertyManagementRoute = inGroup(propertyManagementRoutes);
+    const contentRoute = inGroup(contentRoutes);
     const candidateRoute = inGroup(candidateRoutes);
     const roomRoute = inGroup(roomRoutes);
-    const catalogueRoute = inGroup(catalogueRoutes);
+    const subscriptionsRoute = inGroup(subscriptionsRoutes);
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
+    const otherSettingsRoute = inGroup(otherSettingsRoutes);
 
     return (
       <>
@@ -986,15 +990,15 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
           onNavigate={onNavigate}
         />
         <SidebarSection
-          title="User Management"
-          routes={userManagementRoute}
+          title="Owner Management"
+          routes={ownerManagementRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}
           onNavigate={onNavigate}
         />
         <SidebarSection
-          title="Lead Management"
+          title="Guest Management"
           routes={leadRoute}
           showText={showText}
           currentPath={pathname}
@@ -1017,17 +1021,17 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
           defaultOpen={defaultOpen}
           onNavigate={onNavigate}
         />
-        <SidebarSection
+        {/* <SidebarSection
           title="Property Management"
           routes={propertyManagementRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}
           onNavigate={onNavigate}
-        />
+        /> */}
         <SidebarSection
-          title="Blog Management"
-          routes={blogRoute}
+          title="Content Management"
+          routes={contentRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}
@@ -1050,8 +1054,8 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
           onNavigate={onNavigate}
         />
         <SidebarSection
-          title="Catalogue Management"
-          routes={catalogueRoute}
+          title="Subscriptions"
+          routes={subscriptionsRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}
@@ -1068,6 +1072,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="Property Boost"
           routes={propertyBoostRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Other Settings"
+          routes={otherSettingsRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

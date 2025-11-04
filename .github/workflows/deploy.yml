@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy to VPS (Zero-Downtime)
 
 on:
   push:
@@ -22,43 +22,209 @@ jobs:
           set -e
           
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🚀 Starting Deployment"
+          echo "🚀 Starting Zero-Downtime Deployment"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
-          cd /var/www/adminstro
+          # Configuration
+          DEPLOY_DIR="/var/www/adminstro"
+          NEW_BUILD_DIR="/var/www/adminstro_new_build"
+          BACKUP_DIR="/var/www/adminstro_rollback_$(date +%Y%m%d_%H%M%S)"
+          PM2_APP_NAME="adminstro"
           
-          echo "📦 Pulling latest code..."
-          git pull origin main
+          echo "📊 Current application status:"
+          pm2 describe ${PM2_APP_NAME} | grep -E "status|uptime|restarts" || echo "App not running"
           
-          echo "📦 Installing dependencies..."
+          # Step 1: Create backup of current working version
+          echo ""
+          echo "💾 Creating backup of current version..."
+          if [ -d "${DEPLOY_DIR}/.next" ]; then
+            sudo mkdir -p ${BACKUP_DIR}
+            sudo cp -r ${DEPLOY_DIR}/.next ${BACKUP_DIR}/
+            sudo cp ${DEPLOY_DIR}/package.json ${BACKUP_DIR}/ 2>/dev/null || true
+            sudo cp ${DEPLOY_DIR}/package-lock.json ${BACKUP_DIR}/ 2>/dev/null || true
+            sudo chown -R jenkins:jenkins ${BACKUP_DIR}
+            echo "✅ Backup created at: ${BACKUP_DIR}"
+            echo ${BACKUP_DIR} > /tmp/last_backup_path.txt
+          else
+            echo "⚠️ No previous build to backup"
+          fi
+          
+          # Step 2: Prepare new build directory
+          echo ""
+          echo "📁 Preparing new build directory..."
+          sudo rm -rf ${NEW_BUILD_DIR}
+          sudo mkdir -p ${NEW_BUILD_DIR}
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
+          # Clone repository to new directory
+          echo "📦 Cloning repository..."
+          cd ${NEW_BUILD_DIR}
+          git clone --depth 1 --branch main https://github.com/ZairoDev/Adminstro.git .
+          
+          # Fix permissions after git clone
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
+          # Copy environment files from current deployment
+          echo "🔧 Copying environment files..."
+          if [ -f "${DEPLOY_DIR}/.env.production" ]; then
+            cp ${DEPLOY_DIR}/.env.production ${NEW_BUILD_DIR}/.env.production
+            chmod 600 ${NEW_BUILD_DIR}/.env.production
+            echo "✅ Copied .env.production"
+          else
+            echo "⚠️ WARNING: No .env.production found!"
+          fi
+          
+          if [ -f "${DEPLOY_DIR}/.env.local" ]; then
+            cp ${DEPLOY_DIR}/.env.local ${NEW_BUILD_DIR}/.env.local
+            chmod 600 ${NEW_BUILD_DIR}/.env.local
+            echo "✅ Copied .env.local"
+          elif [ -f "${DEPLOY_DIR}/.env.production" ]; then
+            cp ${DEPLOY_DIR}/.env.production ${NEW_BUILD_DIR}/.env.local
+            chmod 600 ${NEW_BUILD_DIR}/.env.local
+            echo "✅ Created .env.local from .env.production"
+          fi
+          
+          # Step 3: Install dependencies in new directory
+          echo ""
+          echo "📦 Installing dependencies in new build..."
+          cd ${NEW_BUILD_DIR}
+          
+          # Ensure we have write permissions
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
           npm install
           
-          echo "🏗️ Building application..."
+          if [ $? -ne 0 ]; then
+            echo "❌ npm install failed!"
+            echo "🔄 Current application is still running (unchanged)"
+            sudo rm -rf ${NEW_BUILD_DIR}
+            exit 1
+          fi
+          echo "✅ Dependencies installed"
+          
+          # Step 4: Build application in new directory
+          echo ""
+          echo "🏗️ Building application in new directory..."
+          
+          # Remove any old .next directory
           sudo rm -rf .next
-          sudo chown -R jenkins:jenkins /var/www/adminstro
+          
           npm run build
           
-          if [ ! -d ".next" ]; then
-            echo "❌ Build failed!"
+          BUILD_EXIT_CODE=$?
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "❌ Build failed with exit code ${BUILD_EXIT_CODE}"
+            echo "🔄 Current application is still running (unchanged)"
+            sudo rm -rf ${NEW_BUILD_DIR}
             exit 1
           fi
-          echo "✅ Build successful"
           
-          echo "🔄 Restarting application..."
-          pm2 delete adminstro 2>/dev/null || true
-          pm2 start npm --name adminstro -- start
+          # Verify build output
+          if [ ! -d "${NEW_BUILD_DIR}/.next" ]; then
+            echo "❌ Build failed - .next directory not created"
+            echo "🔄 Current application is still running (unchanged)"
+            sudo rm -rf ${NEW_BUILD_DIR}
+            exit 1
+          fi
+          
+          # Fix permissions on build output
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
+          echo "✅ Build completed successfully"
+          echo "Build size: $(du -sh ${NEW_BUILD_DIR}/.next | cut -f1)"
+          
+          # Step 5: Atomic swap - replace old with new
+          echo ""
+          echo "🔄 Swapping to new build (atomic operation)..."
+          
+          # Stop PM2
+          pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
+          
+          # Quick atomic swap with sudo
+          TEMP_OLD="${DEPLOY_DIR}_old_temp"
+          sudo mv ${DEPLOY_DIR} ${TEMP_OLD}
+          sudo mv ${NEW_BUILD_DIR} ${DEPLOY_DIR}
+          
+          # Fix permissions on new deployment
+          sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+          
+          # Start PM2 with new build
+          echo "🚀 Starting new version..."
+          cd ${DEPLOY_DIR}
+          pm2 start npm --name ${PM2_APP_NAME} -- start
           pm2 save
           
-          echo "🏥 Health check..."
-          sleep 10
+          # Step 6: Health check on new version
+          echo ""
+          echo "🏥 Running health check on new version..."
+          sleep 15
           
-          if pm2 describe adminstro | grep -q "status.*online"; then
-            echo "✅ Deployment successful!"
-            pm2 list
+          HEALTH_CHECK_PASSED=false
+          
+          if pm2 describe ${PM2_APP_NAME} | grep -q "status.*online"; then
+            echo "✅ PM2 status: ONLINE"
+            
+            # Check restart count
+            RESTARTS=$(pm2 describe ${PM2_APP_NAME} | grep 'restarts' | awk '{print $NF}' | tr -d '│' | xargs || echo "0")
+            echo "Restart count: ${RESTARTS}"
+            
+            if [ "$RESTARTS" -lt 3 ]; then
+              HEALTH_CHECK_PASSED=true
+            else
+              echo "⚠️ Too many restarts detected"
+            fi
           else
-            echo "❌ Deployment failed!"
-            pm2 logs adminstro --lines 50
+            echo "❌ Application is not online"
+          fi
+          
+          # Step 7: Rollback if health check failed
+          if [ "$HEALTH_CHECK_PASSED" = false ]; then
+            echo ""
+            echo "❌ HEALTH CHECK FAILED - ROLLING BACK!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
+            
+            # Restore old version with sudo
+            sudo rm -rf ${DEPLOY_DIR}
+            sudo mv ${TEMP_OLD} ${DEPLOY_DIR}
+            sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+            
+            # Restart old version
+            cd ${DEPLOY_DIR}
+            pm2 start npm --name ${PM2_APP_NAME} -- start
+            pm2 save
+            
+            sleep 10
+            
+            echo ""
+            echo "🔄 Rollback completed - old version restored"
+            pm2 list
+            
+            echo ""
+            echo "Failed deployment logs:"
+            pm2 logs ${PM2_APP_NAME} --lines 50
+            
             exit 1
           fi
           
+          # Step 8: Success - cleanup old version
+          echo ""
+          echo "✅ Health check passed - cleaning up..."
+          sudo rm -rf ${TEMP_OLD}
+          
+          # Keep only last 5 rollback backups
+          cd /var/www
+          ls -t adminstro_rollback_* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "New version is live and healthy"
+          echo ""
+          pm2 list
+          echo ""
+          echo "Recent logs:"
+          pm2 logs ${PM2_APP_NAME} --nostream --lines 15
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

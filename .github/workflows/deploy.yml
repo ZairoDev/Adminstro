@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy to VPS (Zero-Downtime)
 
 on:
   push:
@@ -22,43 +22,116 @@ jobs:
           set -e
           
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🚀 Starting Deployment"
+          echo "🚀 Starting Zero-Downtime Deployment"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
-          cd /var/www/adminstro
+          DEPLOY_DIR="/var/www/adminstro"
+          NEW_BUILD_DIR="/var/www/adminstro_new_build"
+          BACKUP_DIR="/var/www/adminstro_rollback_$(date +%Y%m%d_%H%M%S)"
+          PM2_APP_NAME="adminstro"
           
-          echo "📦 Pulling latest code..."
-          git pull origin main
+          echo "📊 Current status:"
+          pm2 list | grep ${PM2_APP_NAME} || echo "App not running"
           
-          echo "📦 Installing dependencies..."
-          npm install
-          
-          echo "🏗️ Building application..."
-          sudo rm -rf .next
-          sudo chown -R jenkins:jenkins /var/www/adminstro
-          npm run build
-          
-          if [ ! -d ".next" ]; then
-            echo "❌ Build failed!"
-            exit 1
+          # Backup
+          echo ""
+          echo "💾 Backing up..."
+          if [ -d "${DEPLOY_DIR}/.next" ]; then
+            sudo mkdir -p ${BACKUP_DIR}
+            sudo cp -r ${DEPLOY_DIR}/.next ${DEPLOY_DIR}/package*.json ${BACKUP_DIR}/ 2>/dev/null || true
+            sudo chown -R jenkins:jenkins ${BACKUP_DIR}
+            echo "✅ Backup created"
           fi
-          echo "✅ Build successful"
           
-          echo "🔄 Restarting application..."
-          pm2 delete adminstro 2>/dev/null || true
-          pm2 start npm --name adminstro -- start
+          # New build
+          echo ""
+          echo "📁 Preparing new build..."
+          sudo rm -rf ${NEW_BUILD_DIR}
+          sudo mkdir -p ${NEW_BUILD_DIR}
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
+          cd ${NEW_BUILD_DIR}
+          git clone --depth 1 --branch main https://github.com/ZairoDev/Adminstro.git .
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          
+          # Copy env
+          [ -f "${DEPLOY_DIR}/.env.production" ] && cp ${DEPLOY_DIR}/.env.production .
+          [ -f "${DEPLOY_DIR}/.env.local" ] && cp ${DEPLOY_DIR}/.env.local .
+          [ ! -f ".env.local" ] && [ -f ".env.production" ] && cp .env.production .env.local
+          
+          # Install
+          echo ""
+          echo "📦 Installing..."
+          npm install || { echo "❌ Install failed"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
+          
+          # Build
+          echo ""
+          echo "🏗️ Building..."
+          sudo rm -rf .next
+          npm run build || { echo "❌ Build failed"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
+          
+          [ ! -d ".next" ] && { echo "❌ No .next"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
+          
+          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
+          echo "✅ Build: $(du -sh .next | cut -f1)"
+          
+          # Swap
+          echo ""
+          echo "🔄 Swapping..."
+          pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
+          
+          TEMP_OLD="${DEPLOY_DIR}_old"
+          sudo mv ${DEPLOY_DIR} ${TEMP_OLD}
+          sudo mv ${NEW_BUILD_DIR} ${DEPLOY_DIR}
+          sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+          
+          cd ${DEPLOY_DIR}
+          pm2 start npm --name ${PM2_APP_NAME} -- start
           pm2 save
           
+          # Health check
+          echo ""
           echo "🏥 Health check..."
-          sleep 10
+          sleep 15
           
-          if pm2 describe adminstro | grep -q "status.*online"; then
-            echo "✅ Deployment successful!"
-            pm2 list
-          else
-            echo "❌ Deployment failed!"
-            pm2 logs adminstro --lines 50
+          HEALTH_OK=false
+          
+          if pm2 describe ${PM2_APP_NAME} | grep -q "status.*online"; then
+            sleep 10
+            if pm2 describe ${PM2_APP_NAME} | grep -q "status.*online"; then
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "000")
+              if [ "$HTTP_CODE" != "000" ]; then
+                HEALTH_OK=true
+              fi
+            fi
+          fi
+          
+          # Rollback if needed
+          if [ "$HEALTH_OK" = false ]; then
+            echo "❌ ROLLING BACK"
+            pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
+            sudo rm -rf ${DEPLOY_DIR}
+            sudo mv ${TEMP_OLD} ${DEPLOY_DIR}
+            sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
+            cd ${DEPLOY_DIR}
+            pm2 start npm --name ${PM2_APP_NAME} -- start
+            pm2 save
+            echo "🔄 Rollback done"
             exit 1
           fi
           
+          # Success
+          echo ""
+          echo "✅ Cleaning up..."
+          sudo rm -rf ${TEMP_OLD}
+          cd /var/www && ls -t adminstro_rollback_* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Time: $(date)"
+          echo "Status: ONLINE ✅"
+          echo ""
+          pm2 list
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -10,6 +10,7 @@ import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
 import { useState } from "react";
 import InfoCard from "@/components/infoCard/InfoCard";
+import { usePathname } from "next/navigation";
 
 export default function DashboardLayout({
   children,
@@ -18,7 +19,12 @@ export default function DashboardLayout({
 }) {
   const { token } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
-
+  const pathname = usePathname();
+  const isOnboarding = pathname.includes("/onboarding");
+  
+  if (isOnboarding) {
+    return <main className="min-h-screen bg-background">{children}</main>;
+  }
   return (
     <div className="flex">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />

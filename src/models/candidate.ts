@@ -25,7 +25,7 @@ const CandidateSchema = new Schema(
         enum: ["fulltime", "intern"],
         default: null,
       },
-      duration: { type: String, default: null }, // e.g., "3 months", "6 months", "1 year"
+      duration: { type: String, default: null },
       trainingPeriod: { type: String, default: null },
       role: { type: String, default: null },
     },
@@ -36,6 +36,38 @@ const CandidateSchema = new Schema(
     rejectionDetails: {
       reason: { type: String, default: null },
     },
+    onboardingDetails: {
+      personalDetails: {
+        dateOfBirth: { type: String, default: null },
+        gender: { type: String, default: null },
+        nationality: { type: String, default: null },
+      },
+      bankDetails: {
+        accountHolderName: { type: String, default: null },
+        accountNumber: { type: String, default: null },
+        ifscCode: { type: String, default: null },
+        bankName: { type: String, default: null },
+      },
+      documents: {
+        aadharCard: { type: String, default: null },
+        panCard: { type: String, default: null },
+        highSchoolMarksheet: { type: String, default: null },
+        interMarksheet: { type: String, default: null },
+        graduationMarksheet: { type: String, default: null },
+        experienceLetter: { type: String, default: null },
+        relievingLetter: { type: String, default: null },
+        salarySlips: [{ type: String }],
+      },
+      eSign: {
+        signatureImage: { type: String, default: null },
+        signedAt: { type: Date, default: null },
+      },
+      termsAccepted: { type: Boolean, default: false },
+      termsAcceptedAt: { type: Date, default: null },
+      onboardingComplete: { type: Boolean, default: false },
+      completedAt: { type: Date, default: null },
+    },
+
   },
   { timestamps: true }
 );

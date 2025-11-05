@@ -15,7 +15,7 @@ interface UserDetails {
   VSID?: string;
   Link?: string;
 }
-
+    
 const createTransporter = (): Transporter => {
   return nodemailer.createTransport({
     service: "gmail",

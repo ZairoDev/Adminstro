@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
+import axios from "axios";
 
 
 interface Candidate {
@@ -71,14 +72,14 @@ export default function CandidateDetailPage() {
     }
   }, [candidateId]);
 
+
   const handleSelectCandidate = async (data: SelectionData) => {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/candidates/${candidateId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
           status: "selected",
           selectionDetails: {
             positionType: data.positionType,
@@ -86,19 +87,22 @@ export default function CandidateDetailPage() {
             trainingPeriod: data.trainingPeriod,
             role: data.role,
           },
-        }),
-      });
+        }
+      );
 
-      const result = await response.json();
+      const result = response.data;
       if (result.success) {
         setCandidate(result.data);
         setSelectDialogOpen(false);
       } else {
         setError(result.error || "Failed to select candidate");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error selecting candidate:", err);
-      setError("An error occurred while selecting the candidate");
+      setError(
+        err.response?.data?.error ||
+          "An error occurred while selecting the candidate"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -108,28 +112,30 @@ export default function CandidateDetailPage() {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/candidates/${candidateId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
           status: "shortlisted",
           shortlistDetails: {
             suitableRoles: data.suitableRoles,
             notes: data.notes,
           },
-        }),
-      });
+        }
+      );
 
-      const result = await response.json();
+      const result = response.data;
       if (result.success) {
         setCandidate(result.data);
         setShortlistDialogOpen(false);
       } else {
         setError(result.error || "Failed to shortlist candidate");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error shortlisting candidate:", err);
-      setError("An error occurred while shortlisting the candidate");
+      setError(
+        err.response?.data?.error ||
+          "An error occurred while shortlisting the candidate"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -139,31 +145,34 @@ export default function CandidateDetailPage() {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/candidates/${candidateId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
           status: "rejected",
           rejectionDetails: {
             reason: data.reason,
           },
-        }),
-      });
+        }
+      );
 
-      const result = await response.json();
+      const result = response.data;
       if (result.success) {
         setCandidate(result.data);
         setRejectDialogOpen(false);
       } else {
         setError(result.error || "Failed to reject candidate");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error rejecting candidate:", err);
-      setError("An error occurred while rejecting the candidate");
+      setError(
+        err.response?.data?.error ||
+          "An error occurred while rejecting the candidate"
+      );
     } finally {
       setActionLoading(false);
     }
   };
+  
 
   if (loading) {
     return (

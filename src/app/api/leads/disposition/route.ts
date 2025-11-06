@@ -23,8 +23,10 @@ export async function POST(req: NextRequest) {
     // 🟢 Update the lead status and reason
     existingQuery.leadStatus = disposition;
     existingQuery.reason = dispositionReason || "";
-    await existingQuery.save();
-
+    console.log("Updating disposition to:", disposition);
+    console.log("Disposition reason:", dispositionReason);
+    await existingQuery.save({ validateBeforeSave: false });
+    console.log( "Disposition updated successfully");
     // 🧩 Normalize keys
     const location =
       existingQuery.location?.trim().toLowerCase().replace(/\s+/g, "-") ||

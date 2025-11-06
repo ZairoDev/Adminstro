@@ -1,174 +1,388 @@
 "use client";
-import React, { useState, ChangeEvent, FormEvent } from "react";
-import Heading from "@/components/Heading";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import axios from "axios";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
-interface FormData {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  MoreVertical,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
+
+interface Candidate {
+  _id: string;
   name: string;
   email: string;
   phone: string;
   position: string;
+  experience: number;
+  status: "pending" | "shortlisted" | "selected" | "rejected";
+  createdAt: string;
 }
 
-const CandidatePortal: React.FC = () => {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    email: "",
-    phone: "",
-    position: "",
-  });
+interface PaginationData {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export default function CandidatesPage() {
+  const router = useRouter();
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "all" | "shortlisted" | "selected" | "rejected"
+  >("all");
 
-  // Handler for regular input fields (name, email, position)
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // Handler for PhoneInput, which expects E164Number or undefined
-  const handlePhoneChange = (value: string | undefined) => {
-    setFormData((prev) => ({
-      ...prev,
-      phone: value || "", // Ensure that phone is always a string
-    }));
-  };
-
-  const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      position: value,
-    }));
-  };
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const fetchCandidates = async (
+    searchTerm: string,
+    pageNum: number,
+    statusFilter?: string
+  ) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(
-        "/api/hrportal/createCandidate",
-        formData
-      );
-      toast({
-        description: `Your registration has been successfully completed.
-         Your assigned queue number is ${response.data.queueNumber}`,
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: "10",
       });
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        position: "",
-      });
-      setLoading(false);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        description:
-          error.response?.data?.error ||
-          "Something went wrong. Please try again.",
-      });
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
+      if (statusFilter && statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+
+      const response = await fetch(`/api/candidates?${params}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setCandidates(result.data);
+        setPagination(result.pagination);
+      }
+    } catch (error) {
+      console.error("Error fetching candidates:", error);
+    } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="">
-      <Heading
-        heading="Candidate Portal"
-        subheading="Fill in the candidate details below to register."
-      />
-      <form onSubmit={handleSubmit} className="border p-4 rounded-md shadow-md">
-        <div className="gap-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-          <div>
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="Candidate Name"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-              placeholder="Candidate Email"
-              required
-            />
-          </div>
-          <div className="w-full ">
-            <Label htmlFor="phone">Phone Number</Label>
-            <PhoneInput
-              className="phone-input border-red-500"
-              placeholder="Enter phone number"
-              value={formData.phone}
-              international
-              countryCallingCodeEditable={false}
-              error={"Phone number required"}
-              onChange={handlePhoneChange} // Use the correct handler here
-            />
-          </div>
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCandidates(search, 1, activeTab);
+      setPage(1);
+    }, 500);
 
-          <div>
-            <Label htmlFor="position">Position</Label>
-            <Select
-              value={formData.position}
-              onValueChange={handleSelectChange}
-            >
-              <SelectTrigger id="position">
-                <SelectValue placeholder="Select Position" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Developer">Developer</SelectItem>
-                <SelectItem value="Human Resources">Human Resources</SelectItem>
-                <SelectItem value="QA Engineer">QA Engineer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="mt-4 flex justify-end ">
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <div>
-                <p className="flex">
-                  Saving...
-                  <span className="ml-1">
-                    <Loader2 size={18} className="animate-spin" />
-                  </span>
-                </p>
-              </div>
-            ) : (
-              "Save Details"
-            )}
-          </Button>
-        </div>
-      </form>
+    return () => clearTimeout(timer);
+  }, [search, activeTab]);
+
+  useEffect(() => {
+    fetchCandidates(search, page, activeTab);
+  }, [page]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "selected":
+        return "bg-green-100 text-green-800 hover:bg-green-200";
+      case "shortlisted":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+      case "rejected":
+        return "bg-red-100 text-red-800 hover:bg-red-200";
+      case "pending":
+      default:
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+    }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handleCreateEmployee = (candidateId: string) => {
+    // Navigate to employee creation page with candidate ID
+    router.push(`/employees/create?candidateId=${candidateId}`);
+  };
+
+  const CandidateTable = () => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead className="bg-muted border-b border-border">
+          <tr>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Name
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Email
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Phone
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Position
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Experience
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Status
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Applied
+            </th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {loading ? (
+            <tr>
+              <td colSpan={8} className="px-6 py-8 text-center">
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              </td>
+            </tr>
+          ) : candidates.length === 0 ? (
+            <tr>
+              <td
+                colSpan={8}
+                className="px-6 py-8 text-center text-muted-foreground"
+              >
+                No candidates found
+              </td>
+            </tr>
+          ) : (
+            candidates.map((candidate) => (
+              <tr
+                key={candidate._id}
+                className="hover:bg-muted/50 transition-colors"
+              >
+                <td className="px-6 py-4">
+                  <div className="font-medium text-foreground">
+                    {candidate.name}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {candidate.email}
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {candidate.phone}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-foreground">
+                    {candidate.position}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-foreground">
+                    {candidate.experience}{" "}
+                    {candidate.experience === 1 ? "year" : "years"}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <Badge className={getStatusColor(candidate.status)}>
+                    {candidate?.status?.charAt(0).toUpperCase() +
+                      candidate?.status?.slice(1)}
+                  </Badge>
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {formatDate(candidate.createdAt)}
+                </td>
+                <td className="px-6 py-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`candidatePortal/${candidate._id}`}
+                          className="flex items-center cursor-pointer"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </Link>
+                      </DropdownMenuItem>
+                      {candidate.status === "selected" && (
+                        <DropdownMenuItem
+                          onClick={() => handleCreateEmployee(candidate._id)}
+                          className="flex items-center cursor-pointer"
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Create Employee
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
-};
 
-export default CandidatePortal;
+  return (
+    <div className="min-h-screen bg-background p-8">
+      <div className="mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Candidates
+          </h1>
+          <p className="text-muted-foreground">
+            Manage and review job applications
+          </p>
+        </div>
+
+        {/* Search Bar */}
+        <Card className="mb-6 p-4">
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or position..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Tabs and Table */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value as typeof activeTab);
+            setPage(1);
+          }}
+          className="w-full"
+        >
+          <TabsList className="grid w-full max-w-md grid-cols-4 mb-6">
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              All
+            </TabsTrigger>
+            <TabsTrigger value="shortlisted">Shortlisted</TabsTrigger>
+            <TabsTrigger value="selected">Selected</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+
+          <Card className="overflow-hidden">
+            <TabsContent value="all" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="shortlisted" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="selected" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="rejected" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+
+            {/* Pagination */}
+            {pagination && pagination.pages > 1 && (
+              <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * pagination.limit + 1} to{" "}
+                  {Math.min(page * pagination.limit, pagination.total)} of{" "}
+                  {pagination.total} {activeTab !== "all" ? activeTab : ""}{" "}
+                  candidates
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, pagination.pages) }).map(
+                      (_, i) => {
+                        let pageNum;
+                        if (pagination.pages <= 5) {
+                          pageNum = i + 1;
+                        } else if (page <= 3) {
+                          pageNum = i + 1;
+                        } else if (page >= pagination.pages - 2) {
+                          pageNum = pagination.pages - 4 + i;
+                        } else {
+                          pageNum = page - 2 + i;
+                        }
+
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(pageNum)}
+                            className="w-8"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      }
+                    )}
+                    {pagination.pages > 5 && page < pagination.pages - 2 && (
+                      <>
+                        <span className="px-2">...</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(pagination.pages)}
+                          className="w-8"
+                        >
+                          {pagination.pages}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === pagination.pages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

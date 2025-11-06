@@ -388,7 +388,7 @@ const BookingChartImproved = () => {
               fillOpacity={1}
               fill="url(#colorGradient)"
               name={
-                metric === "totalPaid" ? "Total Paid ($)" : "Bookings Count"
+                metric === "totalPaid" ? "Total Paid (€)" : "Bookings Count"
               }
             />
             {isComparisonEnabled && comparisonData && (
@@ -398,7 +398,7 @@ const BookingChartImproved = () => {
                 fill="url(#comparisonGradient)"
                 name={
                   metric === "totalPaid"
-                    ? "Comparison Total Paid ($)"
+                    ? "Comparison Total Paid (€)"
                     : "Comparison Bookings Count"
                 }
               />
@@ -419,14 +419,14 @@ const BookingChartImproved = () => {
     <div className="w-full min-h-screen bg-slate-50 dark:bg-stone-950">
       <div className="">
         {/* Header */}
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-50 mb-2">
             Booking Analytics
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
             Track your booking performance and revenue trends
           </p>
-        </div>
+        </div> */}
 
         {/* Filters Section */}
         <div className="bg-white dark:bg-stone-900 rounded-lg shadow-sm p-6 mb-6 border border-slate-200 dark:border-stone-800">

@@ -22,7 +22,7 @@ const useReview = ()=>{
       }
    }
    useEffect(()=>{
-      fetchReviews({days:"All"});
+      fetchReviews({days:"this month"});
    },[])
    return{
       reviews,

@@ -86,7 +86,7 @@ const previousElevenDaysTotal = chartData
   .slice(0, -1) // all except last day
   .reduce((sum, item) => sum + (item.total ?? 0), 0);
 
-const todayTotal = chartData.length > 0 ? chartData[chartData.length - 1].total ?? 0 : 0;
+const todayTotal = chartData.length > 0 ? chartData[chartData.length -1].total ?? 0 : 0;
 
 
   // Calculate statistics
@@ -109,7 +109,10 @@ const todayTotal = chartData.length > 0 ? chartData[chartData.length - 1].total 
     <Card className="shadow-md rounded-2xl">
       <CardHeader>
         <CardTitle>Property Boost Analytics</CardTitle>
-        <CardDescription>{filters?.days || "Last 12 Days"}</CardDescription>
+        <CardDescription>
+  {filters?.days === "this month" ? "Current Month Overview" : filters?.days}
+</CardDescription>
+
 
         <div className="text-xl font-medium text-muted-foreground mt-1">
               <span className="font-semibold text-foreground">
@@ -119,9 +122,9 @@ const todayTotal = chartData.length > 0 ? chartData[chartData.length - 1].total 
 
         {/* Range Selector */}
         <CustomSelect
-          itemList={["12 days", "1 year", "last 3 years"]}
+          itemList={["12 days","this month", "1 year", "last 3 years"]}
           triggerText="Select range"
-          defaultValue={filters?.days || "12 days"}
+          defaultValue={filters?.days || "this month"}
           onValueChange={onFilterChange}
           triggerClassName="w-32 absolute right-2 top-2"
         />

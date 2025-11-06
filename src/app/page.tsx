@@ -133,7 +133,7 @@ export default function HomePage() {
       </div >
 
       <div className="max-w-5xl m-auto mt-4 p-2">
-        <div className=" relative flex  w-full flex-col items-center justify-center overflow-hidden rounded-lg  border-[10px]  md:shadow-xl">
+        {/* <div className=" relative flex  w-full flex-col items-center justify-center overflow-hidden rounded-lg  border-[10px]  md:shadow-xl">
           <FadeInBlur>
             <img
               src="https://vacationsaga.b-cdn.net/assets/dashboard.PNG"
@@ -142,7 +142,7 @@ export default function HomePage() {
             />
           </FadeInBlur>
           <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background to-transparent"></div>
-        </div>
+        </div> */}
       </div >
       <div className="max-w-7xl m-auto p-2">
         <DashboardCard />

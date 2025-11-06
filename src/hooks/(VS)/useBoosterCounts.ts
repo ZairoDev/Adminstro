@@ -40,7 +40,7 @@ const BoostCounts = () => {
   };
 
   useEffect(() => {
-    fetchBoostCounts({ days: "12 days" });
+    fetchBoostCounts({ days: "this month" });
   }, []);
 
   return {

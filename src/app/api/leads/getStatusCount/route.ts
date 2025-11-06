@@ -21,7 +21,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Group by messageStatus and location
+
   {
     $group: {
       _id: {
@@ -32,7 +32,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Regroup by messageStatus to build city:count maps
+  
   {
     $group: {
       _id: "$_id.messageStatus",
@@ -45,7 +45,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Convert to { city: count }
+ 
   {
     $project: {
       _id: 0,
@@ -54,7 +54,7 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Combine all statuses into one object
+  
   {
     $group: {
       _id: null,
@@ -72,7 +72,6 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Add empty keys for missing statuses (will show with 0 values)
   {
     $addFields: {
       First: { $ifNull: ["$First", {}] },
@@ -84,7 +83,6 @@ export async function GET(req:NextRequest){
     },
   },
 
-  // Project in the desired order
   {
     $project: {
       First: 1,
@@ -99,7 +97,7 @@ export async function GET(req:NextRequest){
 ];
 
     const result = await Query.aggregate(statusPipeline);
-    console.log("result",result);
+
     
     return NextResponse.json({
         success: true,

@@ -41,7 +41,7 @@ const ListingCounts = ()=>{
     }
   };
   useEffect(()=>{
-    fetchListingCounts({ days: "12 days" });
+    fetchListingCounts({ days: "this month" });
   },[])
 
   return {

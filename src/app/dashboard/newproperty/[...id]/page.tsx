@@ -166,6 +166,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
     const PropertyId = propertyData[selectedPortion]._id;
     try {
       setPropertyLoading(true);
+      console.log(PropertyId, propertyData[selectedPortion]);
       const response = await axios.post("/api/property/editProperty", {
         PropertyId,
         propertyData: propertyData[selectedPortion],
@@ -876,7 +877,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                         <div>
                           <Label className="w-full">Bedroom</Label>
                           <Input
-                            onChange={(e) => handleInputChange(e, "bedroom")}
+                            onChange={(e) => handleInputChange(e, "bedrooms")}
                             className="w-full"
                             defaultValue={
                               propertyData[selectedPortion].bedrooms

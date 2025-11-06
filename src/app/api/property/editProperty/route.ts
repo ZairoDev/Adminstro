@@ -58,14 +58,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    console.log(PropertyId, propertyData);
+    console.log("message",PropertyId, propertyData.bedrooms,propertyData.beds);
 
     const updatedProperty = await Properties.findByIdAndUpdate(
       PropertyId,
       { $set: propertyData },
       { new: true }
     );
-
+    console.log("updatedProperty: ", updatedProperty);
     if (!updatedProperty) {
       return NextResponse.json(
         { error: "Property not found" },

@@ -745,63 +745,101 @@ export const getAverage = async()=>{
 
 
 
-export const getLocationLeadStats = async () => {
+export const getLocationLeadStats = async (selectedMonth?: Date) => {
+  // Use provided month or default to current month
+  const referenceDate = selectedMonth || new Date();
+  
+  // Create a new date at the start of the selected month
+  const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // UTC safe boundaries
+  // Determine if we're looking at the current month
+  const isCurrentMonth = referenceDate.getFullYear() === today.getFullYear() && 
+                         referenceDate.getMonth() === today.getMonth();
+
+  // UTC safe boundaries for the selected month
+  const startOfMonth = new Date(Date.UTC(
+    referenceDate.getFullYear(), 
+    referenceDate.getMonth(), 
+    1, 
+    0, 0, 0
+  ));
+  
+  // End of month should be either today (if current month) or last day of that month
+  const lastDayOfMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
+  const endOfMonth = isCurrentMonth 
+    ? new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999))
+    : new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), lastDayOfMonth, 23, 59, 59, 999));
+
+  // Today boundaries (only relevant for current month)
   const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
   const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
 
+  // Yesterday boundaries (only relevant for current month)
   const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
   const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
 
-  const startOfMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0));
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const daysPassedInMonth = today.getDate(); // current day of the month
+  const daysInMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
+  
+  // Days passed in the selected month
+  const daysPassedInMonth = isCurrentMonth 
+    ? today.getDate() 
+    : lastDayOfMonth;
 
   // ----------------------------
   // Queries aggregation (case-insensitive)
   // ----------------------------
+  const facetStages: any = {
+    month: [
+      { $match: { createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+      {
+        $group: {
+          _id: { $toLower: "$location" },
+          monthCount: { $sum: 1 }
+        }
+      },
+    ],
+  };
+
+  // Only add today and yesterday facets if we're viewing the current month
+  if (isCurrentMonth) {
+    facetStages.today = [
+      { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
+      {
+        $group: {
+          _id: { $toLower: "$location" },
+          todayCount: { $sum: 1 }
+        }
+      },
+    ];
+    
+    facetStages.yesterday = [
+      { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
+      {
+        $group: {
+          _id: { $toLower: "$location" },
+          yesterdayCount: { $sum: 1 }
+        }
+      },
+    ];
+  }
+
   const queryAgg = await Query.aggregate([
     {
-      $facet: {
-        today: [
-          { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
-          {
-            $group: {
-              _id: { $toLower: "$location" },
-              todayCount: { $sum: 1 }
-            }
-          },
-        ],
-        yesterday: [
-          { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
-          {
-            $group: {
-              _id: { $toLower: "$location" },
-              yesterdayCount: { $sum: 1 }
-            }
-          },
-        ],
-        month: [
-          { $match: { createdAt: { $gte: startOfMonth, $lte: endOfToday } } },
-          {
-            $group: {
-              _id: { $toLower: "$location" },
-              monthCount: { $sum: 1 }
-            }
-          },
-        ],
-      },
+      $facet: facetStages,
     },
   ]);
 
-  
   // Maps for quick lookup
-  const todayMap = Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]));
-  const yesterdayMap = Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
+  const todayMap = isCurrentMonth && queryAgg[0].today 
+    ? Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]))
+    : {};
+  const yesterdayMap = isCurrentMonth && queryAgg[0].yesterday
+    ? Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]))
+    : {};
   const monthMap = Object.fromEntries(queryAgg[0].month.map((d: any) => [d._id, d.monthCount]));
 
   // ----------------------------
@@ -822,8 +860,8 @@ export const getLocationLeadStats = async () => {
     const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
 
     // New metrics
-    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : 0;
-    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : 0;
+    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : "0";
+    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : "0";
 
     return {
       location: mt.city,
@@ -838,99 +876,134 @@ export const getLocationLeadStats = async () => {
     };
   });
 
-
   return { visits };
 };
 
 
-
-export const getLocationVisitStats = async () => {
+export const getLocationVisitStats = async (selectedMonth?: Date) => {
+  // Use provided month or default to current month
+  const referenceDate = selectedMonth || new Date();
+  
+  // Create a new date at the start of the selected month
+  const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // UTC boundaries
+  // Determine if we're looking at the current month
+  const isCurrentMonth = referenceDate.getFullYear() === today.getFullYear() && 
+                         referenceDate.getMonth() === today.getMonth();
+
+  // UTC safe boundaries for the selected month
+  const startOfMonth = new Date(Date.UTC(
+    referenceDate.getFullYear(), 
+    referenceDate.getMonth(), 
+    1, 
+    0, 0, 0
+  ));
+  
+  // End of month should be either today (if current month) or last day of that month
+  const lastDayOfMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
+  const endOfMonth = isCurrentMonth 
+    ? new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999))
+    : new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), lastDayOfMonth, 23, 59, 59, 999));
+
+  // Today boundaries (only relevant for current month)
   const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
   const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
 
+  // Yesterday boundaries (only relevant for current month)
   const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
   const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
 
-  const startOfMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1, 0, 0, 0));
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const daysPassedInMonth = today.getDate();
+  const daysInMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
+  
+  // Days passed in the selected month
+  const daysPassedInMonth = isCurrentMonth 
+    ? today.getDate() 
+    : lastDayOfMonth;
 
   // ----------------------------
   // Aggregation with correct lookup and grouping by `leadInfo.location`
   // ----------------------------
+  const facetStages: any = {
+    month: [
+      { $match: { createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadInfo",
+        },
+      },
+      { $unwind: "$leadInfo" },
+      {
+        $group: {
+          _id: { $toLower: "$leadInfo.location" },
+          monthCount: { $sum: 1 },
+        },
+      },
+    ],
+  };
+
+  // Only add today and yesterday facets if we're viewing the current month
+  if (isCurrentMonth) {
+    facetStages.today = [
+      { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadInfo",
+        },
+      },
+      { $unwind: "$leadInfo" },
+      {
+        $group: {
+          _id: { $toLower: "$leadInfo.location" },
+          todayCount: { $sum: 1 },
+        },
+      },
+    ];
+    
+    facetStages.yesterday = [
+      { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadInfo",
+        },
+      },
+      { $unwind: "$leadInfo" },
+      {
+        $group: {
+          _id: { $toLower: "$leadInfo.location" },
+          yesterdayCount: { $sum: 1 },
+        },
+      },
+    ];
+  }
+
   const visitAgg = await Visits.aggregate([
     {
-      $facet: {
-        today: [
-          { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
-          {
-            $lookup: {
-              from: "queries",
-              localField: "lead",
-              foreignField: "_id",
-              as: "leadInfo",
-            },
-          },
-          { $unwind: "$leadInfo" },
-          {
-            $group: {
-              _id: { $toLower: "$leadInfo.location" },
-              todayCount: { $sum: 1 },
-            },
-          },
-        ],
-        yesterday: [
-          { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
-          {
-            $lookup: {
-              from: "queries",
-              localField: "lead",
-              foreignField: "_id",
-              as: "leadInfo",
-            },
-          },
-          { $unwind: "$leadInfo" },
-          {
-            $group: {
-              _id: { $toLower: "$leadInfo.location" },
-              yesterdayCount: { $sum: 1 },
-            },
-          },
-        ],
-        month: [
-          { $match: { createdAt: { $gte: startOfMonth, $lte: endOfToday } } },
-          {
-            $lookup: {
-              from: "queries",
-              localField: "lead",
-              foreignField: "_id",
-              as: "leadInfo",
-            },
-          },
-          { $unwind: "$leadInfo" },
-          {
-            $group: {
-              _id: { $toLower: "$leadInfo.location" },
-              monthCount: { $sum: 1 },
-            },
-          },
-        ],
-      },
+      $facet: facetStages,
     },
   ]);
-
-
 
   // ----------------------------
   // Convert to maps for easy lookup
   // ----------------------------
-  const todayMap = Object.fromEntries(visitAgg[0].today.map((d: any) => [d._id, d.todayCount]));
-  const yesterdayMap = Object.fromEntries(visitAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]));
+  const todayMap = isCurrentMonth && visitAgg[0].today 
+    ? Object.fromEntries(visitAgg[0].today.map((d: any) => [d._id, d.todayCount]))
+    : {};
+  const yesterdayMap = isCurrentMonth && visitAgg[0].yesterday
+    ? Object.fromEntries(visitAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]))
+    : {};
   const monthMap = Object.fromEntries(visitAgg[0].month.map((d: any) => [d._id, d.monthCount]));
 
   // ----------------------------
@@ -949,8 +1022,8 @@ export const getLocationVisitStats = async () => {
     const yesterdayCount = yesterdayMap[loc] || 0;
     const dailyRequired = target > 0 ? Math.ceil(target / daysInMonth) : 0;
     const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
-    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : 0;
-    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : 0;
+    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : "0";
+    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : "0";
 
     return {
       location: mt.city,
@@ -964,7 +1037,6 @@ export const getLocationVisitStats = async () => {
       successRate: Number(successRate),
     };
   });
-
 
   return { visits };
 };
@@ -1257,12 +1329,21 @@ export const getListingCounts = async ({
   let groupFormat: any;
 
   switch (days?.toLowerCase()) {
+    case "this month":
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Kolkata" },
+      };
+      break;
+
     case "12 days":
       start.setDate(now.getDate() - 11); // last 12 days including today
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
-        $dateToString: { format: "%Y-%m-%d", date: "$createdAt" ,timezone: "Asia/Kolkata", },
+        $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "Asia/Kolkata" },
       };
       break;
 
@@ -1270,114 +1351,100 @@ export const getListingCounts = async ({
       start.setFullYear(now.getFullYear() - 1);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y-%m", date: "$createdAt" ,timezone: "Asia/Kolkata",} }; // monthly
+      groupFormat = { $dateToString: { format: "%Y-%m", date: "$createdAt", timezone: "Asia/Kolkata" } }; // monthly
       break;
 
     case "last 3 years":
       start.setFullYear(now.getFullYear() - 3);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y", date: "$createdAt" ,timezone: "Asia/Kolkata",} }; // yearly
+      groupFormat = { $dateToString: { format: "%Y", date: "$createdAt", timezone: "Asia/Kolkata" } }; // yearly
       break;
 
     default:
       throw new Error(
-        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+        "Invalid period. Use 'this month', '12 days', '1 year', or 'last 3 years'."
       );
   }
 
   const result = await Property.aggregate([
-   
-  { $match: { createdAt: { $gte: start, $lte: end } } },
-  {
-    $group: {
-      _id: { date: groupFormat, type: "$rentalType" },
-      count: { $sum: 1 },
+    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $group: {
+        _id: { date: groupFormat, type: "$rentalType" },
+        count: { $sum: 1 },
+      },
     },
-  },
-  {
-    $group: {
-      _id: "$_id.date",
-      counts: { $push: { type: "$_id.type", count: "$count" } },
-      total: { $sum: "$count" },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: { $push: { type: "$_id.type", count: "$count" } },
+        total: { $sum: "$count" },
+      },
     },
-  },
-  { $sort: { _id: 1 } },
-]
-  );
+    { $sort: { _id: 1 } },
+  ]);
 
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
   const resultMap = new Map<string, { shortTerm: number; longTerm: number; total: number }>();
 
-for (const item of result) {
-  const shortTerm =
-    item.counts.find((c: any) => c.type === "Short Term")?.count || 0;
-  const longTerm =
-    item.counts.find((c: any) => c.type === "Long Term")?.count || 0;
-  resultMap.set(item._id, {
-    shortTerm,
-    longTerm,
-    total: item.total,
-  });
-}
-
-  
+  for (const item of result) {
+    const shortTerm =
+      item.counts.find((c: any) => c.type === "Short Term")?.count || 0;
+    const longTerm =
+      item.counts.find((c: any) => c.type === "Long Term")?.count || 0;
+    resultMap.set(item._id, {
+      shortTerm,
+      longTerm,
+      total: item.total,
+    });
+  }
 
   const output: any[] = [];
-if (days === "12 days") {
-  const temp = new Date(start);
-  while (temp <= end) {
-    const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); 
+  
+  if (days === "this month" || days === "12 days") {
+    const temp = new Date(start);
+    while (temp <= end) {
+      const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); 
+      const item = resultMap.get(key);
+      const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      output.push({
+        date: formattedDate,
+        shortTerm: item?.shortTerm ?? 0,
+        longTerm: item?.longTerm ?? 0,
+        total: item?.total ?? 0,
+      });
+      temp.setDate(temp.getDate() + 1);
+    }
+  } else if (days === "1 year") {
+    for (let i = 0; i < 12; i++) {
+      const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
+      const item = resultMap.get(dateKey);
+      output.push({
+        date: months[i],
+        shortTerm: item?.shortTerm ?? 0,
+        longTerm: item?.longTerm ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  } else if (days === "last 3 years") {
+    const currentYear = now.getFullYear();
+    for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
+      const item = resultMap.get(String(i));
+      output.push({
+        date: String(i),
+        shortTerm: item?.shortTerm ?? 0,
+        longTerm: item?.longTerm ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  }
 
-    const item = resultMap.get(key);
-    const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
-    output.push({
-      date: formattedDate,
-      shortTerm: item?.shortTerm ?? 0,
-      longTerm: item?.longTerm ?? 0,
-      total: item?.total ?? 0,
-    });
-    temp.setDate(temp.getDate() + 1);
-  }
-} else if (days === "1 year") {
-  for (let i = 0; i < 12; i++) {
-    const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
-    const item = resultMap.get(dateKey);
-    output.push({
-      date: months[i],
-      shortTerm: item?.shortTerm ?? 0,
-      longTerm: item?.longTerm ?? 0,
-      total: item?.total ?? 0,
-    });
-  }
-} else if (days === "last 3 years") {
-  const currentYear = now.getFullYear();
-  for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
-    const item = resultMap.get(String(i));
-    output.push({
-      date: String(i),
-      shortTerm: item?.shortTerm ?? 0,
-      longTerm: item?.longTerm ?? 0,
-      total: item?.total ?? 0,
-    });
-  }
-}
-
-return output;
+  return output;
 };
 
 export const getBookingStats = async ({
@@ -1618,11 +1685,7 @@ export const getBookingStats = async ({
 
 
 
-export const getBoostCounts = async ({
-  days,
-}: {
-  days?: string;
-}) => {
+export const getBoostCounts = async ({ days }: { days?: string }) => {
   await connectDb();
   const now = new Date();
   let start = new Date();
@@ -1630,12 +1693,29 @@ export const getBoostCounts = async ({
   let groupFormat: any;
 
   switch (days?.toLowerCase()) {
+    case "this month":
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$effectiveDate",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
     case "12 days":
       start.setDate(now.getDate() - 11);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
-        $dateToString: { format: "%Y-%m-%d", date: "$effectiveDate", timezone: "Asia/Kolkata" },
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$effectiveDate",
+          timezone: "Asia/Kolkata",
+        },
       };
       break;
 
@@ -1643,41 +1723,54 @@ export const getBoostCounts = async ({
       start.setFullYear(now.getFullYear() - 1);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y-%m", date: "$effectiveDate", timezone: "Asia/Kolkata" } };
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$effectiveDate",
+          timezone: "Asia/Kolkata",
+        },
+      };
       break;
 
     case "last 3 years":
       start.setFullYear(now.getFullYear() - 3);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      groupFormat = { $dateToString: { format: "%Y", date: "$effectiveDate", timezone: "Asia/Kolkata" } };
+      groupFormat = {
+        $dateToString: {
+          format: "%Y",
+          date: "$effectiveDate",
+          timezone: "Asia/Kolkata",
+        },
+      };
       break;
 
     default:
       throw new Error(
-        "Invalid period. Use '12 days', '1 year', or 'last 3 years'."
+        "Invalid period. Use 'this month', '12 days', '1 year', or 'last 3 years'."
       );
   }
 
-  // First aggregation: Group by reboost status
+  // --- Aggregations remain unchanged ---
   const reboostResult = await Boosters.aggregate([
     {
       $addFields: {
         effectiveDate: {
           $cond: {
-            if: { $and: [{ $eq: ["$reboost", true] }, { $ne: ["$lastReboostedAt", null] }] },
+            if: {
+              $and: [
+                { $eq: ["$reboost", true] },
+                { $ne: ["$lastReboostedAt", null] },
+              ],
+            },
             then: "$lastReboostedAt",
-            else: "$createdAt"
-          }
+            else: "$createdAt",
+          },
         },
-        reboost: { $ifNull: ["$reboost", false] }
-      }
+        reboost: { $ifNull: ["$reboost", false] },
+      },
     },
-    {
-      $match: {
-        effectiveDate: { $gte: start, $lte: end }
-      }
-    },
+    { $match: { effectiveDate: { $gte: start, $lte: end } } },
     {
       $group: {
         _id: { date: groupFormat, reboost: "$reboost" },
@@ -1687,50 +1780,44 @@ export const getBoostCounts = async ({
     {
       $group: {
         _id: "$_id.date",
-        counts: { 
-          $push: { 
-            reboost: "$_id.reboost", 
-            count: "$count" 
-          } 
-        },
+        counts: { $push: { reboost: "$_id.reboost", count: "$count" } },
         total: { $sum: "$count" },
       },
     },
     { $sort: { _id: 1 } },
   ]);
 
-  // Second aggregation: Group by posted status (only count properties with URL)
-  // FIXED: Better URL validation
   const postedResult = await Boosters.aggregate([
     {
       $addFields: {
         effectiveDate: {
           $cond: {
-            if: { $and: [{ $eq: ["$reboost", true] }, { $ne: ["$lastReboostedAt", null] }] },
+            if: {
+              $and: [
+                { $eq: ["$reboost", true] },
+                { $ne: ["$lastReboostedAt", null] },
+              ],
+            },
             then: "$lastReboostedAt",
-            else: "$createdAt"
-          }
+            else: "$createdAt",
+          },
         },
         isPosted: {
           $cond: {
-            if: { 
+            if: {
               $and: [
                 { $ne: ["$url", null] },
                 { $ne: ["$url", ""] },
-                { $gt: [{ $strLenCP: { $ifNull: ["$url", ""] } }, 0] }
-              ]
+                { $gt: [{ $strLenCP: { $ifNull: ["$url", ""] } }, 0] },
+              ],
             },
             then: true,
-            else: false
-          }
-        }
-      }
+            else: false,
+          },
+        },
+      },
     },
-    {
-      $match: {
-        effectiveDate: { $gte: start, $lte: end }
-      }
-    },
+    { $match: { effectiveDate: { $gte: start, $lte: end } } },
     {
       $group: {
         _id: { date: groupFormat, isPosted: "$isPosted" },
@@ -1740,59 +1827,47 @@ export const getBoostCounts = async ({
     {
       $group: {
         _id: "$_id.date",
-        counts: { 
-          $push: { 
-            isPosted: "$_id.isPosted", 
-            count: "$count" 
-          } 
-        },
+        counts: { $push: { isPosted: "$_id.isPosted", count: "$count" } },
       },
     },
     { $sort: { _id: 1 } },
   ]);
 
+  const reboostMap = new Map<string, any>();
+  const postedMap = new Map<string, any>();
+
+  for (const item of reboostResult) {
+    const newBoosts =
+      item.counts.find((c: any) => c.reboost === false)?.count || 0;
+    const reboosts =
+      item.counts.find((c: any) => c.reboost === true)?.count || 0;
+    reboostMap.set(item._id, { newBoosts, reboosts, total: item.total });
+  }
+
+  for (const item of postedResult) {
+    const posted =
+      item.counts.find((c: any) => c.isPosted === true)?.count || 0;
+    const notPosted =
+      item.counts.find((c: any) => c.isPosted === false)?.count || 0;
+    postedMap.set(item._id, { posted, notPosted });
+  }
 
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  // Create map for reboost data
-  const reboostMap = new Map<string, { newBoosts: number; reboosts: number; total: number }>();
-  for (const item of reboostResult) {
-    const newBoosts = item.counts.find((c: any) => c.reboost === false)?.count || 0;
-    const reboosts = item.counts.find((c: any) => c.reboost === true)?.count || 0;
-    
-    reboostMap.set(item._id, {
-      newBoosts,
-      reboosts,
-      total: item.total,
-    });
-  }
-
-  // Create map for posted data
-  const postedMap = new Map<string, { posted: number; notPosted: number }>();
-  for (const item of postedResult) {
-    const posted = item.counts.find((c: any) => c.isPosted === true)?.count || 0;
-    const notPosted = item.counts.find((c: any) => c.isPosted === false)?.count || 0;
-    
-    postedMap.set(item._id, {
-      posted,
-      notPosted,
-    });
-  }
-
-  // Combine both maps
   const output: any[] = [];
 
-  if (days === "12 days") {
+  if (days === "this month" || days === "12 days") {
     const temp = new Date(start);
     while (temp <= end) {
-      const key = temp.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const key = temp.toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata",
+      });
       const reboostData = reboostMap.get(key);
       const postedData = postedMap.get(key);
       const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
-      
       output.push({
         date: formattedDate,
         newBoosts: reboostData?.newBoosts ?? 0,
@@ -1808,7 +1883,6 @@ export const getBoostCounts = async ({
       const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(2, "0")}`;
       const reboostData = reboostMap.get(dateKey);
       const postedData = postedMap.get(dateKey);
-      
       output.push({
         date: months[i],
         newBoosts: reboostData?.newBoosts ?? 0,
@@ -1823,7 +1897,6 @@ export const getBoostCounts = async ({
     for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
       const reboostData = reboostMap.get(String(i));
       const postedData = postedMap.get(String(i));
-      
       output.push({
         date: String(i),
         newBoosts: reboostData?.newBoosts ?? 0,
@@ -1835,9 +1908,9 @@ export const getBoostCounts = async ({
     }
   }
 
-
   return output;
 };
+
 
 export const getUnregisteredOwnerCounts = async ({
   days,

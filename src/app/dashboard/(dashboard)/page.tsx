@@ -3,7 +3,9 @@
 import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import {
+  BarChart3,
   ChartLine,
+  Loader,
   Loader2,
   RotateCw,
   TrendingDown,
@@ -97,6 +99,8 @@ import BookingChartImproved from "@/components/BookingChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import CityStatsCharts from "@/components/charts/DonutMessageStatus";
+import { MonthSelector } from "@/components/MonthSelector/page";
+import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
 
 interface StatusCount {
   First: number;
@@ -305,9 +309,21 @@ const Dashboard = () => {
 
   const { reviews, fetchReviews } = useReview();
 
-  const { leadStats } = useLeadStats();
+  const {
+    leadStats,
+    statsLoading,
+    selectedMonth,
+    setSelectedMonth,
+    direction,
+  } = useLeadStats();
 
-  const { visitStats } = useVisitStats();
+  const {
+    visitStats,
+    visitStatsLoading,
+    selectedVisitMonth,
+    setSelectedVisitMonth,
+    directionVisit,
+  } = useVisitStats();
 
   const { monthlyStats, errMsg, fetchMonthlyVisitStats } =
     useMonthlyVisitStats();
@@ -386,60 +402,12 @@ const Dashboard = () => {
 
   const todayOwners =
     unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?.owners;
+
+  const monthKey = `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`;
   return (
     <div className="container mx-auto p-4 md:p-6">
-      {/* Property Count */}
-      {/* <div className="w-full flex flex-wrap gap-6 justify-center p-4">
-        
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.First}
-          </div>
-          <p className="text-sm font-medium text-gray-700">First Text</p>
-        </div>
-
-      
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.Second}
-          </div>
-          <p className="text-sm font-medium text-gray-700">Second Text</p>
-        </div>
-
-     
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-pink-700 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.Third}
-          </div>
-          <p className="text-sm font-medium text-gray-700">Third Text</p>
-        </div>
-
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.Fourth}
-          </div>
-          <p className="text-sm font-medium text-gray-700">Fourth Text</p>
-        </div>
-
-  
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.Options}
-          </div>
-          <p className="text-sm font-medium text-gray-700">Options</p>
-        </div>
-
-        
-        <div className="flex flex-col items-center space-y-2">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center text-white text-xl font-bold shadow-lg hover:scale-110 hover:shadow-xl transition-transform duration-300 cursor-pointer">
-            {messageStatus?.Visit}
-          </div>
-          <p className="text-sm font-medium text-gray-700">Visit</p>
-        </div>
-      </div> */}
-
       <div className=" my-2 ">
-        <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1>
+        {/* <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1> */}
         <BookingChartImproved />
       </div>
 
@@ -602,7 +570,7 @@ const Dashboard = () => {
                       "3 months",
                     ]}
                     triggerText="Select days"
-                    defaultValue="All"
+                    defaultValue="this month"
                     onValueChange={(value) => {
                       const newLeadFilters = { ...propertyFilters };
                       newLeadFilters.days = value;
@@ -638,7 +606,7 @@ const Dashboard = () => {
 
             {/* Right Column - Reviews */}
             {reviews && (
-              <div className="space-y-4 border rounded-md p-4">
+              <div className="space-y-4 relative border rounded-md p-4">
                 <div className="flex gap-3 flex-wrap">
                   <CustomSelect
                     itemList={[
@@ -652,7 +620,7 @@ const Dashboard = () => {
                       "3 months",
                     ]}
                     triggerText="Select days"
-                    defaultValue="All"
+                    defaultValue="this month"
                     onValueChange={(value) => {
                       const newLeadFilters = { ...reviewsFilters };
                       newLeadFilters.days = value;
@@ -681,20 +649,53 @@ const Dashboard = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {leadStats.map((loc: LeadStats, index: number) => (
-              <StatsCard
-                key={index}
-                title={loc.location}
-                target={loc.target}
-                achieved={loc.achieved}
-                today={loc.today}
-                yesterday={loc.yesterday}
-                dailyrequired={loc.dailyrequired}
-                dailyAchieved={loc.currentAverage}
-                rate={loc.rate}
+          <div className="space-y-6">
+            {/* Month Selector */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Lead Statistics</h2>
+              <MonthSelector
+                selectedMonth={selectedMonth}
+                onMonthChange={setSelectedMonth}
               />
-            ))}
+            </div>
+
+            {/* Loading State */}
+            {statsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-muted-foreground">
+                  <Loader2 className="animate-spin" />
+                </div>
+              </div>
+            )}
+
+            {/* Stats Grid */}
+            {!statsLoading && (
+              <AnimatedStatsWrapper direction={direction} monthKey={monthKey}>
+                {leadStats.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {leadStats.map((loc: LeadStats, index: number) => (
+                      <StatsCard
+                        key={index}
+                        title={loc.location}
+                        target={loc.target}
+                        achieved={loc.achieved}
+                        today={loc.today}
+                        yesterday={loc.yesterday}
+                        dailyrequired={loc.dailyrequired}
+                        dailyAchieved={loc.currentAverage}
+                        rate={loc.rate}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-muted-foreground">
+                      No data available for this month
+                    </div>
+                  </div>
+                )}
+              </AnimatedStatsWrapper>
+            )}
           </div>
         </section>
       )}
@@ -724,7 +725,7 @@ const Dashboard = () => {
                   "Custom",
                 ]}
                 triggerText="Select days"
-                defaultValue="All"
+                defaultValue="this month"
                 onValueChange={(value) => {
                   if (value === "Custom") {
                     setLeadCountDateModal(true);
@@ -860,44 +861,103 @@ const Dashboard = () => {
       )}
 
       {token?.role === "SuperAdmin" && (
-        <div className="relative">
-          <div className="flex flex-col gap-y-4 mt-4">
-            <h1 className="mt-2 text-3xl font-semibold">Visits Dashboard</h1>
+        <div className="min-h-screen">
+      <div className="max-w-fullmx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+  <div className="flex items-center gap-3 mb-2">
+    {/* <div className="p-2 bg-blue-600 dark:bg-blue-500 rounded-lg">
+      <BarChart3 className="w-6 h-6 text-white" />
+    </div> */}
+    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+      Visits Dashboard
+    </h1>
+  </div>
+  <p className="text-gray-600 dark:text-gray-400 ">
+    Track and monitor visit statistics across all locations
+  </p>
+</div>
 
-            <div className="flex flex-col lg:flex-row gap-6 m-4 w-full">
-              {/* 🟩 Left Section — Cards (50%) */}
-              <div className="w-full lg:w-[50%] flex flex-wrap justify-start gap-6">
-                {visitStats.map((loc: VisitStats, index: number) => (
-                  <VisitStatsCard
-                    key={index}
-                    className="flex-1 min-w-[250px] max-w-[320px]"
-                    title={loc.location}
-                    target={loc.target}
-                    achieved={loc.achieved}
-                    today={loc.today}
-                    yesterday={loc.yesterday}
-                    dailyrequired={loc.dailyRequired}
-                    dailyAchieved={loc.currentAverage}
-                    rate={loc.rate}
-                  />
-                ))}
-              </div>
 
-              {/* 🟦 Right Section — Chart (50%) */}
-              <div className="w-full flex flex-col lg:w-[50%]">
-                <CityVisitsChart
-                  chartData={monthlyStats}
-                  title="City Visit Stats"
-                  description="Top cities by visit count"
-                />
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+    {visitStats.length > 0 ? (
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+        <span>
+          <span className="font-bold text-gray-900 dark:text-gray-100">
+            {visitStats.length}
+          </span>{" "}
+          active locations
+        </span>
+      </div>
+    ) : (
+      <span className="text-gray-500 dark:text-gray-400">
+        No locations available
+      </span>
+    )}
+  </div>
+  <MonthSelector
+    selectedMonth={selectedVisitMonth}
+    onMonthChange={setSelectedVisitMonth}
+  />
+</div>
 
-                <div>
-                  <CityStatsCharts data={messageStatus} />
+
+          {visitStatsLoading && (
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+              <p className="text-gray-600 font-medium">Loading statistics...</p>
+              <p className="text-gray-400 text-sm mt-1">Please wait while we fetch the data</p>
+            </div>
+          )}
+
+          {!visitStatsLoading && (
+            <AnimatedStatsWrapper direction={directionVisit} monthKey={monthKey}>
+              {visitStats.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-max">
+                  {visitStats.map((loc: VisitStats, index: number) => (
+                    <VisitStatsCard
+                      key={index}
+                      title={loc.location}
+                      target={loc.target}
+                      achieved={loc.achieved}
+                      today={loc.today}
+                      yesterday={loc.yesterday}
+                      dailyrequired={loc.dailyRequired}
+                      dailyAchieved={loc.currentAverage}
+                      rate={loc.rate}
+                    />
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                  <div className="p-4 bg-gray-200 rounded-full mb-4">
+                    <BarChart3 className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 font-semibold text-lg">No data available</p>
+                  <p className="text-gray-500 text-sm mt-1">Try selecting a different month</p>
+                </div>
+              )}
+            </AnimatedStatsWrapper>
+          )}
+
+          <div className="flex flex-col lg:flex-row gap-6 w-full">
+            <div className="w-full lg:w-1/2">
+              <CityVisitsChart
+                chartData={monthlyStats}
+                title="City Visit Stats"
+                description="Top cities by visit count"
+              />
+            </div>
+
+            <div className="border-2 rounded-lg w-full lg:w-1/2">
+              <CityStatsCharts data={messageStatus} />
             </div>
           </div>
         </div>
+      </div>
+    </div>
       )}
 
       {token?.role === "Advert" && (
@@ -1143,9 +1203,9 @@ const Dashboard = () => {
             </div>
 
             <CustomSelect
-              itemList={["12 days", "1 year", "last 3 years"]}
+              itemList={["12 days","this month", "1 year", "last 3 years"]}
               triggerText="Select range"
-              defaultValue={listingFilters?.days || "12 days"}
+              defaultValue={listingFilters?.days || "this month"}
               onValueChange={(value) => {
                 const newLeadFilters = { ...listingFilters };
                 newLeadFilters.days = value;

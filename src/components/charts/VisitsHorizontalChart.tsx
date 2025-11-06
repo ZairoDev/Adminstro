@@ -1,16 +1,35 @@
-"use client"
+"use client";
 
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { BarChart3 } from "lucide-react";
 
 interface CityVisitsChartProps {
   chartData: {
-    location: string
-    visits: number
-  }[]
-  title?: string
-  description?: string
+    location: string;
+    visits: number;
+  }[];
+  title?: string;
+  description?: string;
 }
 
 const chartConfig = {
@@ -18,7 +37,7 @@ const chartConfig = {
     label: "Visits",
     color: "hsl(var(--chart-1))",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
 export function CityVisitsChart({
   chartData,
@@ -26,63 +45,120 @@ export function CityVisitsChart({
   description = "Top cities by visit count",
 }: CityVisitsChartProps) {
   return (
-    <Card className="w-full h-full">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
+    <Card className="w-full h-full flex flex-col justify-between shadow-lg hover:shadow-xl transition-shadow duration-300">
+  <CardHeader className="pb-4 space-y-2">
+    <div>
+      <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        {title}
+      </CardTitle>
+      <CardDescription className="text-sm text-muted-foreground">
+        {description}
+      </CardDescription>
+    </div>
 
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
-          <BarChart
-            accessibilityLayer
-            data={chartData}
-            layout="vertical"
-            margin={{ top: 8, right: 16, left: 12, bottom: 8 }}
-            barCategoryGap={12}
-          >
-            <CartesianGrid horizontal={false} vertical={true} />
-            <YAxis
-              dataKey="location"
-              type="category"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              width={120}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            />
-            <XAxis
-              dataKey="visits"
-              type="number"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            />
-            <ChartTooltip
-              cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
-              content={<ChartTooltipContent indicator="line" labelKey="location" />}
-            />
-            <Bar dataKey="visits" fill="var(--color-visits)" radius={[0, 6, 6, 0]} maxBarSize={36}>
-              {/* Remove location labels inside bars to prevent overlap; show only numeric values on the right */}
-              <LabelList
-                dataKey="visits"
-                position="right"
-                offset={12}
-                content={(props) => {
-                  const { x = 0, y = 0, width = 0, height = 0, value } = props as any
-                  const display = typeof value === "number" ? value.toLocaleString() : (value ?? "")
-                  return (
-                    <text x={x + width + 8} y={y + height / 2} dy={4} fill="hsl(var(--foreground))" fontSize={12}>
-                      {display}
-                    </text>
-                  )
-                }}
-              />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
+    <div className="flex items-center justify-between border-t border-border pt-2">
+      <div className="flex flex-col">
+        <span className="text-xs text-muted-foreground">Total Visits</span>
+        <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          {chartData.reduce((acc, d) => acc + d.visits, 0).toLocaleString()}
+        </span>
+      </div>
+
+      <div className="flex flex-col text-right">
+        <span className="text-xs text-muted-foreground">Top City</span>
+        <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          {chartData.length > 0
+            ? chartData.reduce((a, b) => (a.visits > b.visits ? a : b)).location
+            : "—"}
+        </span>
+      </div>
+    </div>
+  </CardHeader>
+
+  <CardContent className="pb-4">
+    <ChartContainer config={chartConfig} className="w-full">
+      <BarChart
+        accessibilityLayer
+        data={chartData}
+        layout="vertical"
+        margin={{ top: 4, right: 12, left: 8, bottom: 4 }}
+        barCategoryGap={10}
+      >
+        <defs>
+          <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
+            <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={1} />
+          </linearGradient>
+        </defs>
+
+        <CartesianGrid
+          horizontal={false}
+          vertical={true}
+          stroke="hsl(var(--border))"
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        <YAxis
+          dataKey="location"
+          type="category"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={6}
+          width={100}
+          tick={{
+            fill: "hsl(var(--foreground))",
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        />
+        <XAxis
+          dataKey="visits"
+          type="number"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={6}
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+        />
+        <ChartTooltip
+          cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
+          content={<ChartTooltipContent indicator="line" labelKey="location" />}
+        />
+        <Bar
+          dataKey="visits"
+          fill="url(#barGradient)"
+          radius={[0, 6, 6, 0]}
+          maxBarSize={32}
+          className="transition-all duration-300 hover:opacity-80"
+        >
+          <LabelList
+            dataKey="visits"
+            position="right"
+            offset={10}
+            content={(props) => {
+              const { x = 0, y = 0, width = 0, height = 0, value } = props as any;
+              const display =
+                typeof value === "number" ? value.toLocaleString() : value ?? "";
+              return (
+                <text
+                  x={x + width + 6}
+                  y={y + height / 2}
+                  dy={4}
+                  fill="hsl(var(--foreground))"
+                  fontSize={12}
+                  fontWeight={600}
+                >
+                  {display}
+                </text>
+              );
+            }}
+          />
+        </Bar>
+      </BarChart>
+    </ChartContainer>
+  </CardContent>
+</Card>
+
+  );
 }
+
+export default CityVisitsChart;

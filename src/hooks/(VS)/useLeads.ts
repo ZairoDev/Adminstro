@@ -180,11 +180,11 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
   useEffect(() => {
     fetchLeads({ date });
     fetchAverage();
-    fetchLeadStatus({});
+    fetchLeadStatus({days:"this month"});
     fetchAllEmployees();
     fetchMessageStatus();
-    fetchLeadByLocation({});
-    fetchRejectedLeadGroup({});
+    fetchLeadByLocation({days:"this month"});
+    fetchRejectedLeadGroup({days:"this month"});
   }, []);
 
   const refetch = () => fetchLeads({ date });

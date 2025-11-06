@@ -13,6 +13,8 @@ export async function POST(
     const { id } = await params;
     const formData = await request.formData();
 
+    console.log("Received onboarding data for candidate ID:", formData);
+
     // Get text fields
     const personalDetails = JSON.parse(
       formData.get("personalDetails") as string

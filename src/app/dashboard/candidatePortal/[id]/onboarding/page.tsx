@@ -13,6 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
 import { TermsConditionsModal } from "../../components/terms-conditions-modal";
+import { SignaturePreviewModal } from "../../components/signature-preview-modal";
+import { SignaturePad } from "../../components/signature-pad";
+import { PDFDocument } from "pdf-lib";
+
+
+
 
 interface Candidate {
   _id: string;
@@ -100,6 +106,25 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+async function urlToUint8Array(url: string): Promise<Uint8Array> {
+  const res = await fetch(url);
+  const buffer = await res.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+function base64ToFile(base64: string, filename: string): File {
+  const arr = base64.split(",");
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/png";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
 export default function OnboardingPage() {
   const params = useParams();
   const router = useRouter();
@@ -142,6 +167,10 @@ export default function OnboardingPage() {
 
   const [signature, setSignature] = useState<UploadedFile | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [useDigitalSignature, setUseDigitalSignature] = useState(true);
+  const [showSignaturePad, setShowSignaturePad] = useState(true);
+  const [previewSignature, setPreviewSignature] = useState<string | null>(null);
+  const [showSignaturePreview, setShowSignaturePreview] = useState(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -356,16 +385,113 @@ export default function OnboardingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const formData = new FormData();
+      console.log("Preparing to submit onboarding data...");
 
+      if (!signature?.url) {
+        throw new Error("Signature not available");
+      }
+
+      // ✅ 1. Load the base PDF (from /public) - use fetch with proper error handling
+      const basePdfUrl = "/zipl.pdf";
+
+      const pdfResponse = await fetch(basePdfUrl);
+
+      if (!pdfResponse.ok) {
+        throw new Error(
+          `Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`
+        );
+      }
+
+      // Check if we got a PDF
+      const contentType = pdfResponse.headers.get("content-type");
+      console.log("PDF Content-Type:", contentType);
+
+      if (!contentType?.includes("application/pdf")) {
+        console.warn(
+          "Warning: Response is not a PDF. Content-Type:",
+          contentType
+        );
+      }
+
+      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+      const pdfBytes = new Uint8Array(pdfArrayBuffer);
+
+      // Verify PDF header
+      const headerBytes = pdfBytes.slice(0, 5);
+      const header = String.fromCharCode.apply(null, Array.from(headerBytes));
+      console.log("PDF Header:", header);
+
+      if (!header.startsWith("%PDF-")) {
+        throw new Error(
+          "Invalid PDF file: Missing PDF header. Check if /zipl.pdf exists in your public folder."
+        );
+      }
+
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      console.log("PDF loaded successfully");
+
+      // ✅ 2. Load Signature PNG
+      const signatureResponse = await fetch(signature.url);
+      if (!signatureResponse.ok) {
+        throw new Error("Failed to fetch signature image");
+      }
+
+      const signatureArrayBuffer = await signatureResponse.arrayBuffer();
+      const signatureBytes = new Uint8Array(signatureArrayBuffer);
+      const signatureImage = await pdfDoc.embedPng(signatureBytes);
+
+      const sigWidth = 80;
+      const sigHeight =
+        (signatureImage.height / signatureImage.width) * sigWidth;
+
+      // ✅ 3. Draw signature on the PDF
+      const page = pdfDoc.getPage(10);
+
+      page.drawImage(signatureImage, {
+        x: 230,
+        y: 430,
+        width: sigWidth,
+        height: sigHeight,
+      });
+
+      // ✅ 4. Export PDF
+      const finalPdfBytes = await pdfDoc.save();
+      const safeUint8 = Uint8Array.from(finalPdfBytes);
+
+      // ✅ 5. Trigger immediate download
+      const pdfBlob = new Blob([safeUint8], { type: "application/pdf" });
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `signed-dnd-${candidateId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(downloadUrl);
+
+      // ✅ 6. Upload signed PDF to BunnyCDN
+      const signedPdfFile = new File(
+        [safeUint8],
+        `signed-dnd-${candidateId}.pdf`,
+        { type: "application/pdf" }
+      );
+
+      const { imageUrls: signedPdfUrls, error: pdfUploadError } =
+        await uploadFiles([signedPdfFile], "Documents/SignedPDFs");
+
+      if (pdfUploadError || !signedPdfUrls?.length) {
+        throw new Error("Failed to upload signed PDF");
+      }
+
+      const signedPdfUrl = signedPdfUrls[0];
+
+      // ✅ 7. Prepare onboarding form data
+      const formData = new FormData();
       formData.append("personalDetails", JSON.stringify(personalDetails));
       formData.append("bankDetails", JSON.stringify(bankDetails));
 
@@ -385,14 +511,18 @@ export default function OnboardingPage() {
         documents.experienceLetter?.url || ""
       );
       formData.append("relievingLetter", documents.relievingLetter?.url || "");
-
       formData.append(
         "salarySlips",
         JSON.stringify(documents.salarySlips.map((s) => s.url))
       );
-      formData.append("signature", signature?.url || "");
+
+      formData.append("signature", signature.url);
+      formData.append("signedPdfUrl", signedPdfUrl);
       formData.append("termsAccepted", String(termsAccepted));
 
+      console.log("Submitting onboarding form...");
+
+      // ✅ 8. Send onboarding data to API
       const response = await fetch(
         `/api/candidates/${candidateId}/onboarding`,
         {
@@ -414,10 +544,92 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error("Error submitting onboarding:", err);
-      setError("An error occurred while submitting the form");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred while submitting the form"
+      );
     } finally {
       setSubmitting(false);
     }
+  };  
+  
+  const handleSignatureCapture = (signatureUrl: string) => {
+    setPreviewSignature(signatureUrl);
+    setShowSignaturePreview(true);
+  };
+
+  const confirmSignature = async () => {
+    if (!previewSignature) {
+      toast({
+        title: "No signature",
+        description: "Please draw your signature first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploadingFiles((prev) => new Set(prev).add("signature"));
+
+      // ✅ Convert base64 to file
+      const signatureFile = base64ToFile(
+        previewSignature,
+        `signature-${Date.now()}.png`
+      );
+
+      // ✅ Upload to BunnyCDN
+      const { imageUrls, error } = await uploadFiles(
+        [signatureFile],
+        "Documents/Signatures"
+      );
+
+      console.log("Signature upload result:", imageUrls);
+
+      if (error || !imageUrls?.length) {
+        toast({
+          title: "Upload failed",
+          description: error || "Failed to upload signature",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // ✅ Save uploaded signature URL to state
+      setSignature({
+        url: imageUrls[0],
+        name: signatureFile.name,
+      });
+
+      toast({
+        title: "Signature saved",
+        description: "Digital signature uploaded successfully",
+      });
+
+      // ✅ Close modals & reset
+      setShowSignaturePad(false);
+      setShowSignaturePreview(false);
+      setPreviewSignature(null);
+    } catch (error) {
+      console.error("Signature upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete("signature");
+        return next;
+      });
+    }
+  };
+  
+  const cancelSignaturePad = () => {
+    setShowSignaturePad(false);
+    setPreviewSignature(null);
+    setShowSignaturePreview(false);
   };
 
   if (loading) {
@@ -454,8 +666,6 @@ export default function OnboardingPage() {
             Fill in all required details to get started with us
           </p>
         </div>
-
-        {/* Progress Bar (removed as upload progress is handled by toasts and UI indicators) */}
 
         {/* Success Message */}
         {success && (
@@ -806,6 +1016,7 @@ export default function OnboardingPage() {
                           }
                           className="hidden"
                           disabled={isUploading}
+                          required
                         />
                       </label>
                     </div>
@@ -843,7 +1054,7 @@ export default function OnboardingPage() {
 
                 return (
                   <div key={key} className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+                    <label className="block text-sm font-medium text-foreground  items-center gap-2">
                       {label}
                       {isUploading && (
                         <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
@@ -938,28 +1149,147 @@ export default function OnboardingPage() {
             </div>
           </Card>
 
-          {/* E-Signature */}
-          <Card className="p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-semibold">
+          {/* Terms & Conditions + E-Signature */}
+          <Card className="p-6 shadow-sm space-y-6">
+            {/* Section Header */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
                 7
               </div>
               <h2 className="text-lg font-semibold text-foreground">
-                E-Signature
+                Terms & Conditions
               </h2>
-              {uploadingFiles.has("signature") && (
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              )}
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Please upload an image of your signature for verification purposes
-            </p>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">
-                Upload Signature
+
+            {/* T&C */}
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Please read and accept our terms and conditions to proceed with
+                onboarding.
+              </p>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTermsModalOpen(true)}
+                className="w-full justify-center"
+              >
+                View Terms and Conditions
+              </Button>
+
+              <label className="flex items-start gap-3 p-4 border border-purple-200 rounded-lg bg-white hover:bg-purple-50 transition-colors cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="w-4 h-4 cursor-pointer mt-1"
+                  required
+                />
+                <span className="text-sm text-foreground">
+                  I have read and agree to the terms and conditions
+                </span>
               </label>
-              <div className="relative">
-                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors hover:border-blue-400">
+            </div>
+
+            {/* Divider */}
+            <div className="border-t pt-4" />
+
+            {/* Signature Section Header */}
+            <div>
+              <h3 className="font-semibold text-base mb-1">E-Signature</h3>
+              <p className="text-sm text-muted-foreground">
+                {useDigitalSignature
+                  ? "Draw your signature below."
+                  : "Upload an image of your signature."}
+              </p>
+            </div>
+
+            {/* Signature Mode Switch */}
+            <div className="flex gap-2 border-b border-gray-200 pb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setUseDigitalSignature(true);
+                  setShowSignaturePad(false);
+                }}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  useDigitalSignature
+                    ? "bg-blue-100 text-blue-700 border border-blue-300"
+                    : "text-muted-foreground hover:bg-gray-100"
+                }`}
+              >
+                Digital Signature
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUseDigitalSignature(false)}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  !useDigitalSignature
+                    ? "bg-blue-100 text-blue-700 border border-blue-300"
+                    : "text-muted-foreground hover:bg-gray-100"
+                }`}
+              >
+                Upload Signature
+              </button>
+            </div>
+
+            {/* Digital Signature */}
+            {useDigitalSignature ? (
+              <div className="space-y-3">
+                {!showSignaturePad ? (
+                  signature ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+                      <img
+                        src={signature.url || "/placeholder.svg"}
+                        alt="Digital signature preview"
+                        className="w-full max-h-40 object-contain"
+                      />
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSignature(null);
+                          setShowSignaturePad(true);
+                        }}
+                        className="w-full mt-3"
+                      >
+                        Redraw Signature
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => setShowSignaturePad(true)}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Start Drawing Signature
+                    </Button>
+                  )
+                ) : (
+                  <>
+                    <SignaturePad onSignatureCapture={handleSignatureCapture} />
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelSignaturePad}
+                      className="w-full bg-transparent"
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                )}
+              </div>
+            ) : (
+              /* Upload Signature */
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Upload Signature
+                </label>
+
+                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-blue-400 transition-colors">
                   <div className="flex items-center gap-2 text-foreground">
                     {signature ? (
                       <>
@@ -977,6 +1307,7 @@ export default function OnboardingPage() {
                       </>
                     )}
                   </div>
+
                   <input
                     type="file"
                     accept=".jpg,.jpeg,.png,.pdf"
@@ -987,45 +1318,7 @@ export default function OnboardingPage() {
                   />
                 </label>
               </div>
-            </div>
-          </Card>
-
-          {/* Terms and Conditions */}
-          <Card className="p-6 shadow-sm border-purple-200 bg-purple-50">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                8
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Terms and Conditions
-              </h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Please read and accept our terms and conditions to proceed with
-                onboarding
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTermsModalOpen(true)}
-                className="w-full justify-center"
-              >
-                View Terms and Conditions
-              </Button>
-              <label className="flex items-start gap-3 p-4 border border-purple-200 rounded-lg bg-white hover:bg-purple-50 transition-colors cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="w-4 h-4 cursor-pointer mt-1 flex-shrink-0"
-                  required
-                />
-                <span className="text-sm text-foreground">
-                  I have read and agree to the terms and conditions
-                </span>
-              </label>
-            </div>
+            )}
           </Card>
 
           {/* Submit Button */}
@@ -1051,6 +1344,14 @@ export default function OnboardingPage() {
           </div>
         </form>
       </div>
+
+      {/* Signature Preview Modal */}
+      <SignaturePreviewModal
+        open={showSignaturePreview}
+        signature={previewSignature || ""}
+        onConfirm={confirmSignature}
+        onCancel={cancelSignaturePad}
+      />
 
       <TermsConditionsModal
         open={termsModalOpen}

@@ -19,6 +19,7 @@ import { RejectCandidateDialog, RejectionData } from "../components/reject-candi
 import axios from "axios";
 
 
+
 interface Candidate {
   _id: string;
   name: string;
@@ -83,7 +84,7 @@ export default function CandidateDetailPage() {
           status: "selected",
           selectionDetails: {
             positionType: data.positionType,
-            duration: data.duration,
+            trainingDate: data.trainingDate,
             trainingPeriod: data.trainingPeriod,
             role: data.role,
           },
@@ -361,6 +362,16 @@ export default function CandidateDetailPage() {
                   className="w-full"
                 >
                   Reject
+                </Button>
+                <Button
+                  onClick={() => setRejectDialogOpen(true)}
+                  disabled={actionLoading || candidate.status === "rejected"}
+                  variant={
+                    candidate.status === "rejected" ? "destructive" : "outline"
+                  }
+                  className="w-full"
+                >
+                  Start Onboarding
                 </Button>
               </div>
             </Card>

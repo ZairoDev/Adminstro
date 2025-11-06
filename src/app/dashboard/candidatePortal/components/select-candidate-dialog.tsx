@@ -16,7 +16,7 @@ interface SelectCandidateDialogProps {
 
 export interface SelectionData {
   positionType: "fulltime" | "intern";
-  duration: string;
+  trainingDate: string;
   trainingPeriod: string;
   role: string;
 }
@@ -30,27 +30,28 @@ export function SelectCandidateDialog({
   const [positionType, setPositionType] = useState<"fulltime" | "intern">(
     "fulltime"
   );
-  const [duration, setDuration] = useState("");
+  const [trainingDate, setTrainingDate] = useState("");
   const [trainingPeriod, setTrainingPeriod] = useState("");
   const [role, setRole] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!duration.trim() || !trainingPeriod.trim() || !role.trim()) {
+
+    if (!trainingDate.trim() || !trainingPeriod.trim() || !role.trim()) {
       alert("Please fill in all fields");
       return;
     }
 
     await onSubmit({
       positionType,
-      duration,
+      trainingDate,
       trainingPeriod,
       role,
     });
 
     // Reset form
     setPositionType("fulltime");
-    setDuration("");
+    setTrainingDate("");
     setTrainingPeriod("");
     setRole("");
   };
@@ -104,23 +105,16 @@ export function SelectCandidateDialog({
             </div>
           </div>
 
-          {/* Duration */}
+          {/* Training Date */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              {positionType === "intern"
-                ? "Internship Duration"
-                : "Contract Duration"}
+              Training Start Date
             </label>
             <input
-              type="text"
-              placeholder={
-                positionType === "intern"
-                  ? "e.g., 3 months, 6 months"
-                  : "e.g., 6 months, 1 year"
-              }
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
+              type="date"
+              value={trainingDate}
+              onChange={(e) => setTrainingDate(e.target.value)}
+              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground focus:border-primary focus:outline-none"
             />
           </div>
 
@@ -138,18 +132,22 @@ export function SelectCandidateDialog({
             />
           </div>
 
-          {/* Role */}
+          {/* Role Dropdown */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Role/Designation
             </label>
-            <input
-              type="text"
-              placeholder="e.g., Senior Developer, Frontend Engineer"
+            <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
-            />
+              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground focus:border-primary focus:outline-none"
+            >
+              <option value="">Select a Role</option>
+              <option value="LeadGen">LeadGen</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Developer">Developer</option>
+              <option value="Sales">Sales</option>
+            </select>
           </div>
 
           {/* Action Buttons */}

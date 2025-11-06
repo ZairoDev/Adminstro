@@ -184,7 +184,7 @@ const publicRoutes = [
   "/norole",
   "/dashboard/room/*",
   "/^/application-form/.*$/",
-
+  "/zipl.pdf",
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -249,6 +249,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Run middleware on everything except API routes, Next.js internals, favicon, and static files
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|pdf)).*)",
   ],
 };

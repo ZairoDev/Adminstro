@@ -81,6 +81,10 @@ export function StatsCard({
     return Math.max(0, calculatedRate);
   }, [target, achieved, title]);
 
+   const isOnTrack = dailyAchieved >= requiredRunRate;
+
+   const progressPercentage = target > 0 ? (achieved / target) * 100 : 0;
+
   return (
     <Card
       className={`
@@ -136,6 +140,16 @@ export function StatsCard({
               {achieved}
             </span>
           </div>
+
+          <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isOnTrack ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-rose-500 dark:bg-rose-400'} animate-pulse`} />
+              <span className={`text-[10px] font-medium ${isOnTrack ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {isOnTrack ? 'On Track' : 'Behind'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                ({progressPercentage.toFixed(1)}% complete)
+              </span>
+            </div>
         </div>
 
         <div className="border-t border-border dark:border-stone-700/50 pt-3 space-y-2.5">

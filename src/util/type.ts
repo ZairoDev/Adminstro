@@ -152,7 +152,7 @@ export interface Property {
   userId?: string;
   VSID?: string;
   email?: string;
-
+  propertyName?: string;
   propertyType?: string;
   placeName?: string;
   newPlaceName?: string;

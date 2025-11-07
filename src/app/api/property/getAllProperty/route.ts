@@ -88,9 +88,15 @@ export async function GET(request: NextRequest) {
       isLive: 1,
       hostedFrom: 1,
       hostedBy: 1,
+      rentalType:1,
       propertyCoverFileUrl: 1,
       VSID: 1,
+      propertyName: 1,
+      city:1,
+      bedrooms:1,
+      bathrooms:1,
       basePrice: 1,
+      basePriceLongTerm:1,
       commonId: 1,
       _id: 1,
     };
@@ -109,6 +115,7 @@ export async function GET(request: NextRequest) {
     if (allProperties.length === 0) {
       const totalCount = await Properties.countDocuments();
     }
+    // console.log("Total properties in database:", allProperties);
     const totalProperties = await Properties.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limit);
     return NextResponse.json({

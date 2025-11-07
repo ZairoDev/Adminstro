@@ -111,16 +111,19 @@ const FilteredProperties = () => {
   }, [page]);
 
   return (
-    <div className=" max-w-7xl mx-auto">
+    <div className=" w-full mx-auto">
       <h1 className=" text-3xl font-medium">Property Filters</h1>
 
       {/* filter bar */}
-      <FilterBar
+      <div className="max-w-7xl mx-auto">
+        <FilterBar
         filters={filters}
         setFilters={setFilters}
         handleSubmit={handleSumit}
         handleClear={handleClear}
       />
+      </div>
+      
 
       {/* property list */}
       {isLoading ? (

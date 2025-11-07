@@ -836,7 +836,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
           ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400"
           : filters.zone === "West"
           ? "border-yellow-500 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400"
-          : filters.zone === "Centre"
+          : filters.zone === "Center"
           ? "border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400"
           : filters.zone?.includes("North-")
           ? "border-cyan-500 text-cyan-600 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-400"
@@ -879,10 +879,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
         </div>
       </SelectItem>
 
-      <SelectItem value="Centre">
+      <SelectItem value="Center">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-purple-500" />
-          Centre
+          Center
         </div>
       </SelectItem>
 

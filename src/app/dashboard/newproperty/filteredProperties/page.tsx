@@ -35,6 +35,7 @@ export interface FilteredPropertiesInterface {
   propertyCoverFileUrl: string;
   basePrice: number;
   basePriceLongTerm: number;
+  userId:string;
   rentalType: "Short Term" | "Long Term";
   email: string;
   city: string;

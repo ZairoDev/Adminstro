@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     VSID: 1,
     propertyCoverFileUrl: 1,
     basePrice: 1,
+    userId: 1,
     basePriceLongTerm: 1,
     rentalType: 1,
     email: 1,

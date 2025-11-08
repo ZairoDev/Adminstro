@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 export interface EmailPayload {
   to: string;
   candidateName: string;
-  status: "selected" | "rejected" | "shortlisted";
+  status: "selected" | "rejected" | "shortlisted" | "onboarding";
   position: string;
   companyName?: string;
   selectionDetails?: {
@@ -15,6 +15,8 @@ export interface EmailPayload {
   };
   rejectionReason?: string;
   shortlistRoles?: string[];
+  onboardingLink?: string;
+  id?: string;
 }
 
 // Reuse your getEmailTemplate from before
@@ -25,13 +27,31 @@ export const getEmailTemplate = (
     candidateName,
     status,
     position,
-    companyName = "Our Company",
+    companyName = "Zairo International",
     selectionDetails,
     rejectionReason,
     shortlistRoles,
+    onboardingLink,
   } = payload;
 
   const templates = {
+    onboarding: {
+      subject: `Welcome aboard! Complete your onboarding for ${position}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2>Welcome, ${candidateName}!</h2>
+          <p>We're excited to have you join <strong>${companyName}</strong> as a <strong>${position}</strong>.</p>
+          <p>Please complete your onboarding by visiting the link below:</p>
+          <div style="margin:16px 0;">
+            <a href="${payload.onboardingLink ?? '#'}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Complete Onboarding</a>
+          </div>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="word-break:break-all;color:#0b1226">${payload.onboardingLink ?? 'No link provided'}</p>
+          <br/>
+          <p>Best,<br/>${companyName} Team</p>
+        </div>
+      `,
+    },
     selected: {
       subject: `Congratulations! You've been selected for ${position}`,
       html: `
@@ -95,6 +115,7 @@ export const getEmailTemplate = (
       `,
     },
   };
+
 
   return templates[status];
 };

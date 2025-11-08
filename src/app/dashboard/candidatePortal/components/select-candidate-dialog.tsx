@@ -19,6 +19,7 @@ export interface SelectionData {
   trainingDate: string;
   trainingPeriod: string;
   role: string;
+  salary?: number;
 }
 
 export function SelectCandidateDialog({
@@ -33,6 +34,7 @@ export function SelectCandidateDialog({
   const [trainingDate, setTrainingDate] = useState("");
   const [trainingPeriod, setTrainingPeriod] = useState("");
   const [role, setRole] = useState("");
+  const [salary, setSalary] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,11 +44,19 @@ export function SelectCandidateDialog({
       return;
     }
 
+    // Validate salary if provided (required here as part of selection)
+    const parsedSalary = salary === "" ? NaN : Number(salary);
+    if (Number.isNaN(parsedSalary) || parsedSalary < 0) {
+      alert("Please enter a valid non-negative salary");
+      return;
+    }
+
     await onSubmit({
       positionType,
       trainingDate,
       trainingPeriod,
       role,
+      salary: Number.isNaN(parsedSalary) ? undefined : parsedSalary,
     });
 
     // Reset form
@@ -54,6 +64,7 @@ export function SelectCandidateDialog({
     setTrainingDate("");
     setTrainingPeriod("");
     setRole("");
+    setSalary("");
   };
 
   if (!open) return null;
@@ -148,6 +159,22 @@ export function SelectCandidateDialog({
               <option value="Developer">Developer</option>
               <option value="Sales">Sales</option>
             </select>
+          </div>
+
+          {/* Salary Input */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Salary
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Enter salary"
+              value={salary}
+              onChange={(e) => setSalary(e.target.value)}
+              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
+            />
           </div>
 
           {/* Action Buttons */}

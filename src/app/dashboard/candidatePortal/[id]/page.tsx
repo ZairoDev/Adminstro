@@ -17,6 +17,7 @@ import { SelectCandidateDialog, SelectionData } from "../components/select-candi
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
 import axios from "axios";
+import { sendEmail } from "@/components/candidateEmail";
 
 
 
@@ -34,8 +35,53 @@ interface Candidate {
   linkedin?: string;
   portfolio?: string;
   resumeUrl: string;
-  status: "pending" | "shortlisted" | "selected" | "rejected";
+  status: "pending" | "shortlisted" | "selected" | "rejected" | "onboarding";
   createdAt: string;
+  selectionDetails?: {
+    positionType: "fulltime" | "intern";
+    duration: string; 
+    trainingPeriod: string;
+    role: string;
+    salary?: number; 
+  };
+  shortlistDetails?: {
+    suitableRoles: string[];
+    notes?: string; 
+  };
+  rejectionDetails?: {
+    reason: string; 
+  };
+  onboardingDetails?: {
+    onboardingLink?: string;
+    personalDetails?: {
+      dateOfBirth?: string;
+      gender?: string;
+      nationality?: string;
+    };
+    bankDetails?: {
+      accountHolderName?: string;
+      accountNumber?: string;
+      ifscCode?: string;
+      bankName?: string;
+    };
+    documents?: {
+      aadharCard?: string;
+      panCard?: string;
+      highSchoolMarksheet?: string;
+      interMarksheet?: string;
+      graduationMarksheet?: string;
+      experienceLetter?: string;
+      relievingLetter?: string;
+      salarySlips?: string[];
+    };
+    eSign?: {
+      signatureImage?: string;
+      signedAt?: string;
+    };
+    termsAccepted?: boolean;
+    termsAcceptedAt?: string;
+    onboardingComplete?: boolean;
+  };
 }
 
 export default function CandidateDetailPage() {
@@ -173,6 +219,33 @@ export default function CandidateDetailPage() {
       setActionLoading(false);
     }
   };
+
+  const handleOnboarding = async (candidateId: string) => {
+    const onboardingLink = `${process.env.NEXT_PUBLIC_APP_URL}/${candidateId}/onboarding`;
+    const payload = { onboardingLink };
+    try {
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
+          status: "onboarding",
+          onboardingLink,
+        }
+      );
+      const result = response.data;
+      if (result.success) {
+        setCandidate(result.data);
+      } else {
+        setError(result.error || "Failed to update candidate");
+      }
+    } catch (err: any) {
+      console.error("Error updating candidate:", err);
+      setError(
+        err.response?.data?.error ||
+          "An error occurred while updating the candidate"
+      );
+    }
+  };
+  
   
 
   if (loading) {
@@ -364,10 +437,10 @@ export default function CandidateDetailPage() {
                   Reject
                 </Button>
                 <Button
-                  onClick={() => setRejectDialogOpen(true)}
-                  disabled={actionLoading || candidate.status === "rejected"}
+                  onClick={() => handleOnboarding(candidate._id)}
+                  disabled={actionLoading || candidate.status === "onboarding"}
                   variant={
-                    candidate.status === "rejected" ? "destructive" : "outline"
+                    candidate.onboardingDetails?.termsAccepted === true ? "secondary" : "destructive"
                   }
                   className="w-full"
                 >

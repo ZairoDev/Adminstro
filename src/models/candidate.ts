@@ -8,6 +8,7 @@ const CandidateSchema = new Schema(
     experience: { type: Number, required: true },
     address: { type: String, required: true },
     city: { type: String, required: true },
+
     country: { type: String, required: true },
     position: { type: String, required: true },
     coverLetter: { type: String },
@@ -16,7 +17,7 @@ const CandidateSchema = new Schema(
     resumeUrl: { type: String, required: true },
     status: {
       type: String,
-      enum: ["pending", "shortlisted", "selected", "rejected"],
+      enum: ["pending", "shortlisted", "selected", "rejected", "onboarding"],
       default: "pending",
     },
     selectionDetails: {
@@ -28,6 +29,7 @@ const CandidateSchema = new Schema(
       duration: { type: String, default: null },
       trainingPeriod: { type: String, default: null },
       role: { type: String, default: null },
+      salary: { type: String, default: null },
     },
     shortlistDetails: {
       suitableRoles: [{ type: String }],
@@ -37,10 +39,12 @@ const CandidateSchema = new Schema(
       reason: { type: String, default: null },
     },
     onboardingDetails: {
+      onboardingLink: { type: String, default: null },
       personalDetails: {
         dateOfBirth: { type: String, default: null },
         gender: { type: String, default: null },
         nationality: { type: String, default: null },
+        fatherName: { type: String, required: true },
       },
       bankDetails: {
         accountHolderName: { type: String, default: null },
@@ -67,7 +71,6 @@ const CandidateSchema = new Schema(
       onboardingComplete: { type: Boolean, default: false },
       completedAt: { type: Date, default: null },
     },
-
   },
   { timestamps: true }
 );

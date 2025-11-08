@@ -1,4 +1,3 @@
-
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
@@ -13,55 +12,72 @@ export async function POST(
     const { id } = await params;
     const formData = await request.formData();
 
-    console.log("Received onboarding data for candidate ID:", formData);
+    console.log("Received onboarding data:", formData);
 
-    // Get text fields
-    const personalDetails = JSON.parse(
-      formData.get("personalDetails") as string
-    );
-    const bankDetails = JSON.parse(formData.get("bankDetails") as string);
-    const termsAccepted = formData.get("termsAccepted") === "true";
+    // Parse text fields
+    const personalDetailsRaw = formData.get("personalDetails") as string;
+    const bankDetailsRaw = formData.get("bankDetails") as string;
 
-    // In a real application, you would upload these files to cloud storage (Vercel Blob, AWS S3, etc.)
-    // For now, we'll store file names and metadata
+    const personalDetails = JSON.parse(personalDetailsRaw);
+    const bankDetails = JSON.parse(bankDetailsRaw);
+
+    // Handle fatherName inside personalDetails
+    const fatherName = personalDetails.fatherName || null;
+
+    // Salary slips come as JSON-stringified array
+    let salarySlips = [];
+    try {
+      salarySlips = JSON.parse(formData.get("salarySlips") as string);
+    } catch {
+      salarySlips = [];
+    }
+
     const documents = {
-      aadharCard: formData.get("aadharCard")
-        ? (formData.get("aadharCard") as File).name
-        : null,
-      panCard: formData.get("panCard")
-        ? (formData.get("panCard") as File).name
-        : null,
-      highSchoolMarksheet: formData.get("highSchoolMarksheet")
-        ? (formData.get("highSchoolMarksheet") as File).name
-        : null,
-      interMarksheet: formData.get("interMarksheet")
-        ? (formData.get("interMarksheet") as File).name
-        : null,
-      graduationMarksheet: formData.get("graduationMarksheet")
-        ? (formData.get("graduationMarksheet") as File).name
-        : null,
+      aadharCard: formData.get("aadharCard") || null,
+      panCard: formData.get("panCard") || null,
+      highSchoolMarksheet: formData.get("highSchoolMarksheet") || null,
+      interMarksheet: formData.get("interMarksheet") || null,
+      graduationMarksheet: formData.get("graduationMarksheet") || null,
+      experienceLetter: formData.get("experienceLetter") || null,
+      relievingLetter: formData.get("relievingLetter") || null,
+      salarySlips: salarySlips,
     };
 
+    // eSign (URLs, not files)
     const eSign = {
-      signatureImage: formData.get("signature")
-        ? (formData.get("signature") as File).name
-        : null,
+      signatureImage: formData.get("signature") || null,
       signedAt: new Date(),
     };
+
+    const termsAccepted = formData.get("termsAccepted") === "true";
 
     // Update candidate
     const candidate = await Candidate.findByIdAndUpdate(
       id,
       {
         $set: {
-          "onboardingDetails.personalDetails": personalDetails,
+          "onboardingDetails.personalDetails": {
+            dateOfBirth: personalDetails.dateOfBirth,
+            gender: personalDetails.gender,
+            nationality: personalDetails.nationality,
+            fatherName: fatherName,
+          },
+
           "onboardingDetails.bankDetails": bankDetails,
+
           "onboardingDetails.documents": documents,
+
           "onboardingDetails.eSign": eSign,
+
           "onboardingDetails.termsAccepted": termsAccepted,
           "onboardingDetails.termsAcceptedAt": new Date(),
+
           "onboardingDetails.onboardingComplete": true,
           "onboardingDetails.completedAt": new Date(),
+
+          // Save signed PDF URL too
+          "onboardingDetails.signedPdfUrl":
+            formData.get("signedPdfUrl") || null,
         },
       },
       { new: true }

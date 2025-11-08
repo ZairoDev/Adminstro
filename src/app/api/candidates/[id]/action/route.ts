@@ -12,10 +12,10 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const { status, selectionDetails, shortlistDetails, rejectionDetails } =
+    const { status, selectionDetails, shortlistDetails, rejectionDetails, onboardingLink } =
       await request.json();
 
-    if (!["pending", "shortlisted", "selected", "rejected"].includes(status)) {
+    if (!["pending", "shortlisted", "selected", "rejected", "onboarding"].includes(status)) {
       return NextResponse.json(
         { success: false, error: "Invalid status" },
         { status: 400 }
@@ -30,6 +30,15 @@ export async function POST(
       updateData.shortlistDetails = shortlistDetails;
     if (status === "rejected" && rejectionDetails)
       updateData.rejectionDetails = rejectionDetails;
+
+    // If onboarding step, set onboarding link in candidate onboardingDetails
+    if (status === "onboarding") {
+      // If frontend provided a link use it, otherwise generate one
+      const link = onboardingLink ?? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/candidate/${id}/onboarding`;
+      updateData["onboardingDetails.onboardingLink"] = link;
+      // Also mark status as onboarding
+      updateData.status = "onboarding";
+    }
 
     const candidate = await Candidate.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -57,6 +66,7 @@ export async function POST(
           status === "shortlisted"
             ? shortlistDetails?.suitableRoles
             : undefined,
+        onboardingLink: status === "onboarding" ? (onboardingLink ?? candidate.onboardingDetails?.onboardingLink) : undefined,
       });
     }
 

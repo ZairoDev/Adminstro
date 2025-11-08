@@ -58,7 +58,7 @@ export default function PaymentLinkButton({
   address: initialAddress,
   checkIn,
   checkOut,
-  currency = "INR",
+  currency = "EUR",
 }: Props) {
   const received = amountReceivedProp ?? amountRecieved ?? 0;
 

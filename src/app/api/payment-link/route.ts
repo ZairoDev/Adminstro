@@ -166,8 +166,8 @@ async function generatePdfBuffer(data: {
 
   // === Booking Details ===
   drawLabelValue("Booking ID", booking_Id ?? "-");
-  drawLabelValue("Total Amount (INR)", `${amount}`);
-  drawLabelValue("Paid Amount (INR)", `${finalPrice?.toFixed(2) ?? "-"}`);
+  drawLabelValue("Total Amount ", `${amount}`);
+  drawLabelValue("Paid Amount ", `${finalPrice?.toFixed(2) ?? "-"}`);
   drawLabelValue(
     "Number of People",
     numberOfPeople ? String(numberOfPeople) : "-"
@@ -346,7 +346,7 @@ export async function POST(req: Request) {
       for (const guest of guests) {
         const resp: any = await razorpay.paymentLink.create({
           amount: Math.round(perGuest * 100),
-          currency: "INR",
+          currency: "EUR",
           description: description ?? "Payment Request",
           customer: {
             name: guest.name,
@@ -513,7 +513,7 @@ export async function POST(req: Request) {
     const mainGuest = guests[0];
     const resp: any = await razorpay.paymentLink.create({
       amount: Math.round(finalAmount * 100),
-      currency: "INR",
+      currency: "EUR",
       description: description ?? "Payment Request",
       customer: {
         name: mainGuest.name,

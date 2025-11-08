@@ -24,9 +24,16 @@ interface PropertyListProps {
   isSearchTerm?: boolean;
 }
 
+interface OwnerWithPropertiesInterface {
+  owner: OwnerInterface;
+  properties: FilteredPropertiesInterface[];
+  totalProperties: number;
+}
+
+
 const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) => {
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
-  const [ownersMap, setOwnersMap] = useState<Map<string, OwnerInterface>>(new Map());
+  const [ownersMap, setOwnersMap] = useState<Map<string, OwnerWithPropertiesInterface>>(new Map());
   const [loadingOwners, setLoadingOwners] = useState<Set<string>>(new Set());
 
   const fetchOwner = async (userId: string) => {
@@ -40,7 +47,7 @@ const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) =
       if (response.data.success) {
         setOwnersMap((prev) => {
           const newMap = new Map(prev);
-          newMap.set(userId, response.data.data.owner);
+          newMap.set(userId, response.data.data);
           return newMap;
         });
       } else {
@@ -82,9 +89,11 @@ const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) =
 
       <div className="w-full flex flex-wrap justify-center gap-6">
         {properties?.map((property) => {
-          const propertyId = property._id.toString();
+           const propertyId = property._id.toString();
           const isFlipped = flippedCards.has(propertyId);
-          const owner = ownersMap.get(property.userId);
+          const ownerData = ownersMap.get(property.userId);
+          const owner = ownerData?.owner;
+          const ownerProperties = ownerData?.properties || [];
           const isLoadingOwner = loadingOwners.has(property.userId);
 
           return (
@@ -188,7 +197,7 @@ const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) =
                         ) : owner ? (
                           <>
                             <div className="text-white font-medium mb-1">{owner.name}</div>
-                            {owner?.phone && owner.phone !== "0" && (
+                            {owner.phone && owner.phone !== "0" && (
                               <div className="text-neutral-300 text-xs">{owner.phone}</div>
                             )}
                             {owner.email && (
@@ -201,6 +210,31 @@ const PropertyList = ({ properties, isSearchTerm = false }: PropertyListProps) =
                           <div className="text-xs">Owner info unavailable</div>
                         )}
                       </div>
+
+                      {/* Owners Properties Section */}
+                      {ownerProperties.length > 0 && (
+                        <div className="border-t border-neutral-700 pt-3">
+                          <div className="text-neutral-400 text-xs uppercase tracking-wider mb-2">
+                            Owner&apos;s Properties ({ownerProperties.length})
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ownerProperties.map((prop) => (
+                              <a
+                                target="_blank"
+                                href={`https://www.vacationsaga.com/listing-stay-detail/${prop._id.toString()}`}
+                                key={prop._id.toString()}
+                                className={`text-xs px-2 py-1 rounded ${
+                                  prop._id.toString() === propertyId
+                                    ? 'bg-blue-600 text-white font-semibold'
+                                    : 'bg-neutral-800 text-neutral-300'
+                                }`}
+                              >
+                                {prop.VSID}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 text-xs text-neutral-500 text-center">

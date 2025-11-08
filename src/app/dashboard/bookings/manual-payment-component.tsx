@@ -449,7 +449,7 @@ export function ManualPaymentModal({
                     {/* Amount */}
                     <div className="space-y-1">
                       <Label htmlFor={`amount-${guest.id}`} className="text-xs">
-                        Amount (INR) <span className="text-red-500">*</span>
+                        Amount  <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id={`amount-${guest.id}`}

@@ -502,12 +502,10 @@ export interface SalesOfferInterface {
 
 export interface OwnerInterface {
   _id?: string;
-  phone: number;
-  name?: string;
+  phoneNumber: number;
   email?: string;
-  properties: [];
+  propertyName: string;
   propertyUrl: string;
-  address?: string;
   propertyAlreadyAvailableOn: string[];
   country: string;
   state: string;

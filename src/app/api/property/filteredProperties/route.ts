@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { Properties } from "@/models/property";
 import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties/page";
-
+import { connectDb } from "@/util/db";
 export async function POST(req: NextRequest) {
   const { filters, page }: { filters: FiltersInterface; page: number } =
     await req.json();
+   await connectDb();
+  console.log("filters in backend: ", filters);
 
-  // console.log("filters in backend: ", filters);
-
-  // console.log("filters: ", filters, filters.dateRange);
+  console.log("filters: ", filters, filters.dateRange);
 
   const query: Record<string, any> = {};
   const projection = {
@@ -117,21 +117,21 @@ function getFilteredDocuments(
 
       // Check if the date range overlaps with the month
       if (start < monthEndDate && end > monthStartDate) {
-        // Determine the range of days to check in this month
-        const rangeStart = Math.max(start.getDate(), 1); // Ensure it doesn't go below 1
-        const rangeEnd = Math.min(end.getDate(), monthDays.length); // Ensure it doesn't go beyond number of days in month
+       
+        const rangeStart = Math.max(start.getDate(), 1); 
+        const rangeEnd = Math.min(end.getDate(), monthDays.length);
 
-        // Check the price per day for the date range
+        
         for (let day = rangeStart; day <= rangeEnd; day++) {
-          const price = monthDays[day - 1]; // day - 1 because array is 0-indexed
+          const price = monthDays[day - 1]; 
 
-          // If the day is booked (price = -1) or not within the price range, exclude this document
+          
           if (price === -1 || price < minPrice || price > maxPrice) {
-            return false; // Don't include this document
+            return false; 
           }
         }
       }
     }
-    return true; // Include this document if it passes all checks
+    return true; 
   });
 }

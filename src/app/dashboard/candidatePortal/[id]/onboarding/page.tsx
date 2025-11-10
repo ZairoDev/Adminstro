@@ -16,6 +16,7 @@ import { TermsConditionsModal } from "../../components/terms-conditions-modal";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import { SignaturePad } from "../../components/signature-pad";
 import { PDFDocument } from "pdf-lib";
+import axios from "axios";
 
 
 
@@ -24,6 +25,7 @@ interface Candidate {
   _id: string;
   name: string;
   email: string;
+  fatherName: string;
   phone: string;
   address: string;
   city: string;
@@ -145,6 +147,7 @@ export default function OnboardingPage() {
     dateOfBirth: "",
     gender: "",
     nationality: "",
+    fatherName:"",
   });
 
   const [bankDetails, setBankDetails] = useState({
@@ -382,6 +385,7 @@ export default function OnboardingPage() {
     return true;
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -390,108 +394,97 @@ export default function OnboardingPage() {
     try {
       console.log("Preparing to submit onboarding data...");
 
-      if (!signature?.url) {
-        throw new Error("Signature not available");
-      }
+      // Validation
+      if (!candidate) throw new Error("Candidate data missing");
+      if (!signature?.url) throw new Error("Signature missing");
 
-      // ✅ 1. Load the base PDF (from /public) - use fetch with proper error handling
-      const basePdfUrl = "/zipl.pdf";
+      // ✅ 1. Agreement Payload
+      const agreementPayload = {
+        agreementDate: new Date().toLocaleDateString("en-IN"),
+        agreementCity: candidate.city ?? "Kanpur",
 
-      const pdfResponse = await fetch(basePdfUrl);
+        employeeName: candidate.name,
+        fatherName: personalDetails.fatherName || candidate.fatherName,
+        employeeAddress: candidate.address,
 
-      if (!pdfResponse.ok) {
+        designation: candidate.position,
+        effectiveFrom: new Date().toLocaleDateString("en-IN"),
+        postingLocation: candidate.city,
+        salaryINR:
+          candidate.selectionDetails?.role ?? "As per employment terms",
+
+        witness1: "____________________",
+        witness2: "____________________",
+
+        signatureBase64: signature.url, // ← Fixed spacing
+      };
+
+      console.log("Sending Agreement Payload:", agreementPayload);
+
+      // ✅ 2. Request PDF from API
+      let pdfResponse;
+      try {
+        pdfResponse = await axios.post(
+          "/api/candidates/onboardingDocument",
+          agreementPayload,
+          {
+            responseType: "arraybuffer",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        console.log("PDF Generated successfully");
+      } catch (pdfError: any) {
+        console.error("PDF Generation Error:", pdfError);
+        if (pdfError.response?.status === 405) {
+          throw new Error(
+            "API route not found. Please verify the route file exists at: app/api/candidates/onboardingDocument/route.ts"
+          );
+        }
         throw new Error(
-          `Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`
+          pdfError.response?.data?.error || "Failed to generate PDF"
         );
       }
 
-      // Check if we got a PDF
-      const contentType = pdfResponse.headers.get("content-type");
-      console.log("PDF Content-Type:", contentType);
-
-      if (!contentType?.includes("application/pdf")) {
-        console.warn(
-          "Warning: Response is not a PDF. Content-Type:",
-          contentType
-        );
-      }
-
-      const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-      const pdfBytes = new Uint8Array(pdfArrayBuffer);
-
-      // Verify PDF header
-      const headerBytes = pdfBytes.slice(0, 5);
-      const header = String.fromCharCode.apply(null, Array.from(headerBytes));
-      console.log("PDF Header:", header);
-
-      if (!header.startsWith("%PDF-")) {
-        throw new Error(
-          "Invalid PDF file: Missing PDF header. Check if /zipl.pdf exists in your public folder."
-        );
-      }
-
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      console.log("PDF loaded successfully");
-
-      // ✅ 2. Load Signature PNG
-      const signatureResponse = await fetch(signature.url);
-      if (!signatureResponse.ok) {
-        throw new Error("Failed to fetch signature image");
-      }
-
-      const signatureArrayBuffer = await signatureResponse.arrayBuffer();
-      const signatureBytes = new Uint8Array(signatureArrayBuffer);
-      const signatureImage = await pdfDoc.embedPng(signatureBytes);
-
-      const sigWidth = 80;
-      const sigHeight =
-        (signatureImage.height / signatureImage.width) * sigWidth;
-
-      // ✅ 3. Draw signature on the PDF
-      const page = pdfDoc.getPage(10);
-
-      page.drawImage(signatureImage, {
-        x: 230,
-        y: 430,
-        width: sigWidth,
-        height: sigHeight,
+      // ✅ 3. Convert result to Blob
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
       });
 
-      // ✅ 4. Export PDF
-      const finalPdfBytes = await pdfDoc.save();
-      const safeUint8 = Uint8Array.from(finalPdfBytes);
+      // ✅ 4. Download PDF for user
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ZIPL-Service-Agreement-${candidateId}.pdf`;
+      document.body.appendChild(a); // ← Added for better browser compatibility
+      a.click();
+      document.body.removeChild(a); // ← Clean up
+      URL.revokeObjectURL(url);
 
-      // ✅ 5. Trigger immediate download
-      const pdfBlob = new Blob([safeUint8], { type: "application/pdf" });
-      const downloadUrl = URL.createObjectURL(pdfBlob);
+      console.log("PDF downloaded successfully");
 
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `signed-dnd-${candidateId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      URL.revokeObjectURL(downloadUrl);
-
-      // ✅ 6. Upload signed PDF to BunnyCDN
-      const signedPdfFile = new File(
-        [safeUint8],
-        `signed-dnd-${candidateId}.pdf`,
+      // ✅ 5. Upload signed PDF to BunnyCDN
+      const pdfFile = new File(
+        [pdfBlob],
+        `ZIPL-Service-Agreement-${candidateId}.pdf`,
         { type: "application/pdf" }
       );
 
-      const { imageUrls: signedPdfUrls, error: pdfUploadError } =
-        await uploadFiles([signedPdfFile], "Documents/SignedPDFs");
+      console.log("Uploading PDF to CDN...");
+      const { imageUrls, error: uploadErr } = await uploadFiles(
+        [pdfFile],
+        "Documents/SignedPDFs"
+      );
 
-      if (pdfUploadError || !signedPdfUrls?.length) {
-        throw new Error("Failed to upload signed PDF");
+      if (uploadErr || !imageUrls?.length) {
+        throw new Error("Failed to upload signed PDF to CDN");
       }
 
-      const signedPdfUrl = signedPdfUrls[0];
+      const signedPdfUrl = imageUrls[0];
+      console.log("PDF uploaded to CDN:", signedPdfUrl);
 
-      // ✅ 7. Prepare onboarding form data
+      // ✅ 6. Prepare onboarding submission
       const formData = new FormData();
+
       formData.append("personalDetails", JSON.stringify(personalDetails));
       formData.append("bankDetails", JSON.stringify(bankDetails));
 
@@ -520,39 +513,34 @@ export default function OnboardingPage() {
       formData.append("signedPdfUrl", signedPdfUrl);
       formData.append("termsAccepted", String(termsAccepted));
 
-      console.log("Submitting onboarding form...");
+      console.log("Submitting onboarding to backend...");
 
-      // ✅ 8. Send onboarding data to API
-      const response = await fetch(
+      // ✅ 7. Save onboarding to backend
+      const onboardingRes = await axios.post(
         `/api/candidates/${candidateId}/onboarding`,
-        {
-          method: "POST",
-          body: formData,
-        }
+        formData
       );
 
-      const result = await response.json();
-
-      if (result.success) {
-        setSuccess(true);
-        setCandidate(result.data);
-        setTimeout(() => {
-          router.push(`/candidates/${candidateId}`);
-        }, 2000);
-      } else {
-        setError(result.error || "Failed to complete onboarding");
+      if (!onboardingRes.data.success) {
+        throw new Error(onboardingRes.data.error || "Failed onboarding");
       }
-    } catch (err) {
+
+      console.log("Onboarding submitted successfully!");
+      setSuccess(true);
+      setCandidate(onboardingRes.data.data);
+
+      setTimeout(() => {
+        router.push(`/candidates/${candidateId}`);
+      }, 1500);
+    } catch (err: any) {
       console.error("Error submitting onboarding:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred while submitting the form"
-      );
+      setError(err.response?.data?.error || err.message);
     } finally {
       setSubmitting(false);
     }
-  };  
+  };
+  
+  
   
   const handleSignatureCapture = (signatureUrl: string) => {
     setPreviewSignature(signatureUrl);
@@ -869,6 +857,23 @@ export default function OnboardingPage() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Father&apos;s Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Indian"
+                  value={personalDetails.fatherName}
+                  onChange={(e) =>
+                    setPersonalDetails((prev) => ({
+                      ...prev,
+                      fatherName: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
             </div>
           </Card>
 
@@ -979,7 +984,7 @@ export default function OnboardingPage() {
 
                 return (
                   <div key={key} className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+                    <label className="block text-sm font-medium text-foreground  items-center gap-2">
                       {label}
                       <span className="text-red-500">*</span>
                       {isUploading && (
@@ -1097,7 +1102,7 @@ export default function OnboardingPage() {
 
               {/* Salary Slips - Multiple */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+                <label className="block text-sm font-medium text-foreground  items-center gap-2">
                   Salary Slips (Multiple)
                   {uploadingFiles.has("salarySlips") && (
                     <Loader2 className="w-4 h-4 animate-spin text-blue-600" />

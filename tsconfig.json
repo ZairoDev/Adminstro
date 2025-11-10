@@ -29,6 +29,6 @@
     "src/app/api/employee/deleteEmploye",
     "src/createSuggestionItems.js",
     "src/models/offersts"
-, "socket.ts"  ],
+, "socket.ts", "src/app/api/candidates/onboardingDocument"  ],
   "exclude": ["node_modules", "dist", "build"]
 }

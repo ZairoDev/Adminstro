@@ -13,13 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
-import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
-import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
+
+
+
 import axios from "axios";
-import { sendEmail } from "@/components/candidateEmail";
-
-
+import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
+import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
+import { CreateEmployeeDialog } from "../components/createEmployee";
+import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 
 interface Candidate {
   _id: string;
@@ -39,17 +40,17 @@ interface Candidate {
   createdAt: string;
   selectionDetails?: {
     positionType: "fulltime" | "intern";
-    duration: string; 
+    duration: string;
     trainingPeriod: string;
     role: string;
-    salary?: number; 
+    salary?: number;
   };
   shortlistDetails?: {
     suitableRoles: string[];
-    notes?: string; 
+    notes?: string;
   };
   rejectionDetails?: {
-    reason: string; 
+    reason: string;
   };
   onboardingDetails?: {
     onboardingLink?: string;
@@ -97,6 +98,8 @@ export default function CandidateDetailPage() {
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -118,7 +121,6 @@ export default function CandidateDetailPage() {
       fetchCandidate();
     }
   }, [candidateId]);
-
 
   const handleSelectCandidate = async (data: SelectionData) => {
     setActionLoading(true);
@@ -245,8 +247,6 @@ export default function CandidateDetailPage() {
       );
     }
   };
-  
-  
 
   if (loading) {
     return (
@@ -407,6 +407,13 @@ export default function CandidateDetailPage() {
               </h2>
               <div className="space-y-2">
                 <Button
+                  onClick={() => setCreateEmployeeDialogOpen(true)}
+                  disabled={actionLoading}
+                  className="w-full"
+                >
+                  Create Employee
+                </Button>
+                <Button
                   onClick={() => setShortlistDialogOpen(true)}
                   disabled={actionLoading || candidate.status === "shortlisted"}
                   variant={
@@ -440,7 +447,9 @@ export default function CandidateDetailPage() {
                   onClick={() => handleOnboarding(candidate._id)}
                   disabled={actionLoading || candidate.status === "onboarding"}
                   variant={
-                    candidate.onboardingDetails?.termsAccepted === true ? "secondary" : "destructive"
+                    candidate.onboardingDetails?.termsAccepted === true
+                      ? "secondary"
+                      : "destructive"
                   }
                   className="w-full"
                 >
@@ -511,6 +520,27 @@ export default function CandidateDetailPage() {
           </div>
         </div>
       </div>
+
+      <CreateEmployeeDialog
+        open={createEmployeeDialogOpen}
+        onClose={() => setCreateEmployeeDialogOpen(false)}
+        candidate={{
+          _id: candidate._id,
+          name: candidate.name,
+          email: candidate.email,
+          phone: candidate.phone,
+          experience: candidate.experience,
+          address: candidate.address,
+          city: candidate.city,
+          country: candidate.country,
+          position: candidate.position,
+          resumeUrl: candidate.resumeUrl,
+        }}
+        onCreated={() => {
+          // Optionally refresh candidate after creation
+          setCreateEmployeeDialogOpen(false);
+        }}
+      />
 
       <SelectCandidateDialog
         open={selectDialogOpen}

@@ -18,6 +18,7 @@ import { ModeToggle } from "@/components/themeChangeButton";
 import FadeInAnimation from "@/components/fadeinAnimation";
 
 interface LoginResponse {
+  otpRequired?: boolean;
   message?: string;
   token?: string;
   tokenData: TokenInterface;
@@ -47,22 +48,38 @@ const PageLogin: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoggingIn(true);
+
     try {
       const response: AxiosResponse<LoginResponse> = await axios.post(
         "/api/employeelogin",
-        {
-          email,
-          password,
-        }
+        { email, password }
       );
-      if (response?.data?.message === "Verification OTP sent") {
+
+      // OTP required
+      if (response.data.otpRequired === true) {
         router.push(`/login/verify-otp/${email}`);
         return;
       }
-      setToken(response.data.tokenData);
+
+      // Direct login
+      if (response.data.otpRequired === false && response.data.token) {
+        setToken(response.data.tokenData);
+        Cookies.set("token", response.data.token, { expires: 1 });
+
+        toast({
+          description: "You have successfully logged in",
+        });
+
+        router.push("/");
+        return;
+      }
+
+      // Normal login
       if (response.status === 200 && response.data.token) {
+        setToken(response.data.tokenData);
         Cookies.set("token", response.data.token, { expires: 1 });
         router.push("/");
+        return;
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
@@ -81,6 +98,7 @@ const PageLogin: React.FC = () => {
       setIsLoggingIn(false);
     }
   };
+  
   return (
     <FadeInAnimation>
       <div className="h-dvh flex">

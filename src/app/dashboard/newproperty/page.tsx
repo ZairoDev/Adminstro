@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Edit, Search } from "lucide-react";
 import { PropertiesDataType, Property } from "@/util/type";
 import debounce from "lodash.debounce";
+import Link from "next/link";
 
 const PropertyPage: React.FC = () => {
   const [property, setProperty] = useState<PropertiesDataType[]>();
@@ -179,12 +180,14 @@ const PropertyPage: React.FC = () => {
                           {property.commonId}
                         </p>
                       </div>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute top-3 right-3 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm"
-                      >
-                        <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                      </button>
+                     
+
+                        <Link
+                    className="absolute top-3 right-3 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm"
+                    href={`/dashboard/newproperty/${property.commonId}`}
+                  >
+                   <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </Link>
                     </div>
 
                     {/* Card Content */}
@@ -220,7 +223,7 @@ const PropertyPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Expanded Section */}
+                      {/* Expanded Section
                       {isExpanded && (
                         <div className="mt-5 pt-5 border-t border-gray-100 dark:border-gray-800 animate-fadeIn">
                           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -262,7 +265,7 @@ const PropertyPage: React.FC = () => {
                             View Details
                           </button>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 );

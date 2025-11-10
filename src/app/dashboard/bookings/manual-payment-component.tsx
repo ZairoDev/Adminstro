@@ -465,6 +465,8 @@ export function ManualPaymentModal({
                       />
                     </div>
 
+                    
+
                     {/* Payment Type is now global; omitted per-guest */}
                   </div>
                 </div>

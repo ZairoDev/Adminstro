@@ -117,38 +117,13 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
 
                 {/* Actions */}
                 <TableCell className="text-center">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        ref={ellipsisRef}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Ellipsis size={18} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`/dashboard/createquery/${booking._id}`}
-                          className="w-full"
-                        >
-                          View Booking
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
+                  <Link
                           href={`/dashboard/bookings/${booking._id}`}
                           target="_blank"
-                          className="w-full"
+                          className="w-full border p-2 rounded-md"
                         >
-                          Detailed View
+                          Details
                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>Generate Invoice</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))

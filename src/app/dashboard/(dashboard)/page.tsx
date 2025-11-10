@@ -684,6 +684,7 @@ const Dashboard = () => {
                         dailyrequired={loc.dailyrequired}
                         dailyAchieved={loc.currentAverage}
                         rate={loc.rate}
+                        selectedMonth={selectedMonth}
                       />
                     ))}
                   </div>

@@ -13,6 +13,7 @@ interface StatsCardProps {
   rate: number;
   position?: { x: number; y: number };
   className?: string;
+  selectedMonth?: Date;
 }
 
 export function StatsCard({
@@ -26,62 +27,80 @@ export function StatsCard({
   rate,
   position,
   className = "",
+  selectedMonth,
 }: StatsCardProps) {
   //   const total = registered + unregistered;
 
     const requiredRunRate = useMemo(() => {
-    // Get current date
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    const currentDate = now.getDate();
-    
-    // Get last day of current month
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    
-    // Calculate remaining working days (excluding Sundays)
-    let remainingDays = 0;
-    
-    // Start from tomorrow (since today's work might not be complete)
-    for (let day = currentDate + 1; day <= lastDayOfMonth; day++) {
-      const checkDate = new Date(currentYear, currentMonth, day);
-      // Count all days except Sundays (0 = Sunday)
-      if (checkDate.getDay() !== 0) {
-        remainingDays++;
-      }
+  // Use selectedMonth if provided, otherwise use current date
+  const referenceDate = selectedMonth || new Date();
+  const now = new Date();
+  
+  // Check if we're viewing the current month
+  const isCurrentMonth = referenceDate.getFullYear() === now.getFullYear() && 
+                         referenceDate.getMonth() === now.getMonth();
+  
+  // If viewing a past month, required run rate is not applicable
+  if (!isCurrentMonth) {
+    return 0; // Or return the original dailyrequired value
+  }
+  
+  // For current month, calculate based on remaining days
+  const currentYear = referenceDate.getFullYear();
+  const currentMonth = referenceDate.getMonth();
+  const currentDate = now.getDate(); // Use actual current date for current month
+  
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  
+  let remainingDays = 0;
+  
+  for (let day = currentDate + 1; day <= lastDayOfMonth; day++) {
+    const checkDate = new Date(currentYear, currentMonth, day);
+    if (checkDate.getDay() !== 0) {
+      remainingDays++;
     }
-    
-    // Debug logging to help troubleshoot
-    console.log('Required Run Rate Calculation:', {
-      title,
-      target,
-      achieved,
-      remainingTarget: target - achieved,
-      remainingDays,
-      currentDate: now.toDateString(),
-      lastDayOfMonth
-    });
-    
-    // If no remaining days or target already achieved
-    if (remainingDays === 0) {
-      // If it's the last working day, return what's needed today
-      return Math.max(0, target - achieved);
-    }
-    
-    // If target already achieved
-    if (achieved >= target) {
-      return 0;
-    }
-    
-    // Calculate required daily rate
-    const remainingTarget = target - achieved;
-    const calculatedRate = remainingTarget / remainingDays;
-    
-    // Return the calculated rate, ensuring it's not negative
-    return Math.max(0, calculatedRate);
-  }, [target, achieved, title]);
+  }
+  
+  console.log('Required Run Rate Calculation:', {
+    title,
+    target,
+    achieved,
+    remainingTarget: target - achieved,
+    remainingDays,
+    currentDate: now.toDateString(),
+    lastDayOfMonth,
+    isCurrentMonth,
+    referenceMonth: referenceDate.toDateString()
+  });
+  
+  if (remainingDays === 0) {
+    return Math.max(0, target - achieved);
+  }
+  
+  if (achieved >= target) {
+    return 0;
+  }
+  
+  const remainingTarget = target - achieved;
+  const calculatedRate = remainingTarget / remainingDays;
+  
+  return Math.max(0, calculatedRate);
+}, [target, achieved, title, selectedMonth]);
 
-   const isOnTrack = dailyAchieved >= requiredRunRate;
+   const isOnTrack = useMemo(() => {
+  const referenceDate = selectedMonth || new Date();
+  const now = new Date();
+  const isCurrentMonth = referenceDate.getFullYear() === now.getFullYear() && 
+                         referenceDate.getMonth() === now.getMonth();
+  
+  if (!isCurrentMonth) {
+    // For past months, check if target was met
+    return achieved >= target;
+  }
+  
+  // For current month, check against required run rate
+  return dailyAchieved >= requiredRunRate;
+}, [dailyAchieved, requiredRunRate, achieved, target, selectedMonth]);
 
    const progressPercentage = target > 0 ? (achieved / target) * 100 : 0;
 

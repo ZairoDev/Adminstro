@@ -10,7 +10,7 @@ const userSchema = new Schema<IUser>(
     },
     email: {
       type: String,
-      // required: [true, "Please enter your email"],
+     
     },
     profilePic: {
       type: String,

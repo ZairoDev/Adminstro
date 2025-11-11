@@ -101,7 +101,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userId: temp._id,
       });
 
-      return NextResponse.json({ message: "Verification OTP sent" }, { status: 200 });
+
+      return NextResponse.json(
+        { message: "Verification OTP sent", otpRequired: true },
+        { status: 200 }
+      );
     }
     const newExpiryDate = new Date();
 

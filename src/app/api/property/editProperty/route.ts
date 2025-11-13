@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const updatedProperty = await Properties.findByIdAndUpdate(
       PropertyId,
-      { $set: propertyData },
+      { $set: propertyData, propertyImages:propertyData.propertyPictureUrls },
       { new: true }
     );
     console.log("updatedProperty: ", updatedProperty);

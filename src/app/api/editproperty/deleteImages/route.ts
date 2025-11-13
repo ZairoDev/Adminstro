@@ -18,24 +18,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    [
-      "propertyCoverFileUrl",
-      "propertyPictureUrls",
-      "portionCoverFileUrls",
-    ].forEach((key) => {
-      data[key]?.forEach((index: number) => {
-        if (index >= 0 && index < property[key].length) {
-          if (key === "propertyCoverFileUrl") {
-            property[key] = property[key].replace(property[key], "");
+    ["propertyCoverFileUrl", "propertyPictureUrls", "propertyImages"].forEach(
+      (key) => {
+        data[key]?.forEach((index: number) => {
+          if (index >= 0 && index < property[key].length) {
+            if (key === "propertyCoverFileUrl") {
+              property[key] = property[key].replace(property[key], "");
+            }
+            if (property[key][index] != undefined) {
+              property[key][index] = "";
+            }
           }
-          if (property[key][index] != undefined) {
-            property[key][index] = "";
-          }
-        }
-      });
-    });
+        });
+      }
+    );
 
     property["propertyPictureUrls"] = property["propertyPictureUrls"].filter(
+      (item: string) => item != ""
+    );
+    property["propertyImages"] = property["propertyImages"].filter(
       (item: string) => item != ""
     );
 

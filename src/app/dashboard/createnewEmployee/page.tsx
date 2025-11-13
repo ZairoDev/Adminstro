@@ -32,7 +32,6 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { CustomDatePicker } from "@/components/CustomDatePicker";
 import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
 
-
 const NewUser = () => {
   const { toast } = useToast();
   const [profilePic, setProfilepic] = useState("");
@@ -92,12 +91,13 @@ const NewUser = () => {
 
   const fetchCountry = async ({ target }: { target: String }) => {
     try {
-      const response = await axios.get(`/api/addons/target/getLocations?target=${target}`);
+      const response = await axios.get(
+        `/api/addons/target/getLocations?target=${target}`
+      );
 
-      if(target === 'country'){
+      if (target === "country") {
         setCountry(response.data.data);
-      }
-      else{
+      } else {
         setCity(response.data.data);
       }
     } catch (err) {
@@ -108,10 +108,11 @@ const NewUser = () => {
       });
     }
   };
-  useEffect(()=>{
-    fetchCountry({target:'country'});
-    fetchCountry({target:'city'});
-  },[]);
+
+  useEffect(() => {
+    fetchCountry({ target: "country" });
+    fetchCountry({ target: "city" });
+  }, []);
 
   const {
     register,
@@ -138,27 +139,39 @@ const NewUser = () => {
       address: "",
       role: undefined,
       experience: 0,
-      
+      phone: "",
     },
   });
 
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data: EmployeeSchema) => {
-
-    setLoading(true);
-    const userData = {
-      ...data,
-      profilePic,
-    };
-    if (userData.password !== confirmPasswordRef.current?.value) {
+    // Validate confirm password
+    if (data.password !== confirmPasswordRef.current?.value) {
       toast({
         variant: "destructive",
         description: "Passwords do not match please try again.",
       });
-      setLoading(false);
       return;
     }
+
+    // Validate phone number
+    if (!phone) {
+      toast({
+        variant: "destructive",
+        description: "Please enter a valid phone number.",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const userData = {
+      ...data,
+      phone: phone, // Ensure phone is included
+      profilePic,
+    };
+
     try {
       const response = await axios.post(
         "/api/user/createnewEmployee",
@@ -167,19 +180,32 @@ const NewUser = () => {
       toast({
         description: "Employee created successfully",
       });
+
+      // Reset form and states
       reset();
+      setPhone(undefined);
+      setPreviewImage(null);
+      setProfilepic("");
+      if (confirmPasswordRef.current) {
+        confirmPasswordRef.current.value = "";
+      }
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast({
         variant: "destructive",
         description: error.response?.data?.error || "An error occurred.",
       });
-      setLoading(false);
     } finally {
       setLoading(false);
     }
-    setPhone("");
   };
+
+  // Watch for phone changes and update form value
+  useEffect(() => {
+    if (phone) {
+      setValue("phone", phone);
+    }
+  }, [phone, setValue]);
 
   const selectedArea = watch("allotedArea");
   const selectedRole = watch("role");
@@ -189,7 +215,7 @@ const NewUser = () => {
   const selectedCity = watch("allotedArea");
 
   return (
-    <div className="min-h-screen  bg-white dark:bg-stone-950 py-8">
+    <div className="min-h-screen bg-white dark:bg-stone-950 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Heading
           heading="Create New Employee"
@@ -199,7 +225,7 @@ const NewUser = () => {
         <div className="mt-8">
           <div className="bg-white dark:bg-stone-950 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
             {/* Profile Picture Section */}
-            <div className=" px-8 py-12">
+            <div className="px-8 py-12">
               <div className="flex flex-col items-center">
                 <div className="relative group">
                   <div
@@ -208,7 +234,7 @@ const NewUser = () => {
                   >
                     {previewImage ? (
                       <img
-                        src={previewImage || "/placeholder.svg"}
+                        src={previewImage}
                         alt="Profile Preview"
                         className="w-full h-full object-cover rounded-full"
                       />
@@ -223,7 +249,7 @@ const NewUser = () => {
                     </div>
                   </div>
                 </div>
-                <p className="mt-4 text-white text-sm font-medium">
+                <p className="mt-4 text-slate-700 dark:text-slate-300 text-sm font-medium">
                   Click to upload profile picture
                 </p>
                 <Input
@@ -486,13 +512,14 @@ const NewUser = () => {
                       </p>
                     )}
                   </div>
-                  {selectedEmpType !== "Permanent" && (
+
+                  {selectedEmpType !== "Permanent" && selectedEmpType && (
                     <div className="space-y-2">
                       <Label
                         htmlFor="duration"
                         className="text-sm font-medium text-slate-700 dark:text-slate-300"
                       >
-                        Duration (months)
+                        Duration (months) *
                       </Label>
                       <Input
                         {...register("duration")}
@@ -539,13 +566,15 @@ const NewUser = () => {
                     </Label>
                     <div className="phone-input-wrapper">
                       <PhoneInput
-                        {...register("phone")}
                         className="phone-input h-11"
                         placeholder="Enter phone number"
                         value={phone}
                         international
                         countryCallingCodeEditable={false}
-                        onChange={(value) => setPhone(value?.toString())}
+                        onChange={(value) => {
+                          setPhone(value?.toString());
+                          setValue("phone", value?.toString() || "");
+                        }}
                       />
                     </div>
                     {errors.phone && (
@@ -569,6 +598,7 @@ const NewUser = () => {
                       </p>
                     )}
                   </div>
+
                   {(selectedRole === "Sales" ||
                     selectedRole === "Sales-TeamLead") && (
                     <>
@@ -586,23 +616,26 @@ const NewUser = () => {
                           value={selectedCountry}
                         >
                           <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select employment type" />
+                            <SelectValue placeholder="Select country" />
                           </SelectTrigger>
                           <SelectContent>
                             {country.map((country: String, index) => (
-                              <SelectItem key={index} value={country.toString()}>
+                              <SelectItem
+                                key={index}
+                                value={country.toString()}
+                              >
                                 {country}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-
                         {errors.assignedCountry && (
                           <p className="text-red-500 text-xs mt-1">
                             {errors.assignedCountry.message}
                           </p>
                         )}
                       </div>
+
                       <div className="space-y-2">
                         <Label
                           htmlFor="allotedArea"
@@ -617,36 +650,38 @@ const NewUser = () => {
                           value={selectedCity?.[0]}
                         >
                           <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select Alloted type" />
+                            <SelectValue placeholder="Select area" />
                           </SelectTrigger>
                           <SelectContent>
-                            {city.map((country: String,index) => (
-                              <SelectItem key = {index} value={country.toString().toLowerCase()}>
-                                {country.toLowerCase()}
+                            {city.map((cityItem: String, index) => (
+                              <SelectItem
+                                key={index}
+                                value={cityItem.toString().toLowerCase()}
+                              >
+                                {cityItem.toString().toLowerCase()}
                               </SelectItem>
                             ))}
-                            {/* <SelectItem value="Intern">Intern</SelectItem> */}
                           </SelectContent>
                         </Select>
-                        {errors.assignedCountry && (
+                        {errors.allotedArea && (
                           <p className="text-red-500 text-xs mt-1">
-                            {errors.assignedCountry.message}
+                            {errors.allotedArea.message}
                           </p>
                         )}
                       </div>
                     </>
                   )}
 
-                  <div>
-                    <label
+                  <div className="space-y-2">
+                    <Label
                       htmlFor="salary"
                       className="text-sm font-medium text-slate-700 dark:text-slate-300"
                     >
-                      Salary *{" "}
-                    </label>
+                      Salary *
+                    </Label>
                     <Input
                       {...register("salary", { valueAsNumber: true })}
-                      className="h-11 mt-2"
+                      className="h-11"
                       type="number"
                       placeholder="Enter salary"
                     />

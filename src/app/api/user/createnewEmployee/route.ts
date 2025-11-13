@@ -4,8 +4,9 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
-connectDb();
+
 export async function POST(request: Request): Promise<NextResponse> {
+  await connectDb();
   try {
     const reqBody = await request.json();
     const dt = new Date(reqBody.dateOfJoining);

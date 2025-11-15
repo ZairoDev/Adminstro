@@ -386,7 +386,7 @@ export const GoodToGoLeads = () => {
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
               token?.email === "tyagimokshda@gmail.com" ||
-              token?.email === "shailvinaprakash007@gmail.com") && (
+              token?.email === "shailvinaprakash007@gmail.com" || token?.email === "pravleenkaur1233@gmail.com") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {

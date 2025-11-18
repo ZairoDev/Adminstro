@@ -276,7 +276,6 @@ const PortionDetailsPage = ({ params }: PageProps) => {
         return prev;
       });
     }
-
     setLoadingproperty(false);
   };
 

@@ -183,7 +183,7 @@ const publicRoutes = [
   /^\/login\/verify-otp\/.+$/,
   "/norole",
   "/dashboard/room/*",
-  "/^/application-form/.*$/",
+  "/application-form",
   "/zipl.pdf",
 ];
 export async function middleware(request: NextRequest) {

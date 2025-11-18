@@ -746,142 +746,138 @@ export const getAverage = async()=>{
 
 
 export const getLocationLeadStats = async (selectedMonth?: Date) => {
-  // Use provided month or default to current month
-  console.log("getLocationLeadStats called with:", selectedMonth?.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-  
-  const referenceDate = selectedMonth || new Date();
 
-  console.log("Using referenceDate:", referenceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+  console.log("selectedMonth RAW:", selectedMonth);
   
-  // Create a new date at the start of the selected month
-  const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const reference = selectedMonth ? new Date(selectedMonth) : new Date();
+  console.log("referenceDate:", reference);
   
+  // always use UTC-safe boundaries
+  const year = reference.getUTCFullYear();
+  const month = reference.getUTCMonth();
+  
+  const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+  console.log("startOfMonth:", startOfMonth);
+  const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+  console.log("endOfMonth:", endOfMonth);
+
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Determine if we're looking at the current month
-  const isCurrentMonth = referenceDate.getFullYear() === today.getFullYear() && 
-                         referenceDate.getMonth() === today.getMonth();
-
-  // UTC safe boundaries for the selected month
-  const startOfMonth = new Date(Date.UTC(
-    referenceDate.getFullYear(), 
-    referenceDate.getMonth(), 
-    1, 
-    0, 0, 0
+  const todayUTC = new Date(Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
   ));
-  
-  // End of month should be either today (if current month) or last day of that month
-  const lastDayOfMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
-  const endOfMonth = isCurrentMonth 
-    ? new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999))
-    : new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), lastDayOfMonth, 23, 59, 59, 999));
 
-  // Today boundaries (only relevant for current month)
-  const startOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0));
-  const endOfToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999));
+  const yesterdayUTC = new Date(todayUTC);
+  yesterdayUTC.setUTCDate(todayUTC.getUTCDate() - 1);
 
-  // Yesterday boundaries (only relevant for current month)
-  const startOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0));
-  const endOfYesterday = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
+  const isCurrentMonth =
+    today.getUTCFullYear() === year &&
+    today.getUTCMonth() === month;
 
-  const daysInMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
-  
-  // Days passed in the selected month
-  const daysPassedInMonth = isCurrentMonth 
-    ? today.getDate() 
-    : lastDayOfMonth;
+  const startOfToday = new Date(Date.UTC(
+    today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0
+  ));
 
-  // ----------------------------
-  // Queries aggregation (case-insensitive)
-  // ----------------------------
-  const facetStages: any = {
+  const endOfToday = new Date(Date.UTC(
+    today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999
+  ));
+
+  const startOfYesterday = new Date(Date.UTC(
+    yesterdayUTC.getUTCFullYear(), yesterdayUTC.getUTCMonth(), yesterdayUTC.getUTCDate(), 0, 0, 0
+  ));
+
+  const endOfYesterday = new Date(Date.UTC(
+    yesterdayUTC.getUTCFullYear(), yesterdayUTC.getUTCMonth(), yesterdayUTC.getUTCDate(), 23, 59, 59, 999
+  ));
+
+  console.log({
+    startOfMonth,
+    endOfMonth,
+    startOfToday,
+    endOfToday,
+    startOfYesterday,
+    endOfYesterday,
+    isCurrentMonth,
+  });
+
+  const facet: any = {
     month: [
       { $match: { createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
       {
         $group: {
           _id: { $toLower: "$location" },
-          monthCount: { $sum: 1 }
-        }
+          monthCount: { $sum: 1 },
+        },
       },
     ],
   };
 
-  // Only add today and yesterday facets if we're viewing the current month
   if (isCurrentMonth) {
-    facetStages.today = [
+    facet.today = [
       { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
       {
         $group: {
           _id: { $toLower: "$location" },
-          todayCount: { $sum: 1 }
-        }
+          todayCount: { $sum: 1 },
+        },
       },
     ];
-    
-    facetStages.yesterday = [
+
+    facet.yesterday = [
       { $match: { createdAt: { $gte: startOfYesterday, $lte: endOfYesterday } } },
       {
         $group: {
           _id: { $toLower: "$location" },
-          yesterdayCount: { $sum: 1 }
-        }
+          yesterdayCount: { $sum: 1 },
+        },
       },
     ];
   }
 
-  const queryAgg = await Query.aggregate([
-    {
-      $facet: facetStages,
-    },
-  ]);
+  const queryAgg = await Query.aggregate([{ $facet: facet }]);
 
-  // Maps for quick lookup
-  const todayMap = isCurrentMonth && queryAgg[0].today 
+  const monthMap = Object.fromEntries(
+    queryAgg[0].month.map((d: any) => [d._id, d.monthCount])
+  );
+
+  const todayMap = isCurrentMonth
     ? Object.fromEntries(queryAgg[0].today.map((d: any) => [d._id, d.todayCount]))
     : {};
-  const yesterdayMap = isCurrentMonth && queryAgg[0].yesterday
+
+  const yesterdayMap = isCurrentMonth
     ? Object.fromEntries(queryAgg[0].yesterday.map((d: any) => [d._id, d.yesterdayCount]))
     : {};
-  const monthMap = Object.fromEntries(queryAgg[0].month.map((d: any) => [d._id, d.monthCount]));
 
-  // ----------------------------
-  // Monthly targets
-  // ----------------------------
   const monthlyTargets = await MonthlyTarget.find({}).lean();
 
-  // ----------------------------
-  // Merge results
-  // ----------------------------
-  const visits = monthlyTargets.map(mt => {
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const dayToday = today.getUTCDate();
+  const daysPassed = isCurrentMonth ? dayToday : daysInMonth;
+
+  const visits = monthlyTargets.map((mt) => {
     const loc = mt.city.toLowerCase();
     const target = mt.leads;
     const achieved = monthMap[loc] || 0;
-    const todayCount = todayMap[loc] || 0;
-    const yesterdayCount = yesterdayMap[loc] || 0;
-    const dailyRequired = Math.ceil(target / daysInMonth);
-    const rate = target > 0 ? Math.round((achieved / target) * 100) : 0;
 
-    // New metrics
-    const currentAverage = daysPassedInMonth > 0 ? (achieved / daysPassedInMonth).toFixed(2) : "0";
-    const successRate = target > 0 ? ((achieved / target) * 100).toFixed(2) : "0";
+    const dailyRequired = Math.ceil(target / daysInMonth);
+    const currentAvg = (achieved / daysPassed).toFixed(2);
 
     return {
       location: mt.city,
       target,
       achieved,
-      today: todayCount,
-      yesterday: yesterdayCount,
+      today: todayMap[loc] || 0,
+      yesterday: yesterdayMap[loc] || 0,
       dailyrequired: dailyRequired,
-      rate,
-      currentAverage: Number(currentAverage),
-      successRate: Number(successRate),
+      currentAverage: Number(currentAvg),
+      rate: target > 0 ? Math.round((achieved / target) * 100) : 0,
     };
   });
 
   return { visits };
 };
+
 
 
 export const getLocationVisitStats = async (selectedMonth?: Date) => {

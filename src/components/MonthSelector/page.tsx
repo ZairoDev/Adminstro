@@ -45,20 +45,17 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
   const handlePreviousMonth = () => {
     // 🔴 CREATE A NEW DATE - DON'T MUTATE
     const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1);
-    console.log("Previous clicked - from:", formatMonth(selectedMonth), "to:", formatMonth(newMonth));
-    onMonthChange(newMonth);
+const fixed = new Date(Date.UTC(newMonth.getFullYear(), newMonth.getMonth(), 1));
+onMonthChange(fixed);
   };
 
   const handleNextMonth = () => {
     const now = new Date();
     // 🔴 CREATE A NEW DATE - DON'T MUTATE
-    const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
-    
-    // Don't allow future months
-    if (nextMonth.getTime() <= now.getTime()) {
-      console.log("Next clicked - from:", formatMonth(selectedMonth), "to:", formatMonth(nextMonth));
-      onMonthChange(nextMonth);
-    }
+  const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
+const fixed = new Date(Date.UTC(newMonth.getFullYear(), newMonth.getMonth(), 1));
+onMonthChange(fixed);
+
   };
 
   const canGoNext = () => {
@@ -104,7 +101,8 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
                   console.log("Dropdown clicked - selecting:", formatMonth(month));
                   // 🔴 CREATE A NEW DATE OBJECT
                   const newMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-                  onMonthChange(newMonth);
+const fixed = new Date(Date.UTC(newMonth.getFullYear(), newMonth.getMonth(), 1));
+onMonthChange(fixed);
                   setIsOpen(false);
                 }}
                 className={`

@@ -317,6 +317,11 @@ const Dashboard = () => {
     direction,
   } = useLeadStats();
 
+    const monthKey = useMemo(() => 
+    `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`, 
+    [selectedMonth]
+  );
+
   const {
     visitStats,
     visitStatsLoading,
@@ -403,7 +408,7 @@ const Dashboard = () => {
   const todayOwners =
     unregisteredOwnerCounts[unregisteredOwnerCounts.length - 1]?.owners;
 
-  const monthKey = `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`;
+  // const monthKey = `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`;
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className=" my-2 ">

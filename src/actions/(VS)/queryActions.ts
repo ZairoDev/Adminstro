@@ -747,7 +747,11 @@ export const getAverage = async()=>{
 
 export const getLocationLeadStats = async (selectedMonth?: Date) => {
   // Use provided month or default to current month
+  console.log("getLocationLeadStats called with:", selectedMonth?.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+  
   const referenceDate = selectedMonth || new Date();
+
+  console.log("Using referenceDate:", referenceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
   
   // Create a new date at the start of the selected month
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);

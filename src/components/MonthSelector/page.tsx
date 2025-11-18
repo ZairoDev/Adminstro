@@ -43,16 +43,20 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
   };
 
   const handlePreviousMonth = () => {
+    // 🔴 CREATE A NEW DATE - DON'T MUTATE
     const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1);
+    console.log("Previous clicked - from:", formatMonth(selectedMonth), "to:", formatMonth(newMonth));
     onMonthChange(newMonth);
   };
 
   const handleNextMonth = () => {
     const now = new Date();
+    // 🔴 CREATE A NEW DATE - DON'T MUTATE
     const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
     
     // Don't allow future months
-    if (nextMonth <= now) {
+    if (nextMonth.getTime() <= now.getTime()) {
+      console.log("Next clicked - from:", formatMonth(selectedMonth), "to:", formatMonth(nextMonth));
       onMonthChange(nextMonth);
     }
   };
@@ -60,7 +64,9 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
   const canGoNext = () => {
     const now = new Date();
     const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
-    return nextMonth.getMonth() <= now.getMonth() || nextMonth.getFullYear() < now.getFullYear();
+    // Fix the comparison logic
+    return nextMonth.getFullYear() < now.getFullYear() || 
+           (nextMonth.getFullYear() === now.getFullYear() && nextMonth.getMonth() <= now.getMonth());
   };
 
   return (
@@ -95,7 +101,10 @@ export function MonthSelector({ selectedMonth, onMonthChange }: MonthSelectorPro
               <button
                 key={index}
                 onClick={() => {
-                  onMonthChange(month);
+                  console.log("Dropdown clicked - selecting:", formatMonth(month));
+                  // 🔴 CREATE A NEW DATE OBJECT
+                  const newMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+                  onMonthChange(newMonth);
                   setIsOpen(false);
                 }}
                 className={`

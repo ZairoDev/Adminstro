@@ -158,7 +158,11 @@ const Dashboard = () => {
     days?: string;
     location?: string;
     createdBy?: string;
-  }>({});
+  }>({
+    days: "this month",
+  location: "All",
+  createdBy: "All",
+  });
 
   const [visitsFilter, setVisitsFilter] = useState<{
     days?: string;
@@ -776,7 +780,7 @@ const Dashboard = () => {
                   "All",
                   "Athens",
                   "Chania",
-                  "Rome",
+              
                   "Milan",
                   "Thessaloniki",
                 ]}

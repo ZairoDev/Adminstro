@@ -103,7 +103,7 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/spreadsheet",
       label: "Owners List",
       Icon: <PencilLine size={18} />,
-      openInNewTab: true
+      openInNewTab: true,
     },
     {
       path: "/dashboard/invoice",
@@ -128,12 +128,10 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-    path: "/dashboard/propertyBoost/list",
-    label: "Property List",
-    Icon: <List size={18} />,
-  },
-    
-
+      path: "/dashboard/propertyBoost/list",
+      label: "Property List",
+      Icon: <List size={18} />,
+    },
   ],
   "LeadGen-TeamLead": [
     {
@@ -222,7 +220,7 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/spreadsheet",
       label: "Owners List",
       Icon: <FileSpreadsheet size={18} />,
-      openInNewTab: true
+      openInNewTab: true,
     },
     {
       path: "/dashboard/areadetails",
@@ -385,7 +383,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Owners",
       Icon: <PersonStanding size={18} />,
     },
-    
+
     {
       path: "/dashboard/sales-offer/not-connected",
       label: "Not Connected",
@@ -437,15 +435,15 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-    path: "/dashboard/propertyBoost",
-    label: "Property Boost",
-    Icon: <Rocket size={18} />,
-  },
-  {
-    path: "/dashboard/propertyBoost/list",
-    label: "Property List",
-    Icon: <List size={18} />,
-  },
+      path: "/dashboard/propertyBoost",
+      label: "Property Boost",
+      Icon: <Rocket size={18} />,
+    },
+    {
+      path: "/dashboard/propertyBoost/list",
+      label: "Property List",
+      Icon: <List size={18} />,
+    },
   ],
   Sales: [
     {
@@ -526,20 +524,20 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
-    path: "/dashboard/propertyBoost",
-    label: "Property Boost",
-    Icon: <Rocket size={18} />,
-  },
-  {
-    path: "/dashboard/propertyBoost/list",
-    label: "Property List",
-    Icon: <List size={18} />,
-  },
-   {
-    path: "/dashboard/bookings",
-    label: "Bookings",
-    Icon: <Hotel size={18} />,
-  },
+      path: "/dashboard/propertyBoost",
+      label: "Property Boost",
+      Icon: <Rocket size={18} />,
+    },
+    {
+      path: "/dashboard/propertyBoost/list",
+      label: "Property List",
+      Icon: <List size={18} />,
+    },
+    {
+      path: "/dashboard/bookings",
+      label: "Bookings",
+      Icon: <Hotel size={18} />,
+    },
   ],
   "Sales-TeamLead": [
     {
@@ -603,17 +601,22 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
     {
-    path: "/dashboard/propertyBoost",
-    label: "Property Boost",
-    Icon: <Rocket size={18} />,
-  },
-  {
-    path: "/dashboard/propertyBoost/list",
-    label: "Property List",
-    Icon: <List size={18} />,
-  },
+      path: "/dashboard/propertyBoost",
+      label: "Property Boost",
+      Icon: <Rocket size={18} />,
+    },
+    {
+      path: "/dashboard/propertyBoost/list",
+      label: "Property List",
+      Icon: <List size={18} />,
+    },
   ],
   HR: [
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
     {
       path: "/dashboard/employee",
       label: "Employees",

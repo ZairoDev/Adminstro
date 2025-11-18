@@ -69,6 +69,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/lead-location-group\/.*$/,
     /^\/dashboard\/lead-agent-group\/.*$/,
     "/dashboard/notReplying",
+    "/dashboard/compareLeads",
+
     "/dashboard/reviewLeads",
   ],
   Content: [
@@ -120,6 +122,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   HR: [
     "/",
+    "/dashboard",
     "/dashboard/employee",
     /^\/dashboard\/employee\/.*$/,
     // /^\/dashboard\/editemployeedetails\/.*$/,

@@ -477,7 +477,6 @@ const Dashboard = () => {
       {/* Listings Dashboard */}
       {(token?.role === "SuperAdmin" ||
         token?.role === "LeadGen-TeamLead" ||
-        token?.role === "Advert" ||
         token?.role === "HR") && (
         <>
           <section className="relative my-10">
@@ -974,70 +973,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {token?.role === "Advert" && (
-        <>
-          <div className="flex  border  rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
-            <MoleculeVisualization data={ownersCount} />
-          </div>
-          <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-6 rounded-xl border border-border bg-card shadow-sm">
-            {/* Filter Select */}
-            <CustomSelect
-              itemList={["All", "Today", "15 days", "1 month", "3 months"]}
-              triggerText="Select Days"
-              defaultValue="Today"
-              onValueChange={(value) => {
-                const newLeadFilters = {
-                  ...unregisteredOwnersFilters,
-                  days: value,
-                };
-                setUnregisteredOwnersFilters(newLeadFilters);
-                fetchUnregisteredVisits(newLeadFilters);
-              }}
-              triggerClassName="w-36 mb-4"
-            />
 
-            {/* Heading */}
-            <h2 className="text-xl md:text-2xl font-bold text-foreground text-center mb-6">
-              New Owners
-            </h2>
-
-            {/* Total Count */}
-            <div className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-6">
-              {newOwnersCount.length}
-            </div>
-
-            {/* Location Counts */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.entries(
-                newOwnersCount.reduce((acc: any, item: any) => {
-                  acc[item.location] = (acc[item.location] || 0) + 1;
-                  return acc;
-                }, {})
-              ).map(([location, count], index) => (
-                <div
-                  key={index}
-                  className="flex flex-col items-center justify-center p-4 rounded-lg border border-border bg-muted shadow-sm hover:shadow-md transition-shadow duration-200"
-                >
-                  <p className="text-lg font-medium text-muted-foreground">
-                    {location}
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {count as ReactNode}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col items-center justify-center md:w-1/2 ">
-            <ReusableLineChart
-              data={unregisteredOwnerCounts}
-              title="New Owners"
-            />
-          </div>
-        </>
-      )}
-
-      {token?.role === "SuperAdmin" && (
+      {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
         <>
           <div className="flex flex-col md:flex-row gap-6 mt-8">
             {/* Properties Shown Summary (larger width) */}
@@ -1122,7 +1059,7 @@ const Dashboard = () => {
             </div>
           </div>
           {(token?.role === "SuperAdmin" ||
-            token?.role === "LeadGen-TeamLead") && (
+            token?.role === "Advert") && (
             <div className="flex flex-coljustify-evenly md:flex-row  gap-6 mt-8">
               <div className="flex  border  rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
                 <MoleculeVisualization data={ownersCount} />
@@ -1196,7 +1133,7 @@ const Dashboard = () => {
       )}
 
       <div>
-        {token?.role === "SuperAdmin" && (
+        {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
           <>
             <div className="relative w-full mx-auto">
               <Card className="shadow-md rounded-2xl">

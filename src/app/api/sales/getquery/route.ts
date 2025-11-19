@@ -36,6 +36,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const customDays = Number(url.searchParams.get("customDays")) || 0;
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
+  const fromDate = url.searchParams.get("fromDate");
+  const toDate = url.searchParams.get("toDate");
+  const createdBy = url.searchParams.get("createdBy");
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
@@ -91,11 +94,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
         break;
       default:
+
         break;
     }
+   // Handle new date range parameters (fromDate and toDate)
+   if (fromDate && toDate) {
+     const istStartDate = getISTStartOfDay(new Date(fromDate));
+     const istEndDate = getISTStartOfDay(addHours(new Date(toDate), 24));
+     dateQuery = {
+       createdAt: {
+         $gte: new Date(istStartDate.toISOString()),
+         $lt: new Date(istEndDate.toISOString()),
+       },
+     };
+   }
     query = { ...query, ...dateQuery };
 
-    if (token.role != "SuperAdmin" && token.role != "LeadGen-TeamLead") query.createdBy = token.email;
+   // Handle employee filter
+   if (createdBy) {
+     query.createdBy = createdBy;
+   } else if (token.role != "SuperAdmin" && token.role != "LeadGen-TeamLead") {
+     query.createdBy = token.email;
+   }
 
     const allquery = await Query.aggregate([
       { $match: query },

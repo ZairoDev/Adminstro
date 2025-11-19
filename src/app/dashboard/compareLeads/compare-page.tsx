@@ -6,6 +6,7 @@ import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DateRange } from "react-day-picker";
 
 import {
   Sheet,
@@ -39,6 +40,7 @@ import { Toaster } from "@/components/ui/toaster";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 import HandLoader from "@/components/HandLoader";
 import CompareTable from "./compareTable";
@@ -64,6 +66,9 @@ export const CompareLeadsPage = () => {
   );
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [employees, setEmployees] = useState<any[]>([]);
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -171,13 +176,24 @@ export const CompareLeadsPage = () => {
 
       const params = new URLSearchParams({
         page: String(newPage),
-
         searchTerm: appliedFilters.searchTerm ?? "",
         searchType: appliedFilters.searchType ?? "name",
         dateFilter: appliedFilters.dateFilter ?? "",
         customDays: appliedFilters.customDays?.toString() ?? "0",
-
       });
+
+      // Add date range parameters if selected
+      if (dateRange?.from) {
+        params.append("fromDate", dateRange.from.toISOString().split("T")[0]);
+      }
+      if (dateRange?.to) {
+        params.append("toDate", dateRange.to.toISOString().split("T")[0]);
+      }
+
+      // Add employee filter if a specific employee is selected
+      if (selectedEmployee && selectedEmployee !== "all") {
+        params.append("createdBy", selectedEmployee);
+      }
 
       const response = await axios.get(
         `/api/sales/getquery?${params.toString()}`
@@ -204,7 +220,23 @@ export const CompareLeadsPage = () => {
         console.log("error in getting area: ", err);
       }
     };
+    const fetchEmployees = async () => {
+      try {
+        // Request only LeadGen employees from the backend
+        const response = await axios.get(
+          "/api/employee/getAllEmployee?role=LeadGen"
+        );
+        // endpoint returns { allEmployees, totalEmployee }
+        const all = response.data.allEmployees || [];
+        // keep only active employees
+        const activeLeadGen = all.filter((emp: any) => emp.isActive !== false);
+        setEmployees(activeLeadGen);
+      } catch (err: any) {
+        console.log("error in getting employees: ", err);
+      }
+    };
     getAllotedArea();
+    fetchEmployees();
   }, []);
 
   useEffect(() => {
@@ -286,7 +318,7 @@ export const CompareLeadsPage = () => {
   useEffect(() => {
     // debounce(filterLeads, 500);
     filterLeads(1, { ...filters, allotedArea: area });
-  }, [filters.searchTerm]);
+  }, [filters.searchTerm, dateRange, selectedEmployee]);
 
   return (
     <div className=" w-full">
@@ -331,6 +363,31 @@ export const CompareLeadsPage = () => {
                 </Select>
               </div>
             )}
+            <div className="w-[200px]">
+              <Select
+                onValueChange={(value: string) => {
+                  setSelectedEmployee(value);
+                }}
+                value={selectedEmployee}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee._id} value={employee.email}>
+                      {employee.name || employee.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DateRangePicker
+              date={dateRange}
+              setDate={setDateRange}
+              className="w-[300px]"
+            />
             <div className="">
               <Select
                 onValueChange={(value: string) =>

@@ -44,7 +44,7 @@ const CandidateSchema = new Schema(
         dateOfBirth: { type: String, default: null },
         gender: { type: String, default: null },
         nationality: { type: String, default: null },
-        fatherName: { type: String, required: true },
+        fatherName: { type: String, default: null },
       },
       bankDetails: {
         accountHolderName: { type: String, default: null },

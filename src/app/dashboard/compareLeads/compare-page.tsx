@@ -324,15 +324,15 @@ export const CompareLeadsPage = () => {
     <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full">
+        {/* <div className="w-full">
           <Heading
             heading="All Leads"
             subheading="You will get the list of leads that created till now"
           />
-        </div>
+        </div> */}
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
-            {(token?.role == "SuperAdmin" ||
+            {/* {(token?.role == "SuperAdmin" ||
               token?.role === "Sales-TeamLead") && (
               <div className="w-[200px]">
                 <Select
@@ -362,8 +362,8 @@ export const CompareLeadsPage = () => {
                   </SelectContent>
                 </Select>
               </div>
-            )}
-            <div className="w-[200px]">
+            )} */}
+            {/* <div className="w-[200px]">
               <Select
                 onValueChange={(value: string) => {
                   setSelectedEmployee(value);
@@ -382,13 +382,13 @@ export const CompareLeadsPage = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <DateRangePicker
+            </div> */}
+            {/* <DateRangePicker
               date={dateRange}
               setDate={setDateRange}
               className="w-[300px]"
-            />
-            <div className="">
+            /> */}
+            {/* <div className="">
               <Select
                 onValueChange={(value: string) =>
                   setFilters((prev) => ({ ...prev, searchType: value }))
@@ -404,16 +404,16 @@ export const CompareLeadsPage = () => {
                   <SelectItem value="phoneNo">Phone No</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <Input
+            </div> */}
+            {/* <Input
               placeholder="Search..."
               value={filters.searchTerm}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
               }
-            />
+            /> */}
           </div>
-          <div className="flex md:w-auto w-full justify-between  gap-x-2">
+          {/* <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
               <Sheet>
                 <SheetTrigger asChild>
@@ -422,11 +422,11 @@ export const CompareLeadsPage = () => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent>
-                  {/* Lead Filters */}
+             
                   <div className=" flex flex-col items-center">
-                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
+                   
                     <LeadsFilter filters={filters} setFilters={setFilters} />
-                    {/* Apply Button */}
+                   
                   </div>
 
                   <SheetFooter className=" flex flex-col">
@@ -478,7 +478,7 @@ export const CompareLeadsPage = () => {
                 </SheetContent>
               </Sheet>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
       {loading ? (
@@ -492,7 +492,7 @@ export const CompareLeadsPage = () => {
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               <CompareTable queries={queries} setQueries={setQueries} />
             </div>
-            <div className="flex items-center justify-between p-2 w-full">
+            {/* <div className="flex items-center justify-between p-2 w-full">
               <div className="">
                 <p className="text-xs ">
                   Page {page} of {totalPages} — {totalQuery} total results
@@ -505,7 +505,7 @@ export const CompareLeadsPage = () => {
                   </PaginationContent>
                 </Pagination>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       ) : (
@@ -545,18 +545,18 @@ export const CompareLeadsPage = () => {
           </div>
           <div>
             <div className="flex items-center justify-between p-2 w-full">
-              <div>
+              {/* <div>
                 <p className="text-xs">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <Pagination className="flex items-center">
                   <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
                     {renderPaginationItems()}
                   </PaginationContent>
                 </Pagination>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

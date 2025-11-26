@@ -324,6 +324,7 @@ export interface IQuery {
   createdAt?: Date;
   updatedAt?: Date;
   idName?: string;
+  reason?: string;
 }
 
 export interface VisitInterface {

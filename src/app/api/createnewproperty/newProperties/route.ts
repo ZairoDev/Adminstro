@@ -125,6 +125,7 @@ export async function POST(request: Request) {
         email,
         propertyType,
         rentalForm,
+        rentalType,
         isInstantBooking: false,
         propertyName: placeName,
         placeName: portionName?.[i],

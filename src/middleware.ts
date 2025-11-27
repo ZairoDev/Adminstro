@@ -154,6 +154,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/sales-offer",
     /^\/dashboard\/sales-offer\/.*$/,
   ],
+  "Sales(New)": ["/", "/dashboard/lowBudget"],
 };
 export const defaultRoutes: { [key: string]: string } = {
   SuperAdmin: "/dashboard",
@@ -169,6 +170,7 @@ export const defaultRoutes: { [key: string]: string } = {
   Guest: "/dashboard/guest-window",
   Intern: "/dashboard/owners",
   "Subscription-Sales": "/dashboard/sales-offer",
+  "Sales(New)": "/dashboard/lowBudget",
   Default: "/dashboard",
   //  SuperAdmin: "/dashboard/cr%%5E$ghzdkkxjuhgy789",
   // Admin: "/dashboard/cr%%5E$ghzdkkxjuhgy789",

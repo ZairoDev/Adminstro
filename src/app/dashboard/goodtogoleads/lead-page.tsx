@@ -300,6 +300,13 @@ export const GoodToGoLeads = () => {
     });
   };
 
+  const debouncedFilterLeads = React.useCallback(
+  debounce((page: number, filters: FilterState) => {
+    filterLeads(page, filters);
+  }, 500), // 500ms delay
+  []
+);
+
   return (
     <div className=" w-full">
       <Toaster />
@@ -416,7 +423,7 @@ export const GoodToGoLeads = () => {
                 </Select>
               </div>
             )}
-            <div className="">
+            {/* <div className="">
               <Select
                 onValueChange={(value: string) =>
                   setFilters((prev) => ({ ...prev, searchType: value }))
@@ -440,7 +447,53 @@ export const GoodToGoLeads = () => {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
               }
-            />
+            /> */}
+
+        
+
+
+<div className="relative w-full">
+  <Input
+    placeholder="Search by name, email, or phone..."
+    value={filters.searchTerm}
+    onChange={(e) => {
+      const value = e.target.value;
+
+      // Auto-detect search type
+      let detectedType = "name"; // default
+
+      if (value.includes("@")) {
+        detectedType = "email";
+      } else if (/^\d+$/.test(value)) {
+        detectedType = "phoneNo";
+      }
+
+      const updatedFilters = {
+        ...filters,
+        searchTerm: value,
+        searchType: detectedType,
+      };
+
+      setFilters(updatedFilters);
+      
+      // ✅ Trigger the search after state update
+      debouncedFilterLeads(1, updatedFilters);
+    }}
+    onKeyDown={(e) => {
+      // Allow immediate search on Enter key
+      if (e.key === "Enter") {
+        debouncedFilterLeads.cancel(); // Cancel any pending debounced call
+        filterLeads(1, filters);
+      }
+    }}
+    className="pr-24"
+  />
+
+  {/* Show detected type as a subtle indicator */}
+  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
+    {filters.searchType === "phoneNo" ? "Phone" : filters.searchType}
+  </span>
+</div>
           </div>
 
           <div className="flex md:w-auto w-full justify-between  gap-x-2">

@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     }
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
+         const cleanedPhone = searchTerm.replace(/\D/g, ''); // Remove all non-digit characters
+  query.phoneNo = { $regex: cleanedPhone, $options: 'i' };
       } else {
         query[searchType] = regex;
       }

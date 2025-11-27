@@ -54,7 +54,7 @@ export const DeclinedLeads = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const {socket,isConnected} = useSocket();
+  const { socket, isConnected } = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -284,6 +284,13 @@ export const DeclinedLeads = () => {
     filterLeads(1);
   }, [filters.searchTerm]);
 
+  const debouncedFilterLeads = React.useCallback(
+    debounce((page: number, filters: FilterState) => {
+      filterLeads(page, filters);
+    }, 500), // 500ms delay
+    []
+  );
+
   return (
     <div className=" w-full">
       <Toaster />
@@ -297,7 +304,9 @@ export const DeclinedLeads = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
-              token?.email === "tyagimokshda@gmail.com" || token?.email === "shailvinaprakash007@gmail.com" || token?.email === "pravleenkaur1233@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com" ||
+              token?.email === "pravleenkaur1233@gmail.com") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {
@@ -327,30 +336,51 @@ export const DeclinedLeads = () => {
                 </Select>
               </div>
             )}
-            <div className="">
-              <Select
-                onValueChange={(value: string) =>
-                  setFilters((prev) => ({ ...prev, searchType: value }))
-                }
-                value={filters.searchType}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="phoneNo">Phone No</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="relative w-full">
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={filters.searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  // Auto-detect search type
+                  let detectedType = "name"; // default
+
+                  if (value.includes("@")) {
+                    detectedType = "email";
+                  } else if (/^\d+$/.test(value)) {
+                    detectedType = "phoneNo";
+                  }
+
+                  const updatedFilters = {
+                    ...filters,
+                    searchTerm: value,
+                    searchType: detectedType,
+                  };
+
+                  setFilters(updatedFilters);
+
+                  // ✅ Trigger the search after state update
+                  debouncedFilterLeads(1, updatedFilters);
+                }}
+                onKeyDown={(e) => {
+                  // Allow immediate search on Enter key
+                  if (e.key === "Enter") {
+                    debouncedFilterLeads.cancel(); // Cancel any pending debounced call
+                    filterLeads(1, filters);
+                  }
+                }}
+                className="pr-24"
+              />
+
+              {/* Show detected type as a subtle indicator */}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
+                {filters.searchType === "phoneNo"
+                  ? "Phone"
+                  : filters.searchType}
+              </span>
             </div>
-            <Input
-              placeholder="Search..."
-              value={filters.searchTerm}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
-              }
-            />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">

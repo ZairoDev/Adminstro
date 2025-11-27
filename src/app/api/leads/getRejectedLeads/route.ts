@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       budgetTo,
       leadQuality,
       allotedArea,
-      rejectionReason
+      rejectionReason,
     } = reqBody.filters;
     const PAGE = reqBody.page;
 

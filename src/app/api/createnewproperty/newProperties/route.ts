@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-
-import { sendUserDetailsToCompany } from "@/util/gmailmailer";
-import { Properties } from "@/models/property"; // First collection
-import { Property as ListingModel } from "@/models/listing"; // Second collection
-import { Property as PropertyType } from "@/util/type"; // Type only
+import { Properties } from "@/models/property";
+import { Property as PropertyType } from "@/util/type";
 import { customAlphabet } from "nanoid";
 
 connectDb();
 
 const generateCommonId = (length: number): string => {
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const generateUniqueId = customAlphabet(charset, length);
-  return generateUniqueId();
+  return customAlphabet(charset, length)();
 };
 
 export async function POST(request: Request) {
@@ -23,8 +19,6 @@ export async function POST(request: Request) {
     const {
       userId,
       email,
-      phone = "",
-      name = "",
       propertyType,
       placeName,
       rentalForm,
@@ -61,9 +55,9 @@ export async function POST(request: Request) {
       additionalRules,
       reviews,
       propertyCoverFileUrl,
-      propertyPictureUrls,
-      portionCoverFileUrls,
-      portionPictureUrls,
+      propertyPictureUrls = [],
+      portionCoverFileUrls = [],
+      portionPictureUrls = [],
       night,
       time,
       datesPerPortion,
@@ -84,7 +78,7 @@ export async function POST(request: Request) {
       constructionYear,
       nearbyLocations,
       hostedBy,
-      rentalType,
+      rentalType, // IMPORTANT FIELD
       basePriceLongTerm,
       monthlyDiscountLongTerm,
       longTermMonths,
@@ -95,15 +89,43 @@ export async function POST(request: Request) {
     const propertyIds: string[] = [];
     const commonId = generateCommonId(7);
 
+    // -----------------------------------------------------------------
+    // 📌 IMAGE LOGIC: Short Term + multi-portions => own images
+    // Otherwise => same images everywhere
+    // -----------------------------------------------------------------
+    const isMultiShortTerm =
+      rentalType === "Short Term" && (numberOfPortions ?? 1) > 1;
+
+    // MASTER images for non-multi-short-term OR global usage
+    const masterImages = Array.from(
+      new Set([propertyCoverFileUrl, ...(propertyPictureUrls || [])])
+    ).filter(Boolean);
+
     for (let i = 0; i < (numberOfPortions ?? 1); i++) {
+      // ----------------------------
+      // 📌 PORTION-IMAGE DECISION
+      // ----------------------------
+      let portionCover =
+        isMultiShortTerm && portionCoverFileUrls[i]
+          ? portionCoverFileUrls[i]
+          : propertyCoverFileUrl;
+
+      let portionGallery =
+        isMultiShortTerm && portionPictureUrls[i]
+          ? portionPictureUrls[i]
+          : propertyPictureUrls;
+
+      portionGallery = Array.from(new Set(portionGallery || [])).filter(
+        Boolean
+      );
+
       const propertyData = {
         commonId,
         userId,
         email,
-        rentalType,
-        isInstantBooking: false,
         propertyType,
         rentalForm,
+        isInstantBooking: false,
         propertyName: placeName,
         placeName: portionName?.[i],
         street,
@@ -140,9 +162,14 @@ export async function POST(request: Request) {
         additionalRules,
         reviews: reviews?.[i],
         newReviews: "",
-        propertyImages: [propertyCoverFileUrl, ...(propertyPictureUrls || [])],
-        propertyCoverFileUrl: portionCoverFileUrls?.[i] || propertyCoverFileUrl,
-        propertyPictureUrls: portionPictureUrls?.[i] || [],
+
+        // ----------------------------
+        // 📌 FINAL IMAGE ASSIGNMENT
+        // ----------------------------
+        propertyCoverFileUrl: portionCover,
+        propertyPictureUrls: portionGallery,
+        propertyImages: [...masterImages], // ALWAYS SAME master everywhere
+
         night,
         time,
         datesPerPortion: datesPerPortion?.[i],
@@ -171,12 +198,7 @@ export async function POST(request: Request) {
         isLive,
       };
 
-      // Insert into first collection
       const newProperty = await Properties.create(propertyData);
-
-      // Insert into second collection
-      // const newListing = await ListingModel.create(propertyData);
-
       propertyIds.push(newProperty.VSID);
       mongoIds.push(newProperty._id.toString());
     }

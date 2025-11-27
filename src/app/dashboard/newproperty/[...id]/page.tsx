@@ -12,6 +12,7 @@ import {
   UploadIcon,
   LoaderCircle,
   CalendarDaysIcon,
+  Copy,
 } from "lucide-react";
 import {
   Select,
@@ -31,7 +32,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
-import ImageCard from "@/components/imagecard/ImageCard";
 
 interface GeneralAmenities {
   [key: string]: boolean;
@@ -55,6 +55,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
   const [loadingProperty, setLoadingproperty] = useState(false);
   const [selectedPortion, setSelectedPortion] = useState<number | null>(null);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+  const [syncImages, setSyncImages] = useState<boolean>(true);
   const [imageDeleteObject, setImageDeleteObj] =
     useState<Partial<imageInterface>>();
   const [refreshFetchProperty, setRefreshFetchProperty] =
@@ -166,10 +167,10 @@ const PortionDetailsPage = ({ params }: PageProps) => {
     const PropertyId = propertyData[selectedPortion]._id;
     try {
       setPropertyLoading(true);
-      console.log(PropertyId, propertyData[selectedPortion]);
       const response = await axios.post("/api/property/editProperty", {
         PropertyId,
         propertyData: propertyData[selectedPortion],
+        syncImages, // 🟢 added
       });
       toast({
         description: "Property updated successfully",
@@ -180,6 +181,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
       setPropertyLoading(false);
     }
   };
+  
 
   //TODO: Image Upload Part
   const handleImageUpload = async (
@@ -190,7 +192,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
     const files = event?.target?.files;
     const fileArr = Array.from(files || []);
 
-    // * checking file type
+    // * File type validation
     for (const file of fileArr) {
       if (
         !file ||
@@ -203,28 +205,23 @@ const PortionDetailsPage = ({ params }: PageProps) => {
         toast({
           variant: "destructive",
           title: "Invalid Image Type",
-          description:
-            "We only accept jpeg , png , webp for now try to upload this format",
+          description: "We only accept jpeg , png , webp for now",
         });
         return;
       }
     }
-    // * intitalizing Bunny
+
     const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
     const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
     const storageUrl = process.env.NEXT_PUBLIC_BUNNY_STORAGE_URL;
-
-    const formData = new FormData();
     const savedUrls: string[] = [];
 
     setLoadingproperty(true);
 
     for (const file of fileArr) {
-      formData.append("file", file);
       try {
         const dt = Date.now();
-
-        const response = await axios.put(
+        await axios.put(
           `${storageUrl}/${storageZoneName}/${
             propertyData[selectedPortion!]?.propertyName
           }/${dt}${file.name}`,
@@ -236,48 +233,67 @@ const PortionDetailsPage = ({ params }: PageProps) => {
             },
           }
         );
-
-        const imageUrl = `https://vacationsaga.b-cdn.net/${
-          propertyData[selectedPortion!]?.propertyName
-        }/${dt}${file.name}`;
-        savedUrls.push(imageUrl);
+        savedUrls.push(
+          `https://vacationsaga.b-cdn.net/${
+            propertyData[selectedPortion!]?.propertyName
+          }/${dt}${file.name}`
+        );
       } catch (error) {
-        console.error("Error uploading image to Bunny CDN:", error);
         toast({
           variant: "destructive",
           title: "Upload Error",
-          description:
-            "An error occurred while uploading the image. Please try again later.",
+          description: "Error occurred while uploading image",
         });
         break;
       }
     }
 
+    const updated = { ...propertyData[selectedPortion!] };
+
+    // ============================
+    // SYNC LOGIC APPLIED HERE 🟢
+    // ============================
+
     if (imageType === "propertyCoverFileUrl") {
-      const tempPropertyData = { ...propertyData[selectedPortion!] };
-      tempPropertyData["propertyCoverFileUrl"] = savedUrls[0];
-      setPropertyData((prev) => {
-        prev[selectedPortion!] = tempPropertyData;
-        return prev;
-      });
-    } else if (imageType === "propertyPictureUrls") {
-      const tempPropertyData = { ...propertyData[selectedPortion!] };
-      // Update both arrays to keep them in sync
-      tempPropertyData["propertyPictureUrls"] = [
-        ...tempPropertyData["propertyPictureUrls"],
-        ...savedUrls,
-      ];
-      tempPropertyData["propertyImages"] = [
-        ...(tempPropertyData["propertyImages"] || []),
-        ...savedUrls,
-      ];
-      setPropertyData((prev) => {
-        prev[selectedPortion!] = tempPropertyData;
-        return prev;
-      });
+      updated.propertyCoverFileUrl = savedUrls[0];
     }
+
+    if (imageType === "propertyPictureUrls") {
+      updated.propertyPictureUrls = [
+        ...updated.propertyPictureUrls,
+        ...savedUrls,
+      ];
+
+      if (syncImages) {
+        updated.propertyImages = [
+          ...(updated.propertyImages || []),
+          ...savedUrls,
+        ];
+      }
+    }
+
+    if (imageType === "propertyImages") {
+      updated.propertyImages = [
+        ...(updated.propertyImages || []),
+        ...savedUrls,
+      ];
+
+      if (syncImages) {
+        updated.propertyPictureUrls = [
+          ...updated.propertyPictureUrls,
+          ...savedUrls,
+        ];
+      }
+    }
+
+    setPropertyData((prev) => {
+      prev[selectedPortion!] = updated;
+      return [...prev];
+    });
+
     setLoadingproperty(false);
   };
+  
 
   // TODO: Image deletion part
   const handleImageSelect = (
@@ -299,7 +315,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
 
     let newObj = { ...imageDeleteObject };
 
-    // ! for imageType propertyCoverFileUrl, propertyPictureUrls
+    // ! for imageType propertyCoverFileUrl, propertyPictureUrls, propertyImages
     if (imageType === "propertyCoverFileUrl") {
       // For cover image, just mark it for deletion
       if (checked) {
@@ -308,7 +324,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
         delete (newObj as any)[imageType];
       }
     } else {
-      // For arrays like propertyPictureUrls
+      // For arrays like propertyPictureUrls and propertyImages
       if (checked) {
         const imageTypeArray = [...((newObj as any)[imageType] ?? [])];
         if (index !== undefined && !imageTypeArray.includes(index)) {
@@ -381,16 +397,12 @@ const PortionDetailsPage = ({ params }: PageProps) => {
     try {
       setLoadingproperty(true);
 
-      // First delete from database
-      const response = await axios.post(
-        "/api/property/editProperty/deleteImages",
-        {
-          pId: propertyData[selectedPortion!]._id,
-          data: imageDeleteObject,
-        }
-      );
+      await axios.post("/api/property/editProperty/deleteImages", {
+        pId: propertyData[selectedPortion!]._id,
+        data: imageDeleteObject,
+        syncImages, // 🟢 added here
+      });
 
-      // Then delete from Bunny CDN
       const deletePromises = imagesToDelete
         .filter((url) => url !== "")
         .map((imageUrl) => bunnyImageDelete(imageUrl));
@@ -399,15 +411,15 @@ const PortionDetailsPage = ({ params }: PageProps) => {
 
       toast({
         title: "Success",
-        description: "Images deleted successfully",
+        description: syncImages
+          ? "Images deleted from both arrays"
+          : "Images deleted successfully",
       });
 
-      // Reset states
       setImagesToDelete([]);
       setImageDeleteObj({});
       setRefreshFetchProperty((prev) => !prev);
     } catch (err: any) {
-      console.error("Error deleting images:", err);
       toast({
         variant: "destructive",
         title: "Error",
@@ -416,6 +428,25 @@ const PortionDetailsPage = ({ params }: PageProps) => {
     } finally {
       setLoadingproperty(false);
     }
+  };
+  
+
+  // Copy images between arrays
+  const handleCopyImages = (from: string, to: string) => {
+    if (selectedPortion === null) return;
+
+    const updatedData = [...propertyData];
+    const sourceImages = updatedData[selectedPortion][from] || [];
+
+    updatedData[selectedPortion] = {
+      ...updatedData[selectedPortion],
+      [to]: [...sourceImages],
+    };
+
+    setPropertyData(updatedData);
+    toast({
+      description: `Images copied from ${from} to ${to}`,
+    });
   };
 
   return (
@@ -472,6 +503,20 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                           selectedPortion + 1
                         }`}
                       />
+                      <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                        <div>
+                          <Label className="text-base font-semibold">
+                            Sync Image Arrays
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            Keep images identical between both arrays
+                          </p>
+                        </div>
+                        <Switch
+                          checked={syncImages}
+                          onCheckedChange={setSyncImages}
+                        />
+                      </div>
 
                       {/* Cover Image Section */}
                       <div className="space-y-2">
@@ -545,11 +590,42 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                         </div>
                       </div>
 
-                      {/* Gallery Images Section */}
+                      {/* Property Picture URLs Section */}
                       <div className="space-y-2">
-                        <Label className="text-base font-semibold">
-                          Gallery Images
-                        </Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-semibold">
+                            Property Picture URLs{" "}
+                            <span className="text-xs text-muted-foreground font-normal">
+                              (Gallery Section)
+                            </span>
+                          </Label>
+                          {(!propertyData[selectedPortion]
+                            ?.propertyPictureUrls ||
+                            propertyData[
+                              selectedPortion
+                            ]?.propertyPictureUrls.filter(
+                              (url: string) => url !== ""
+                            ).length === 0) &&
+                            propertyData[
+                              selectedPortion
+                            ]?.propertyImages?.filter(
+                              (url: string) => url !== ""
+                            ).length > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleCopyImages(
+                                    "propertyImages",
+                                    "propertyPictureUrls"
+                                  )
+                                }
+                              >
+                                <Copy size={14} className="mr-2" />
+                                Copy from Property Images
+                              </Button>
+                            )}
+                        </div>
                         <div className="flex gap-4 overflow-x-auto pb-4">
                           <label htmlFor="file-upload-propertyPictureUrls">
                             <div className="flex-shrink-0 flex items-center justify-center h-40 w-40 border-2 border-dashed rounded-lg hover:bg-muted/50 cursor-pointer transition-all">
@@ -582,12 +658,12 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                             ?.filter((url: string) => url !== "")
                             ?.map((url: string, index: number) => (
                               <div
-                                key={`gallery-${index}`}
+                                key={`picture-url-${index}`}
                                 className="relative flex-shrink-0"
                               >
                                 <img
                                   src={url}
-                                  alt={`Gallery ${index + 1}`}
+                                  alt={`Picture URL ${index + 1}`}
                                   className="w-40 h-40 object-cover rounded-lg"
                                 />
                                 <Checkbox
@@ -596,6 +672,97 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                                     handleImageSelect(
                                       checked,
                                       "propertyPictureUrls",
+                                      url,
+                                      index
+                                    )
+                                  }
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Property Images Section */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-semibold">
+                            Property Images{" "}
+                            <span className="text-xs text-muted-foreground font-normal">
+                              (Alternative Gallery)
+                            </span>
+                          </Label>
+                          {(!propertyData[selectedPortion]?.propertyImages ||
+                            propertyData[
+                              selectedPortion
+                            ]?.propertyImages.filter(
+                              (url: string) => url !== ""
+                            ).length === 0) &&
+                            propertyData[
+                              selectedPortion
+                            ]?.propertyPictureUrls?.filter(
+                              (url: string) => url !== ""
+                            ).length > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleCopyImages(
+                                    "propertyPictureUrls",
+                                    "propertyImages"
+                                  )
+                                }
+                              >
+                                <Copy size={14} className="mr-2" />
+                                Copy from Property Picture URLs
+                              </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-4">
+                          <label htmlFor="file-upload-propertyImages">
+                            <div className="flex-shrink-0 flex items-center justify-center h-40 w-40 border-2 border-dashed rounded-lg hover:bg-muted/50 cursor-pointer transition-all">
+                              <div className="flex flex-col items-center gap-2">
+                                {loadingProperty ? (
+                                  <LoaderCircle
+                                    size={24}
+                                    className="animate-spin"
+                                  />
+                                ) : (
+                                  <UploadIcon size={24} />
+                                )}
+                                <p className="text-sm font-medium">Upload</p>
+                              </div>
+                            </div>
+                            <input
+                              id="file-upload-propertyImages"
+                              type="file"
+                              className="sr-only"
+                              multiple
+                              accept="image/*"
+                              onChange={(e) =>
+                                handleImageUpload(e, "propertyImages", 0)
+                              }
+                              disabled={loadingProperty}
+                            />
+                          </label>
+
+                          {propertyData[selectedPortion]?.propertyImages
+                            ?.filter((url: string) => url !== "")
+                            ?.map((url: string, index: number) => (
+                              <div
+                                key={`property-image-${index}`}
+                                className="relative flex-shrink-0"
+                              >
+                                <img
+                                  src={url}
+                                  alt={`Property Image ${index + 1}`}
+                                  className="w-40 h-40 object-cover rounded-lg"
+                                />
+                                <Checkbox
+                                  className="cursor-pointer absolute left-2 top-2 w-5 h-5 bg-background border-primary"
+                                  onCheckedChange={(checked) =>
+                                    handleImageSelect(
+                                      checked,
+                                      "propertyImages",
                                       url,
                                       index
                                     )

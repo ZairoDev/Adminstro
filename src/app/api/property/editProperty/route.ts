@@ -1,87 +1,83 @@
-// import { NextRequest, NextResponse } from "next/server";
-// import { connectDb } from "@/util/db";
-// connectDb();
-// export async function PUT(req: NextRequest): Promise<NextResponse | undefined> {
-//   try {
-//     const reqBody = await req.json();
-//     const { VSID, propertyData } = reqBody;
-//     if (!VSID) {
-//       return NextResponse.json(
-//         {
-//           error: "Property ID is required",
-//         },
-//         { status: 400 }
-//       );
-//     }
-//     console.log(VSID, propertyData);
-//     return NextResponse.json(
-//       {
-//         message: "Property updated successfully",
-//         data: { VSID, propertyData },
-//       },
-//       { status: 200 }
-//     );
-//   } catch (error: any) {
-//     console.log(error);
-//     return NextResponse.json(
-//       {
-//         error: error.message,
-//       },
-//       { status: 500 }
-//     );
-//   }
-// }
-
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Property } from "@/models/listing";
 import { Properties } from "@/models/property";
 
 connectDb();
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const reqBody = await req.json();
-    const { PropertyId, propertyData } = reqBody;
+    const { PropertyId, propertyData, syncImages } = await req.json();
 
-    // Ensure VSID and propertyData are provided
-    if (!PropertyId) {
+    if (!PropertyId)
       return NextResponse.json(
         { error: "Property ID is required" },
         { status: 400 }
       );
-    }
-    if (!propertyData) {
+
+    if (!propertyData)
       return NextResponse.json(
-        { error: "Property data is required for update" },
+        { error: "Property data is required" },
         { status: 400 }
       );
-    }
 
-    console.log("message",PropertyId, propertyData.bedrooms,propertyData.beds);
-
-    const updatedProperty = await Properties.findByIdAndUpdate(
-      PropertyId,
-      { $set: propertyData, propertyImages:propertyData.propertyPictureUrls },
-      { new: true }
-    );
-    console.log("updatedProperty: ", updatedProperty);
-    if (!updatedProperty) {
+    const existing = await Properties.findById(PropertyId);
+    if (!existing)
       return NextResponse.json(
         { error: "Property not found" },
         { status: 404 }
       );
+
+    // ---------------------------
+    // 🔥 AUTO-MERGE UPLOADED IMAGES
+    // ---------------------------
+    const incomingImages = propertyData.propertyImages ?? [];
+    const incomingPics = propertyData.propertyPictureUrls ?? [];
+
+    let mergedImages = Array.from(
+      new Set([...existing.propertyImages, ...incomingImages])
+    ).filter(Boolean);
+    let mergedPics = Array.from(
+      new Set([...existing.propertyPictureUrls, ...incomingPics])
+    ).filter(Boolean);
+
+    // ---------------------------
+    // 🔄 SYNC ON (Mirror Both)
+    // ---------------------------
+    if (syncImages) {
+      mergedPics = [...mergedImages];
     }
 
+    // ---------------------------
+    // 🧹 CLEAN DATA ALWAYS
+    // ---------------------------
+    mergedImages = Array.from(new Set(mergedImages)).filter(Boolean);
+    mergedPics = Array.from(new Set(mergedPics)).filter(Boolean);
+
+    // ---------------------------
+    // 🔧 AUTO-FILL if sync ON
+    // ---------------------------
+    if (syncImages && mergedPics.length === 0 && mergedImages.length > 0)
+      mergedPics = [...mergedImages];
+
+    if (syncImages && mergedImages.length === 0 && mergedPics.length > 0)
+      mergedImages = [...mergedPics];
+
+    // Apply to propertyData
+    propertyData.propertyImages = mergedImages;
+    propertyData.propertyPictureUrls = mergedPics;
+
+    // Save
+    const updated = await Properties.findByIdAndUpdate(
+      PropertyId,
+      { $set: propertyData },
+      { new: true }
+    );
+
     return NextResponse.json(
-      {
-        message: "Property updated successfully",
-        data: updatedProperty,
-      },
+      { message: "Property updated successfully", data: updated },
       { status: 200 }
     );
   } catch (error: any) {
-    console.error("Error updating property:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -243,6 +243,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <User2Icon size={18} />,
     },
     {
+      path: "/dashboard/lowBudget",
+      label: "Low Budget Leads",
+      Icon: <User2Icon size={18} />,
+    },
+    {
       path: "/dashboard/employee/employeeList",
       label: "All Employees",
       Icon: <IdCardIcon size={18} />,
@@ -463,6 +468,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
+      path: "/dashboard/lowBudget",
+      label: "Low Budget Leads",
+      Icon: <User2Icon size={18} />,
+    },
+    {
       path: "/dashboard/rolebaseLead",
       label: "Fresh Leads",
       Icon: <Sprout size={18} />,
@@ -549,6 +559,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/rolebaseLead",
       label: "Fresh Leads",
       Icon: <Sprout size={18} />,
+    },
+    {
+      path: "/dashboard/lowBudget",
+      label: "Low Budget Leads",
+      Icon: <User2Icon size={18} />,
     },
     {
       path: "/dashboard/goodtogoleads",
@@ -714,6 +729,11 @@ const leadManagementRoutes = [
     path: "/dashboard/createquery",
     label: "Create Lead",
     Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/lowBudget",
+    label: "Low Budget Leads",
+    Icon: <User2Icon size={18} />,
   },
   {
     path: "/dashboard/rolebaseLead",

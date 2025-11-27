@@ -93,6 +93,10 @@ const PropertyPage: React.FC = () => {
   };
 
   const handleCardClick = (propertyId: string) => {
+    // window.open(
+    //   `https://www.vacationsaga.com/listing-stay-detail/${propertyId}`,
+    //   "_blank"
+    // );
     setExpandedCard(expandedCard === propertyId ? null : propertyId);
   };
 

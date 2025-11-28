@@ -235,6 +235,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           portionCoverFileUrls,
           portionPictureUrls,
         };
+        console.log("combinedData" , combinedData);
         setCombinedData(combinedData);
         return combinedData;
       }
@@ -256,6 +257,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   useEffect(() => {
     const fetchuser = async () => {
       if (!userId) return;
+      
 
       setLoading(true);
       try {

@@ -168,14 +168,29 @@ const PageAddListing2: FC = () => {
           setPostalCode(parsedData["postalCode"] || "");
           setCenter(parsedData["center"] || { lat: 0, lng: 0 });
 
-          setNearByLocations(
-            parsedData["nearbyLocations"] || {
+          const savedNearbyLocations = parsedData["nearbyLocations"];
+          if (
+            savedNearbyLocations &&
+            Array.isArray(savedNearbyLocations.nearbyLocationName) &&
+            savedNearbyLocations.nearbyLocationName.length > 0
+          ) {
+            setNearByLocations(savedNearbyLocations);
+            console.log(
+              "✅ Loaded nearbyLocations from localStorage:",
+              savedNearbyLocations
+            );
+          } else {
+            // Initialize with empty arrays
+            setNearByLocations({
               nearbyLocationName: [],
               nearbyLocationDistance: [],
               nearbyLocationTag: [],
               nearbyLocationUrl: [],
-            }
-          );
+            });
+            console.log(
+              "⚠️ No nearbyLocations found in localStorage, initializing empty"
+            );
+          }
         } catch (e) {
           console.error("Error parsing page2", e);
         }
@@ -290,6 +305,7 @@ const PageAddListing2: FC = () => {
     state,
     postalCode,
     center,
+    address,
     area,
     subarea,
     neighbourhood,
@@ -330,14 +346,18 @@ const PageAddListing2: FC = () => {
 
   const addNearByLocation = () => {
 
-    if (
-      nearbyLocationInput.nearbyLocationName === "" ||
-      nearbyLocationInput.nearbyLocationDistance === 0 ||
-      nearbyLocationInput.nearbyLocationTag === ""
-    ) {
-
-      return;
-    }
+     if (
+    !nearbyLocationInput.nearbyLocationName?.trim() ||
+    nearbyLocationInput.nearbyLocationDistance === 0 ||
+    !nearbyLocationInput.nearbyLocationTag?.trim()
+  ) {
+    toast({
+      variant: "destructive",
+      title: "Missing Information",
+      description: "Please fill in all required fields (Name, Distance, Tag)",
+    });
+    return;
+  }
 
     setNearByLocations((prev) => {
       const newObj = { ...prev };
@@ -358,11 +378,13 @@ const PageAddListing2: FC = () => {
         ...newObj["nearbyLocationUrl"],
         nearbyLocationInput.nearbyLocationUrl,
       ];
+
+      console.log("Updated nearbyLocations:", newObj);
       return newObj;
     });
 
     setNearbyLocationInput({
-      nearbyLocationName: "",
+      nearbyLocationName: "", 
       nearbyLocationDistance: 0,
       nearbyLocationTag: "",
       nearbyLocationUrl: "",

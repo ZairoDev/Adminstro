@@ -197,8 +197,10 @@ const PropertySchema: Schema = new Schema(
     energyClass: String,
 
     nearbyLocations: {
-      type: Map,
-      of: Schema.Types.Mixed,
+      nearbyLocationName: [String],
+      nearbyLocationDistance: [Number],
+      nearbyLocationTag: [String],
+      nearbyLocationUrl: [String],
     },
 
     hostedFrom: String,

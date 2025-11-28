@@ -1637,11 +1637,17 @@ export const getBookingStats = async ({
   location,
   comparisonMonth,
   comparisonYear,
+  weekOffset = 0,
+  monthOffset = 0,
+  yearOffset = 0,
 }: {
-  days?: "12 days" | "1 year" | "last 3 years" | "this month";
+  days?: "12 days" | "1 year" | "last 3 years" | "this month" | "week";
   location?: string;
   comparisonMonth?: number; // 0-11
   comparisonYear?: number;
+  weekOffset?: number; // For week navigation
+  monthOffset?: number; // For month navigation
+  yearOffset?: number; // For year navigation
 }) => {
   await connectDb();
   const now = new Date();
@@ -1653,6 +1659,28 @@ export const getBookingStats = async ({
   // 🧠 Determine grouping and range
   // ------------------------------
   switch (days?.toLowerCase()) {
+    case "week":
+      // Calculate week based on offset (0 = current week, -1 = last week, etc.)
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() + weekOffset * 7);
+      weekStart.setHours(0, 0, 0, 0);
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      start = weekStart;
+      end.setTime(weekEnd.getTime());
+
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$travellerPayment.history.date",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
     case "12 days":
       start.setDate(now.getDate() - 11);
       start.setHours(0, 0, 0, 0);
@@ -1667,8 +1695,10 @@ export const getBookingStats = async ({
       break;
 
     case "1 year":
-      start = new Date(now.getFullYear(), 0, 1); // Jan 1 this year
-      end.setFullYear(now.getFullYear(), 11, 31);
+      // Apply year offset
+      const targetYear = now.getFullYear() + yearOffset;
+      start = new Date(targetYear, 0, 1); // Jan 1 of target year
+      end.setFullYear(targetYear, 11, 31);
       end.setHours(23, 59, 59, 999);
       groupFormat = {
         $dateToString: {
@@ -1694,9 +1724,25 @@ export const getBookingStats = async ({
       break;
 
     case "this month":
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Apply month offset
+      const targetMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() + monthOffset,
+        1
+      );
+      start = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
       start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
+      end.setTime(
+        new Date(
+          targetMonth.getFullYear(),
+          targetMonth.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        ).getTime()
+      );
       groupFormat = {
         $dateToString: {
           format: "%Y-%m-%d", // group by day
@@ -1708,7 +1754,7 @@ export const getBookingStats = async ({
 
     default:
       throw new Error(
-        "Invalid period. Use '12 days', '1 year', 'last 3 years', or 'this month'."
+        "Invalid period. Use '12 days', '1 year', 'last 3 years', 'this month', or 'week'."
       );
   }
 
@@ -1746,24 +1792,12 @@ export const getBookingStats = async ({
   const result = await Bookings.aggregate(pipeline as PipelineStage[]);
 
   // ------------------------------
-  // 📊 Comparison dataset handling
+  // 📍 Location Breakdown (only when no specific location is selected)
   // ------------------------------
-  let comparisonResult = null;
+  let locationBreakdownResult = null;
 
-  if (days === "1 year") {
-    // 🧠 Comparison = previous full year
-    const comparisonStart = new Date(now.getFullYear() - 1, 0, 1); // Jan 1 last year
-    const comparisonEnd = new Date(
-      now.getFullYear() - 1,
-      11,
-      31,
-      23,
-      59,
-      59,
-      999
-    );
-
-    const comparisonPipeline: PipelineStage[] = [
+  if (!location) {
+    const locationPipeline: PipelineStage[] = [
       {
         $lookup: {
           from: "queries",
@@ -1777,38 +1811,40 @@ export const getBookingStats = async ({
       {
         $match: {
           "travellerPayment.history.status": "paid",
-          "travellerPayment.history.date": {
-            $gte: comparisonStart,
-            $lte: comparisonEnd,
-          },
-          ...(location ? { "leadData.location": location } : {}),
+          "travellerPayment.history.date": { $gte: start, $lte: end },
         },
       },
       {
         $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m", // match current grouping (month)
-              date: "$travellerPayment.history.date",
-              timezone: "Asia/Kolkata",
-            },
-          },
+          _id: "$leadData.location",
           totalPaid: { $sum: "$travellerPayment.history.amount" },
           count: { $sum: 1 },
         },
       },
-      { $sort: { _id: 1 } },
+      { $sort: { totalPaid: -1 } },
     ];
 
-    comparisonResult = await Bookings.aggregate(
-      comparisonPipeline as PipelineStage[]
+    locationBreakdownResult = await Bookings.aggregate(
+      locationPipeline as PipelineStage[]
     );
+
+    // Transform location breakdown
+    locationBreakdownResult = locationBreakdownResult.map((item: any) => ({
+      location: item._id,
+      totalPaid: item.totalPaid,
+      count: item.count,
+    }));
+
+    console.log("📍 Location Breakdown:", locationBreakdownResult);
   }
 
   // ------------------------------
-  // 📆 Comparison for "this month" or "12 days"
+  // 📊 Comparison dataset handling
   // ------------------------------
-  else if (comparisonMonth !== undefined && comparisonYear !== undefined) {
+  let comparisonResult = null;
+
+  // Only fetch comparison if explicitly requested (not for "1 year" auto-comparison)
+  if (comparisonMonth !== undefined && comparisonYear !== undefined) {
     const comparisonStart = new Date(comparisonYear, comparisonMonth, 1);
     comparisonStart.setHours(0, 0, 0, 0);
     const comparisonEnd = new Date(comparisonYear, comparisonMonth + 1, 0);
@@ -1840,9 +1876,11 @@ export const getBookingStats = async ({
           _id: {
             $dateToString: {
               format:
-                days === "12 days" || days === "this month"
+                days === "12 days" || days === "this month" || days === "week"
                   ? "%Y-%m-%d"
-                  : "%Y-%m",
+                  : days === "1 year"
+                  ? "%Y-%m"
+                  : "%Y",
               date: "$travellerPayment.history.date",
               timezone: "Asia/Kolkata",
             },
@@ -1857,6 +1895,12 @@ export const getBookingStats = async ({
     comparisonResult = await Bookings.aggregate(
       comparisonPipeline as PipelineStage[]
     );
+
+    console.log("📊 Comparison Query Range:", {
+      comparisonStart,
+      comparisonEnd,
+      resultCount: comparisonResult?.length,
+    });
   }
 
   // ------------------------------
@@ -1865,6 +1909,7 @@ export const getBookingStats = async ({
   return {
     selectedData: result,
     comparisonData: comparisonResult,
+    locationBreakdown: locationBreakdownResult,
   };
 };
 

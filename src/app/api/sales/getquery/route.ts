@@ -10,6 +10,7 @@ import {
   setSeconds,
   setMilliseconds,
 } from "date-fns";
+import Employee from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 connectDb();
 export const dynamic = "force-dynamic";
@@ -111,11 +112,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     query = { ...query, ...dateQuery };
 
    // Handle employee filter
-   if (createdBy) {
-     query.createdBy = createdBy;
-   } else if (token.role != "SuperAdmin" && token.role != "LeadGen-TeamLead") {
-     query.createdBy = token.email;
-   }
+const leadGenEmployees = await Employee.find({ role: "LeadGen" }).select("email");
+const leadGenEmails = leadGenEmployees.map((emp) => emp.email);
+
+query.createdBy = { $in: leadGenEmails };
 
     const allquery = await Query.aggregate([
       { $match: query },

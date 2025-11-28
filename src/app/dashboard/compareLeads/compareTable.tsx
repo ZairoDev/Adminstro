@@ -30,7 +30,9 @@ export default function CompareTable({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+
   const [fetchedQueries, setFetchedQueries] = useState<IQuery[]>([]);
+  const [fetchedMonthQueries, setFetchedMonthQueries] = useState<IQuery[]>([]); 
   const [loading, setLoading] = useState(false);
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [employees, setEmployees] = useState<EmployeeInterface[]>([]);
@@ -93,7 +95,7 @@ export default function CompareTable({
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yy = String(d.getFullYear()).slice(-2);
-    return `${dd}/${mm}/${yy}`;
+    return `${dd}/${mm}`;
   };
 
   const formatFullDate = (isoDate?: string) => {
@@ -134,6 +136,26 @@ export default function CompareTable({
     }
   };
 
+  // UPDATED: This is the ONLY change - using the new monthly stats endpoint
+  const fetchForMonth = async (month: string) => {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `/api/sales/monthly-stats?month=${month}`
+      );
+      
+      const data: IQuery[] = res.data?.queries || [];
+      setFetchedMonthQueries(data);
+      console.log("Monthly Queries:", data);
+      console.log("Total monthly queries:", data.length);
+    } catch (err) {
+      console.error("Error fetching queries for month", err);
+      setFetchedMonthQueries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedDate) {
       const today = new Date();
@@ -147,33 +169,51 @@ export default function CompareTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Separate effect to fetch monthly data when currentMonth changes
+  useEffect(() => {
+    if (currentMonth) {
+      fetchForMonth(currentMonth);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth]);
+
   useEffect(() => {
     if (selectedDate) fetchForDate(selectedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  const handleSave = async (
-    _id: string,
-    key: keyof IQuery,
-    newValue: string
-  ) => {
-    const prev = [...(fetchedQueries || [])];
+  // const handleSave = async (
+  //   _id: string,
+  //   key: keyof IQuery,
+  //   newValue: string
+  // ) => {
+  //   const prev = [...(fetchedQueries || [])];
 
-    setFetchedQueries((q: IQuery[]) =>
-      q.map((item: IQuery) => (item._id === _id ? { ...item, [key]: newValue } : item))
-    );
+  //   setFetchedQueries((q: IQuery[]) =>
+  //     q.map((item: IQuery) => (item._id === _id ? { ...item, [key]: newValue } : item))
+  //   );
 
-    try {
-      await axios.put(`/api/leads/updateData/${_id}`, {
-        field: key,
-        value: newValue,
-      });
-      setQueries?.((q: IQuery[]) => q.map((it: IQuery) => (it._id === _id ? { ...it, [key]: newValue } : it)));
-    } catch (error) {
-      console.error("Update failed", error);
-      setFetchedQueries(prev);
-    }
-  };
+  //   try {
+  //     await axios.put(`/api/leads/updateData/${_id}`, {
+  //       field: key,
+  //       value: newValue,
+  //     });
+  //     setQueries?.((q: IQuery[]) => q.map((it: IQuery) => (it._id === _id ? { ...it, [key]: newValue } : it)));
+  //   } catch (error) {
+  //     console.error("Update failed", error);
+  //     setFetchedQueries(prev);
+  //   }
+  // };
+
+  const monthlyGroupedByCreator = useMemo(() => {
+    return fetchedMonthQueries.reduce((acc: Record<string, IQuery[]>, q) => {
+      const name = getCreatorName(q.createdBy);
+      if (!acc[name]) acc[name] = [];
+      acc[name].push(q);
+      return acc;
+    }, {});
+  }, [fetchedMonthQueries, employees]);
+
 
   const groupedByCreator = useMemo(() => {
     return fetchedQueries.reduce((acc: Record<string, IQuery[]>, q) => {
@@ -215,36 +255,82 @@ export default function CompareTable({
     window.print();
   };
 
-  const getDailyPerformanceStatus = (queries: IQuery[]) => {
-    const goodCount = queries.filter(
-      (q) => q.leadQualityByReviewer?.toLowerCase() === "good"
-    ).length;
+  const evaluateEmployeeDay = (queries: IQuery[]) => {
+    let score = 0;
 
-    const averageCount = queries.filter(
-      (q) => q.leadQualityByReviewer?.toLowerCase() === "average"
-    ).length;
+    for (const q of queries) {
+      const quality = q.leadQualityByReviewer?.toLowerCase().trim();
 
-    if (goodCount >= 2 && averageCount >= 2) {
-      return { status: "In Progress", type: "success" };
+      if (quality === "very good") score += 4;
+      else if (quality === "good") score += 2;
+      else if (quality === "average") score += 1;
+      else score += 0; // below average or missing
     }
 
-    return { status: "Not Met", type: "danger" };
+    let dayStatus = "";
+    let type = "";
+
+    if (score >= 6) {
+      dayStatus = "Good ";
+      type = "good";
+    } else if (score >= 3 && score <= 5) {
+      dayStatus = "Fair ";
+      type = "fair";
+    } else {
+      dayStatus = "Bad ";
+      type = "bad";
+    }
+
+    return { score, dayStatus, type };
   };
 
-  const PerformanceBadge = ({ status, type }: { status: string, type: string }) => {
+  const evaluateEmployeeMonth = (queries: IQuery[]) => {
+    let score = 0;
+
+    for (const q of queries) {
+      const quality = q.leadQualityByReviewer?.toLowerCase().trim();
+
+      if (quality === "very good") score += 4;
+      else if (quality === "good") score += 2;
+      else if (quality === "average") score += 1;
+      else score += 0;
+    }
+
+    let status = "";
+    let type = "";
+
+    if (score >= 60) { 
+      status = "Good Month";
+      type = "good";
+    } 
+    else if (score >= 30 && score <= 59) {
+      status = "Fair Month";
+      type = "fair";
+    } 
+    else {
+      status = "Bad Month";
+      type = "bad";
+    }
+
+    return { score, totalLeads: queries.length, status, type };
+  };
+
+
+  const DayRatingBadge = ({ status, type }: { status: string; type: string }) => {
     const color =
-      type === "success"
+      type === "good"
         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+        : type === "fair"
+        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
         : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
 
     return (
-      <span
-        className={`ml-2 px-2 py-0.5 text-xs rounded-full font-medium ${color}`}
-      >
+      <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-medium ${color}`}>
         {status}
       </span>
     );
   };
+
 
   const getLeadQualityColor = (quality?: string) => {
     if (!quality || quality === "-")
@@ -390,7 +476,7 @@ export default function CompareTable({
       </div>
 
       {/* Date Selector */}
-      <div className="print:hidden mb-4 grid grid-cols-4 sm:grid-cols-7 gap-1">
+      <div className="print:hidden mb-4 flex justify-evenly ">
         {daysInSelectedMonth.map((day) => {
           const isSelected = day === selectedDate;
           return (
@@ -409,12 +495,49 @@ export default function CompareTable({
         })}
       </div>
 
+      {/* Monthly Summary Cards */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        {Object.keys(monthlyGroupedByCreator).map((creator) => {
+          const data = monthlyGroupedByCreator[creator];
+        
+          const monthly = evaluateEmployeeMonth(data);
+
+          const color =
+            monthly.type === "good"
+              ? "bg-green-100 text-green-700 border-green-300"
+              : monthly.type === "fair"
+              ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+              : "bg-red-100 text-red-700 border-red-300";
+
+          return (
+            <div
+              key={creator}
+              className={`w-full sm:w-[35%] lg:w-[10%] p-4 border rounded-lg shadow-sm ${color}`}
+            >
+              <h3 className="font-semibold text-lg mb-1">{creator}</h3>
+
+              <p className="text-sm">
+                <strong>Total Leads:</strong> {monthly.totalLeads}
+              </p>
+
+              <p className="text-sm">
+                <strong>Monthly Score:</strong> {monthly.score}
+              </p>
+
+              <p className="text-sm font-semibold mt-1">
+                {monthly.status}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Report */}
       <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 print:border-0 rounded">
         {/* Header */}
         <div className="p-3 sm:p-4 border-b border-gray-300 dark:border-gray-700">
           <h1 className="text-lg sm:text-xl font-bold text-center text-gray-900 dark:text-gray-100">
-            Query Report
+            Lead Report
           </h1>
           <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {formatFullDate(selectedDate ?? undefined)}
@@ -437,18 +560,21 @@ export default function CompareTable({
           ) : (
             <div className="space-y-4 sm:space-y-6">
               {Object.keys(groupedByCreator).map((creator, creatorIndex) => {
-                const performance = getDailyPerformanceStatus(groupedByCreator[creator]);
-                
+                const dayEvaluation = evaluateEmployeeDay(groupedByCreator[creator]);
+
                 return (
                   <div key={creator} className="break-inside-avoid">
                     {/* Creator Header */}
                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-300 dark:border-gray-700">
                       <h2 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-gray-100 flex items-center">
                         {creatorIndex + 1}. {creator}
-                        <PerformanceBadge
-                          status={performance.status}
-                          type={performance.type}
+                        <DayRatingBadge
+                          status={dayEvaluation.dayStatus}
+                          type={dayEvaluation.type}
                         />
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                          Score: {dayEvaluation.score}
+                        </span>
                       </h2>
                       <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         ({groupedByCreator[creator].length})
@@ -461,17 +587,25 @@ export default function CompareTable({
                       <div className="flex items-center gap-2 sm:gap-4 py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 font-medium text-xs sm:text-sm text-gray-700 dark:text-gray-300 min-w-max">
                         <span className="w-12 sm:w-16 flex-shrink-0">No.</span>
                         <span className="w-32 sm:w-48 flex-shrink-0">Name</span>
-                        <span className="w-24 sm:w-36 flex-shrink-0">Phone</span>
-                        <span className="w-24 sm:w-32 flex-shrink-0">Location</span>
-                        <span className="w-28 sm:w-40 flex-shrink-0">Area</span>
+                        <span className="w-24 sm:w-36 flex-shrink-0">
+                          Phone
+                        </span>
+                        <span className="w-24 sm:w-32 flex-shrink-0">
+                          Location
+                        </span>
+                        {/* <span className="w-28 sm:w-40 flex-shrink-0">Area</span> */}
                         <span className="w-28 sm:w-36 flex-shrink-0">
                           LQ (Lead-gen)
                         </span>
                         <span className="w-28 sm:w-36 flex-shrink-0">
                           LQ (Sales)
                         </span>
-                        <span className="w-40 sm:w-56 flex-shrink-0">Status</span>
-                        <span className="w-24 sm:w-32 flex-shrink-0">Response</span>
+                        <span className="w-40 sm:w-56 flex-shrink-0">
+                          Status
+                        </span>
+                        <span className="w-24 sm:w-32 flex-shrink-0">
+                          Response
+                        </span>
                       </div>
 
                       {/* Queries - Single Line Each */}
@@ -492,41 +626,6 @@ export default function CompareTable({
                             </span>
                             <span className="text-gray-600 dark:text-gray-400 w-24 sm:w-32 flex-shrink-0">
                               {q.location || "-"}
-                            </span>
-
-                            {/* Area Selector - Hidden on Print */}
-                            <div className="w-28 sm:w-40 flex-shrink-0 print:hidden">
-                              {targets.length > 0 ? (
-                                <select
-                                  value={q.area || ""}
-                                  onChange={(e) =>
-                                    handleSave(q._id!, "area", e.target.value)
-                                  }
-                                  className="w-full border border-gray-300 dark:border-gray-600 px-1 sm:px-2 py-1 sm:py-1.5 rounded text-xs sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                >
-                                  <option value="">Area</option>
-                                  {targets
-                                    .find(
-                                      (t) =>
-                                        t.city.toLowerCase() ===
-                                        q.location?.toLowerCase()
-                                    )
-                                    ?.areas.map((a) => (
-                                      <option value={a.name} key={a._id}>
-                                        {a.name}
-                                      </option>
-                                    ))}
-                                </select>
-                              ) : (
-                                <span className="text-gray-400 dark:text-gray-500">
-                                  {q.area || "-"}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Area Text for Print */}
-                            <span className="hidden print:inline-block w-28 sm:w-40 flex-shrink-0 text-gray-600">
-                              {q.area || "-"}
                             </span>
 
                             <div className="w-28 sm:w-36 flex-shrink-0">
@@ -562,73 +661,70 @@ export default function CompareTable({
 
       {/* Print Styles */}
       <style jsx global>{`
-       @media print {
-  body {
-    print-color-adjust: exact !important;
-    -webkit-print-color-adjust: exact !important;
-  }
+        @media print {
+          body {
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
+          }
 
-  /* Landscape gives more width */
-  @page {
-    size: A4 potrait;
-    margin: 0.5cm;
-  }
+          /* Shift everything slightly right */
+          @page {
+            size: A4 portrait;
+            margin: 0.6cm 1cm 0.6cm 0.2cm; /* TOP RIGHT BOTTOM LEFT */
+          }
 
-  /* Shrink everything for print */
-  * {
-    font-size: 9px !important;
-    line-height: 1.1 !important;
-  }
+          /* Optional: push container slightly right */
+          .print-container {
+            margin-left: 0.3cm !important;
+          }
 
-  /* Remove padding & tighten layout */
-  .print\\:tight, .tight {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
+          /* Better readable size */
+          * {
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+          }
 
-  /* Reduce header/footer space */
-  h1, h2, h3, h4 {
-    margin: 2px 0 !important;
-  }
+          /* Slight spacing */
+          .table-row {
+            padding: 3px 6px !important;
+          }
 
-  /* Compress table spacing */
-  .table-row {
-    padding: 2px 4px !important;
-  }
-  .table-header {
-    padding: 3px 4px !important;
-  }
+          .table-header {
+            padding: 4px 6px !important;
+          }
 
-  /* Tighter column widths */
-  .col {
-    width: auto !important;
-    max-width: 90px !important;
-    overflow: hidden !important;
-    white-space: nowrap !important;
-    text-overflow: ellipsis !important;
-  }
+          /* Wider columns */
+          .col {
+            max-width: 120px !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+            text-overflow: ellipsis !important;
+          }
 
-  /* Avoid unnecessary card margins */
-  .space-y-4, .space-y-6 {
-    row-gap: 4px !important;
-  }
+          /* Natural breathing space */
+          .space-y-4, .space-y-6 {
+            row-gap: 8px !important;
+          }
 
-  /* Ensure no row splits between pages */
-  .break-inside-avoid {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
+          /* Title spacing */
+          h1, h2, h3, h4 {
+            margin: 4px 0 !important;
+          }
 
-  /* Remove UI items */
-  .print\\:hidden {
-    display: none !important;
-  }
+          /* Prevent splitting inside pages */
+          .break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
 
-  .print\\:border-0 {
-    border: 0 !important;
-  }
-}
+          .print\\:hidden {
+            display: none !important;
+          }
 
+          .print\\:border-0 {
+            border: 0 !important;
+          }
+        }
       `}</style>
     </div>
   );

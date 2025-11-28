@@ -657,6 +657,11 @@ const roleRoutes: Record<string, Route[]> = {
     //   label: "Attended Candidate",
     //   Icon: <PersonStanding size={18} />,
     // },
+     {
+      path: "/dashboard/compareLeads",
+      label: "Compare Leads",
+      Icon: <PencilLine size={18} />,
+    },
   ],
   Agent: [
     {

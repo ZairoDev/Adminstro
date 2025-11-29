@@ -164,14 +164,21 @@ const Dashboard = () => {
   createdBy: "All",
   });
 
+  
+
   const [visitsFilter, setVisitsFilter] = useState<{
     days?: string;
-  }>({});
+  }>({
+   
+  });
 
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
     createdBy?: string;
-  }>({});
+  }>({
+     days: "this month",
+  createdBy: "All",
+  });
 
   const [listingFilters, setListingFilter] = useState<{
     days?: string;
@@ -189,7 +196,11 @@ const Dashboard = () => {
     days?: string;
     location?: string;
     createdBy?: string;
-  }>({});
+  }>({ days: "this month",
+
+  createdBy: "All",
+    
+  });
 
   const [unregisteredOwnersFilters, setUnregisteredOwnersFilters] = useState<{
     days?: string;
@@ -567,39 +578,41 @@ const Dashboard = () => {
                     <div className="space-y-4 border rounded-md p-4">
                       <div className="flex gap-3 flex-wrap">
                         <CustomSelect
-                          itemList={[
-                            "All",
-                            "yesterday",
-                            "last month",
-                            "this month",
-                            "10 days",
-                            "15 days",
-                            "1 month",
-                            "3 months",
-                          ]}
-                          triggerText="Select days"
-                          defaultValue="this month"
-                          onValueChange={(value) => {
-                            const newLeadFilters = { ...propertyFilters };
-                            newLeadFilters.days = value;
-                            setPropertyFilters(newLeadFilters);
-                            fetchLeadByLocation(newLeadFilters);
-                          }}
-                          triggerClassName="w-32"
-                        />
+  itemList={[
+    "All",
+    "yesterday",
+    "last month",
+    "this month",
+    "10 days",
+    "15 days",
+    "1 month",
+    "3 months",
+  ]}
+  triggerText="Select days"
+  value={propertyFilters.days}    // <---- controlled value
+  onValueChange={(value) => {
+    const newLeadFilters = { ...propertyFilters };
+    newLeadFilters.days = value;
+    setPropertyFilters(newLeadFilters);
+    fetchLeadByLocation(newLeadFilters);
+  }}
+  triggerClassName="w-32"
+/>
 
-                        <CustomSelect
-                          itemList={["All", ...allEmployees]}
-                          triggerText="Select agent"
-                          defaultValue="All"
-                          onValueChange={(value) => {
-                            const newLeadFilters = { ...propertyFilters };
-                            newLeadFilters.createdBy = value;
-                            setPropertyFilters(newLeadFilters);
-                            fetchLeadByLocation(newLeadFilters);
-                          }}
-                          triggerClassName="w-32"
-                        />
+
+                       <CustomSelect
+  itemList={["All", ...allEmployees]}
+  triggerText="Select agent"
+  value={propertyFilters.createdBy}   // <---- controlled
+  onValueChange={(value) => {
+    const newLeadFilters = { ...propertyFilters };
+    newLeadFilters.createdBy = value;
+    setPropertyFilters(newLeadFilters);
+    fetchLeadByLocation(newLeadFilters);
+  }}
+  triggerClassName="w-32"
+/>
+
                       </div>
                       <LabelledPieChart
                         chartData={locationLeads.map((lead) => ({

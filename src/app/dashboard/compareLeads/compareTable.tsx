@@ -182,28 +182,7 @@ export default function CompareTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // const handleSave = async (
-  //   _id: string,
-  //   key: keyof IQuery,
-  //   newValue: string
-  // ) => {
-  //   const prev = [...(fetchedQueries || [])];
-
-  //   setFetchedQueries((q: IQuery[]) =>
-  //     q.map((item: IQuery) => (item._id === _id ? { ...item, [key]: newValue } : item))
-  //   );
-
-  //   try {
-  //     await axios.put(`/api/leads/updateData/${_id}`, {
-  //       field: key,
-  //       value: newValue,
-  //     });
-  //     setQueries?.((q: IQuery[]) => q.map((it: IQuery) => (it._id === _id ? { ...it, [key]: newValue } : it)));
-  //   } catch (error) {
-  //     console.error("Update failed", error);
-  //     setFetchedQueries(prev);
-  //   }
-  // };
+ 
 
   const monthlyGroupedByCreator = useMemo(() => {
     return fetchedMonthQueries.reduce((acc: Record<string, IQuery[]>, q) => {
@@ -262,8 +241,8 @@ export default function CompareTable({
       const quality = q.leadQualityByReviewer?.toLowerCase().trim();
 
       if (quality === "very good") score += 4;
-      else if (quality === "good") score += 2;
-      else if (quality === "average") score += 1;
+      else if (quality === "good") score += 1.25;
+      else if (quality === "average") score += 0.75;
       else score += 0; // below average or missing
     }
 
@@ -286,24 +265,29 @@ export default function CompareTable({
 
   const evaluateEmployeeMonth = (queries: IQuery[]) => {
     let score = 0;
+    let closedLeads = 0;
 
     for (const q of queries) {
       const quality = q.leadQualityByReviewer?.toLowerCase().trim();
 
       if (quality === "very good") score += 4;
-      else if (quality === "good") score += 2;
-      else if (quality === "average") score += 1;
+      else if (quality === "good") score += 1.25;
+      else if (quality === "average") score += 0.75;
       else score += 0;
+
+       if (q.leadStatus?.toLowerCase().trim() === "closed") {
+      closedLeads++;
+    }
     }
 
     let status = "";
     let type = "";
 
-    if (score >= 60) { 
+    if (score >= 140) { 
       status = "Good Month";
       type = "good";
     } 
-    else if (score >= 30 && score <= 59) {
+    else if (score >= 75 && score <= 139) {
       status = "Fair Month";
       type = "fair";
     } 
@@ -312,7 +296,7 @@ export default function CompareTable({
       type = "bad";
     }
 
-    return { score, totalLeads: queries.length, status, type };
+    return { score, totalLeads: queries.length, status, type,closedLeads };
   };
 
 
@@ -524,9 +508,11 @@ export default function CompareTable({
                 <strong>Monthly Score:</strong> {monthly.score}
               </p>
 
-              <p className="text-sm font-semibold mt-1">
-                {monthly.status}
+              <p className="text-sm">
+                <strong>Closed Leads:</strong> {monthly.closedLeads}
               </p>
+
+              <p className="text-sm font-semibold mt-1">{monthly.status}</p>
             </div>
           );
         })}

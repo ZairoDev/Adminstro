@@ -85,24 +85,24 @@ export const getLeadsByLocation = async ({
         };
         break;
       case "this month":
-  const now2 = new Date();
-  const startUTC = new Date(Date.UTC(
-    now2.getUTCFullYear(),
-    now2.getUTCMonth(),
-    1,
-    0, 0, 0, 0
-  ));
-  const endUTC = new Date(Date.UTC(
-    now2.getUTCFullYear(),
-    now2.getUTCMonth() + 1,
-    0,
-    23, 59, 59, 999
-  ));
-  filters.createdAt = {
-    $gte: startUTC,
-    $lte: endUTC,
-  };
-  break;
+        const now2 = new Date();
+        const startUTC = new Date(Date.UTC(
+          now2.getUTCFullYear(),
+          now2.getUTCMonth(),
+          1,
+          0, 0, 0, 0
+        ));
+        const endUTC = new Date(Date.UTC(
+          now2.getUTCFullYear(),
+          now2.getUTCMonth() + 1,
+          0,
+          23, 59, 59, 999
+        ));
+        filters.createdAt = {
+          $gte: startUTC,
+          $lte: endUTC,
+        };
+        break;
 
       case "10 days":
         filters.createdAt = {
@@ -131,7 +131,7 @@ export const getLeadsByLocation = async ({
     filters.createdBy = createdBy;
   }
 
-  const leadsByLocation = await Query.aggregate([
+  const pipeline = [
     {
       $match: filters,
     },
@@ -141,7 +141,9 @@ export const getLeadsByLocation = async ({
         count: { $sum: 1 },
       },
     },
-  ]);
+  ];
+
+  const leadsByLocation = await Query.aggregate(pipeline);
   return leadsByLocation;
 };
 

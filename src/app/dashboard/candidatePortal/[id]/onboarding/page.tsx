@@ -223,7 +223,7 @@ export default function OnboardingPage() {
     try {
       setUploadingFiles((prev) => new Set(prev).add(docType));
 
-      console.log(`Uploading ${docType} files...`);
+      // console.log(`Uploading ${docType} files...`);
 
       const { imageUrls, error } = await uploadFiles(
         fileArray,
@@ -392,7 +392,7 @@ export default function OnboardingPage() {
     setSubmitting(true);
 
     try {
-      console.log("Preparing to submit onboarding data...");
+      // console.log("Preparing to submit onboarding data...");
 
       // Validation
       if (!candidate) throw new Error("Candidate data missing");
@@ -419,7 +419,7 @@ export default function OnboardingPage() {
         signatureBase64: signature.url, // ← Fixed spacing
       };
 
-      console.log("Sending Agreement Payload:", agreementPayload);
+      // console.log("Sending Agreement Payload:", agreementPayload);
 
       // ✅ 2. Request PDF from API
       let pdfResponse;
@@ -432,7 +432,7 @@ export default function OnboardingPage() {
             headers: { "Content-Type": "application/json" },
           }
         );
-        console.log("PDF Generated successfully");
+        // console.log("PDF Generated successfully");
       } catch (pdfError: any) {
         console.error("PDF Generation Error:", pdfError);
         if (pdfError.response?.status === 405) {
@@ -460,7 +460,7 @@ export default function OnboardingPage() {
       document.body.removeChild(a); // ← Clean up
       URL.revokeObjectURL(url);
 
-      console.log("PDF downloaded successfully");
+      // console.log("PDF downloaded successfully");
 
       // ✅ 5. Upload signed PDF to BunnyCDN
       const pdfFile = new File(
@@ -624,7 +624,7 @@ export default function OnboardingPage() {
     return <LoadingSkeleton />;
   }
 
-  if (!candidate || candidate.status !== "selected") {
+  if (!candidate || candidate.status !== "onboarding" ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-8">
         <div className="max-w-4xl mx-auto">

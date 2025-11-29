@@ -50,15 +50,7 @@ export function VisitStatsCard({
     }
     
     // Debug logging to help troubleshoot
-    console.log('Required Run Rate Calculation:', {
-      title,
-      target,
-      achieved,
-      remainingTarget: target - achieved,
-      remainingDays,
-      currentDate: now.toDateString(),
-      lastDayOfMonth
-    });
+
     
     // If no remaining days or target already achieved
     if (remainingDays === 0) {

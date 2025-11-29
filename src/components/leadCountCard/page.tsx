@@ -61,17 +61,7 @@ export function StatsCard({
     }
   }
   
-  console.log('Required Run Rate Calculation:', {
-    title,
-    target,
-    achieved,
-    remainingTarget: target - achieved,
-    remainingDays,
-    currentDate: now.toDateString(),
-    lastDayOfMonth,
-    isCurrentMonth,
-    referenceMonth: referenceDate.toDateString()
-  });
+
   
   if (remainingDays === 0) {
     return Math.max(0, target - achieved);

@@ -101,6 +101,7 @@ import { DonutChart } from "@/components/charts/DonutChart";
 import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import { MonthSelector } from "@/components/MonthSelector/page";
 import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
+import WeeklyTargetDashboard from "@/components/BookingTable";
 
 interface StatusCount {
   First: number;
@@ -273,7 +274,7 @@ const Dashboard = () => {
 
   const { bookingsByDate, fetchBookingStats } = useBookingStats();
 
-  console.log("bookingsByDate:", bookingsByDate);
+  // console.log("bookingsByDate:", bookingsByDate);
 
   // Transform data for recharts (make sure counts are numbers)
   const chartData = useMemo(
@@ -431,6 +432,11 @@ const Dashboard = () => {
           <div className=" my-2 ">
             {/* <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1> */}
             <BookingChartImproved />
+          </div>
+
+          <div className=" my-2 ">
+            {/* <h1 className="text-3xl font-bold mb-8">Booking Statistics</h1> */}
+            <WeeklyTargetDashboard />
           </div>
 
           <div className=" border rounded-md p-2">
@@ -726,7 +732,9 @@ const Dashboard = () => {
       )}
 
       {/* Sales Generation Dashboard*/}
-      {(token?.role === "SuperAdmin" || token?.role === "LeadGen-TeamLead" || token?.role === "HR") && (
+      {(token?.role === "SuperAdmin" ||
+        token?.role === "LeadGen-TeamLead" ||
+        token?.role === "HR") && (
         <section>
           <Card>
             <CardHeader>
@@ -986,7 +994,6 @@ const Dashboard = () => {
         </div>
       )}
 
-
       {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
         <>
           <div className="flex flex-col md:flex-row gap-6 mt-8">
@@ -1071,8 +1078,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {(token?.role === "SuperAdmin" ||
-            token?.role === "Advert") && (
+          {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
             <div className="flex flex-coljustify-evenly md:flex-row  gap-6 mt-8">
               <div className="flex  border  rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
                 <MoleculeVisualization data={ownersCount} />

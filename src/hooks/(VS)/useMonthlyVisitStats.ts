@@ -18,7 +18,7 @@ const useMonthlyVisitStats = (monthName?: string) => {
 
       // if function returns array like [{ location: "Kanpur", visits: 120 }]
       setMonthlyStats(response);
-      console.log("📆 Monthly Visit Stats:", response);
+      // console.log("📆 Monthly Visit Stats:", response);
 
     } catch (err: any) {
       setError(true);

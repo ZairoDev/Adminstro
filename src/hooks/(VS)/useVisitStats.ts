@@ -20,9 +20,7 @@ const useVisitStats = () => {
       
       const response = await getLocationVisitStats(month);
       setVisitStats(response.visits); // our function returns { visits }
-      console.log("leadStats: ", response.visits
-        
-      );
+
     } catch (err: any) {
       const error = new Error(err);
       setVisitStatsError(true);

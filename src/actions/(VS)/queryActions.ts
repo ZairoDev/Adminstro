@@ -779,19 +779,19 @@ export const getAverage = async () => {
 };
 
 export const getLocationLeadStats = async (selectedMonth?: Date) => {
-  console.log("selectedMonth RAW:", selectedMonth);
+  // console.log("selectedMonth RAW:", selectedMonth);
 
   const reference = selectedMonth ? new Date(selectedMonth) : new Date();
-  console.log("referenceDate:", reference);
+  // console.log("referenceDate:", reference);
 
   // always use UTC-safe boundaries
   const year = reference.getUTCFullYear();
   const month = reference.getUTCMonth();
 
   const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-  console.log("startOfMonth:", startOfMonth);
+  // console.log("startOfMonth:", startOfMonth);
   const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
-  console.log("endOfMonth:", endOfMonth);
+  // console.log("endOfMonth:", endOfMonth);
 
   const today = new Date();
   const todayUTC = new Date(
@@ -850,15 +850,7 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
     )
   );
 
-  console.log({
-    startOfMonth,
-    endOfMonth,
-    startOfToday,
-    endOfToday,
-    startOfYesterday,
-    endOfYesterday,
-    isCurrentMonth,
-  });
+
 
   const facet: any = {
     month: [
@@ -1634,6 +1626,509 @@ export const getListingCounts = async ({ days }: { days?: string }) => {
   return output;
 };
 
+export const getLocationWeeklyTargets = async ({
+  viewMode = "weekly",
+  month = new Date().getMonth(),
+  year = new Date().getFullYear(),
+}: {
+  viewMode?: "weekly" | "10-day";
+  month?: number;
+  year?: number;
+}) => {
+  await connectDb();
+
+  const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+  // ---------------------------------
+  // 📊 Fetch ALL Location Targets
+  // ---------------------------------
+  const monthlyTargets = await MonthlyTarget.find({}).lean();
+
+  if (!monthlyTargets || monthlyTargets.length === 0) {
+    return {
+      locations: [],
+      month: getMonthName(month),
+      year,
+      viewMode,
+    };
+  }
+
+  // Create a map for quick target lookup (case-insensitive)
+  const targetMap = new Map<string, number>();
+  monthlyTargets.forEach((target) => {
+    if (target.city) {
+      targetMap.set(target.city.toLowerCase(), target.sales || 0);
+    }
+  });
+
+  // ---------------------------------
+  // 🗓️ Generate Periods (Weekly or 10-Day)
+  // ---------------------------------
+  const periods = generatePeriods(viewMode, monthStart, monthEnd);
+
+  // ---------------------------------
+  // 📈 Fetch ALL Bookings Grouped by Location & Period
+  // ---------------------------------
+  const locationResults: Map<
+    string,
+    {
+      location: string;
+      monthlyTarget: number;
+      weeks: Array<{
+        weekNumber: number;
+        weekLabel: string;
+        achieved: number;
+        startDate: string;
+        endDate: string;
+      }>;
+    }
+  > = new Map();
+
+  // Initialize all locations from targets
+  monthlyTargets.forEach((target) => {
+    if (target.city) {
+      locationResults.set(target.city.toLowerCase(), {
+        location: target.city,
+        monthlyTarget: target.sales || 0,
+        weeks: periods.map((period, index) => ({
+          weekNumber: index + 1,
+          weekLabel: period.periodLabel,
+          achieved: 0,
+          startDate: period.startDate.toISOString(),
+          endDate: period.endDate.toISOString(),
+        })),
+      });
+    }
+  });
+
+  // Process each period
+  for (let periodIndex = 0; periodIndex < periods.length; periodIndex++) {
+    const period = periods[periodIndex];
+
+    const pipeline: PipelineStage[] = [
+      // Join with queries to get location
+      {
+        $lookup: {
+          from: "queries",
+          localField: "lead",
+          foreignField: "_id",
+          as: "leadData",
+        },
+      },
+      { $unwind: "$leadData" },
+
+      // Unwind history (preserve empty arrays)
+      {
+        $unwind: {
+          path: "$travellerPayment.history",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Create unified paymentDate field
+      {
+        $addFields: {
+          paymentDate: {
+            $cond: {
+              if: {
+                $eq: [{ $type: "$travellerPayment.history.date" }, "date"],
+              },
+              then: "$travellerPayment.history.date",
+              else: {
+                $toDate: {
+                  $ifNull: ["$travellerPayment.history.date", "$createdAt"],
+                },
+              },
+            },
+          },
+          // Determine if this payment is paid
+          isPaid: {
+            $or: [
+              { $eq: ["$travellerPayment.history.status", "paid"] },
+              { $eq: ["$travellerPayment.status", "paid"] },
+            ],
+          },
+          // Get the payment amount
+          paymentAmount: {
+            $cond: [
+              { $ifNull: ["$travellerPayment.history.amount", false] },
+              "$travellerPayment.history.amount",
+              "$travellerPayment.amountReceived",
+            ],
+          },
+        },
+      },
+
+      // Filter by date range and paid status
+      {
+        $match: {
+          isPaid: true,
+          paymentDate: {
+            $gte: period.startDate,
+            $lte: period.endDate,
+          },
+          "leadData.location": { $exists: true, $ne: null },
+        },
+      },
+
+      // Group by location
+      {
+        $group: {
+          _id: { $toLower: "$leadData.location" }, // Case-insensitive grouping
+          originalLocation: { $first: "$leadData.location" }, // Keep original case
+          totalPaid: { $sum: "$paymentAmount" },
+          count: { $sum: 1 },
+        },
+      },
+    ];
+
+    const results = await Bookings.aggregate(pipeline);
+
+    // Update the location results with achieved amounts
+    results.forEach((result) => {
+      const locationKey = result._id; // This is already lowercase
+      const locationData = locationResults.get(locationKey);
+
+      if (locationData && locationData.weeks[periodIndex]) {
+        locationData.weeks[periodIndex].achieved = result.totalPaid || 0;
+      } else {
+        // Location exists in bookings but not in targets - add it with 0 target
+        const existingData = locationResults.get(locationKey);
+        if (!existingData) {
+          locationResults.set(locationKey, {
+            location: result.originalLocation,
+            monthlyTarget: 0,
+            weeks: periods.map((p, idx) => ({
+              weekNumber: idx + 1,
+              weekLabel: p.periodLabel,
+              achieved: idx === periodIndex ? result.totalPaid || 0 : 0,
+              startDate: p.startDate.toISOString(),
+              endDate: p.endDate.toISOString(),
+            })),
+          });
+        }
+      }
+    });
+
+    console.log(
+      `📊 Period ${periodIndex + 1} (${period.periodLabel}):`,
+      results.map((r) => ({
+        location: r.originalLocation,
+        achieved: r.totalPaid,
+      }))
+    );
+  }
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  // Convert Map to Array and sort by location name
+  const finalLocations = Array.from(locationResults.values()).sort((a, b) =>
+    a.location.localeCompare(b.location)
+  );
+
+  return {
+    locations: finalLocations,
+    month: monthNames[month],
+    year,
+    viewMode,
+  };
+};
+
+// ---------------------------------
+// 🗓️ Helper: Generate Periods
+// ---------------------------------
+function generatePeriods(
+  viewMode: "weekly" | "10-day",
+  monthStart: Date,
+  monthEnd: Date
+): Array<{ periodLabel: string; startDate: Date; endDate: Date }> {
+  const periods: Array<{
+    periodLabel: string;
+    startDate: Date;
+    endDate: Date;
+  }> = [];
+
+  if (viewMode === "weekly") {
+    let currentDate = new Date(monthStart);
+    let weekNumber = 1;
+
+    while (currentDate <= monthEnd) {
+      const weekStart = new Date(currentDate);
+
+      // Calculate end of week (6 days later or end of month, whichever is earlier)
+      const weekEnd = new Date(currentDate);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+      weekEnd.setUTCHours(23, 59, 59, 999);
+
+      if (weekEnd > monthEnd) {
+        weekEnd.setTime(monthEnd.getTime());
+      }
+
+      periods.push({
+        periodLabel: `Week ${weekNumber}`,
+        startDate: weekStart,
+        endDate: weekEnd,
+      });
+
+      // Move to next week
+      currentDate.setUTCDate(currentDate.getUTCDate() + 7);
+      weekNumber++;
+    }
+  } else {
+    // 10-day periods
+    const year = monthStart.getUTCFullYear();
+    const month = monthStart.getUTCMonth();
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+    // Period 1: Day 1-10
+    periods.push({
+      periodLabel: "Period 1",
+      startDate: new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)),
+      endDate: new Date(
+        Date.UTC(year, month, Math.min(10, daysInMonth), 23, 59, 59, 999)
+      ),
+    });
+
+    // Period 2: Day 11-20
+    if (daysInMonth >= 11) {
+      periods.push({
+        periodLabel: "Period 2",
+        startDate: new Date(Date.UTC(year, month, 11, 0, 0, 0, 0)),
+        endDate: new Date(
+          Date.UTC(year, month, Math.min(20, daysInMonth), 23, 59, 59, 999)
+        ),
+      });
+    }
+
+    // Period 3: Day 21-End
+    if (daysInMonth >= 21) {
+      periods.push({
+        periodLabel: "Period 3",
+        startDate: new Date(Date.UTC(year, month, 21, 0, 0, 0, 0)),
+        endDate: new Date(Date.UTC(year, month, daysInMonth, 23, 59, 59, 999)),
+      });
+    }
+  }
+
+  return periods;
+}
+
+// ---------------------------------
+// 📅 Helper: Get Month Name
+// ---------------------------------
+function getMonthName(monthIndex: number): string {
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  return months[monthIndex];
+}
+
+// ---------------------------------
+// 📊 Get Weekly Target Stats (for single location or all)
+// ---------------------------------
+export const getWeeklyTargetStats = async ({
+  viewMode = "weekly",
+  location,
+  month = new Date().getMonth(),
+  year = new Date().getFullYear(),
+}: {
+  viewMode?: "weekly" | "10-day";
+  location?: string;
+  month?: number;
+  year?: number;
+}) => {
+  await connectDb();
+
+  const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+  // Fetch target for specific location or aggregate all
+  let monthlyTarget = 0;
+  let locationName = "All Locations";
+
+  if (location) {
+    const target = (await MonthlyTarget.findOne({
+      city: location,
+    }).lean()) as any;
+    monthlyTarget = target?.sales || 0;
+    locationName = location;
+  } else {
+    const allTargets = await MonthlyTarget.find({}).lean();
+    monthlyTarget = allTargets.reduce((sum, t) => sum + (t.sales || 0), 0);
+  }
+
+  const periods = generatePeriods(viewMode, monthStart, monthEnd);
+
+  // Fetch achievements for each period
+  const periodResults = await Promise.all(
+    periods.map(async (period) => {
+      const matchStage: any = {
+        isPaid: true,
+        paymentDate: {
+          $gte: period.startDate,
+          $lte: period.endDate,
+        },
+      };
+
+      // Add location filter if specified
+      if (location) {
+        matchStage["leadData.location"] = {
+          $regex: new RegExp(`^${location}$`, "i"),
+        };
+      }
+
+      const pipeline: PipelineStage[] = [
+        {
+          $lookup: {
+            from: "queries",
+            localField: "lead",
+            foreignField: "_id",
+            as: "leadData",
+          },
+        },
+        { $unwind: "$leadData" },
+
+        // Keep history even if empty
+        {
+          $unwind: {
+            path: "$travellerPayment.history",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        // Create unified paymentDate (from history OR main payment)
+        {
+          $addFields: {
+            paymentDate: {
+              $cond: {
+                if: {
+                  $eq: [{ $type: "$travellerPayment.history.date" }, "date"],
+                },
+                then: "$travellerPayment.history.date",
+                else: {
+                  $toDate: {
+                    $ifNull: ["$travellerPayment.history.date", "$createdAt"],
+                  },
+                },
+              },
+            },
+            isPaid: {
+              $or: [
+                { $eq: ["$travellerPayment.history.status", "paid"] },
+                { $eq: ["$travellerPayment.status", "paid"] },
+              ],
+            },
+            paymentAmount: {
+              $cond: [
+                { $ifNull: ["$travellerPayment.history.amount", false] },
+                "$travellerPayment.history.amount",
+                "$travellerPayment.amountReceived",
+              ],
+            },
+          },
+        },
+
+        { $match: matchStage },
+
+        // Total paid logic
+        {
+          $group: {
+            _id: null,
+            totalPaid: { $sum: "$paymentAmount" },
+          },
+        },
+      ];
+
+      const result = await Bookings.aggregate(pipeline);
+      const achieved = result[0]?.totalPaid || 0;
+      const periodTarget = monthlyTarget / periods.length;
+      const percentage = periodTarget > 0 ? (achieved / periodTarget) * 100 : 0;
+
+      console.log("📥 Stats for period", period.periodLabel, ":", {
+        achieved,
+        periodTarget,
+        percentage,
+      });
+
+      return {
+        period: period.periodLabel,
+        periodLabel: period.periodLabel,
+        target: periodTarget,
+        achieved,
+        percentage,
+        startDate: period.startDate.toISOString(),
+        endDate: period.endDate.toISOString(),
+      };
+    })
+  );
+
+  const totalAchieved = periodResults.reduce((sum, p) => sum + p.achieved, 0);
+  const overallPercentage =
+    monthlyTarget > 0 ? (totalAchieved / monthlyTarget) * 100 : 0;
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  return {
+    periods: periodResults,
+    totalTarget: monthlyTarget,
+    totalAchieved,
+    overallPercentage,
+    location: locationName,
+    month: monthNames[month],
+    year,
+  };
+};
+
+// ---------------------------------
+// 📍 Get Available Locations
+// ---------------------------------
+export const getAvailableLocations = async (): Promise<string[]> => {
+  await connectDb();
+  const targets = await MonthlyTarget.find({}).lean();
+  return targets.map((t) => t.city).filter(Boolean);
+};
+
+
+
+
 export const getBookingStats = async ({
   days,
   location,
@@ -1837,7 +2332,7 @@ export const getBookingStats = async ({
       count: item.count,
     }));
 
-    console.log("📍 Location Breakdown:", locationBreakdownResult);
+
   }
 
   // ------------------------------
@@ -1898,11 +2393,7 @@ export const getBookingStats = async ({
       comparisonPipeline as PipelineStage[]
     );
 
-    console.log("📊 Comparison Query Range:", {
-      comparisonStart,
-      comparisonEnd,
-      resultCount: comparisonResult?.length,
-    });
+
   }
 
   // ------------------------------

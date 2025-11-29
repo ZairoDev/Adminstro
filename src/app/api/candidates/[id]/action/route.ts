@@ -58,7 +58,7 @@ export async function POST(
         candidateName: candidate.name,
         status,
         position: candidate.position,
-        companyName: process.env.COMPANY_NAME || "Our Company",
+        companyName: process.env.COMPANY_NAME || "Zairo International",
         selectionDetails: status === "selected" ? selectionDetails : undefined,
         rejectionReason:
           status === "rejected" ? rejectionDetails?.reason : undefined,

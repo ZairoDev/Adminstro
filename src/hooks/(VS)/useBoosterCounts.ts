@@ -17,7 +17,7 @@ const BoostCounts = () => {
       setIsError(false);
       setError("");
       const response = await getBoostCounts({ days });
-      console.log("Boost counts response:", response);
+      // console.log("Boost counts response:", response);
       const transformedResponse = response.map(
         ({ date, total, newBoosts, reboosts ,posted}) => ({
           date,

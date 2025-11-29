@@ -68,7 +68,7 @@ const useBookingStats = () => {
         yearOffset,
       });
 
-      console.log("Booking stats response:", response);
+      // console.log("Booking stats response:", response);
 
       /* Transform response */
       const transformedSelected = response.selectedData.map((item: any) => ({
@@ -94,9 +94,9 @@ const useBookingStats = () => {
       setComparisonData(transformedComparison);
       setLocationBreakdown(transformedLocationBreakdown);
 
-      console.log("✅ Booking stats transformed:", transformedSelected);
-      console.log("✅ Comparison data transformed:", transformedComparison);
-      console.log("✅ Location breakdown:", transformedLocationBreakdown);
+      // console.log("✅ Booking stats transformed:", transformedSelected);
+      // console.log("✅ Comparison data transformed:", transformedComparison);
+      // console.log("✅ Location breakdown:", transformedLocationBreakdown);
     } catch (err: any) {
       console.error("Error fetching booking stats:", err);
       setIsError(true);

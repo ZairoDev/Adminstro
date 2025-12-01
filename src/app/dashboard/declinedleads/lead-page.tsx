@@ -1,7 +1,6 @@
 "use client";
 
 import axios from "axios";
-import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -31,7 +30,6 @@ import {
 import { IQuery } from "@/util/type";
 import Heading from "@/components/Heading";
 import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
@@ -42,11 +40,10 @@ import LeadsFilter, {
 import DeclinedLeadTable from "./declined-lead-table";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
-import { useSocket } from "@/hooks/useSocket";
+import { useLeadSocket } from "@/hooks/useLeadSocket";
 
 export const DeclinedLeads = () => {
   const router = useRouter();
-  const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
@@ -54,7 +51,6 @@ export const DeclinedLeads = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const { socket, isConnected } = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -62,7 +58,7 @@ export const DeclinedLeads = () => {
     parseInt(searchParams.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const [allotedArea, setAllotedArea] = useState("");
+  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -83,6 +79,13 @@ export const DeclinedLeads = () => {
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+
+  // ✅ Use the reusable socket hook for real-time lead updates
+  useLeadSocket({
+    disposition: "declined",
+    allotedArea,
+    setQueries,
+  });
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -191,93 +194,6 @@ export const DeclinedLeads = () => {
     };
     getAllotedArea();
   }, []);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const disposition = "declined"; // 👈 set based on page context
-    const formattedDisposition = disposition
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
-
-    // Normalize the areas into an array
-    const areas = Array.isArray(allotedArea)
-      ? allotedArea.filter((a) => a && a.trim())
-      : allotedArea
-      ? [allotedArea]
-      : [];
-
-    // 🟢 If no area assigned — join the global fallback room
-    if (areas.length === 0) {
-      const globalArea = "all";
-      const room = { area: globalArea, disposition: formattedDisposition };
-      socket.emit("join-room", room);
-      console.log(
-        `✅ Joined global room: area-all|disposition-${formattedDisposition}`
-      );
-
-      const event = `lead-${formattedDisposition}`;
-
-      socket.on(event, (data: IQuery) => {
-        setQueries((prev) => [data, ...prev]);
-        console.log(`🆕 Global ${formattedDisposition} lead:`, data);
-        toast({
-          title: `New ${disposition} Lead`,
-          description: `Lead from ${data.name || "Unknown"}`,
-        });
-      });
-
-      return () => {
-        socket.off(event);
-        socket.emit("leave-room", room);
-      };
-    }
-
-    // 🟣 Otherwise join each area-specific room
-    areas.forEach((area) => {
-      const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
-      const room = { area: formattedArea, disposition: formattedDisposition };
-      const event = `lead-${formattedDisposition}`;
-
-      socket.emit("join-room", room);
-      console.log(
-        `✅ Joined room: area-${formattedArea}|disposition-${formattedDisposition}`
-      );
-
-      socket.on(event, (data: IQuery) => {
-        const dataArea = data.location
-          ?.trim()
-          .toLowerCase()
-          .replace(/\s+/g, "-");
-        if (dataArea === formattedArea) {
-          setQueries((prev) => [data, ...prev]);
-          console.log(
-            `🆕 ${formattedDisposition} lead in ${formattedArea}:`,
-            data
-          );
-          toast({
-            title: `New ${disposition} Lead (${area})`,
-            description: `Lead from ${data.name || "Unknown"}`,
-          });
-        }
-      });
-    });
-
-    // 🧹 Cleanup on unmount or dependency change
-    return () => {
-      const event = `lead-${formattedDisposition}`;
-      areas.forEach((area) => {
-        const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
-        const room = { area: formattedArea, disposition: formattedDisposition };
-        socket.off(event);
-        socket.emit("leave-room", room);
-        console.log(
-          `🚪 Left room: area-${formattedArea}|disposition-${formattedDisposition}`
-        );
-      });
-    };
-  }, [socket, allotedArea]);
 
   useEffect(() => {
     // debounce(filterLeads, 500);

@@ -20,13 +20,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 🟡 Store the OLD disposition before updating
+    const oldDisposition = existingQuery.leadStatus || "fresh";
+    const formattedOldDisposition = oldDisposition
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
     // 🟢 Update the lead status and reason
     existingQuery.leadStatus = disposition;
     existingQuery.reason = dispositionReason || "";
-    console.log("Updating disposition to:", disposition);
+    console.log("Updating disposition from:", oldDisposition, "to:", disposition);
     console.log("Disposition reason:", dispositionReason);
     await existingQuery.save({ validateBeforeSave: false });
-    console.log( "Disposition updated successfully");
+    console.log("Disposition updated successfully");
+
     // 🧩 Normalize keys
     const location =
       existingQuery.location?.trim().toLowerCase().replace(/\s+/g, "-") ||
@@ -41,9 +49,15 @@ export async function POST(req: NextRequest) {
     const io = (global as any).io;
 
     if (io) {
-      const event = `lead-${formattedDisposition}`;
-      const room = `area-${location}|disposition-${formattedDisposition}`;
-      const globalRoom = `area-all|disposition-${formattedDisposition}`;
+      // 🎯 NEW disposition rooms (where lead is going)
+      const newEvent = `lead-${formattedDisposition}`;
+      const newRoom = `area-${location}|disposition-${formattedDisposition}`;
+      const newGlobalRoom = `area-all|disposition-${formattedDisposition}`;
+
+      // 🔴 OLD disposition rooms (where lead is coming from)
+      const removeEvent = `lead-removed-${formattedOldDisposition}`;
+      const oldRoom = `area-${location}|disposition-${formattedOldDisposition}`;
+      const oldGlobalRoom = `area-all|disposition-${formattedOldDisposition}`;
 
       const payload = {
         _id: existingQuery._id,
@@ -73,12 +87,23 @@ export async function POST(req: NextRequest) {
         reason: existingQuery.reason,
       };
 
-      // 🎯 Emit to both the specific area room and global fallback
-      io.to(room).emit(event, payload);
-      io.to(globalRoom).emit(event, payload);
+      // 🎯 Emit ADD event to NEW disposition rooms
+      io.to(newRoom).emit(newEvent, payload);
+      io.to(newGlobalRoom).emit(newEvent, payload);
+      console.log(`✅ Emitted ${newEvent} → ${newRoom}`);
+      console.log(`🌍 Emitted ${newEvent} → ${newGlobalRoom}`);
 
-      console.log(`✅ Emitted ${event} → ${room}`);
-      console.log(`🌍 Emitted ${event} → ${globalRoom}`);
+      // 🔴 Emit REMOVE event to OLD disposition rooms (only if disposition changed)
+      if (formattedOldDisposition !== formattedDisposition) {
+        const removePayload = {
+          _id: existingQuery._id,
+          newDisposition: formattedDisposition,
+        };
+        io.to(oldRoom).emit(removeEvent, removePayload);
+        io.to(oldGlobalRoom).emit(removeEvent, removePayload);
+        console.log(`🗑️ Emitted ${removeEvent} → ${oldRoom}`);
+        console.log(`🌍 Emitted ${removeEvent} → ${oldGlobalRoom}`);
+      }
     } else {
       console.warn("⚠️ Socket.IO instance not found in global context");
     }

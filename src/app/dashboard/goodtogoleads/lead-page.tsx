@@ -1,7 +1,6 @@
 "use client";
 
 import axios from "axios";
-import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -43,7 +42,7 @@ import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
 import GoodTable from "./good-table";
 import CreateLeadDialog from "./createLead";
-import { useSocket } from "@/hooks/useSocket";
+import { useLeadSocket } from "@/hooks/useLeadSocket";
 
 interface WordsCount {
   "1bhk": number;
@@ -65,7 +64,6 @@ export const GoodToGoLeads = () => {
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
-  const { socket, isConnected } = useSocket();
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -97,6 +95,13 @@ export const GoodToGoLeads = () => {
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+
+  // ✅ Use the reusable socket hook for real-time lead updates
+  useLeadSocket({
+    disposition: "active",
+    allotedArea,
+    setQueries,
+  });
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -184,103 +189,6 @@ export const GoodToGoLeads = () => {
     };
     getAllotedArea();
   }, []);
-
-  // ✅ Socket.IO event handling - FIXED
-  // Improved Socket.IO handler for Good To Go page
-
-  const dispositionsToWatch = [
-    "lead-active",
-    "lead-fresh",
-    "lead-rejected",
-    "lead-declined",
-  ];
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const disposition = "active"; // 👈 set based on page context
-    const formattedDisposition = disposition
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
-
-    // Normalize the areas into an array
-    const areas = Array.isArray(allotedArea)
-      ? allotedArea.filter((a) => a && a.trim())
-      : allotedArea
-      ? [allotedArea]
-      : [];
-
-    // 🟢 If no area assigned — join the global fallback room
-    if (areas.length === 0) {
-      const globalArea = "all";
-      const room = { area: globalArea, disposition: formattedDisposition };
-      socket.emit("join-room", room);
-      console.log(
-        `✅ Joined global room: area-all|disposition-${formattedDisposition}`
-      );
-
-      const event = `lead-${formattedDisposition}`;
-
-      socket.on(event, (data: IQuery) => {
-        setQueries((prev) => [data, ...prev]);
-        console.log(`🆕 Global ${formattedDisposition} lead:`, data);
-        toast({
-          title: `New ${disposition} Lead`,
-          description: `Lead from ${data.name || "Unknown"}`,
-        });
-      });
-
-      return () => {
-        socket.off(event);
-        socket.emit("leave-room", room);
-      };
-    }
-
-    // 🟣 Otherwise join each area-specific room
-    areas.forEach((area) => {
-      const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
-      const room = { area: formattedArea, disposition: formattedDisposition };
-      const event = `lead-${formattedDisposition}`;
-
-      socket.emit("join-room", room);
-      console.log(
-        `✅ Joined room: area-${formattedArea}|disposition-${formattedDisposition}`
-      );
-
-      socket.on(event, (data: IQuery) => {
-        const dataArea = data.location
-          ?.trim()
-          .toLowerCase()
-          .replace(/\s+/g, "-");
-        if (dataArea === formattedArea) {
-          setQueries((prev) => [data, ...prev]);
-          console.log(
-            `🆕 ${formattedDisposition} lead in ${formattedArea}:`,
-            data
-          );
-          toast({
-            title: `New ${disposition} Lead (${area})`,
-            description: `Lead from ${data.name || "Unknown"}`,
-          });
-        }
-      });
-    });
-
-    // 🧹 Cleanup on unmount or dependency change
-    return () => {
-      const event = `lead-${formattedDisposition}`;
-      areas.forEach((area) => {
-        const formattedArea = area.trim().toLowerCase().replace(/\s+/g, "-");
-        const room = { area: formattedArea, disposition: formattedDisposition };
-        socket.off(event);
-        socket.emit("leave-room", room);
-        console.log(
-          `🚪 Left room: area-${formattedArea}|disposition-${formattedDisposition}`
-        );
-      });
-    };
-  }, [socket, allotedArea]);
   
   const handlePropertyCountFilter = (
     typeOfProperty: string,

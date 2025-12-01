@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface UseSocketReturn {
@@ -8,58 +8,115 @@ interface UseSocketReturn {
   isConnected: boolean;
 }
 
-export const useSocket = (): UseSocketReturn => {
-  const socketRef = useRef<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+// ============================================
+// Singleton Socket Manager (outside React)
+// ============================================
+class SocketManager {
+  private static instance: SocketManager;
+  private socket: Socket | null = null;
+  private isConnected = false;
+  private subscribers = new Set<() => void>();
+  private initialized = false;
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  static getInstance(): SocketManager {
+    if (!SocketManager.instance) {
+      SocketManager.instance = new SocketManager();
+    }
+    return SocketManager.instance;
+  }
 
-    // ✅ 1. Automatically pick correct backend based on environment
+  initialize() {
+    if (this.initialized || typeof window === "undefined") return;
+    this.initialized = true;
+
     const socketUrl =
       process.env.NEXT_PUBLIC_SOCKET_URL ||
       (process.env.NODE_ENV === "production"
-        ? "https://adminstro.in" // 🔁 Replace with your VPS domain
+        ? "https://adminstro.in"
         : "http://localhost:3000");
 
     console.log("🔗 Connecting to Socket:", socketUrl);
 
-    // ✅ 2. Initialize connection
-    const socket = io(socketUrl, {
-      transports: ["websocket"], // Force WebSocket for better performance
+    this.socket = io(socketUrl, {
+      transports: ["websocket"],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      withCredentials: true, // Allow cookies/session if needed
+      reconnectionDelayMax: 5000,
+      withCredentials: true,
+      autoConnect: true,
     });
 
-    socketRef.current = socket;
-
-    // ✅ 3. Connection handlers
-    socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-      setIsConnected(true);
+    this.socket.on("connect", () => {
+      console.log("✅ Socket connected:", this.socket?.id);
+      this.isConnected = true;
+      this.notifySubscribers();
     });
 
-    socket.on("disconnect", (reason: string) => {
+    this.socket.on("disconnect", (reason) => {
       console.log("❌ Socket disconnected:", reason);
-      setIsConnected(false);
+      this.isConnected = false;
+      this.notifySubscribers();
     });
 
-    socket.on("connect_error", (error: Error) => {
+    this.socket.on("connect_error", (error) => {
       console.error("⚠️ Socket connection error:", error.message);
-      setIsConnected(false);
+      this.isConnected = false;
+      this.notifySubscribers();
     });
 
-    // ✅ 4. Cleanup when component unmounts
+    this.socket.io.on("reconnect", (attemptNumber) => {
+      console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
+    });
+  }
+
+  private notifySubscribers() {
+    this.subscribers.forEach((callback) => callback());
+  }
+
+  subscribe(callback: () => void) {
+    this.subscribers.add(callback);
     return () => {
-      console.log("🧹 Cleaning up socket listeners");
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.off("connect_error");
-      socket.disconnect();
+      this.subscribers.delete(callback);
     };
+  }
+
+  getSnapshot() {
+    return { socket: this.socket, isConnected: this.isConnected };
+  }
+
+  getSocket() {
+    return this.socket;
+  }
+
+  getIsConnected() {
+    return this.isConnected;
+  }
+}
+
+// Get the singleton instance
+const socketManager = SocketManager.getInstance();
+
+export const useSocket = (): UseSocketReturn => {
+  // Initialize socket on first use
+  useEffect(() => {
+    socketManager.initialize();
   }, []);
 
-  return { socket: socketRef.current, isConnected };
+  // Subscribe to socket state changes
+  const [state, setState] = useState(() => socketManager.getSnapshot());
+
+  useEffect(() => {
+    // Update state immediately
+    setState(socketManager.getSnapshot());
+
+    // Subscribe to future changes
+    const unsubscribe = socketManager.subscribe(() => {
+      setState(socketManager.getSnapshot());
+    });
+
+    return unsubscribe;
+  }, []);
+
+  return state;
 };

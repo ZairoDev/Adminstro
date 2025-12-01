@@ -1,11 +1,9 @@
 "use client";
 
 import axios from "axios";
-import Pusher from "pusher-js";
-import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   Sheet,
@@ -33,22 +31,19 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { IQuery } from "@/util/type";
-import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
 import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import LeadTable from "@/components/leadTable/LeadTable";
-import LeadFilter from "@/components/lead-component/LeadFilter";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
-import { useSocket } from "@/hooks/useSocket";
+import { useLeadSocket } from "@/hooks/useLeadSocket";
 
 interface WordsCount {
   "1bhk": number;
@@ -61,7 +56,6 @@ interface WordsCount {
 
 export const LeadPage = () => {
   const router = useRouter();
-  const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
@@ -80,8 +74,7 @@ export const LeadPage = () => {
     parseInt(searchParams.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const [allotedArea, setAllotedArea] = useState("");
-  const {socket, isConnected} = useSocket();
+  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -105,6 +98,13 @@ export const LeadPage = () => {
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+
+  // ✅ Use the reusable socket hook for real-time lead updates
+  useLeadSocket({
+    disposition: "fresh",
+    allotedArea,
+    setQueries,
+  });
                
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -216,70 +216,6 @@ export const LeadPage = () => {
     getAllotedArea();
   }, [activeTab]);
 
-useEffect(() => {
-  if (!socket) return;
-
-  // Normalize the areas into an array
-  const areas = Array.isArray(allotedArea)
-    ? allotedArea
-    : allotedArea
-    ? [allotedArea]
-    : [];
-
-  const disposition = "fresh"; // 👈 or "fresh" / "goodtogo" based on page type
-
-  if (areas.length === 0) {
-    // Join a global fallback room
-    socket.emit("join-room", { area: "all", disposition });
-    console.log(`✅ Joined global room: area-all|disposition-${disposition}`);
-
-    // Listen for events from that room
-    socket.on(`lead-${disposition}`, (data: IQuery) => {
-      setQueries((prev) => [data, ...prev]);
-      console.log(`🆕 Global ${disposition} lead:`, data);
-      toast({
-        title: `New ${disposition} Lead`,
-        description: `Lead from ${data.name || "Unknown"}`,
-      });
-    });
-
-    return () => {
-      socket.off(`lead-${disposition}`);
-      socket.emit("leave-room", { area: "all", disposition });
-    };
-  }
-
-  // Otherwise join each area room
-  areas.forEach((area) => {
-    socket.emit("join-room", { area, disposition });
-    console.log(`✅ Joined room: area-${area}|disposition-${disposition}`);
-
-    socket.on(`lead-${disposition}`, (data: IQuery) => {
-      if (
-        data.location?.trim().toLowerCase().replace(/\s+/g, "-") ===
-        area.toLowerCase().replace(/\s+/g, "-")
-      ) {
-        setQueries((prev) => [data, ...prev]);
-        console.log(`🆕 ${disposition} lead in ${area}:`, data);
-        toast({
-          title: `New ${disposition} Lead (${area})`,
-          description: `Lead from ${data.name || "Unknown"}`,
-        });
-      }
-    });
-  });
-
-  // Cleanup
-  return () => {
-    areas.forEach((area) => {
-      socket.off(`lead-${disposition}`);
-      socket.emit("leave-room", { area, disposition });
-    });
-  };
-}, [socket, allotedArea]);
-
-  
-
   // useEffect(() => {
   //   const pusher = new Pusher("1725fd164206c8aa520b", {
   //     cluster: "ap2",
@@ -320,7 +256,7 @@ useEffect(() => {
       ...filters,
       typeOfProperty: typeOfProperty,
       noOfBeds: noOfBeds?? filters.noOfBeds,
-      allotedArea: allotedArea
+      allotedArea: Array.isArray(allotedArea) ? allotedArea[0] || "" : allotedArea
     });
 
 

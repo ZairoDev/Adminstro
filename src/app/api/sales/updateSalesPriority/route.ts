@@ -15,18 +15,26 @@ export async function POST(req: NextRequest) {
 
     const updatedLead = await Query.findOneAndUpdate(
       { _id: new mongoose.Types.ObjectId(leadId) },
-      { $set: { salesPriority: changedPriority } }
+      { $set: { salesPriority: changedPriority } },
+      { new: true } // Return the updated document
     );
 
+    if (!updatedLead) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
     return NextResponse.json(
-      { message: "Sales priority updated successfully" },
+      { 
+        message: "Sales priority updated successfully",
+        data: updatedLead
+      },
       { status: 200 }
     );
   } catch (err: any) {
     console.log("error in priority: ", err);
     return NextResponse.json(
       { error: "Error in updating sales priority" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

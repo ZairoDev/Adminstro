@@ -16,18 +16,26 @@ export async function POST(req: NextRequest) {
 
     const updatedLead = await Query.findOneAndUpdate(
       { _id: new mongoose.Types.ObjectId(leadId) },
-      { $set: { messageStatus: changedStatus } }
+      { $set: { messageStatus: changedStatus } },
+      { new: true } // Return the updated document
     );
 
+    if (!updatedLead) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
     return NextResponse.json(
-      { message: "Message status updated successfully" },
+      { 
+        message: "Message status updated successfully",
+        data: updatedLead
+      },
       { status: 200 }
     );
   } catch (err: any) {
     console.log("error in status: ", err);
     return NextResponse.json(
       { error: "Error in updating message status" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

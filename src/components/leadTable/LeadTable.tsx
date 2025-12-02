@@ -27,8 +27,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
-import debounce from "lodash.debounce";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Table,
@@ -101,17 +100,8 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
   const [activeModalRow, setActiveModalRow] = useState(-1);
-
-  const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "Medium" | "NR" | "Replying" | "Block" | "None")[]
-  >(Array.from({ length: queries?.length }, () => "None"));
-
-    
-  const [messageStatus, setMessageStatus] = useState<
-    ("First" | "Second" | "Third" | "Fourth" | "None")[]
-  >(Array.from({ length: queries?.length }, () => "None"));
-
   const [loading, setLoading] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
@@ -152,28 +142,49 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
     }
   };
 
-  const handleLeadGenResponse = (leadId: string | undefined, index: number) => {
-    if (!leadId) return;
+  const handleLeadGenResponse = async (leadId: string | undefined, index: number) => {
+    if (!leadId || updatingStatusId === leadId) return;
 
-    const newSalesPriorities = [...salesPriority];
-    const current = newSalesPriorities[index];
+    const currentPriority = queries[index].salesPriority;
+    let newPriority: string;
 
     // Cycle: None → Replying → NR → Block → Replying
-    if (current === "Replying") {
-      newSalesPriorities[index] = "NR";
-      queries[index].salesPriority = "NR";
-    } else if (current === "NR") {
-      newSalesPriorities[index] = "Block";
-      queries[index].salesPriority = "Block";
+    if (currentPriority === "Replying") {
+      newPriority = "NR";
+    } else if (currentPriority === "NR") {
+      newPriority = "Block";
     } else {
-      newSalesPriorities[index] = "Replying";
-      queries[index].salesPriority = "Replying";
+      newPriority = "Replying";
     }
 
-    setSalesPriority(newSalesPriorities);
+    // Optimistic update
+    const prevQueries = [...queries];
+    setQueries((q: IQuery[]) =>
+      q.map((item: IQuery) =>
+        item._id === leadId ? { ...item, salesPriority: newPriority } : item
+      )
+    );
 
-    // update backend
-    changeSalesPriority(leadId, newSalesPriorities[index]);
+    setUpdatingStatusId(leadId);
+    try {
+      await axios.post("/api/sales/updateSalesPriority", {
+        leadId,
+        changedPriority: newPriority,
+      });
+      toast({
+        description: "Response updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update sales priority", error);
+      // Rollback on failure
+      setQueries(prevQueries);
+      toast({
+        description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
   
   
@@ -300,82 +311,110 @@ const handleSave = async (
     }
   };
 
-  const handleSalesPriority = (leadId: string | undefined, index: number) => {
-    if (!leadId) return;
-    const newSalesPriorities = [...salesPriority];
-    const newSalesPriority = newSalesPriorities[index];
-    if (newSalesPriority === "None") {
-      newSalesPriorities[index] = "Low";
-      queries[index].salesPriority = "Low";
-    } else if (newSalesPriorities[index] === "Low") {
-      newSalesPriorities[index] = "High";
-      queries[index].salesPriority = "High";
-    } else if (newSalesPriorities[index] === "High") {
-      newSalesPriorities[index] = "Medium";
-      queries[index].salesPriority = "Medium";
-    } 
-    else if (newSalesPriorities[index] === "Medium") {
-      newSalesPriorities[index] = "NR";
-      queries[index].salesPriority = "NR";
-    } else if (newSalesPriorities[index] === "NR") {
-      newSalesPriorities[index] = "Replying";
-      queries[index].salesPriority = "Replying";
-    } else if (newSalesPriorities[index] === "Block") {
-      newSalesPriorities[index] = "Block";
-      queries[index].salesPriority = "Block";
-    } else {
-      newSalesPriorities[index] = "None";
-      queries[index].salesPriority = "None";
-    }
-    setSalesPriority(newSalesPriorities);
-    changeSalesPriority(leadId, newSalesPriorities[index]);
-  };
+  const handleSalesPriority = async (leadId: string | undefined, index: number) => {
+    if (!leadId || updatingStatusId === leadId) return;
 
-  const handleMessageStatus = (leadId: string | undefined, index: number) => {
-    if (!leadId) return;
+    const currentPriority = queries[index].salesPriority;
+    let newPriority: string;
 
-    const newMessageStatus = [...messageStatus];
-    const newMessage = newMessageStatus[index];
-    if (newMessage === "None") {
-      newMessageStatus[index] = "First";
-      queries[index].messageStatus = "First";
-    } else if (newMessageStatus[index] === "First") {
-      newMessageStatus[index] = "Second";
-      queries[index].messageStatus = "Second";
-    } else if (newMessageStatus[index] === "Second") {
-      newMessageStatus[index] = "Third";
-      queries[index].messageStatus = "Third";
-    } else if (newMessageStatus[index] === "Third") {
-      newMessageStatus[index] = "Fourth";
-      queries[index].messageStatus = "Fourth";
+    // Cycle: None → Low → High → Medium → NR → Replying → None
+    if (!currentPriority || currentPriority === "None") {
+      newPriority = "Low";
+    } else if (currentPriority === "Low") {
+      newPriority = "High";
+    } else if (currentPriority === "High") {
+      newPriority = "Medium";
+    } else if (currentPriority === "Medium") {
+      newPriority = "NR";
+    } else if (currentPriority === "NR") {
+      newPriority = "Replying";
+    } else if (currentPriority === "Replying") {
+      newPriority = "None";
+    } else if (currentPriority === "Block") {
+      newPriority = "Block"; // Block stays as Block
     } else {
-      newMessageStatus[index] = "None";
-      queries[index].messageStatus = "None";
+      newPriority = "None";
     }
 
-    setMessageStatus(newMessageStatus);
-    changeMessageStatus(leadId, newMessageStatus[index]);
+    // Optimistic update
+    const prevQueries = [...queries];
+    setQueries((q: IQuery[]) =>
+      q.map((item: IQuery) =>
+        item._id === leadId ? { ...item, salesPriority: newPriority } : item
+      )
+    );
+
+    setUpdatingStatusId(leadId);
+    try {
+      await axios.post("/api/sales/updateSalesPriority", {
+        leadId,
+        changedPriority: newPriority,
+      });
+      toast({
+        description: "Priority updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update sales priority", error);
+      // Rollback on failure
+      setQueries(prevQueries);
+      toast({
+        description: "Failed to update priority. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
-  const changeSalesPriority = useCallback(
-    debounce(async (leadId: string, priority: string) => {
-      const response = await axios.post("/api/sales/updateSalesPriority", {
-        leadId,
-        changedPriority: priority,
-      });
-    }, 1000),
-    []
-  );
+  const handleMessageStatus = async (leadId: string | undefined, index: number) => {
+    if (!leadId || updatingStatusId === leadId) return;
 
-  const changeMessageStatus = useCallback(
-    debounce(async (leadId: string, status: string) => {
-      const response = await axios.post("/api/sales/updateMessageStatus", {
+    const currentStatus = queries[index].messageStatus;
+    let newStatus: string;
+
+    // Cycle: None → First → Second → Third → Fourth → None
+    if (!currentStatus || currentStatus === "None") {
+      newStatus = "First";
+    } else if (currentStatus === "First") {
+      newStatus = "Second";
+    } else if (currentStatus === "Second") {
+      newStatus = "Third";
+    } else if (currentStatus === "Third") {
+      newStatus = "Fourth";
+    } else {
+      newStatus = "None";
+    }
+
+    // Optimistic update
+    const prevQueries = [...queries];
+    setQueries((q: IQuery[]) =>
+      q.map((item: IQuery) =>
+        item._id === leadId ? { ...item, messageStatus: newStatus } : item
+      )
+    );
+
+    setUpdatingStatusId(leadId);
+    try {
+      await axios.post("/api/sales/updateMessageStatus", {
         leadId,
-        changedStatus: status,
+        changedStatus: newStatus,
       });
-    }, 1000),
-    []
-  );
+      toast({
+        description: "Status updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update message status", error);
+      // Rollback on failure
+      setQueries(prevQueries);
+      toast({
+        description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
 
   const addReminder = async (leadId: string | undefined, index: number) => {
     if (!leadId) return;

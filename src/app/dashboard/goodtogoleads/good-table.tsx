@@ -23,7 +23,7 @@ import {
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import {
@@ -107,16 +107,8 @@ export default function GoodTable({
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
   const [activeModalRow, setActiveModalRow] = useState(-1);
-
-  const [salesPriority, setSalesPriority] = useState<
-    ("Low" | "High" | "NR" | "None")[]
-  >(Array.from({ length: queries?.length }, () => "None"));
-
-  const [messageStatus, setMessageStatus] = useState<
-    ("First" | "Second" | "Third" | "Fourth" | "Options" | "Visit" | "None")[]
-  >(Array.from({ length: queries?.length }, () => "None"));
-
   const [loading, setLoading] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
   const [reminderDate, setReminderDate] = useState<Date | undefined>(
@@ -266,74 +258,98 @@ export default function GoodTable({
     }
   };
 
-  const handleMessageStatus = (leadId: string | undefined, index: number) => {
-    if (!leadId) return;
+  const handleMessageStatus = async (leadId: string | undefined, index: number) => {
+    if (!leadId || updatingStatusId === leadId) return;
 
-    const newMessageStatus = [...messageStatus];
-    const newMessage = newMessageStatus[index];
-    // if (newMessage === "None") {
-    //   newMessageStatus[index] = "First";
-    //   queries[index].messageStatus = "First";
-    // } else if (newMessageStatus[index] === "First") {
-    //   newMessageStatus[index] = "Second";
-    //   queries[index].messageStatus = "Second";
-    if (newMessageStatus[index] === "None") {
-      newMessageStatus[index] = "Options";
-      queries[index].messageStatus = "Options";
-    } else if (newMessageStatus[index] === "Options") {
-      newMessageStatus[index] = "Visit";
-      queries[index].messageStatus = "Visit";
+    const currentStatus = queries[index].messageStatus;
+    let newStatus: string;
+
+    // Cycle for Good To Go leads: None → Options → Visit → None
+    if (!currentStatus || currentStatus === "None") {
+      newStatus = "Options";
+    } else if (currentStatus === "Options") {
+      newStatus = "Visit";
     } else {
-      newMessageStatus[index] = "None";
-      queries[index].messageStatus = "None";
+      newStatus = "None";
     }
 
-    setMessageStatus(newMessageStatus);
-    changeMessageStatus(leadId, newMessageStatus[index]);
+    // Optimistic update
+    const prevQueries = [...queries];
+    setQueries((q: IQuery[]) =>
+      q.map((item: IQuery) =>
+        item._id === leadId ? { ...item, messageStatus: newStatus } : item
+      )
+    );
+
+    setUpdatingStatusId(leadId);
+    try {
+      await axios.post("/api/sales/updateMessageStatus", {
+        leadId,
+        changedStatus: newStatus,
+      });
+      toast({
+        description: "Status updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update message status", error);
+      // Rollback on failure
+      setQueries(prevQueries);
+      toast({
+        description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
-  const handleSalesPriority = (leadId: string | undefined, index: number) => {
-    if (!leadId) return;
-    const newSalesPriorities = [...salesPriority];
-    const newSalesPriority = newSalesPriorities[index];
-    if (newSalesPriority === "None") {
-      newSalesPriorities[index] = "Low";
-      queries[index].salesPriority = "Low";
-    } else if (newSalesPriorities[index] === "Low") {
-      newSalesPriorities[index] = "High";
-      queries[index].salesPriority = "High";
-    }  else if (newSalesPriorities[index] === "High") {
-      newSalesPriorities[index] = "NR";
-      queries[index].salesPriority = "NR";
+  const handleSalesPriority = async (leadId: string | undefined, index: number) => {
+    if (!leadId || updatingStatusId === leadId) return;
+
+    const currentPriority = queries[index].salesPriority;
+    let newPriority: string;
+
+    // Cycle for Good To Go leads: None → Low → High → NR → None
+    if (!currentPriority || currentPriority === "None") {
+      newPriority = "Low";
+    } else if (currentPriority === "Low") {
+      newPriority = "High";
+    } else if (currentPriority === "High") {
+      newPriority = "NR";
     } else {
-      newSalesPriorities[index] = "None";
-      queries[index].salesPriority = "None";
+      newPriority = "None";
     }
 
-    setSalesPriority(newSalesPriorities);
+    // Optimistic update
+    const prevQueries = [...queries];
+    setQueries((q: IQuery[]) =>
+      q.map((item: IQuery) =>
+        item._id === leadId ? { ...item, salesPriority: newPriority } : item
+      )
+    );
 
-    changeSalesPriority(leadId, newSalesPriorities[index]);
+    setUpdatingStatusId(leadId);
+    try {
+      await axios.post("/api/sales/updateSalesPriority", {
+        leadId,
+        changedPriority: newPriority,
+      });
+      toast({
+        description: "Priority updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update sales priority", error);
+      // Rollback on failure
+      setQueries(prevQueries);
+      toast({
+        description: "Failed to update priority. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
-  const changeSalesPriority = useCallback(
-    debounce(async (leadId: string, priority: string) => {
-      const response = await axios.post("/api/sales/updateSalesPriority", {
-        leadId,
-        changedPriority: priority,
-      });
-    }, 1000),
-    []
-  );
-
-  const changeMessageStatus = useCallback(
-    debounce(async (leadId: string, status: string) => {
-      const response = await axios.post("/api/sales/updateMessageStatus", {
-        leadId,
-        changedStatus: status,
-      });
-    }, 1000),
-    []
-  );
 
   const debouncersRef = useRef<{ [leadId: string]: Function }>({});
 

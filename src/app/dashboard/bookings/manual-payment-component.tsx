@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,28 +23,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 
-interface Guest {
+interface Customer {
   name: string;
   email: string;
+  phone?: string;
   amountDue?: number;
   amountPaid?: number;
 }
 
-interface GuestPaymentEntry {
+interface CustomerPaymentEntry {
   id: string;
   name: string;
   email: string;
   phone: string;
   idNumber: string;
   amount: string;
-  // paymentType removed from per-guest entries; handled globally
+  // paymentType removed from per-customer entries; handled globally
 }
 
 interface ManualPaymentModalProps {
   bookingId: string;
-  guests?: Guest[];
+  guests?: Customer[];
   onPaymentSuccess?: () => void;
   trigger?: React.ReactNode;
 }
@@ -59,7 +60,7 @@ export function ManualPaymentModal({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const [guestPayments, setGuestPayments] = useState<GuestPaymentEntry[]>([
+  const [customerPayments, setCustomerPayments] = useState<CustomerPaymentEntry[]>([
     {
       id: "1",
       name: "",
@@ -82,39 +83,57 @@ export function ManualPaymentModal({
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (newOpen) {
-      setGuestPayments([
-        {
-          id: "1",
-          name: "",
-          email: "",
-          phone: "",
-          idNumber: "",
-          amount: "",
-
-        },
-      ]);
+      // Pre-fill with existing guests if available
+      if (guests && guests.length > 0) {
+        setCustomerPayments(
+          guests.map((guest, index) => ({
+            id: String(index + 1),
+            name: guest.name || "",
+            email: guest.email || "",
+            phone: guest.phone || "",
+            idNumber: "",
+            amount: guest.amountDue && guest.amountPaid !== undefined
+              ? String(Math.max(0, guest.amountDue - guest.amountPaid))
+              : guest.amountDue
+              ? String(guest.amountDue)
+              : "",
+          }))
+        );
+      } else {
+        setCustomerPayments([
+          {
+            id: "1",
+            name: "",
+            email: "",
+            phone: "",
+            idNumber: "",
+            amount: "",
+          },
+        ]);
+      }
+      setPaymentType("full");
       setCommonNotes("");
       setPaymentDate(new Date().toISOString().split("T")[0]);
     }
   };
 
-  const handleGuestChange = (
+  const handleCustomerChange = (
     id: string,
-    field: keyof GuestPaymentEntry,
+    field: keyof CustomerPaymentEntry,
     value: string
   ) => {
-    setGuestPayments((prev) =>
-      prev.map((guest) =>
-        guest.id === id ? { ...guest, [field]: value } : guest
+    setCustomerPayments((prev) =>
+      prev.map((customer) =>
+        customer.id === id ? { ...customer, [field]: value } : customer
       )
     );
   };
 
-  const addGuestEntry = () => {
+  const addCustomerEntry = () => {
     const newId = String(
-      Math.max(...guestPayments.map((g) => Number.parseInt(g.id) || 0)) + 1
+      Math.max(...customerPayments.map((c) => Number.parseInt(c.id) || 0)) + 1
     );
-    setGuestPayments((prev) => [
+    setCustomerPayments((prev) => [
       ...prev,
       {
         id: newId,
@@ -123,85 +142,100 @@ export function ManualPaymentModal({
         phone: "",
         idNumber: "",
         amount: "",
-        // per-guest paymentType removed; global `paymentType` will apply
+        // per-customer paymentType removed; global `paymentType` will apply
       },
     ]);
   };
 
-  const removeGuestEntry = (id: string) => {
-    if (guestPayments.length > 1) {
-      setGuestPayments((prev) => prev.filter((guest) => guest.id !== id));
+  const removeCustomerEntry = (id: string) => {
+    if (customerPayments.length > 1) {
+      setCustomerPayments((prev) => prev.filter((customer) => customer.id !== id));
     } else {
       toast({
         title: "Error",
-        description: "At least one guest entry is required",
+        description: "At least one customer entry is required",
         variant: "destructive",
       });
     }
   };
 
-  const validateGuestPayments = (): boolean => {
-    for (const guest of guestPayments) {
-      if (!guest.name.trim()) {
+  const validateCustomerPayments = (): boolean => {
+    // Check for duplicate emails
+    const emails = customerPayments.map(c => c.email.trim().toLowerCase());
+    const duplicateEmails = emails.filter((email, index) => emails.indexOf(email) !== index);
+    if (duplicateEmails.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: `Duplicate email detected: ${duplicateEmails[0]}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    for (let i = 0; i < customerPayments.length; i++) {
+      const customer = customerPayments[i];
+      const customerLabel = `Customer ${i + 1}${customer.name ? ` (${customer.name})` : ''}`;
+
+      if (!customer.name.trim()) {
         toast({
           title: "Validation Error",
-          description: "Please enter guest name for all entries",
+          description: `${customerLabel}: Please enter customer name`,
           variant: "destructive",
         });
         return false;
       }
 
-      if (!guest.email.trim()) {
+      if (!customer.email.trim()) {
         toast({
           title: "Validation Error",
-          description: "Please enter guest email for all entries",
+          description: `${customerLabel}: Please enter customer email`,
           variant: "destructive",
         });
         return false;
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(guest.email)) {
+      if (!emailRegex.test(customer.email)) {
         toast({
           title: "Validation Error",
-          description: `Invalid email format: ${guest.email}`,
+          description: `${customerLabel}: Invalid email format`,
           variant: "destructive",
         });
         return false;
       }
 
-      if (!guest.phone.trim()) {
+      if (!customer.phone.trim()) {
         toast({
           title: "Validation Error",
-          description: "Please enter phone number for all entries",
+          description: `${customerLabel}: Please enter phone number`,
           variant: "destructive",
         });
         return false;
       }
 
-      if (!guest.idNumber.trim()) {
+      if (!customer.idNumber.trim()) {
         toast({
           title: "Validation Error",
-          description: "Please enter ID number for all entries",
+          description: `${customerLabel}: Please enter ID number`,
           variant: "destructive",
         });
         return false;
       }
 
-      if (!guest.amount) {
+      if (!customer.amount || customer.amount === "0") {
         toast({
           title: "Validation Error",
-          description: "Please enter amount for all entries",
+          description: `${customerLabel}: Please enter a valid amount`,
           variant: "destructive",
         });
         return false;
       }
 
-      const amountNum = Number.parseFloat(guest.amount);
-      if (isNaN(amountNum) || amountNum < 0) {
+      const amountNum = Number.parseFloat(customer.amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
         toast({
           title: "Validation Error",
-          description: `Invalid amount for ${guest.name}: must be greater than equal to 0`,
+          description: `${customerLabel}: Amount must be greater than 0`,
           variant: "destructive",
         });
         return false;
@@ -217,6 +251,19 @@ export function ManualPaymentModal({
       return false;
     }
 
+    // Check if payment date is not in the future
+    const selectedDate = new Date(paymentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate > today) {
+      toast({
+        title: "Validation Error",
+        description: "Payment date cannot be in the future",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -225,7 +272,7 @@ export function ManualPaymentModal({
     setLoading(true);
 
     try {
-      if (!validateGuestPayments()) {
+      if (!validateCustomerPayments()) {
         setLoading(false);
         return;
       }
@@ -235,12 +282,12 @@ export function ManualPaymentModal({
         paymentDate,
         notes: commonNotes.trim() || undefined,
         paymentType: paymentType,
-        guests: guestPayments.map((guest) => ({
-          name: guest.name.trim(),
-          email: guest.email.trim().toLowerCase(),
-          phone: guest.phone.trim(),
-          idNumber: guest.idNumber.trim(),
-          amount: Math.round(Number.parseFloat(guest.amount) * 100) / 100,
+        guests: customerPayments.map((customer) => ({
+          name: customer.name.trim(),
+          email: customer.email.trim().toLowerCase(),
+          phone: customer.phone.trim(),
+          idNumber: customer.idNumber.trim(),
+          amount: Math.round(Number.parseFloat(customer.amount) * 100) / 100,
 
         })),
       };
@@ -261,11 +308,25 @@ export function ManualPaymentModal({
 
       toast({
         title: "Success",
-        description: `Manual payments recorded successfully for ${guestPayments.length} guest(s)`,
+        description: (
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+            <div>
+              <p className="font-semibold">Payment Recorded</p>
+              <p className="text-sm">
+                {customerPayments.length} payment(s) totaling €{totalAmount.toFixed(2)} recorded successfully
+              </p>
+            </div>
+          </div>
+        ),
       });
 
       setOpen(false);
-      onPaymentSuccess?.();
+      
+      // Small delay before refresh to ensure UI updates
+      setTimeout(() => {
+        onPaymentSuccess?.();
+      }, 500);
     } catch (error: any) {
       console.error("[v0] Payment submission error:", error);
       toast({
@@ -278,8 +339,8 @@ export function ManualPaymentModal({
     }
   };
 
-  const totalAmount = guestPayments.reduce((sum, guest) => {
-    const amount = Number.parseFloat(guest.amount) || 0;
+  const totalAmount = customerPayments.reduce((sum, customer) => {
+    const amount = Number.parseFloat(customer.amount) || 0;
     return sum + amount;
   }, 0);
 
@@ -292,7 +353,7 @@ export function ManualPaymentModal({
         <DialogHeader>
           <DialogTitle>Record Manual Payments</DialogTitle>
           <DialogDescription>
-            Enter payment details for one or multiple guests. Each guest can
+            Enter payment details for one or multiple customers. Each customer can
             have their own payment type and amount.
           </DialogDescription>
         </DialogHeader>
@@ -315,23 +376,23 @@ export function ManualPaymentModal({
           {/* Guest Payments Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Guest Payments</Label>
+              <Label className="text-base font-semibold">Customer Payments</Label>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={addGuestEntry}
+                onClick={addCustomerEntry}
                 disabled={loading}
                 className="gap-2 bg-transparent"
               >
                 <Plus className="h-4 w-4" />
-                Add Guest
+                Add Customer
               </Button>
             </div>
 
             {/* Global Payment Type */}
             <div className="w-56 mb-2">
-              <Label className="text-sm">Payment Type for all guests</Label>
+              <Label className="text-sm">Payment Type for all customers</Label>
               <Select value={paymentType} onValueChange={(v) => setPaymentType(v as "full" | "partial" | "split") } disabled={loading}>
                 <SelectTrigger>
                   <SelectValue />
@@ -346,21 +407,21 @@ export function ManualPaymentModal({
 
             {/* Guest Entries */}
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-              {guestPayments.map((guest, index) => (
+              {customerPayments.map((guest, index) => (
                 <div
                   key={guest.id}
                   className="border rounded-lg p-4 space-y-3 bg-muted/30"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium">
-                      Guest {index + 1}
+                      Customer {index + 1}
                     </span>
-                    {guestPayments.length > 1 && (
+                    {customerPayments.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeGuestEntry(guest.id)}
+                        onClick={() => removeCustomerEntry(guest.id)}
                         disabled={loading}
                         className="text-destructive hover:text-destructive"
                       >
@@ -377,10 +438,10 @@ export function ManualPaymentModal({
                       </Label>
                       <Input
                         id={`name-${guest.id}`}
-                        placeholder="Guest name"
+                        placeholder="Customer name"
                         value={guest.name}
                         onChange={(e) =>
-                          handleGuestChange(guest.id, "name", e.target.value)
+                          handleCustomerChange(guest.id, "name", e.target.value)
                         }
                         disabled={loading}
                         autoComplete="off"
@@ -395,10 +456,10 @@ export function ManualPaymentModal({
                       <Input
                         id={`email-${guest.id}`}
                         type="email"
-                        placeholder="guest@example.com"
+                        placeholder="customer@example.com"
                         value={guest.email}
                         onChange={(e) =>
-                          handleGuestChange(guest.id, "email", e.target.value)
+                          handleCustomerChange(guest.id, "email", e.target.value)
                         }
                         disabled={loading}
                         autoComplete="off"
@@ -415,7 +476,7 @@ export function ManualPaymentModal({
                         placeholder="+91 XXXXX XXXXX"
                         value={guest.phone}
                         onChange={(e) =>
-                          handleGuestChange(guest.id, "phone", e.target.value)
+                          handleCustomerChange(guest.id, "phone", e.target.value)
                         }
                         disabled={loading}
                         autoComplete="off"
@@ -435,7 +496,7 @@ export function ManualPaymentModal({
                         placeholder="Passport/Aadhar/License"
                         value={guest.idNumber}
                         onChange={(e) =>
-                          handleGuestChange(
+                          handleCustomerChange(
                             guest.id,
                             "idNumber",
                             e.target.value
@@ -447,25 +508,40 @@ export function ManualPaymentModal({
                     </div>
 
                     {/* Amount */}
-                    <div className="space-y-1">
+                    <div className="space-y-1 col-span-2">
                       <Label htmlFor={`amount-${guest.id}`} className="text-xs">
-                        Amount  <span className="text-red-500">*</span>
+                        Amount (€) <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id={`amount-${guest.id}`}
                         type="number"
                         placeholder="0.00"
                         step="0.01"
-                        min="0"
+                        min="0.01"
                         value={guest.amount}
                         onChange={(e) =>
-                          handleGuestChange(guest.id, "amount", e.target.value)
+                          handleCustomerChange(guest.id, "amount", e.target.value)
                         }
                         disabled={loading}
                       />
+                      {/* Show remaining amount if guest exists in booking */}
+                      {(() => {
+                        const existingGuest = guests.find(
+                          g => g.email?.toLowerCase() === guest.email?.toLowerCase()
+                        );
+                        if (existingGuest && existingGuest.amountDue !== undefined && existingGuest.amountPaid !== undefined) {
+                          const remaining = existingGuest.amountDue - existingGuest.amountPaid;
+                          if (remaining > 0) {
+                            return (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Remaining: €{remaining.toFixed(2)}
+                              </p>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
                     </div>
-
-                    
 
                     {/* Payment Type is now global; omitted per-guest */}
                   </div>
@@ -477,7 +553,7 @@ export function ManualPaymentModal({
             <div className="bg-primary/10 rounded-lg p-3 flex justify-between items-center">
               <span className="font-medium">Total Amount:</span>
               <span className="text-lg font-bold text-primary">
-                ₹{totalAmount.toFixed(2)}
+                €{totalAmount.toFixed(2)}
               </span>
             </div>
           </div>
@@ -495,6 +571,36 @@ export function ManualPaymentModal({
             />
           </div>
 
+          {/* Payment Summary */}
+          {customerPayments.length > 0 && totalAmount > 0 && (
+            <div className="border rounded-lg p-4 bg-muted/50 space-y-2">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Payment Summary
+              </h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Number of Customers:</span>
+                  <span className="font-medium">{customerPayments.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment Type:</span>
+                  <span className="font-medium capitalize">{paymentType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment Date:</span>
+                  <span className="font-medium">
+                    {new Date(paymentDate).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="font-semibold">Total Amount:</span>
+                  <span className="font-bold text-primary">€{totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Submit Button */}
           <div className="flex justify-end gap-2 pt-4">
             <Button
@@ -505,11 +611,11 @@ export function ManualPaymentModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || totalAmount === 0}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading
                 ? "Recording..."
-                : `Record ${guestPayments.length} Payment(s)`}
+                : `Record ${customerPayments.length} Payment(s)`}
             </Button>
           </div>
         </form>

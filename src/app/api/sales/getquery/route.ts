@@ -6,6 +6,7 @@ import {
   subDays,
   addHours,
   setHours,
+  
   setMinutes,
   setSeconds,
   setMilliseconds,
@@ -115,7 +116,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 const leadGenEmployees = await Employee.find({ role: "LeadGen" }).select("email");
 const leadGenEmails = leadGenEmployees.map((emp) => emp.email);
 
-query.createdBy = { $in: leadGenEmails };
+// query.createdBy = { $in: leadGenEmails };
+if(token.role === "LeadGen"){
+  query.createdBy = token.email;
+}
+else{
+  query.createdBy = { $in: leadGenEmails };
+}
 
     const allquery = await Query.aggregate([
       { $match: query },
@@ -133,7 +140,7 @@ query.createdBy = { $in: leadGenEmails };
           },
         },
       },
-    ]);
+    ]);  
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / limit);
@@ -155,3 +162,4 @@ query.createdBy = { $in: leadGenEmails };
     );
   }
 }
+  

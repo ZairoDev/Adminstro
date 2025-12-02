@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
     if (searchTerm) {
       if (searchType === "phoneNo") {
-        query.phoneNo = Number(searchTerm);
+         const cleanedPhone = searchTerm.replace(/\D/g, ''); // Remove all non-digit characters
+  query.phoneNo = { $regex: cleanedPhone, $options: 'i' };
       } else {
         query[searchType] = regex;
       }
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
 
     const allquery = await Query.aggregate([
       { $match: query },
-      { $sort: { updatedAt: -1 } }, // last updated lead will come first
+      { $sort: { reminder: 1, updatedAt: -1 } }, // sort by reminder date (earliest first), then by last updated
       { $skip: SKIP },
       { $limit: LIMIT },
       {

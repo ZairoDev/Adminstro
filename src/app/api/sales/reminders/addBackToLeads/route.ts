@@ -16,9 +16,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const addReminder = await Query.findOneAndUpdate(
+    await Query.findOneAndUpdate(
       { _id: new mongoose.Types.ObjectId(leadId) },
-      { $set: { reminder: null } }
+      { 
+        $set: { 
+          reminder: null,
+          leadStatus: "active",
+          reason: null
+        } 
+      }
     );
 
     return NextResponse.json(

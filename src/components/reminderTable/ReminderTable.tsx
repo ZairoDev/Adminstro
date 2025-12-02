@@ -42,7 +42,12 @@ import { Button } from "../ui/button";
 import CustomTooltip from "../CustomToolTip";
 
 
-export default function ReminderTable({ queries }: { queries: IQuery[] }) {
+interface ReminderTableProps {
+  queries: IQuery[];
+  setQueries?: React.Dispatch<React.SetStateAction<IQuery[]>>;
+}
+
+export default function ReminderTable({ queries, setQueries }: ReminderTableProps) {
   const { toast } = useToast();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
@@ -107,32 +112,83 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
     []
   );
 
-  const remainingDays = (date: string | Date | undefined) => {
-    if (!date) return "N/A"; // handle missing date
+  const getReminderDate = (query: IQuery): Date | null => {
+    // First check the reminder field (new format)
+    if (query?.reminder) {
+      const d = new Date(query.reminder);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // Fallback to reason field (old format - stored as string)
+    if (query?.reason) {
+      const d = new Date(query.reason);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  };
+
+  const remainingDays = (query: IQuery) => {
+    const reminderDate = getReminderDate(query);
+    if (!reminderDate) return "N/A";
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const reminderDate = new Date(date);
-    if (isNaN(reminderDate.getTime())) return "N/A"; // invalid date
-
     reminderDate.setHours(0, 0, 0, 0);
 
     const diffTime = reminderDate.getTime() - today.getTime();
     const daysDiff = Math.ceil(diffTime / (1000 * 3600 * 24));
 
-    if (daysDiff < 0) return "Already Passed"; // past dates
+    if (daysDiff < 0) return "Overdue";
+    if (daysDiff === 0) return "Today";
+    if (daysDiff === 1) return "Tomorrow";
     return daysDiff;
+  };
+
+  const getDayBadgeColor = (query: IQuery) => {
+    const reminderDate = getReminderDate(query);
+    if (!reminderDate) return "bg-gray-500";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    reminderDate.setHours(0, 0, 0, 0);
+
+    const diffTime = reminderDate.getTime() - today.getTime();
+    const daysDiff = Math.ceil(diffTime / (1000 * 3600 * 24));
+
+    if (daysDiff < 0) return "bg-red-600";
+    if (daysDiff === 0) return "bg-red-500";
+    if (daysDiff === 1) return "bg-orange-500";
+    if (daysDiff <= 3) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
+  const formatReminderDate = (query: IQuery) => {
+    const reminderDate = getReminderDate(query);
+    if (!reminderDate) return "";
+    return reminderDate.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
   };
   
 
   const addBackToLeads = async (leadId: string | undefined) => {
     if (!leadId) return;
     try {
-      const response = await axios.post("/api/sales/reminders/addBackToLeads", {
+      await axios.post("/api/sales/reminders/addBackToLeads", {
         leadId,
       });
-      queries.filter((query) => query._id !== leadId);
+      
+      // Remove the lead from the list using the setter if available
+      if (setQueries) {
+        setQueries((prevQueries) => prevQueries.filter((query) => query._id !== leadId));
+      }
+      
+      toast({
+        variant: "default",
+        title: "Success",
+        description: "Lead moved back to Good To Go leads",
+      });
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -312,12 +368,15 @@ export default function ReminderTable({ queries }: { queries: IQuery[] }) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p>
-                    {remainingDays(query?.reminder)}{" "}
-                    {typeof remainingDays(query?.reminder) === "number"
-                      ? "Days To Go"
-                      : ""}
-                  </p>
+                  <div className="flex flex-col gap-1">
+                    <Badge className={`${getDayBadgeColor(query)} text-white text-xs px-2 py-0.5 w-fit`}>
+                      {remainingDays(query)}{" "}
+                      {typeof remainingDays(query) === "number" ? "Days" : ""}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {formatReminderDate(query)}
+                    </span>
+                  </div>
                 </TableCell>
 
                 <TableCell>

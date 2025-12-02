@@ -9,7 +9,7 @@ interface UseSocketReturn {
 }
 
 // ============================================
-// Singleton Socket Manager (outside React)
+// Singleton Socket Manager (outside React)    
 // ============================================
 class SocketManager {
   private static instance: SocketManager;

@@ -12,11 +12,14 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
 import type { BookingInterface } from "@/util/type";
 import HandLoader from "@/components/HandLoader";
 import { Toaster } from "@/components/ui/toaster";
+import { Filter, Search } from "lucide-react";
 
 import { BookingFilter, type BookingFilterState } from "./booking-filter";
 import BookingTable from "./booking-table";
@@ -49,6 +52,8 @@ const BookingPage = () => {
   const [filters, setFilters] = useState<BookingFilterState>({
     ...defaultFilters,
   });
+
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
 
   /* ------------------------- Handlers ------------------------- */
   const handlePageChange = (newPage: number) => {
@@ -166,20 +171,42 @@ const BookingPage = () => {
     <div className="w-full">
       <Toaster />
 
-      <div className="flex items-center md:flex-row flex-col justify-between w-full">
+      <div className="flex items-center md:flex-row flex-col justify-between w-full gap-4">
         <Heading
           heading="Bookings"
           subheading="Manage and track all your bookings and traveller payments"
         />
+        <Button
+          variant="outline"
+          onClick={() => setFilterSidebarOpen(true)}
+          className="gap-2"
+        >
+          <Filter className="w-4 h-4" />
+          Filters
+        </Button>
       </div>
 
       <div className="mt-4">
-        <BookingFilter
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={handleResetFilters}
-        />
+        <div className="relative">
+          <Input
+            placeholder="Search by guest name, email, or note..."
+            value={filters.searchTerm}
+            onChange={(e) =>
+              handleFilterChange({ ...filters, searchTerm: e.target.value })
+            }
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        </div>
       </div>
+
+      <BookingFilter
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onReset={handleResetFilters}
+        open={filterSidebarOpen}
+        onOpenChange={setFilterSidebarOpen}
+      />
 
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">

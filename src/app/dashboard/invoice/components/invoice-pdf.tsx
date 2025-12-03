@@ -220,7 +220,7 @@ Branch: ${COMPANY_INFO.bank.branch}`,
     },
   };
 
-  pdfMake.createPdf(docDefinition).open();
+  pdfMake.createPdf(docDefinition).download(`invoice-${value.invoiceNumber || "export"}.pdf`);
 }
 
 export async function generateBookingPdf(data: {

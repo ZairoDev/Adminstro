@@ -8,18 +8,58 @@ export async function POST(req: Request) {
     await connectDb();
 
     const body = await req.json();
-    // console.log("body: ", body);
+
+    // Check if an invoice already exists for this booking
+    if (body.bookingId) {
+      const existingInvoice = await Invoice.findOne({ bookingId: body.bookingId }).lean();
+      if (existingInvoice) {
+        return NextResponse.json(
+          {
+            success: true,
+            message: "Invoice already exists for this booking",
+            invoice: existingInvoice,
+            invoiceNumber: (existingInvoice as any).invoiceNumber,
+            alreadyExists: true,
+          },
+          { status: 200 }
+        );
+      }
+    }
+
     // If invoiceNumber is missing, auto-generate one
-    if (!body.invoiceNumber){
-      const count = await Invoice.countDocuments();
-      body.invoiceNumber = `ZI-${count + 1}`;}
-    // console.log("invoiceNo: ", body)
+    if (!body.invoiceNumber) {
+      // Get the last invoice to determine the next invoice number
+      const lastInvoice = await Invoice.findOne()
+        .sort({ createdAt: -1 })
+        .select("invoiceNumber")
+        .lean() as { invoiceNumber?: string } | null;
+
+      let nextInvoiceNumber = "ZI-00001";
+
+      if (lastInvoice && lastInvoice.invoiceNumber) {
+        // Extract the number from the last invoice (e.g., "ZI-00123" -> 123)
+        const match = lastInvoice.invoiceNumber.match(/ZI-(\d+)/);
+        if (match && match[1]) {
+          const lastNumber = parseInt(match[1], 10);
+          const nextNumber = lastNumber + 1;
+          // Pad with zeros to maintain 5-digit format
+          nextInvoiceNumber = `ZI-${String(nextNumber).padStart(5, "0")}`;
+        }
+      }
+
+      body.invoiceNumber = nextInvoiceNumber;
+    }
 
     // Save invoice to MongoDB
     const invoice = await Invoice.create(body);
 
     return NextResponse.json(
-      { message: "Invoice saved successfully", invoice },
+      { 
+        success: true,
+        message: "Invoice saved successfully", 
+        invoice,
+        invoiceNumber: invoice.invoiceNumber 
+      },
       { status: 201 }
     );
   } catch (error: any) {

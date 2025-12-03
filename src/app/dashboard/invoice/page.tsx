@@ -29,7 +29,7 @@ export type InvoiceData = {
   totalAmount: number; // final payable
   status: string;
   sacCode: number;
-  invoiceNumber?: string;
+  invoiceNumber?: string ;
 };
 
 export type ComputedTotals = {

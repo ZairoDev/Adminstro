@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InvoicePreview } from "../components/invoice-preview";
 import { InvoiceData } from "../page";
+import { generateInvoicePdf } from "../components/invoice-pdf";
 
 export function InvoiceTable({
   tableData,
@@ -119,6 +120,20 @@ export function InvoiceTable({
       console.error("Update failed", error);
       setTableData(prev);
     }
+  };
+
+  const handleDownloadPdf = (invoice: InvoiceData) => {
+    const computed = {
+      subTotal: invoice.amount || 0,
+      total: invoice.totalAmount || invoice.amount || 0,
+      taxes: {
+        sgst: invoice.sgst || 0,
+        cgst: invoice.cgst || 0,
+        igst: invoice.igst || 0,
+      },
+    };
+
+    generateInvoicePdf(invoice, computed);
   };
 
   useEffect(() => {
@@ -228,7 +243,9 @@ export function InvoiceTable({
                     <DropdownMenuItem onClick={() => setPreviewInvoice(item)}>
                       Preview
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Download</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownloadPdf(item)}>
+                      Download PDF
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Delete</DropdownMenuItem>
                     {/* <DropdownMenuItem>Subscription</DropdownMenuItem> */}
                   </DropdownMenuContent>

@@ -59,6 +59,8 @@ export default function InvoicePdfButton({
   const [depositPaid, setDepositPaid] = useState<number>(bookingData?.existingDepositPaid ?? 0);
   const [email, setEmail] = useState(bookingData?.email || "");
   const [address, setAddress] = useState(bookingData?.address || "");
+  const [nationality, setNationality] = useState("");
+  const [existingInvoiceNumber, setExistingInvoiceNumber] = useState<string | null>(null);
   const [owners, setOwners] = useState<Owner[]>(
     bookingData?.existingGuests && bookingData.existingGuests.length > 0
       ? bookingData.existingGuests
@@ -104,8 +106,24 @@ export default function InvoicePdfButton({
     });
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (mode === "booking") {
+      // Check for existing invoice before opening dialog
+      if (!existingInvoiceNumber && bookingData?.bookingId) {
+        try {
+          const checkResponse = await fetch(
+            `/api/invoice/check?bookingId=${bookingData.bookingId}`
+          );
+          if (checkResponse.ok) {
+            const checkResult = await checkResponse.json();
+            if (checkResult.exists && checkResult.invoiceNumber) {
+              setExistingInvoiceNumber(checkResult.invoiceNumber);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking for existing invoice:", error);
+        }
+      }
       setOpen(true);
     } else if (value && computed) {
       generateInvoicePdf(value, computed);
@@ -117,6 +135,62 @@ export default function InvoicePdfButton({
     
     setLoading(true);
     try {
+      let generatedInvoiceNumber = existingInvoiceNumber;
+
+      // Only create invoice in database if it doesn't exist yet
+      if (!existingInvoiceNumber) {
+        // Prepare invoice data for database
+        const invoicePayload = {
+          name: owners[0]?.name || bookingData.name || "",
+          email: owners[0]?.email || bookingData.email || "",
+          phoneNumber: owners[0]?.phoneNo || bookingData.phone || "",
+          address: address || "",
+          nationality: nationality || "Not specified",
+          amount: bookingData.amount,
+          sgst: 0,
+          igst: 0,
+          cgst: 0,
+          totalAmount: bookingData.amount,
+          status: (bookingData.finalPrice ?? 0) >= bookingData.amount ? "paid" : "unpaid",
+          date: new Date(),
+          checkIn: bookingData.checkIn ? new Date(bookingData.checkIn) : null,
+          checkOut: bookingData.checkOut ? new Date(bookingData.checkOut) : null,
+          bookingType: "Booking Commission",
+          companyAddress: "117/N/70, 3rd Floor Kakadeo, Kanpur - 208025, UP, India",
+          sacCode: 9985,
+          description: bookingData.description || "",
+          bookingId: bookingData.bookingId || bookingData.booking_Id,
+        };
+
+        // Create invoice in database to get auto-incremented invoice number
+        const invoiceResponse = await fetch("/api/invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(invoicePayload),
+        });
+
+        if (!invoiceResponse.ok) {
+          throw new Error("Failed to create invoice in database");
+        }
+
+        const invoiceResult = await invoiceResponse.json();
+        
+        if (!invoiceResult.success) {
+          throw new Error(invoiceResult.error || "Failed to create invoice");
+        }
+
+        generatedInvoiceNumber = invoiceResult.invoiceNumber;
+        setExistingInvoiceNumber(generatedInvoiceNumber);
+
+        // Show message if invoice already existed
+        if (invoiceResult.alreadyExists) {
+          toast({
+            title: "Invoice Already Exists",
+            description: `Using existing invoice: ${generatedInvoiceNumber}`,
+          });
+        }
+      }
+
       // Generate Booking Confirmation PDF
       await generateBookingPdf({
         amount: bookingData.amount,
@@ -143,7 +217,7 @@ export default function InvoicePdfButton({
       // Small delay between downloads
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Generate Invoice PDF
+      // Generate Invoice PDF with the invoice number from database
       const invoiceData: InvoiceData = {
         name: owners[0]?.name || bookingData.name || "",
         email: owners[0]?.email || bookingData.email || "",
@@ -156,12 +230,12 @@ export default function InvoicePdfButton({
         totalAmount: bookingData.amount,
         status: (bookingData.finalPrice ?? 0) >= bookingData.amount ? "paid" : "unpaid",
         date: new Date().toISOString().split("T")[0],
-        nationality: "Indian",
+        nationality: nationality || "Not specified",
         checkIn: bookingData.checkIn || "",
         checkOut: bookingData.checkOut || "",
         bookingType: "Booking Commission",
         companyAddress: "117/N/70, 3rd Floor Kakadeo, Kanpur - 208025, UP, India",
-        invoiceNumber: bookingData.bookingId ? `ZI-${bookingData.bookingId.slice(-5)}` : "ZI-XXXXX",
+        invoiceNumber: generatedInvoiceNumber || "N/A",
         sacCode: 9985,
         description: bookingData.description || "",
       };
@@ -178,10 +252,17 @@ export default function InvoicePdfButton({
 
       generateInvoicePdf(invoiceData, computedTotals);
 
-      toast({
-        title: "Success",
-        description: "PDFs generated successfully",
-      });
+      if (!existingInvoiceNumber) {
+        toast({
+          title: "Success",
+          description: `PDFs generated successfully. New invoice created: ${generatedInvoiceNumber}`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `PDFs downloaded successfully. Invoice: ${generatedInvoiceNumber}`,
+        });
+      }
 
       setOpen(false);
     } catch (error: any) {
@@ -306,6 +387,19 @@ export default function InvoicePdfButton({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Enter property address"
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">
+                  Nationality
+                </label>
+                <input
+                  type="text"
+                  value={nationality}
+                  onChange={(e) => setNationality(e.target.value)}
+                  placeholder="Enter nationality (e.g., Indian, American)"
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 />
               </div>

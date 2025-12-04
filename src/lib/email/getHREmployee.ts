@@ -2,6 +2,7 @@
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { EmailSignatureConfig } from "./signature";
+import { EmployeeInterface } from "@/util/type";
 
 export interface HREmployee {
   name: string;
@@ -17,7 +18,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
       isActive: true,
     })
       .select("name email phone")
-      .lean();
+      .lean() as EmployeeInterface | null;
 
     if (hrEmployee) {
       return {

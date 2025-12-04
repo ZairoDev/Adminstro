@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { sendWarningEmail, getWarningReasonText } from "@/lib/email";
 import { WarningType } from "@/lib/email/types";
+import { EmployeeInterface } from "@/util/type";
 
 // Send warning email and store in database
 export async function POST(request: NextRequest) {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       employeeId,
       { $push: { warnings: warningRecord } },
       { new: true, runValidators: true }
-    ).lean();
+    ).lean() as EmployeeInterface | null;
 
     return NextResponse.json({
       success: true,

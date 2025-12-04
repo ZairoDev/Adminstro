@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { sendPIPEmail, getPIPLevelDescription } from "@/lib/email";
 import { PIPLevel } from "@/lib/email/types";
+import { EmployeeInterface } from "@/util/type";
 
 // Send PIP email and store in database
 export async function POST(request: NextRequest) {
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       employeeId,
       { $push: { pips: pipRecord } },
       { new: true, runValidators: true }
-    ).lean();
+    ).lean() as EmployeeInterface | null;
 
     return NextResponse.json({
       success: true,
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const employee = await Employees.findById(employeeId).select("pips").lean();
+    const employee = await Employees.findById(employeeId).select("pips").lean() as EmployeeInterface | null;
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
@@ -151,7 +152,7 @@ export async function PUT(request: NextRequest) {
       { _id: employeeId, "pips._id": pipId },
       { $set: { "pips.$.status": status } },
       { new: true }
-    ).lean();
+    ).lean() as EmployeeInterface | null;
 
     if (!employee) {
       return NextResponse.json(
@@ -190,7 +191,7 @@ export async function DELETE(request: NextRequest) {
       employeeId,
       { $pull: { pips: { _id: pipId } } },
       { new: true }
-    ).lean();
+    ).lean() as EmployeeInterface | null;
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });

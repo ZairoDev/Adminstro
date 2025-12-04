@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { sendAppreciationEmail, getAppreciationReasonText } from "@/lib/email";
 import { AppreciationType } from "@/lib/email/types";
+import { EmployeeInterface } from "@/util/type";
 
 // Send appreciation email and store in database
 export async function POST(request: NextRequest) {
@@ -61,7 +62,9 @@ export async function POST(request: NextRequest) {
       employeeId,
       { $push: { appreciations: appreciationRecord } },
       { new: true, runValidators: true }
-    ).lean();
+    )
+      .select("appreciations")
+      .lean() as EmployeeInterface | null;
 
     return NextResponse.json({
       success: true,
@@ -69,7 +72,7 @@ export async function POST(request: NextRequest) {
         ? "Appreciation sent and recorded successfully"
         : "Appreciation recorded (email not sent)",
       emailSent,
-      appreciations: updatedEmployee?.appreciations || [],
+      appreciations: (updatedEmployee)?.appreciations || [],
     });
   } catch (error: any) {
     console.error("Appreciation API error:", error);
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     const employee = await Employees.findById(employeeId)
       .select("appreciations")
-      .lean();
+      .lean() as EmployeeInterface | null;
     if (!employee) {
       return NextResponse.json(
         { error: "Employee not found" },
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      appreciations: employee.appreciations || [],
+      appreciations: employee?.appreciations || [],
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -133,7 +136,9 @@ export async function DELETE(request: NextRequest) {
       employeeId,
       { $pull: { appreciations: { _id: appreciationId } } },
       { new: true }
-    ).lean();
+    )
+      .select("appreciations")
+      .lean() as EmployeeInterface | null;
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
@@ -142,7 +147,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Appreciation deleted successfully",
-      appreciations: employee?.appreciations || [],
+      appreciations: (employee)?.appreciations || [],
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import { EmployeeInterface } from "@/util/type";
 import { NextRequest, NextResponse } from "next/server";
 connectDb();
 interface RequestBody {
@@ -10,8 +11,9 @@ export async function POST(request: NextRequest) {
   const { userId } = reqBody;
   // console.log(userId);
   const user = await Employees.findOne({ _id: userId })
-    .select("-password -passwordExpiresAt")
-    .lean();
+  .select("-password -passwordExpiresAt")
+  .lean() as EmployeeInterface | null;
+
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }

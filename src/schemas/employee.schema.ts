@@ -55,6 +55,60 @@ export const employeeSchema = z.object({
   verifyTokenExpiry: z.date().optional(),
   otpToken: z.number().optional(),
   otpTokenExpiry: z.date().optional(),
+  warnings: z
+    .array(
+      z.object({
+        warningType: z.enum([
+          "disciplineIssue",
+          "lateAttendance",
+          "unplannedLeaves",
+          "poshWarning",
+          "combinedWarning",
+        ]),
+        reason: z.string(),
+        department: z.string(),
+        reportingManager: z.string(),
+        issuedBy: z.string(),
+        issuedAt: z.date(),
+        emailSent: z.boolean().default(false),
+        notes: z.string().optional().default(""),
+      })
+    )
+    .optional()
+    .default([]),
+  pips: z
+    .array(
+      z.object({
+        pipLevel: z.enum(["level1", "level2", "level3"]),
+        startDate: z.string(),
+        endDate: z.string(),
+        concerns: z.array(z.string()).default([]),
+        issuedBy: z.string(),
+        issuedAt: z.date(),
+        emailSent: z.boolean().default(false),
+        status: z.enum(["active", "completed", "failed"]).default("active"),
+        notes: z.string().optional().default(""),
+      })
+    )
+    .optional()
+    .default([]),
+  appreciations: z
+    .array(
+      z.object({
+        appreciationType: z.enum([
+          "outstandingContribution",
+          "outstandingAchievement",
+          "excellentAttendance",
+        ]),
+        reason: z.string(),
+        issuedBy: z.string(),
+        issuedAt: z.date(),
+        emailSent: z.boolean().default(false),
+        notes: z.string().optional().default(""),
+      })
+    )
+    .optional()
+    .default([]),
 });
 
 export type EmployeeSchema = z.infer<typeof employeeSchema>;

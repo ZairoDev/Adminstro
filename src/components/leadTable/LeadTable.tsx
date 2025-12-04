@@ -18,7 +18,7 @@ import {
   MailOpen,
   MessageSquare,
   MessageSquareText,
-  MailX,
+  MailX, 
   MessageSquareX,
   MessageSquareDashed,
   MessageSquareOff,

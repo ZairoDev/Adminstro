@@ -9,16 +9,21 @@ export async function POST(request: NextRequest) {
   const reqBody: RequestBody = await request.json();
   const { userId } = reqBody;
   // console.log(userId);
-  const user = await Employees.findOne({ _id: userId }).select(
-    "-password -passwordExpiresAt"
-  );
+  const user = await Employees.findOne({ _id: userId })
+    .select("-password -passwordExpiresAt")
+    .lean();
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
   return NextResponse.json({
     status: 200,
     message: "User found",
-    data: user,
+    data: {
+      ...user,
+      warnings: user.warnings || [],
+      pips: user.pips || [],
+      appreciations: user.appreciations || [],
+    },
   });
 }
 

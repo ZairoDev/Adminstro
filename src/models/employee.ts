@@ -153,6 +153,76 @@ const employeeSchema = new Schema<IEmployee>(
     verifyTokenExpiry: Date,
     otpToken: Number,
     otpTokenExpiry: Date,
+    warnings: {
+      type: [
+        {
+          warningType: {
+            type: String,
+            enum: [
+              "disciplineIssue",
+              "lateAttendance",
+              "unplannedLeaves",
+              "poshWarning",
+              "combinedWarning",
+            ],
+            required: true,
+          },
+          reason: { type: String, required: true },
+          department: { type: String, required: true },
+          reportingManager: { type: String, required: true },
+          issuedBy: { type: String, required: true },
+          issuedAt: { type: Date, default: Date.now },
+          emailSent: { type: Boolean, default: false },
+          notes: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    pips: {
+      type: [
+        {
+          pipLevel: {
+            type: String,
+            enum: ["level1", "level2", "level3"],
+            required: true,
+          },
+          startDate: { type: String, required: true },
+          endDate: { type: String, required: true },
+          concerns: { type: [String], default: [] },
+          issuedBy: { type: String, required: true },
+          issuedAt: { type: Date, default: Date.now },
+          emailSent: { type: Boolean, default: false },
+          status: {
+            type: String,
+            enum: ["active", "completed", "failed"],
+            default: "active",
+          },
+          notes: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    appreciations: {
+      type: [
+        {
+          appreciationType: {
+            type: String,
+            enum: [
+              "outstandingContribution",
+              "outstandingAchievement",
+              "excellentAttendance",
+            ],
+            required: true,
+          },
+          reason: { type: String, required: true },
+          issuedBy: { type: String, required: true },
+          issuedAt: { type: Date, default: Date.now },
+          emailSent: { type: Boolean, default: false },
+          notes: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

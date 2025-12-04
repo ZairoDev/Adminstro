@@ -9,6 +9,56 @@ export interface MiddlweareInterface {
   iat: Date;
 }
 
+export type WarningType =
+  | "disciplineIssue"
+  | "lateAttendance"
+  | "unplannedLeaves"
+  | "poshWarning"
+  | "combinedWarning";
+
+export interface WarningRecord {
+  _id?: string;
+  warningType: WarningType;
+  reason: string;
+  department: string;
+  reportingManager: string;
+  issuedBy: string;
+  issuedAt: string;
+  emailSent: boolean;
+  notes?: string;
+}
+
+export type PIPLevel = "level1" | "level2" | "level3";
+export type PIPStatus = "active" | "completed" | "failed";
+
+export interface PIPRecord {
+  _id?: string;
+  pipLevel: PIPLevel;
+  startDate: string;
+  endDate: string;
+  concerns: string[];
+  issuedBy: string;
+  issuedAt: string;
+  emailSent: boolean;
+  status: PIPStatus;
+  notes?: string;
+}
+
+export type AppreciationType =
+  | "outstandingContribution"
+  | "outstandingAchievement"
+  | "excellentAttendance";
+
+export interface AppreciationRecord {
+  _id?: string;
+  appreciationType: AppreciationType;
+  reason: string;
+  issuedBy: string;
+  issuedAt: string;
+  emailSent: boolean;
+  notes?: string;
+}
+
 export interface EmployeeInterface {
   _id: string;
   name: string;
@@ -31,6 +81,9 @@ export interface EmployeeInterface {
   role: [string];
   createdAt: string;
   updatedAt: string;
+  warnings?: WarningRecord[];
+  pips?: PIPRecord[];
+  appreciations?: AppreciationRecord[];
 }
 
 export interface PropertiesDataType {

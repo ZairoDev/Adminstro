@@ -200,7 +200,7 @@ const publicRoutes = [
   "/dashboard/room/*",
   "/application-form",
   "/zipl.pdf",
-  "/dashboard/candidatePortal/\/*",
+  /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
 ];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

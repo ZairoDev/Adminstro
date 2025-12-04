@@ -1,10 +1,18 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Filter, X } from "lucide-react";
 
 export interface BookingFilterState {
   searchTerm: string;
@@ -20,14 +28,25 @@ interface BookingFilterProps {
   filters: BookingFilterState;
   onFilterChange: (filters: BookingFilterState) => void;
   onReset: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export const BookingFilter: React.FC<BookingFilterProps> = ({
   filters,
   onFilterChange,
   onReset,
+  open,
+  onOpenChange,
 }) => {
   const [localFilters, setLocalFilters] = useState<BookingFilterState>(filters);
+
+  // Sync local filters with parent filters when sheet opens
+  useEffect(() => {
+    if (open) {
+      setLocalFilters(filters);
+    }
+  }, [open, filters]);
 
   const handleChange =
     (key: keyof BookingFilterState) =>
@@ -40,6 +59,7 @@ export const BookingFilter: React.FC<BookingFilterProps> = ({
 
   const handleApply = () => {
     onFilterChange(localFilters);
+    onOpenChange(false);
   };
 
   const handleReset = () => {
@@ -53,6 +73,7 @@ export const BookingFilter: React.FC<BookingFilterProps> = ({
       travellerPaymentStatus: "",
     });
     onReset();
+    onOpenChange(false);
   };
 
   const hasActiveFilters = !!(
@@ -66,104 +87,85 @@ export const BookingFilter: React.FC<BookingFilterProps> = ({
   );
 
   return (
-    <div className="p-5 bg-white dark:bg-stone-950 border rounded-lg shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Search className="w-5 h-5 text-muted-foreground" />
-        <h3 className="font-semibold text-lg">Filter Bookings</h3>
-      </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filter Bookings
+          </SheetTitle>
+          <SheetDescription>
+            Apply filters to narrow down your booking results
+          </SheetDescription>
+        </SheetHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Search Term
-          </label>
-          <Input
-            placeholder="Guest name, email, note..."
-            value={localFilters.searchTerm}
-            onChange={handleChange("searchTerm")}
-            className="text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Property Name
-          </label>
-          <Input
-            placeholder="Property name..."
-            value={localFilters.propertyName}
-            onChange={handleChange("propertyName")}
-            className="text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Booking ID
-          </label>
-          <Input
-            placeholder="Booking ID..."
-            value={localFilters.bookingId}
-            onChange={handleChange("bookingId")}
-            className="text-sm"
-          />
-        </div>
-      </div>
+        <div className="py-6 space-y-6">
+          {/* Property Name */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Property Name</label>
+            <Input
+              placeholder="Property name..."
+              value={localFilters.propertyName}
+              onChange={handleChange("propertyName")}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Check-in start
-          </label>
-          <Input
-            type="date"
-            value={localFilters.startDate ?? ""}
-            onChange={handleChange("startDate")}
-            className="text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Check-in end
-          </label>
-          <Input
-            type="date"
-            value={localFilters.endDate ?? ""}
-            onChange={handleChange("endDate")}
-            className="text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">
-            Guest phone
-          </label>
-          <Input
-            placeholder="Phone..."
-            value={localFilters.guestPhone ?? ""}
-            onChange={handleChange("guestPhone")}
-            className="text-sm"
-          />
-        </div>
-      </div>
+          {/* Booking ID */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Booking ID</label>
+            <Input
+              placeholder="Booking ID..."
+              value={localFilters.bookingId}
+              onChange={handleChange("bookingId")}
+            />
+          </div>
 
-      <div className="flex gap-4 items-end">
-        
+          {/* Check-in Dates */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Check-in Start Date</label>
+            <Input
+              type="date"
+              value={localFilters.startDate ?? ""}
+              onChange={handleChange("startDate")}
+            />
+          </div>
 
-        <div className="col-span-2 flex justify-end gap-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Check-in End Date</label>
+            <Input
+              type="date"
+              value={localFilters.endDate ?? ""}
+              onChange={handleChange("endDate")}
+            />
+          </div>
+
+          {/* Guest Phone */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Guest Phone</label>
+            <Input
+              placeholder="Phone number..."
+              value={localFilters.guestPhone ?? ""}
+              onChange={handleChange("guestPhone")}
+            />
+          </div>
+        </div>
+
+        <SheetFooter className="flex gap-2 sm:gap-2">
           {hasActiveFilters && (
             <Button
               variant="outline"
-              size="sm"
               onClick={handleReset}
-              className="gap-2 bg-transparent"
+              className="gap-2 flex-1"
             >
               <X className="w-4 h-4" />
-              Clear
+              Clear All
             </Button>
           )}
-          <Button size="sm" onClick={handleApply}>
-            Apply
+          <Button onClick={handleApply} className="flex-1">
+            Apply Filters
           </Button>
-        </div>
-      </div>
-    </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };

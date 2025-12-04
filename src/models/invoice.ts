@@ -12,6 +12,11 @@ const invoiceSchema = new mongoose.Schema(
       ref: "Property",
     },
 
+    bookingId: {
+      type: String,
+      index: true,
+    },
+
     invoiceNumber: {
       // ⬅ renamed from invoiceNo
       type: String,

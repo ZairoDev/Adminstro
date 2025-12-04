@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Label, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { getLocationWeeklyTargets } from "@/actions/(VS)/queryActions";
 
 type WeekData = {
@@ -184,29 +191,50 @@ const WeeklyTargetTable = () => {
     }
 
     return map;
-  }, [data, selectedMonth, selectedYear]);
+  }, [data, selectedMonth, selectedYear]);    
+
+  // Compute total achieved and target per period
+  const totalAchievedPerPeriod = useMemo(() => {
+    const totals = Array(maxPeriods).fill(0);
+    data?.locations.forEach((loc) => {
+      loc.weeks.forEach((week, idx) => {
+        if (idx < maxPeriods) totals[idx] += week.achieved || 0;
+      });
+    });
+    return totals;
+  }, [data, maxPeriods]);
+
+  const totalTargetPerPeriod = useMemo(() => {
+    const totals = Array(maxPeriods).fill(0);
+    periodTargetsByLocation.forEach((targets) => {
+      targets.forEach((target, idx) => {
+        if (idx < maxPeriods) totals[idx] += target;
+      });
+    });
+    return totals;
+  }, [periodTargetsByLocation, maxPeriods]);
 
   // helpers for UI color / percent
   const getAchievementColor = (achieved: number, target: number) => {
     const percentage = target <= 0 ? 0 : (achieved / target) * 100;
-    if (percentage >= 100) return "bg-emerald-50 dark:bg-emerald-950/30";
-    if (percentage >= 75) return "bg-sky-50 dark:bg-sky-950/30";
-    if (percentage >= 50) return "bg-amber-50 dark:bg-amber-950/30";
-    return "bg-rose-50 dark:bg-rose-950/30";
+    if (percentage >= 100) return "bg-green-50 dark:bg-green-950/30";
+    if (percentage >= 75) return "bg-blue-50 dark:bg-blue-950/30";
+    if (percentage >= 50) return "bg-yellow-50 dark:bg-yellow-950/30";
+    return "bg-gray-50 dark:bg-gray-800/30";
   };
 
   const getProgressColor = (percentage: number) => {
-    if (percentage >= 100) return "bg-emerald-500";
-    if (percentage >= 75) return "bg-sky-500";
-    if (percentage >= 50) return "bg-amber-500";
-    return "bg-rose-500";
+    if (percentage >= 100) return "bg-green-500";
+    if (percentage >= 75) return "bg-blue-500";
+    if (percentage >= 50) return "bg-yellow-500";
+    return "bg-gray-500";
   };
 
   const getTextColor = (percentage: number) => {
-    if (percentage >= 100) return "text-emerald-700 dark:text-emerald-400";
-    if (percentage >= 75) return "text-sky-700 dark:text-sky-400";
-    if (percentage >= 50) return "text-amber-700 dark:text-amber-400";
-    return "text-rose-700 dark:text-rose-400";
+    if (percentage >= 100) return "text-green-700 dark:text-green-400";
+    if (percentage >= 75) return "text-blue-700 dark:text-blue-400";
+    if (percentage >= 50) return "text-yellow-700 dark:text-yellow-400";
+    return "text-gray-700 dark:text-gray-400";
   };
 
   const getPercentage = (achieved: number, target: number) => {
@@ -215,8 +243,22 @@ const WeeklyTargetTable = () => {
     return Number(pct.toFixed(1));
   };
 
+  const colorMap = {
+    emerald: "#22c55e", // green
+    sky: "#3b82f6", // blue
+    amber: "#eab308", // yellow
+    rose: "#6b7280", // gray
+  };
+
+  const getFillColor = (percentage: number) => {
+    if (percentage >= 100) return colorMap.emerald;
+    if (percentage >= 75) return colorMap.sky;
+    if (percentage >= 50) return colorMap.amber;
+    return colorMap.rose;
+  };
+
   return (
-    <div className="min-h-screen bg-white dark:bg-stone-950 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-stone-950 transition-colors duration-300">
       <div className="w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -295,7 +337,7 @@ const WeeklyTargetTable = () => {
                 Target
               </p>
               <p className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                ₹{totalTarget.toLocaleString("en-IN")}
+                € {totalTarget.toLocaleString("en-IN")}
               </p>
             </div>
 
@@ -304,7 +346,7 @@ const WeeklyTargetTable = () => {
                 Achieved
               </p>
               <p className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                ₹{totalAchieved.toLocaleString("en-IN")}
+                € {totalAchieved.toLocaleString("en-IN")}
               </p>
             </div>
 
@@ -401,7 +443,7 @@ const WeeklyTargetTable = () => {
                               {location.location}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              ₹{location.monthlyTarget.toLocaleString("en-IN")}
+                              € {location.monthlyTarget.toLocaleString("en-IN")}
                             </p>
                           </div>
                         </td>
@@ -438,7 +480,7 @@ const WeeklyTargetTable = () => {
                                   )} transition-colors duration-300`}
                                 >
                                   <p className="text-lg font-light text-gray-900 dark:text-gray-100 text-center">
-                                    ₹
+                                    € 
                                     {(week.achieved || 0).toLocaleString(
                                       "en-IN"
                                     )}
@@ -448,7 +490,7 @@ const WeeklyTargetTable = () => {
                                 <div className="space-y-1.5">
                                   <div className="flex justify-between items-center">
                                     <span className="text-xs text-gray-400 dark:text-gray-500">
-                                      vs ₹
+                                      vs € 
                                       {periodTarget.toLocaleString("en-IN", {
                                         maximumFractionDigits: 0,
                                       })}
@@ -480,6 +522,122 @@ const WeeklyTargetTable = () => {
                       </tr>
                     );
                   })}
+
+                  {/* Total Row */}
+                  <tr className="bg-gray-50 dark:bg-gray-800 font-semibold border-t-2 border-gray-200 dark:border-gray-600">
+                    <td className="px-6 py-5 sticky left-0 bg-gray-50 dark:bg-gray-800 z-10 border-r border-gray-100 dark:border-gray-700">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Total
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          € {totalTarget.toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                    </td>
+
+                    {Array.from({ length: maxPeriods }, (_, i) => {
+                      const achieved = totalAchievedPerPeriod[i];
+                      const target = totalTargetPerPeriod[i];
+                      const percentage = getPercentage(achieved, target);
+
+                      // Prepare chart data for stacked radial chart
+                      const periodData = data.locations.reduce((acc, loc) => {
+                        acc[loc.location] = loc.weeks[i]?.achieved || 0;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      const chartData = [periodData];
+
+                      const chartConfig = data.locations.reduce((acc, loc, idx) => {
+                        acc[loc.location] = {
+                          label: loc.location,
+                          color: `hsl(${idx * 360 / data.locations.length}, 70%, 50%)`,
+                        };
+                        return acc;
+                      }, {} as ChartConfig);
+
+                      return (
+                        <td key={`total-${i}`} className="px-6 py-5 align-top">
+                          <div className="space-y-3">
+
+
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  vs € 
+                                  {target.toLocaleString("en-IN", {
+                                    maximumFractionDigits: 0,
+                                  })}
+                                </span>
+                                <span
+                                  className={`text-xs font-medium ${getTextColor(
+                                    percentage
+                                  )}`}
+                                >
+                                  {percentage}%
+                                </span>
+                              </div>
+
+                              {achieved > 0 && (
+                                <ChartContainer
+                                  config={chartConfig}
+                                  className="mx-auto aspect-square w-full max-w-[100px]"
+                                >
+                                  <RadialBarChart
+                                    data={chartData}
+                                    endAngle={180}
+                                    innerRadius={40}
+                                    outerRadius={60}
+                                  >
+                                    <ChartTooltip
+                                      cursor={false}
+                                      content={<ChartTooltipContent hideLabel />}
+                                    />
+                                    <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                                      <Label
+                                        content={({ viewBox }) => {
+                                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                            return (
+                                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                                                <tspan
+                                                  x={viewBox.cx}
+                                                  y={(viewBox.cy || 0) - 8}
+                                                  className="fill-foreground text-base font-bold"
+                                                >
+                                                  {achieved.toLocaleString()} 
+                                                </tspan>
+                                                <tspan
+                                                  x={viewBox.cx}
+                                                  y={(viewBox.cy || 0) + 4}
+                                                  className="fill-muted-foreground text-xs"
+                                                >
+                                                  Achieved
+                                                </tspan>
+                                              </text>
+                                            );
+                                          }
+                                        }}
+                                      />
+                                    </PolarRadiusAxis>
+                                    {data.locations.map((loc) => (
+                                      <RadialBar
+                                        key={loc.location}
+                                        dataKey={loc.location}
+                                        stackId="a"
+                                        cornerRadius={3}
+                                        fill={`var(--color-${loc.location})`}
+                                        className="stroke-transparent stroke-1"
+                                      />
+                                    ))}
+                                  </RadialBarChart>
+                                </ChartContainer>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -500,3 +658,4 @@ const WeeklyTargetTable = () => {
 };
 
 export default WeeklyTargetTable;
+  

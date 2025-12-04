@@ -13,6 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 
 
@@ -274,9 +280,73 @@ export default function CandidateDetailPage() {
         return "bg-blue-100 text-blue-800";
       case "rejected":
         return "bg-red-100 text-red-800";
+      case "onboarding":
+        return "bg-purple-100 text-purple-800";
       case "pending":
       default:
         return "bg-yellow-100 text-yellow-800";
+    }
+  };        
+
+  // Helper functions for button availability
+  const canShortlist = () => {
+    return candidate?.status === "pending";
+  };
+
+  const canSelect = () => {
+    // Can select from pending or shortlisted
+    return candidate?.status === "pending" || candidate?.status === "shortlisted";
+  };
+
+  const canReject = () => {
+    // Can reject from any status except already rejected or onboarding
+    return candidate?.status !== "rejected" && candidate?.status !== "onboarding";
+  };
+
+  const canStartOnboarding = () => {
+    // Can only start onboarding if candidate is selected
+    return candidate?.status === "selected";
+  };
+
+  const canCreateEmployee = () => {
+    // Can create employee only if onboarding is complete
+    return candidate?.status === "onboarding" && candidate?.onboardingDetails?.onboardingComplete === true;
+  };
+
+  const getButtonTooltip = (action: string) => {
+    if (!candidate) return "";
+
+    switch (action) {
+      case "shortlist":
+        if (candidate.status === "shortlisted") return "Candidate is already shortlisted";
+        if (candidate.status === "selected") return "Cannot shortlist a selected candidate";
+        if (candidate.status === "rejected") return "Cannot shortlist a rejected candidate";
+        if (candidate.status === "onboarding") return "Cannot shortlist during onboarding";
+        return "Shortlist this candidate";
+      
+      case "select":
+        if (candidate.status === "selected") return "Candidate is already selected";
+        if (candidate.status === "rejected") return "Cannot select a rejected candidate";
+        if (candidate.status === "onboarding") return "Candidate is already in onboarding";
+        return "Select this candidate";
+      
+      case "reject":
+        if (candidate.status === "rejected") return "Candidate is already rejected";
+        if (candidate.status === "onboarding") return "Cannot reject during onboarding";
+        return "Reject this candidate";
+      
+      case "onboarding":
+        if (candidate.status === "onboarding") return candidate.onboardingDetails?.onboardingComplete ? "Onboarding completed" : "Onboarding in progress";
+        if (candidate.status !== "selected") return "Can only start onboarding for selected candidates";
+        return "Send onboarding link to candidate";
+      
+      case "employee":
+        if (candidate.status !== "onboarding") return "Can only create employee after selection";
+        if (!candidate.onboardingDetails?.onboardingComplete) return "Candidate must complete onboarding first";
+        return "Create employee profile";
+      
+      default:
+        return "";
     }
   };
 
@@ -285,7 +355,7 @@ export default function CandidateDetailPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header with Back Button */}
         <div className="mb-8">
-          <Link href="/">
+          <Link href="/dashboard/candidatePortal">
             <Button variant="ghost" className="gap-2 mb-4">
               <ArrowLeft className="w-4 h-4" />
               Back to Candidates
@@ -405,57 +475,119 @@ export default function CandidateDetailPage() {
               <h2 className="text-lg font-semibold text-foreground mb-4">
                 Actions
               </h2>
-              <div className="space-y-2">
-                <Button
-                  onClick={() => setCreateEmployeeDialogOpen(true)}
-                  disabled={actionLoading}
-                  className="w-full"
-                >
-                  Create Employee
-                </Button>
-                <Button
-                  onClick={() => setShortlistDialogOpen(true)}
-                  disabled={actionLoading || candidate.status === "shortlisted"}
-                  variant={
-                    candidate.status === "shortlisted" ? "default" : "outline"
-                  }
-                  className="w-full"
-                >
-                  Shortlist
-                </Button>
-                <Button
-                  onClick={() => setSelectDialogOpen(true)}
-                  disabled={actionLoading || candidate.status === "selected"}
-                  variant={
-                    candidate.status === "selected" ? "default" : "outline"
-                  }
-                  className="w-full"
-                >
-                  Select
-                </Button>
-                <Button
-                  onClick={() => setRejectDialogOpen(true)}
-                  disabled={actionLoading || candidate.status === "rejected"}
-                  variant={
-                    candidate.status === "rejected" ? "destructive" : "outline"
-                  }
-                  className="w-full"
-                >
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => handleOnboarding(candidate._id)}
-                  disabled={actionLoading || candidate.status === "onboarding"}
-                  variant={
-                    candidate.onboardingDetails?.termsAccepted === true
-                      ? "secondary"
-                      : "destructive"
-                  }
-                  className="w-full"
-                >
-                  Start Onboarding
-                </Button>
-              </div>
+              <TooltipProvider>
+                <div className="space-y-2">
+                  {/* Shortlist Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => setShortlistDialogOpen(true)}
+                          disabled={actionLoading || !canShortlist()}
+                          variant={candidate.status === "shortlisted" ? "default" : "outline"}
+                          className="w-full"
+                        >
+                          {candidate.status === "shortlisted" ? "✓ Shortlisted" : "Shortlist"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{getButtonTooltip("shortlist")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Select Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => setSelectDialogOpen(true)}
+                          disabled={actionLoading || !canSelect()}
+                          variant={candidate.status === "selected" ? "default" : "outline"}
+                          className="w-full"
+                        >
+                          {candidate.status === "selected" ? "✓ Selected" : "Select"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{getButtonTooltip("select")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Reject Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => setRejectDialogOpen(true)}
+                          disabled={actionLoading || !canReject()}
+                          variant={candidate.status === "rejected" ? "destructive" : "outline"}
+                          className="w-full"
+                        >
+                          {candidate.status === "rejected" ? "✗ Rejected" : "Reject"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{getButtonTooltip("reject")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Divider */}
+                  {(canStartOnboarding() || candidate.status === "onboarding") && (
+                    <div className="my-4 border-t" />
+                  )}
+
+                  {/* Start Onboarding Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => handleOnboarding(candidate._id)}
+                          disabled={actionLoading || !canStartOnboarding()}
+                          variant={
+                            candidate.status === "onboarding"
+                              ? candidate.onboardingDetails?.onboardingComplete
+                                ? "secondary"
+                                : "default"
+                              : "outline"
+                          }
+                          className="w-full"
+                        >
+                          {candidate.status === "onboarding"
+                            ? candidate.onboardingDetails?.onboardingComplete
+                              ? "✓ Onboarding Complete"
+                              : "⏳ Onboarding in Progress"
+                            : "Start Onboarding"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{getButtonTooltip("onboarding")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Create Employee Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => setCreateEmployeeDialogOpen(true)}
+                          disabled={actionLoading || !canCreateEmployee()}
+                          variant={canCreateEmployee() ? "default" : "outline"}
+                          className="w-full"
+                        >
+                          Create Employee
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{getButtonTooltip("employee")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
             </Card>
           </div>
 

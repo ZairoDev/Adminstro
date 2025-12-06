@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
-// import { DateRange } from "react-day-picker";
 
-import { getAverage, getLeadGenLeadsCount, getTodayLeads } from "@/actions/(VS)/queryActions";
-import { get } from "http";
-import { set } from "mongoose";
-import axios from "axios";
+import { getLeadGenLeadsCount, getTodayLeads } from "@/actions/(VS)/queryActions";
 
 interface TodaysLeadsInterface {
   locations: {
@@ -82,25 +78,25 @@ const useTodayLeads = () => {
   }, []);
 
   useEffect(() => {
-    const fetchLeadStats = async () => {
-      try {
-        const res = await axios.get("/api/getLeadStats");
-        const data: { location: string; totalLeads: number }[] = res.data;
-
-        const leadsMap: Record<string, number> = {};
-        locations.forEach((loc) => {
-          const found = data.find((d) => d.location === loc);
-          leadsMap[loc] = found?.totalLeads || 0;
+    // Compute todayLeadStats from the leads data we already fetched
+    if (leads && leads.length > 0) {
+      const leadsMap: Record<string, number> = {};
+      locations.forEach((loc) => {
+        // Sum up counts for each location across all agents
+        let totalForLocation = 0;
+        leads.forEach((lead) => {
+          const locationData = lead.locations?.find(
+            (l) => l.location?.toLowerCase() === loc.toLowerCase()
+          );
+          if (locationData) {
+            totalForLocation += locationData.count;
+          }
         });
-
-        setTodayLeadStats(leadsMap);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchLeadStats();
-  }, []);
+        leadsMap[loc] = totalForLocation;
+      });
+      setTodayLeadStats(leadsMap);
+    }
+  }, [leads]);
 
   const refetch = () => fetchLeads();
 

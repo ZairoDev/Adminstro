@@ -21,6 +21,12 @@ export function Notifications() {
   const [loading, setLoading] = useState(false);
   const [reminderCount, setReminderCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure client-only rendering to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchReminders = useCallback(async () => {
     try {
@@ -112,6 +118,19 @@ export function Notifications() {
       month: "short",
     });
   };
+
+  // Don't render until client-side to prevent hydration mismatch
+  if (!isMounted) {
+    return (
+      <Button
+        variant="ghost"
+        className="relative rounded-3xl bg-gradient-to-r from-[#99f2c8] to-[#1f4037] text-black font-semibold flex gap-x-1"
+      >
+        <BellDot />
+        Reminders
+      </Button>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {

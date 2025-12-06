@@ -67,6 +67,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (temp.role === "SuperAdmin") {
       if (temp.email === "ankitanigam1993@gmail.com") {
+        // Track login for SuperAdmin
+        await Employees.updateOne(
+          { _id: temp._id },
+          { $set: { isLoggedIn: true, lastLogin: new Date() } }
+        );
+
+        // Emit socket event for real-time tracking
+        if ((global as any).io) {
+          (global as any).io.emit("employee-login", {
+            _id: temp._id,
+            name: temp.name,
+            email: temp.email,
+            role: temp.role,
+            lastLogin: new Date(),
+          });
+        }
+
         const token = jwt.sign(
           {
             id: temp._id,
@@ -117,8 +134,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await Employees.updateOne(
       { _id: temp._id },
-      { $set: { passwordExpiresAt: newExpiryDate } }
+      { $set: { passwordExpiresAt: newExpiryDate, isLoggedIn: true, lastLogin: new Date() } }
     );
+
+    console.log(`✅ Employee logged in: ${temp.email}, isLoggedIn set to true`);
+
+    // Emit socket event for real-time tracking
+    if ((global as any).io) {
+      console.log(`📡 Emitting employee-login event for: ${temp.email}`);
+      (global as any).io.emit("employee-login", {
+        _id: temp._id.toString(),
+        name: temp.name,
+        email: temp.email,
+        role: temp.role,
+        lastLogin: new Date().toISOString(),
+      });
+    } else {
+      console.log("⚠️ Socket.io not available on global");
+    }
 
     const tokenData = {
       id: temp._id,

@@ -31,8 +31,19 @@ export async function POST(request: NextRequest) {
     await Employees.updateOne(
       { email: email },
       // { $set: { otpToken: undefined, otpTokenExpiry: undefined } }
-      { $unset: { otpToken: "", otpTokenExpiry: "" } }
+      { $unset: { otpToken: "", otpTokenExpiry: "" }, $set: { isLoggedIn: true, lastLogin: new Date() } }
     );
+
+    // Emit socket event for real-time tracking
+    if ((global as any).io) {
+      (global as any).io.emit("employee-login", {
+        _id: savedUser[0]._id,
+        name: savedUser[0].name,
+        email: savedUser[0].email,
+        role: savedUser[0].role,
+        lastLogin: new Date(),
+      });
+    }
 
     const tokenData = {
       id: savedUser[0]._id,

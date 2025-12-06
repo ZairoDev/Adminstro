@@ -3614,3 +3614,242 @@ export const getAmountDetails = async ({
   const amountDetails = await Bookings.aggregate(pipeline);
   return { amountDetails };
 };
+
+// ==================== CANDIDATE COUNTS FOR HR DASHBOARD ====================
+export const getCandidateCounts = async ({ 
+  days, 
+  position 
+}: { 
+  days?: string; 
+  position?: string;
+}) => {
+  await connectDb();
+  const Candidate = (await import("@/models/candidate")).default;
+  
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let groupFormat: any;
+
+  switch (days?.toLowerCase()) {
+    case "this month":
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "12 days":
+      start.setDate(now.getDate() - 11);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    default:
+      // Default to this month
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+  }
+
+  // Build match query
+  const matchQuery: any = { createdAt: { $gte: start, $lte: end } };
+  if (position && position !== "All") {
+    matchQuery.position = { $regex: position, $options: "i" };
+  }
+
+  const result = await Candidate.aggregate([
+    { $match: matchQuery },
+    {
+      $group: {
+        _id: { date: groupFormat, status: "$status" },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id.date",
+        counts: { $push: { status: "$_id.status", count: "$count" } },
+        total: { $sum: "$count" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const resultMap = new Map<
+    string,
+    { pending: number; shortlisted: number; selected: number; rejected: number; onboarding: number; total: number }
+  >();
+
+  for (const item of result) {
+    const pending = item.counts.find((c: any) => c.status === "pending")?.count || 0;
+    const shortlisted = item.counts.find((c: any) => c.status === "shortlisted")?.count || 0;
+    const selected = item.counts.find((c: any) => c.status === "selected")?.count || 0;
+    const rejected = item.counts.find((c: any) => c.status === "rejected")?.count || 0;
+    const onboarding = item.counts.find((c: any) => c.status === "onboarding")?.count || 0;
+    resultMap.set(item._id, {
+      pending,
+      shortlisted,
+      selected,
+      rejected,
+      onboarding,
+      total: item.total,
+    });
+  }
+
+  const output: any[] = [];
+
+  if (days === "this month" || days === "12 days" || !days) {
+    const temp = new Date(start);
+    while (temp <= end) {
+      const key = temp.toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata",
+      });
+      const item = resultMap.get(key);
+      const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      output.push({
+        date: formattedDate,
+        pending: item?.pending ?? 0,
+        shortlisted: item?.shortlisted ?? 0,
+        selected: item?.selected ?? 0,
+        rejected: item?.rejected ?? 0,
+        onboarding: item?.onboarding ?? 0,
+        total: item?.total ?? 0,
+      });
+      temp.setDate(temp.getDate() + 1);
+    }
+  } else if (days === "1 year") {
+    for (let i = 0; i < 12; i++) {
+      const month = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+      const item = resultMap.get(key);
+      output.push({
+        date: `${months[month.getMonth()]} ${month.getFullYear()}`,
+        pending: item?.pending ?? 0,
+        shortlisted: item?.shortlisted ?? 0,
+        selected: item?.selected ?? 0,
+        rejected: item?.rejected ?? 0,
+        onboarding: item?.onboarding ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  } else if (days === "last 3 years") {
+    for (let i = 0; i < 4; i++) {
+      const year = now.getFullYear() - 3 + i;
+      const key = `${year}`;
+      const item = resultMap.get(key);
+      output.push({
+        date: key,
+        pending: item?.pending ?? 0,
+        shortlisted: item?.shortlisted ?? 0,
+        selected: item?.selected ?? 0,
+        rejected: item?.rejected ?? 0,
+        onboarding: item?.onboarding ?? 0,
+        total: item?.total ?? 0,
+      });
+    }
+  }
+
+  return output;
+};
+
+// Get all unique positions for filter dropdown
+export const getCandidatePositions = async () => {
+  await connectDb();
+  const Candidate = (await import("@/models/candidate")).default;
+  
+  const positions = await Candidate.distinct("position");
+  return positions.filter((p: string) => p && p.trim() !== "").sort();
+};
+
+// Get summary stats for candidates (current totals by status)
+export const getCandidateSummary = async ({ position }: { position?: string } = {}) => {
+  await connectDb();
+  const Candidate = (await import("@/models/candidate")).default;
+
+  const matchQuery: any = {};
+  if (position && position !== "All") {
+    matchQuery.position = { $regex: position, $options: "i" };
+  }
+
+  const summary = await Candidate.aggregate([
+    { $match: matchQuery },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const result = {
+    pending: 0,
+    shortlisted: 0,
+    selected: 0,
+    rejected: 0,
+    onboarding: 0,
+    total: 0,
+  };
+
+  for (const item of summary) {
+    if (item._id === "pending") result.pending = item.count;
+    else if (item._id === "shortlisted") result.shortlisted = item.count;
+    else if (item._id === "selected") result.selected = item.count;
+    else if (item._id === "rejected") result.rejected = item.count;
+    else if (item._id === "onboarding") result.onboarding = item.count;
+    result.total += item.count;
+  }
+
+  return result;
+};

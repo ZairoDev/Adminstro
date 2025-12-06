@@ -78,6 +78,9 @@ export interface EmployeeInterface {
   address: string;
   isVerified: boolean;
   isActive?: boolean;
+  isLoggedIn?: boolean;
+  lastLogin?: string;
+  lastLogout?: string;
   role: [string];
   createdAt: string;
   updatedAt: string;

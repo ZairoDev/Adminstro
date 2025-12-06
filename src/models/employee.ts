@@ -223,6 +223,18 @@ const employeeSchema = new Schema<IEmployee>(
       ],
       default: [],
     },
+    isLoggedIn: {
+      type: Boolean,
+      default: false,
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+    lastLogout: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

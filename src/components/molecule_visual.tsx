@@ -71,9 +71,12 @@ export function MoleculeVisualization({ data }: MoleculeVisualizationProps) {
         const x = centerX + Math.cos(radian) * orbitRadius;
         const y = centerY + Math.sin(radian) * orbitRadius;
 
+        const displayCity = city.city?.trim() === "" ? "Unknown" : city.city;
+
         return {
           ...city,
-          city: city.city?.trim() === "" ? "Unknown" : city.city,
+          city: displayCity,
+          uniqueKey: `${displayCity}-${index}`,
           x,
           y,
         };
@@ -106,7 +109,7 @@ export function MoleculeVisualization({ data }: MoleculeVisualizationProps) {
         {/* Connections */}
         {cityPositions.map((city) => (
           <line
-            key={`bond-${city.city}`}
+            key={`bond-${city.uniqueKey}`}
             x1={centerX}
             y1={centerY}
             x2={city.x}
@@ -138,7 +141,7 @@ export function MoleculeVisualization({ data }: MoleculeVisualizationProps) {
 
           return (
             <g
-              key={city.city}
+              key={city.uniqueKey}
               onMouseEnter={() => {
                 setHoveredCity(city.city);
                 setHoverPos({ x: city.x, y: city.y });

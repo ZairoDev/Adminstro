@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { AreaChart, Title } from "@tremor/react";
+import { AreaChart, Title } from "@tremor/react"; 
 import { Card as TremorCard } from "@tremor/react";
 
 import {
@@ -48,6 +48,7 @@ import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 // import { LeadsByLocation } from "@/components/VS/dashboard/lead-by-location";
 // import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
+import LoggedInEmployeesList from "@/components/VS/dashboard/logged-in-employees";
 import {
   Card,
   CardContent,
@@ -102,6 +103,8 @@ import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import { MonthSelector } from "@/components/MonthSelector/page";
 import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
 import WeeklyTargetDashboard from "@/components/BookingTable";
+        import useCandidateCounts from "@/hooks/(VS)/useCandidateCounts";
+import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
 
 interface StatusCount {
   First: number;
@@ -208,6 +211,10 @@ const Dashboard = () => {
     location?: string;
   }>({});
 
+  const [candidateFilters, setCandidateFilters] = useState<{
+    days?: string;
+  }>({ days: "this month" });
+
   const [leadGenLeadsCount, setLeadGenLeadsCount] = useState();
 
   const { token } = useAuthStore();
@@ -273,6 +280,17 @@ const Dashboard = () => {
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
 
   const { bookingsByDate, fetchBookingStats } = useBookingStats();
+
+  // Candidate counts for HR Dashboard
+  const {
+    candidateCounts,
+    fetchCandidateCounts,
+    loading: candidateLoading,
+    isError: candidateError,
+    error: candidateErrorMsg,
+    positions: candidatePositions,
+    summary: candidateSummary,
+  } = useCandidateCounts();
 
   // console.log("bookingsByDate:", bookingsByDate);
 
@@ -427,6 +445,42 @@ const Dashboard = () => {
   // const monthKey = `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`;
   return (
     <div className="container mx-auto p-4 md:p-6">
+      {/* Logged In Employees - Visible to SuperAdmin, HR, and Team Leads */}
+      {(token?.role === "SuperAdmin" ||
+        token?.role === "HR" ||
+        token?.role === "LeadGen-TeamLead" ||
+        token?.role === "Sales-TeamLead") && (
+        <div className="mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-1 h-[400px]">
+              <LoggedInEmployeesList />
+            </div>
+            <div className="lg:col-span-3">
+              {/* Additional dashboard widgets can go here */}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HR Dashboard - Candidate Statistics */}
+      {(token?.role === "SuperAdmin" || token?.role === "HR") && (
+        <div className="mb-6">
+          <CandidateStatsChart
+            data={candidateCounts}
+            summary={candidateSummary}
+            positions={candidatePositions}
+            filters={candidateFilters}
+            onFilterChange={(filters) => {
+              setCandidateFilters(filters);
+              fetchCandidateCounts(filters);
+            }}
+            loading={candidateLoading}
+            isError={candidateError}
+            error={candidateErrorMsg}
+          />
+        </div>
+      )}
+      
       {token?.role === "SuperAdmin" && (
         <>
           <div className=" my-2 ">

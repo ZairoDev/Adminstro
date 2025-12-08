@@ -49,7 +49,7 @@ export const getEmailSignature = (config?: EmailSignatureConfig): string => {
       <table style="width: 100%; border-collapse: collapse; max-width: 600px;">
         <tr>
           <td style="width: 120px; vertical-align: top; padding-right: 20px;">
-            <img src="${logo}" alt="Zairo International" style="width: 100px; height: auto; display: block;" />
+            <img src="https://vacationsaga.b-cdn.net/zairo1.png" alt="Zairo International" style="width: 100px; height: auto; display: block; background-color: #fff;" />
           </td>
           <td style="vertical-align: top; padding-left: 20px;">
             <table style="width: 100%; border-collapse: collapse;">

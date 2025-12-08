@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { sendPIPEmail, getPIPLevelDescription } from "@/lib/email";
+import { sendPIPEmail, getPIPLevelDescription, sendCustomEmail } from "@/lib/email";
 import { PIPLevel } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
+import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
 
 // Send PIP email and store in database
 export async function POST(request: NextRequest) {
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
       issuedBy,
       notes,
       sendEmail = true,
+      customEmailSubject,
+      customEmailHtml,
     } = await request.json();
 
     // Validate required fields
@@ -48,17 +51,27 @@ export async function POST(request: NextRequest) {
     // Send email if requested
     let emailSent = false;
     if (sendEmail && employee.email) {
-      const emailResult = await sendPIPEmail({
-        to: employee.email,
-        employeeName: employee.name,
-        pipLevel: pipLevel as PIPLevel,
-        startDate,
-        endDate,
-        concerns: pipLevel === "level1" ? concerns : undefined,
-        issues: pipLevel === "level2" ? concerns : undefined,
-        criticalIssues: pipLevel === "level3" ? concerns : undefined,
-      });
-      emailSent = emailResult.success;
+      // If custom email content is provided, use it; otherwise generate from template
+      if (customEmailSubject && customEmailHtml) {
+        const emailResult = await sendCustomEmail(
+          employee.email,
+          { subject: customEmailSubject, html: customEmailHtml },
+          DEFAULT_COMPANY_NAME
+        );
+        emailSent = emailResult.success;
+      } else {
+        const emailResult = await sendPIPEmail({
+          to: employee.email,
+          employeeName: employee.name,
+          pipLevel: pipLevel as PIPLevel,
+          startDate,
+          endDate,
+          concerns: pipLevel === "level1" ? concerns : undefined,
+          issues: pipLevel === "level2" ? concerns : undefined,
+          criticalIssues: pipLevel === "level3" ? concerns : undefined,
+        });
+        emailSent = emailResult.success;
+      }
     }
 
     // Add PIP to employee record

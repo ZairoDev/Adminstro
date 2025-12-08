@@ -87,6 +87,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 
 interface PageProps {
   params: {
@@ -231,6 +232,13 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     sendEmail: true,
   });
 
+  // Email Preview State
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+  const [emailPreviewSubject, setEmailPreviewSubject] = useState("");
+  const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
+  const [emailPreviewType, setEmailPreviewType] = useState<"warning" | "pip" | "appreciation" | null>(null);
+  const [emailPreviewPayload, setEmailPreviewPayload] = useState<any>(null);
+
   const getUserDetails = async () => {
     try {
       setLoadinguserDetails(true);
@@ -366,24 +374,100 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       return;
     }
 
+    if (!newWarning.sendEmail || !user?.email) {
+      // If email is not to be sent, directly save without preview
+      try {
+        setSendingWarning(true);
+        const response = await axios.post("/api/employee/warnings", {
+          employeeId: userId,
+          warningType: newWarning.warningType,
+          department: newWarning.department,
+          reportingManager: newWarning.reportingManager,
+          date: newWarning.date,
+          issuedBy: "Admin",
+          notes: newWarning.notes,
+          sendEmail: false,
+        });
+
+        if (response?.data?.success) {
+          await getUserDetails();
+          resetWarningForm();
+          setWarningDialogOpen(false);
+          toast({
+            title: "Warning recorded",
+            description: "Warning has been recorded without sending email.",
+          });
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error?.response?.data?.error || "Failed to record warning",
+        });
+      } finally {
+        setSendingWarning(false);
+      }
+      return;
+    }
+
+    // Generate email template and show preview
+    try {
+      setSendingWarning(true);
+      const templateResponse = await axios.post("/api/email/generateTemplate", {
+        type: "warning",
+        payload: {
+          to: user?.email,
+          employeeName: user?.name,
+          warningType: newWarning.warningType,
+          department: newWarning.department,
+          reportingManager: newWarning.reportingManager,
+          date: newWarning.date,
+          dateTime: newWarning.date,
+          companyName: "Zairo International",
+        },
+      });
+
+      if (templateResponse?.data?.success) {
+        setEmailPreviewSubject(templateResponse.data.subject);
+        setEmailPreviewHtml(templateResponse.data.html);
+        setEmailPreviewType("warning");
+        setEmailPreviewPayload({
+          employeeId: userId,
+          warningType: newWarning.warningType,
+          department: newWarning.department,
+          reportingManager: newWarning.reportingManager,
+          date: newWarning.date,
+          issuedBy: "Admin",
+          notes: newWarning.notes,
+          sendEmail: true,
+        });
+        setWarningDialogOpen(false);
+        setEmailPreviewOpen(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to generate email template",
+      });
+    } finally {
+      setSendingWarning(false);
+    }
+  };
+
+  const handleSendWarningWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingWarning(true);
       const response = await axios.post("/api/employee/warnings", {
-        employeeId: userId,
-        warningType: newWarning.warningType,
-        department: newWarning.department,
-        reportingManager: newWarning.reportingManager,
-        date: newWarning.date,
-        issuedBy: "Admin", // Replace with logged-in user name
-        notes: newWarning.notes,
-        sendEmail: newWarning.sendEmail,
+        ...emailPreviewPayload,
+        customEmailSubject: subject,
+        customEmailHtml: html,
       });
 
       if (response?.data?.success) {
-        // Refetch employee details to get updated warnings
         await getUserDetails();
         resetWarningForm();
-        setWarningDialogOpen(false);
+        setEmailPreviewOpen(false);
         toast({
           title: response?.data?.emailSent
             ? "Warning sent successfully"
@@ -397,7 +481,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error?.response?.data?.error || "Failed to send warning.",
+        description: error?.response?.data?.error || "Failed to send warning",
       });
     } finally {
       setSendingWarning(false);
@@ -478,23 +562,101 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       return;
     }
 
+    if (!newPIP.sendEmail || !user?.email) {
+      // If email is not to be sent, directly save without preview
+      try {
+        setSendingPIP(true);
+        const response = await axios.post("/api/employee/pip", {
+          employeeId: userId,
+          pipLevel: newPIP.pipLevel,
+          startDate: newPIP.startDate,
+          endDate: newPIP.endDate,
+          concerns: validConcerns,
+          issuedBy: "Admin",
+          notes: newPIP.notes,
+          sendEmail: false,
+        });
+
+        if (response?.data?.success) {
+          await getUserDetails();
+          resetPIPForm();
+          setPipDialogOpen(false);
+          toast({
+            title: "PIP recorded",
+            description: "PIP has been recorded without sending email.",
+          });
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error?.response?.data?.error || "Failed to record PIP",
+        });
+      } finally {
+        setSendingPIP(false);
+      }
+      return;
+    }
+
+    // Generate email template and show preview
+    try {
+      setSendingPIP(true);
+      const templateResponse = await axios.post("/api/email/generateTemplate", {
+        type: "pip",
+        payload: {
+          to: user?.email,
+          employeeName: user?.name,
+          pipLevel: newPIP.pipLevel,
+          startDate: newPIP.startDate,
+          endDate: newPIP.endDate,
+          concerns: newPIP.pipLevel === "level1" ? validConcerns : undefined,
+          issues: newPIP.pipLevel === "level2" ? validConcerns : undefined,
+          criticalIssues: newPIP.pipLevel === "level3" ? validConcerns : undefined,
+          companyName: "Zairo International",
+        },
+      });
+
+      if (templateResponse?.data?.success) {
+        setEmailPreviewSubject(templateResponse.data.subject);
+        setEmailPreviewHtml(templateResponse.data.html);
+        setEmailPreviewType("pip");
+        setEmailPreviewPayload({
+          employeeId: userId,
+          pipLevel: newPIP.pipLevel,
+          startDate: newPIP.startDate,
+          endDate: newPIP.endDate,
+          concerns: validConcerns,
+          issuedBy: "Admin",
+          notes: newPIP.notes,
+          sendEmail: true,
+        });
+        setPipDialogOpen(false);
+        setEmailPreviewOpen(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to generate email template",
+      });
+    } finally {
+      setSendingPIP(false);
+    }
+  };
+
+  const handleSendPIPWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingPIP(true);
       const response = await axios.post("/api/employee/pip", {
-        employeeId: userId,
-        pipLevel: newPIP.pipLevel,
-        startDate: newPIP.startDate,
-        endDate: newPIP.endDate,
-        concerns: validConcerns,
-        issuedBy: "Admin",
-        notes: newPIP.notes,
-        sendEmail: newPIP.sendEmail,
+        ...emailPreviewPayload,
+        customEmailSubject: subject,
+        customEmailHtml: html,
       });
 
       if (response?.data?.success) {
         await getUserDetails();
         resetPIPForm();
-        setPipDialogOpen(false);
+        setEmailPreviewOpen(false);
         toast({
           title: response?.data?.emailSent ? "PIP sent successfully" : "PIP recorded",
           description: response?.data?.emailSent
@@ -506,7 +668,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error?.response?.data?.error || "Failed to send PIP.",
+        description: error?.response?.data?.error || "Failed to send PIP",
       });
     } finally {
       setSendingPIP(false);
@@ -581,20 +743,90 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       return;
     }
 
+    if (!newAppreciation.sendEmail || !user?.email) {
+      // If email is not to be sent, directly save without preview
+      try {
+        setSendingAppreciation(true);
+        const response = await axios.post("/api/employee/appreciations", {
+          employeeId: userId,
+          appreciationType: newAppreciation.appreciationType,
+          issuedBy: "Admin",
+          notes: newAppreciation.notes,
+          sendEmail: false,
+        });
+
+        if (response?.data?.success) {
+          await getUserDetails();
+          resetAppreciationForm();
+          setAppreciationDialogOpen(false);
+          toast({
+            title: "Appreciation recorded",
+            description: "Appreciation has been recorded without sending email.",
+          });
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error?.response?.data?.error || "Failed to record appreciation",
+        });
+      } finally {
+        setSendingAppreciation(false);
+      }
+      return;
+    }
+
+    // Generate email template and show preview
+    try {
+      setSendingAppreciation(true);
+      const templateResponse = await axios.post("/api/email/generateTemplate", {
+        type: "appreciation",
+        payload: {
+          to: user?.email,
+          employeeName: user?.name,
+          appreciationType: newAppreciation.appreciationType,
+          companyName: "Zairo International",
+        },
+      });
+
+      if (templateResponse?.data?.success) {
+        setEmailPreviewSubject(templateResponse.data.subject);
+        setEmailPreviewHtml(templateResponse.data.html);
+        setEmailPreviewType("appreciation");
+        setEmailPreviewPayload({
+          employeeId: userId,
+          appreciationType: newAppreciation.appreciationType,
+          issuedBy: "Admin",
+          notes: newAppreciation.notes,
+          sendEmail: true,
+        });
+        setAppreciationDialogOpen(false);
+        setEmailPreviewOpen(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to generate email template",
+      });
+    } finally {
+      setSendingAppreciation(false);
+    }
+  };
+
+  const handleSendAppreciationWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingAppreciation(true);
       const response = await axios.post("/api/employee/appreciations", {
-        employeeId: userId,
-        appreciationType: newAppreciation.appreciationType,
-        issuedBy: "Admin",
-        notes: newAppreciation.notes,
-        sendEmail: newAppreciation.sendEmail,
+        ...emailPreviewPayload,
+        customEmailSubject: subject,
+        customEmailHtml: html,
       });
 
       if (response?.data?.success) {
         await getUserDetails();
         resetAppreciationForm();
-        setAppreciationDialogOpen(false);
+        setEmailPreviewOpen(false);
         toast({
           title: response?.data?.emailSent
             ? "Appreciation sent successfully"
@@ -608,8 +840,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          error?.response?.data?.error || "Failed to send appreciation.",
+        description: error?.response?.data?.error || "Failed to send appreciation",
       });
     } finally {
       setSendingAppreciation(false);
@@ -1057,8 +1288,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                           </div>
 
                           <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
+            <AlertDialogTrigger asChild>
+              <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-red-500 shrink-0"
@@ -1774,6 +2005,25 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           </AlertDialog>
         </div>
       )}
+
+      {/* Email Preview Dialog */}
+      <EmailPreviewDialog
+        open={emailPreviewOpen}
+        onOpenChange={setEmailPreviewOpen}
+        subject={emailPreviewSubject}
+        html={emailPreviewHtml}
+        onSend={async (subject: string, html: string) => {
+          if (emailPreviewType === "warning") {
+            await handleSendWarningWithCustomEmail(subject, html);
+          } else if (emailPreviewType === "pip") {
+            await handleSendPIPWithCustomEmail(subject, html);
+          } else if (emailPreviewType === "appreciation") {
+            await handleSendAppreciationWithCustomEmail(subject, html);
+          }
+        }}
+        sending={sendingWarning || sendingPIP || sendingAppreciation}
+        recipientEmail={user?.email || ""}
+      />
     </>
   );
 }

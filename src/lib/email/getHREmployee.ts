@@ -24,8 +24,8 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
       return {
         name: hrEmployee.name,
         title: "HR Manager",
-        email: hrEmployee.email || "hr@zairointernational.com",
-        phone: hrEmployee.phone || "+919519803665",
+        email: "hr@zairointernational.com",
+        phone:  "+919519803665",
       };
     }
 

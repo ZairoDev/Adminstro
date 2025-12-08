@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { sendWarningEmail, getWarningReasonText } from "@/lib/email";
+import { sendWarningEmail, getWarningReasonText, sendCustomEmail } from "@/lib/email";
 import { WarningType } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
+import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
 
 // Send warning email and store in database
 export async function POST(request: NextRequest) {
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
       issuedBy,
       notes,
       sendEmail = true,
+      customEmailSubject,
+      customEmailHtml,
     } = await request.json();
 
     // Validate required fields
@@ -43,16 +46,26 @@ export async function POST(request: NextRequest) {
     // Send email if requested
     let emailSent = false;
     if (sendEmail && employee.email) {
-      const emailResult = await sendWarningEmail({
-        to: employee.email,
-        employeeName: employee.name,
-        warningType: warningType as WarningType,
-        department,
-        reportingManager,
-        date,
-        dateTime: date, // For combined warning
-      });
-      emailSent = emailResult.success;
+      // If custom email content is provided, use it; otherwise generate from template
+      if (customEmailSubject && customEmailHtml) {
+        const emailResult = await sendCustomEmail(
+          employee.email,
+          { subject: customEmailSubject, html: customEmailHtml },
+          DEFAULT_COMPANY_NAME
+        );
+        emailSent = emailResult.success;
+      } else {
+        const emailResult = await sendWarningEmail({
+          to: employee.email,
+          employeeName: employee.name,
+          warningType: warningType as WarningType,
+          department,
+          reportingManager,
+          date,
+          dateTime: date, // For combined warning
+        });
+        emailSent = emailResult.success;
+      }
     }
 
     // Add warning to employee record

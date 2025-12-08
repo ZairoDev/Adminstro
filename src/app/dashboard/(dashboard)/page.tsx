@@ -4,8 +4,7 @@ import { ReactNode, use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import {
   BarChart3,
-  ChartLine,
-  Loader,
+
   Loader2,
   RotateCw,
   TrendingDown,
@@ -17,9 +16,9 @@ import { Card as TremorCard } from "@tremor/react";
 
 import {
   Bar,
-  BarChart,
+
   CartesianGrid,
-  LabelList,
+
   Line,
   LineChart,
   ResponsiveContainer,
@@ -446,24 +445,36 @@ const Dashboard = () => {
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Logged In Employees - Visible to SuperAdmin, HR, and Team Leads */}
-      {(token?.role === "SuperAdmin" ||
-        token?.role === "HR" ||
-        token?.role === "LeadGen-TeamLead" ||
-        token?.role === "Sales-TeamLead") && (
-        <div className="mb-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 h-[400px]">
-              <LoggedInEmployeesList />
-            </div>
-            <div className="lg:col-span-3">
-              {/* Additional dashboard widgets can go here */}
-            </div>
-          </div>
-        </div>
-      )}
+      {(token?.role === "SuperAdmin" || token?.role === "HR") && (
+  <div className="mb-6 w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* CandidateStatsChart - Takes 3/4 width on large screens */}
+      <div className="lg:col-span-3">
+        <CandidateStatsChart
+          data={candidateCounts}
+          summary={candidateSummary}
+          positions={candidatePositions}
+          filters={candidateFilters}
+          onFilterChange={(filters) => {
+            setCandidateFilters(filters);
+            fetchCandidateCounts(filters);
+          }}
+          loading={candidateLoading}
+          isError={candidateError}
+          error={candidateErrorMsg}
+        />
+      </div>
+
+      {/* LoggedInEmployeesList - Takes 1/4 width on large screens */}
+      <div className="lg:col-span-1 max-h-[55vh] overflow-y-auto">
+        <LoggedInEmployeesList />
+      </div>
+    </div>
+  </div>
+)}
 
       {/* HR Dashboard - Candidate Statistics */}
-      {(token?.role === "SuperAdmin" || token?.role === "HR") && (
+      {/* {(token?.role === "SuperAdmin" || token?.role === "HR") && (
         <div className="mb-6">
           <CandidateStatsChart
             data={candidateCounts}
@@ -479,7 +490,7 @@ const Dashboard = () => {
             error={candidateErrorMsg}
           />
         </div>
-      )}
+      )} */}
       
       {token?.role === "SuperAdmin" && (
         <>

@@ -12,6 +12,9 @@ interface LoggedInEmployee {
   profilePic?: string;
   lastLogin: string;
   allotedArea?: string[];
+  warningsCount?: number;
+  pipsCount?: number;
+  appreciationsCount?: number;
 }
 
 interface UseLoggedInEmployeesReturn {

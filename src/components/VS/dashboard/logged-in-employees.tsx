@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Circle, RefreshCw, Users, Wifi, WifiOff } from "lucide-react";
+import { Circle, RefreshCw, Users, Wifi, WifiOff, AlertTriangle, TrendingUp, Award } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -160,7 +160,7 @@ const LoggedInEmployeesList = () => {
                         {employee.name}
                       </Link>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <Badge
                         variant="outline"
                         className={cn(
@@ -170,6 +170,59 @@ const LoggedInEmployeesList = () => {
                       >
                         {employee.role}
                       </Badge>
+                      <TooltipProvider>
+                        {/* Warning Badge */}
+                        {(employee.warningsCount ?? 0) > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/30 flex items-center gap-1 cursor-help"
+                              >
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                {employee.warningsCount}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{employee.warningsCount} Warning{(employee.warningsCount ?? 0) > 1 ? 's' : ''}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* PIP Badge */}
+                        {(employee.pipsCount ?? 0) > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 border-amber-500/30 flex items-center gap-1 cursor-help"
+                              >
+                                <TrendingUp className="h-2.5 w-2.5" />
+                                {employee.pipsCount}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{employee.pipsCount} Active PIP{(employee.pipsCount ?? 0) > 1 ? 's' : ''}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Appreciation Badge */}
+                        {(employee.appreciationsCount ?? 0) > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 text-green-600 border-green-500/30 flex items-center gap-1 cursor-help"
+                              >
+                                <Award className="h-2.5 w-2.5" />
+                                {employee.appreciationsCount}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{employee.appreciationsCount} Appreciation{(employee.appreciationsCount ?? 0) > 1 ? 's' : ''}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
                       <span className="text-[10px] text-muted-foreground truncate">
                         {employee.lastLogin &&
                           formatDistanceToNow(new Date(employee.lastLogin), {

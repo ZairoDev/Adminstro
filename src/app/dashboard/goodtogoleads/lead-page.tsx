@@ -43,6 +43,7 @@ import HandLoader from "@/components/HandLoader";
 import GoodTable from "./good-table";
 import CreateLeadDialog from "./createLead";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface WordsCount {
   "1bhk": number;
@@ -59,7 +60,10 @@ export const GoodToGoLeads = () => {
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
+  const [activeTab, setActiveTab] = useState<string>("leads");
   const [queries, setQueries] = useState<IQuery[]>([]);
+  const [brokers, setBrokers] = useState<IQuery[]>([]);
+  const [brokersLoading, setBrokersLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -173,6 +177,56 @@ export const GoodToGoLeads = () => {
     }
   };
 
+  // Fetch brokers and transform to IQuery format
+  const fetchBrokers = async () => {
+    try {
+      setBrokersLoading(true);
+      const response = await axios.get("/api/addons/brokers/getAllBrokers");
+      const brokersData = response.data.data;
+      
+      // Transform brokers to IQuery format with minimal fields
+      const transformedBrokers: IQuery[] = brokersData.map((broker: any) => ({
+        _id: broker._id,
+        name: broker.name,
+        email: broker.email || "",
+        phoneNo: broker.phone,
+        minBudget: 0,
+        maxBudget: 0,
+        leadQualityByCreator: "",
+        leadQualityByTeamLead: "",
+        leadQualityByReviewer: "",
+        area: "",
+        guest: 0,
+        noOfBeds: "",
+        location: "",
+        bookingTerm: "",
+        zone: "",
+        billStatus: "",
+        typeOfProperty: "",
+        propertyType: "",
+        priority: "",
+        salesPriority: "",
+        reminder: "",
+        duration: "",
+        startDate: "",
+        endDate: "",
+        propertyShown: 0,
+        roomDetails: [],
+        isViewed: false,
+      }));
+      
+      setBrokers(transformedBrokers);
+    } catch (err: any) {
+      console.log("error in getting brokers: ", err);
+      toast({
+        title: "Unable to fetch brokers",
+        variant: "destructive",
+      });
+    } finally {
+      setBrokersLoading(false);
+    }
+  };
+
   // ✅ Initial data fetch
   useEffect(() => {
     filterLeads(1, defaultFilters);
@@ -189,6 +243,13 @@ export const GoodToGoLeads = () => {
     };
     getAllotedArea();
   }, []);
+
+  // Fetch brokers when brokers tab is active
+  useEffect(() => {
+    if (activeTab === "brokers") {
+      fetchBrokers();
+    }
+  }, [activeTab]);
   
   const handlePropertyCountFilter = (
     typeOfProperty: string,
@@ -218,7 +279,18 @@ export const GoodToGoLeads = () => {
   return (
     <div className=" w-full">
       <Toaster />
-      <div className="flex items-center md:flex-row flex-col justify-between w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center md:flex-row flex-col justify-between w-full mb-4">
+          <div className="flex items-center gap-4 w-full">
+            <TabsList>
+              <TabsTrigger value="leads">Leads</TabsTrigger>
+              <TabsTrigger value="brokers">Brokers</TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        <TabsContent value="leads" className="mt-0">
+          <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full  flex ">
           {/* heading component where all leads is*/}
           <Heading heading="Good To Go Leads" subheading="" />
@@ -480,7 +552,7 @@ export const GoodToGoLeads = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               {queries.length > 0 ? (
-                <GoodTable queries={queries} setQueries={setQueries} />
+                <GoodTable queries={queries} setQueries={setQueries} isBroker={false} />
               ) : (
                 <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                   <img
@@ -560,6 +632,38 @@ export const GoodToGoLeads = () => {
           </div>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="brokers" className="mt-0">
+          <div className="mb-4">
+            <Heading heading="Brokers" subheading="" />
+          </div>
+          {brokersLoading ? (
+            <div className="flex mt-2 min-h-screen items-center justify-center">
+              <HandLoader />
+            </div>
+          ) : (
+            <div className="">
+              <div>
+                <div className="mt-2 border rounded-lg min-h-[90vh]">
+                  {brokers.length > 0 ? (
+                    <GoodTable queries={brokers} setQueries={setBrokers} isBroker={true} />
+                  ) : (
+                    <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
+                      <img
+                        src="https://vacationsaga.b-cdn.net/assets/no-data-bg.png"
+                        alt="Temporary Image"
+                        className=" w-96 h-96 opacity-30"
+                      />
+                      <h1 className=" text-gray-600 text-3xl">No Brokers</h1>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
       <div className="text-xs flex items-end justify-end"></div>
     </div>
   );

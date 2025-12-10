@@ -1,6 +1,24 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { Types } from "mongoose";
 import Visits from "@/models/visit";
 import Query from "@/models/query";
+import Users from "@/models/user";
+
+interface VisitLean {
+  _id: Types.ObjectId;
+  lead?: Types.ObjectId | { _id?: string; name?: string; phoneNo?: string; email?: string };
+  visitStatus?: string;
+  scheduledDate?: Date;
+  [key: string]: unknown;
+}
+
+interface UserLean {
+  _id: Types.ObjectId;
+  name?: string;
+  phone?: string;
+  email?: string;
+  role?: string;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -92,13 +110,78 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch all visits matching the base filter
+    // First, fetch visits without populate to get raw lead IDs
+    const visitsRaw = await Visits.find(filterQuery)
+      .select("lead")
+      .lean<VisitLean[]>()
+      .sort({ createdAt: -1 });
+    
+    const leadIdMap = new Map<string, string>(); // visitId -> leadId
+    for (const visit of visitsRaw) {
+      if (visit.lead) {
+        leadIdMap.set(visit._id.toString(), visit.lead.toString());
+      }
+    }
+
+    // Fetch visits with Query populate
     const allVisits = await Visits.find(filterQuery)
       .populate({
         path: "lead",
         select: "name phoneNo email",
+        model: Query,
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean<VisitLean[]>();
+
+    // Find visits with null leads (failed Query populate) - these might be brokers
+    const nullLeadVisitIds: string[] = [];
+    for (const visit of allVisits) {
+      const lead = visit.lead;
+      const isPopulated = lead && typeof lead === "object" && "name" in lead;
+      if (!lead || !isPopulated || !lead.name) {
+        nullLeadVisitIds.push(visit._id.toString());
+      }
+    }
+
+    // Try to populate broker leads from User model for null leads
+    if (nullLeadVisitIds.length > 0) {
+      const brokerLeadIds = nullLeadVisitIds
+        .map((visitId) => leadIdMap.get(visitId))
+        .filter(Boolean) as string[];
+      
+      if (brokerLeadIds.length > 0) {
+        const brokerLeads = await Users.find({
+          _id: { $in: brokerLeadIds },
+          role: "Broker",
+        })
+          .select("name phone email role")
+          .lean<UserLean[]>();
+        
+        const brokerLeadMap = new Map(
+          brokerLeads.map((broker) => [
+            broker._id.toString(),
+            {
+              _id: broker._id.toString(),
+              name: broker.name,
+              phoneNo: broker.phone,
+              email: broker.email,
+            },
+          ])
+        );
+
+        // Replace null leads with broker data
+        for (const visit of allVisits) {
+          const lead = visit.lead;
+          const isPopulated = lead && typeof lead === "object" && "name" in lead;
+          if (!lead || !isPopulated || !lead.name) {
+            const leadId = leadIdMap.get(visit._id.toString());
+            if (leadId && brokerLeadMap.has(leadId)) {
+              visit.lead = brokerLeadMap.get(leadId);
+            }
+          }
+        }
+      }
+    }
 
     const currentDate = new Date();
     const visitsToUpdate = [];

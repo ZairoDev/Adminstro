@@ -91,7 +91,7 @@ export const WARNING_TYPE_COLORS: Record<WarningType, string> = {
 };
 
 // PIP (Performance Improvement Plan) Types
-export type PIPLevel = "level1" | "level2" | "level3";
+export type PIPLevel = "forTrainees"|"level1" | "level2" | "level3";
 
 export interface PIPEmailPayload {
   to: string;
@@ -121,6 +121,7 @@ export interface PIPRecord {
 
 // PIP Level Labels for UI
 export const PIP_LEVEL_LABELS: Record<PIPLevel, string> = {
+  forTrainees: "For Trainees",
   level1: "Level 1 - Supportive Guidance",
   level2: "Level 2 - Strict Monitoring",
   level3: "Level 3 - Final Warning",
@@ -128,6 +129,7 @@ export const PIP_LEVEL_LABELS: Record<PIPLevel, string> = {
 
 // PIP Level Colors for UI
 export const PIP_LEVEL_COLORS: Record<PIPLevel, string> = {
+  forTrainees: "bg-green-500/10 text-green-600 border-green-500/30",
   level1: "bg-blue-500/10 text-blue-600 border-blue-500/30",
   level2: "bg-amber-500/10 text-amber-600 border-amber-500/30",
   level3: "bg-red-500/10 text-red-600 border-red-500/30",

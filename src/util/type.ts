@@ -28,7 +28,7 @@ export interface WarningRecord {
   notes?: string;
 }
 
-export type PIPLevel = "level1" | "level2" | "level3";
+export type PIPLevel = "forTrainees"|"level1" | "level2" | "level3";
 export type PIPStatus = "active" | "completed" | "failed";
 
 export interface PIPRecord {

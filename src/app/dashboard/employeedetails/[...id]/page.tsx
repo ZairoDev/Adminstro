@@ -137,6 +137,12 @@ const PIP_LEVEL_CONFIG: Record<
   PIPLevel,
   { label: string; shortLabel: string; color: string; icon: string }
 > = {
+  forTrainees: {
+    label: "For Trainees",
+    shortLabel: "For Trainees",
+    color: "bg-green-500/10 text-green-600 border-green-500/30",
+    icon: "📘",
+  },
   level1: {
     label: "Level 1 - Supportive Guidance",
     shortLabel: "Level 1",
@@ -609,7 +615,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           pipLevel: newPIP.pipLevel,
           startDate: newPIP.startDate,
           endDate: newPIP.endDate,
-          concerns: newPIP.pipLevel === "level1" ? validConcerns : undefined,
+          concerns: (newPIP.pipLevel === "level1" || newPIP.pipLevel === "forTrainees") ? validConcerns : undefined,
           issues: newPIP.pipLevel === "level2" ? validConcerns : undefined,
           criticalIssues: newPIP.pipLevel === "level3" ? validConcerns : undefined,
           companyName: "Zairo International",

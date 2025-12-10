@@ -63,7 +63,7 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["Owner", "Traveller"],
+      enum: ["Owner", "Traveller","Broker"],
       default: "Owner",
     },
     forgotPasswordToken: String,

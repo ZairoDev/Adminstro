@@ -286,7 +286,7 @@ const Spreadsheet = () => {
                 ({notAvailableCount})
               </span>
             </TabsTrigger>
-            <TabsTrigger
+            {/* <TabsTrigger
               value="Broker"
               className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 
         data-[state=active]:bg-background data-[state=active]:shadow-sm 
@@ -294,7 +294,7 @@ const Spreadsheet = () => {
             >
               Broker{" "}
               <span className="ml-1 text-muted-foreground"></span>
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           {/* Pagination on the right */}

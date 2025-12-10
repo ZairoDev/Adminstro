@@ -154,7 +154,7 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
                 <CopyButton value={visit.ownerPhone} />
               </TableCell>
 
-              <TableCell>{visit.lead?.name}</TableCell>
+              <TableCell>{visit.lead?.name }</TableCell>
 
               <TableCell>
                 <CopyButton value={visit.lead?.phoneNo.toString() ?? ""} />

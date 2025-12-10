@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/hooks/use-confirm";
 import { InfinityLoader } from "@/components/Loaders";
 import AgentModal from "@/app/dashboard/agents/agent-modal";
+import BrokerModal from "@/app/dashboard/brokers/broker-modal";
 import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
 import { AreaModel } from "../../target/area-model";
@@ -29,6 +30,13 @@ interface AgentIntrerface {
   _id: string;
   agentName: string;
   agentPhone: string;
+}
+
+interface BrokerInterface {
+  _id: string;
+  name: string;
+  email?: string;
+  phone: string;
 }
 type Area = { name: string; metrolane?: string; zone?: string };
 
@@ -47,6 +55,9 @@ const Addons = () => {
   const [agents, setAgents] = useState<AgentIntrerface[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [agentModal, setAgentModal] = useState(false);
+  const [brokers, setBrokers] = useState<BrokerInterface[]>([]);
+  const [isBrokerLoading, setIsBrokerLoading] = useState(false);
+  const [brokerModal, setBrokerModal] = useState(false);
   const [targetModal, setTargetModal] = useState(false);
   const [targets, setTargets] = useState<TargetInterface[]>([]);
   const [editTarget, setEditTarget] = useState<TargetInterface | null>(null);
@@ -66,6 +77,12 @@ const Addons = () => {
     "destructive"
   );
 
+  const [DeleteBrokerDialog, confirmDeleteBroker] = useConfirm(
+    "Delete Broker",
+    "This action can not be undone",
+    "destructive"
+  );
+
   const getAllAgents = async () => {
     try {
       setIsLoading(true);
@@ -78,6 +95,21 @@ const Addons = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getAllBrokers = async () => {
+    try {
+      setIsBrokerLoading(true);
+      const response = await axios.get("/api/addons/brokers/getAllBrokers");
+      setBrokers(response.data.data);
+    } catch (err) {
+      toast({
+        title: "Unable to fetch brokers",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBrokerLoading(false);
     }
   };
 
@@ -114,6 +146,25 @@ const Addons = () => {
       });
     }
   };
+
+  const deleteBroker = async (id: string) => {
+    const ok = await confirmDeleteBroker();
+    if (!ok) return;
+    try {
+      await axios.delete("/api/addons/brokers/deleteBrokerById", {
+        data: { brokerId: id },
+      });
+      toast({
+        title: "Broker deleted successfully",
+      });
+      setBrokers((prev) => prev.filter((broker) => broker._id !== id));
+    } catch (err) {
+      toast({
+        title: "Unable to delete broker",
+        variant: "destructive",
+      });
+    }
+  };
   const deleteTarget = async (id: string) => {
     const ok = await confirmDelete();
     if (!ok) return;
@@ -146,59 +197,102 @@ const Addons = () => {
 
   useEffect(() => {
     getAllAgents();
+    getAllBrokers();
     getTargets();
   }, []);
 
   return (
     <div className=" px-4">
       <DeleteDialog />
+      <DeleteBrokerDialog />
       <h1 className=" text-2xl font-semibold">Add Ons</h1>
 
-      {/*Add Agents*/}
+      {/*Add Agents and Brokers*/}
       <div className=" flex items-center gap-3">
         {token?.role === "SuperAdmin" && (
-          <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
-            {isLoading ? (
-              <InfinityLoader className=" w-16 h-12" />
-            ) : (
-              <div className=" w-full flex flex-col gap-y-2">
-                {agents?.map((agent, index) => (
-                  <div
-                    key={index}
-                    className=" flex justify-between items-center w-full p-2 border rounded-md"
-                  >
-                    <p>{agent.agentName}</p>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger>
-                        <EllipsisVertical size={22} />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Link
-                            href={`/dashboard/agents/${agent._id}`}
-                            target="_blank"
+          <>
+            <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
+              {isLoading ? (
+                <InfinityLoader className=" w-16 h-12" />
+              ) : (
+                <div className=" w-full flex flex-col gap-y-2">
+                  {agents?.map((agent, index) => (
+                    <div
+                      key={index}
+                      className=" flex justify-between items-center w-full p-2 border rounded-md"
+                    >
+                      <p>{agent.agentName}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <EllipsisVertical size={22} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem>
+                            <Link
+                              href={`/dashboard/agents/${agent._id}`}
+                              target="_blank"
+                            >
+                              View Detail
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => deleteAgent(agent._id)}
                           >
-                            View Detail
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => deleteAgent(agent._id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Button className=" w-full" onClick={() => setAgentModal(true)}>
-              <span className=" font-semibold text-base">Add Agent</span>
-            </Button>
-            <AgentModal open={agentModal} onOpenChange={setAgentModal} />
-          </section>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button className=" w-full" onClick={() => setAgentModal(true)}>
+                <span className=" font-semibold text-base ">Add Agent</span>
+              </Button>
+              <AgentModal open={agentModal} onOpenChange={setAgentModal} />
+            </section>
+
+            <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
+              {isBrokerLoading ? (
+                <InfinityLoader className=" w-16 h-12" />
+              ) : (
+                <div className=" w-full flex flex-col gap-y-2">
+                  {brokers?.map((broker, index) => (
+                    <div
+                      key={index}
+                      className=" flex justify-between items-center w-full p-2 border rounded-md"
+                    >
+                      <p>{broker.name}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <EllipsisVertical size={22} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Broker Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => deleteBroker(broker._id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button className=" w-full" onClick={() => setBrokerModal(true)}>
+                <span className=" font-semibold text-base ">Add Broker</span>
+              </Button>
+              <BrokerModal 
+                open={brokerModal} 
+                onOpenChange={setBrokerModal}
+                getAllBrokers={getAllBrokers}
+              />
+            </section>
+          </>
         )}
 
 

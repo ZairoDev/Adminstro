@@ -944,191 +944,191 @@ export default function GoodTable({
                       ) : (
                         // For leads, show all actions
                         <>
-                          {(token?.role === "Sales" ||
-                            token?.role === "Sales-TeamLead" ||
-                            token?.role === "SuperAdmin") && (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => handleCreateRoom(index)}
-                              >
-                                Create Room
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  sessionStorage.setItem(
-                                    "previousPath",
-                                    window.location.pathname
-                                  );
-                                  router.push(
-                                    `${process.env.NEXT_PUBLIC_URL}/dashboard/room/${query?.roomDetails?.roomId}-${query?.roomDetails?.roomPassword}`
-                                  );
-                                }}
-                              >
-                                Join Room
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem>
-                                <div
-                                  onClick={(e) => {
-                                    e.preventDefault(); // Prevent dropdown click default behavior
-                                    e.stopPropagation(); // Stop the event from bubbling
-                                  }}
-                                >
-                                  <AlertDialog
-                                    onOpenChange={(isOpen) => {
-                                      if (!isOpen) ellipsisRef.current?.focus();
-                                    }}
-                                  >
-                                    <AlertDialogTrigger
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                      asChild
-                                    >
-                                      <button type="button">Set Reminder</button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent
-                                      className=" flex flex-col items-center"
-                                      onCloseAutoFocus={(event) => {
-                                        event.preventDefault(); // Prevent default focus-restoring behavior if needed
-                                        document.body.style.pointerEvents = "";
-                                      }}
-                                    >
-                                      <div className=" z-10">
-                                        <Calendar
-                                          mode="single"
-                                          selected={reminderDate}
-                                          onSelect={(date) => {
-                                            setReminderDate(date);
-                                          }}
-                                          className="rounded-md border shadow"
-                                        />
-                                        <div className=" flex justify-between w-full gap-x-4 mt-2">
-                                          <AlertDialogCancel className=" w-1/2">
-                                            Cancel
-                                          </AlertDialogCancel>
-                                          <AlertDialogAction
-                                            className=" w-1/2"
-                                            onClick={() =>
-                                              addReminder(query?._id, index)
-                                            }
-                                          >
-                                            Continue
-                                          </AlertDialogAction>
-                                        </div>
-                                      </div>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          <Link
-                            onClick={() => IsView(query?._id, index)}
-                            // target="_blank"
-                            href={`/dashboard/createquery/${query?._id}`}
+                      {(token?.role === "Sales" ||
+                        token?.role === "Sales-TeamLead" ||
+                        token?.role === "SuperAdmin") && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => handleCreateRoom(index)}
                           >
-                            <DropdownMenuItem>Detailed View</DropdownMenuItem>
-                          </Link>
-                          {path.toString().trim().split("/")[2] ===
-                            "goodtogoleads" && (
-                            <>
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  setActiveModalRow(index);
-                                }}
-                              >
-                                Set Visit
-                              </DropdownMenuItem>
+                            Create Room
+                          </DropdownMenuItem>
 
-                              <AlertDialog open={activeModalRow === index}>
-                                <AlertDialogContent>
-                                  <VisitModal
-                                    leadId={query._id!}
-                                    onOpenChange={() => {
-                                      setActiveModalRow(-1);
-                                    }}
-                                  />
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </>
-                          )}
-                          <>
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                getRecommendations(query._id, index);
+                          <DropdownMenuItem
+                            onClick={() => {
+                              sessionStorage.setItem(
+                                "previousPath",
+                                window.location.pathname
+                              );
+                              router.push(
+                                `${process.env.NEXT_PUBLIC_URL}/dashboard/room/${query?.roomDetails?.roomId}-${query?.roomDetails?.roomPassword}`
+                              );
+                            }}
+                          >
+                            Join Room
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem>
+                            <div
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent dropdown click default behavior
+                                e.stopPropagation(); // Stop the event from bubbling
                               }}
                             >
-                              Get Recommendation
-                            </DropdownMenuItem>
-
-                            <AlertDialog open={activeModalRow === index}>
-                              <AlertDialogContent>
-                                <VisitModal
-                                  leadId={query._id!}
-                                  // loading={loading}
-                                  // data={recommendationData}
-                                  onOpenChange={() => {
-                                    setActiveModalRow(-1);
-                                    setRecommendationData([]); // Clear previous data
+                              <AlertDialog
+                                onOpenChange={(isOpen) => {
+                                  if (!isOpen) ellipsisRef.current?.focus();
+                                }}
+                              >
+                                <AlertDialogTrigger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                   }}
-                                />
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </>
+                                  asChild
+                                >
+                                  <button type="button">Set Reminder</button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent
+                                  className=" flex flex-col items-center"
+                                  onCloseAutoFocus={(event) => {
+                                    event.preventDefault(); // Prevent default focus-restoring behavior if needed
+                                    document.body.style.pointerEvents = "";
+                                  }}
+                                >
+                                  <div className=" z-10">
+                                    <Calendar
+                                      mode="single"
+                                      selected={reminderDate}
+                                      onSelect={(date) => {
+                                        setReminderDate(date);
+                                      }}
+                                      className="rounded-md border shadow"
+                                    />
+                                    <div className=" flex justify-between w-full gap-x-4 mt-2">
+                                      <AlertDialogCancel className=" w-1/2">
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className=" w-1/2"
+                                        onClick={() =>
+                                          addReminder(query?._id, index)
+                                        }
+                                      >
+                                        Continue
+                                      </AlertDialogAction>
+                                    </div>
+                                  </div>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <Link
+                        onClick={() => IsView(query?._id, index)}
+                        // target="_blank"
+                        href={`/dashboard/createquery/${query?._id}`}
+                      >
+                        <DropdownMenuItem>Detailed View</DropdownMenuItem>
+                      </Link>
+                      {path.toString().trim().split("/")[2] ===
+                        "goodtogoleads" && (
+                        <>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setActiveModalRow(index);
+                            }}
+                          >
+                            Set Visit
+                          </DropdownMenuItem>
+
+                          <AlertDialog open={activeModalRow === index}>
+                            <AlertDialogContent>
+                              <VisitModal
+                                leadId={query._id!}
+                                onOpenChange={() => {
+                                  setActiveModalRow(-1);
+                                }}
+                              />
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
+                      <>
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            getRecommendations(query._id, index);
+                          }}
+                        >
+                          Get Recommendation
+                        </DropdownMenuItem>
+
+                        <AlertDialog open={activeModalRow === index}>
+                          <AlertDialogContent>
+                            <VisitModal
+                              leadId={query._id!}
+                              // loading={loading}
+                              // data={recommendationData}
+                              onOpenChange={() => {
+                                setActiveModalRow(-1);
+                                setRecommendationData([]); // Clear previous data
+                              }}
+                            />
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
                         </>
                       )}
                     </DropdownMenuGroup>
                     {!isBroker && (
                       <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                          <DropdownMenuSub>
-                            {/* {(token?.role === "SuperAdmin" ||
-                              token?.role === "Sales-TeamLead") && ( */}
-                            <>
-                              {path.toString().trim().split("/")[2] ===
-                                "rolebaseLead" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleDisposition(query?._id, index, "active")
-                                  }
-                                  className=" flex items-center gap-x-2"
-                                >
-                                  Good To Go <ThumbsUp size={16} />
-                                </DropdownMenuItem>
-                              )}
-                              {path.toString().trim().split("/")[2] ===
-                                "rolebaseLead" && (
-                                <DropdownMenuSubTrigger className="w-40 truncate">
-                                  Rej re:
-                                  <span className="ml-2">
-                                    {query.rejectionReason}
-                                  </span>
-                                </DropdownMenuSubTrigger>
-                              )}
-                              {path.toString().trim().split("/")[2] ===
-                                "goodtogoleads" && (
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger>
-                                    Decline
-                                  </DropdownMenuSubTrigger>
-                                  <DropdownMenuPortal>
-                                    <DropdownMenuSubContent>
-                                      {[
-                                        "Blocked on whatsapp",
-                                        "Late Response",
-                                        "Delayed the travelling",
-                                        "Already got it",
-                                        "Didn't like the option",
-                                        "Different Area",
-                                        "Agency Fees",
-                                      ].map((declineReason, ind) => (
-                                        <DropdownMenuItem
-                                          key={ind}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuSub>
+                        {/* {(token?.role === "SuperAdmin" ||
+                          token?.role === "Sales-TeamLead") && ( */}
+                        <>
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDisposition(query?._id, index, "active")
+                              }
+                              className=" flex items-center gap-x-2"
+                            >
+                              Good To Go <ThumbsUp size={16} />
+                            </DropdownMenuItem>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "rolebaseLead" && (
+                            <DropdownMenuSubTrigger className="w-40 truncate">
+                              Rej re:
+                              <span className="ml-2">
+                                {query.rejectionReason}
+                              </span>
+                            </DropdownMenuSubTrigger>
+                          )}
+                          {path.toString().trim().split("/")[2] ===
+                            "goodtogoleads" && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                Decline
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  {[
+                                    "Blocked on whatsapp",
+                                    "Late Response",
+                                    "Delayed the travelling",
+                                    "Already got it",
+                                    "Didn't like the option",
+                                    "Different Area",
+                                    "Agency Fees",
+                                  ].map((declineReason, ind) => (
+                                    <DropdownMenuItem
+                                      key={ind}
                                       onClick={() =>
                                         handleDisposition(
                                           query?._id,
@@ -1165,43 +1165,43 @@ export default function GoodTable({
                             <DropdownMenuSubTrigger>
                               Reject
                             </DropdownMenuSubTrigger>
-                            <DropdownMenuPortal>
-                              <DropdownMenuSubContent>
-                                {[
-                                  "Not on whatsapp",
-                                  "Not Replying",
-                                  "Low Budget",
-                                  "Blocked on whatsapp",
-                                  "Late Response",
-                                  "Delayed the travelling",
-                                  "Off Location",
-                                  "Number of people exceeded",
-                                  "Already got it",
-                                  "Different Area",
-                                  "Agency Fees",
-                                ].map((reason, ind) => (
-                                  <DropdownMenuItem
-                                    key={ind}
-                                    onClick={() =>
-                                      handleRejectionReason(
-                                        `${reason}`,
-                                        query?._id,
-                                        index
-                                      )
-                                    }
-                                  >
-                                    {`${reason}`}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuPortal>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent>
+                            {[
+                              "Not on whatsapp",
+                              "Not Replying",
+                              "Low Budget",
+                              "Blocked on whatsapp",
+                              "Late Response",
+                              "Delayed the travelling",
+                              "Off Location",
+                              "Number of people exceeded",
+                              "Already got it",
+                              "Different Area",
+                              "Agency Fees",
+                            ].map((reason, ind) => (
+                              <DropdownMenuItem
+                                key={ind}
+                                onClick={() =>
+                                  handleRejectionReason(
+                                    `${reason}`,
+                                    query?._id,
+                                    index
+                                  )
+                                }
+                              >
+                                {`${reason}`}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
                           </DropdownMenuSub>
                         )}
                       </DropdownMenuSub>
                     </DropdownMenuGroup>
                       </>
                     )}
-                </DropdownMenuContent>
+                  </DropdownMenuContent>
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">
                   <Dialog>

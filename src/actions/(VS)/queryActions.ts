@@ -16,6 +16,7 @@ import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
 import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { Boosters } from "@/models/propertyBooster";
 import { PipelineStage } from "mongoose";
+import WebsiteLeads from "@/models/websiteLeads";
 
 connectDb();
 
@@ -3852,4 +3853,142 @@ export const getCandidateSummary = async ({ position }: { position?: string } = 
   }
 
   return result;
+};
+
+// Website Leads Counts
+export const getWebsiteLeadsCounts = async ({ days }: { days?: string }) => {
+  await connectDb();
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let groupFormat: any;
+
+  switch (days?.toLowerCase()) {
+    case "this month":
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "12 days":
+      start.setDate(now.getDate() - 11);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "1 year":
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    case "last 3 years":
+      start.setFullYear(now.getFullYear() - 3);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      groupFormat = {
+        $dateToString: {
+          format: "%Y",
+          date: "$createdAt",
+          timezone: "Asia/Kolkata",
+        },
+      };
+      break;
+
+    default:
+      throw new Error(
+        "Invalid period. Use 'this month', '12 days', '1 year', or 'last 3 years'."
+      );
+  }
+
+  // Aggregate website leads by date
+  const leadsResult = await WebsiteLeads.aggregate([
+    { $match: { createdAt: { $gte: start, $lte: end } } },
+    {
+      $group: {
+        _id: groupFormat,
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const leadsMap = new Map<string, number>();
+  for (const item of leadsResult) {
+    leadsMap.set(item._id, item.count);
+  }
+
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const output: { date: string; leads: number }[] = [];
+
+  if (days === "this month" || days === "12 days") {
+    const temp = new Date(start);
+    while (temp <= end) {
+      const key = temp.toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata",
+      });
+      const formattedDate = `${temp.getDate()} ${months[temp.getMonth()]}`;
+      output.push({
+        date: formattedDate,
+        leads: leadsMap.get(key) ?? 0,
+      });
+      temp.setDate(temp.getDate() + 1);
+    }
+  } else if (days === "1 year") {
+    for (let i = 0; i < 12; i++) {
+      const dateKey = `${start.getFullYear()}-${String(i + 1).padStart(
+        2,
+        "0"
+      )}`;
+      output.push({
+        date: months[i],
+        leads: leadsMap.get(dateKey) ?? 0,
+      });
+    }
+  } else if (days === "last 3 years") {
+    const currentYear = now.getFullYear();
+    for (let i = currentYear - 3 + 1; i <= currentYear; i++) {
+      output.push({
+        date: String(i),
+        leads: leadsMap.get(String(i)) ?? 0,
+      });
+    }
+  }
+
+  return output;
 };

@@ -345,6 +345,7 @@ export const LeadPage = () => {
           <div className="flex w-full items-center gap-x-2">
             {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
+              token?.role === "Advert" ||
               token?.role === "Sales-TeamLead" ||
               token?.email === "tyagimokshda@gmail.com" ||
               token?.email === "shailvinaprakash007@gmail.com" || 

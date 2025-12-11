@@ -90,6 +90,7 @@ import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
+import useWebsiteLeadsCounts from "@/hooks/(VS)/useWebsiteLeadsCounts";
 import SmallCard from "@/components/reusableCard";
 import LocationCard from "@/components/reusableCard";
 import SalesCard from "@/hooks/(VS)/useSalesCard";
@@ -97,6 +98,7 @@ import useBookingStats from "@/hooks/(VS)/useBookingStats";
 import BookingChartDynamicAdvanced from "@/components/BookingChart";
 import BookingChartImproved from "@/components/BookingChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
+import { WebsiteLeadsLineChart } from "@/components/charts/WebsiteLeadsLineChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import { MonthSelector } from "@/components/MonthSelector/page";
@@ -191,6 +193,10 @@ const Dashboard = () => {
     days?: string;
   }>({});
 
+  const [websiteLeadsFilters, setWebsiteLeadsFilters] = useState<{
+    days?: string;
+  }>({ days: "this month" });
+
   const [leadCountFilters, setLeadCountFilters] = useState<{
     days?: string;
   }>({});
@@ -276,6 +282,13 @@ const Dashboard = () => {
   // console.log("Sales Card Data from Dashboard:", salesCardData);
   const { totalListings, fetchListingCounts } = ListingCounts();
   const { totalBoosts, fetchBoostCounts, activeBoosts } = BoostCounts();
+  const {
+    websiteLeads,
+    fetchWebsiteLeadsCounts,
+    loading: websiteLeadsLoading,
+    isError: websiteLeadsError,
+    error: websiteLeadsErrorMsg,
+  } = useWebsiteLeadsCounts();
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
 
   const { bookingsByDate, fetchBookingStats } = useBookingStats();
@@ -578,6 +591,22 @@ const Dashboard = () => {
             <div>
               <ChartAreaMultiple data={chartData1} />
             </div>
+          </section>
+
+          {/* Website Leads Chart */}
+          <section className="my-6">
+            <WebsiteLeadsLineChart
+              data={websiteLeads}
+              filters={websiteLeadsFilters}
+              onFilterChange={(value) => {
+                const newFilters = { ...websiteLeadsFilters, days: value };
+                setWebsiteLeadsFilters(newFilters);
+                fetchWebsiteLeadsCounts(newFilters);
+              }}
+              loading={websiteLeadsLoading}
+              isError={websiteLeadsError}
+              error={websiteLeadsErrorMsg}
+            />
           </section>
 
           <section className="space-y-6 p-6">

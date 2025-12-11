@@ -892,14 +892,14 @@ const handleSave = async (
                     >
                       Good
                     </DropdownMenuItem>
-                    <DropdownMenuItem
+                    {/* <DropdownMenuItem
                       className="cursor-pointer"
                       onClick={() =>
                         handleQualityChange("Very Good", query?._id, index)
                       }
                     >
                       Very Good
-                    </DropdownMenuItem>
+                    </DropdownMenuItem> */}
                     <DropdownMenuItem
                       className="cursor-pointer"
                       onClick={() =>

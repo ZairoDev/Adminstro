@@ -211,48 +211,48 @@ const Addons = () => {
       <div className=" flex items-center gap-3">
         {token?.role === "SuperAdmin" && (
           <>
-            <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
-              {isLoading ? (
-                <InfinityLoader className=" w-16 h-12" />
-              ) : (
-                <div className=" w-full flex flex-col gap-y-2">
-                  {agents?.map((agent, index) => (
-                    <div
-                      key={index}
-                      className=" flex justify-between items-center w-full p-2 border rounded-md"
-                    >
-                      <p>{agent.agentName}</p>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <EllipsisVertical size={22} />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <Link
-                              href={`/dashboard/agents/${agent._id}`}
-                              target="_blank"
-                            >
-                              View Detail
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => deleteAgent(agent._id)}
+          <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
+            {isLoading ? (
+              <InfinityLoader className=" w-16 h-12" />
+            ) : (
+              <div className=" w-full flex flex-col gap-y-2">
+                {agents?.map((agent, index) => (
+                  <div
+                    key={index}
+                    className=" flex justify-between items-center w-full p-2 border rounded-md"
+                  >
+                    <p>{agent.agentName}</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <EllipsisVertical size={22} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Agent Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Link
+                            href={`/dashboard/agents/${agent._id}`}
+                            target="_blank"
                           >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <Button className=" w-full" onClick={() => setAgentModal(true)}>
-                <span className=" font-semibold text-base ">Add Agent</span>
-              </Button>
-              <AgentModal open={agentModal} onOpenChange={setAgentModal} />
-            </section>
+                            View Detail
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => deleteAgent(agent._id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button className=" w-full" onClick={() => setAgentModal(true)}>
+              <span className=" font-semibold text-base ">Add Agent</span>
+            </Button>
+            <AgentModal open={agentModal} onOpenChange={setAgentModal} />
+          </section>
 
             <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
               {isBrokerLoading ? (

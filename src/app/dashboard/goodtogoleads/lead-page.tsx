@@ -290,7 +290,7 @@ export const GoodToGoLeads = () => {
         </div>
 
         <TabsContent value="leads" className="mt-0">
-          <div className="flex items-center md:flex-row flex-col justify-between w-full">
+      <div className="flex items-center md:flex-row flex-col justify-between w-full">
         <div className="w-full  flex ">
           {/* heading component where all leads is*/}
           <Heading heading="Good To Go Leads" subheading="" />

@@ -608,7 +608,7 @@ export default function CompareTable({
                               {q.name || "-"}
                             </span>
                             <span className="text-gray-600 dark:text-gray-400 w-24 sm:w-36 flex-shrink-0">
-                              {maskPhone(q.phoneNo)}
+                              {(q.phoneNo)}
                             </span>
                             <span className="text-gray-600 dark:text-gray-400 w-24 sm:w-32 flex-shrink-0">
                               {q.location || "-"}

@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     if (allotedArea) {
       query.location = new RegExp(allotedArea, "i");
     } else {
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead") {
+      if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead" && role !== "Advert") {
         if (Array.isArray(assignedArea)) {
           query.location = { $in: assignedArea };
         } else {

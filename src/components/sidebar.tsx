@@ -86,6 +86,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <User2Icon size={18} />,
     },
     {
+      path: "/dashboard/rolebaseLead",
+      label: "Fresh Leads",
+      Icon: <Sprout size={18} />,
+    },
+    {
       path: "/dashboard/property",
       label: "Manage Task",
       Icon: <CircleCheckBig size={18} />,

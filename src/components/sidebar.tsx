@@ -42,6 +42,7 @@ import {
   CornerLeftUp,
   Rocket,
   List,
+  Globe,
 } from "lucide-react";
 
 import {
@@ -444,10 +445,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Property Boost",
       Icon: <Rocket size={18} />,
     },
+    
     {
       path: "/dashboard/propertyBoost/list",
       label: "Property List",
       Icon: <List size={18} />,
+    },
+    {
+      path: "/dashboard/website-leads",
+      label: "Website Leads",
+      Icon: <Globe size={18} />,
     },
   ],
   Sales: [
@@ -547,6 +554,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/bookings",
       label: "Bookings",
       Icon: <Hotel size={18} />,
+    },
+    {
+      path: "/dashboard/website-leads",
+      label: "Website Leads",
+      Icon: <Globe size={18} />,
     },
   ],
   "Sales-TeamLead": [
@@ -779,6 +791,11 @@ const leadManagementRoutes = [
     path: "/dashboard/compareLeads",
     label: "Compare Leads",
     Icon: <PencilLine size={18} />,
+  },
+  {
+    path: "/dashboard/website-leads",
+    label: "Website Leads",
+    Icon: <Globe size={18} />,
   },
 ];
 const visitsManagementRoutes = [

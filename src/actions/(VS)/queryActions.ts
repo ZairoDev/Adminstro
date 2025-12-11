@@ -2939,7 +2939,10 @@ export const getReviews = async ({
   location?: string;
   createdBy?: string;
 }) => {
+  await connectDb();
+  
   const filters: Record<string, any> = {};
+  
   if (days && days !== "All") {
     switch (days) {
       case "yesterday":
@@ -2982,12 +2985,18 @@ export const getReviews = async ({
         filters.createdAt = {
           $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         };
+        break;
+      case "3 months":
+        filters.createdAt = {
+          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        };
+        break;
     }
   }
-  if (location) {
+  if (location && location !== "All") {
     filters.location = location;
   }
-  if (createdBy) {
+  if (createdBy && createdBy !== "All") {
     filters.createdBy = createdBy;
   }
 

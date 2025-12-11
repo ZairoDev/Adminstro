@@ -81,6 +81,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Swords size={18} />,
     },
     {
+      path: "/dashboard/compareLeads",
+      label: "Lead Report",
+      Icon: <PencilLine size={18} />,
+    },
+    {
       path: "/dashboard/user",
       label: "Manage User",
       Icon: <User2Icon size={18} />,
@@ -442,7 +447,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/compareLeads",
-      label: "Compare Leads",
+      label: "Lead Report",
       Icon: <PencilLine size={18} />,
     },
     {

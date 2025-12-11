@@ -36,9 +36,13 @@ const charconfig = {
     label: "Average",
     color: "hsl(var(--chart-4))",
   },
+  "Not Reviewed": {
+    label: "Not Reviewed",
+    color: "hsl(var(--chart-5))",
+  },
 } satisfies ChartConfig;
 
-type QualityKey = "Good" | "Very Good" | "Average" | "Below Average";
+type QualityKey = "Good" | "Very Good" | "Average" | "Below Average" | "Not Reviewed";
 
 interface Data{
   label:String;
@@ -47,16 +51,36 @@ interface Data{
 }
  
 export const ReviewPieChart = ({chartData}:{chartData:any})=>{
+   // Handle null/undefined/empty data
+   if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+     return (
+       <Card className="flex flex-col">
+         <CardHeader className="items-center pb-4">
+           <CardTitle>Reviews Dashboard</CardTitle>
+         </CardHeader>
+         <CardContent className="flex-1 p-2 flex items-center justify-center min-h-[270px]">
+           <p className="text-muted-foreground">No review data available</p>
+         </CardContent>
+       </Card>
+     );
+   }
+
    const data = chartData.map((item: any) => {
-     const label: QualityKey = item._id ?? "Unknown" ;
+     // Label null/undefined as "Not Reviewed"
+     const label: QualityKey = item._id ?? "Not Reviewed";
      return {
        label,
-       count: item.count,
-       fill: charconfig[label]?.color ?? "gray", // fallback if unknown
+       count: item.count ?? 0,
+       fill: charconfig[label]?.color ?? "gray",
      };
    });
    const total = data.reduce((acc: number, item:Data) => acc + item.count, 0);
-   const usable = data.filter((item:Data) => item.label !== "Below Average").reduce((acc: number, item:Data) => acc + item.count, 0);
+   // Usable = reviewed leads that are not "Below Average" (excluding "Not Reviewed")
+   const usable = data.filter((item:Data) => item.label !== "Below Average" && item.label !== "Not Reviewed").reduce((acc: number, item:Data) => acc + item.count, 0);
+   const reviewed = data.filter((item:Data) => item.label !== "Not Reviewed").reduce((acc: number, item:Data) => acc + item.count, 0);
+   // Calculate usable percentage from reviewed leads only
+   const usablePercentage = reviewed > 0 ? Math.round((usable / reviewed) * 100) : 0;
+
    return (
      <Card className="flex flex-col">
        <CardHeader className="items-center pb-4">
@@ -92,13 +116,14 @@ export const ReviewPieChart = ({chartData}:{chartData:any})=>{
              </div>
            ))}
          </div>
-         <div className="absolute top-8 right-4">
-           Total :{" "}
-           {total}
+         <div className="absolute top-12 right-4 text-xs">
+           Total: {total}
          </div>
-         <div className="absolute top-4 right-4">
-          Usable:{" "}
-          {usable + " (" + Math.round((usable / total) * 100) + "%)"}
+         <div className="absolute top-8 right-4 text-xs">
+           Reviewed: {reviewed}
+         </div>
+         <div className="absolute top-4 right-4 text-xs">
+          Usable: {usable} ({usablePercentage}%)
          </div>
        </CardFooter>
      </Card>

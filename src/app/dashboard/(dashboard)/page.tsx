@@ -726,7 +726,7 @@ const Dashboard = () => {
                   )}
 
                   {/* Right Column - Reviews */}
-                  {reviews && (
+                  {reviews !== undefined && (
                     <div className="space-y-4 relative border rounded-md p-4">
                       <div className="flex gap-3 flex-wrap">
                         <CustomSelect
@@ -741,10 +741,9 @@ const Dashboard = () => {
                             "3 months",
                           ]}
                           triggerText="Select days"
-                          defaultValue="this month"
+                          value={reviewsFilters.days || "this month"}
                           onValueChange={(value) => {
-                            const newLeadFilters = { ...reviewsFilters };
-                            newLeadFilters.days = value;
+                            const newLeadFilters = { ...reviewsFilters, days: value };
                             setReviewsFilters(newLeadFilters);
                             fetchReviews(newLeadFilters);
                           }}
@@ -754,10 +753,9 @@ const Dashboard = () => {
                         <CustomSelect
                           itemList={["All", ...allEmployees]}
                           triggerText="Select agent"
-                          defaultValue="All"
+                          value={reviewsFilters.createdBy || "All"}
                           onValueChange={(value) => {
-                            const newLeadFilters = { ...reviewsFilters };
-                            newLeadFilters.createdBy = value;
+                            const newLeadFilters = { ...reviewsFilters, createdBy: value };
                             setReviewsFilters(newLeadFilters);
                             fetchReviews(newLeadFilters);
                           }}

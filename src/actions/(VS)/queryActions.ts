@@ -2942,73 +2942,114 @@ export const getReviews = async ({
   await connectDb();
   
   const filters: Record<string, any> = {};
+  const now = new Date();
   
   if (days && days !== "All") {
     switch (days) {
       case "yesterday":
+        // Get yesterday's date (calendar day)
+        const yesterdayStart = new Date(now);
+        yesterdayStart.setDate(now.getDate() - 1);
+        yesterdayStart.setHours(0, 0, 0, 0);
+        
+        const yesterdayEnd = new Date(now);
+        yesterdayEnd.setDate(now.getDate() - 1);
+        yesterdayEnd.setHours(23, 59, 59, 999);
+        
         filters.createdAt = {
-          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          $gte: yesterdayStart,
+          $lte: yesterdayEnd,
         };
         break;
+        
       case "last month":
-        const now = new Date();
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(
-          now.getFullYear(),
-          now.getMonth() - 1,
-          1
-        );
+        startOfThisMonth.setHours(0, 0, 0, 0);
+        
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        startOfLastMonth.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
           $gte: startOfLastMonth,
           $lt: startOfThisMonth,
         };
         break;
+        
       case "this month":
-        const dt = new Date();
-        dt.setDate(1);
-        dt.setHours(0, 0, 0, 0);
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        thisMonthStart.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
-          $gte: dt,
+          $gte: thisMonthStart,
         };
         break;
+        
       case "10 days":
+        const tenDaysAgo = new Date(now);
+        tenDaysAgo.setDate(now.getDate() - 10);
+        tenDaysAgo.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
-          $gte: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          $gte: tenDaysAgo,
         };
         break;
+        
       case "15 days":
+        const fifteenDaysAgo = new Date(now);
+        fifteenDaysAgo.setDate(now.getDate() - 15);
+        fifteenDaysAgo.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
-          $gte: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+          $gte: fifteenDaysAgo,
         };
         break;
+        
       case "1 month":
+        const oneMonthAgo = new Date(now);
+        oneMonthAgo.setDate(now.getDate() - 30);
+        oneMonthAgo.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
-          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          $gte: oneMonthAgo,
         };
         break;
+        
       case "3 months":
+        const threeMonthsAgo = new Date(now);
+        threeMonthsAgo.setDate(now.getDate() - 90);
+        threeMonthsAgo.setHours(0, 0, 0, 0);
+        
         filters.createdAt = {
-          $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+          $gte: threeMonthsAgo,
         };
         break;
     }
   }
+  
+  // Case-insensitive location matching
   if (location && location !== "All") {
-    filters.location = location;
+    filters.location = { $regex: new RegExp(`^${location}$`, "i") };
   }
+  
+  // Case-insensitive createdBy matching
   if (createdBy && createdBy !== "All") {
-    filters.createdBy = createdBy;
+    filters.createdBy = { $regex: new RegExp(`^${createdBy}$`, "i") };
   }
 
-  const pipeline = [
+  const pipeline: any[] = [
     {
       $match: filters,
     },
     {
       $group: {
-        _id: "$leadQualityByReviewer",
+        _id: {
+          $ifNull: ["$leadQualityByReviewer", null],
+        },
         count: { $sum: 1 },
       },
+    },
+    {
+      $sort: { count: -1 },
     },
   ];
 

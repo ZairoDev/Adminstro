@@ -3,10 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 
-connectDb();
+// Force dynamic rendering - disable caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDb();
+    
     const loggedInEmployees = await Employees.find(
       { isLoggedIn: true },
       {
@@ -38,13 +42,22 @@ export async function GET(request: NextRequest) {
       appreciationsCount: employee.appreciations?.length || 0,
     }));
 
-    console.log(`📊 Found ${loggedInEmployees.length} logged-in employees:`, loggedInEmployees.map(e => e.email));
+    console.log(`📊 Found ${loggedInEmployees.length} logged-in employees:`, loggedInEmployees.map((e: any) => e.email));
 
-    return NextResponse.json({
+    // Create response with no-cache headers
+    const response = NextResponse.json({
       success: true,
       employees: employeesWithCounts,
       count: loggedInEmployees.length,
     });
+
+    // Set cache control headers to prevent caching
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    response.headers.set("Surrogate-Control", "no-store");
+
+    return response;
   } catch (error) {
     console.error("Error fetching logged-in employees:", error);
     return NextResponse.json(

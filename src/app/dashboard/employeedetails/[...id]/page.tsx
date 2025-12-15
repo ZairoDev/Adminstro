@@ -1002,8 +1002,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   icon={Calendar}
                   label="Joining Date"
                   value={
-                    user?.createdAt
-                      ? format(new Date(user.dateOfJoining), "MM/dd/yyyy")
+                    user?.dateOfJoining
+                      ? format(new Date(user.dateOfJoining), "dd/MMMM/yyyy")
                       : ""
                   }
                 />

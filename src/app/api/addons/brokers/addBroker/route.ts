@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 const generateRandomPassword = (length: number): string => {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
 };

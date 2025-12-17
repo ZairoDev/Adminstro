@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Users from "@/models/user";
 
+export const dynamic = "force-dynamic";
+
 export async function DELETE(req: NextRequest) {
   try {
     await connectDb();

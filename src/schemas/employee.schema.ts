@@ -39,6 +39,8 @@ export const employeeSchema = z.object({
   salary: z.number().optional().default(0),
   duration: z.string().optional().default(""),
   isActive: z.boolean().optional().default(true),
+  inactiveReason: z.enum(["terminated", "suspended", "abscond"]).nullable().optional().default(null),
+  inactiveDate: z.date().nullable().optional().default(null),
   isfeatured: z.boolean().optional().default(false),
   passwordExpiresAt: z.date().optional(),
   extras: z

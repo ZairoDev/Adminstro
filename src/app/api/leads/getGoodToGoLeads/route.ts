@@ -15,6 +15,9 @@ import { leadStatuses } from "@/app/dashboard/sales-offer/sales-offer-utils";
 import { isArray } from "@apollo/client/utilities";
 import { Regex } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 connectDb();
 
 function convertToIST(date: Date): Date {

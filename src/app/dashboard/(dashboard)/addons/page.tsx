@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import axios from "axios";
 import Link from "next/link";
@@ -68,7 +67,13 @@ const Addons = () => {
   const [areaId, setAreaId] = useState("");
   const [openList, setOpenList] = useState(false);
   const [list, setList] = useState<Area[]>([]);
+  const [mounted, setMounted] = useState(false);
   const { token } = useAuthStore();
+
+  // Handle hydration - wait for client-side mount before checking auth
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
 
   const [DeleteDialog, confirmDelete] = useConfirm(
@@ -201,6 +206,18 @@ const Addons = () => {
     getTargets();
   }, []);
 
+  // Show loading state until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="px-4">
+        <h1 className="text-2xl font-semibold">Add Ons</h1>
+        <div className="flex items-center justify-center min-h-[200px]">
+          <InfinityLoader className="w-16 h-12" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className=" px-4">
       <DeleteDialog />
@@ -209,7 +226,7 @@ const Addons = () => {
 
       {/*Add Agents and Brokers*/}
       <div className=" flex items-center gap-3">
-        {token?.role === "SuperAdmin" && (
+        {mounted && token?.role === "SuperAdmin" && (
           <>
           <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
             {isLoading ? (

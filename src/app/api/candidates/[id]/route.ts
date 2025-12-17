@@ -39,9 +39,13 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    const updateData: Record<string, string> = {};
+    if (body.status) updateData.status = body.status;
+    if (body.position) updateData.position = body.position;
+
     const candidate = await Candidate.findByIdAndUpdate(
       id,
-      { status: body.status },
+      updateData,
       { new: true }
     );
 

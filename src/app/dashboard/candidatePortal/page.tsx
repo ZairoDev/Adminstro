@@ -10,6 +10,7 @@ import {
   MoreVertical,
   UserPlus,
   Users,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Candidate {
   _id: string;
@@ -34,6 +50,14 @@ interface Candidate {
   status: "pending" | "shortlisted" | "selected" | "rejected";
   createdAt: string;
 }
+
+const ROLE_OPTIONS = [
+  "Developer",
+  "LeadGen",
+  "Sales",
+  "Marketing",
+  "HR",
+];
 
 interface PaginationData {
   total: number;
@@ -52,6 +76,10 @@ export default function CandidatesPage() {
   const [activeTab, setActiveTab] = useState<
     "all" | "shortlisted" | "selected" | "rejected"
   >("all");
+  const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [newRole, setNewRole] = useState("");
+  const [updatingRole, setUpdatingRole] = useState(false);
 
   const fetchCandidates = async (
     searchTerm: string,
@@ -125,6 +153,43 @@ export default function CandidatesPage() {
     router.push(`/employees/create?candidateId=${candidateId}`);
   };
 
+  const handleEditRole = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setNewRole(candidate.position);
+    setEditRoleDialogOpen(true);
+  };
+
+  const handleUpdateRole = async () => {
+    if (!selectedCandidate || !newRole) return;
+
+    setUpdatingRole(true);
+    try {
+      const response = await fetch(`/api/candidates/${selectedCandidate._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: newRole }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCandidates((prev) =>
+          prev.map((c) =>
+            c._id === selectedCandidate._id ? { ...c, position: newRole } : c
+          )
+        );
+        toast.success("Role updated successfully");
+        setEditRoleDialogOpen(false);
+      } else {
+        toast.error(result.error || "Failed to update role");
+      }
+    } catch (error) {
+      console.error("Error updating role:", error);
+      toast.error("Failed to update role");
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
   const CandidateTable = () => (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -140,7 +205,7 @@ export default function CandidatesPage() {
               Phone
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-              Position
+              Role
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Experience
@@ -229,6 +294,13 @@ export default function CandidatesPage() {
                           View Details
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleEditRole(candidate)}
+                        className="flex items-center cursor-pointer"
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit Role
+                      </DropdownMenuItem>
                       {candidate.status === "selected" && (
                         <DropdownMenuItem
                           onClick={() => handleCreateEmployee(candidate._id)}
@@ -268,7 +340,7 @@ export default function CandidatesPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email, or position..."
+                placeholder="Search by name, email, or role..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -383,6 +455,51 @@ export default function CandidatesPage() {
           </Card>
         </Tabs>
       </div>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editRoleDialogOpen} onOpenChange={setEditRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Role for {selectedCandidate?.name}
+            </label>
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Include current role if not in options */}
+                {selectedCandidate?.position &&
+                  !ROLE_OPTIONS.includes(selectedCandidate.position) && (
+                    <SelectItem value={selectedCandidate.position}>
+                      {selectedCandidate.position} (Current)
+                    </SelectItem>
+                  )}
+                {ROLE_OPTIONS.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditRoleDialogOpen(false)}
+              disabled={updatingRole}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRole} disabled={updatingRole}>
+              {updatingRole ? "Updating..." : "Update Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

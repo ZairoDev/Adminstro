@@ -59,6 +59,8 @@ export interface AppreciationRecord {
   notes?: string;
 }
 
+export type SeparationType = "terminated" | "suspended" | "abscond";
+
 export interface EmployeeInterface {
   _id: string;
   name: string;
@@ -78,6 +80,8 @@ export interface EmployeeInterface {
   address: string;
   isVerified: boolean;
   isActive?: boolean;
+  inactiveReason?: SeparationType | null;
+  inactiveDate?: string | null;
   isLoggedIn?: boolean;
   lastLogin?: string;
   lastLogout?: string;

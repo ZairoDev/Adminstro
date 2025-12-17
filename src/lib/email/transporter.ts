@@ -16,7 +16,7 @@ export const createTransporterHR = () => {
     service: "gmail",
     auth: {
       user: "hr@zairointernational.com",
-      pass: process.env.GMAIL_APP_PASSWORD,
+      pass: process.env.HR_APP_PASSWORD,
     },
   });
 };

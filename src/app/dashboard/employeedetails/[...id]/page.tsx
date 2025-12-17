@@ -71,6 +71,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
@@ -242,8 +243,17 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
   const [emailPreviewSubject, setEmailPreviewSubject] = useState("");
   const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
-  const [emailPreviewType, setEmailPreviewType] = useState<"warning" | "pip" | "appreciation" | null>(null);
+  const [emailPreviewType, setEmailPreviewType] = useState<"warning" | "pip" | "appreciation" | "separation" | null>(null);
   const [emailPreviewPayload, setEmailPreviewPayload] = useState<any>(null);
+
+  // Separation (Termination/Suspension/Abscond) State
+  const [separationDialogOpen, setSeparationDialogOpen] = useState(false);
+  const [separationType, setSeparationType] = useState<"terminated" | "suspended" | "abscond" | "">("");
+  const [separationReason, setSeparationReason] = useState("");
+  const [separationDate, setSeparationDate] = useState("");
+  const [sendSeparationEmail, setSendSeparationEmail] = useState(true);
+  const [processingSeparation, setProcessingSeparation] = useState(false);
+  const [separationEmailDialogOpen, setSeparationEmailDialogOpen] = useState(false);
 
   const getUserDetails = async () => {
     try {
@@ -328,15 +338,168 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   };
 
   const handleStatusChange = async (active: boolean) => {
+    if (!active) {
+      // When making inactive, show separation dialog
+      setSeparationDialogOpen(true);
+      setSeparationType("");
+      setSeparationReason("");
+      setSeparationDate(new Date().toISOString().split("T")[0]);
+      setSendSeparationEmail(true);
+      return;
+    }
+    
+    // When making active, directly update
     setIsActive(active);
     try {
-      const statusResponse = await axios.put("/api/employee/editEmployee", {
+      await axios.put("/api/employee/editEmployee", {
         _id: user?._id,
         isActive: active,
+        inactiveReason: null,
+        inactiveDate: null,
+      });
+      toast({
+        title: "Status Updated",
+        description: "Employee has been activated successfully.",
       });
     } catch (error) {
       setIsActive(!active);
-      alert("Status cannot be changed");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update status.",
+      });
+    }
+  };
+
+  const handleSeparationSubmit = async () => {
+    if (!separationType) {
+      toast({
+        variant: "destructive",
+        title: "Missing Selection",
+        description: "Please select whether the employee is terminated or suspended.",
+      });
+      return;
+    }
+
+    if (sendSeparationEmail && user?.email) {
+      // Show email preview dialog
+      try {
+        setProcessingSeparation(true);
+        const formattedDate = separationDate
+          ? new Date(separationDate).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })
+          : new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            });
+
+        const response = await axios.get(
+          `/api/employee/separation?employeeId=${userId}&separationType=${separationType}&reason=${encodeURIComponent(separationReason)}&effectiveDate=${encodeURIComponent(formattedDate)}`
+        );
+
+        if (response.data.success) {
+          setEmailPreviewSubject(response.data.template.subject);
+          setEmailPreviewHtml(response.data.template.html);
+          setEmailPreviewType("separation");
+          setEmailPreviewPayload({
+            separationType,
+            reason: separationReason,
+            effectiveDate: formattedDate,
+          });
+          setSeparationDialogOpen(false);
+          setSeparationEmailDialogOpen(true);
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error?.response?.data?.error || "Failed to generate email template.",
+        });
+      } finally {
+        setProcessingSeparation(false);
+      }
+    } else {
+      // No email, directly process separation
+      await processSeparation();
+    }
+  };
+
+  const processSeparation = async (customSubject?: string, customHtml?: string) => {
+    try {
+      setProcessingSeparation(true);
+      const formattedDate = separationDate
+        ? new Date(separationDate).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })
+        : new Date().toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          });
+
+      const response = await axios.post("/api/employee/separation", {
+        employeeId: userId,
+        separationType,
+        reason: separationReason,
+        effectiveDate: formattedDate,
+        sendEmail: sendSeparationEmail && !!user?.email,
+        customEmailSubject: customSubject,
+        customEmailHtml: customHtml,
+      });
+
+      if (response.data.success) {
+        setIsActive(false);
+        setSeparationDialogOpen(false);
+        setSeparationEmailDialogOpen(false);
+        setEmailPreviewOpen(false);
+        toast({
+          title: "Success",
+          description: `Employee has been ${separationType} successfully.${response.data.emailSent ? " Email sent." : ""}`,
+        });
+        await getUserDetails();
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to process separation.",
+      });
+    } finally {
+      setProcessingSeparation(false);
+    }
+  };
+
+  // Make inactive without any reason or email
+  const handleInactiveAnyway = async () => {
+    try {
+      setProcessingSeparation(true);
+      await axios.put("/api/employee/editEmployee", {
+        _id: user?._id,
+        isActive: false,
+        inactiveReason: null,
+        inactiveDate: new Date(),
+      });
+      setIsActive(false);
+      setSeparationDialogOpen(false);
+      toast({
+        title: "Status Updated",
+        description: "Employee has been marked as inactive.",
+      });
+      await getUserDetails();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update status.",
+      });
+    } finally {
+      setProcessingSeparation(false);
     }
   };
 
@@ -2011,6 +2174,140 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           </AlertDialog>
         </div>
       )}
+
+      {/* Separation Dialog (Termination/Suspension) */}
+      <Dialog open={separationDialogOpen} onOpenChange={setSeparationDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Deactivate Employee
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">
+                Select Reason for Deactivation <span className="text-red-500">*</span>
+              </Label>
+              <RadioGroup
+                value={separationType}
+                onValueChange={(value) => setSeparationType(value as "terminated" | "suspended" | "abscond")}
+                className="flex flex-col space-y-3"
+              >
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="terminated" id="terminated" />
+                  <Label htmlFor="terminated" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-red-600">Terminated</div>
+                    <div className="text-xs text-muted-foreground">
+                      Permanent separation from employment
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="suspended" id="suspended" />
+                  <Label htmlFor="suspended" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-amber-600">Suspended</div>
+                    <div className="text-xs text-muted-foreground">
+                      Temporary suspension pending review
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="abscond" id="abscond" />
+                  <Label htmlFor="abscond" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-purple-600">Abscond</div>
+                    <div className="text-xs text-muted-foreground">
+                      Left without any information or notice period
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="separation-date">Effective Date</Label>
+              <Input
+                id="separation-date"
+                type="date"
+                value={separationDate}
+                onChange={(e) => setSeparationDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="separation-reason">Reason (Optional)</Label>
+              <Textarea
+                id="separation-reason"
+                placeholder="Enter the reason for termination/suspension..."
+                value={separationReason}
+                onChange={(e) => setSeparationReason(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+
+            {user?.email && (
+              <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                <Checkbox
+                  id="send-separation-email"
+                  checked={sendSeparationEmail}
+                  onCheckedChange={(checked) => setSendSeparationEmail(checked as boolean)}
+                />
+                <Label htmlFor="send-separation-email" className="text-sm cursor-pointer">
+                  Send {separationType || "notification"} email to employee
+                </Label>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleInactiveAnyway}
+              disabled={processingSeparation}
+              className="text-muted-foreground hover:text-foreground sm:mr-auto"
+            >
+              Inactive Anyway
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSeparationDialogOpen(false)}
+                disabled={processingSeparation}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleSeparationSubmit}
+                disabled={!separationType || processingSeparation}
+              >
+                {processingSeparation ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  `Confirm ${separationType === "terminated" ? "Termination" : separationType === "suspended" ? "Suspension" : separationType === "abscond" ? "Absconding" : "Deactivation"}`
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Separation Email Preview Dialog */}
+      <EmailPreviewDialog
+        open={separationEmailDialogOpen}
+        onOpenChange={setSeparationEmailDialogOpen}
+        subject={emailPreviewSubject}
+        html={emailPreviewHtml}
+        onSend={async (subject: string, html: string) => {
+          await processSeparation(subject, html);
+        }}
+        sending={processingSeparation}
+        recipientEmail={user?.email || ""}
+      />
 
       {/* Email Preview Dialog */}
       <EmailPreviewDialog

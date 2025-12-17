@@ -131,6 +131,15 @@ const employeeSchema = new Schema<IEmployee>(
       type: Boolean,
       default: true,
     },
+    inactiveReason: {
+      type: String,
+      enum: ["terminated", "suspended", "abscond", null],
+      default: null,
+    },
+    inactiveDate: {
+      type: Date,
+      default: null,
+    },
     isfeatured: {
       type: Boolean,
       default: false,

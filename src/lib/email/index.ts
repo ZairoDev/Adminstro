@@ -1,6 +1,7 @@
 // Main Email Module - Exports all email functionality
 import {
   createTransporter,
+  createTransporterHR,
   DEFAULT_FROM_EMAIL,
   DEFAULT_COMPANY_NAME,
 } from "./transporter";
@@ -8,6 +9,7 @@ import { getCandidateEmailTemplate } from "./templates/candidate";
 import { getWarningEmailTemplate, getWarningReasonText } from "./templates/warning";
 import { getPIPEmailTemplate, getPIPLevelDescription } from "./templates/pip";
 import { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templates/appreciation";
+import { getSeparationEmailTemplate, getSeparationReasonText, SeparationEmailPayload, SeparationType } from "./templates/separation";
 import {
   CandidateEmailPayload,
   WarningEmailPayload,
@@ -26,6 +28,8 @@ export { getCandidateEmailTemplate } from "./templates/candidate";
 export { getWarningEmailTemplate, getWarningReasonText } from "./templates/warning";
 export { getPIPEmailTemplate, getPIPLevelDescription } from "./templates/pip";
 export { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templates/appreciation";
+export { getSeparationEmailTemplate, getSeparationReasonText, SEPARATION_TYPE_LABELS } from "./templates/separation";
+export type { SeparationEmailPayload, SeparationType, SeparationEmailTemplate } from "./templates/separation";
 export { getEmailSignature, getEmailSignatureWithImage } from "./signature";
 export type { EmailSignatureConfig } from "./signature";
 export { getActiveHREmployee } from "./getHREmployee";
@@ -43,7 +47,7 @@ export async function sendCandidateEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getCandidateEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporter();
+    const transporter = createTransporterHR();
 
     const mailOptions = {
       from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
@@ -74,7 +78,7 @@ export async function sendWarningEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getWarningEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporter();
+    const transporter = createTransporterHR();
 
     const mailOptions = {
       from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
@@ -105,7 +109,7 @@ export async function sendPIPEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getPIPEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporter();
+    const transporter = createTransporterHR();
 
     const mailOptions = {
       from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
@@ -136,7 +140,7 @@ export async function sendAppreciationEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getAppreciationEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporter();
+    const transporter = createTransporterHR();
 
     const mailOptions = {
       from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
@@ -159,6 +163,37 @@ export async function sendAppreciationEmail(
   }
 }
 
+// Send Separation (Termination/Suspension) Email
+export async function sendSeparationEmail(
+  payload: SeparationEmailPayload
+): Promise<EmailResponse> {
+  try {
+    // Fetch active HR employee for signature
+    const hrEmployee = await getActiveHREmployee();
+    const { subject, html } = getSeparationEmailTemplate(payload, hrEmployee);
+    const transporter = createTransporterHR();
+
+    const mailOptions = {
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      to: payload.to,
+      subject,
+      html,
+    };
+
+    const mailResponse = await transporter.sendMail(mailOptions);
+
+    if (mailResponse.rejected.length > 0) {
+      throw new Error("Email address was rejected or invalid");
+    }
+
+    console.log(`✅ ${payload.separationType} email sent successfully to:`, payload.to);
+    return { success: true, messageId: mailResponse.messageId };
+  } catch (error: any) {
+    console.error(`❌ ${payload.separationType} email sending error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Generic send email function (backward compatible)
 export async function sendEmail(payload: CandidateEmailPayload): Promise<EmailResponse> {
   return sendCandidateEmail(payload);
@@ -171,7 +206,7 @@ export async function sendCustomEmail(
   companyName?: string
 ): Promise<EmailResponse> {
   try {
-    const transporter = createTransporter();
+    const transporter = createTransporterHR();
 
     const mailOptions = {
       from: `${companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,

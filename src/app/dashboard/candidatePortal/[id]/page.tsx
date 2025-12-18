@@ -229,14 +229,13 @@ export default function CandidateDetailPage() {
   };
 
   const handleOnboarding = async (candidateId: string) => {
-    const onboardingLink = `${process.env.NEXT_PUBLIC_APP_URL}/${candidateId}/onboarding`;
-    const payload = { onboardingLink };
+
     try {
       const response = await axios.post(
         `/api/candidates/${candidateId}/action`,
         {
-          status: "onboarding",
-          onboardingLink,
+          status: "onboarding"
+
         }
       );
       const result = response.data;

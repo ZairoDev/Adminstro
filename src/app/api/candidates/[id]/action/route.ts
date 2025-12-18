@@ -12,7 +12,7 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const { status, selectionDetails, shortlistDetails, rejectionDetails, onboardingLink } =
+    const { status, selectionDetails, shortlistDetails, rejectionDetails} =
       await request.json();
 
     if (!["pending", "shortlisted", "selected", "rejected", "onboarding"].includes(status)) {
@@ -34,7 +34,7 @@ export async function POST(
     // If onboarding step, set onboarding link in candidate onboardingDetails
     if (status === "onboarding") {
       // If frontend provided a link use it, otherwise generate one
-      const link = onboardingLink ?? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/candidate/${id}/onboarding`;
+      const link = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/onboarding`;
       updateData["onboardingDetails.onboardingLink"] = link;
       // Also mark status as onboarding
       updateData.status = "onboarding";
@@ -66,7 +66,7 @@ export async function POST(
           status === "shortlisted"
             ? shortlistDetails?.suitableRoles
             : undefined,
-        onboardingLink: status === "onboarding" ? (onboardingLink ?? candidate.onboardingDetails?.onboardingLink) : undefined,
+        onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink) : undefined,
       });
     }
 

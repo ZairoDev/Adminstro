@@ -1,4 +1,5 @@
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+import { Properties } from "@/models/property";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
@@ -27,6 +28,15 @@ export async function PUT(
     }
 
     await data.save();
+
+    // Sync availability status to properties collection if VSID exists
+    if (field === "availability" && data.VSID && data.VSID.trim() !== "") {
+      await Properties.updateOne(
+        { VSID: data.VSID },
+        { $set: { availability: value } }
+      );
+    }
+
     return NextResponse.json({ message: "Data updated successfully" }, { status: 200 });
   } catch (err) {
     console.error(err);

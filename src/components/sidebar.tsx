@@ -42,6 +42,8 @@ import {
   CornerLeftUp,
   Rocket,
   List,
+  MessageSquare,
+  Ticket,
   Globe,
 } from "lucide-react";
 
@@ -436,6 +438,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PencilLine size={18} />,
     },
     {
+      path: "/dashboard/coupons",
+      label: "Manage Coupons",
+      Icon: <Ticket size={18} />,
+    },
+    {
       path: "/dashboard/reviewLeads",
       label: "Review Leads",
       Icon: <PencilLine size={18} />,
@@ -460,6 +467,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/propertyBoost/list",
       label: "Property List",
       Icon: <List size={18} />,
+    },
+    {
+      path: "/dashboard/whatsapp",
+      label: "WhatsApp Chat",
+      Icon: <MessageSquare size={18} />,
     },
     {
       path: "/dashboard/website-leads",
@@ -566,6 +578,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Hotel size={18} />,
     },
     {
+      path: "/dashboard/whatsapp",
+      label: "WhatsApp Chat",
+      Icon: <MessageSquare size={18} />,
+    },
+    {
       path: "/dashboard/website-leads",
       label: "Website Leads",
       Icon: <Globe size={18} />,
@@ -646,6 +663,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/propertyBoost/list",
       label: "Property List",
       Icon: <List size={18} />,
+    },
+    {
+      path: "/dashboard/whatsapp",
+      label: "WhatsApp Chat",
+      Icon: <MessageSquare size={18} />,
     },
   ],
   HR: [

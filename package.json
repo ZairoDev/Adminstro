@@ -15,6 +15,8 @@
     "@editorjs/header": "^2.8.7",
     "@editorjs/image": "^2.9.3",
     "@editorjs/list": "^1.10.0",
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@fullcalendar/core": "^6.1.15",
     "@fullcalendar/daygrid": "^6.1.15",
     "@fullcalendar/interaction": "^6.1.15",

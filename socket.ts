@@ -56,6 +56,66 @@ app.prepare().then(() => {
       console.log(`🚪 ${socket.id} left: ${room}`);
     });
 
+    // ========== WhatsApp Events ==========
+    // Join WhatsApp room for real-time updates
+    socket.on("join-whatsapp-room", () => {
+      socket.join("whatsapp-room");
+      console.log(`📱 ${socket.id} joined WhatsApp room`);
+    });
+
+    // Leave WhatsApp room
+    socket.on("leave-whatsapp-room", () => {
+      socket.leave("whatsapp-room");
+      console.log(`📱 ${socket.id} left WhatsApp room`);
+    });
+
+    // Join specific conversation room
+    socket.on("join-conversation", (conversationId: string) => {
+      socket.join(`conversation-${conversationId}`);
+      console.log(`💬 ${socket.id} joined conversation: ${conversationId}`);
+    });
+
+    // Leave specific conversation room
+    socket.on("leave-conversation", (conversationId: string) => {
+      socket.leave(`conversation-${conversationId}`);
+      console.log(`💬 ${socket.id} left conversation: ${conversationId}`);
+    });
+
+    // Typing indicator
+    socket.on("whatsapp-typing", ({ conversationId, isTyping }) => {
+      socket.to(`conversation-${conversationId}`).emit("whatsapp-typing-update", {
+        conversationId,
+        isTyping,
+        socketId: socket.id,
+      });
+    });
+
+    // ========== WhatsApp Call Events ==========
+    // Join call notification room
+    socket.on("join-whatsapp-calls-room", () => {
+      socket.join("whatsapp-calls-room");
+      console.log(`📞 ${socket.id} joined WhatsApp calls room`);
+    });
+
+    // Leave call notification room
+    socket.on("leave-whatsapp-calls-room", () => {
+      socket.leave("whatsapp-calls-room");
+      console.log(`📞 ${socket.id} left WhatsApp calls room`);
+    });
+
+    // ========== WhatsApp History & Sync Events ==========
+    // Join sync room for history and app state updates
+    socket.on("join-whatsapp-sync-room", () => {
+      socket.join("whatsapp-sync-room");
+      console.log(`🔄 ${socket.id} joined WhatsApp sync room`);
+    });
+
+    // Leave sync room
+    socket.on("leave-whatsapp-sync-room", () => {
+      socket.leave("whatsapp-sync-room");
+      console.log(`🔄 ${socket.id} left WhatsApp sync room`);
+    });
+
     socket.on("disconnect", (reason) => {
       console.log(`❌ Client disconnected: ${socket.id} (${reason})`);
     });

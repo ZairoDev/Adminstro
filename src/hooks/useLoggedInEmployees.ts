@@ -20,7 +20,7 @@ interface LoggedInEmployee {
 interface UseLoggedInEmployeesReturn {
   employees: LoggedInEmployee[];
   count: number;
-  isLoading: boolean;
+  isLoading: boolean; 
   isError: boolean;
   error: string;
   refetch: () => Promise<void>;

@@ -8,6 +8,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/superadmin",
+    "/whatsapp",
     "/application-form",
     "/spreadsheet",
     "/dashboard",

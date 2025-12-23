@@ -374,6 +374,7 @@ export interface IQuery {
   messageStatus?: string;
   leadStatus?: string;
   BoostID?: string;
+  firstReply?: boolean; // true if customer sent their first reply via WhatsApp
   note?: NotesInterface[];
   reminder: Date;
   roomDetails: {

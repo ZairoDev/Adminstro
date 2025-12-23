@@ -170,6 +170,11 @@ const querySchema = new Schema(
       require: [true, "Status must be provided"],
       default: "None",
     },
+    // Indicates whether the lead (customer) has sent their first reply via WhatsApp
+    firstReply: {
+      type: Boolean,
+      default: false,
+    },
     salesPriority: {
       type: String,
       enum: ["High", "Low", "Medium","NR", "None"],

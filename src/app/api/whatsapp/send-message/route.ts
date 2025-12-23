@@ -112,8 +112,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Format phone number (remove spaces, dashes, + sign)
-    const formattedPhone = to.replace(/[\s\-\+]/g, "");
+
+    // E.164 validation: only digits, 7-15 digits, no leading zero
+    const formattedPhone = to.replace(/\D/g, "");
+    if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
+      return NextResponse.json(
+        { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
+        { status: 400 }
+      );
+    }
 
     // Build message payload based on type
     let messagePayload: any = {

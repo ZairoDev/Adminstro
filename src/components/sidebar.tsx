@@ -989,6 +989,11 @@ const otherSettingsRoutes = [
     Icon: <Swords size={18} />,
   },
   {
+    path: "/dashboard/coupons",
+    label: "Manage Coupons",
+    Icon: <Ticket size={18} />,
+  },  
+  {
     path: "/dashboard/target",
     label: "Add Area",
     Icon: <PencilLine size={18} />,

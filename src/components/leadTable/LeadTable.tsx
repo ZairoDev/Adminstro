@@ -920,6 +920,15 @@ const handleSave = async (
                 </DropdownMenu>
               </TableCell>
               {/*)}*/}
+              {/* First Reply Status Cell */}
+              <TableCell>
+                {query.firstReply ? (
+                  <span className="text-green-600 font-semibold">Replied</span>
+                ) : (
+                  <span className="text-gray-400">No Reply</span>
+                )}
+              </TableCell>
+
               <TableCell>
                 <div className=" flex gap-x-1">
                   <Copy
@@ -932,21 +941,24 @@ const handleSave = async (
                       }
                     }}
                   />
-                  <Link
-                    href={`https://wa.me/${query?.phoneNo}?text=Hi%20${query?.name}%2C%20my%20name%20is%20${token?.name}%2C%20and%20how%20are%20you%20doing%3F`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <FaWhatsapp
-                      className=" cursor-pointer  text-green-500"
-                      size={22}
+                  {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
+                  {path.toString().trim().split("/")[2] !== "createquery" && query.firstReply  ? (
+                    <Link
+                      href={`/whatsapp?phone=${encodeURIComponent(query?.phoneNo)}`}
+                      target="_self"
+                      rel="noopener noreferrer"
                       onClick={() => {
                         if (query.isViewed === false) {
                           IsView(query?._id, index);
                         }
                       }}
-                    />
-                  </Link>
+                    >
+                      <FaWhatsapp
+                        className=" cursor-pointer  text-green-500"
+                        size={22}
+                      />
+                    </Link>
+                  ) : null}
                 </div>
               </TableCell>
               <TableCell>

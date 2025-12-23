@@ -234,7 +234,13 @@ async function processIncomingMessage(
 ) {
   try {
     const phoneNumberId = metadata?.phone_number_id;
-    const senderPhone = message.from;
+    // E.164 normalization: only digits, 7-15 digits, no leading zero
+    let senderPhone = message.from;
+    senderPhone = senderPhone.replace(/\D/g, "");
+    if (!/^[1-9][0-9]{6,14}$/.test(senderPhone)) {
+      console.error("❌ Invalid sender phone (not E.164):", senderPhone);
+      return;
+    }
     const senderName = contact?.profile?.name || senderPhone;
     const timestamp = new Date(parseInt(message.timestamp) * 1000);
 
@@ -402,28 +408,45 @@ async function processIncomingMessage(
       (contentObj.location ? `📍 ${contentObj.location.name || 'Location'}` : '') ||
       `${message.type} message`;
 
-    // Save message to database with permanent media URL
-    const savedMessage = await WhatsAppMessage.create({
-      conversationId: conversation._id,
-      messageId: message.id,
-      businessPhoneId: phoneNumberId,
-      from: senderPhone,
-      to: phoneNumberId,
-      type: message.type,
-      content: contentObj,
-      mediaUrl, // Permanent CDN URL
-      mediaId,
-      mimeType,
-      filename,
-      status: "delivered",
-      statusEvents: [{ status: "delivered", timestamp }],
-      direction: "incoming",
-      timestamp,
-      conversationSnapshot: {
-        participantPhone: senderPhone,
-        assignedAgent: conversation.assignedAgent,
+    // Save message to database using upsert (idempotent - handles duplicate webhooks)
+    const savedMessage = await WhatsAppMessage.findOneAndUpdate(
+      { messageId: message.id }, // Find by unique messageId
+      {
+        $setOnInsert: {
+          conversationId: conversation._id,
+          messageId: message.id,
+          businessPhoneId: phoneNumberId,
+          from: senderPhone,
+          to: phoneNumberId,
+          type: message.type,
+          content: contentObj,
+          mediaUrl, // Permanent CDN URL
+          mediaId,
+          mimeType,
+          filename,
+          status: "delivered",
+          statusEvents: [{ status: "delivered", timestamp }],
+          direction: "incoming",
+          timestamp,
+          conversationSnapshot: {
+            participantPhone: senderPhone,
+            assignedAgent: conversation.assignedAgent,
+          },
+        },
       },
-    });
+      { upsert: true, new: true }
+    );
+
+    // Check if this was a new insert or existing document
+    // If createdAt equals updatedAt (within small margin), it's a new document
+    const isNewMessage = !savedMessage.createdAt || 
+      (savedMessage.updatedAt && 
+       Math.abs(new Date(savedMessage.createdAt).getTime() - new Date(savedMessage.updatedAt).getTime()) < 1000);
+
+    if (!isNewMessage) {
+      console.log(`⏭️ Message ${message.id} already processed, skipping duplicate webhook`);
+      return;
+    }
 
     // Update conversation last message
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
@@ -458,6 +481,46 @@ async function processIncomingMessage(
     });
 
     console.log("✅ Message saved and broadcasted:", message.id, mediaUrl ? `(with media: ${mediaUrl.substring(0, 50)}...)` : "");
+
+    // If this incoming message corresponds to a lead in our 'Query' collection,
+    // mark that lead as having given the first reply (only the first time).
+    try {
+      const QueryModel = (await import("@/models/query")).default;
+      const normalizedSender = (senderPhone || "").toString().replace(/\D/g, "");
+      const tryLengths = [9, 8, 7]; // try last N digits to find a match
+      let lead: any = null;
+
+      for (const len of tryLengths) {
+        if (normalizedSender.length < len) continue;
+        const lastDigits = normalizedSender.slice(-len);
+        const regex = new RegExp(`${lastDigits}$`);
+        lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
+        console.log(`🔎 Trying match last ${len} digits: ${lastDigits} -> found: ${lead?._id}`);
+        if (lead) break;
+      }
+
+      if (!lead) {
+        console.log(`⚠️ No matching lead found for incoming number ${senderPhone} (normalized: ${normalizedSender})`);
+      }
+
+      if (lead && !lead.firstReply) {
+        lead.firstReply = true;
+        await lead.save();
+
+        console.log(`✅ Marked Query ${lead._id} as firstReply=true for ${senderPhone}`);
+
+        // Emit a conversation update so UIs can react in real time
+        emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
+          conversationId: conversation._id.toString(),
+          businessPhoneId: phoneNumberId,
+          phone: senderPhone,
+          queryId: lead._id?.toString(),
+          firstReply: true,
+        });
+      }
+    } catch (err) {
+      console.error("Error updating Query firstReply:", err);
+    }
   } catch (error) {
     console.error("❌ Error processing incoming message:", error);
     throw error; // Re-throw to see in main error handler
@@ -636,7 +699,13 @@ async function processMessageEchoEvent(value: any) {
     const messages = value.messages || [];
 
     for (const message of messages) {
-      const recipientPhone = message.to;
+        // E.164 normalization: only digits, 7-15 digits, no leading zero
+        let recipientPhone = message.to;
+        recipientPhone = recipientPhone.replace(/\D/g, "");
+        if (!/^[1-9][0-9]{6,14}$/.test(recipientPhone)) {
+          console.error("❌ Invalid recipient phone (not E.164):", recipientPhone);
+          return;
+        }
       const timestamp = message.timestamp ? new Date(parseInt(message.timestamp) * 1000) : new Date();
 
       console.log(`🔁 Message echo: ${message.type} to ${recipientPhone}`);

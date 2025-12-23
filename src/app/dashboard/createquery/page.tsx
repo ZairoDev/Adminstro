@@ -417,7 +417,7 @@ const SalesDashboard = () => {
   );
 
   const handleSearch = () => {
-    fetchQuery({
+    fetchQuery({   
       searchTerm,
       searchType,
       dateFilter,
@@ -530,6 +530,38 @@ const SalesDashboard = () => {
     };
     fetchTargets();
   }, []);
+
+  // Listen for WhatsApp conversation updates and mark firstReply in UI
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (data: any) => {
+      try {
+        if (!data) return;
+        if (data.queryId) {
+          setQueries((prev) =>
+            prev.map((q) => (q._id === data.queryId ? { ...q, firstReply: true } : q))
+          );
+          return;
+        }
+        if (data.phone) {
+          const normalized = String(data.phone).replace(/\D/g, "");
+          const lastDigits = normalized.slice(-9);
+          setQueries((prev) =>
+            prev.map((q) => {
+              const qPhone = String(q.phoneNo || "").replace(/\D/g, "");
+              if (qPhone.endsWith(lastDigits)) return { ...q, firstReply: true };
+              return q;
+            })
+          );
+        }
+      } catch (e) {
+        console.error("Error handling whatsapp conversation update", e);
+      }
+    };
+
+    socket.on("whatsapp-conversation-update", handler);
+    return () => { socket.off("whatsapp-conversation-update", handler); };
+  }, [socket]);
 
   useEffect(() => {
     const target = targets.find((t) => t.city === selectedLocation);

@@ -85,8 +85,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Format phone number
-    const formattedPhone = to.replace(/[\s\-\+]/g, "");
+      // E.164 validation: only digits, 7-15 digits, no leading zero
+      const formattedPhone = to.replace(/\D/g, "");
+      if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
+        return NextResponse.json(
+          { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
+          { status: 400 }
+        );
+      }
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,

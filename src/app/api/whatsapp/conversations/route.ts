@@ -111,6 +111,14 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // E.164 validation: only digits, 7-15 digits, no leading zero
+    const normalizedPhone = participantPhone.replace(/\D/g, "");
+    if (!/^[1-9][0-9]{6,14}$/.test(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
+        { status: 400 }
+      );
+    }
 
     // Get user's allowed phone IDs
     const userRole = token.role || "";
@@ -144,19 +152,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Format phone number
-    const formattedPhone = participantPhone.replace(/[\s\-\+]/g, "");
 
     // Find or create conversation
     let conversation = await WhatsAppConversation.findOne({
-      participantPhone: formattedPhone,
+      participantPhone: normalizedPhone,
       businessPhoneId: selectedPhoneId,
     });
 
     if (!conversation) {
       conversation = await WhatsAppConversation.create({
-        participantPhone: formattedPhone,
-        participantName: participantName || formattedPhone,
+        participantPhone: normalizedPhone,
+        participantName: participantName || `+${normalizedPhone}`,
         businessPhoneId: selectedPhoneId,
         status: "active",
         unreadCount: 0,

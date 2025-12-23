@@ -2,13 +2,186 @@ import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import {
+  getWhatsAppToken,
+  WHATSAPP_API_BASE_URL,
+  getDefaultPhoneId,
+} from "@/lib/whatsapp/config";
+import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 
 connectDb();
 
+// Test email that triggers WhatsApp template sending
+const TEST_EMAIL = "abhaytripathi6969@gmail.com";
+
+// Function to send WhatsApp template to lead
+async function sendFirstTemplateToLead(
+  phoneNo: string,
+  leadName: string,
+  creatorEmail: string
+) {
+  try {
+    // Only send for test email during testing phase
+    if (creatorEmail !== TEST_EMAIL) {
+      console.log(`⏭️ Skipping WhatsApp template - creator is not test user`);
+      return;
+    }
+
+    const whatsappToken = getWhatsAppToken();
+    const phoneNumberId = getDefaultPhoneId("SuperAdmin", ["all"]);
+
+    if (!whatsappToken || !phoneNumberId) {
+      console.error("❌ WhatsApp not configured - missing token or phone ID");
+      return;
+    }
+
+    // Format phone number (remove spaces, dashes, and ensure no leading +)
+    let formattedPhone = phoneNo.replace(/[\s\-]/g, "");
+    if (formattedPhone.startsWith("+")) {
+      formattedPhone = formattedPhone.substring(1);
+    }
+
+    console.log(`📱 Sending first_template to ${formattedPhone} for lead: ${leadName}`);
+
+    const response = await fetch(
+      `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${whatsappToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedPhone,
+          type: "template",
+          template: {
+            name: "first_template",
+            language: {
+              code: "en",
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  { type: "text", text: leadName },
+                  { type: "text", text: formattedPhone }
+                ]
+              }
+            ]
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("❌ WhatsApp Template API Error:", data);
+      return;
+    }
+
+    const whatsappMessageId = data.messages?.[0]?.id;
+    console.log(`✅ WhatsApp template sent successfully to ${formattedPhone}:`, whatsappMessageId);
+
+    // Save message to database and emit socket event for frontend display
+    if (whatsappMessageId) {
+      const timestamp = new Date();
+      const templateText = `Hello ${leadName}, welcome to Zairo International! Your registered number is ${formattedPhone}.\nWe're here to help if you need anything.`;
+
+      // Get or create conversation
+      let conversation = await WhatsAppConversation.findOne({
+        participantPhone: formattedPhone,
+        businessPhoneId: phoneNumberId,
+      });
+
+      if (!conversation) {
+        conversation = await WhatsAppConversation.create({
+          participantPhone: formattedPhone,
+          participantName: leadName || formattedPhone,
+          businessPhoneId: phoneNumberId,
+          status: "active",
+          unreadCount: 0,
+        });
+
+        // Emit new conversation event
+        emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_CONVERSATION, {
+          conversation: {
+            id: conversation._id,
+            participantPhone: formattedPhone,
+            participantName: leadName || formattedPhone,
+            unreadCount: 0,
+            lastMessageTime: timestamp,
+            businessPhoneId: phoneNumberId,
+          },
+        });
+      }
+
+      const contentObj = { text: templateText };
+
+      // Save message to database
+      const savedMessage = await WhatsAppMessage.create({
+        conversationId: conversation._id,
+        messageId: whatsappMessageId,
+        businessPhoneId: phoneNumberId,
+        from: phoneNumberId,
+        to: formattedPhone,
+        type: "template",
+        content: contentObj,
+        templateName: "first_template",
+        templateLanguage: "en",
+        status: "sent",
+        statusEvents: [{ status: "sent", timestamp }],
+        direction: "outgoing",
+        timestamp,
+        conversationSnapshot: {
+          participantPhone: formattedPhone,
+          assignedAgent: conversation.assignedAgent,
+        },
+      });
+
+      // Update conversation last message
+      await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+        lastMessageId: whatsappMessageId,
+        lastMessageContent: templateText.substring(0, 100),
+        lastMessageTime: timestamp,
+        lastMessageDirection: "outgoing",
+        lastOutgoingMessageTime: timestamp,
+      });
+
+      // Emit socket event for real-time frontend updates
+      emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+        conversationId: conversation._id.toString(),
+        businessPhoneId: phoneNumberId,
+        message: {
+          id: savedMessage._id.toString(),
+          messageId: whatsappMessageId,
+          from: phoneNumberId,
+          to: formattedPhone,
+          type: "template",
+          content: contentObj,
+          status: "sent",
+          direction: "outgoing",
+          timestamp,
+          senderName: "System (Auto)",
+        },
+      });
+
+      console.log(`✅ Message saved to DB and emitted to frontend`);
+    }
+  } catch (error) {
+    console.error("❌ Error sending WhatsApp template:", error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
+  const creatorEmail = (token?.email as string) || "";
   try {
     const {
       date,
@@ -103,6 +276,12 @@ export async function POST(req: NextRequest) {
     } else {
       console.warn("⚠️ Socket.IO instance not found!");
     }
+
+    // ✅ Send WhatsApp first_template to lead (only for test user)
+    // This runs asynchronously - don't await to avoid blocking the response
+    sendFirstTemplateToLead(phoneNo, name, creatorEmail).catch((err) => {
+      console.error("❌ Failed to send WhatsApp template:", err);
+    });
 
     // ✅ Return success
     return NextResponse.json(

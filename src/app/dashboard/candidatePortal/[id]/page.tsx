@@ -42,7 +42,7 @@ interface Candidate {
   linkedin?: string;
   portfolio?: string;
   resumeUrl: string;
-  status: "pending" | "shortlisted" | "selected" | "rejected" | "onboarding";
+  status: "pending"|"shortlisted"|"selected"|"rejected"|"onboarding";
   createdAt: string;
   selectionDetails?: {
     positionType: "fulltime" | "intern";

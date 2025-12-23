@@ -51,7 +51,7 @@ export async function POST(
       );
     }
 
-    // 🔥 Send mail only after DB update
+
     if (status !== "pending") {
       await sendEmail({
         to: candidate.email,

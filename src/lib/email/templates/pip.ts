@@ -158,7 +158,7 @@ export const getPIPEmailTemplate = (
     
 
     level2: {
-      subject: `10-Day Performance Improvement Plan – Mandatory Compliance for ${employeeName}`,
+      subject: ` Performance Improvement Plan – Mandatory Compliance for ${employeeName}`,
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
     
@@ -225,7 +225,7 @@ export const getPIPEmailTemplate = (
     
 
     level3: {
-      subject: `Final 10-Day Performance Improvement Plan – Immediate Action Required for ${employeeName}`,
+      subject: `Final Performance Improvement Plan – Immediate Action Required for ${employeeName}`,
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
           

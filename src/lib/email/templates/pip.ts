@@ -158,7 +158,7 @@ export const getPIPEmailTemplate = (
     
 
     level2: {
-      subject: `10-Day Performance Improvement Plan – Mandatory Compliance for ${employeeName}`,
+      subject: ` Performance Improvement Plan – Mandatory Compliance for ${employeeName}`,
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
     
@@ -225,7 +225,7 @@ export const getPIPEmailTemplate = (
     
 
     level3: {
-      subject: `Final 10-Day Performance Improvement Plan – Immediate Action Required for ${employeeName}`,
+      subject: `Final Performance Improvement Plan – Immediate Action Required for ${employeeName}`,
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
           
@@ -274,6 +274,18 @@ export const getPIPEmailTemplate = (
             <p style="font-size:15px;">
               Your immediate acknowledgment of this PIP is expected.
             </p>
+
+            <div style="background:#fff7ed; border-left:4px solid #f97316; padding:18px; margin:25px 0; border-radius:4px;">
+  <p style="margin:0; font-size:15px;"><strong>Important Note – PIP Terms:</strong></p>
+  <ul style="margin:12px 0 0 20px; font-size:15px;">
+    <li>This Performance Improvement Plan (PIP) period is <strong>unpaid</strong>.</li>
+    <li>If Management observes satisfactory improvement in your performance during the PIP duration, the period may be converted to <strong>paid</strong> and you may continue in your current role.</li>
+    <li>If the PIP is <strong>not successfully cleared</strong>, the entire PIP duration will remain <strong>unpaid</strong>.</li>
+    <li>This PIP is applicable only on <strong>working days</strong>. The duration may be extended if Management declares any holiday during the PIP period.</li>
+    <li><strong>No leaves or half-days</strong> will be permitted while you are under the PIP period.</li>
+  </ul>
+</div>
+
     
             ${getEmailSignature(hrEmployee)}
           </div>

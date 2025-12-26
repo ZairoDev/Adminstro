@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,9 @@ import {
   User,
   Filter,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
 } from "lucide-react";
 import type { Template } from "../types";
 import { getTemplateParameters, getTemplatePreviewText } from "../utils";
@@ -202,6 +205,8 @@ export function RetargetPanel({
   const [stateFilter, setStateFilter] = useState<string>("pending");
   const [showConfirm, setShowConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const params = useMemo(
     () => (selectedTemplate ? getTemplateParameters(selectedTemplate) : []),
@@ -236,6 +241,18 @@ export function RetargetPanel({
   const selectableRecipients = useMemo(() => {
     return filteredRecipients.filter((r) => r.canRetarget);
   }, [filteredRecipients]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRecipients.length / ITEMS_PER_PAGE);
+  const paginatedRecipients = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredRecipients.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredRecipients, currentPage]);
+
+  // Reset page when filter or recipients change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [stateFilter, recipients.length]);
 
   const handleFetch = () => {
     onFetchRecipients(stateFilter);
@@ -567,10 +584,10 @@ export function RetargetPanel({
                   variant="outline"
                   size="sm"
                   onClick={() => onToggleAll(true)}
-                  disabled={selectableRecipients.length === 0 || selectedRecipientIds.length >= 100}
+                  disabled={selectableRecipients.length === 0 || selectedRecipientIds.length >= 10}
                   className="gap-1"
                 >
-                  <CheckSquare className="h-4 w-4" /> Select (max 100)
+                  <CheckSquare className="h-4 w-4" /> Select (max 10)
                 </Button>
                 <Button
                   variant="outline"
@@ -594,10 +611,10 @@ export function RetargetPanel({
                   {selectableRecipients.length} eligible
                 </Badge>
                 <Badge
-                  variant={selectedRecipientIds.length >= 100 ? "destructive" : "default"}
-                  className={`h-9 flex items-center px-3 ${selectedRecipientIds.length >= 100 ? "" : "bg-green-600"}`}
+                  variant={selectedRecipientIds.length >= 10 ? "destructive" : "default"}
+                  className={`h-9 flex items-center px-3 ${selectedRecipientIds.length >= 10 ? "" : "bg-green-600"}`}
                 >
-                  {selectedRecipientIds.length}/100 selected
+                  {selectedRecipientIds.length}/10 selected
                 </Badge>
               </div>
             </div>
@@ -625,118 +642,169 @@ export function RetargetPanel({
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <User className="h-16 w-16 mb-4 opacity-20" />
               <p className="text-lg font-medium mb-2">
-                No {stateFilter} leads loaded
+                No {stateFilter} {audience} loaded
               </p>
               <p className="text-sm">
-                Click &quot;Fetch {stateFilter} leads&quot; in the sidebar to load
+                Click &quot;Fetch {stateFilter} {audience}&quot; in the sidebar to load
                 recipients
               </p>
             </div>
           ) : (
-            <div className="max-w-5xl mx-auto space-y-2">
-              {filteredRecipients.map((r) => {
-                const isDisabled = !r.canRetarget || r.blocked;
-                const isSelected = selectedRecipientIds.includes(r.id);
+            <div className="max-w-6xl mx-auto">
+              {/* 2-Column Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {paginatedRecipients.map((r) => {
+                  const isDisabled = !r.canRetarget || r.blocked;
+                  const isSelected = selectedRecipientIds.includes(r.id);
 
-                return (
-                  <div
-                    key={r.id}
-                    className={`
-                      flex items-center gap-4 p-4 rounded-lg border transition-all
-                      ${
-                        isDisabled
-                          ? "opacity-50 bg-muted/50 cursor-not-allowed"
-                          : "hover:border-primary hover:shadow-sm cursor-pointer"
-                      }
-                      ${
-                        isSelected && !isDisabled
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-sm"
-                          : ""
-                      }
-                    `}
-                    onClick={() => !isDisabled && onToggleRecipient(r.id)}
-                  >
-                    {/* Checkbox */}
-                    <div className="flex-shrink-0">
-                      {!isDisabled ? (
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => onToggleRecipient(r.id)}
-                          aria-label="select recipient"
-                          disabled={isDisabled}
-                          className="h-5 w-5"
-                        />
-                      ) : (
-                        <div className="h-5 w-5 flex items-center justify-center">
-                          <Ban className="h-5 w-5 text-destructive" />
+                  return (
+                    <div
+                      key={r.id}
+                      className={`
+                        flex flex-col p-3 rounded-lg border transition-all
+                        ${
+                          isDisabled
+                            ? "opacity-50 bg-muted/50 cursor-not-allowed"
+                            : "hover:border-primary hover:shadow-sm cursor-pointer"
+                        }
+                        ${
+                          isSelected && !isDisabled
+                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-sm"
+                            : ""
+                        }
+                      `}
+                      onClick={() => !isDisabled && onToggleRecipient(r.id)}
+                    >
+                      {/* Top Row: Checkbox + Name + Source Badge */}
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex-shrink-0">
+                          {!isDisabled ? (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => onToggleRecipient(r.id)}
+                              aria-label="select recipient"
+                              disabled={isDisabled}
+                              className="h-4 w-4"
+                            />
+                          ) : (
+                            <div className="h-4 w-4 flex items-center justify-center">
+                              <Ban className="h-4 w-4 text-destructive" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Main Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-base truncate">
+                        <span className="font-semibold text-sm truncate flex-1">
                           {r.name}
                         </span>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[10px] flex-shrink-0">
                           {r.source}
                         </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        +{r.phone}
+
+                      {/* Phone Number */}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 pl-7">
+                        <Phone className="h-3 w-3" />
+                        <span>+{r.phone}</span>
+                      </div>
+
+                      {/* Bottom Row: Stats & Badges */}
+                      <div className="flex items-center justify-between gap-2 pl-7">
+                        <div className="flex items-center gap-3 text-xs">
+                          {/* Retarget Count - Always Show */}
+                          <div className={`flex items-center gap-1 ${r.retargetCount > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}`}>
+                            <RotateCcw className="h-3 w-3" />
+                            <span>{r.retargetCount}/{maxRetarget}</span>
+                          </div>
+                          {r.lastRetargetAt && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>{formatRelativeTime(r.lastRetargetAt)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status Badges */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {r.status && r.status !== "pending" && (
+                            <Badge
+                              variant={
+                                r.status === "sent"
+                                  ? "default"
+                                  : r.status === "failed"
+                                  ? "destructive"
+                                  : "outline"
+                              }
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {r.status}
+                            </Badge>
+                          )}
+
+                          <StateBadge
+                            state={r.state}
+                            retargetCount={r.retargetCount}
+                          />
+
+                          {r.blocked && r.blockReason && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                              {formatBlockReason(r.blockReason)}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-4 text-sm">
-                      {r.retargetCount > 0 && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <RotateCcw className="h-4 w-4" />
-                          <span className="font-medium">
-                            {r.retargetCount}/{maxRetarget}
-                          </span>
-                        </div>
-                      )}
-                      {r.lastRetargetAt && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{formatRelativeTime(r.lastRetargetAt)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status Badges */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {r.status && r.status !== "pending" && (
-                        <Badge
-                          variant={
-                            r.status === "sent"
-                              ? "default"
-                              : r.status === "failed"
-                              ? "destructive"
-                              : "outline"
-                          }
-                          className="text-xs"
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6 pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => setCurrentPage(pageNum)}
                         >
-                          {r.status}
-                        </Badge>
-                      )}
-
-                      <StateBadge
-                        state={r.state}
-                        retargetCount={r.retargetCount}
-                      />
-
-                      {r.blocked && r.blockReason && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          {formatBlockReason(r.blockReason)}
-                        </Badge>
-                      )}
-                    </div>
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground ml-2">
+                    {filteredRecipients.length} total
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

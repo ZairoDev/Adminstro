@@ -95,6 +95,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/dashboard",
     "/spreadsheet",
+    "/whatsapp",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
@@ -117,6 +118,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   "Sales-TeamLead": [
     "/",
+    "/whatsapp",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,

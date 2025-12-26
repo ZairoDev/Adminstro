@@ -209,33 +209,49 @@ export async function POST(req: NextRequest) {
     });
 
     // =========================================================
-    // STEP 2 & 3: Lead Tracking & Retarget Count Logic
+    // STEP 2 & 3: Lead/Owner Tracking & Retarget Count Logic
     // =========================================================
     // - Always update whatsappLastMessageAt for cooldown tracking
     // - If isRetarget: increment whatsappRetargetCount & set whatsappLastRetargetAt
     // - Count is incremented ONLY after API accepts (not on failures)
+    // - Now handles both leads (Query) and owners (Users)
     try {
       const QueryModel = (await import("@/models/query")).default;
+      const UsersModel = (await import("@/models/user")).default;
       const normalizedPhone = formattedPhone.replace(/\D/g, "");
       
-      // Find lead by phone (try last 9, 8, 7 digits)
-      let lead: any = null;
+      // Try to find lead by phone (try last 9, 8, 7 digits)
+      let target: any = null;
+      let targetType: "lead" | "owner" | null = null;
+      
       for (const len of [9, 8, 7]) {
         if (normalizedPhone.length < len) continue;
         const lastDigits = normalizedPhone.slice(-len);
         const regex = new RegExp(`${lastDigits}$`);
-        lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
-        if (lead) break;
+        
+        // First try leads
+        target = await QueryModel.findOne({ phoneNo: { $regex: regex } });
+        if (target) {
+          targetType = "lead";
+          break;
+        }
+        
+        // Then try owners
+        target = await UsersModel.findOne({ phone: { $regex: regex }, role: "Owner" });
+        if (target) {
+          targetType = "owner";
+          break;
+        }
       }
 
-      if (lead) {
+      if (target && targetType) {
         // Build update object
         const updateFields: any = {
           whatsappLastMessageAt: timestamp,
         };
         
         // STEP 2: If this is a retarget message, increment count and update date
-        // WHY: Track how many times we've retargeted this lead (max 3 allowed)
+        // WHY: Track how many times we've retargeted this lead/owner (max 3 allowed)
         if (isRetarget) {
           updateFields.whatsappLastRetargetAt = timestamp;
         }
@@ -246,18 +262,19 @@ export async function POST(req: NextRequest) {
           updateQuery.$inc = { whatsappRetargetCount: 1 };
         }
 
-        await QueryModel.updateOne({ _id: lead._id }, updateQuery);
+        const Model = targetType === "lead" ? QueryModel : UsersModel;
+        await Model.updateOne({ _id: target._id }, updateQuery);
         
         if (isRetarget) {
-          const newCount = (lead.whatsappRetargetCount || 0) + 1;
-          console.log(`🎯 [AUDIT] Retarget sent to lead ${lead._id} (count: ${newCount})`);
+          const newCount = (target.whatsappRetargetCount || 0) + 1;
+          console.log(`🎯 [AUDIT] Retarget sent to ${targetType} ${target._id} (count: ${newCount})`);
         } else {
-          console.log(`📤 [AUDIT] Template sent to lead ${lead._id}`);
+          console.log(`📤 [AUDIT] Template sent to ${targetType} ${target._id}`);
         }
       }
     } catch (err) {
-      // Don't fail the send if lead tracking fails
-      console.error("Error updating lead tracking:", err);
+      // Don't fail the send if lead/owner tracking fails
+      console.error("Error updating lead/owner tracking:", err);
     }
 
     return NextResponse.json({

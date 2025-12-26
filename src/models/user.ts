@@ -72,6 +72,13 @@ const userSchema = new Schema<IUser>(
     verifyTokenExpiry: Date,
     otpToken: Number,
     otpTokenExpiry: Date,
+    
+    // WhatsApp Retargeting Fields
+    whatsappRetargetCount: { type: Number, default: 0 },
+    whatsappLastRetargetAt: { type: Date, default: null },
+    whatsappBlocked: { type: Boolean, default: false },
+    whatsappBlockReason: { type: String, default: null },
+    whatsappLastErrorCode: { type: Number, default: null },
   },
   { timestamps: true }
 );

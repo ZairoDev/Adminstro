@@ -469,8 +469,8 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <List size={18} />,
     },
     {
-      path: "/dashboard/whatsapp",
-      label: "WhatsApp Chat",
+      path: "/whatsapp",
+      label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
     },
     {
@@ -578,8 +578,8 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Hotel size={18} />,
     },
     {
-      path: "/dashboard/whatsapp",
-      label: "WhatsApp Chat",
+      path: "/whatsapp",
+      label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
     },
     {
@@ -665,8 +665,8 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <List size={18} />,
     },
     {
-      path: "/dashboard/whatsapp",
-      label: "WhatsApp Chat",
+      path: "/whatsapp",
+      label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
     },
   ],

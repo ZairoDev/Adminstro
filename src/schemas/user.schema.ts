@@ -24,6 +24,13 @@ export const userSchema = z.object({
   verifyTokenExpiry: z.date().optional(),
   otpToken: z.number().optional(),
   otpTokenExpiry: z.date().optional(),
+  
+  // WhatsApp Retargeting Fields
+  whatsappRetargetCount: z.number().optional().default(0),
+  whatsappLastRetargetAt: z.date().nullable().optional(),
+  whatsappBlocked: z.boolean().optional().default(false),
+  whatsappBlockReason: z.string().nullable().optional(),
+  whatsappLastErrorCode: z.number().nullable().optional(),
 });
 
 export type UserSchema = z.infer<typeof userSchema>;

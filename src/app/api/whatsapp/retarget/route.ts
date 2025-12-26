@@ -86,34 +86,94 @@ export async function POST(req: NextRequest) {
       : undefined;
 
     // =========================================================
-    // OWNERS: Simple fetch (no retarget tracking for now)
+    // OWNERS: Fetch with retarget tracking fields
     // =========================================================
     if (audience === "owners") {
       const userQuery: any = { role: "Owner" };
       if (Object.keys(dateFilter).length) {
         userQuery.createdAt = dateFilter;
       }
-      if (locationFilter) {
-        userQuery.address = locationFilter.address;
+      if (location) {
+        userQuery.$or = [
+          { address: { $regex: location, $options: "i" } },
+          { "properties.location": { $regex: location, $options: "i" } },
+        ];
       }
+      
+      // Apply state filter for owners
+      if (stateFilter === "pending") {
+        userQuery.whatsappBlocked = { $ne: true };
+        userQuery.$or = [
+          { whatsappRetargetCount: 0 },
+          { whatsappRetargetCount: { $exists: false } },
+        ];
+      } else if (stateFilter === "retargeted") {
+        userQuery.whatsappBlocked = { $ne: true };
+        userQuery.whatsappRetargetCount = { $gte: 1 };
+      } else if (stateFilter === "blocked") {
+        userQuery.whatsappBlocked = true;
+      }
+      
       const owners = await Users.find(userQuery)
         .sort({ createdAt: -1 })
         .limit(cappedLimit)
-        .select("_id name phone createdAt")
+        .select("_id name phone address createdAt whatsappBlocked whatsappBlockReason whatsappRetargetCount whatsappLastRetargetAt whatsappLastErrorCode")
         .lean();
 
+      let skippedCount = 0;
+      let blockedCount = 0;
+      
       const recipients = owners
-        .map((o: any) => ({
-          id: String(o._id),
-          name: o.name || "Owner",
-          phone: normalizePhone(o.phone),
-          source: "owner",
-          createdAt: o.createdAt,
-          state: "pending" as const,
-        }))
-        .filter((r) => /^[1-9][0-9]{6,14}$/.test(r.phone));
+        .map((o: any) => {
+          const phone = normalizePhone(o.phone);
+          const isValidPhone = /^[1-9][0-9]{6,14}$/.test(phone);
+          
+          if (!isValidPhone) {
+            skippedCount++;
+            return null;
+          }
+          
+          const state = deriveRetargetState(o);
+          if (state === "blocked") blockedCount++;
+          
+          const retargetCount = o.whatsappRetargetCount || 0;
+          const canRetarget = 
+            state !== "blocked" &&
+            retargetCount < MAX_RETARGET_COUNT &&
+            !BLOCKING_ERROR_CODES.includes(o.whatsappLastErrorCode);
+          
+          return {
+            id: String(o._id),
+            name: o.name || "Owner",
+            phone,
+            source: "owner" as const,
+            createdAt: o.createdAt,
+            address: o.address || "",
+            // Retarget-specific fields
+            state,
+            retargetCount,
+            lastRetargetAt: o.whatsappLastRetargetAt || null,
+            blocked: o.whatsappBlocked || false,
+            blockReason: o.whatsappBlockReason || null,
+            lastErrorCode: o.whatsappLastErrorCode || null,
+            canRetarget,
+          };
+        })
+        .filter(Boolean);
 
-      return NextResponse.json({ success: true, recipients });
+      console.log(`📋 [AUDIT] Retarget owners fetch: ${recipients.length} owners, ${skippedCount} invalid, ${blockedCount} blocked`);
+
+      return NextResponse.json({ 
+        success: true, 
+        recipients,
+        meta: {
+          total: owners.length,
+          returned: recipients.length,
+          skipped: skippedCount,
+          blocked: blockedCount,
+          maxRetargetAllowed: MAX_RETARGET_COUNT,
+        }
+      });
     }
 
     // =========================================================

@@ -797,14 +797,14 @@ useEffect(() => {
       const allSelectableIds = recs
         .filter((r: any) => r.canRetarget !== false)
         .map((r: any) => r.id);
-      const selectableIds = allSelectableIds.slice(0, 100);
+      const selectableIds = allSelectableIds.slice(0, 10); // Limit to 10
       setRetargetSelectedIds(selectableIds);
       
       // Store meta for UI
       setRetargetMeta(meta);
       
-      const limitNote = allSelectableIds.length > 100 
-        ? ` (first 100 auto-selected)` 
+      const limitNote = allSelectableIds.length > 10 
+        ? ` (first 10 auto-selected)` 
         : "";
       toast({
         title: "Recipients loaded",
@@ -929,7 +929,7 @@ useEffect(() => {
       }
 
       if (i < sendable - 1 && !aborted) {
-        await new Promise((resolve) => setTimeout(resolve, 6000));
+        await new Promise((resolve) => setTimeout(resolve, 15000)); // 15 seconds between messages
       }
     }
 
@@ -1407,19 +1407,19 @@ useEffect(() => {
             sendingActive={retargetSending}
             selectedRecipientIds={retargetSelectedIds}
             onToggleRecipient={(id) => {
-              // Only allow toggling if recipient can be retargeted
+              // Only allow toggling if recipient can be retargeted and not blocked
               const recipient = retargetRecipients.find((r) => r.id === id);
-              if (recipient?.canRetarget) {
+              if (recipient?.canRetarget && !recipient?.blocked) {
                 setRetargetSelectedIds((prev) => {
                   // If removing, always allow
                   if (prev.includes(id)) {
                     return prev.filter((x) => x !== id);
                   }
-                  // If adding, check 100 limit
-                  if (prev.length >= 100) {
+                  // If adding, check 10 limit
+                  if (prev.length >= 10) {
                     toast({
                       title: "Selection limit reached",
-                      description: "Maximum 100 recipients can be selected at once",
+                      description: "Maximum 10 recipients can be selected at once",
                       variant: "destructive",
                     });
                     return prev;
@@ -1429,17 +1429,17 @@ useEffect(() => {
               }
             }}
             onToggleAll={(checked) => {
-              // Only select recipients that can be retargeted (max 100)
+              // Only select recipients that can be retargeted and not blocked (max 100)
               if (checked) {
                 const eligibleIds = retargetRecipients
-                  .filter((r) => r.canRetarget)
+                  .filter((r) => r.canRetarget && !r.blocked)
                   .map((r) => r.id)
-                  .slice(0, 100); // Limit to 100
+                  .slice(0, 10); // Limit to 10
                 setRetargetSelectedIds(eligibleIds);
-                if (retargetRecipients.filter((r) => r.canRetarget).length > 100) {
+                if (retargetRecipients.filter((r) => r.canRetarget && !r.blocked).length > 10) {
                   toast({
                     title: "Selection limited to 100",
-                    description: "Only the first 100 eligible recipients were selected",
+                    description: "Only the first 10 eligible recipients were selected",
                   });
                 }
               } else {

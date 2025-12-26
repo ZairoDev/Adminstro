@@ -6,6 +6,12 @@ import { getMessageDisplayText } from "../utils";
 import { FileText } from "lucide-react";
 import { useMemo } from "react";
 import { AlertTriangle, Check, CheckCheck, Clock } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MessageListProps {
   messages: Message[];
@@ -15,18 +21,18 @@ interface MessageListProps {
   selectedConversationActive: boolean;
 }
 
-const statusIcon = (status: Message["status"]) => {
+const statusInfo = (status: Message["status"]) => {
   switch (status) {
     case "sending":
-      return <Clock className="h-4 w-4 text-gray-200" />;
+      return { icon: <Clock className="h-3.5 w-3.5" />, label: "Sending...", color: "text-gray-300" };
     case "sent":
-      return <Check className="h-4 w-4 text-gray-200" />;
+      return { icon: <Check className="h-3.5 w-3.5" />, label: "Sent", color: "text-gray-300" };
     case "delivered":
-      return <CheckCheck className="h-4 w-4 text-gray-200" />;
+      return { icon: <CheckCheck className="h-3.5 w-3.5" />, label: "Delivered", color: "text-gray-300" };
     case "read":
-      return <CheckCheck className="h-4 w-4 text-blue-600" />;
+      return { icon: <CheckCheck className="h-3.5 w-3.5" />, label: "Read", color: "text-blue-400" };
     case "failed":
-      return <AlertTriangle className="h-4 w-4 text-red-700" />;
+      return { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: "Failed", color: "text-red-400" };
     default:
       return null;
   }
@@ -191,7 +197,7 @@ export function MessageList({
                     return <p className="text-sm break-words">{displayText}</p>;
                   })()}
 
-                  <div className="flex items-center justify-end gap-1 mt-1">
+                  <div className="flex items-center justify-end gap-1.5 mt-1">
                     <span
                       className={cn(
                         "text-xs",
@@ -203,7 +209,24 @@ export function MessageList({
                         minute: "2-digit",
                       })}
                     </span>
-                    {message.direction === "outgoing" && statusIcon(message.status)}
+                    {message.direction === "outgoing" && (() => {
+                      const info = statusInfo(message.status);
+                      if (!info) return null;
+                      return (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={cn("cursor-default flex items-center", info.color)}>
+                                {info.icon}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p>{info.label}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

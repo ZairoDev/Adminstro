@@ -482,8 +482,12 @@ async function processIncomingMessage(
 
     console.log("✅ Message saved and broadcasted:", message.id, mediaUrl ? `(with media: ${mediaUrl.substring(0, 50)}...)` : "");
 
-    // If this incoming message corresponds to a lead in our 'Query' collection,
-    // mark that lead as having given the first reply (only the first time).
+        // STEP 5: First Reply Detection (Simple)
+    // ========================================
+    // When an INBOUND WhatsApp message arrives:
+    // - If firstReply === false, set firstReply = true, whatsappOptIn = true
+    // - This is a ONE-WAY FLAG - never flip it back
+    // - Used for safe retargeting to only message engaged leads
     try {
       const QueryModel = (await import("@/models/query")).default;
       const normalizedSender = (senderPhone || "").toString().replace(/\D/g, "");
@@ -495,28 +499,39 @@ async function processIncomingMessage(
         const lastDigits = normalizedSender.slice(-len);
         const regex = new RegExp(`${lastDigits}$`);
         lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
-        console.log(`🔎 Trying match last ${len} digits: ${lastDigits} -> found: ${lead?._id}`);
         if (lead) break;
       }
 
       if (!lead) {
-        console.log(`⚠️ No matching lead found for incoming number ${senderPhone} (normalized: ${normalizedSender})`);
+        console.log(`⚠️ No matching lead found for incoming number ${senderPhone}`);
       }
 
+      // STEP 5: Only update if firstReply is false (idempotent, one-way)
       if (lead && !lead.firstReply) {
-        lead.firstReply = true;
-        await lead.save();
+        // Atomic update - prevents race conditions
+        const updateResult = await QueryModel.updateOne(
+          { _id: lead._id, firstReply: { $ne: true } }, // Only update if not already true
+          {
+            $set: {
+              firstReply: true,
+              whatsappOptIn: true, // STEP 5: Mark as opted-in for retargeting
+            }
+          }
+        );
 
-        console.log(`✅ Marked Query ${lead._id} as firstReply=true for ${senderPhone}`);
+        if (updateResult.modifiedCount > 0) {
+          console.log(`✅ [AUDIT] Lead ${lead._id} marked firstReply=true, whatsappOptIn=true for ${senderPhone}`);
 
-        // Emit a conversation update so UIs can react in real time
-        emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
-          conversationId: conversation._id.toString(),
-          businessPhoneId: phoneNumberId,
-          phone: senderPhone,
-          queryId: lead._id?.toString(),
-          firstReply: true,
-        });
+          // Emit a conversation update so UIs can react in real time
+          emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
+            conversationId: conversation._id.toString(),
+            businessPhoneId: phoneNumberId,
+            phone: senderPhone,
+            queryId: lead._id?.toString(),
+            firstReply: true,
+            whatsappOptIn: true,
+          });
+        }
       }
     } catch (err) {
       console.error("Error updating Query firstReply:", err);
@@ -527,12 +542,34 @@ async function processIncomingMessage(
   }
 }
 
+/**
+ * STEP 4 & 6: Idempotent status update with error code handling
+ * - Uses findOneAndUpdate with condition to prevent duplicate status events
+ * - Detects error codes 131049 (blocked) and 131026 (rate limit) and updates lead accordingly
+ * - Only emits socket event if status actually changed
+ */
 async function processStatusUpdate(status: any) {
   try {
     const messageId = status.id;
     const newStatus = status.status; // sent, delivered, read, failed
     const timestamp = new Date(parseInt(status.timestamp) * 1000);
     const recipientId = status.recipient_id;
+    const errorCode = status.errors?.[0]?.code;
+
+    // STEP 4: Find message first to check current status (idempotency check)
+    const existingMessage = await WhatsAppMessage.findOne({ messageId });
+    if (!existingMessage) {
+      console.log(`⚠️ Status update for unknown message: ${messageId}`);
+      return;
+    }
+
+    const previousStatus = existingMessage.status;
+
+    // Skip if status hasn't changed (duplicate webhook)
+    if (previousStatus === newStatus) {
+      console.log(`⏭️ Duplicate status webhook for ${messageId}: ${newStatus}`);
+      return;
+    }
 
     // Build update object with statusEvents push and failureReason
     const updateObj: any = { 
@@ -557,27 +594,142 @@ async function processStatusUpdate(status: any) {
       };
     }
 
-    // Update message status in database
+    // STEP 4: Atomic update with condition (only update if status != newStatus)
     const message = await WhatsAppMessage.findOneAndUpdate(
-      { messageId },
+      { messageId, status: { $ne: newStatus } }, // Only update if status changed
       updateObj,
       { new: true }
     );
 
-    if (message) {
-      // Emit status update via Socket.io
-      emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE, {
-        conversationId: message.conversationId.toString(),
-        messageId,
-        status: newStatus,
-        timestamp,
-        recipientId,
-      });
-
-      console.log("Message status updated:", messageId, newStatus);
+    if (!message) {
+      console.log(`⏭️ Status already up-to-date for ${messageId}`);
+      return;
     }
+
+    // STEP 6: Handle error codes and update lead accordingly
+    if (newStatus === "failed" && errorCode) {
+      await handleWhatsAppErrorCode(errorCode, recipientId, messageId);
+    }
+
+    // STEP 9: Only emit socket event if status actually changed
+    emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE, {
+      conversationId: message.conversationId.toString(),
+      messageId,
+      status: newStatus,
+      previousStatus,
+      timestamp,
+      recipientId,
+      errorCode: errorCode || null,
+    });
+
+    console.log(`✅ Message status updated: ${messageId} ${previousStatus} → ${newStatus}`);
   } catch (error) {
     console.error("Error processing status update:", error);
+  }
+}
+
+/**
+ * STEP 3: Error Code Driven Blocking (CRITICAL)
+ * =============================================
+ * Handle WhatsApp error codes with specific block reasons.
+ * All updates are IDEMPOTENT - never flip whatsappBlocked back to false.
+ * 
+ * ERROR CODES:
+ * - 131049: ecosystem_protection → PERMANENT BLOCK
+ * - 131021: number_not_on_whatsapp → PERMANENT BLOCK
+ * - 131215: groups_not_eligible → PERMANENT BLOCK
+ * - 131026: rate_limited → Log only, allow manual retry after 24-48h
+ * - 131042: billing_issue → System alert, no retry
+ */
+async function handleWhatsAppErrorCode(
+  errorCode: number,
+  recipientPhone: string,
+  messageId: string
+) {
+  try {
+    const QueryModel = (await import("@/models/query")).default;
+    const normalizedPhone = (recipientPhone || "").replace(/\D/g, "");
+
+    // Find lead by phone (try last 9, 8, 7 digits)
+    let lead: any = null;
+    for (const len of [9, 8, 7]) {
+      if (normalizedPhone.length < len) continue;
+      const lastDigits = normalizedPhone.slice(-len);
+      const regex = new RegExp(`${lastDigits}$`);
+      lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
+      if (lead) break;
+    }
+
+    if (!lead) {
+      console.log(`⚠️ [AUDIT] No lead found for error handling: ${normalizedPhone}`);
+      return;
+    }
+
+    // Skip if already blocked (idempotent - never flip back to false)
+    if (lead.whatsappBlocked === true) {
+      console.log(`⏭️ [AUDIT] Lead ${lead._id} already blocked, skipping error ${errorCode}`);
+      return;
+    }
+
+    const updateFields: any = {
+      whatsappLastErrorCode: errorCode,
+    };
+
+    // =========================================================
+    // ERROR CODE HANDLING (CRITICAL - determines blocking)
+    // =========================================================
+    
+    switch (errorCode) {
+      case 131049:
+        // ECOSYSTEM PROTECTION: User blocked us or Meta detected spam
+        // Action: PERMANENT BLOCK - never message again
+        updateFields.whatsappBlocked = true;
+        updateFields.whatsappBlockReason = "ecosystem_protection";
+        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: ecosystem_protection (131049)`);
+        break;
+
+      case 131021:
+        // NUMBER NOT ON WHATSAPP: Phone number doesn't have WhatsApp
+        // Action: PERMANENT BLOCK - no point retrying
+        updateFields.whatsappBlocked = true;
+        updateFields.whatsappBlockReason = "number_not_on_whatsapp";
+        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: number_not_on_whatsapp (131021)`);
+        break;
+
+      case 131215:
+        // GROUPS NOT ELIGIBLE: Cannot message groups
+        // Action: PERMANENT BLOCK - system limitation
+        updateFields.whatsappBlocked = true;
+        updateFields.whatsappBlockReason = "groups_not_eligible";
+        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: groups_not_eligible (131215)`);
+        break;
+
+      case 131026:
+        // RATE LIMITED or temporarily unavailable
+        // Action: DO NOT permanently block, allow manual retry after 24-48h
+        console.log(`⏳ [AUDIT] Lead ${lead._id} rate limited (131026) - manual retry allowed after 24h`);
+        // Only update error code, don't block
+        break;
+
+      case 131042:
+        // BILLING ISSUE: Account billing problem
+        // Action: System-level alert, no retry until resolved
+        console.log(`💳 [AUDIT] BILLING ISSUE detected (131042) - requires admin attention`);
+        // Log billing issue for admin review (could integrate with Slack/email)
+        // Note: Not emitting socket event as this is a system-level issue
+        break;
+
+      default:
+        console.log(`⚠️ [AUDIT] Lead ${lead._id} unknown error ${errorCode}`);
+    }
+
+    // Idempotent update with condition (don't update if already blocked)
+    await QueryModel.updateOne(
+      { _id: lead._id, whatsappBlocked: { $ne: true } },
+      { $set: updateFields }
+    );
+  } catch (err) {
+    console.error("Error handling WhatsApp error code:", err);
   }
 }
 

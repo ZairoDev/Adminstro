@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       conversationId,
       phoneNumberId: requestedPhoneId,
       templateText, // The filled-in template text for display
+      isRetarget = false, // STEP 2: Flag to indicate this is a retarget message
     } = await req.json();
 
     if (!to || !templateName) {
@@ -206,6 +207,58 @@ export async function POST(req: NextRequest) {
         senderName: token.name || "You",
       },
     });
+
+    // =========================================================
+    // STEP 2 & 3: Lead Tracking & Retarget Count Logic
+    // =========================================================
+    // - Always update whatsappLastMessageAt for cooldown tracking
+    // - If isRetarget: increment whatsappRetargetCount & set whatsappLastRetargetAt
+    // - Count is incremented ONLY after API accepts (not on failures)
+    try {
+      const QueryModel = (await import("@/models/query")).default;
+      const normalizedPhone = formattedPhone.replace(/\D/g, "");
+      
+      // Find lead by phone (try last 9, 8, 7 digits)
+      let lead: any = null;
+      for (const len of [9, 8, 7]) {
+        if (normalizedPhone.length < len) continue;
+        const lastDigits = normalizedPhone.slice(-len);
+        const regex = new RegExp(`${lastDigits}$`);
+        lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
+        if (lead) break;
+      }
+
+      if (lead) {
+        // Build update object
+        const updateFields: any = {
+          whatsappLastMessageAt: timestamp,
+        };
+        
+        // STEP 2: If this is a retarget message, increment count and update date
+        // WHY: Track how many times we've retargeted this lead (max 3 allowed)
+        if (isRetarget) {
+          updateFields.whatsappLastRetargetAt = timestamp;
+        }
+
+        // Use $inc for retarget count to ensure atomicity
+        const updateQuery: any = { $set: updateFields };
+        if (isRetarget) {
+          updateQuery.$inc = { whatsappRetargetCount: 1 };
+        }
+
+        await QueryModel.updateOne({ _id: lead._id }, updateQuery);
+        
+        if (isRetarget) {
+          const newCount = (lead.whatsappRetargetCount || 0) + 1;
+          console.log(`🎯 [AUDIT] Retarget sent to lead ${lead._id} (count: ${newCount})`);
+        } else {
+          console.log(`📤 [AUDIT] Template sent to lead ${lead._id}`);
+        }
+      }
+    } catch (err) {
+      // Don't fail the send if lead tracking fails
+      console.error("Error updating lead tracking:", err);
+    }
 
     return NextResponse.json({
       success: true,

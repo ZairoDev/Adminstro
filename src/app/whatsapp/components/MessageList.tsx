@@ -1,0 +1,218 @@
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Message } from "../types";
+import { getMessageDisplayText } from "../utils";
+import { FileText } from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, Check, CheckCheck, Clock } from "lucide-react";
+
+interface MessageListProps {
+  messages: Message[];
+  messagesLoading: boolean;
+  messageSearchQuery: string;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
+  selectedConversationActive: boolean;
+}
+
+const statusIcon = (status: Message["status"]) => {
+  switch (status) {
+    case "sending":
+      return <Clock className="h-4 w-4 text-gray-200" />;
+    case "sent":
+      return <Check className="h-4 w-4 text-gray-200" />;
+    case "delivered":
+      return <CheckCheck className="h-4 w-4 text-gray-200" />;
+    case "read":
+      return <CheckCheck className="h-4 w-4 text-blue-600" />;
+    case "failed":
+      return <AlertTriangle className="h-4 w-4 text-red-700" />;
+    default:
+      return null;
+  }
+};
+
+export function MessageList({
+  messages,
+  messagesLoading,
+  messageSearchQuery,
+  messagesEndRef,
+  selectedConversationActive,
+}: MessageListProps) {
+  const filteredMessages = useMemo(
+    () =>
+      messages.filter((msg) => {
+        if (!messageSearchQuery) return true;
+        const displayText = getMessageDisplayText(msg);
+        return displayText.toLowerCase().includes(messageSearchQuery.toLowerCase());
+      }),
+    [messages, messageSearchQuery]
+  );
+
+  return (
+    <ScrollArea className="h-full pr-4">
+      <div className="space-y-4">
+        {messagesLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredMessages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-20">
+            <p className="text-lg font-medium">
+              {selectedConversationActive ? "No messages yet" : "Select a conversation"}
+            </p>
+            <p className="text-sm">Send a message to start the conversation</p>
+          </div>
+        ) : (
+          filteredMessages.map((message) => {
+            const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(
+              message.type
+            );
+            return (
+              <div
+                key={message._id || message.messageId}
+                className={cn(
+                  "flex",
+                  message.direction === "outgoing" ? "justify-end" : "justify-start"
+                )}
+              >
+                <div
+                  className={cn(
+                    "max-w-[70%] rounded-lg p-3",
+                    message.direction === "outgoing" ? "bg-green-800 text-white" : "bg-muted"
+                  )}
+                >
+                  {!message.mediaUrl &&
+                    message.status === "sending" &&
+                    (message.type === "image" ||
+                      message.type === "video" ||
+                      message.type === "audio" ||
+                      message.type === "document") && (
+                      <div className="mb-2 flex items-center justify-center p-4 bg-black/10 rounded-lg">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span className="ml-2 text-sm">Uploading...</span>
+                      </div>
+                    )}
+
+                  {message.mediaUrl && (message.type === "image" || message.type === "sticker") && (
+                    <div className="mb-2 relative">
+                      {message.status === "sending" && (
+                        <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        </div>
+                      )}
+                      <img
+                        src={message.mediaUrl}
+                        alt={getMessageDisplayText(message) || "Image"}
+                        className="max-w-full rounded-lg max-h-64 object-contain cursor-pointer hover:opacity-90"
+                        onClick={() => window.open(message.mediaUrl, "_blank")}
+                      />
+                    </div>
+                  )}
+
+                  {message.mediaUrl && message.type === "video" && (
+                    <div className="mb-2">
+                      <video src={message.mediaUrl} controls className="max-w-full rounded-lg max-h-64" />
+                    </div>
+                  )}
+
+                  {message.mediaUrl && message.type === "audio" && (
+                    <div className="mb-2">
+                      <audio src={message.mediaUrl} controls className="max-w-full" />
+                    </div>
+                  )}
+
+                  {message.mediaUrl && message.type === "document" && (
+                    <div className="mb-2">
+                      <a
+                        href={message.mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded border",
+                          message.direction === "outgoing"
+                            ? "border-green-300 hover:bg-green-600"
+                            : "border-gray-300 hover:bg-gray-100"
+                        )}
+                      >
+                        <FileText className="h-6 w-6" />
+                        <span className="text-sm underline">Download Document</span>
+                      </a>
+                    </div>
+                  )}
+
+                  {message.type === "location" &&
+                    typeof message.content === "object" &&
+                    message.content?.location && (
+                      <div className="mb-2">
+                        <a
+                          href={`https://www.google.com/maps?q=${message.content.location.latitude},${message.content.location.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded border",
+                            message.direction === "outgoing"
+                              ? "border-green-300 hover:bg-green-600"
+                              : "border-gray-300 hover:bg-gray-100"
+                          )}
+                        >
+                          📍{" "}
+                          {message.content.location.name ||
+                            message.content.location.address ||
+                            "View Location"}
+                        </a>
+                      </div>
+                    )}
+
+                  {(() => {
+                    const displayText = getMessageDisplayText(message);
+                    const hasCaption =
+                      typeof message.content === "object" &&
+                      message.content?.caption &&
+                      message.content.caption !== message.content.caption?.split("/").pop();
+
+                    if (!isMediaType || (isMediaType && hasCaption)) {
+                      const textToShow =
+                        isMediaType && typeof message.content === "object"
+                          ? message.content.caption
+                          : displayText;
+                      if (
+                        textToShow &&
+                        !textToShow.startsWith("📷") &&
+                        !textToShow.startsWith("🎬") &&
+                        !textToShow.startsWith("🎵") &&
+                        !textToShow.startsWith("📄") &&
+                        !textToShow.startsWith("🎨")
+                      ) {
+                        return <p className="text-sm break-words">{textToShow}</p>;
+                      }
+                    }
+                    if (isMediaType && message.mediaUrl) return null;
+                    return <p className="text-sm break-words">{displayText}</p>;
+                  })()}
+
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <span
+                      className={cn(
+                        "text-xs",
+                        message.direction === "outgoing" ? "text-green-100" : "text-muted-foreground"
+                      )}
+                    >
+                      {new Date(message.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {message.direction === "outgoing" && statusIcon(message.status)}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+    </ScrollArea>
+  );
+}
+

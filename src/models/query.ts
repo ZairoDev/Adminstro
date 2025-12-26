@@ -175,6 +175,65 @@ const querySchema = new Schema(
       type: Boolean,
       default: false,
     },
+    // =========================================================
+    // WHATSAPP RETARGETING FIELDS (Strict & Minimal)
+    // =========================================================
+    // These fields enable safe, traceable, ban-resistant retargeting.
+    // All fields have defaults for backward compatibility.
+    
+    // Explicit opt-in: true when lead replies to first WhatsApp message
+    // WHY: Only message leads who have engaged (prevents spam reports)
+    whatsappOptIn: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // RETARGET COUNT: How many WhatsApp retarget attempts were made
+    // WHY: Limit retargeting to MAX 3 attempts per lead to prevent ban
+    // Incremented ONLY when API accepts the message (not on failures)
+    whatsappRetargetCount: {
+      type: Number,
+      default: 0,
+    },
+    
+    // LAST RETARGET DATE: When the last retarget message was sent
+    // WHY: Enforce 24h cooldown between retarget attempts
+    whatsappLastRetargetAt: {
+      type: Date,
+      default: null,
+    },
+    
+    // PERMANENT BLOCK: Once true, this lead is NEVER messaged again
+    // WHY: Prevents messaging users who blocked us or don't have WhatsApp
+    // CRITICAL: Never flip this back to false
+    whatsappBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // BLOCK REASON: Human-readable reason for the block
+    // Values: "ecosystem_protection" | "number_not_on_whatsapp" | 
+    //         "groups_not_eligible" | "manual_block" | null
+    // WHY: Helps team understand why a lead was blocked
+    whatsappBlockReason: {
+      type: String,
+      default: null,
+    },
+    
+    // LAST ERROR CODE: The most recent WhatsApp API error code
+    // Known codes: 131049 (blocked), 131021 (not on WA), 131026 (rate limit)
+    // WHY: Used to filter out problematic numbers from retargeting
+    whatsappLastErrorCode: {
+      type: Number,
+      default: null,
+    },
+    
+    // LAST MESSAGE DATE: When any WhatsApp message was last sent
+    // WHY: General tracking, distinct from retarget-specific date
+    whatsappLastMessageAt: {
+      type: Date,
+      default: null,
+    },
     salesPriority: {
       type: String,
       enum: ["High", "Low", "Medium","NR", "None"],

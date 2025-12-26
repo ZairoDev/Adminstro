@@ -8,9 +8,8 @@
 
 const { MongoClient } = require("mongodb");
 
-const MONGO_URI =
-  "mongodb+srv://developerzairo:pswd7704@cluster0.gjieyym.mongodb.net/?retryWrites=true&w=majority";
-const DB_NAME = "PropertyDb";
+const MONGO_URI = process.env.MONGO_DB_URL; 
+const DB_NAME = process.env.MONGO_DB_NAME;
 
 async function syncAvailability() {
   const client = new MongoClient(MONGO_URI);

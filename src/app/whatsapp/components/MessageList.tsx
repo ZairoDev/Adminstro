@@ -190,11 +190,11 @@ export function MessageList({
                         !textToShow.startsWith("📄") &&
                         !textToShow.startsWith("🎨")
                       ) {
-                        return <p className="text-sm break-words">{textToShow}</p>;
+                        return <p className="text-base break-words whitespace-pre-wrap">{textToShow}</p>;
                       }
                     }
                     if (isMediaType && message.mediaUrl) return null;
-                    return <p className="text-sm break-words">{displayText}</p>;
+                    return <p className="text-base break-words whitespace-pre-wrap">{displayText}</p>;
                   })()}
 
                   <div className="flex items-center justify-end gap-1.5 mt-1">

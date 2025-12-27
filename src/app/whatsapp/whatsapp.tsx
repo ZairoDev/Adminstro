@@ -104,6 +104,8 @@ export default function WhatsAppChat() {
     maxRetargetAllowed?: number;
     cooldownHours?: number;
     blocked?: number;
+    pending?: number;
+    retargeted?: number;
     atMaxRetarget?: number;
   }>({});
   const [retargetSentCount, setRetargetSentCount] = useState(0);
@@ -328,6 +330,16 @@ useEffect(() => {
           )
         );
       }
+      
+      // Update conversation lastMessageStatus if this is the last message
+      setConversations((prev) =>
+        prev.map((conv) => {
+          if (conv._id === conversationId && conv.lastMessageId === messageId) {
+            return { ...conv, lastMessageStatus: status };
+          }
+          return conv;
+        })
+      );
     });
 
     // Handle message echoes (messages sent from other devices/sessions)
@@ -768,11 +780,12 @@ useEffect(() => {
   };
 
   // Retargeting: fetch recipients with state filter
-  const fetchRetargetRecipients = async (stateFilter: string = "pending") => {
+  const fetchRetargetRecipients = async (stateFilter: string = "pending", additionalFilters?: Record<string, any>) => {
     try {
       setRetargetFetching(true);
       setRetargetSentCount(0);
-      const response = await axios.post("/api/whatsapp/retarget", {
+      
+      const requestBody: Record<string, any> = {
         audience: retargetAudience,
         priceFrom: retargetPriceFrom ? Number(retargetPriceFrom) : undefined,
         priceTo: retargetPriceTo ? Number(retargetPriceTo) : undefined,
@@ -780,10 +793,20 @@ useEffect(() => {
         toDate: retargetToDate || undefined,
         location: selectedLocation || undefined,
         stateFilter, // Pass the tab filter to API
-        limit: 200,
-      });
+        limit: 10000, // Removed practical limit
+      };
+      
+      // Merge additional filters if provided
+      if (additionalFilters && typeof additionalFilters === "object") {
+        Object.assign(requestBody, additionalFilters);
+      }
+      
+      const response = await axios.post("/api/whatsapp/retarget", requestBody);
       const recs = response.data?.recipients || [];
       const meta = response.data?.meta || {};
+      
+      // Store meta with counts
+      setRetargetMeta(meta);
       
       // Map recipients with enhanced retarget fields
       setRetargetRecipients(
@@ -793,7 +816,7 @@ useEffect(() => {
         }))
       );
       
-      // Only select recipients that can be retargeted (max 100)
+      // Only select recipients that can be retargeted (max 10)
       const allSelectableIds = recs
         .filter((r: any) => r.canRetarget !== false)
         .map((r: any) => r.id);
@@ -1252,15 +1275,15 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex flex-col gap-4 mt-6">
-      <Tabs defaultValue="chat" className="w-full">
-        <TabsList>
+    <div className="flex flex-col h-screen w-full fixed inset-0 pt-20">
+      <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
+        <TabsList className="px-4">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="retarget">Retarget</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chat" className="pt-4">
-          <div className="flex h-[calc(100vh-160px)] gap-4">
+        <TabsContent value="chat" className="flex-1 pt-4 px-4 pb-4 overflow-hidden">
+          <div className="flex h-full gap-4 ">
             <ConversationSidebar
               conversations={conversations}
               selectedConversation={selectedConversation}
@@ -1375,7 +1398,7 @@ useEffect(() => {
           </div>
         </TabsContent>
 
-        <TabsContent value="retarget" className="pt-4">
+        <TabsContent value="retarget" className="flex-1 pt-4 px-4 pb-4 overflow-hidden">
           <RetargetPanel
             audience={retargetAudience}
             onAudienceChange={setRetargetAudience}

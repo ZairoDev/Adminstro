@@ -5,10 +5,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, MessageSquare, Phone, Wifi, WifiOff } from "lucide-react";
+import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -51,8 +57,38 @@ export function ConversationSidebar({
       conv.participantPhone.includes(searchQuery)
   );
 
+  const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
+    if (!status) return null;
+    switch (status) {
+      case "sending":
+        return <Clock className="h-3 w-3 text-gray-400" />;
+      case "sent":
+        return <Check className="h-3 w-3 text-gray-400" />;
+      case "delivered":
+        return <CheckCheck className="h-3 w-3 text-gray-400" />;
+      case "read":
+        return <CheckCheck className="h-3 w-3 text-blue-500" />;
+      case "failed":
+        return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusLabel = (status?: Conversation["lastMessageStatus"]) => {
+    if (!status) return "";
+    switch (status) {
+      case "sending": return "Sending...";
+      case "sent": return "Sent";
+      case "delivered": return "Delivered";
+      case "read": return "Read";
+      case "failed": return "Failed";
+      default: return "";
+    }
+  };
+
   return (
-    <Card className="w-80 flex flex-col">
+    <Card className="w-80 flex flex-col h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-green-500" />
@@ -169,34 +205,49 @@ export function ConversationSidebar({
                   <div className="flex items-center justify-between">
                     <p
                       className={cn(
-                        "text-sm truncate",
+                        "text-base truncate",
                         conversation.unreadCount > 0 ? "font-bold" : "font-medium"
                       )}
                     >
                       {conversation.participantName || conversation.participantPhone}
                     </p>
                     {conversation.lastMessageTime && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-sm text-muted-foreground">
                         {formatTime(conversation.lastMessageTime)}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
-                    <p
-                      className={cn(
-                        "text-xs truncate max-w-[180px]",
-                        conversation.unreadCount > 0
-                          ? "text-foreground font-medium"
-                          : "text-muted-foreground"
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                      {conversation.lastMessageDirection === "outgoing" && conversation.lastMessageStatus && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-shrink-0">
+                                {getStatusIcon(conversation.lastMessageStatus)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getStatusLabel(conversation.lastMessageStatus)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
-                    >
-                      {conversation.lastMessageDirection === "outgoing" && <span className="mr-1">✓</span>}
-                      {conversation.lastMessageContent || conversation.participantPhone}
-                    </p>
+                      <p
+                        className={cn(
+                          "text-sm truncate",
+                          conversation.unreadCount > 0
+                            ? "text-foreground font-medium"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {conversation.lastMessageContent || conversation.participantPhone}
+                      </p>
+                    </div>
                     {conversation.unreadCount > 0 && (
                       <Badge
                         variant="default"
-                        className="h-5 min-w-5 rounded-full p-0 flex items-center justify-center bg-green-500 text-xs"
+                        className="h-5 min-w-5 rounded-full p-0 flex items-center justify-center bg-green-500 text-xs flex-shrink-0"
                       >
                         {conversation.unreadCount}
                       </Badge>

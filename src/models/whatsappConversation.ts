@@ -18,6 +18,7 @@ export interface IWhatsAppConversation extends Document {
   lastMessageContent?: string;
   lastMessageTime?: Date;
   lastMessageDirection?: "incoming" | "outgoing";
+  lastMessageStatus?: "sending" | "sent" | "delivered" | "read" | "failed";
 
   unreadCount: number;
 
@@ -98,6 +99,11 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     lastMessageDirection: {
       type: String,
       enum: ["incoming", "outgoing"],
+    },
+
+    lastMessageStatus: {
+      type: String,
+      enum: ["sending", "sent", "delivered", "read", "failed"],
     },
 
     unreadCount: {

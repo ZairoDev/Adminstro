@@ -85,18 +85,18 @@ export function ChatHeader({
               {conversation.participantName || conversation.participantPhone}
             </CardTitle>
             <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">{conversation.participantPhone}</p>
+              <p className="text-base text-muted-foreground">{conversation.participantPhone}</p>
               {remaining ? (
                 <Badge
                   variant="outline"
-                  className={cn("text-xs gap-1", remaining.hours < 2 ? "border-orange-500 text-orange-500" : "border-green-500 text-green-500")}
+                  className={cn("text-sm gap-1", remaining.hours < 2 ? "border-orange-500 text-orange-500" : "border-green-500 text-green-500")}
                 >
-                  <Timer className="h-3 w-3" />
+                  <Timer className="h-3.5 w-3.5" />
                   {remaining.hours}h {remaining.minutes}m
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-xs gap-1 border-red-500 text-red-500">
-                  <AlertTriangle className="h-3 w-3" />
+                <Badge variant="outline" className="text-sm gap-1 border-red-500 text-red-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
                   Template only
                 </Badge>
               )}

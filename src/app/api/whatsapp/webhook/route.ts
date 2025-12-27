@@ -611,6 +611,16 @@ async function processStatusUpdate(status: any) {
       await handleWhatsAppErrorCode(errorCode, recipientId, messageId);
     }
 
+    // Update conversation lastMessageStatus if this is the last message
+    if (message.conversationId) {
+      const conversation = await WhatsAppConversation.findById(message.conversationId);
+      if (conversation && conversation.lastMessageId === messageId) {
+        await WhatsAppConversation.findByIdAndUpdate(message.conversationId, {
+          lastMessageStatus: newStatus,
+        });
+      }
+    }
+
     // STEP 9: Only emit socket event if status actually changed
     emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE, {
       conversationId: message.conversationId.toString(),

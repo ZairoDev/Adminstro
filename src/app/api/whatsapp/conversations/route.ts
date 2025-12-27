@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
 import { 
   getAllowedPhoneIds, 
   canAccessPhoneId,
@@ -67,6 +68,24 @@ export async function GET(req: NextRequest) {
       WhatsAppConversation.countDocuments(query),
     ]);
 
+    // Populate lastMessageStatus from the last message for outgoing messages
+    const conversationsWithStatus = await Promise.all(
+      conversations.map(async (conv: any) => {
+        if (conv.lastMessageDirection === "outgoing" && conv.lastMessageId) {
+          const lastMessage = await WhatsAppMessage.findOne({
+            messageId: conv.lastMessageId,
+          })
+            .select("status")
+            .lean();
+          
+          if (lastMessage && typeof lastMessage === "object" && "status" in lastMessage) {
+            conv.lastMessageStatus = (lastMessage as any).status;
+          }
+        }
+        return conv;
+      })
+    );
+
     // Get phone configs for response
     const allowedPhoneConfigs = WHATSAPP_PHONE_CONFIGS.filter(
       config => allowedPhoneIds.includes(config.phoneNumberId)
@@ -74,7 +93,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      conversations,
+      conversations: conversationsWithStatus,
       allowedPhoneConfigs, // Send available phone configs to frontend
       pagination: {
         page,

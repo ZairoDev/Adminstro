@@ -30,9 +30,11 @@ export interface Conversation {
   participantPhone: string;
   participantName: string;
   participantProfilePic?: string;
+  lastMessageId?: string;
   lastMessageContent?: string;
   lastMessageTime?: Date;
   lastMessageDirection?: string;
+  lastMessageStatus?: "sending" | "sent" | "delivered" | "read" | "failed";
   unreadCount: number;
   status: string;
   lastCustomerMessageAt?: Date;

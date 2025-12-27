@@ -58,6 +58,7 @@ import {
 import SidebarSection from "./sidebarSection";
 import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
+import { FaWhatsapp } from "react-icons/fa6";
 
 // Simple active matcher (keep strict equality)
 const isActive = (currentPath: string, path: string): boolean =>
@@ -771,6 +772,11 @@ const dashboardManagementRoutes = [
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
   },
+  {
+    path: "/whatsapp",
+    label: "WhatsApp",
+    Icon: <FaWhatsapp size={18} />,
+  }
 
 ];
 const leadManagementRoutes = [

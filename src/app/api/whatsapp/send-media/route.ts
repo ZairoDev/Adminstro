@@ -216,6 +216,7 @@ export async function POST(req: NextRequest) {
       lastMessageContent: displayText.substring(0, 100),
       lastMessageTime: timestamp,
       lastMessageDirection: "outgoing",
+      lastMessageStatus: "sending",
       lastOutgoingMessageTime: timestamp,
     });
 

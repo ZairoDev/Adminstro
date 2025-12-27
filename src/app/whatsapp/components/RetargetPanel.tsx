@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -41,6 +42,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Users,
+  Building,
+  RefreshCw,
+  Search,
 } from "lucide-react";
 import type { Template } from "../types";
 import { getTemplateParameters, getTemplatePreviewText } from "../utils";
@@ -55,6 +64,7 @@ type Recipient = {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   source: "lead" | "owner";
   status?: "pending" | "sending" | "sent" | "failed";
   error?: string;
@@ -66,6 +76,25 @@ type Recipient = {
   lastErrorCode: number | null;
   canRetarget: boolean;
   hasEngagement: boolean;
+  // Lead-specific fields
+  minBudget?: number;
+  maxBudget?: number;
+  area?: string;
+  location?: string;
+  zone?: string;
+  metroZone?: string;
+  bookingTerm?: string;
+  propertyType?: string;
+  typeOfProperty?: string;
+  priority?: string;
+  guest?: number;
+  startDate?: string;
+  endDate?: string;
+  // Owner-specific fields
+  address?: string;
+  nationality?: string;
+  gender?: string;
+  spokenLanguage?: string;
 };
 
 interface RetargetPanelProps {
@@ -83,7 +112,7 @@ interface RetargetPanelProps {
   onPriceToChange: (v: string) => void;
   onFromDateChange: (v: string) => void;
   onToDateChange: (v: string) => void;
-  onFetchRecipients: (stateFilter: string) => void;
+  onFetchRecipients: (stateFilter: string, additionalFilters?: Record<string, any>) => void;
   fetching: boolean;
   recipients: Recipient[];
   selectedRecipientIds: string[];
@@ -104,6 +133,8 @@ interface RetargetPanelProps {
     maxRetargetAllowed?: number;
     cooldownHours?: number;
     blocked?: number;
+    pending?: number;
+    retargeted?: number;
     atMaxRetarget?: number;
   };
 }
@@ -206,7 +237,69 @@ export function RetargetPanel({
   const [showConfirm, setShowConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  // Additional filters for leads
+  const [area, setArea] = useState("");
+  const [zone, setZone] = useState("");
+  const [metroZone, setMetroZone] = useState("");
+  const [bookingTerm, setBookingTerm] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [typeOfProperty, setTypeOfProperty] = useState("");
+  const [priority, setPriority] = useState("");
+  const [minGuests, setMinGuests] = useState("");
+  const [maxGuests, setMaxGuests] = useState("");
+  // Additional filters for owners
+  const [nationality, setNationality] = useState("");
+  const [gender, setGender] = useState("");
+  const [spokenLanguage, setSpokenLanguage] = useState("");
+
   const ITEMS_PER_PAGE = 20;
+  const hasMountedRef = useRef(false);
+  const isInitialMountRef = useRef(true);
+
+  // Auto-fetch when audience/stateFilter changes (but not on initial mount)
+  useEffect(() => {
+    // Skip on initial mount to prevent errors when switching tabs
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+    
+    if (!onFetchRecipients || typeof onFetchRecipients !== "function") {
+      console.warn("onFetchRecipients is not available");
+      return;
+    }
+    
+    // Auto-fetch when audience or state filter changes
+    const filters: Record<string, any> = {};
+    if (audience === "leads") {
+      if (area) filters.area = area;
+      if (zone) filters.zone = zone;
+      if (metroZone) filters.metroZone = metroZone;
+      if (bookingTerm) filters.bookingTerm = bookingTerm;
+      if (propertyType) filters.propertyType = propertyType;
+      if (typeOfProperty) filters.typeOfProperty = typeOfProperty;
+      if (priority) filters.priority = priority;
+      if (minGuests) filters.minGuests = Number(minGuests);
+      if (maxGuests) filters.maxGuests = Number(maxGuests);
+    } else {
+      if (nationality) filters.nationality = nationality;
+      if (gender) filters.gender = gender;
+      if (spokenLanguage) filters.spokenLanguage = spokenLanguage;
+    }
+    
+    // Use setTimeout to avoid calling during render
+    const timeoutId = setTimeout(() => {
+      try {
+        onFetchRecipients(stateFilter, filters);
+      } catch (error) {
+        console.error("Error auto-fetching recipients:", error);
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audience, stateFilter]); // Auto-fetch when audience or state filter changes
 
   const params = useMemo(
     () => (selectedTemplate ? getTemplateParameters(selectedTemplate) : []),
@@ -221,22 +314,39 @@ export function RetargetPanel({
     [selectedTemplate, templateParams]
   );
 
+  // Filter recipients by search query
   const filteredRecipients = useMemo(() => {
-    return recipients.filter((r) => {
+    let filtered = recipients.filter((r) => {
       if (stateFilter === "pending") return r.state === "pending";
       if (stateFilter === "retargeted") return r.state === "retargeted";
       if (stateFilter === "blocked") return r.state === "blocked";
       return true;
     });
-  }, [recipients, stateFilter]);
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.name.toLowerCase().includes(query) ||
+          r.phone.includes(query) ||
+          (r.email && r.email.toLowerCase().includes(query)) ||
+          (r.location && r.location.toLowerCase().includes(query)) ||
+          (r.area && r.area.toLowerCase().includes(query))
+      );
+    }
+
+    return filtered;
+  }, [recipients, stateFilter, searchQuery]);
 
   const counts = useMemo(() => {
+    // Use meta counts if available (prefetched), otherwise calculate from recipients
     return {
-      pending: recipients.filter((r) => r.state === "pending").length,
-      retargeted: recipients.filter((r) => r.state === "retargeted").length,
-      blocked: recipients.filter((r) => r.state === "blocked").length,
+      pending: meta?.pending ?? recipients.filter((r) => r.state === "pending").length,
+      retargeted: meta?.retargeted ?? recipients.filter((r) => r.state === "retargeted").length,
+      blocked: meta?.blocked ?? recipients.filter((r) => r.state === "blocked").length,
     };
-  }, [recipients]);
+  }, [recipients, meta]);
 
   const selectableRecipients = useMemo(() => {
     return filteredRecipients.filter((r) => r.canRetarget);
@@ -252,10 +362,26 @@ export function RetargetPanel({
   // Reset page when filter or recipients change
   useEffect(() => {
     setCurrentPage(1);
-  }, [stateFilter, recipients.length]);
+  }, [stateFilter, recipients.length, searchQuery]);
 
   const handleFetch = () => {
-    onFetchRecipients(stateFilter);
+    const filters: Record<string, any> = {};
+    if (audience === "leads") {
+      if (area) filters.area = area;
+      if (zone) filters.zone = zone;
+      if (metroZone) filters.metroZone = metroZone;
+      if (bookingTerm) filters.bookingTerm = bookingTerm;
+      if (propertyType) filters.propertyType = propertyType;
+      if (typeOfProperty) filters.typeOfProperty = typeOfProperty;
+      if (priority) filters.priority = priority;
+      if (minGuests) filters.minGuests = Number(minGuests);
+      if (maxGuests) filters.maxGuests = Number(maxGuests);
+    } else {
+      if (nationality) filters.nationality = nationality;
+      if (gender) filters.gender = gender;
+      if (spokenLanguage) filters.spokenLanguage = spokenLanguage;
+    }
+    onFetchRecipients(stateFilter, filters);
   };
 
   const handleStartRetarget = () => {
@@ -272,9 +398,32 @@ export function RetargetPanel({
   };
 
   const maxRetarget = meta?.maxRetargetAllowed || 3;
+  const progressPercentage = totalToSend > 0 ? (sentCount / totalToSend) * 100 : 0;
+
+  // Get unique values for filter dropdowns
+  const uniqueAreas = useMemo(() => {
+    const areas = recipients
+      .map((r) => r.area)
+      .filter((a): a is string => !!a);
+    return Array.from(new Set(areas)).sort();
+  }, [recipients]);
+
+  const uniqueZones = useMemo(() => {
+    const zones = recipients
+      .map((r) => r.zone)
+      .filter((z): z is string => !!z);
+    return Array.from(new Set(zones)).sort();
+  }, [recipients]);
+
+  const uniqueNationalities = useMemo(() => {
+    const nats = recipients
+      .map((r) => r.nationality)
+      .filter((n): n is string => !!n);
+    return Array.from(new Set(nats)).sort();
+  }, [recipients]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* SIDEBAR - Filters */}
       <div
         className={`
@@ -301,14 +450,14 @@ export function RetargetPanel({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="text-xs">
-                Max {maxRetarget} per lead
+              <Badge variant="outline" className="text-sm">
+                Max {maxRetarget} per {audience === "leads" ? "lead" : "owner"}
               </Badge>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-sm">
                 {dailyRemaining}/100 left today
               </Badge>
               {meta?.blocked && meta.blocked > 0 && (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-sm">
                   {meta.blocked} blocked
                 </Badge>
               )}
@@ -319,13 +468,13 @@ export function RetargetPanel({
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* Audience Tabs */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Audience Type</Label>
+              <Label className="text-base font-semibold">Audience Type</Label>
               <Tabs
                 value={audience}
                 onValueChange={(v) => onAudienceChange(v as Audience)}
               >
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="leads">Leads</TabsTrigger>
+                  <TabsTrigger value="leads">Guests</TabsTrigger>
                   <TabsTrigger value="owners">Owners</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -333,7 +482,7 @@ export function RetargetPanel({
 
             {/* Template Selection */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Template</Label>
+              <Label className="text-base font-semibold">Template</Label>
               <Select
                 value={selectedTemplate?.name || ""}
                 onValueChange={(value) => {
@@ -361,7 +510,7 @@ export function RetargetPanel({
             {/* Template Parameters */}
             {params.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">
+                <Label className="text-base font-semibold">
                   Template Parameters
                 </Label>
                 <div className="space-y-2">
@@ -395,7 +544,7 @@ export function RetargetPanel({
             {/* Preview */}
             {preview && selectedTemplate && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Preview</Label>
+                <Label className="text-base font-semibold">Preview</Label>
                 <Alert>
                   <AlertDescription className="whitespace-pre-wrap text-xs">
                     {preview}
@@ -406,7 +555,7 @@ export function RetargetPanel({
 
             {/* Date Filters */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Date Range</Label>
+              <Label className="text-base font-semibold">Date Range</Label>
               <div className="space-y-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">From</Label>
@@ -431,50 +580,224 @@ export function RetargetPanel({
 
             {/* Price Filters - Only for Leads */}
             {audience === "leads" && (
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Price Range</Label>
+              <>
                 <div className="space-y-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Min Price
-                    </Label>
-                    <Input
-                      value={priceFrom}
-                      onChange={(e) =>
-                        onPriceFromChange(e.target.value.replace(/\D/g, ""))
-                      }
-                      placeholder="e.g. 20000"
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Max Price
-                    </Label>
-                    <Input
-                      value={priceTo}
-                      onChange={(e) =>
-                        onPriceToChange(e.target.value.replace(/\D/g, ""))
-                      }
-                      placeholder="e.g. 50000"
-                      className="h-9"
-                    />
+                  <Label className="text-base font-semibold">Price Range</Label>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Min Price
+                      </Label>
+                      <Input
+                        value={priceFrom}
+                        onChange={(e) =>
+                          onPriceFromChange(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="e.g. 20000"
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Max Price
+                      </Label>
+                      <Input
+                        value={priceTo}
+                        onChange={(e) =>
+                          onPriceToChange(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="e.g. 50000"
+                        className="h-9"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Guest Count Filter */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Guest Count</Label>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Min</Label>
+                      <Input
+                        value={minGuests}
+                        onChange={(e) =>
+                          setMinGuests(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="e.g. 1"
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Max</Label>
+                      <Input
+                        value={maxGuests}
+                        onChange={(e) =>
+                          setMaxGuests(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="e.g. 4"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Area Filter */}
+                {uniqueAreas.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Area</Label>
+                    <Input
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                      placeholder="Filter by area..."
+                      className="h-9"
+                    />
+                  </div>
+                )}
+
+                {/* Zone Filter */}
+                {uniqueZones.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Zone</Label>
+                    <Select value={zone || "all"} onValueChange={(v) => setZone(v === "all" ? "" : v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All zones" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All zones</SelectItem>
+                        {uniqueZones.map((z) => (
+                          <SelectItem key={z} value={z}>
+                            {z}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Metro Zone Filter */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Metro Zone</Label>
+                  <Select value={metroZone || "all"} onValueChange={(v) => setMetroZone(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All metro zones" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All metro zones</SelectItem>
+                      <SelectItem value="Blue Line">Blue Line</SelectItem>
+                      <SelectItem value="Red Line">Red Line</SelectItem>
+                      <SelectItem value="Green Line">Green Line</SelectItem>
+                      <SelectItem value="Yellow Line">Yellow Line</SelectItem>
+                      <SelectItem value="Anywhere">Anywhere</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Booking Term Filter */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Booking Term</Label>
+                  <Select value={bookingTerm || "all"} onValueChange={(v) => setBookingTerm(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All terms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All terms</SelectItem>
+                      <SelectItem value="Short Term">Short Term</SelectItem>
+                      <SelectItem value="Mid Term">Mid Term</SelectItem>
+                      <SelectItem value="Long Term">Long Term</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Property Type Filter */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Property Type</Label>
+                  <Select value={propertyType || "all"} onValueChange={(v) => setPropertyType(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="Furnished">Furnished</SelectItem>
+                      <SelectItem value="Semi-furnished">Semi-furnished</SelectItem>
+                      <SelectItem value="Unfurnished">Unfurnished</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Priority Filter */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Priority</Label>
+                  <Select value={priority || "all"} onValueChange={(v) => setPriority(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All priorities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All priorities</SelectItem>
+                      <SelectItem value="ASAP">ASAP</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {/* Owner-specific filters */}
+            {audience === "owners" && (
+              <>
+                {uniqueNationalities.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Nationality</Label>
+                    <Input
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      placeholder="Filter by nationality..."
+                      className="h-9"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Gender</Label>
+                  <Select value={gender || "all"} onValueChange={(v) => setGender(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All genders" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All genders</SelectItem>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Spoken Language</Label>
+                  <Input
+                    value={spokenLanguage}
+                    onChange={(e) => setSpokenLanguage(e.target.value)}
+                    placeholder="e.g. English, Spanish..."
+                    className="h-9"
+                  />
+                </div>
+              </>
             )}
 
             {/* Location Filter */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Location</Label>
+              <Label className="text-base font-semibold">Location</Label>
               <Select
-                value={selectedLocation}
-                onValueChange={onSelectedLocationChange}
+                value={selectedLocation || "all"}
+                onValueChange={(v) => onSelectedLocationChange(v === "all" ? "" : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All locations</SelectItem>
                   {location.map((loc) => (
                     <SelectItem key={loc} value={loc}>
                       {loc}
@@ -493,8 +816,10 @@ export function RetargetPanel({
             >
               {fetching ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Fetch {stateFilter} leads
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh {stateFilter} {audience === "leads" ? "guests" : "owners"}
             </Button>
           </div>
         </div>
@@ -523,6 +848,19 @@ export function RetargetPanel({
             </div>
           </div>
 
+          {/* Search Bar */}
+          <div className="mb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Search ${audience === "leads" ? "guests" : "owners"} by name, phone, email, location...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+
           {/* State Tabs */}
           <Tabs value={stateFilter} onValueChange={setStateFilter}>
             <TabsList className="grid w-full max-w-md grid-cols-3">
@@ -548,7 +886,7 @@ export function RetargetPanel({
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Blocked leads cannot be messaged. These contacts have either
+                Blocked {audience === "leads" ? "guests" : "owners"} cannot be messaged. These contacts have either
                 blocked your number, don&apos;t have WhatsApp, or reached the maximum
                 retarget limit.
               </AlertDescription>
@@ -624,29 +962,43 @@ export function RetargetPanel({
         {/* Sending Progress */}
         {sendingActive && (
           <div className="p-4 bg-green-50 dark:bg-green-900/20 border-b">
-            <div className="flex items-center gap-3 justify-center">
-              <Target className="h-5 w-5 text-green-600 animate-pulse" />
-              <span className="font-semibold text-lg">
-                Sending: {sentCount} / {totalToSend}
-              </span>
-              <span className="text-muted-foreground">
-                • {Math.max(0, totalToSend - sentCount)} remaining
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-600 animate-pulse" />
+                  <span className="font-semibold text-lg">
+                    Sending: {sentCount} / {totalToSend}
+                  </span>
+                </div>
+                <span className="text-muted-foreground text-sm">
+                  {Math.max(0, totalToSend - sentCount)} remaining
+                </span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+              <div className="text-xs text-muted-foreground text-center">
+                {progressPercentage.toFixed(1)}% complete
+              </div>
             </div>
           </div>
         )}
 
         {/* Recipients List */}
         <div className="flex-1 overflow-y-auto p-4">
-          {filteredRecipients.length === 0 ? (
+          {fetching && recipients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full">
+              <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
+              <p className="text-lg font-medium text-muted-foreground">
+                Loading {audience === "leads" ? "guests" : "owners"}...
+              </p>
+            </div>
+          ) : filteredRecipients.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <User className="h-16 w-16 mb-4 opacity-20" />
               <p className="text-lg font-medium mb-2">
-                No {stateFilter} {audience} loaded
+                No {stateFilter} {audience === "leads" ? "guests" : "owners"} found
               </p>
               <p className="text-sm">
-                Click &quot;Fetch {stateFilter} {audience}&quot; in the sidebar to load
-                recipients
+                {searchQuery ? "Try adjusting your search query" : `Click "Refresh ${stateFilter} ${audience === "leads" ? "guests" : "owners"}" to load recipients`}
               </p>
             </div>
           ) : (
@@ -661,15 +1013,15 @@ export function RetargetPanel({
                     <div
                       key={r.id}
                       className={`
-                        flex flex-col p-3 rounded-lg border transition-all
+                        flex flex-col p-4 rounded-lg border transition-all
                         ${
                           isDisabled
                             ? "opacity-50 bg-muted/50 cursor-not-allowed"
-                            : "hover:border-primary hover:shadow-sm cursor-pointer"
+                            : "hover:border-primary hover:shadow-md cursor-pointer"
                         }
                         ${
                           isSelected && !isDisabled
-                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-sm"
+                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-md"
                             : ""
                         }
                       `}
@@ -692,31 +1044,101 @@ export function RetargetPanel({
                             </div>
                           )}
                         </div>
-                        <span className="font-semibold text-sm truncate flex-1">
+                        <span className="font-semibold text-base truncate flex-1">
                           {r.name}
                         </span>
-                        <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                        <Badge variant="outline" className="text-xs flex-shrink-0">
                           {r.source}
                         </Badge>
                       </div>
 
-                      {/* Phone Number */}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 pl-7">
-                        <Phone className="h-3 w-3" />
-                        <span>+{r.phone}</span>
+                      {/* Contact Info */}
+                      <div className="space-y-1 mb-2 pl-7">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Phone className="h-4 w-4" />
+                          <span>+{r.phone}</span>
+                        </div>
+                        {r.email && (
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Mail className="h-4 w-4" />
+                            <span className="truncate">{r.email}</span>
+                          </div>
+                        )}
+                        {(r.location || r.area) && (
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <MapPin className="h-4 w-4" />
+                            <span className="truncate">{r.location || r.area}</span>
+                          </div>
+                        )}
                       </div>
 
+                      {/* Additional Info for Leads */}
+                      {r.source === "lead" && (
+                        <div className="pl-7 mb-2 space-y-1">
+                          {r.minBudget && r.maxBudget && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <DollarSign className="h-4 w-4" />
+                              <span>₹{r.minBudget.toLocaleString()} - ₹{r.maxBudget.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {r.guest && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              <span>{r.guest} guest{r.guest > 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                          {r.startDate && r.endDate && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>{r.startDate} to {r.endDate}</span>
+                            </div>
+                          )}
+                          {r.bookingTerm && (
+                            <Badge variant="outline" className="text-xs mr-1">
+                              {r.bookingTerm}
+                            </Badge>
+                          )}
+                          {r.priority && (
+                            <Badge variant={r.priority === "ASAP" || r.priority === "High" ? "destructive" : "outline"} className="text-xs">
+                              {r.priority}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Additional Info for Owners */}
+                      {r.source === "owner" && (
+                        <div className="pl-7 mb-2 space-y-1">
+                          {r.address && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              <span className="truncate">{r.address}</span>
+                            </div>
+                          )}
+                          {r.nationality && (
+                            <Badge variant="outline" className="text-xs mr-1">
+                              {r.nationality}
+                            </Badge>
+                          )}
+                          {r.gender && (
+                            <Badge variant="outline" className="text-xs mr-1">
+                              {r.gender}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
                       {/* Bottom Row: Stats & Badges */}
-                      <div className="flex items-center justify-between gap-2 pl-7">
-                        <div className="flex items-center gap-3 text-xs">
+                      <div className="flex items-center justify-between gap-2 pl-7 pt-2 border-t">
+                        <div className="flex items-center gap-3 text-sm">
                           {/* Retarget Count - Always Show */}
                           <div className={`flex items-center gap-1 ${r.retargetCount > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}`}>
-                            <RotateCcw className="h-3 w-3" />
+                            <RotateCcw className="h-4 w-4" />
                             <span>{r.retargetCount}/{maxRetarget}</span>
                           </div>
                           {r.lastRetargetAt && (
                             <div className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-4 w-4" />
                               <span>{formatRelativeTime(r.lastRetargetAt)}</span>
                             </div>
                           )}
@@ -819,7 +1241,7 @@ export function RetargetPanel({
               Confirm Re-retargeting
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Some selected leads have been retargeted before. Sending too many
+              Some selected {audience === "leads" ? "guests" : "owners"} have been retargeted before. Sending too many
               messages to the same contacts can result in your WhatsApp Business
               account being restricted or banned.
               <br />

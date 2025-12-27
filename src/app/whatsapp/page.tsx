@@ -7,7 +7,7 @@ import WhatsAppChat from "./whatsapp";
 export default function WhatsAppPage() {
 	return (
     <Suspense>
-      <WhatsAppChat />
+      <WhatsAppChat  />
     </Suspense>
   );
 }

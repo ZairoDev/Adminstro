@@ -64,12 +64,26 @@ export async function POST(req: NextRequest) {
       fromDate,
       toDate,
       location,
-      limit = 200,
+      limit = 10000, // Increased limit - no practical cap
       // Tab filter: "pending" | "retargeted" | "blocked" | "all"
       stateFilter = "all",
+      // Additional filters for leads
+      area,
+      zone,
+      metroZone,
+      bookingTerm,
+      propertyType,
+      typeOfProperty,
+      priority,
+      minGuests,
+      maxGuests,
+      // Additional filters for owners
+      nationality,
+      gender,
+      spokenLanguage,
     } = body || {};
 
-    const cappedLimit = Math.min(Number(limit) || 200, 500);
+    const cappedLimit = Number(limit) || 10000; // Remove practical cap
 
     const dateFilter: Record<string, any> = {};
     if (fromDate) {
@@ -99,6 +113,15 @@ export async function POST(req: NextRequest) {
           { "properties.location": { $regex: location, $options: "i" } },
         ];
       }
+      if (nationality) {
+        userQuery.nationality = { $regex: nationality, $options: "i" };
+      }
+      if (gender) {
+        userQuery.gender = gender;
+      }
+      if (spokenLanguage) {
+        userQuery.spokenLanguage = { $regex: spokenLanguage, $options: "i" };
+      }
       
       // Apply state filter for owners
       if (stateFilter === "pending") {
@@ -117,11 +140,13 @@ export async function POST(req: NextRequest) {
       const owners = await Users.find(userQuery)
         .sort({ createdAt: -1 })
         .limit(cappedLimit)
-        .select("_id name phone address createdAt whatsappBlocked whatsappBlockReason whatsappRetargetCount whatsappLastRetargetAt whatsappLastErrorCode")
+        .select("_id name phone email address nationality gender spokenLanguage createdAt whatsappBlocked whatsappBlockReason whatsappRetargetCount whatsappLastRetargetAt whatsappLastErrorCode")
         .lean();
 
       let skippedCount = 0;
       let blockedCount = 0;
+      let pendingCount = 0;
+      let retargetedCount = 0;
       
       const recipients = owners
         .map((o: any) => {
@@ -135,6 +160,8 @@ export async function POST(req: NextRequest) {
           
           const state = deriveRetargetState(o);
           if (state === "blocked") blockedCount++;
+          if (state === "pending") pendingCount++;
+          if (state === "retargeted") retargetedCount++;
           
           const retargetCount = o.whatsappRetargetCount || 0;
           const canRetarget = 
@@ -142,22 +169,26 @@ export async function POST(req: NextRequest) {
             retargetCount < MAX_RETARGET_COUNT &&
             !BLOCKING_ERROR_CODES.includes(o.whatsappLastErrorCode);
           
-          return {
-            id: String(o._id),
-            name: o.name || "Owner",
-            phone,
-            source: "owner" as const,
-            createdAt: o.createdAt,
-            address: o.address || "",
-            // Retarget-specific fields
-            state,
-            retargetCount,
-            lastRetargetAt: o.whatsappLastRetargetAt || null,
-            blocked: o.whatsappBlocked || false,
-            blockReason: o.whatsappBlockReason || null,
-            lastErrorCode: o.whatsappLastErrorCode || null,
-            canRetarget,
-          };
+        return {
+          id: String(o._id),
+          name: o.name || "Owner",
+          phone,
+          email: o.email || "",
+          source: "owner" as const,
+          createdAt: o.createdAt,
+          address: o.address || "",
+          nationality: o.nationality || "",
+          gender: o.gender || "",
+          spokenLanguage: o.spokenLanguage || "",
+          // Retarget-specific fields
+          state,
+          retargetCount,
+          lastRetargetAt: o.whatsappLastRetargetAt || null,
+          blocked: o.whatsappBlocked || false,
+          blockReason: o.whatsappBlockReason || null,
+          lastErrorCode: o.whatsappLastErrorCode || null,
+          canRetarget,
+        };
         })
         .filter(Boolean);
 
@@ -171,6 +202,8 @@ export async function POST(req: NextRequest) {
           returned: recipients.length,
           skipped: skippedCount,
           blocked: blockedCount,
+          pending: pendingCount,
+          retargeted: retargetedCount,
           maxRetargetAllowed: MAX_RETARGET_COUNT,
         }
       });
@@ -193,6 +226,33 @@ export async function POST(req: NextRequest) {
     }
     if (location) {
       leadQuery.location = { $regex: location, $options: "i" };
+    }
+    if (area) {
+      leadQuery.area = { $regex: area, $options: "i" };
+    }
+    if (zone) {
+      leadQuery.zone = zone;
+    }
+    if (metroZone) {
+      leadQuery.metroZone = metroZone;
+    }
+    if (bookingTerm) {
+      leadQuery.bookingTerm = bookingTerm;
+    }
+    if (propertyType) {
+      leadQuery.propertyType = propertyType;
+    }
+    if (typeOfProperty) {
+      leadQuery.typeOfProperty = typeOfProperty;
+    }
+    if (priority) {
+      leadQuery.priority = priority;
+    }
+    if (minGuests) {
+      leadQuery.guest = { $gte: Number(minGuests) };
+    }
+    if (maxGuests) {
+      leadQuery.guest = { ...(leadQuery.guest || {}), $lte: Number(maxGuests) };
     }
 
     // =========================================================
@@ -254,7 +314,8 @@ export async function POST(req: NextRequest) {
       .sort({ createdAt: -1 })
       .limit(cappedLimit)
       .select(`
-        _id name phoneNo minBudget maxBudget createdAt 
+        _id name phoneNo email minBudget maxBudget createdAt area location zone metroZone
+        bookingTerm propertyType typeOfProperty priority guest startDate endDate
         whatsappOptIn firstReply whatsappBlocked whatsappBlockReason
         whatsappRetargetCount whatsappLastRetargetAt whatsappLastErrorCode
       `)
@@ -264,6 +325,8 @@ export async function POST(req: NextRequest) {
     let skippedCount = 0;
     let blockedCount = 0;
     let maxRetargetCount = 0;
+    let pendingCount = 0;
+    let retargetedCount = 0;
 
     const recipients = leads
       .map((q: any) => {
@@ -278,6 +341,8 @@ export async function POST(req: NextRequest) {
 
         const state = deriveRetargetState(q);
         if (state === "blocked") blockedCount++;
+        if (state === "pending") pendingCount++;
+        if (state === "retargeted") retargetedCount++;
         
         const retargetCount = q.whatsappRetargetCount || 0;
         if (retargetCount >= MAX_RETARGET_COUNT) maxRetargetCount++;
@@ -292,10 +357,22 @@ export async function POST(req: NextRequest) {
           id: String(q._id),
           name: q.name || "Lead",
           phone,
+          email: q.email || "",
           source: "lead" as const,
           minBudget: q.minBudget,
           maxBudget: q.maxBudget,
           createdAt: q.createdAt,
+          area: q.area || "",
+          location: q.location || "",
+          zone: q.zone || "",
+          metroZone: q.metroZone || "",
+          bookingTerm: q.bookingTerm || "",
+          propertyType: q.propertyType || "",
+          typeOfProperty: q.typeOfProperty || "",
+          priority: q.priority || "",
+          guest: q.guest || 0,
+          startDate: q.startDate || "",
+          endDate: q.endDate || "",
           // Retarget-specific fields for UI
           state,
           retargetCount,
@@ -319,6 +396,8 @@ export async function POST(req: NextRequest) {
         returned: recipients.length,
         skipped: skippedCount,
         blocked: blockedCount,
+        pending: pendingCount,
+        retargeted: retargetedCount,
         atMaxRetarget: maxRetargetCount,
         maxRetargetAllowed: MAX_RETARGET_COUNT,
         cooldownHours: COOLDOWN_HOURS,

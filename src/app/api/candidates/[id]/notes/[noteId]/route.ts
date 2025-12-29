@@ -84,9 +84,7 @@ export async function DELETE(
       );
     }
 
-    candidate.notes = candidate.notes?.filter(
-      (n) => n._id?.toString() !== noteId
-    );
+    candidate.notes.pull(noteId);
     await candidate.save();
 
     return NextResponse.json({

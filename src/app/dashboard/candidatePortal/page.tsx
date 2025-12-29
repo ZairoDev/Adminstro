@@ -11,6 +11,7 @@ import {
   UserPlus,
   Users,
   Pencil,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { NotesModal } from "./components/notes-modal";
 
 interface Candidate {
   _id: string;
@@ -80,6 +82,8 @@ export default function CandidatesPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [newRole, setNewRole] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [notesCandidate, setNotesCandidate] = useState<Candidate | null>(null);
 
   const fetchCandidates = async (
     searchTerm: string,
@@ -157,6 +161,11 @@ export default function CandidatesPage() {
     setSelectedCandidate(candidate);
     setNewRole(candidate.position);
     setEditRoleDialogOpen(true);
+  };
+
+  const handleAddNote = (candidate: Candidate) => {
+    setNotesCandidate(candidate);
+    setNotesDialogOpen(true);
   };
 
   const handleUpdateRole = async () => {
@@ -300,6 +309,13 @@ export default function CandidatesPage() {
                       >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Role
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleAddNote(candidate)}
+                        className="flex items-center cursor-pointer"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Add Note
                       </DropdownMenuItem>
                       {candidate.status === "selected" && (
                         <DropdownMenuItem
@@ -500,6 +516,16 @@ export default function CandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Notes Modal */}
+      {notesCandidate && (
+        <NotesModal
+          open={notesDialogOpen}
+          onOpenChange={setNotesDialogOpen}
+          candidateId={notesCandidate._id}
+          candidateName={notesCandidate.name}
+        />
+      )}
     </div>
   );
 }

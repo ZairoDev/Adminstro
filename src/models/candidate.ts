@@ -38,6 +38,13 @@ const CandidateSchema = new Schema(
     rejectionDetails: {
       reason: { type: String, default: null },
     },
+    notes: [
+      {
+        content: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
     onboardingDetails: {
       onboardingLink: { type: String, default: null },
       personalDetails: {

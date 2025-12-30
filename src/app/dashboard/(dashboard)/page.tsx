@@ -106,6 +106,9 @@ import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
 import WeeklyTargetDashboard from "@/components/BookingTable";
         import useCandidateCounts from "@/hooks/(VS)/useCandidateCounts";
 import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
+import { employeeRoles } from "@/models/employee";
+import { UserInterface } from "@/util/type";
+import { useToast } from "@/hooks/use-toast";
 
 interface StatusCount {
   First: number;
@@ -222,7 +225,14 @@ const Dashboard = () => {
 
   const [leadGenLeadsCount, setLeadGenLeadsCount] = useState();
 
+  // Employee role filter and copy passwords state
+  const [allEmployeesList, setAllEmployeesList] = useState<UserInterface[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<UserInterface[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>("All");
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+
   const { token } = useAuthStore();
+  const { toast } = useToast();
 
   //  Property Count
 
@@ -381,6 +391,48 @@ const Dashboard = () => {
 
   const router = useRouter();
 
+  // Fetch all employees for role filter and copy passwords
+  useEffect(() => {
+    const fetchAllEmployees = async () => {
+      if (token?.role === "SuperAdmin" || token?.role === "HR") {
+        setLoadingEmployees(true);
+        try {
+          const response = await axios.get(`/api/employee/getAllEmployee`, {
+            params: {
+              currentPage: 1,
+              queryType: "email",
+              userInput: "",
+              role: "",
+            },
+          });
+          const employees = response.data.allEmployees || [];
+          setAllEmployeesList(employees);
+          setFilteredEmployees(employees);
+        } catch (error) {
+          console.error("Error fetching employees:", error);
+        } finally {
+          setLoadingEmployees(false);
+        }
+      }
+    };
+    fetchAllEmployees();
+  }, [token?.role]);
+
+  // Filter employees based on selected role and active status
+  useEffect(() => {
+    let filtered = allEmployeesList;
+    
+    // Filter by role if not "All"
+    if (selectedRole !== "All") {
+      filtered = filtered.filter((emp) => emp.role === selectedRole);
+    }
+    
+    // Only include active employees
+    filtered = filtered.filter((emp) => emp.isActive !== false);
+    
+    setFilteredEmployees(filtered);
+  }, [selectedRole, allEmployeesList]);
+
   const handleClick = () => {
     router.push(`dashboard/unregistered-owner`);
   };
@@ -479,8 +531,83 @@ const Dashboard = () => {
       </div>
 
       {/* LoggedInEmployeesList - Takes 1/4 width on large screens */}
-      <div className="lg:col-span-1 max-h-[55vh] overflow-y-auto">
-        <LoggedInEmployeesList />
+      <div className="lg:col-span-1 flex flex-col gap-4">
+        <div className="max-h-[40vh] border border-blue-500 overflow-y-auto">
+          <LoggedInEmployeesList />
+        </div>
+
+        {/* Password Management Tile */}
+        <div className="rounded-lg border border-red-500 bg-card p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-3">
+            Password Management
+          </h3>
+          <div className="flex flex-col gap-3">
+            {/* Role Filter */}
+            <Select
+              onValueChange={(value) => {
+                setSelectedRole(value);
+              }}
+              value={selectedRole}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Role" />
+              </SelectTrigger>
+              <SelectContent>
+                {["All", ...employeeRoles].map((role, index) => (
+                  <SelectItem key={index} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Copy Passwords */}
+            <Button
+              className="w-full"
+              onClick={async () => {
+                try {
+                  const copyPasswords = filteredEmployees?.map(
+                    (row) => `${row.name} : ${row.password}`
+                  );
+
+                  if (copyPasswords && copyPasswords.length > 0) {
+                    await navigator.clipboard.writeText(
+                      JSON.stringify(copyPasswords, null, 2)
+                    );
+
+                    setTimeout(() => {
+                      toast({
+                        title: "Success",
+                        description: `Passwords copied for ${copyPasswords.length} active employee(s)`,
+                      });
+                    }, 100);
+                  } else {
+                    toast({
+                      title: "No Data",
+                      variant: "destructive",
+                      description: "No active employees to copy",
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error copying passwords:", error);
+                  toast({
+                    title: "Error",
+                    variant: "destructive",
+                    description: "Failed to copy passwords to clipboard",
+                  });
+                }
+              }}
+              disabled={loadingEmployees || filteredEmployees.length === 0}
+            >
+              Copy Passwords
+            </Button>
+            {filteredEmployees.length > 0 && (
+              <p className="text-xs text-muted-foreground text-center">
+                {filteredEmployees.length} active employee(s)
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   </div>

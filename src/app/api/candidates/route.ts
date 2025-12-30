@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
+    const position = searchParams.get("position") || "";
+    const experienceFilter = searchParams.get("experienceFilter") || "";
+    const onboarded = searchParams.get("onboarded") === "true";
 
     const skip = (page - 1) * limit;
 
@@ -32,6 +35,23 @@ export async function GET(request: NextRequest) {
     // Add status filter if status is provided and not "all"
     if (status && status !== "all") {
       query.status = status;
+    }
+
+    // Add onboarded filter
+    if (onboarded) {
+      query["onboardingDetails.onboardingComplete"] = true;
+    }
+
+    // Add position/role filter
+    if (position && position !== "all") {
+      query.position = position;
+    }
+
+    // Add experience filter
+    if (experienceFilter === "fresher") {
+      query.experience = 0;
+    } else if (experienceFilter === "experienced") {
+      query.experience = { $gt: 0 };
     }
 
     // Get total count with the query

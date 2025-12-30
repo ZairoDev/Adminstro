@@ -479,6 +479,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Website Leads",
       Icon: <Globe size={18} />,
     },
+    {
+      path: "/dashboard/onboardedCandidates",
+      label: "Onboarded Candidates",
+      Icon: <CheckCheck size={18} />,
+    },
   ],
   Sales: [
     {
@@ -707,6 +712,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Compare Leads",
       Icon: <PencilLine size={18} />,
     },
+    {
+      path: "/dashboard/onboardedCandidates",
+      label: "Onboarded Candidates",
+      Icon: <CheckCheck size={18} />,
+    },
   ],
   Agent: [
     {
@@ -930,6 +940,11 @@ const candidateRoutes = [
     path: "/dashboard/attendedCandidate",
     label: "Attended Candidate",
     Icon: <PersonStanding size={18} />,
+  },
+  {
+    path: "/dashboard/onboardedCandidates",
+    label: "Onboarded Candidates",
+    Icon: <CheckCheck size={18} />,
   },
 
   {

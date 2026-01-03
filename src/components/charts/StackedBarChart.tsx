@@ -113,7 +113,7 @@ export function CustomStackBarChart({
               className="inline-block w-3 h-3 rounded-full"
               style={{ backgroundColor: config[key].color }}
             />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {config[key].label}: {categoryTotals[key] ?? 0}
             </span>
           </div>
@@ -123,10 +123,10 @@ export function CustomStackBarChart({
   }
 
   return (
-    <Card className="relative w-full">
+    <Card className="relative w-full dark:bg-stone-950">
       <CardHeader>
-        <CardTitle>{heading}</CardTitle>
-        <CardDescription>{subHeading}</CardDescription>
+        <CardTitle className="text-lg">{heading}</CardTitle>
+        <CardDescription className="text-base">{subHeading}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className=" max-h-[350px] w-full">
@@ -138,6 +138,7 @@ export function CustomStackBarChart({
               tickMargin={10}
               axisLine={false}
               tickFormatter={(value) => `${value.split(" ")[0]?.trim()} `}
+              tick={{ fontSize: 14 }}
             />
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             {locationKeys.map((location, index) => (
@@ -153,7 +154,8 @@ export function CustomStackBarChart({
                   dataKey={"total"}
                   position={"top"}
                   formatter={(value: number) => value.toString()}
-                  style={{ fontSize: "15px", fill: "white" }}
+                  className="fill-foreground"
+                  style={{ fontSize: "16px", fontWeight: 600 }}
                 />
               </Bar>
             ))}

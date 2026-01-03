@@ -79,7 +79,9 @@ export const NotReplyingLeads = () => {
     budgetFrom: "",
     budgetTo: "",
     leadQuality: "",
-    allotedArea: token?.allotedArea || "",
+    allotedArea: Array.isArray(token?.allotedArea) 
+      ? token.allotedArea[0] || ""
+      : String(token?.allotedArea || ""),
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });

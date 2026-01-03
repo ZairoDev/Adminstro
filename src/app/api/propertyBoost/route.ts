@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Boosters } from "@/models/propertyBooster";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 
 // POST: Create a new property
 export async function POST(req: Request) {
@@ -36,12 +38,41 @@ export async function POST(req: Request) {
 }
 
 // GET: Fetch all properties
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDb();
 
-    // Fetch all properties
-    const properties = await Boosters.find({}).lean();
+    // Get user token for authorization
+    const token = await getDataFromToken(req);
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role: string = (token.role || "") as string;
+    const assignedArea: string | string[] | undefined = 
+      token.allotedArea 
+        ? (Array.isArray(token.allotedArea) 
+            ? token.allotedArea 
+            : typeof token.allotedArea === "string" 
+            ? token.allotedArea 
+            : undefined)
+        : undefined;
+    const location = req.nextUrl.searchParams.get("location");
+
+    // Build query with location filtering
+    const query: Record<string, any> = {};
+
+    // Apply location filtering for Sales users (non-exempt roles)
+    if (!isLocationExempt(role)) {
+      const locationStr = location && typeof location === "string" ? location : undefined;
+      applyLocationFilter(query, role, assignedArea, locationStr);
+    } else if (location && typeof location === "string" && location !== "All") {
+      // For exempt roles, allow location filtering if requested
+      query.location = new RegExp(location, "i");
+    }
+
+    // Fetch properties with location filter applied
+    const properties = await Boosters.find(query).lean();
 
     // Sort by most recent activity (lastReboostedAt or createdAt)
     const sortedProperties = properties.sort((a, b) => {

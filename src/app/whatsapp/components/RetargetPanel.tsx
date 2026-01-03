@@ -75,7 +75,7 @@ type Recipient = {
   blockReason: string | null;
   lastErrorCode: number | null;
   canRetarget: boolean;
-  hasEngagement: boolean;
+  hasEngagement?: boolean;
   // Lead-specific fields
   minBudget?: number;
   maxBudget?: number;
@@ -90,11 +90,10 @@ type Recipient = {
   guest?: number;
   startDate?: string;
   endDate?: string;
-  // Owner-specific fields
+  // Owner-specific fields (from unregisteredOwner schema)
   address?: string;
-  nationality?: string;
-  gender?: string;
-  spokenLanguage?: string;
+  availability?: string;
+  propertyCount?: number;
 };
 
 interface RetargetPanelProps {
@@ -248,10 +247,10 @@ export function RetargetPanel({
   const [priority, setPriority] = useState("");
   const [minGuests, setMinGuests] = useState("");
   const [maxGuests, setMaxGuests] = useState("");
-  // Additional filters for owners
-  const [nationality, setNationality] = useState("");
-  const [gender, setGender] = useState("");
-  const [spokenLanguage, setSpokenLanguage] = useState("");
+  // Additional filters for owners (based on unregisteredOwner schema)
+  const [ownerPropertyType, setOwnerPropertyType] = useState("");
+  const [ownerAvailability, setOwnerAvailability] = useState("");
+  const [ownerArea, setOwnerArea] = useState("");
 
   const ITEMS_PER_PAGE = 20;
   const hasMountedRef = useRef(false);
@@ -283,9 +282,9 @@ export function RetargetPanel({
       if (minGuests) filters.minGuests = Number(minGuests);
       if (maxGuests) filters.maxGuests = Number(maxGuests);
     } else {
-      if (nationality) filters.nationality = nationality;
-      if (gender) filters.gender = gender;
-      if (spokenLanguage) filters.spokenLanguage = spokenLanguage;
+      if (ownerPropertyType) filters.propertyType = ownerPropertyType;
+      if (ownerAvailability) filters.availability = ownerAvailability;
+      if (ownerArea) filters.area = ownerArea;
     }
     
     // Use setTimeout to avoid calling during render
@@ -377,9 +376,9 @@ export function RetargetPanel({
       if (minGuests) filters.minGuests = Number(minGuests);
       if (maxGuests) filters.maxGuests = Number(maxGuests);
     } else {
-      if (nationality) filters.nationality = nationality;
-      if (gender) filters.gender = gender;
-      if (spokenLanguage) filters.spokenLanguage = spokenLanguage;
+      if (ownerPropertyType) filters.propertyType = ownerPropertyType;
+      if (ownerAvailability) filters.availability = ownerAvailability;
+      if (ownerArea) filters.area = ownerArea;
     }
     onFetchRecipients(stateFilter, filters);
   };
@@ -415,11 +414,21 @@ export function RetargetPanel({
     return Array.from(new Set(zones)).sort();
   }, [recipients]);
 
-  const uniqueNationalities = useMemo(() => {
-    const nats = recipients
-      .map((r) => r.nationality)
-      .filter((n): n is string => !!n);
-    return Array.from(new Set(nats)).sort();
+  // Get unique property types and areas for owner filters
+  const uniqueOwnerPropertyTypes = useMemo(() => {
+    const types = recipients
+      .filter((r) => r.source === "owner")
+      .map((r) => r.propertyType)
+      .filter((t): t is string => !!t);
+    return Array.from(new Set(types)).sort();
+  }, [recipients]);
+
+  const uniqueOwnerAreas = useMemo(() => {
+    const areas = recipients
+      .filter((r) => r.source === "owner")
+      .map((r) => r.area)
+      .filter((a): a is string => !!a);
+    return Array.from(new Set(areas)).sort();
   }, [recipients]);
 
   return (
@@ -744,45 +753,66 @@ export function RetargetPanel({
               </>
             )}
 
-            {/* Owner-specific filters */}
+            {/* Owner-specific filters (based on unregisteredOwner schema) */}
             {audience === "owners" && (
               <>
-                {uniqueNationalities.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">Nationality</Label>
-                    <Input
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      placeholder="Filter by nationality..."
-                      className="h-9"
-                    />
-                  </div>
-                )}
-
+                {/* Property Type Filter */}
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold">Gender</Label>
-                  <Select value={gender || "all"} onValueChange={(v) => setGender(v === "all" ? "" : v)}>
+                  <Label className="text-base font-semibold">Property Type</Label>
+                  <Select 
+                    value={ownerPropertyType || "all"} 
+                    onValueChange={(v) => setOwnerPropertyType(v === "all" ? "" : v)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="All genders" />
+                      <SelectValue placeholder="All property types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All genders</SelectItem>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="all">All property types</SelectItem>
+                      <SelectItem value="Hotel">Hotel</SelectItem>
+                      <SelectItem value="Apartment">Apartment</SelectItem>
+                      <SelectItem value="Studio">Studio</SelectItem>
+                      <SelectItem value="Villa">Villa</SelectItem>
+                      <SelectItem value="House">House</SelectItem>
+                      {uniqueOwnerPropertyTypes
+                        .filter((t) => !["Hotel", "Apartment", "Studio", "Villa", "House"].includes(t))
+                        .map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Availability Filter */}
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold">Spoken Language</Label>
-                  <Input
-                    value={spokenLanguage}
-                    onChange={(e) => setSpokenLanguage(e.target.value)}
-                    placeholder="e.g. English, Spanish..."
-                    className="h-9"
-                  />
+                  <Label className="text-base font-semibold">Availability</Label>
+                  <Select 
+                    value={ownerAvailability || "all"} 
+                    onValueChange={(v) => setOwnerAvailability(v === "all" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All availabilities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All availabilities</SelectItem>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="Not Available">Not Available</SelectItem>
+                      <SelectItem value="Booked">Booked</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {/* Area Filter for Owners */}
+                {uniqueOwnerAreas.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Area</Label>
+                    <Input
+                      value={ownerArea}
+                      onChange={(e) => setOwnerArea(e.target.value)}
+                      placeholder="Filter by area..."
+                      className="h-9"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -1115,16 +1145,23 @@ export function RetargetPanel({
                               <span className="truncate">{r.address}</span>
                             </div>
                           )}
-                          {r.nationality && (
-                            <Badge variant="outline" className="text-xs mr-1">
-                              {r.nationality}
-                            </Badge>
-                          )}
-                          {r.gender && (
-                            <Badge variant="outline" className="text-xs mr-1">
-                              {r.gender}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {r.propertyType && (
+                              <Badge variant="outline" className="text-xs">
+                                {r.propertyType}
+                              </Badge>
+                            )}
+                            {r.availability && (
+                              <Badge variant="outline" className="text-xs">
+                                {r.availability}
+                              </Badge>
+                            )}
+                            {r.propertyCount && r.propertyCount > 1 && (
+                              <Badge variant="outline" className="text-xs">
+                                {r.propertyCount} properties
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       )}
 

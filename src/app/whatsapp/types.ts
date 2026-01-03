@@ -39,6 +39,7 @@ export interface Conversation {
   status: string;
   lastCustomerMessageAt?: Date;
   sessionExpiresAt?: Date;
+  conversationType?: "owner" | "guest"; // Determined by first template message
 }
 
 export interface Template {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
@@ -51,11 +53,24 @@ export function ConversationSidebar({
   onSelectConversation,
   isConnected,
 }: SidebarProps) {
-  const filteredConversations = conversations.filter(
-    (conv) =>
+  const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
+  
+  // Filter conversations by tab and search query
+  const filteredConversations = conversations.filter((conv) => {
+    // Filter by tab
+    if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
+    if (conversationTab === "guests" && conv.conversationType !== "guest") return false;
+    
+    // Filter by search query
+    return (
       conv.participantName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.participantPhone.includes(searchQuery)
-  );
+    );
+  });
+  
+  // Count conversations by type
+  const ownerCount = conversations.filter((c) => c.conversationType === "owner").length;
+  const guestCount = conversations.filter((c) => c.conversationType === "guest").length;
 
   const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
     if (!status) return null;
@@ -108,7 +123,25 @@ export function ConversationSidebar({
           />
         </div>
       </CardHeader>
-      <CardContent className="flex-1 p-0 overflow-hidden">
+      <CardContent className="flex-1 p-0 overflow-hidden flex flex-col">
+        {/* Tabs for Owners/Guests */}
+        <div className="p-2 border-b">
+          <Tabs value={conversationTab} onValueChange={(v) => setConversationTab(v as "all" | "owners" | "guests")}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all" className="text-xs">
+                All ({conversations.length})
+              </TabsTrigger>
+              <TabsTrigger value="owners" className="text-xs">
+                <User className="h-3 w-3 mr-1" />
+                Owners ({ownerCount})
+              </TabsTrigger>
+              <TabsTrigger value="guests" className="text-xs">
+                <Users className="h-3 w-3 mr-1" />
+                Guests ({guestCount})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         <div className="p-2 border-b">
           <div className="flex gap-2">
             <div className="flex gap-1 flex-1">
@@ -170,7 +203,7 @@ export function ConversationSidebar({
             </Button>
           </div>
         </div>
-        <ScrollArea className="h-[calc(100%-80px)]">
+        <ScrollArea className="flex-1">
           {loading && conversations.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

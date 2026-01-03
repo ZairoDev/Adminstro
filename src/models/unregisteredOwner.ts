@@ -77,6 +77,32 @@ petStatus: {
     default: "None"
   },
 
+  // WhatsApp Retargeting Fields
+  whatsappBlocked: {
+    type: Boolean,
+    default: false,
+  },
+  whatsappBlockReason: {
+    type: String,
+    default: null,
+  },
+  whatsappRetargetCount: {
+    type: Number,
+    default: 0,
+  },
+  whatsappLastRetargetAt: {
+    type: Date,
+    default: null,
+  },
+  whatsappLastErrorCode: {
+    type: Number,
+    default: null,
+  },
+  whatsappLastMessageAt: {
+    type: Date,
+    default: null,
+  },
+
 },
 {
   timestamps: true,

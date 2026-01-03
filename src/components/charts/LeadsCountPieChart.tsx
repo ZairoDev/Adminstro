@@ -72,7 +72,7 @@ export function LeadCountPieChart({
   }));
   const totalCount = newChartData.reduce((acc, curr) => acc + curr.count, 0);
   return (
-    <Card className="flex flex-col">
+    <Card className="relative flex flex-col">
       <CardHeader className="items-center pb-0">
         <CardTitle>{heading}</CardTitle>
         <CardDescription>{subHeading}</CardDescription>

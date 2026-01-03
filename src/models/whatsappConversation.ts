@@ -34,6 +34,8 @@ export interface IWhatsAppConversation extends Document {
   tags?: string[];
   notes?: string;
 
+  conversationType?: "owner" | "guest"; // Determined by first template message
+
   metadata?: Map<string, any>;
 }
 
@@ -145,6 +147,12 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     notes: {
       type: String,
+    },
+
+    conversationType: {
+      type: String,
+      enum: ["owner", "guest"],
+      index: true,
     },
 
     metadata: {

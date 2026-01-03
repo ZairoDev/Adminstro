@@ -534,7 +534,7 @@ export interface TokenInterface {
   name: string;
   email: string;
   role: string;
-  allotedArea?: string;
+  allotedArea?: string | string[];
 }
 
 export interface SalesOfferInterface {

@@ -845,13 +845,13 @@ useEffect(() => {
     }
   };
 
-  // Retargeting: send batch with 6s gap and 100/day cap
-  // STEP 8: Safe Retargeting with Rate Limit Safety
+    // Retargeting: Meta-Safe Pattern Implementation
   // =================================================
-  // - Max 100 messages/day (preserved)
-  // - 6 seconds delay per message (preserved)
-  // - NEW: Hard stop if more than 5 failures in a batch
-  // - NEW: Automatic batch abort if 131049 count > 1 (user blocked us)
+  // - Batch size: 1 user at a time (queue system)
+  // - Gap: 60-150 seconds (randomized, never repeating exact gaps)
+  // - Hourly cap: 12-15 messages/hour (randomized)
+  // - Daily cap: 50-70 messages/day (randomized)
+  // - No cron-like timing, no uniform delays, no repeating intervals
   const sendRetargetBatch = async () => {
     if (!selectedTemplate) {
       toast({ title: "Select a template", variant: "destructive" });
@@ -862,15 +862,55 @@ useEffect(() => {
       return;
     }
 
-    const dailyRemaining = Math.max(0, 100 - retargetDailyCount);
+    // Meta-safe limits (randomized to avoid patterns)
+    const DAILY_CAP_MIN = 50;
+    const DAILY_CAP_MAX = 70;
+    const HOURLY_CAP_MIN = 12;
+    const HOURLY_CAP_MAX = 15;
+    const DELAY_MIN_MS = 60 * 1000; // 60 seconds
+    const DELAY_MAX_MS = 150 * 1000; // 150 seconds
+    const BATCH_SIZE = 1; // Process 1 at a time (safest)
+
+    // Get hourly count from localStorage (resets each hour)
+    const getHourlyCount = () => {
+      const now = new Date();
+      const hourKey = `retarget_hourly_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}_${now.getHours()}`;
+      const stored = localStorage.getItem(hourKey);
+      return stored ? parseInt(stored, 10) : 0;
+    };
+
+    const setHourlyCount = (count: number) => {
+      const now = new Date();
+      const hourKey = `retarget_hourly_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}_${now.getHours()}`;
+      localStorage.setItem(hourKey, count.toString());
+    };
+
+    // Calculate randomized daily cap (50-70)
+    const dailyCap = Math.floor(Math.random() * (DAILY_CAP_MAX - DAILY_CAP_MIN + 1)) + DAILY_CAP_MIN;
+    const dailyRemaining = Math.max(0, dailyCap - retargetDailyCount);
+    
+    // Check hourly cap (12-15)
+    const hourlyCount = getHourlyCount();
+    const hourlyCap = Math.floor(Math.random() * (HOURLY_CAP_MAX - HOURLY_CAP_MIN + 1)) + HOURLY_CAP_MIN;
+    const hourlyRemaining = Math.max(0, hourlyCap - hourlyCount);
+
     const selected = retargetRecipients.filter((r) => retargetSelectedIds.includes(r.id));
-    const sendable = Math.min(dailyRemaining, selected.length);
+    const sendable = Math.min(dailyRemaining, hourlyRemaining, selected.length);
+    
     if (sendable <= 0) {
-      toast({
-        title: "Daily limit reached",
-        description: "You have reached the 100/day cap for retargeting.",
-        variant: "destructive",
-      });
+      if (dailyRemaining <= 0) {
+        toast({
+          title: "Daily limit reached",
+          description: `You have reached the daily cap (${dailyCap} messages/day) for retargeting.`,
+          variant: "destructive",
+        });
+      } else if (hourlyRemaining <= 0) {
+        toast({
+          title: "Hourly limit reached",
+          description: `You have reached the hourly cap (${hourlyCap} messages/hour). Please wait.`,
+          variant: "destructive",
+        });
+      }
       return;
     }
 
@@ -882,11 +922,35 @@ useEffect(() => {
 
     let sentCount = 0;
     let failedCount = 0;
-    let blockedCount = 0; // STEP 8: Track 131049 errors specifically
+    let blockedCount = 0;
     let aborted = false;
+    const usedDelays = new Set<number>(); // Track used delays to avoid exact repetition
 
+    // Generate random delay that hasn't been used recently (avoids cron-like patterns)
+    const getRandomDelay = (): number => {
+      let delay: number;
+      let attempts = 0;
+      do {
+        // Random delay between 60-150 seconds
+        delay = Math.floor(Math.random() * (DELAY_MAX_MS - DELAY_MIN_MS + 1)) + DELAY_MIN_MS;
+        attempts++;
+        // Round to nearest 5 seconds to avoid exact repetition while still being random
+        delay = Math.round(delay / 5000) * 5000;
+      } while (usedDelays.has(delay) && attempts < 20);
+      
+      usedDelays.add(delay);
+      // Keep only last 10 delays to allow reuse after a while (prevents infinite growth)
+      if (usedDelays.size > 10) {
+        const first = Array.from(usedDelays)[0];
+        usedDelays.delete(first);
+      }
+      
+      return delay;
+    };
+
+    // Process queue: 1 message at a time with randomized delays
     for (let i = 0; i < sendable; i++) {
-      // STEP 8: Safety abort checks
+      // Safety abort checks
       if (failedCount >= 5) {
         console.log(`🚨 [AUDIT] Retargeting aborted: ${failedCount} failures reached`);
         toast({
@@ -909,6 +973,18 @@ useEffect(() => {
         break;
       }
 
+      // Check hourly limit before each send
+      const currentHourlyCount = getHourlyCount();
+      if (currentHourlyCount >= hourlyCap) {
+        console.log(`⏰ [AUDIT] Hourly cap reached: ${currentHourlyCount}/${hourlyCap}`);
+        toast({
+          title: "Hourly limit reached",
+          description: `Reached hourly cap of ${hourlyCap} messages. Resuming after next hour.`,
+          variant: "default",
+        });
+        break;
+      }
+
       const recipient = selected[i];
       setRetargetRecipients((prev) =>
         prev.map((r) =>
@@ -917,28 +993,33 @@ useEffect(() => {
       );
 
       try {
-        // STEP 2: Pass isRetarget flag to increment retarget count
+        // Send message (1 at a time - queue system)
         await axios.post("/api/whatsapp/send-template", {
           to: recipient.phone,
           templateName: selectedTemplate.name,
           languageCode: selectedTemplate.language,
           components: components.length > 0 ? components : undefined,
           templateText,
-          isRetarget: true, // Flag for retarget count tracking
+          isRetarget: true,
         });
+        
         sentCount += 1;
         setRetargetSentCount(sentCount);
         persistRetargetDailyCount(retargetDailyCount + sentCount);
+        setHourlyCount(currentHourlyCount + 1);
+        
         setRetargetRecipients((prev) =>
           prev.map((r) =>
             r.id === recipient.id ? { ...r, status: "sent" } : r
           )
         );
+        
+        console.log(`✅ [AUDIT] Sent to ${recipient.phone} (${sentCount}/${sendable}, hourly: ${currentHourlyCount + 1}/${hourlyCap})`);
       } catch (error: any) {
         failedCount += 1;
         const errorMsg = error.response?.data?.error || "Send failed";
         
-        // STEP 8: Detect 131049 (blocked) errors specifically
+        // Detect 131049 (blocked) errors
         if (errorMsg.includes("131049") || errorMsg.includes("blocked")) {
           blockedCount += 1;
           console.log(`🚫 [AUDIT] User blocked detected for ${recipient.phone}`);
@@ -951,22 +1032,24 @@ useEffect(() => {
         );
       }
 
+      // Randomized delay between messages (60-150 seconds, never repeating exact gap)
       if (i < sendable - 1 && !aborted) {
-        await new Promise((resolve) => setTimeout(resolve, 15000)); // 15 seconds between messages
+        const delay = getRandomDelay();
+        const delaySeconds = Math.round(delay / 1000);
+        console.log(`⏳ [AUDIT] Waiting ${delaySeconds}s before next message (randomized, non-repeating delay)`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
     setRetargetSending(false);
-    
-    if (!aborted) {
+
+    if (!aborted && sentCount > 0) {
       toast({
         title: "Retargeting completed",
-        description: `Sent: ${sentCount}, Failed: ${failedCount}`,
-        variant: failedCount ? "destructive" : "default",
+        description: `Successfully sent ${sentCount} messages. Daily: ${retargetDailyCount + sentCount}/${dailyCap}, Hourly: ${getHourlyCount()}/${hourlyCap}`,
       });
     }
-    
-    console.log(`📊 [AUDIT] Retarget batch complete: sent=${sentCount}, failed=${failedCount}, blocked=${blockedCount}, aborted=${aborted}`);
+    console.log(`📊 [AUDIT] Retarget batch complete: sent=${sentCount}, failed=${failedCount}, blocked=${blockedCount}, aborted=${aborted}, daily=${retargetDailyCount + sentCount}/${dailyCap}, hourly=${getHourlyCount()}/${hourlyCap}`);
   };
 
   const startNewConversation = async () => {
@@ -1275,14 +1358,14 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full fixed inset-0 pt-20">
+    <div className="flex flex-col h-screen w-full fixed inset-0 top-5">
       <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-        <TabsList className="px-4">
+        <TabsList className="px-4 flex-shrink-0">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="retarget">Retarget</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chat" className="flex-1 pt-4 px-4 pb-4 overflow-hidden">
+        <TabsContent value="chat" className="flex-1 px-4 pb-0 overflow-hidden">
           <div className="flex h-full gap-4 ">
             <ConversationSidebar
               conversations={conversations}
@@ -1319,6 +1402,7 @@ useEffect(() => {
                     onCloseSearch={() => {
                       setShowMessageSearch(false);
                       setMessageSearchQuery("");
+                      
                     }}
                     messageSearchQuery={messageSearchQuery}
                     onMessageSearchChange={setMessageSearchQuery}
@@ -1333,7 +1417,7 @@ useEffect(() => {
                         }
                   />
 
-            <CardContent className="flex-1 p-4 overflow-hidden">
+            <CardContent className="flex-1 px-4 pt-4 pb-0 overflow-hidden">
                     <MessageList
                       messages={messages}
                       messagesLoading={messagesLoading}
@@ -1398,7 +1482,7 @@ useEffect(() => {
           </div>
         </TabsContent>
 
-        <TabsContent value="retarget" className="flex-1 pt-4 px-4 pb-4 overflow-hidden">
+        <TabsContent value="retarget" className="flex-1 px-4 pb-0 overflow-hidden">
           <RetargetPanel
             audience={retargetAudience}
             onAudienceChange={setRetargetAudience}
@@ -1419,13 +1503,13 @@ useEffect(() => {
             recipients={retargetRecipients}
             sending={retargetSending}
             onSend={sendRetargetBatch}
-            dailyRemaining={Math.max(0, 100 - retargetDailyCount)}
+            dailyRemaining={Math.max(0, 70 - retargetDailyCount)} // Meta-safe: 50-70/day (using max for display)
             selectedTemplate={selectedTemplate}
             onSelectTemplate={setSelectedTemplate}
             templates={templates}
             templateParams={retargetTemplateParams}
             onTemplateParamsChange={setRetargetTemplateParams}
-            totalToSend={Math.min(retargetSelectedIds.length, Math.max(0, 100 - retargetDailyCount))}
+            totalToSend={Math.min(retargetSelectedIds.length, Math.max(0, 70 - retargetDailyCount))} // Meta-safe: 50-70/day (using max for display)
             sentCount={retargetSentCount}
             sendingActive={retargetSending}
             selectedRecipientIds={retargetSelectedIds}

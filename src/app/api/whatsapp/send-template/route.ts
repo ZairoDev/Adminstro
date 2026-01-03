@@ -181,7 +181,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update conversation last message
+    // Determine conversation type based on template name
+    const templateNameLower = templateName.toLowerCase();
+    const conversationType = (templateNameLower.includes("owners_template") || templateNameLower.startsWith("owner"))
+      ? "owner"
+      : "guest";
+
+    // Update conversation last message and conversation type
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
       lastMessageId: whatsappMessageId,
       lastMessageContent: displayText.substring(0, 100),
@@ -189,6 +195,7 @@ export async function POST(req: NextRequest) {
       lastMessageDirection: "outgoing",
       lastMessageStatus: "sending",
       lastOutgoingMessageTime: timestamp,
+      conversationType, // Set conversation type when template is sent
     });
 
     // Emit socket event for real-time updates
@@ -215,10 +222,10 @@ export async function POST(req: NextRequest) {
     // - Always update whatsappLastMessageAt for cooldown tracking
     // - If isRetarget: increment whatsappRetargetCount & set whatsappLastRetargetAt
     // - Count is incremented ONLY after API accepts (not on failures)
-    // - Now handles both leads (Query) and owners (Users)
+    // - Now handles both leads (Query) and owners (unregisteredOwner)
     try {
       const QueryModel = (await import("@/models/query")).default;
-      const UsersModel = (await import("@/models/user")).default;
+      const { unregisteredOwner: UnregisteredOwnerModel } = await import("@/models/unregisteredOwner");
       const normalizedPhone = formattedPhone.replace(/\D/g, "");
       
       // Try to find lead by phone (try last 9, 8, 7 digits)
@@ -237,8 +244,8 @@ export async function POST(req: NextRequest) {
           break;
         }
         
-        // Then try owners
-        target = await UsersModel.findOne({ phone: { $regex: regex }, role: "Owner" });
+        // Then try unregistered owners
+        target = await UnregisteredOwnerModel.findOne({ phoneNumber: { $regex: regex } });
         if (target) {
           targetType = "owner";
           break;
@@ -263,14 +270,41 @@ export async function POST(req: NextRequest) {
           updateQuery.$inc = { whatsappRetargetCount: 1 };
         }
 
-        const Model = targetType === "lead" ? QueryModel : UsersModel;
-        await Model.updateOne({ _id: target._id }, updateQuery);
+        if (targetType === "lead") {
+          // For leads, update the single document
+          await QueryModel.updateOne({ _id: target._id }, updateQuery);
+        } else {
+          // For owners, update ALL documents with the same phone number
+          // This is important because same owner can have multiple property entries
+          const lastDigits = normalizedPhone.slice(-9);
+          const phoneRegex = new RegExp(`${lastDigits}$`);
+          
+          // Find all matching documents first for logging
+          const matchingDocs = await UnregisteredOwnerModel.find({ phoneNumber: { $regex: phoneRegex } }).select('_id phoneNumber whatsappRetargetCount').lean();
+          console.log(`🔍 [AUDIT] Found ${matchingDocs.length} owner documents with phone ending in ${lastDigits}`);
+          
+          const updateResult = await UnregisteredOwnerModel.updateMany(
+            { phoneNumber: { $regex: phoneRegex } },
+            updateQuery
+          );
+          
+          console.log(`📊 [AUDIT] Updated ${updateResult.modifiedCount} owner documents with same phone`);
+          console.log(`📝 [AUDIT] Update query:`, JSON.stringify(updateQuery, null, 2));
+          
+          // Verify the update by fetching one document
+          if (updateResult.modifiedCount > 0) {
+            const verifyDoc = await UnregisteredOwnerModel.findOne({ phoneNumber: { $regex: phoneRegex } }).select('phoneNumber whatsappRetargetCount whatsappLastRetargetAt whatsappLastMessageAt').lean() as any;
+            if (verifyDoc) {
+              console.log(`✅ [AUDIT] Verified update - retargetCount: ${verifyDoc.whatsappRetargetCount}, lastRetargetAt: ${verifyDoc.whatsappLastRetargetAt}, lastMessageAt: ${verifyDoc.whatsappLastMessageAt}`);
+            }
+          }
+        }
         
         if (isRetarget) {
           const newCount = (target.whatsappRetargetCount || 0) + 1;
-          console.log(`🎯 [AUDIT] Retarget sent to ${targetType} ${target._id} (count: ${newCount})`);
+          console.log(`🎯 [AUDIT] Retarget sent to ${targetType} ${target._id} (phone: ${normalizedPhone}, count: ${newCount})`);
         } else {
-          console.log(`📤 [AUDIT] Template sent to ${targetType} ${target._id}`);
+          console.log(`📤 [AUDIT] Template sent to ${targetType} ${target._id} (phone: ${normalizedPhone})`);
         }
       }
     } catch (err) {

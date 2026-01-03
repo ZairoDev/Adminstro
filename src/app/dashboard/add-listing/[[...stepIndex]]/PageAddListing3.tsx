@@ -281,16 +281,14 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Button disabled={!isValidForm}>
-          <Link
-            href={{
-              pathname: `/dashboard/add-listing/4/`,
-              query: { userId: userId },
-            }}
-          >
-            Continue
-          </Link>
-        </Button>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/4/`,
+            query: { userId: userId },
+          }}
+        >
+          <Button disabled={!isValidForm}>Continue</Button>
+        </Link>
       </div>
     </>
   );

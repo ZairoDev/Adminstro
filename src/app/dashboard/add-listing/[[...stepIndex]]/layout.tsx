@@ -3,27 +3,34 @@ import React, { useEffect } from "react";
 import { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { Route } from "@/routers/types";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Progress } from "@/components/ui/progress";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface CommonLayoutProps {
   children: React.ReactNode;
   params: {
-    stepIndex: string;
+    stepIndex: string;  
   };
 }
 
 const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("userId");
   const index = Number(params.stepIndex) || 1;
+  const progress = (index / 10) * 100;
   const nextHref = (
     index < 10
       ? `/dashboard/add-listing/${index + 1}`
       : `/dashboard/add-listing/${1}`
   ) as Route;
-  const backtHref = (
+  const backHref = (
     index > 1
       ? `/dashboard/add-listing/${index - 1}`
       : `/dashboard/add-listing/${1}`
   ) as Route;
-  const nextBtnText = index > 9 ? "Publish listing" : "Continue";
+  const nextBtnText = index >= 10 ? "Publish listing" : "Continue";
 
   useEffect(() => {
     if (index === 9 && nextBtnText === "Publish listing") {
@@ -50,10 +57,21 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
   return (
     <>
       <div className={`max-w-4xl m-auto sm:p-4 p-2`}>
-        <div className="space-y-11">
-          <div className="text-center">
-            <span className="text-4xl font-semibold">{index}</span>{" "}
-            <span className="text-lg ">/ 10</span>
+        <div className="space-y-8">
+          {/* Progress Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-center flex-1">
+                <span className="text-3xl font-semibold">{index}</span>{" "}
+                <span className="text-lg text-muted-foreground">/ 10</span>
+              </div>
+              <div className="flex-1">
+                <Progress value={progress} className="h-2" />
+              </div>
+              <div className="text-sm text-muted-foreground flex-1 text-right">
+                {Math.round(progress)}% Complete
+              </div>
+            </div>
           </div>
 
           <div className="">{children}</div>

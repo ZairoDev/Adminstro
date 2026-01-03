@@ -60,7 +60,8 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
 
   // Function to check if any review field is empty
   const isAnyReviewEmpty = () => {
-    return reviews.some((review) => review.trim() === "");
+    if (reviews.length === 0) return true;
+    return reviews.some((review) => !review || review.trim() === "");
   };
 
   return (
@@ -79,11 +80,11 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
             <Textarea
               placeholder="Enter your reviews"
               rows={14}
-              value={reviews[index]}
+              value={reviews[index] || ""}
               onChange={(e) =>
                 setReviews((prev) => {
                   const newReviews = [...prev];
-                  newReviews[index] = e.target.value.trim();
+                  newReviews[index] = e.target.value;
                   return newReviews;
                 })
               }
@@ -100,16 +101,14 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Button disabled={isAnyReviewEmpty()}>
-          <Link
-            href={{
-              pathname: `/dashboard/add-listing/7`,
-              query: { userId: userId },
-            }}
-          >
-            Continue
-          </Link>
-        </Button>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/7`,
+            query: { userId: userId },
+          }}
+        >
+          <Button disabled={isAnyReviewEmpty()}>Continue</Button>
+        </Link>
       </div>
     </>
   );

@@ -54,22 +54,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   //   query.role = { $nin: ["SuperAdmin", "Developer"] };
   // }
 
+  // Role-based access control
+  const allowedRoles: readonly string[] = ["SuperAdmin", "HR", "Admin", "Developer", "LeadGen-TeamLead", "Sales-TeamLead"];
+  
+  // Type guard: ensure token exists and has a role property
+  if (!token || typeof token !== "object" || !("role" in token)) {
+    return NextResponse.json(
+      { message: "Unauthorized: Invalid token" },
+      { status: 403 }
+    );
+  }
+  
+  const userRole = String(token.role);
+  if (!allowedRoles.includes(userRole)) {
+    return NextResponse.json(
+      { message: "Unauthorized: You don't have permission to access employee data" },
+      { status: 403 }
+    );
+  }
+
   let allEmployees: Employee[] = [];
-  // console.log("working in getAllEmployee",role);
   try {
-    if (token.role === "LeadGen-TeamLead") {
+    // LeadGen-TeamLead can only see LeadGen employees
+    if (userRole === "LeadGen-TeamLead") {
       allEmployees = await Employees.find({ ...query, role: "LeadGen" }).sort({
         _id: -1,
       });
     }
-    // else if (role === "Sales") {
-    //   allEmployees = await Employees.find({ ...query, role: "Sales", isActive: true }).sort({
-    //     _id: -1,
-    //   });
-    //   // console.log(allEmployees);
-    // }
-     else {
+    // HR and Admin roles can see all employees (with optional role filter from query params)
+    else if (["HR", "Admin", "SuperAdmin", "Developer"].includes(userRole as string)) {
       allEmployees = await Employees.find(query).sort({ _id: -1 });
+    }
+    // Sales-TeamLead can see Sales employees
+    else if (userRole === "Sales-TeamLead") {
+      allEmployees = await Employees.find({ ...query, role: "Sales" }).sort({
+        _id: -1,
+      });
+    }
+    else {
+      // Default: no access
+      allEmployees = [];
     }
 
     const totalEmployee: number = await Employees.countDocuments(query);

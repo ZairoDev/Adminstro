@@ -25,8 +25,10 @@ function getISTStartOfDay(date: Date): Date {
 export async function POST(req: NextRequest) {
   const reqBody = await req.json();
   const token = await getDataFromToken(req);
-  const assignedArea = token.allotedArea as String[];
-  const role = token.role;
+  const assignedArea = (Array.isArray(token.allotedArea) 
+    ? token.allotedArea.map(a => String(a))
+    : token.allotedArea ? [String(token.allotedArea)] : []) as string[];
+  const role = String(token.role || "");
 
   try {
     // console.log("req body in filter route: ", assignedArea, reqBody);
@@ -146,20 +148,46 @@ export async function POST(req: NextRequest) {
       if(salesPriority) query.salesPriority = salesPriority;
     
     {
-      /* Only search leads for alloted area, but only in case of agents not for TL and SuperAdmin */
+      /* Location filtering: Only apply for Sales users (non-TeamLead) */
     }
     
-    // if (allotedArea) {
-    //   query.location = new RegExp(allotedArea, "i");
-    // } else {
-    //   if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead") {
-    //     if (Array.isArray(assignedArea)) {
-    //       query.location = { $in: assignedArea };
-    //     } else {
-    //       query.location = assignedArea;
-    //     }
-    //   }
-    // }
+    // Location-exempt roles: SuperAdmin, Admin, Developer, HR, Sales-TeamLead, LeadGen-TeamLead, LeadGen, Advert
+    const locationExemptRoles = ["SuperAdmin", "Admin", "Developer", "HR", "Sales-TeamLead", "LeadGen-TeamLead", "LeadGen", "Advert"];
+    
+    if (!locationExemptRoles.includes(role)) {
+      // For Sales users (non-TeamLead), enforce location filtering
+      if (allotedArea && allotedArea !== "All") {
+        // Validate requested location is in user's assigned areas
+        const normalizedRequested = allotedArea.toLowerCase();
+        const userAreas = Array.isArray(assignedArea)
+          ? assignedArea.map((a: string) => a.toLowerCase())
+          : assignedArea
+          ? [String(assignedArea).toLowerCase()]
+          : [];
+        
+        if (userAreas.includes(normalizedRequested)) {
+          query.location = new RegExp(allotedArea, "i");
+        } else {
+          // Security: Requested location not in user's areas - return empty result
+          query.location = { $in: [] };
+        }
+      } else {
+        // No specific location requested - filter by all assigned areas
+        if (assignedArea) {
+          if (Array.isArray(assignedArea)) {
+            query.location = { $in: assignedArea };
+          } else {
+            query.location = assignedArea;
+          }
+        } else {
+          // No assigned areas - deny access (return empty result)
+          query.location = { $in: [] };
+        }
+      }
+    } else if (allotedArea && allotedArea !== "All") {
+      // For exempt roles, allow filtering by requested location if provided
+      query.location = new RegExp(allotedArea, "i");
+    }
 
     // console.log("created query: ", query);
 

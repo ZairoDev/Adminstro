@@ -12,9 +12,9 @@ export interface FormItemProps {
 const FormItem: FC<FormItemProps> = ({ children, label, desc }) => {
   return (
     <div className="ml-2">
-      {Label && <Label>{label}</Label>}
+      {label && <Label>{label}</Label>}
       <div className="mt-1">{children}</div>
-      {desc && <span className=" text-xs ml-1">{desc}</span>}
+      {desc && <span className=" text-xs ml-1 text-muted-foreground">{desc}</span>}
     </div>
   );
 };

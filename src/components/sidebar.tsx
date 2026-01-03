@@ -132,6 +132,11 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   LeadGen: [
     {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
       path: "/dashboard/createquery",
       label: "Lead",
       Icon: <PencilLine size={18} />,
@@ -463,7 +468,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Property Boost",
       Icon: <Rocket size={18} />,
     },
-    
+
     {
       path: "/dashboard/propertyBoost/list",
       label: "Property List",
@@ -707,7 +712,7 @@ const roleRoutes: Record<string, Route[]> = {
     //   label: "Attended Candidate",
     //   Icon: <PersonStanding size={18} />,
     // },
-     {
+    {
       path: "/dashboard/compareLeads",
       label: "Compare Leads",
       Icon: <PencilLine size={18} />,

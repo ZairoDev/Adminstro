@@ -30,8 +30,23 @@ import Heading from "@/components/Heading";
 import axios from "axios";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import SearchableAreaSelect from "../../createquery/SearchAndSelect";
+import Loader from "@/components/loader";
 
-const Map = dynamic(() => import("@/components/LocationMap"), { ssr: false });
+// Dynamic import with proper error handling and loading state
+const Map = dynamic(
+  () => import("@/components/LocationMap"),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[400px] flex items-center justify-center border rounded-lg bg-muted">
+        <div className="flex flex-col items-center gap-2">
+          <Loader />
+          <p className="text-sm text-muted-foreground">Loading map...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 interface nearbyLocationInterface {
   nearbyLocationName: string[];
@@ -108,9 +123,11 @@ const PageAddListing2: FC = () => {
     lat: 0,
     lng: 0,
   });
-  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);    
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const [googleMapsError, setGoogleMapsError] = useState(false);    
   const [autocomplete, setAutocomplete] =
     useState<google.maps.places.Autocomplete | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const [nearbyLocations, setNearByLocations] =
     useState<nearbyLocationInterface>({
@@ -119,6 +136,11 @@ const PageAddListing2: FC = () => {
       nearbyLocationTag: [],
       nearbyLocationUrl: [],
     });
+
+  useEffect(() => {
+    // Set map ready after component mounts to avoid chunk loading issues
+    setIsMapReady(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -478,7 +500,9 @@ const PageAddListing2: FC = () => {
       <FormItem label="Country/Region">
         <Select value={country} onValueChange={(value) => setCountry(value)}>
           <SelectTrigger>
-            <span>{country}</span>
+            <SelectValue placeholder="Select a country">
+              {country || "Select a country"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Greece">Greece</SelectItem>
@@ -513,30 +537,63 @@ const PageAddListing2: FC = () => {
           <LoadScript
             googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
             libraries={libraries}
-            onLoad={() => setIsGoogleLoaded(true)}
-            onError={() =>
+            onLoad={() => {
+              setIsGoogleLoaded(true);
+              setGoogleMapsError(false);
+            }}
+            onError={(error) => {
+              console.error("Google Maps failed to load:", error);
+              setGoogleMapsError(true);
+              setIsGoogleLoaded(false);
               toast({
                 variant: "destructive",
                 title: "Google Maps failed to load",
-                description: "Please refresh or verify your API key/network.",
-              })
-            }
+                description: "Please refresh the page or verify your API key/network connection.",
+              });
+            }}
           >
             {/* Ensure all Google Maps related components (like Autocomplete) 
         are children of LoadScript and/or guarded by isGoogleLoaded if outside. */}
-            {isGoogleLoaded && (
+            {googleMapsError ? (
+              <div className="w-full p-4 border border-destructive/50 rounded-lg bg-destructive/10">
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-medium text-destructive">
+                    Google Maps failed to load
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Please check your internet connection or refresh the page. You can still enter the address manually below.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setGoogleMapsError(false);
+                      window.location.reload();
+                    }}
+                    className="mt-2 w-fit"
+                  >
+                    Refresh Page
+                  </Button>
+                </div>
+              </div>
+            ) : isGoogleLoaded ? (
               <Autocomplete
                 onLoad={handleLoad}
                 onPlaceChanged={handlePlaceChanged}
               >
-                <input
+                <Input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Search Address"
-                  className="w-full p-2 border rounded"
+                  className="w-full"
                 />
               </Autocomplete>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader />
+                <span>Loading address search...</span>
+              </div>
             )}
           </LoadScript>
         </div>
@@ -694,7 +751,22 @@ const PageAddListing2: FC = () => {
           </div>
           <div className="mt-4">
             <div className="aspect-w-5 aspect-h-5 sm:aspect-h-3">
-              <Map latitude={center.lat} longitude={center.lng} />
+              {isMapReady && center.lat !== 0 && center.lng !== 0 ? (
+                <Map latitude={center.lat} longitude={center.lng} />
+              ) : center.lat === 0 && center.lng === 0 ? (
+                <div className="w-full h-[400px] flex items-center justify-center border rounded-lg bg-muted">
+                  <p className="text-sm text-muted-foreground">
+                    Enter an address to see the map
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full h-[400px] flex items-center justify-center border rounded-lg bg-muted">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader />
+                    <p className="text-sm text-muted-foreground">Loading map...</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -861,7 +933,9 @@ const PageAddListing2: FC = () => {
             <FormItem label="Choose Area">
               <Select value={area} onValueChange={(value) => setArea(value)}>
                 <SelectTrigger>
-                  <span>{area}</span>
+                  <SelectValue placeholder="Select area">
+                    {area || "Select area"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Centre">Centre</SelectItem>
@@ -918,7 +992,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setTopFloor(value)}
               >
                 <SelectTrigger>
-                  <span>{isTopFloor === "true" ? "true" : "false"}</span>
+                  <SelectValue>
+                    {isTopFloor === "true" ? "Yes" : "No"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">true</SelectItem>
@@ -934,7 +1010,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setOrientation(value)}
               >
                 <SelectTrigger>
-                  <span>{orientation}</span>
+                  <SelectValue placeholder="Select orientation">
+                    {orientation || "Select orientation"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="East-Facing">East-Facing</SelectItem>
@@ -967,7 +1045,9 @@ const PageAddListing2: FC = () => {
             <FormItem label="Zone">
               <Select value={zones} onValueChange={(value) => setZones(value)}>
                 <SelectTrigger>
-                  <span>{zones}</span>
+                  <SelectValue placeholder="Select zone">
+                    {zones || "Select zone"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem defaultValue={"Residential"} value="Residential">
@@ -984,7 +1064,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setPropetyStyle(value)}
               >
                 <SelectTrigger>
-                  <span>{propertyStyle}</span>
+                  <SelectValue placeholder="Select property style">
+                    {propertyStyle || "Select property style"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Renovated">Renovated</SelectItem>
@@ -1006,7 +1088,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setHeatingMedium(value)}
               >
                 <SelectTrigger>
-                  <span>{heatingMedium}</span>
+                  <SelectValue placeholder="Select heating medium">
+                    {heatingMedium || "Select heating medium"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Petrol">Petrol</SelectItem>
@@ -1042,7 +1126,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setHeatingType(value)}
               >
                 <SelectTrigger>
-                  <span>{heatingType}</span>
+                  <SelectValue placeholder="Select heating type">
+                    {heatingType || "Select heating type"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Autonomous-Heating">
@@ -1064,9 +1150,9 @@ const PageAddListing2: FC = () => {
                 onValueChange={(value) => setisSuitableForStudents(value)}
               >
                 <SelectTrigger>
-                  <span>
-                    {isSuitableForStudents === "true" ? "True" : "False"}
-                  </span>
+                  <SelectValue>
+                    {isSuitableForStudents === "true" ? "Yes" : "No"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">True</SelectItem>
@@ -1121,16 +1207,14 @@ const PageAddListing2: FC = () => {
           <Button>Go Back</Button>
         </Link>
 
-        <Button disabled={!isValidForm}>
-          <Link
-            href={{
-              pathname: `/dashboard/add-listing/3`,
-              query: { userId: userId },
-            }}
-          >
-            Continue
-          </Link>
-        </Button>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/3`,
+            query: { userId: userId },
+          }}
+        >
+          <Button disabled={!isValidForm}>Continue</Button>
+        </Link>
       </div>
     </div>
   );

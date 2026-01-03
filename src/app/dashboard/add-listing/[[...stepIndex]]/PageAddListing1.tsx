@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
 
 export interface PageAddListing1Props {}
 
@@ -28,6 +29,7 @@ interface Page1State {
 const PageAddListing1: FC<PageAddListing1Props> = () => {
   const params = useSearchParams();
   const userId = params.get("userId");
+  const { toast } = useToast();
 
   // ✅ Set safe defaults that work on SSR
   const [propertyType, setPropertyType] = useState<string>("Hotel");
@@ -143,9 +145,14 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     rentalType,
   ]);
 
-  const handleNextClick = () => {
+  const handleNextClick = (e: React.MouseEvent) => {
     if (!isFormComplete) {
-      alert("Please fill out all fields before continuing.");
+      e.preventDefault();
+      toast({
+        variant: "destructive",
+        title: "Form Incomplete",
+        description: "Please fill out all required fields before continuing.",
+      });
     }
   };
 
@@ -156,39 +163,39 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
         subheading="Choose a property category that fits your needs."
       />
       <div className="space-y-8">
-        <div className="mt-4 flex justify-between">
-          <div>
-            <label htmlFor="Short Term">Short Term</label>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
             <input
               type="radio"
               name="rentalType"
-              className="mx-2 p-2 cursor-pointer"
+              className="h-4 w-4 cursor-pointer accent-primary"
               id="Short Term"
-              defaultChecked={rentalType === "Short Term"}
+              checked={rentalType === "Short Term"}
               onChange={handleRentalTypeChange}
             />
+            <label htmlFor="Short Term" className="cursor-pointer">Short Term</label>
           </div>
-          <div>
-            <label htmlFor="Long Term">Long Term</label>
+          <div className="flex items-center gap-2">
             <input
               type="radio"
               name="rentalType"
-              className="mx-2 p-2 cursor-pointer"
+              className="h-4 w-4 cursor-pointer accent-primary"
               id="Long Term"
-              defaultChecked={rentalType === "Long Term"}
+              checked={rentalType === "Long Term"}
               onChange={handleRentalTypeChange}
             />
+            <label htmlFor="Long Term" className="cursor-pointer">Long Term</label>
           </div>
-          <div>
-            <label htmlFor="Both">Both</label>
+          <div className="flex items-center gap-2">
             <input
               type="radio"
               name="rentalType"
-              className="mx-2 p-2 cursor-pointer"
+              className="h-4 w-4 cursor-pointer accent-primary"
               id="Both"
-              defaultChecked={rentalType === "Both"}
+              checked={rentalType === "Both"}
               onChange={handleRentalTypeChange}
             />
+            <label htmlFor="Both" className="cursor-pointer">Both</label>
           </div>
         </div>
 
@@ -271,23 +278,17 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
         )}
       </div>
 
-      {isFormComplete ? (
-        <div className="mt-4 ml-2 mb-4">
-          <Link
-            href={{
-              pathname: `/dashboard/add-listing/2`,
-              query: { userId: userId },
-            }}
-            onClick={handleNextClick}
-          >
-            <Button disabled={!isFormComplete}>Continue</Button>
-          </Link>
-        </div>
-      ) : (
-        <div className="mt-4 ml-2 mb-4">
+      <div className="mt-4 ml-2 mb-4">
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/2`,
+            query: { userId: userId },
+          }}
+          onClick={handleNextClick}
+        >
           <Button disabled={!isFormComplete}>Continue</Button>
-        </div>
-      )}
+        </Link>
+      </div>
     </div>
   );
 };

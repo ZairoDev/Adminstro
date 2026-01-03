@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       WhatsAppConversation.countDocuments(query),
     ]);
 
-    // Populate lastMessageStatus from the last message for outgoing messages
+    // Populate lastMessageStatus and determine conversation type (owner/guest)
     const conversationsWithStatus = await Promise.all(
       conversations.map(async (conv: any) => {
         if (conv.lastMessageDirection === "outgoing" && conv.lastMessageId) {
@@ -82,6 +82,44 @@ export async function GET(req: NextRequest) {
             conv.lastMessageStatus = (lastMessage as any).status;
           }
         }
+        
+        // Determine conversation type - always recalculate to ensure accuracy
+        // Find the first outgoing message with a template
+        const firstTemplateMessage = await WhatsAppMessage.findOne({
+          conversationId: conv._id,
+          direction: "outgoing",
+          type: "template",
+          templateName: { $exists: true, $ne: null },
+        })
+          .sort({ timestamp: 1 }) // Get the earliest template message
+          .select("templateName")
+          .lean() as any;
+        
+        let conversationType: "owner" | "guest";
+        
+        // If first template contains "owners_template" or starts with "owner" (case-insensitive), it's an owner conversation
+        // Otherwise, it's a guest conversation
+        if (firstTemplateMessage && firstTemplateMessage.templateName) {
+          const templateName = String(firstTemplateMessage.templateName).toLowerCase();
+          // Check if template name contains "owners_template" or starts with "owner"
+          // This handles variations like "owners_template", "owners_template_1", "owner_message", etc.
+          conversationType = (templateName.includes("owners_template") || templateName.startsWith("owner")) 
+            ? "owner" 
+            : "guest";
+        } else {
+          // Default to guest if no template found
+          conversationType = "guest";
+        }
+        
+        // Update conversation type in database if it has changed or doesn't exist
+        if (conv.conversationType !== conversationType) {
+          await WhatsAppConversation.findByIdAndUpdate(conv._id, {
+            conversationType,
+          }, { new: false }); // Don't return updated doc, just update
+        }
+        
+        conv.conversationType = conversationType;
+        
         return conv;
       })
     );

@@ -3,6 +3,8 @@ import { Types } from "mongoose";
 import Visits from "@/models/visit";
 import Query from "@/models/query";
 import Users from "@/models/user";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 
 interface VisitLean {
   _id: Types.ObjectId;
@@ -22,6 +24,22 @@ interface UserLean {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get user token for authorization
+    const token = await getDataFromToken(req);
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role: string = (token.role || "") as string;
+    const assignedArea: string | string[] | undefined = 
+      token.allotedArea 
+        ? (Array.isArray(token.allotedArea) 
+            ? token.allotedArea 
+            : typeof token.allotedArea === "string" 
+            ? token.allotedArea 
+            : undefined)
+        : undefined;
+
     const body = await req.json();
 
     const {
@@ -32,10 +50,20 @@ export async function POST(req: NextRequest) {
       vsid = "",
       commissionFrom = "",
       commissionTo = "",
-      visitCategory = "scheduled", 
+      visitCategory = "scheduled",
+      location, // Optional location filter from request
     } = body;
 
-    const filterQuery: any = {};
+    const filterQuery: Record<string, any> = {};
+
+    // Apply location filtering for Sales users (non-exempt roles)
+    if (!isLocationExempt(role)) {
+      const locationStr: string | undefined = typeof location === "string" ? location : undefined;
+      applyLocationFilter(filterQuery, role, assignedArea, locationStr);
+    } else if (location && typeof location === "string" && location !== "All") {
+      // For exempt roles, allow location filtering if requested
+      filterQuery.location = new RegExp(location, "i");
+    }
 
     if (ownerName) {
       filterQuery.ownerName = { $regex: ownerName, $options: "i" };

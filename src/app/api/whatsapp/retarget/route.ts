@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Query from "@/models/query";
-import Users from "@/models/user";
+import { unregisteredOwner } from "@/models/unregisteredOwner";
 
 connectDb();
 
@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
       priority,
       minGuests,
       maxGuests,
-      // Additional filters for owners
-      nationality,
-      gender,
-      spokenLanguage,
+      // Additional filters for owners (based on unregisteredOwner schema)
+      propertyType: ownerPropertyType,
+      availability: ownerAvailability,
+      area: ownerArea,
     } = body || {};
 
     const cappedLimit = Number(limit) || 10000; // Remove practical cap
@@ -96,52 +96,94 @@ export async function POST(req: NextRequest) {
     }
 
     const locationFilter = location
-      ? { address: { $regex: location, $options: "i" } }
+      ? { location: { $regex: location, $options: "i" } }
       : undefined;
 
     // =========================================================
-    // OWNERS: Fetch with retarget tracking fields
+    // OWNERS: Fetch from unregisteredOwner with retarget tracking fields
+    // Deduplicate by phoneNumber so each owner appears only once
     // =========================================================
     if (audience === "owners") {
-      const userQuery: any = { role: "Owner" };
+      const matchStage: any = {
+        phoneNumber: { $exists: true, $nin: [null, ""] },
+      };
       if (Object.keys(dateFilter).length) {
-        userQuery.createdAt = dateFilter;
+        matchStage.createdAt = dateFilter;
       }
       if (location) {
-        userQuery.$or = [
-          { address: { $regex: location, $options: "i" } },
-          { "properties.location": { $regex: location, $options: "i" } },
-        ];
+        matchStage.location = { $regex: location, $options: "i" };
       }
-      if (nationality) {
-        userQuery.nationality = { $regex: nationality, $options: "i" };
+      // Owner-specific filters from unregisteredOwner schema
+      if (ownerPropertyType) {
+        matchStage.propertyType = { $regex: ownerPropertyType, $options: "i" };
       }
-      if (gender) {
-        userQuery.gender = gender;
+      if (ownerAvailability) {
+        matchStage.availability = { $regex: ownerAvailability, $options: "i" };
       }
-      if (spokenLanguage) {
-        userQuery.spokenLanguage = { $regex: spokenLanguage, $options: "i" };
+      if (ownerArea) {
+        matchStage.area = { $regex: ownerArea, $options: "i" };
       }
       
       // Apply state filter for owners
       if (stateFilter === "pending") {
-        userQuery.whatsappBlocked = { $ne: true };
-        userQuery.$or = [
+        matchStage.whatsappBlocked = { $ne: true };
+        matchStage.$or = [
           { whatsappRetargetCount: 0 },
           { whatsappRetargetCount: { $exists: false } },
         ];
       } else if (stateFilter === "retargeted") {
-        userQuery.whatsappBlocked = { $ne: true };
-        userQuery.whatsappRetargetCount = { $gte: 1 };
+        matchStage.whatsappBlocked = { $ne: true };
+        matchStage.whatsappRetargetCount = { $gte: 1 };
       } else if (stateFilter === "blocked") {
-        userQuery.whatsappBlocked = true;
+        matchStage.whatsappBlocked = true;
       }
       
-      const owners = await Users.find(userQuery)
-        .sort({ createdAt: -1 })
-        .limit(cappedLimit)
-        .select("_id name phone email address nationality gender spokenLanguage createdAt whatsappBlocked whatsappBlockReason whatsappRetargetCount whatsappLastRetargetAt whatsappLastErrorCode")
-        .lean();
+      // Aggregation pipeline to deduplicate by phoneNumber
+      // Use $max for retarget count to ensure we capture retargeted status across all properties
+      const owners = await unregisteredOwner.aggregate([
+        { $match: matchStage },
+        { $sort: { whatsappRetargetCount: -1, createdAt: -1 } }, // Sort by retarget count first to prioritize retargeted entries
+          {
+          $group: {
+            _id: "$phoneNumber", // Group by phone number
+            docId: { $first: "$_id" },
+            name: { $first: "$name" },
+            phoneNumber: { $first: "$phoneNumber" },
+            location: { $first: "$location" },
+            address: { $first: "$address" },
+            area: { $first: "$area" },
+            propertyType: { $first: "$propertyType" },
+            availability: { $first: "$availability" },
+            createdAt: { $first: "$createdAt" },
+            whatsappBlocked: { $max: "$whatsappBlocked" }, // Use max to catch any blocked status
+            whatsappBlockReason: { $first: "$whatsappBlockReason" },
+            whatsappRetargetCount: { 
+              $max: {
+                $ifNull: ["$whatsappRetargetCount", 0] // Treat null as 0 for max calculation
+              }
+            }, // Use max to get highest retarget count
+            whatsappLastRetargetAt: { $max: "$whatsappLastRetargetAt" }, // Use max to get most recent retarget date
+            whatsappLastErrorCode: { $first: "$whatsappLastErrorCode" },
+            propertyCount: { $sum: 1 }, // Count how many properties this owner has
+          },
+        },
+        // Ensure retargeted owners still have retargetCount >= 1 after grouping
+        {
+          $addFields: {
+            whatsappRetargetCount: {
+              $ifNull: ["$whatsappRetargetCount", 0]
+            }
+          }
+        },
+        // Post-filter: For "retargeted" state, ensure retargetCount >= 1 after grouping
+        ...(stateFilter === "retargeted" ? [{
+          $match: {
+            whatsappRetargetCount: { $gte: 1 }
+          }
+        }] : []),
+        { $sort: { createdAt: -1 } },
+        { $limit: cappedLimit },
+      ]);
 
       let skippedCount = 0;
       let blockedCount = 0;
@@ -150,7 +192,7 @@ export async function POST(req: NextRequest) {
       
       const recipients = owners
         .map((o: any) => {
-          const phone = normalizePhone(o.phone);
+          const phone = normalizePhone(o.phoneNumber);
           const isValidPhone = /^[1-9][0-9]{6,14}$/.test(phone);
           
           if (!isValidPhone) {
@@ -170,16 +212,17 @@ export async function POST(req: NextRequest) {
             !BLOCKING_ERROR_CODES.includes(o.whatsappLastErrorCode);
           
         return {
-          id: String(o._id),
+          id: String(o.docId),
           name: o.name || "Owner",
           phone,
-          email: o.email || "",
           source: "owner" as const,
           createdAt: o.createdAt,
+          location: o.location || "",
           address: o.address || "",
-          nationality: o.nationality || "",
-          gender: o.gender || "",
-          spokenLanguage: o.spokenLanguage || "",
+          area: o.area || "",
+          propertyType: o.propertyType || "",
+          availability: o.availability || "",
+          propertyCount: o.propertyCount || 1,
           // Retarget-specific fields
           state,
           retargetCount,
@@ -192,7 +235,7 @@ export async function POST(req: NextRequest) {
         })
         .filter(Boolean);
 
-      console.log(`📋 [AUDIT] Retarget owners fetch: ${recipients.length} owners, ${skippedCount} invalid, ${blockedCount} blocked`);
+      console.log(`📋 [AUDIT] Retarget owners fetch: ${recipients.length} unique owners, ${skippedCount} invalid, ${blockedCount} blocked`);
 
       return NextResponse.json({ 
         success: true, 

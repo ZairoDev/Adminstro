@@ -5,10 +5,28 @@ import { Area } from "@/models/area";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyLocationFilter, isLocationExempt, validateLocationAccess } from "@/util/apiSecurity";
 
 connectDb();
 export async function POST(req: NextRequest) {
   try{
+    // Get user token for authorization
+    const token = await getDataFromToken(req);
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role: string = (token.role || "") as string;
+    const assignedArea: string | string[] | undefined = 
+      token.allotedArea 
+        ? (Array.isArray(token.allotedArea) 
+            ? token.allotedArea 
+            : typeof token.allotedArea === "string" 
+            ? token.allotedArea 
+            : undefined)
+        : undefined;
+
     const { filters , page=1 , limit=50}  : { filters: FiltersInterfaces; page: number ; limit: number} =
         await req.json();
     const query: Record<string, any> = {};
@@ -22,22 +40,49 @@ export async function POST(req: NextRequest) {
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
     // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
     if (filters.place) {
-  const locations = filters.place.flat().filter(loc => typeof loc === 'string');
+      const locations = filters.place.flat().filter(loc => typeof loc === 'string');
 
-  if (filters.isImportant) {
-  query["isImportant"] = "Important"; // or whatever value you use for important items
-}
+      if (filters.isImportant) {
+        query["isImportant"] = "Important";
+      }
 
-if (filters.isPinned) {
-  query["isPinned"] = "Pinned"; // or whatever value you use for important items
-}
+      if (filters.isPinned) {
+        query["isPinned"] = "Pinned";
+      }
 
-  if (locations.length > 0) {
-    query["$or"] = locations.map(loc => ({
-      location: { $regex: new RegExp(`^${loc}$`, "i") }
-    }));
-  }
-}
+      // Security: Validate requested locations against user's assigned areas
+      if (locations.length > 0) {
+        if (!isLocationExempt(role)) {
+          // For restricted users, filter to only their assigned locations
+          const userAreas = Array.isArray(assignedArea)
+            ? assignedArea.map((a: string) => a.toLowerCase())
+            : assignedArea
+            ? [String(assignedArea).toLowerCase()]
+            : [];
+
+          const validLocations = locations.filter((loc: string) =>
+            userAreas.includes(loc.toLowerCase())
+          );
+
+          if (validLocations.length > 0) {
+            query["$or"] = validLocations.map((loc: string) => ({
+              location: { $regex: new RegExp(`^${loc}$`, "i") }
+            }));
+          } else {
+            // No valid locations - return empty result
+            query["$or"] = [{ location: { $in: [] } }];
+          }
+        } else {
+          // Exempt roles can see all requested locations
+          query["$or"] = locations.map((loc: string) => ({
+            location: { $regex: new RegExp(`^${loc}$`, "i") }
+          }));
+        }
+      }
+    } else if (!isLocationExempt(role)) {
+      // No location filter requested but user is restricted - apply default location filter
+      applyLocationFilter(query, role, assignedArea, undefined);
+    }
      if (filters.area?.length) {
       // exact match any of selected areas (case-insensitive)
       query["area"] = { $in: filters.area.map((a) => new RegExp(`^${a}$`, "i")) };

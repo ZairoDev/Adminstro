@@ -17,6 +17,7 @@ import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { Boosters } from "@/models/propertyBooster";
 import { PipelineStage } from "mongoose";
 import WebsiteLeads from "@/models/websiteLeads";
+import Users from "@/models/user";
 
 connectDb();
 
@@ -3903,6 +3904,302 @@ export const getCandidateSummary = async ({ position }: { position?: string } = 
   }
 
   return result;
+};
+
+// ==================== RETARGETING STATS ====================
+export const getRetargetStats = async ({
+  days,
+  location,
+}: {
+  days?: string;
+  location?: string;
+}) => {
+  await connectDb();
+  const { startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay } = await import("date-fns");
+
+  function deriveRetargetState(lead: any): "pending" | "retargeted" | "blocked" {
+    if (lead.whatsappBlocked === true) return "blocked";
+    if ((lead.whatsappRetargetCount || 0) > 0) return "retargeted";
+    return "pending";
+  }
+
+  const now = new Date();
+
+  // =========================================================
+  // 1. TOTAL COUNT STATS (NO FILTERS - Complete Data)
+  // =========================================================
+
+  // All Unregistered Owners count stats (deduplicated by phoneNumber)
+  const allOwners = await unregisteredOwner.aggregate([
+    {
+      $match: {
+        phoneNumber: { $exists: true, $nin: [null, ""] },
+      },
+    },
+    {
+      $group: {
+        _id: "$phoneNumber", // Deduplicate by phone number
+        whatsappBlocked: { $first: "$whatsappBlocked" },
+        whatsappRetargetCount: { $first: "$whatsappRetargetCount" },
+      },
+    },
+  ]);
+
+  let ownerPending = 0;
+  let ownerRetargeted = 0;
+  let ownerBlocked = 0;
+
+  allOwners.forEach((owner: any) => {
+    const state = deriveRetargetState(owner);
+    if (state === "pending") ownerPending++;
+    else if (state === "retargeted") ownerRetargeted++;
+    else if (state === "blocked") ownerBlocked++;
+  });
+
+  // All Guests (Leads) count stats (no date/location filter)
+  const allLeads = await Query.find({})
+    .select("whatsappBlocked whatsappRetargetCount")
+    .lean();
+
+  let guestPending = 0;
+  let guestRetargeted = 0;
+  let guestBlocked = 0;
+
+  allLeads.forEach((lead: any) => {
+    const state = deriveRetargetState(lead);
+    if (state === "pending") guestPending++;
+    else if (state === "retargeted") guestRetargeted++;
+    else if (state === "blocked") guestBlocked++;
+  });
+
+  // =========================================================
+  // 2. DATE FILTER FOR HISTOGRAM ONLY
+  // =========================================================
+  let dateFilter: Record<string, any> = {};
+
+  switch (days) {
+    case "10 days":
+      dateFilter = {
+        $gte: startOfDay(subDays(now, 10)),
+        $lte: endOfDay(now),
+      };
+      break;
+    case "this month":
+      dateFilter = {
+        $gte: startOfMonth(now),
+        $lte: endOfDay(now),
+      };
+      break;
+    case "last month":
+      const lastMonthStart = startOfMonth(subMonths(now, 1));
+      const lastMonthEnd = endOfMonth(subMonths(now, 1));
+      dateFilter = {
+        $gte: lastMonthStart,
+        $lte: lastMonthEnd,
+      };
+      break;
+    case "year":
+      dateFilter = {
+        $gte: startOfDay(subMonths(now, 12)),
+        $lte: endOfDay(now),
+      };
+      break;
+    default:
+      dateFilter = {
+        $gte: startOfMonth(now),
+        $lte: endOfDay(now),
+      };
+  }
+
+  // =========================================================
+  // 2. MONTHLY HISTOGRAM DATA
+  // =========================================================
+
+  // Determine date range for histogram
+  let histogramStartDate: Date;
+  let histogramEndDate: Date = endOfDay(now);
+
+  switch (days) {
+    case "10 days":
+      histogramStartDate = startOfDay(subDays(now, 10));
+      break;
+    case "this month":
+      histogramStartDate = startOfMonth(now);
+      break;
+    case "last month":
+      histogramStartDate = startOfMonth(subMonths(now, 1));
+      histogramEndDate = endOfMonth(subMonths(now, 1));
+      break;
+    case "year":
+      histogramStartDate = startOfDay(subMonths(now, 12));
+      break;
+    default:
+      histogramStartDate = startOfMonth(now);
+  }
+
+  // Determine grouping based on time range
+  const isShortRange = days === "10 days";
+  const groupByDay = isShortRange;
+
+  // Aggregate unregistered owners (deduplicated by phoneNumber)
+  const ownerHistogramQuery: any = {
+    phoneNumber: { $exists: true, $nin: [null, ""] },
+    whatsappLastRetargetAt: {
+      $gte: histogramStartDate,
+      $lte: histogramEndDate,
+      $ne: null,
+    },
+  };
+  if (location && location !== "All") {
+    ownerHistogramQuery.location = { $regex: location, $options: "i" };
+  }
+
+  const ownerHistogramPipeline: any[] = [
+    { $match: ownerHistogramQuery },
+    // First deduplicate by phoneNumber
+    {
+      $group: {
+        _id: "$phoneNumber",
+        whatsappLastRetargetAt: { $first: "$whatsappLastRetargetAt" },
+      },
+    },
+  ];
+
+  if (groupByDay) {
+    // Then group by date
+    ownerHistogramPipeline.push({
+      $group: {
+        _id: {
+          year: { $year: "$whatsappLastRetargetAt" },
+          month: { $month: "$whatsappLastRetargetAt" },
+          day: { $dayOfMonth: "$whatsappLastRetargetAt" },
+        },
+        count: { $sum: 1 },
+      },
+    });
+    ownerHistogramPipeline.push({
+      $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 },
+    });
+  } else {
+    ownerHistogramPipeline.push({
+      $group: {
+        _id: {
+          year: { $year: "$whatsappLastRetargetAt" },
+          month: { $month: "$whatsappLastRetargetAt" },
+        },
+        count: { $sum: 1 },
+      },
+    });
+    ownerHistogramPipeline.push({
+      $sort: { "_id.year": 1, "_id.month": 1 },
+    });
+  }
+
+  const ownerHistogram = await unregisteredOwner.aggregate(ownerHistogramPipeline);
+
+  // Aggregate guests (leads)
+  const leadHistogramQuery: any = {
+    whatsappLastRetargetAt: {
+      $gte: histogramStartDate,
+      $lte: histogramEndDate,
+      $ne: null,
+    },
+  };
+  if (location && location !== "All") {
+    leadHistogramQuery.location = { $regex: location, $options: "i" };
+  }
+
+  const guestHistogramPipeline: any[] = [
+    { $match: leadHistogramQuery },
+  ];
+
+  if (groupByDay) {
+    guestHistogramPipeline.push({
+      $group: {
+        _id: {
+          year: { $year: "$whatsappLastRetargetAt" },
+          month: { $month: "$whatsappLastRetargetAt" },
+          day: { $dayOfMonth: "$whatsappLastRetargetAt" },
+        },
+        count: { $sum: 1 },
+      },
+    });
+    guestHistogramPipeline.push({
+      $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 },
+    });
+  } else {
+    guestHistogramPipeline.push({
+      $group: {
+        _id: {
+          year: { $year: "$whatsappLastRetargetAt" },
+          month: { $month: "$whatsappLastRetargetAt" },
+        },
+        count: { $sum: 1 },
+      },
+    });
+    guestHistogramPipeline.push({
+      $sort: { "_id.year": 1, "_id.month": 1 },
+    });
+  }
+
+  const guestHistogram = await Query.aggregate(guestHistogramPipeline);
+
+  // Format histogram data
+  const formatHistogramData = (data: any[]) => {
+    return data.map((item) => {
+      if (groupByDay) {
+        return {
+          date: `${item._id.year}-${String(item._id.month).padStart(2, "0")}-${String(item._id.day).padStart(2, "0")}`,
+          count: item.count,
+        };
+      } else {
+        return {
+          date: `${item._id.year}-${String(item._id.month).padStart(2, "0")}`,
+          count: item.count,
+        };
+      }
+    });
+  };
+
+  // Merge histogram data by date
+  const ownerHistogramFormatted = formatHistogramData(ownerHistogram);
+  const guestHistogramFormatted = formatHistogramData(guestHistogram);
+
+  // Combine into single array with all dates
+  const allDates = new Set([
+    ...ownerHistogramFormatted.map((d) => d.date),
+    ...guestHistogramFormatted.map((d) => d.date),
+  ]);
+
+  const histogramData = Array.from(allDates)
+    .sort()
+    .map((date) => {
+      const ownerData = ownerHistogramFormatted.find((d) => d.date === date);
+      const guestData = guestHistogramFormatted.find((d) => d.date === date);
+      return {
+        date,
+        Owners: ownerData?.count || 0,
+        Guests: guestData?.count || 0,
+      };
+    });
+
+  return {
+    counts: {
+      owners: {
+        pending: ownerPending,
+        retargeted: ownerRetargeted,
+        blocked: ownerBlocked,
+        total: ownerPending + ownerRetargeted + ownerBlocked,
+      },
+      guests: {
+        pending: guestPending,
+        retargeted: guestRetargeted,
+        blocked: guestBlocked,
+        total: guestPending + guestRetargeted + guestBlocked,
+      },
+    },
+    histogram: histogramData,
+  };
 };
 
 // Website Leads Counts

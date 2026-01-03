@@ -185,8 +185,10 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
                 <div className="flex border-primary items-center">
                   <span className="ml-3 ">{item}</span>
                 </div>
-                <i
-                  className=""
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() =>
                     setAdditionalRules((prev) => {
                       return [
@@ -198,7 +200,10 @@ const PageAddListing5: FC<PageAddListing5Props> = () => {
                       ];
                     })
                   }
-                ></i>
+                  className="text-destructive hover:text-destructive"
+                >
+                  Remove
+                </Button>
               </div>
             ))}
           </div>

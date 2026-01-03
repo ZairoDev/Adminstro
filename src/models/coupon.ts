@@ -73,7 +73,8 @@ const couponSchema = new mongoose.Schema<ICoupon>(
   }
 );
 
-couponSchema.index({ code: 1 });
+// Note: code field already has unique: true which creates an index automatically
+// No need to explicitly create index({ code: 1 }) as it would be duplicate
 couponSchema.index({ isActive: 1, validFrom: 1, validUntil: 1 });
 
 couponSchema.methods.isValid = function (

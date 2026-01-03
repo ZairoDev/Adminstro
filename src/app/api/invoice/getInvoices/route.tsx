@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import Invoice from "@/models/invoice";
 import { connectDb } from "@/util/db";
 
+// Mark this route as dynamic since it uses request.url
+export const dynamic = 'force-dynamic';
+
 // GET /api/invoice/getInvoices?month=09&year=2025
 export async function GET(req: Request) {
   try {

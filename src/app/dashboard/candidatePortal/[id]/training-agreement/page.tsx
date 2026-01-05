@@ -430,7 +430,7 @@ export default function TrainingAgreementPage() {
                 <strong>General Terms:</strong> You are required to maintain professional behavior, punctuality, and adhere to all company policies. Any unauthorized absence may result in immediate termination of training. Confidentiality of company information must be strictly maintained.
               </p>
               <p className="text-sm leading-relaxed">
-                <strong>No Guarantee of Employment:</strong> Completion of the training period does not guarantee employment. The decision to offer employment shall be solely based on the Company's assessment of your performance, skills, conduct, and overall suitability, as well as organizational requirements.
+                <strong>No Guarantee of Employment:</strong> Completion of the training period does not guarantee employment. The decision to offer employment shall be solely based on the Company&apos;s assessment of your performance, skills, conduct, and overall suitability, as well as organizational requirements.
               </p>
             </div>
           </Card>

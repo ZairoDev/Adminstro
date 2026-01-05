@@ -12,6 +12,8 @@ interface RejectCandidateDialogProps {
   onClose: () => void;
   onSubmit: (data: RejectionData) => Promise<void>;
   loading: boolean;
+  title?: string;
+  submitButtonText?: string;
 }
 
 export interface RejectionData {
@@ -23,6 +25,8 @@ export function RejectCandidateDialog({
   onClose,
   onSubmit,
   loading,
+  title = "Reject Candidate",
+  submitButtonText = "Reject",
 }: RejectCandidateDialogProps) {
   const [reason, setReason] = useState("");
 
@@ -55,7 +59,7 @@ export function RejectCandidateDialog({
       <Card className="w-full max-w-md p-6 max-h-96 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-foreground">
-            Reject Candidate
+            {title}
           </h2>
           <button
             onClick={onClose}
@@ -117,7 +121,7 @@ export function RejectCandidateDialog({
               className="flex-1 gap-2"
             >
               <X className="w-4 h-4" />
-              {loading ? "Rejecting..." : "Reject"}
+              {loading ? `${submitButtonText}ing...` : submitButtonText}
             </Button>
           </div>
         </form>

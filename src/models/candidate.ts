@@ -45,6 +45,18 @@ const CandidateSchema = new Schema(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
+    trainingAgreementDetails: {
+      signingLink: { type: String, default: null },
+      eSign: {
+        signatureImage: { type: String, default: null },
+        signedAt: { type: Date, default: null },
+      },
+      signedPdfUrl: { type: String, default: null },
+      agreementAccepted: { type: Boolean, default: false },
+      agreementAcceptedAt: { type: Date, default: null },
+      agreementComplete: { type: Boolean, default: false },
+      completedAt: { type: Date, default: null },
+    },
     onboardingDetails: {
       onboardingLink: { type: String, default: null },
       personalDetails: {
@@ -69,6 +81,48 @@ const CandidateSchema = new Schema(
         relievingLetter: { type: String, default: null },
         salarySlips: [{ type: String }],
       },
+      documentVerification: {
+        aadharCard: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        panCard: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        highSchoolMarksheet: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        interMarksheet: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        graduationMarksheet: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        experienceLetter: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        relievingLetter: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        salarySlips: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+      },
       eSign: {
         signatureImage: { type: String, default: null },
         signedAt: { type: Date, default: null },
@@ -77,6 +131,12 @@ const CandidateSchema = new Schema(
       termsAcceptedAt: { type: Date, default: null },
       onboardingComplete: { type: Boolean, default: false },
       completedAt: { type: Date, default: null },
+      verifiedByHR: {
+        verified: { type: Boolean, default: false },
+        verifiedBy: { type: String, default: null },
+        verifiedAt: { type: Date, default: null },
+        notes: { type: String, default: null },
+      },
     },
   },
   { timestamps: true }

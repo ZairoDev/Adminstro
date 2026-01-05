@@ -27,6 +27,7 @@ import { SelectCandidateDialog, SelectionData } from "../components/select-candi
 import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
 import { CreateEmployeeDialog } from "../components/createEmployee";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
+import { OnboardingDetailsView } from "../components/onboarding-details-view";
 
 interface Candidate {
   _id: string;
@@ -64,6 +65,7 @@ interface Candidate {
       dateOfBirth?: string;
       gender?: string;
       nationality?: string;
+      fatherName?: string;
     };
     bankDetails?: {
       accountHolderName?: string;
@@ -81,6 +83,13 @@ interface Candidate {
       relievingLetter?: string;
       salarySlips?: string[];
     };
+    documentVerification?: {
+      [key: string]: {
+        verified: boolean;
+        verifiedBy?: string | null;
+        verifiedAt?: Date | string | null;
+      };
+    };
     eSign?: {
       signatureImage?: string;
       signedAt?: string;
@@ -88,6 +97,13 @@ interface Candidate {
     termsAccepted?: boolean;
     termsAcceptedAt?: string;
     onboardingComplete?: boolean;
+    completedAt?: string | Date;
+    verifiedByHR?: {
+      verified: boolean;
+      verifiedBy?: string | null;
+      verifiedAt?: Date | string | null;
+      notes?: string | null;
+    };
   };
 }
 
@@ -100,10 +116,12 @@ export default function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectAfterTrainingDialogOpen, setRejectAfterTrainingDialogOpen] = useState(false);
   const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] =
     useState(false);
 
@@ -123,10 +141,39 @@ export default function CandidateDetailPage() {
       }
     };
 
+    const fetchUser = async () => {
+      try {
+        const response = await fetch("/api/user/getloggedinuser");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            setUserRole(data.user.role);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      }
+    };
+
     if (candidateId) {
       fetchCandidate();
+      fetchUser();
     }
   }, [candidateId]);
+
+  const refreshCandidate = async () => {
+    try {
+      const response = await fetch(`/api/candidates/${candidateId}`);
+      const result = await response.json();
+      if (result.success) {
+        setCandidate(result.data);
+      }
+    } catch (error) {
+      console.error("Error refreshing candidate:", error);
+    }
+  };
+
+  const canVerify = userRole === "HR" || userRole === "SuperAdmin";
 
   const handleSelectCandidate = async (data: SelectionData) => {
     setActionLoading(true);
@@ -228,6 +275,39 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const handleDiscontinueTraining = async (data: RejectionData) => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
+          status: "rejected",
+          rejectionDetails: {
+            reason: data.reason,
+          },
+          isTrainingDiscontinuation: true, // Flag to indicate this is training discontinuation
+        }
+      );
+
+      const result = response.data;
+      if (result.success) {
+        setCandidate(result.data);
+        setRejectAfterTrainingDialogOpen(false);
+      } else {
+        setError(result.error || "Failed to discontinue training");
+      }
+    } catch (err: any) {
+      console.error("Error discontinuing training:", err);
+      setError(
+        err.response?.data?.error ||
+          "An error occurred while discontinuing training"
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleOnboarding = async (candidateId: string) => {
 
     try {
@@ -302,6 +382,11 @@ export default function CandidateDetailPage() {
     return candidate?.status !== "rejected" && candidate?.status !== "onboarding";
   };
 
+  const canDiscontinueTraining = () => {
+    // Can discontinue training only when candidate is selected for training
+    return candidate?.status === "selected";
+  };
+
   const canStartOnboarding = () => {
     // Can only start onboarding if candidate is selected
     return candidate?.status === "selected";
@@ -324,10 +409,14 @@ export default function CandidateDetailPage() {
         return "Shortlist this candidate";
       
       case "select":
-        if (candidate.status === "selected") return "Candidate is already selected";
+        if (candidate.status === "selected") return "Candidate is already selected for training";
         if (candidate.status === "rejected") return "Cannot select a rejected candidate";
         if (candidate.status === "onboarding") return "Candidate is already in onboarding";
-        return "Select this candidate";
+        return "Select this candidate for training";
+      
+      case "discontinue":
+        if (candidate.status !== "selected") return "Can only discontinue training for candidates selected for training";
+        return "Discontinue training for this candidate";
       
       case "reject":
         if (candidate.status === "rejected") return "Candidate is already rejected";
@@ -495,7 +584,7 @@ export default function CandidateDetailPage() {
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* Select Button */}
+                  {/* Select for Training Button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
@@ -505,7 +594,7 @@ export default function CandidateDetailPage() {
                           variant={candidate.status === "selected" ? "default" : "outline"}
                           className="w-full"
                         >
-                          {candidate.status === "selected" ? "✓ Selected" : "Select"}
+                          {candidate.status === "selected" ? "✓ Selected for Training" : "Select for Training"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -567,6 +656,27 @@ export default function CandidateDetailPage() {
                     </TooltipContent>
                   </Tooltip>
 
+                  {/* Discontinue Training Button - Only show when selected for training */}
+                  {candidate.status === "selected" && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            onClick={() => setRejectAfterTrainingDialogOpen(true)}
+                            disabled={actionLoading || !canDiscontinueTraining()}
+                            variant="destructive"
+                            className="w-full"
+                          >
+                            Discontinue Training
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{getButtonTooltip("discontinue")}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
                   {/* Create Employee Button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -592,6 +702,20 @@ export default function CandidateDetailPage() {
 
           {/* Right Column - Resume and Cover Letter */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Onboarding Details - Show if onboarding is complete or in progress */}
+            {(candidate.status === "onboarding" || candidate.onboardingDetails?.onboardingComplete) && (
+              <OnboardingDetailsView
+                onboardingDetails={candidate.onboardingDetails}
+                selectionDetails={candidate.selectionDetails ? {
+                  ...candidate.selectionDetails,
+                  salary: candidate.selectionDetails.salary?.toString()
+                } : undefined}
+                candidateId={candidate._id}
+                canVerify={canVerify}
+                onUpdate={refreshCandidate}
+              />
+            )}
+
             {/* Cover Letter */}
             {candidate.coverLetter && (
               <Card className="p-6">
@@ -690,6 +814,14 @@ export default function CandidateDetailPage() {
         onClose={() => setRejectDialogOpen(false)}
         onSubmit={handleRejectCandidate}
         loading={actionLoading}
+      />
+      <RejectCandidateDialog
+        open={rejectAfterTrainingDialogOpen}
+        onClose={() => setRejectAfterTrainingDialogOpen(false)}
+        onSubmit={handleDiscontinueTraining}
+        loading={actionLoading}
+        title="Discontinue Training"
+        submitButtonText="Discontinue"
       />
     </div>
   );

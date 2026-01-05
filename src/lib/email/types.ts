@@ -5,7 +5,8 @@ export type CandidateEmailStatus =
   | "selected"
   | "rejected"
   | "shortlisted"
-  | "onboarding";
+  | "onboarding"
+  | "trainingDiscontinued";
 
 export interface SelectionDetails {
   positionType: string;
@@ -24,6 +25,7 @@ export interface CandidateEmailPayload {
   rejectionReason?: string;
   shortlistRoles?: string[];
   onboardingLink?: string;
+  trainingAgreementLink?: string;
   id?: string;
 }
 

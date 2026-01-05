@@ -22,24 +22,33 @@ export async function GET(request: NextRequest) {
 
     // Build the query object
     let query: any = {};
+    const andConditions: any[] = [];
+
+    // Add onboarded filter - includes both completed and pending onboarding
+    if (onboarded) {
+      andConditions.push({
+        $or: [
+          { "onboardingDetails.onboardingComplete": true },
+          { status: "onboarding" },
+        ],
+      });
+    }
 
     // Add search conditions if search term exists
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } },
-      ];
+      andConditions.push({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+        ],
+      });
     }
 
     // Add status filter if status is provided and not "all"
-    if (status && status !== "all") {
+    // Note: Don't override status if onboarded filter is active
+    if (status && status !== "all" && !onboarded) {
       query.status = status;
-    }
-
-    // Add onboarded filter
-    if (onboarded) {
-      query["onboardingDetails.onboardingComplete"] = true;
     }
 
     // Add position/role filter
@@ -52,6 +61,17 @@ export async function GET(request: NextRequest) {
       query.experience = 0;
     } else if (experienceFilter === "experienced") {
       query.experience = { $gt: 0 };
+    }
+
+    // Combine $or conditions with $and, and merge other filters
+    if (andConditions.length > 0) {
+      if (Object.keys(query).length > 0) {
+        query = {
+          $and: [...andConditions, query],
+        };
+      } else {
+        query = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+      }
     }
 
     // Get total count with the query

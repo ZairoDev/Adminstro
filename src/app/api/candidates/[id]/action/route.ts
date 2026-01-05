@@ -12,7 +12,7 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const { status, selectionDetails, shortlistDetails, rejectionDetails} =
+    const { status, selectionDetails, shortlistDetails, rejectionDetails, isTrainingDiscontinuation} =
       await request.json();
 
     if (!["pending", "shortlisted", "selected", "rejected", "onboarding"].includes(status)) {
@@ -30,6 +30,13 @@ export async function POST(
       updateData.shortlistDetails = shortlistDetails;
     if (status === "rejected" && rejectionDetails)
       updateData.rejectionDetails = rejectionDetails;
+
+    // If selected for training, set training agreement signing link
+    let trainingAgreementLink: string | undefined;
+    if (status === "selected") {
+      trainingAgreementLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/training-agreement`;
+      updateData["trainingAgreementDetails.signingLink"] = trainingAgreementLink;
+    }
 
     // If onboarding step, set onboarding link in candidate onboardingDetails
     if (status === "onboarding") {
@@ -53,21 +60,32 @@ export async function POST(
 
 
     if (status !== "pending") {
-      await sendEmail({
-        to: candidate.email,
-        candidateName: candidate.name,
-        status,
-        position: candidate.position,
-        companyName: process.env.COMPANY_NAME || "Zairo International",
-        selectionDetails: status === "selected" ? selectionDetails : undefined,
-        rejectionReason:
-          status === "rejected" ? rejectionDetails?.reason : undefined,
-        shortlistRoles:
-          status === "shortlisted"
-            ? shortlistDetails?.suitableRoles
-            : undefined,
-        onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink) : undefined,
-      });
+      // Determine email status: use trainingDiscontinued if this is a training discontinuation, otherwise use the actual status
+      const emailStatus = isTrainingDiscontinuation ? "trainingDiscontinued" : status;
+      
+      try {
+        await sendEmail({
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: emailStatus as any,
+          position: candidate.position,
+          companyName: process.env.COMPANY_NAME || "Zairo International",
+          selectionDetails: status === "selected" ? selectionDetails : undefined,
+          rejectionReason:
+            status === "rejected" ? rejectionDetails?.reason : undefined,
+          shortlistRoles:
+            status === "shortlisted"
+              ? shortlistDetails?.suitableRoles
+              : undefined,
+          onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink) : undefined,
+          trainingAgreementLink: trainingAgreementLink || (status === "selected" ? candidate.trainingAgreementDetails?.signingLink : undefined),
+        });
+        console.log(`✅ Email sent successfully to ${candidate.email} for status: ${emailStatus}`);
+      } catch (emailError: any) {
+        // Log email error but don't fail the entire operation
+        console.error(`❌ Failed to send email to ${candidate.email}:`, emailError);
+        // Continue with the status update even if email fails
+      }
     }
 
     return NextResponse.json({

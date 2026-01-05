@@ -34,14 +34,14 @@ export async function POST(
     // If selected for training, set training agreement signing link
     let trainingAgreementLink: string | undefined;
     if (status === "selected") {
-      trainingAgreementLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/training-agreement`;
+      trainingAgreementLink = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/training-agreement`;
       updateData["trainingAgreementDetails.signingLink"] = trainingAgreementLink;
     }
 
     // If onboarding step, set onboarding link in candidate onboardingDetails
     if (status === "onboarding") {
       // If frontend provided a link use it, otherwise generate one
-      const link = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/onboarding`;
+      const link = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/onboarding`;
       updateData["onboardingDetails.onboardingLink"] = link;
       // Also mark status as onboarding
       updateData.status = "onboarding";

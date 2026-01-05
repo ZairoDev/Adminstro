@@ -9,6 +9,15 @@ import {
   Linkedin,
   Globe,
   AlertCircle,
+  Calendar,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +28,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 
 
@@ -28,6 +49,7 @@ import { RejectCandidateDialog, RejectionData } from "../components/reject-candi
 import { CreateEmployeeDialog } from "../components/createEmployee";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 import { OnboardingDetailsView } from "../components/onboarding-details-view";
+import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
 
 interface Candidate {
   _id: string;
@@ -43,8 +65,29 @@ interface Candidate {
   linkedin?: string;
   portfolio?: string;
   resumeUrl: string;
-  status: "pending"|"shortlisted"|"selected"|"rejected"|"onboarding";
+  status: "pending"|"interview"|"shortlisted"|"selected"|"rejected"|"onboarding";
   createdAt: string;
+  interviewDetails?: {
+    scheduledDate?: string;
+    scheduledTime?: string;
+    scheduledBy?: string;
+    scheduledAt?: string;
+    notes?: string;
+    remarks?: {
+      experienceValidation?: string;
+      motherTongueInfluence?: string;
+      englishSpeaking?: string;
+      understandingScale?: string;
+      listeningSkills?: string;
+      basicProfessionalism?: string;
+      stabilitySignals?: string;
+      hrNotes?: string;
+      evaluatedBy?: string;
+      evaluatedAt?: string;
+      lastUpdatedBy?: string;
+      lastUpdatedAt?: string;
+    };
+  };
   selectionDetails?: {
     positionType: "fulltime" | "intern";
     duration: string;
@@ -124,6 +167,14 @@ export default function CandidateDetailPage() {
   const [rejectAfterTrainingDialogOpen, setRejectAfterTrainingDialogOpen] = useState(false);
   const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] =
     useState(false);
+  const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] = useState(false);
+  const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined);
+  const [interviewTime, setInterviewTime] = useState("");
+  const [interviewNotes, setInterviewNotes] = useState("");
+  const [schedulingInterview, setSchedulingInterview] = useState(false);
+  const [interviewRemarksDialogOpen, setInterviewRemarksDialogOpen] = useState(false);
+  const [remarksExpanded, setRemarksExpanded] = useState(true);
+  const [resumeExpanded, setResumeExpanded] = useState(true);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -357,6 +408,8 @@ export default function CandidateDetailPage() {
         return "bg-green-100 text-green-800";
       case "shortlisted":
         return "bg-blue-100 text-blue-800";
+      case "interview":
+        return "bg-purple-100 text-purple-800";
       case "rejected":
         return "bg-red-100 text-red-800";
       case "onboarding":
@@ -372,14 +425,31 @@ export default function CandidateDetailPage() {
     return candidate?.status === "pending";
   };
 
+  const hasInterviewRemarks = () => {
+    return !!candidate?.interviewDetails?.remarks?.evaluatedBy;
+  };
+
   const canSelect = () => {
-    // Can select from pending or shortlisted
-    return candidate?.status === "pending" || candidate?.status === "shortlisted";
+    // Can select from pending, interview, or shortlisted
+    // If status is interview, remarks must be completed
+    const status = candidate?.status;
+    if (status === "interview") {
+      return hasInterviewRemarks();
+    }
+    if (status === "pending" || status === "shortlisted") {
+      return true;
+    }
+    return false;
   };
 
   const canReject = () => {
     // Can reject from any status except already rejected or onboarding
-    return candidate?.status !== "rejected" && candidate?.status !== "onboarding";
+    // If status is interview, remarks must be completed
+    const status = candidate?.status;
+    if (status === "interview") {
+      return hasInterviewRemarks();
+    }
+    return status !== "rejected" && status !== "onboarding";
   };
 
   const canDiscontinueTraining = () => {
@@ -397,6 +467,55 @@ export default function CandidateDetailPage() {
     return candidate?.status === "onboarding" && candidate?.onboardingDetails?.onboardingComplete === true;
   };
 
+  const canScheduleInterview = () => {
+    // Can schedule interview only for pending candidates
+    return candidate?.status === "pending";
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!candidate || !interviewDate || !interviewTime) {
+      toast.error("Please select both date and time");
+      return;
+    }
+
+    setSchedulingInterview(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/candidates/${candidate._id}/schedule-interview`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scheduledDate: interviewDate.toISOString().split("T")[0],
+            scheduledTime: interviewTime,
+            notes: interviewNotes || undefined,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Interview scheduled successfully");
+        setScheduleInterviewDialogOpen(false);
+        setInterviewDate(undefined);
+        setInterviewTime("");
+        setInterviewNotes("");
+        // Refresh candidate data
+        await refreshCandidate();
+      } else {
+        setError(result.error || "Failed to schedule interview");
+        toast.error(result.error || "Failed to schedule interview");
+      }
+    } catch (error) {
+      console.error("Error scheduling interview:", error);
+      setError("Failed to schedule interview");
+      toast.error("Failed to schedule interview");
+    } finally {
+      setSchedulingInterview(false);
+    }
+  };
+
   const getButtonTooltip = (action: string) => {
     if (!candidate) return "";
 
@@ -412,6 +531,7 @@ export default function CandidateDetailPage() {
         if (candidate.status === "selected") return "Candidate is already selected for training";
         if (candidate.status === "rejected") return "Cannot select a rejected candidate";
         if (candidate.status === "onboarding") return "Candidate is already in onboarding";
+        if (candidate.status === "interview" && !hasInterviewRemarks()) return "Interview remarks must be completed before selecting";
         return "Select this candidate for training";
       
       case "discontinue":
@@ -421,6 +541,7 @@ export default function CandidateDetailPage() {
       case "reject":
         if (candidate.status === "rejected") return "Candidate is already rejected";
         if (candidate.status === "onboarding") return "Cannot reject during onboarding";
+        if (candidate.status === "interview" && !hasInterviewRemarks()) return "Interview remarks must be completed before rejecting";
         return "Reject this candidate";
       
       case "onboarding":
@@ -439,108 +560,71 @@ export default function CandidateDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="mb-8">
-          <Link href="/dashboard/candidatePortal">
-            <Button variant="ghost" className="gap-2 mb-4">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Candidates
-            </Button>
-          </Link>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">
-                {candidate.name}
-              </h1>
-              <p className="text-muted-foreground">{candidate.position}</p>
-            </div>
-            <Badge className={getStatusColor(candidate.status)}>
-              {candidate?.status?.charAt(0)?.toUpperCase() +
-                candidate?.status?.slice(1)}
+    <div className="min-h-screen bg-background">
+      {/* Compact Header */}
+      <div className="border-b bg-card sticky top-0 z-10">
+        <div className="max-w-[1600px] mx-auto px-6 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <Link href="/dashboard/candidatePortal">
+              <Button variant="ghost" size="sm" className="gap-1.5 h-8">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </Button>
+            </Link>
+            <Badge className={`${getStatusColor(candidate.status)} text-xs px-3 py-1`}>
+              {candidate.status === "selected"
+                ? "Selected for Training"
+                : candidate.status === "interview"
+                ? "Interview"
+                : candidate?.status?.charAt(0)?.toUpperCase() +
+                  candidate?.status?.slice(1)}
             </Badge>
           </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded flex items-center gap-2 text-red-700">
-            <AlertCircle className="w-4 h-4" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Candidate Info */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Contact Information */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
-                Contact Information
-              </h2>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Email</p>
-                  <a
-                    href={`mailto:${candidate?.email}`}
-                    className="text-primary hover:underline"
-                  >
-                    {candidate.email}
-                  </a>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                  <a
-                    href={`tel:${candidate?.phone}`}
-                    className="text-primary hover:underline"
-                  >
-                    {candidate.phone}
-                  </a>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Location</p>
-                  <p className="text-foreground">
-                    {candidate?.city}, {candidate?.country}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Address</p>
-                  <p className="text-foreground text-sm">
-                    {candidate?.address}
-                  </p>
-                </div>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground leading-tight">
+                {candidate.name}
+              </h1>
+              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  {candidate.position}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  {candidate.experience === 0
+                    ? "Fresher"
+                    : `${candidate.experience} ${candidate.experience === 1 ? "year" : "years"} exp`}
+                </span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {candidate.city}, {candidate.country}
+                </span>
               </div>
-            </Card>
-
-            {/* Experience */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
-                Experience
-              </h2>
-              <p className="text-3xl font-bold text-primary">
-                {candidate.experience}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {candidate.experience === 1 ? "year" : "years"} of experience
-              </p>
-            </Card>
-
-            {/* Links */}
-            {(candidate.linkedin || candidate.portfolio) && (
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-4">
-                  Links
-                </h2>
-                <div className="space-y-2">
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={candidate.resumeUrl}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm" className="gap-1.5 h-8">
+                  <Download className="w-3.5 h-3.5" />
+                  Resume
+                </Button>
+              </a>
+              {(candidate.linkedin || candidate.portfolio) && (
+                <div className="flex gap-1">
                   {candidate.linkedin && (
                     <a
                       href={candidate.linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary hover:underline"
                     >
-                      <Linkedin className="w-4 h-4" />
-                      LinkedIn Profile
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Linkedin className="w-4 h-4" />
+                      </Button>
                     </a>
                   )}
                   {candidate.portfolio && (
@@ -548,23 +632,150 @@ export default function CandidateDetailPage() {
                       href={candidate.portfolio}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary hover:underline"
                     >
-                      <Globe className="w-4 h-4" />
-                      Portfolio
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Globe className="w-4 h-4" />
+                      </Button>
                     </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-6 py-4">
+        {error && (
+          <div className="mb-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left Sidebar - Contact & Actions */}
+          <div className="col-span-12 lg:col-span-3 space-y-3">
+            {/* Contact Information */}
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                Contact
+              </h3>
+              <div className="space-y-2.5">
+                <a
+                  href={`mailto:${candidate?.email}`}
+                  className="flex items-start gap-2 text-sm group"
+                >
+                  <Mail className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <span className="text-primary group-hover:underline break-all">
+                    {candidate.email}
+                  </span>
+                </a>
+                <a
+                  href={`tel:${candidate?.phone}`}
+                  className="flex items-center gap-2 text-sm group"
+                >
+                  <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-primary group-hover:underline">
+                    {candidate.phone}
+                  </span>
+                </a>
+                <div className="flex items-start gap-2 text-sm">
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground">{candidate?.address}</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Interview Schedule */}
+            {candidate.status === "interview" && candidate.interviewDetails && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                  Interview
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {candidate.interviewDetails.scheduledDate && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date</span>
+                      <span className="text-foreground font-medium">
+                        {new Date(candidate.interviewDetails.scheduledDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.interviewDetails.scheduledTime && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Time</span>
+                      <span className="text-foreground font-medium">
+                        {candidate.interviewDetails.scheduledTime}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.interviewDetails.scheduledBy && (
+                    <div className="pt-2 mt-2 border-t text-xs text-muted-foreground">
+                      Scheduled by {candidate.interviewDetails.scheduledBy}
+                    </div>
                   )}
                 </div>
               </Card>
             )}
 
+
             {/* Actions */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
                 Actions
-              </h2>
+              </h3>
               <TooltipProvider>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
+                  {/* Schedule Interview Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={() => {
+                            setScheduleInterviewDialogOpen(true);
+                            setInterviewDate(undefined);
+                            setInterviewTime("");
+                            setInterviewNotes("");
+                          }}
+                          disabled={actionLoading || !canScheduleInterview()}
+                          variant={candidate.status === "interview" ? "default" : "outline"}
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
+                        >
+                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                          {candidate.status === "interview" ? "✓ Interview" : "Schedule Interview"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent><p>{candidate.status === "interview" ? "Interview scheduled" : "Schedule interview"}</p></TooltipContent>
+                  </Tooltip>
+
+                  {/* Interview Remarks Button */}
+                  {candidate.status === "interview" && canVerify && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            onClick={() => setInterviewRemarksDialogOpen(true)}
+                            variant={candidate.interviewDetails?.remarks?.evaluatedBy ? "default" : "outline"}
+                            size="sm"
+                            className="w-full justify-start h-8 text-xs"
+                          >
+                            <FileText className="mr-1.5 h-3.5 w-3.5" />
+                            {candidate.interviewDetails?.remarks?.evaluatedBy ? "✓ Remarks" : "Add Remarks"}
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent><p>{candidate.interviewDetails?.remarks?.evaluatedBy ? "Edit remarks" : "Add interview remarks"}</p></TooltipContent>
+                    </Tooltip>
+                  )}
+
                   {/* Shortlist Button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -573,15 +784,14 @@ export default function CandidateDetailPage() {
                           onClick={() => setShortlistDialogOpen(true)}
                           disabled={actionLoading || !canShortlist()}
                           variant={candidate.status === "shortlisted" ? "default" : "outline"}
-                          className="w-full"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
                         >
                           {candidate.status === "shortlisted" ? "✓ Shortlisted" : "Shortlist"}
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getButtonTooltip("shortlist")}</p>
-                    </TooltipContent>
+                    <TooltipContent><p>{getButtonTooltip("shortlist")}</p></TooltipContent>
                   </Tooltip>
 
                   {/* Select for Training Button */}
@@ -592,15 +802,14 @@ export default function CandidateDetailPage() {
                           onClick={() => setSelectDialogOpen(true)}
                           disabled={actionLoading || !canSelect()}
                           variant={candidate.status === "selected" ? "default" : "outline"}
-                          className="w-full"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
                         >
-                          {candidate.status === "selected" ? "✓ Selected for Training" : "Select for Training"}
+                          {candidate.status === "selected" ? "✓ Selected" : "Select for Training"}
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getButtonTooltip("select")}</p>
-                    </TooltipContent>
+                    <TooltipContent><p>{getButtonTooltip("select")}</p></TooltipContent>
                   </Tooltip>
 
                   {/* Reject Button */}
@@ -611,20 +820,18 @@ export default function CandidateDetailPage() {
                           onClick={() => setRejectDialogOpen(true)}
                           disabled={actionLoading || !canReject()}
                           variant={candidate.status === "rejected" ? "destructive" : "outline"}
-                          className="w-full"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
                         >
                           {candidate.status === "rejected" ? "✗ Rejected" : "Reject"}
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getButtonTooltip("reject")}</p>
-                    </TooltipContent>
+                    <TooltipContent><p>{getButtonTooltip("reject")}</p></TooltipContent>
                   </Tooltip>
 
-                  {/* Divider */}
                   {(canStartOnboarding() || candidate.status === "onboarding") && (
-                    <div className="my-4 border-t" />
+                    <div className="my-2 border-t" />
                   )}
 
                   {/* Start Onboarding Button */}
@@ -641,22 +848,21 @@ export default function CandidateDetailPage() {
                                 : "default"
                               : "outline"
                           }
-                          className="w-full"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
                         >
                           {candidate.status === "onboarding"
                             ? candidate.onboardingDetails?.onboardingComplete
-                              ? "✓ Onboarding Complete"
-                              : "⏳ Onboarding in Progress"
+                              ? "✓ Onboarding"
+                              : "⏳ Onboarding"
                             : "Start Onboarding"}
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getButtonTooltip("onboarding")}</p>
-                    </TooltipContent>
+                    <TooltipContent><p>{getButtonTooltip("onboarding")}</p></TooltipContent>
                   </Tooltip>
 
-                  {/* Discontinue Training Button - Only show when selected for training */}
+                  {/* Discontinue Training Button */}
                   {candidate.status === "selected" && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -665,15 +871,14 @@ export default function CandidateDetailPage() {
                             onClick={() => setRejectAfterTrainingDialogOpen(true)}
                             disabled={actionLoading || !canDiscontinueTraining()}
                             variant="destructive"
-                            className="w-full"
+                            size="sm"
+                            className="w-full justify-start h-8 text-xs"
                           >
                             Discontinue Training
                           </Button>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{getButtonTooltip("discontinue")}</p>
-                      </TooltipContent>
+                      <TooltipContent><p>{getButtonTooltip("discontinue")}</p></TooltipContent>
                     </Tooltip>
                   )}
 
@@ -685,24 +890,86 @@ export default function CandidateDetailPage() {
                           onClick={() => setCreateEmployeeDialogOpen(true)}
                           disabled={actionLoading || !canCreateEmployee()}
                           variant={canCreateEmployee() ? "default" : "outline"}
-                          className="w-full"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
                         >
                           Create Employee
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getButtonTooltip("employee")}</p>
-                    </TooltipContent>
+                    <TooltipContent><p>{getButtonTooltip("employee")}</p></TooltipContent>
                   </Tooltip>
                 </div>
               </TooltipProvider>
             </Card>
           </div>
 
-          {/* Right Column - Resume and Cover Letter */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Onboarding Details - Show if onboarding is complete or in progress */}
+          {/* Main Content Area */}
+          <div className="col-span-12 lg:col-span-9 space-y-3">
+            {/* Interview Remarks - Prominent Section */}
+            {candidate.status === "interview" && candidate.interviewDetails?.remarks && (
+              <Card className="p-4">
+                <button
+                  onClick={() => setRemarksExpanded(!remarksExpanded)}
+                  className="w-full flex items-center justify-between mb-3"
+                >
+                  <h3 className="text-base font-semibold text-foreground">HR Interview Remarks</h3>
+                  {remarksExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {remarksExpanded && (
+                  <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Experience</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.experienceValidation}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">MTI</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.motherTongueInfluence}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">English</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.englishSpeaking}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Understanding</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.understandingScale}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Listening</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.listeningSkills}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Professionalism</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.basicProfessionalism}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Stability</p>
+                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.stabilitySignals}</p>
+                      </div>
+                      {candidate.interviewDetails.remarks.hrNotes && (
+                        <div className="md:col-span-2">
+                          <p className="text-xs text-muted-foreground mb-0.5">HR Remarks</p>
+                          <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.hrNotes}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                      Evaluated by {candidate.interviewDetails.remarks.evaluatedBy}
+                      {candidate.interviewDetails.remarks.evaluatedAt && (
+                        <> • {new Date(candidate.interviewDetails.remarks.evaluatedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}</>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Onboarding Details */}
             {(candidate.status === "onboarding" || candidate.onboardingDetails?.onboardingComplete) && (
               <OnboardingDetailsView
                 onboardingDetails={candidate.onboardingDetails}
@@ -718,59 +985,37 @@ export default function CandidateDetailPage() {
 
             {/* Cover Letter */}
             {candidate.coverLetter && (
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-4">
-                  Cover Letter
-                </h2>
-                <div className="prose prose-sm max-w-none text-foreground">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {candidate.coverLetter}
-                  </p>
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wide">Cover Letter</h3>
+                <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {candidate.coverLetter}
                 </div>
               </Card>
             )}
 
             {/* Resume Preview */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Resume
-                </h2>
-                <a
-                  href={candidate.resumeUrl}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 bg-transparent"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
-                </a>
-              </div>
-
-              {/* Resume Preview - PDF Iframe */}
-              <div className="bg-muted rounded-lg overflow-hidden">
-                <iframe
-                  src={`${candidate.resumeUrl}#toolbar=0`}
-                  className="w-full h-[620px] border-0"
-                  title="Resume Preview"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                If the preview doesn&apos;t load, please{" "}
-                <a
-                  href={candidate.resumeUrl}
-                  className="text-primary hover:underline"
-                >
-                  download the resume
-                </a>
-                .
-              </p>
+            <Card className="p-4">
+              <button
+                onClick={() => setResumeExpanded(!resumeExpanded)}
+                className="w-full flex items-center justify-between mb-2"
+              >
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Resume</h3>
+                {resumeExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {resumeExpanded && (
+                <>
+                  <div className="bg-muted rounded-md overflow-hidden border">
+                    <iframe
+                      src={`${candidate.resumeUrl}#toolbar=0`}
+                      className="w-full h-[700px] border-0"
+                      title="Resume Preview"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    If preview doesn&apos;t load, <a href={candidate.resumeUrl} className="text-primary hover:underline">download resume</a>
+                  </p>
+                </>
+              )}
             </Card>
           </div>
         </div>
@@ -823,6 +1068,85 @@ export default function CandidateDetailPage() {
         title="Discontinue Training"
         submitButtonText="Discontinue"
       />
+
+      {/* Schedule Interview Dialog */}
+      <Dialog open={scheduleInterviewDialogOpen} onOpenChange={setScheduleInterviewDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Interview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Candidate: {candidate?.name}
+              </Label>
+            </div>
+            <div>
+              <Label htmlFor="interview-date" className="text-sm font-medium mb-2 block">
+                Interview Date *
+              </Label>
+              <div className="border rounded-md">
+                <CalendarComponent
+                  mode="single"
+                  selected={interviewDate}
+                  onSelect={setInterviewDate}
+                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  className="rounded-md"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="interview-time" className="text-sm font-medium mb-2 block">
+                Interview Time * (HH:MM format)
+              </Label>
+              <Input
+                id="interview-time"
+                type="time"
+                value={interviewTime}
+                onChange={(e) => setInterviewTime(e.target.value)}
+                placeholder="09:00"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="interview-notes" className="text-sm font-medium mb-2 block">
+                Notes (Optional)
+              </Label>
+              <Textarea
+                id="interview-notes"
+                value={interviewNotes}
+                onChange={(e) => setInterviewNotes(e.target.value)}
+                placeholder="Add any additional notes about the interview..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setScheduleInterviewDialogOpen(false)}
+              disabled={schedulingInterview}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleScheduleInterview} disabled={schedulingInterview}>
+              {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Interview Remarks Dialog */}
+      {candidate.status === "interview" && (
+        <InterviewRemarksDialog
+          open={interviewRemarksDialogOpen}
+          onOpenChange={setInterviewRemarksDialogOpen}
+          candidateId={candidate._id}
+          candidateName={candidate.name}
+          existingRemarks={candidate.interviewDetails?.remarks}
+          onSuccess={refreshCandidate}
+        />
+      )}
     </div>
   );
 }

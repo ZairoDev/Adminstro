@@ -17,8 +17,29 @@ const CandidateSchema = new Schema(
     resumeUrl: { type: String, required: true },
     status: {
       type: String,
-      enum: ["pending", "shortlisted", "selected", "rejected", "onboarding"],
+      enum: ["pending", "interview", "shortlisted", "selected", "rejected", "onboarding"],
       default: "pending",
+    },
+    interviewDetails: {
+      scheduledDate: { type: Date, default: null },
+      scheduledTime: { type: String, default: null },
+      scheduledBy: { type: String, default: null },
+      scheduledAt: { type: Date, default: null },
+      notes: { type: String, default: null },
+      remarks: {
+        experienceValidation: { type: String, default: null },
+        motherTongueInfluence: { type: String, default: null },
+        englishSpeaking: { type: String, default: null },
+        understandingScale: { type: String, default: null },
+        listeningSkills: { type: String, default: null },
+        basicProfessionalism: { type: String, default: null },
+        stabilitySignals: { type: String, default: null },
+        hrNotes: { type: String, default: null },
+        evaluatedBy: { type: String, default: null },
+        evaluatedAt: { type: Date, default: null },
+        lastUpdatedBy: { type: String, default: null },
+        lastUpdatedAt: { type: Date, default: null },
+      },
     },
     selectionDetails: {
       positionType: {

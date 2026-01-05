@@ -24,6 +24,7 @@ interface NotesModalProps {
   onOpenChange: (open: boolean) => void;
   candidateId: string;
   candidateName: string;
+  onUpdate?: () => void;
 }
 
 export function NotesModal({
@@ -31,6 +32,7 @@ export function NotesModal({
   onOpenChange,
   candidateId,
   candidateName,
+  onUpdate,
 }: NotesModalProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,6 +91,7 @@ export function NotesModal({
         setNewNoteContent("");
         setIsAddingNote(false);
         toast.success("Note created successfully");
+        onUpdate?.();
       } else {
         toast.error(result.error || "Failed to create note");
       }
@@ -128,6 +131,7 @@ export function NotesModal({
         setEditingNoteId(null);
         setEditContent("");
         toast.success("Note updated successfully");
+        onUpdate?.();
       } else {
         toast.error(result.error || "Failed to update note");
       }
@@ -158,6 +162,7 @@ export function NotesModal({
       if (result.success) {
         setNotes((prev) => prev.filter((note) => note._id !== noteId));
         toast.success("Note deleted successfully");
+        onUpdate?.();
       } else {
         toast.error(result.error || "Failed to delete note");
       }

@@ -14,6 +14,8 @@ import {
   FileText,
   Mail,
   Clock,
+  StickyNote,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +59,16 @@ interface Candidate {
   phone: string;
   position: string;
   experience: number;
-  status: "pending" | "shortlisted" | "selected" | "rejected";
+  status: "pending" | "interview" | "shortlisted" | "selected" | "rejected" | "onboarding";
   createdAt: string;
+  notes?: Array<{ _id: string; content: string; createdAt: string; updatedAt: string }>;
+  interviewDetails?: {
+    scheduledDate?: string;
+    scheduledTime?: string;
+    scheduledBy?: string;
+    scheduledAt?: string;
+    notes?: string;
+  };
 }
 
 const ROLE_OPTIONS = [
@@ -84,7 +94,7 @@ export default function CandidatesPage() {
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "all" | "pending" | "shortlisted" | "selected" | "rejected"
+    "all" | "pending" | "interview" | "shortlisted" | "selected" | "rejected"
   >("pending");
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
@@ -171,6 +181,8 @@ export default function CandidatesPage() {
         return "bg-green-100 text-green-800 hover:bg-green-200";
       case "shortlisted":
         return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+      case "interview":
+        return "bg-purple-100 text-purple-800 hover:bg-purple-200";
       case "rejected":
         return "bg-red-100 text-red-800 hover:bg-red-200";
       case "pending":
@@ -257,8 +269,16 @@ export default function CandidatesPage() {
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Status
             </th>
+            {activeTab === "interview" && (
+              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                Interview Date & Time
+              </th>
+            )}
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Applied
+            </th>
+            <th className="px-6 py-3 text-center text-sm font-semibold text-foreground">
+              Notes
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Actions
@@ -268,7 +288,7 @@ export default function CandidatesPage() {
         <tbody className="divide-y divide-border">
           {loading ? (
             <tr>
-              <td colSpan={8} className="px-6 py-8 text-center">
+              <td colSpan={activeTab === "interview" ? 10 : 9} className="px-6 py-8 text-center">
                 <div className="flex justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
@@ -277,7 +297,7 @@ export default function CandidatesPage() {
           ) : candidates.length === 0 ? (
             <tr>
               <td
-                colSpan={8}
+                colSpan={activeTab === "interview" ? 10 : 9}
                 className="px-6 py-8 text-center text-muted-foreground"
               >
                 No candidates found
@@ -333,56 +353,101 @@ export default function CandidatesPage() {
                   <Badge className={getStatusColor(candidate.status)}>
                     {candidate.status === "selected"
                       ? "Selected for Training"
+                      : candidate.status === "interview"
+                      ? "Interview"
                       : candidate?.status?.charAt(0).toUpperCase() +
                         candidate?.status?.slice(1)}
                   </Badge>
                 </td>
+                {activeTab === "interview" && (
+                  <td className="px-6 py-4 text-sm text-foreground">
+                    {candidate.interviewDetails?.scheduledDate && candidate.interviewDetails?.scheduledTime ? (
+                      <div>
+                        <div className="font-medium">
+                          {new Date(candidate.interviewDetails.scheduledDate).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {candidate.interviewDetails.scheduledTime}
+                        </div>
+                        {candidate.interviewDetails.scheduledBy && (
+                          <div className="text-muted-foreground text-xs mt-1">
+                            Scheduled by: {candidate.interviewDetails.scheduledBy}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Not scheduled</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-6 py-4 text-sm text-muted-foreground">
                   {formatDate(candidate.createdAt)}
                 </td>
+                <td className="px-6 py-4 text-center">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleAddNote(candidate)}
+                          className={`p-2 rounded-md transition-colors ${
+                            candidate.notes && candidate.notes.length > 0
+                              ? "text-green-600 hover:bg-green-50"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <StickyNote className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {candidate.notes && candidate.notes.length > 0
+                            ? `${candidate.notes.length} note${candidate.notes.length > 1 ? "s" : ""}`
+                            : "Add note"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </td>
                 <td className="px-6 py-4">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`candidatePortal/${candidate._id}`}
-                          className="flex items-center cursor-pointer"
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEditRole(candidate)}
-                        className="flex items-center cursor-pointer"
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit Role
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleAddNote(candidate)}
-                        className="flex items-center cursor-pointer"
-                      >
-                        <FileText className="mr-2 h-4 w-4" />
-                        Add Note
-                      </DropdownMenuItem>
-                      {candidate.status === "selected" && (
-                        <DropdownMenuItem
-                          onClick={() => handleCreateEmployee(candidate._id)}
-                          className="flex items-center cursor-pointer"
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Create Employee
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`candidatePortal/${candidate._id}`}
+                            className="flex items-center cursor-pointer"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </Link>
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <DropdownMenuItem
+                          onClick={() => handleEditRole(candidate)}
+                          className="flex items-center cursor-pointer"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit Role
+                        </DropdownMenuItem>
+                        {candidate.status === "selected" && (
+                          <DropdownMenuItem
+                            onClick={() => handleCreateEmployee(candidate._id)}
+                            className="flex items-center cursor-pointer"
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Create Employee
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                 </td>
               </tr>
             ))
@@ -437,6 +502,10 @@ export default function CandidatesPage() {
                 <Clock className="h-4 w-4" />
                 Pending
               </TabsTrigger>
+              <TabsTrigger value="interview" className="flex items-center gap-1.5 px-3 py-1.5">
+                <Calendar className="h-4 w-4" />
+                Interviews
+              </TabsTrigger>
               <TabsTrigger value="shortlisted" className="px-3 py-1.5">
                 Shortlisted
               </TabsTrigger>
@@ -482,6 +551,9 @@ export default function CandidatesPage() {
               <CandidateTable />
             </TabsContent>
             <TabsContent value="pending" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="interview" className="m-0">
               <CandidateTable />
             </TabsContent>
             <TabsContent value="shortlisted" className="m-0">
@@ -625,8 +697,13 @@ export default function CandidatesPage() {
           onOpenChange={setNotesDialogOpen}
           candidateId={notesCandidate._id}
           candidateName={notesCandidate.name}
+          onUpdate={() => {
+            // Refresh candidates list to update notes indicator
+            fetchCandidates(search, page, activeTab, selectedRole, experienceFilter);
+          }}
         />
       )}
+
     </div>
   );
 }

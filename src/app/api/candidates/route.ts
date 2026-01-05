@@ -122,7 +122,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Validate status value
-    const validStatuses = ["pending", "shortlisted", "selected", "rejected"];
+    const validStatuses = ["pending", "interview", "shortlisted", "selected", "rejected", "onboarding"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { success: false, error: "Invalid status value" },

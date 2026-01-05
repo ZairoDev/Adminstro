@@ -2,6 +2,7 @@ import Candidate from "@/models/candidate";
 import Employee from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { sendEmail } from "@/components/candidateEmail";
 import { type NextRequest, NextResponse } from "next/server";
 
 // Schedule an interview for a candidate
@@ -97,6 +98,29 @@ export async function PATCH(
         { success: false, error: "Failed to schedule interview" },
         { status: 500 }
       );
+    }
+
+    // Send interview scheduled email
+    try {
+      const interviewDate = new Date(scheduledDate);
+      await sendEmail({
+        to: updatedCandidate.email,
+        candidateName: updatedCandidate.name,
+        status: "interview",
+        position: updatedCandidate.position,
+        companyName: process.env.COMPANY_NAME || "Zairo International",
+        interviewDetails: {
+          scheduledDate: interviewDate.toISOString().split("T")[0],
+          scheduledTime: scheduledTime,
+          officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
+          googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
+        },
+      });
+      console.log(`✅ Interview scheduled email sent successfully to ${updatedCandidate.email}`);
+    } catch (emailError: any) {
+      // Log email error but don't fail the entire operation
+      console.error(`❌ Failed to send interview scheduled email to ${updatedCandidate.email}:`, emailError);
+      // Continue with the interview scheduling even if email fails
     }
 
     return NextResponse.json({

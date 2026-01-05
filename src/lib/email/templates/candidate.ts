@@ -15,6 +15,7 @@ export const getCandidateEmailTemplate = (
     rejectionReason,
     shortlistRoles,
     trainingAgreementLink,
+    interviewDetails,
   } = payload;
 
   const templates: Record<CandidateEmailPayload["status"], EmailTemplate> = {
@@ -358,6 +359,84 @@ export const getCandidateEmailTemplate = (
               © ${new Date().getFullYear()} ${companyName}. All rights reserved.
             </p>
           </div>
+        </div>
+      `,
+    },
+    interview: {
+      subject: `Interview Scheduled - ${position} at ${companyName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <p style="font-size: 16px; margin-bottom: 20px;">Dear ${candidateName},</p>
+          
+          <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
+            Thank you for your interest in the <strong>${position}</strong> position at <strong>${companyName}</strong>. We are pleased to inform you that your interview has been scheduled.
+          </p>
+          
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Interview Details</h3>
+            
+            <p style="font-size: 16px; margin-bottom: 8px;">
+              <strong>Date:</strong> ${interviewDetails?.scheduledDate ? new Date(interviewDetails.scheduledDate).toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }) : "TBD"}
+            </p>
+            
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              <strong>Time:</strong> ${interviewDetails?.scheduledTime || "TBD"}
+            </p>
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
+            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
+              ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+            </p>
+            ${
+              interviewDetails?.googleMapsLink
+                ? `
+                <div style="margin: 20px 0;">
+                  <a href="${interviewDetails.googleMapsLink}" 
+                     style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; 
+                            border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
+                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);">
+                    📍 View on Google Maps
+                  </a>
+                </div>`
+                : ""
+            }
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Important Reminders</h3>
+            <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px; margin: 0;">
+              <li style="margin-bottom: 10px;">Please arrive 10-15 minutes early for your interview</li>
+              <li style="margin-bottom: 10px;">Bring a copy of your resume and any relevant documents (certificates, portfolio, etc.)</li>
+              <li style="margin-bottom: 10px;">If you need to reschedule, please contact us at least 24 hours in advance</li>
+              <li style="margin-bottom: 10px;">Dress professionally for the interview</li>
+              <li style="margin-bottom: 10px;">Be prepared to discuss your experience, skills, and how you can contribute to our team</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
+            We look forward to meeting you and learning more about your background and how you can contribute to our team at ${companyName}.
+          </p>
+          
+          <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
+            If you have any questions or need to discuss the interview arrangements, please don't hesitate to reach out to us. You can reply to this email or contact our HR team.
+          </p>
+          
+          <p style="font-size: 16px; margin-top: 25px; line-height: 1.6;">
+            Best of luck, and we'll see you soon!
+          </p>
+          
+          ${getEmailSignature(hrEmployee)}
+          
+          <p style="font-size: 12px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
         </div>
       `,
     },

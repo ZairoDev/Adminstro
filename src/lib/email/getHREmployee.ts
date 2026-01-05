@@ -31,7 +31,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
 
     // Fallback if no active HR found
     return {
-      name: "Riya Gupta",
+      name: "Zaid Hashmat",
       title: "HR Manager",
       email: "hr@zairointernational.com",
       phone: "+919519803665",
@@ -40,7 +40,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
     console.error("Error fetching HR employee:", error);
     // Return fallback on error
     return {
-      name: "Riya Gupta",
+      name: "Zaid Hashmat",
       title: "HR Manager",
       email: "hr@zairointernational.com",
       phone: "+919519803665",

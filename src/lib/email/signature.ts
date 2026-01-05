@@ -27,7 +27,7 @@ const getLogoUrl = (): string => {
 
 export const getEmailSignature = (config?: EmailSignatureConfig): string => {
   const {
-    name = "Riya Gupta",
+    name = "Zaid Hashmat",
     title = "HR Manager",
     website = "zairointernational.com",
     email = "hr@zairointernational.com",

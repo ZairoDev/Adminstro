@@ -91,16 +91,39 @@ export async function POST(req: NextRequest) {
   try {
     const data = (await req.json()) as Payload;
 
-    // Convert signature image URL → Base64 if provided
+    // CRITICAL: Convert signature image URL → Base64 if provided
+    // This is the key step that determines if we generate a signed or unsigned PDF
+    // If signatureBase64 is provided and successfully fetched, the PDF will be signed
+    // If not provided or fetch fails, the PDF will be unsigned (preview only)
     let signatureBase64: string | undefined;
     if (data.signatureBase64) {
       try {
-        const sigRes = await axios.get(data.signatureBase64, {
-          responseType: "arraybuffer",
-        });
-        signatureBase64 = Buffer.from(sigRes.data).toString("base64");
+        // Handle both CDN URLs and data URLs
+        let imageBuffer: Buffer;
+        
+        if (data.signatureBase64.startsWith("data:")) {
+          // Direct base64 data URL - extract the base64 part
+          const base64Match = data.signatureBase64.match(/^data:image\/\w+;base64,(.+)$/);
+          if (base64Match && base64Match[1]) {
+            signatureBase64 = base64Match[1];
+          } else {
+            throw new Error("Invalid data URL format");
+          }
+        } else {
+          // CDN URL - fetch and convert to base64
+          const sigRes = await axios.get(data.signatureBase64, {
+            responseType: "arraybuffer",
+            timeout: 10000, // 10 second timeout
+          });
+          imageBuffer = Buffer.from(sigRes.data);
+          signatureBase64 = imageBuffer.toString("base64");
+        }
+        
+        console.log("Signature successfully processed for PDF embedding");
       } catch (err) {
-        console.error("Error fetching signature:", err);
+        console.error("Error processing signature for PDF:", err);
+        // If signature processing fails, we generate unsigned PDF
+        // This should not happen in production, but we handle it gracefully
         signatureBase64 = undefined;
       }
     }
@@ -321,6 +344,34 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("Failed loading sir signature:", err);
       }
+    }
+
+    // CRITICAL: Embed candidate signature early for use in the PDF
+    // This determines whether the final PDF is signed or unsigned
+    // If candidateSigImg is successfully created, it will be drawn in the signature section
+    // If null, only a placeholder box will be drawn (unsigned preview)
+    let candidateSigImg = null;
+    if (signatureBase64) {
+      try {
+        const sigBytes = Buffer.from(signatureBase64, "base64");
+        try {
+          candidateSigImg = await pdfDoc.embedPng(sigBytes);
+          console.log("Signature image embedded as PNG in PDF");
+        } catch (pngErr) {
+          try {
+            candidateSigImg = await pdfDoc.embedJpg(sigBytes);
+            console.log("Signature image embedded as JPG in PDF");
+          } catch (jpgErr) {
+            console.error("Failed to embed signature as PNG or JPG:", { pngErr, jpgErr });
+            // If embedding fails, candidateSigImg remains null and unsigned PDF is generated
+          }
+        }
+      } catch (err) {
+        console.error("Failed to process signature bytes for embedding:", err);
+        // candidateSigImg remains null - unsigned PDF will be generated
+      }
+    } else {
+      console.log("No signature provided - generating unsigned preview PDF");
     }
 
 
@@ -1283,21 +1334,18 @@ export async function POST(req: NextRequest) {
 
     yPosition -= paragraphSpacing * 3;
 
-    // Signature section
+    // Company Signature section
     drawWrappedText("SIGNED", leftMargin, bodySize, true);
     yPosition -= lineHeight * 2;
 
-    drawWrappedText(
-      `For and on behalf of ${companyName} (Company)`,
-      leftMargin,
-      bodySize
-    );
-    yPosition -= lineHeight * 3;
-
-    // ✅ Company Signature (Sir’s signature)
+    // Company Signature (Sir's signature) - placed right after "SIGNED"
     if (sirSig) {
       const sigWidth = 140;
       const sigHeight = (sirSig.height / sirSig.width) * sigWidth;
+
+      if (yPosition - sigHeight < bottomMargin) {
+        addNewPage();
+      }
 
       currentPage.drawImage(sirSig, {
         x: leftMargin,
@@ -1306,15 +1354,16 @@ export async function POST(req: NextRequest) {
         height: sigHeight,
       });
 
-      yPosition -= sigHeight + 15;
+      yPosition -= sigHeight + lineHeight;
     } else {
+      // Draw signature line if no image
       currentPage.drawLine({
         start: { x: leftMargin, y: yPosition },
         end: { x: leftMargin + 200, y: yPosition },
         thickness: 0.6,
         color: textColor,
       });
-      yPosition -= 25;
+      yPosition -= lineHeight * 2;
     }
 
     // Signature line for company
@@ -1325,73 +1374,95 @@ export async function POST(req: NextRequest) {
       color: textColor,
     });
 
+    // yPosition -= lineHeight;
+    // drawWrappedText(
+    //   `Mr. ${data.employeeName || "________________"} (${data.designation})`,
+    //   leftMargin,
+    //   bodySize
+    // );
     yPosition -= lineHeight;
     drawWrappedText(
-      `Mr. ${data.employeeName || "________________"} (${data.designation})`,
+      `For and on behalf of ${companyName} `,
       leftMargin,
       bodySize
     );
 
     yPosition -= lineHeight * 3;
 
+    // Employee Signature section
     drawWrappedText("SIGNED", leftMargin, bodySize, true);
     yPosition -= lineHeight * 2;
 
+    // CRITICAL: Draw actual signature image if provided, otherwise draw placeholder
+    // This is the key difference between unsigned preview and signed final document
+    const sigBoxWidth = 200;
+    const sigBoxHeight = 60;
+    
+    if (yPosition - sigBoxHeight < bottomMargin) {
+      addNewPage();
+    }
+
+    // If signature image exists, draw it embedded in the PDF
+    // This makes it a signed document, not just a placeholder
+    if (candidateSigImg) {
+      // Calculate signature dimensions maintaining aspect ratio
+      const sigWidth = sigBoxWidth;
+      const sigHeight = (candidateSigImg.height / candidateSigImg.width) * sigWidth;
+      
+      // Ensure signature fits within the box area
+      const finalSigHeight = Math.min(sigHeight, sigBoxHeight);
+      const finalSigWidth = (candidateSigImg.width / candidateSigImg.height) * finalSigHeight;
+      
+      // Draw the actual signature image at the signature location
+      currentPage.drawImage(candidateSigImg, {
+        x: leftMargin,
+        y: yPosition - finalSigHeight,
+        width: finalSigWidth,
+        height: finalSigHeight,
+      });
+      
+      yPosition -= finalSigHeight + lineHeight * 2;
+    } else {
+      // Draw blank signature placeholder box (for unsigned preview only)
+      currentPage.drawRectangle({
+        x: leftMargin,
+        y: yPosition - sigBoxHeight,
+        width: sigBoxWidth,
+        height: sigBoxHeight,
+        borderColor: textColor,
+        borderWidth: 1,
+      });
+
+      // Draw "Signature" label inside the box
+      drawWrappedText(
+        "Signature",
+        leftMargin + 5,
+        bodySize - 2
+      );
+      
+      yPosition -= sigBoxHeight + lineHeight * 2;
+    }
+
+    yPosition -= lineHeight;
     drawWrappedText(
       `By the above named Mr. ${
         data.employeeName || "_____________"
-      } (Employee)`,
+      } `,
       leftMargin,
       bodySize
     );
-    yPosition -= lineHeight * 2;
 
-    // Add signature image if provided
-    if (signatureBase64) {
-      try {
-        const sigBytes = Buffer.from(signatureBase64, "base64");
-        let sigImg;
-        try {
-          sigImg = await pdfDoc.embedPng(sigBytes);
-        } catch {
-          sigImg = await pdfDoc.embedJpg(sigBytes);
-        }
-        const sigW = 150;
-        const sigH = (sigImg.height / sigImg.width) * sigW;
+    yPosition -= lineHeight * 3;
 
-        currentPage.drawImage(sigImg, {
-          x: leftMargin,
-          y: yPosition - sigH,
-          width: sigW,
-          height: sigH,
-        });
-        yPosition -= sigH + lineHeight;
-      } catch (err) {
-        console.error("Error embedding signature:", err);
-        // Draw signature line instead
-        currentPage.drawLine({
-          start: { x: leftMargin, y: yPosition },
-          end: { x: leftMargin + 200, y: yPosition },
-          thickness: 0.5,
-          color: textColor,
-        });
-        yPosition -= lineHeight * 3;
-      }
-    } else {
-      // Draw signature line
-      currentPage.drawLine({
-        start: { x: leftMargin, y: yPosition },
-        end: { x: leftMargin + 200, y: yPosition },
-        thickness: 0.5,
-        color: textColor,
-      });
-      yPosition -= lineHeight * 3;
-    }
-
-    yPosition -= lineHeight * 2;
-
-    // Witness section
+    // Witness section - Two witness signature blanks
     drawWrappedText("Witness 1:", leftMargin, bodySize);
+    yPosition -= lineHeight;
+    currentPage.drawLine({
+      start: { x: leftMargin + 60, y: yPosition },
+      end: { x: leftMargin + 200, y: yPosition },
+      thickness: 0.5,
+      color: textColor,
+    });
     yPosition -= lineHeight;
     currentPage.drawLine({
       start: { x: leftMargin + 60, y: yPosition },
@@ -1402,6 +1473,13 @@ export async function POST(req: NextRequest) {
 
     yPosition -= lineHeight * 2;
     drawWrappedText("Witness 2:", leftMargin, bodySize);
+    yPosition -= lineHeight;
+    currentPage.drawLine({
+      start: { x: leftMargin + 60, y: yPosition },
+      end: { x: leftMargin + 200, y: yPosition },
+      thickness: 0.5,
+      color: textColor,
+    });
     yPosition -= lineHeight;
     currentPage.drawLine({
       start: { x: leftMargin + 60, y: yPosition },
@@ -1442,6 +1520,88 @@ export async function POST(req: NextRequest) {
         });
       });
     }
+
+    // ---- Add candidate signature to all pages except last (bottom left) ----
+    // CRITICAL: If signature is provided, draw actual signature image on all pages
+    // If no signature, draw placeholder boxes (for unsigned preview)
+    const allPages = pdfDoc.getPages();
+    const smallFontSize = 8;
+    const sigBoxW = 80;
+    const sigBoxH = 30;
+    const sigStartX = leftMargin;
+    const sigStartY = bottomMargin + 5;
+
+    // Add signature (actual or placeholder) to all pages except the last one
+    allPages.forEach((page: PDFPage, index: number) => {
+      // Skip the last page (it already has the full signature section)
+      if (index === allPages.length - 1) {
+        return;
+      }
+
+      let yPos = sigStartY;
+
+      // CRITICAL: If signature image exists, draw it embedded in the PDF
+      // This makes all pages show the actual signature, not just placeholders
+      if (candidateSigImg) {
+        // Calculate signature dimensions to fit within the box area
+        const sigWidth = sigBoxW;
+        const sigHeight = (candidateSigImg.height / candidateSigImg.width) * sigWidth;
+        
+        // Ensure signature fits within the box area
+        const finalSigHeight = Math.min(sigHeight, sigBoxH);
+        const finalSigWidth = (candidateSigImg.width / candidateSigImg.height) * finalSigHeight;
+        
+        // Draw the actual signature image at the placeholder location
+        page.drawImage(candidateSigImg, {
+          x: sigStartX,
+          y: yPos - finalSigHeight,
+          width: finalSigWidth,
+          height: finalSigHeight,
+        });
+        
+        yPos -= sigBoxH + 4;
+      } else {
+        // Draw signature placeholder box (for unsigned preview only)
+        page.drawRectangle({
+          x: sigStartX,
+          y: yPos - sigBoxH,
+          width: sigBoxW,
+          height: sigBoxH,
+          borderColor: textColor,
+          borderWidth: 0.5,
+        });
+
+        // Draw "Sig" label inside the small box
+        page.drawText("Sig", {
+          x: sigStartX + sigBoxW / 2 - 8,
+          y: yPos - sigBoxH / 2 - 3,
+          size: 6,
+          font: font,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+
+        yPos -= sigBoxH + 4;
+      }
+
+      // Draw signature line
+      page.drawLine({
+        start: { x: sigStartX, y: yPos },
+        end: { x: sigStartX + 120, y: yPos },
+        thickness: 0.5,
+        color: textColor,
+      });
+      yPos -= smallFontSize + 2;
+
+      // Draw name text
+      const nameText = `By the above named Mr. ${data.employeeName || "_____________"}`;
+      page.drawText(nameText, {
+        x: sigStartX,
+        y: yPos,
+        size: smallFontSize,
+        font: font,
+        color: textColor,
+      });
+    });
 
     // Save the PDF
     const pdfBytes = await pdfDoc.save();

@@ -13,6 +13,8 @@ import {
   Briefcase,
   Calendar,
   PenLine,
+  Download,
+  Eye,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +67,19 @@ interface OnboardingDetails {
     signatureImage?: string;
     signedAt?: string | Date;
   };
+  // Experience data - persisted from onboarding form
+  yearsOfExperience?: string;
+  companies?: Array<{
+    companyName?: string;
+    experienceLetter?: string;
+    relievingLetter?: string;
+    salarySlip?: string;
+    hrPhone?: string;
+    hrEmail?: string;
+  }>;
+  // Signed PDF URL - authoritative document after signing
+  // Once set, this should always be used instead of unsigned PDF
+  signedPdfUrl?: string;
   termsAccepted?: boolean;
   termsAcceptedAt?: string | Date;
   onboardingComplete?: boolean;
@@ -383,6 +398,34 @@ export function OnboardingDetailsView({
             </Card>
           )}
 
+          {/* Experience Details */}
+          {onboardingDetails.yearsOfExperience && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Briefcase className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Work Experience</h3>
+              </div>
+              <div className="space-y-0">
+                <InfoRow 
+                  label="Years of Experience" 
+                  value={onboardingDetails.yearsOfExperience} 
+                />
+                {onboardingDetails.companies && onboardingDetails.companies.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Companies:</p>
+                    {onboardingDetails.companies.map((company, index) => (
+                      <div key={index} className="mb-3 last:mb-0 p-2 bg-muted/30 rounded text-xs">
+                        <p className="font-medium">{company.companyName || `Company ${index + 1}`}</p>
+                        {company.hrPhone && <p className="text-muted-foreground">HR Phone: {company.hrPhone}</p>}
+                        {company.hrEmail && <p className="text-muted-foreground">HR Email: {company.hrEmail}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* E-Signature */}
           {onboardingDetails.eSign?.signatureImage && (
             <Card className="p-4">
@@ -400,6 +443,51 @@ export function OnboardingDetailsView({
               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
                 <span>Signed: {formatDate(onboardingDetails.eSign.signedAt)}</span>
+              </div>
+            </Card>
+          )}
+
+          {/* Signed PDF Document - CRITICAL: This is the authoritative document after signing */}
+          {onboardingDetails.signedPdfUrl && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Signed Onboarding Document</h3>
+                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                  Signed
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  This is the final signed onboarding document. Once signed, this version is authoritative.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(onboardingDetails.signedPdfUrl, "_blank")}
+                    className="h-8"
+                  >
+                    <Eye className="h-3.5 w-3.5 mr-1.5" />
+                    View PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = onboardingDetails.signedPdfUrl!;
+                      a.download = `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="h-8"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Download
+                  </Button>
+                </div>
               </div>
             </Card>
           )}

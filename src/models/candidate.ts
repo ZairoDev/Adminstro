@@ -148,6 +148,21 @@ const CandidateSchema = new Schema(
         signatureImage: { type: String, default: null },
         signedAt: { type: Date, default: null },
       },
+      // Experience details - stored as submitted during onboarding
+      yearsOfExperience: { type: String, default: null },
+      companies: [
+        {
+          companyName: { type: String, default: null },
+          experienceLetter: { type: String, default: null },
+          relievingLetter: { type: String, default: null },
+          salarySlip: { type: String, default: null },
+          hrPhone: { type: String, default: null },
+          hrEmail: { type: String, default: null },
+        },
+      ],
+      // Signed PDF URL - authoritative source after signing
+      // Once set, this should always be used instead of unsigned PDF
+      signedPdfUrl: { type: String, default: null },
       termsAccepted: { type: Boolean, default: false },
       termsAcceptedAt: { type: Date, default: null },
       onboardingComplete: { type: Boolean, default: false },

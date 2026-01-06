@@ -24,6 +24,29 @@ export async function POST(
     // Handle fatherName inside personalDetails
     const fatherName = personalDetails.fatherName || null;
 
+    // Parse experience data - critical for persistence
+    const yearsOfExperience = formData.get("yearsOfExperience") as string || null;
+    let companies = [];
+    try {
+      const companiesRaw = formData.get("companies") as string;
+      if (companiesRaw) {
+        companies = JSON.parse(companiesRaw);
+        // Transform companies array to match schema structure
+        // Remove frontend-only 'id' field and ensure proper structure
+        companies = companies.map((company: any) => ({
+          companyName: company.companyName || null,
+          experienceLetter: company.experienceLetter?.url || company.experienceLetter || null,
+          relievingLetter: company.relievingLetter?.url || company.relievingLetter || null,
+          salarySlip: company.salarySlip?.url || company.salarySlip || null,
+          hrPhone: company.hrPhone || null,
+          hrEmail: company.hrEmail || null,
+        }));
+      }
+    } catch (error) {
+      console.error("Error parsing companies data:", error);
+      companies = [];
+    }
+
     // Salary slips come as JSON-stringified array
     let salarySlips = [];
     try {
@@ -51,7 +74,10 @@ export async function POST(
 
     const termsAccepted = formData.get("termsAccepted") === "true";
 
-    // Update candidate
+    // Get signed PDF URL - this becomes the authoritative document after signing
+    const signedPdfUrl = (formData.get("signedPdfUrl") as string) || null;
+
+    // Update candidate with all onboarding data including experience
     const candidate = await Candidate.findByIdAndUpdate(
       id,
       {
@@ -69,15 +95,19 @@ export async function POST(
 
           "onboardingDetails.eSign": eSign,
 
+          // Experience data - persist exactly as submitted
+          "onboardingDetails.yearsOfExperience": yearsOfExperience,
+          "onboardingDetails.companies": companies,
+
+          // Signed PDF URL - authoritative source after signing
+          // Once set, this should always be used instead of unsigned PDF
+          "onboardingDetails.signedPdfUrl": signedPdfUrl,
+
           "onboardingDetails.termsAccepted": termsAccepted,
           "onboardingDetails.termsAcceptedAt": new Date(),
 
           "onboardingDetails.onboardingComplete": true,
           "onboardingDetails.completedAt": new Date(),
-
-          // Save signed PDF URL too
-          "onboardingDetails.signedPdfUrl":
-            formData.get("signedPdfUrl") || null,
         },
       },
       { new: true }

@@ -4,6 +4,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendEmail } from "@/components/candidateEmail";
 import { type NextRequest, NextResponse } from "next/server";
+import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
 
 // Schedule an interview for a candidate
 export async function PATCH(
@@ -37,11 +38,14 @@ export async function PATCH(
     }
 
     // Validate date is not in the past
-    const interviewDate = new Date(scheduledDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // CRITICAL: Parse date as local calendar date to prevent timezone shifts
+    // The scheduledDate string (YYYY-MM-DD) represents a calendar date, not a UTC timestamp
+    const interviewDate = parseLocalDateString(scheduledDate);
+    const today = getTodayLocalMidnight();
     
-    if (interviewDate < today) {
+    // Compare normalized local dates to ensure accurate validation
+    const normalizedInterviewDate = normalizeToLocalMidnight(interviewDate);
+    if (normalizedInterviewDate < today) {
       return NextResponse.json(
         { success: false, error: "Interview date cannot be in the past" },
         { status: 400 }
@@ -75,9 +79,11 @@ export async function PATCH(
     }
 
     // Update candidate with interview details and change status to interview
+    // CRITICAL: Store the date as parsed from local date string to preserve the intended calendar date
+    // MongoDB will store this as UTC, but we parse it back correctly on retrieval
     const updateData: Record<string, unknown> = {
       status: "interview",
-      "interviewDetails.scheduledDate": new Date(scheduledDate),
+      "interviewDetails.scheduledDate": interviewDate, // Already parsed as local date
       "interviewDetails.scheduledTime": scheduledTime,
       "interviewDetails.scheduledBy": userName || "Admin",
       "interviewDetails.scheduledAt": new Date(),
@@ -102,7 +108,8 @@ export async function PATCH(
 
     // Send interview scheduled email
     try {
-      const interviewDate = new Date(scheduledDate);
+      // CRITICAL: Use the original scheduledDate string (YYYY-MM-DD) directly
+      // This preserves the exact calendar date selected by the user without timezone conversion
       await sendEmail({
         to: updatedCandidate.email,
         candidateName: updatedCandidate.name,
@@ -110,7 +117,7 @@ export async function PATCH(
         position: updatedCandidate.position,
         companyName: process.env.COMPANY_NAME || "Zairo International",
         interviewDetails: {
-          scheduledDate: interviewDate.toISOString().split("T")[0],
+          scheduledDate: scheduledDate, // Use original string to preserve calendar date
           scheduledTime: scheduledTime,
           officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
           googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",

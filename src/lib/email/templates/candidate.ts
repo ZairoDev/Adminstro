@@ -1,6 +1,7 @@
 // Candidate Email Templates
 import { CandidateEmailPayload, EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
+import { parseLocalDateString } from "@/lib/utils";
 
 export const getCandidateEmailTemplate = (
   payload: CandidateEmailPayload,
@@ -376,12 +377,18 @@ export const getCandidateEmailTemplate = (
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Interview Details</h3>
             
             <p style="font-size: 16px; margin-bottom: 8px;">
-              <strong>Date:</strong> ${interviewDetails?.scheduledDate ? new Date(interviewDetails.scheduledDate).toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }) : "TBD"}
+              <strong>Date:</strong> ${interviewDetails?.scheduledDate ? (() => {
+                // Parse date string (YYYY-MM-DD) as local date to preserve the intended calendar date
+                const date = typeof interviewDetails.scheduledDate === 'string' 
+                  ? parseLocalDateString(interviewDetails.scheduledDate)
+                  : new Date(interviewDetails.scheduledDate);
+                return date.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                });
+              })() : "TBD"}
             </p>
             
             <p style="font-size: 16px; margin-bottom: 20px;">

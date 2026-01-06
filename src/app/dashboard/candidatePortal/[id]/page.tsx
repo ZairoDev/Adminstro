@@ -50,6 +50,7 @@ import { CreateEmployeeDialog } from "../components/createEmployee";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 import { OnboardingDetailsView } from "../components/onboarding-details-view";
 import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
+import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
 
 interface Candidate {
   _id: string;
@@ -481,13 +482,17 @@ export default function CandidateDetailPage() {
     setSchedulingInterview(true);
     setError(null);
     try {
+      // Use local date components to prevent timezone shifts
+      // This ensures the selected calendar date is preserved exactly as chosen
+      const dateString = formatDateToLocalString(interviewDate);
+      
       const response = await fetch(
         `/api/candidates/${candidate._id}/schedule-interview`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            scheduledDate: interviewDate.toISOString().split("T")[0],
+            scheduledDate: dateString,
             scheduledTime: interviewTime,
             notes: interviewNotes || undefined,
           }),
@@ -1090,7 +1095,7 @@ export default function CandidateDetailPage() {
                   mode="single"
                   selected={interviewDate}
                   onSelect={setInterviewDate}
-                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  disabled={(date) => isDateBeforeToday(date)}
                   className="rounded-md"
                 />
               </div>

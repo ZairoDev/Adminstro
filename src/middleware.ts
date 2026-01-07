@@ -229,6 +229,7 @@ const publicRoutes = [
   "/dashboard/room/*",
   "/application-form",
   "/zipl.pdf",
+  /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
 ];
 
@@ -253,8 +254,14 @@ export async function middleware(request: NextRequest) {
   const isPublicApiRoute = isApiRoute && (
     path === "/api/employeelogin" ||
     path === "/api/verify-otp" ||
+    /^\/api\/candidates\/[^\/]+\/training-agreement$/.test(path) ||
+    /^\/api\/candidates\/[^\/]+\/onboarding$/.test(path) ||
     path.startsWith("/api/employeelogout")
   );
+
+  if (isPublicRoute && !isApiRoute) {
+    return NextResponse.next();
+  }
 
   if (token) {
     try {

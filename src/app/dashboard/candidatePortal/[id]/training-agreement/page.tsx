@@ -471,7 +471,8 @@ export default function TrainingAgreementPage() {
     return <LoadingSkeleton />;
   }
 
-  if (!candidate || candidate.status !== "selected") {
+  if ( candidate?.status!== "selected") {
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
         <div className="max-w-4xl mx-auto">
@@ -546,7 +547,7 @@ export default function TrainingAgreementPage() {
                   Name
                 </p>
                 <p className="text-base font-semibold text-foreground">
-                  {candidate.name}
+                  {candidate?.name}
                 </p>
               </div>
               <div className="space-y-1">
@@ -554,7 +555,7 @@ export default function TrainingAgreementPage() {
                   Email
                 </p>
                 <p className="text-base font-semibold text-foreground">
-                  {candidate.email}
+                  {candidate?.email}
                 </p>
               </div>
               <div className="space-y-1">
@@ -562,7 +563,7 @@ export default function TrainingAgreementPage() {
                   Position
                 </p>
                 <p className="text-base font-semibold text-foreground">
-                  {candidate.position}
+                  {candidate?.position}
                 </p>
               </div>
             </div>

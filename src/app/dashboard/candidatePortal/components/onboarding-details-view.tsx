@@ -47,7 +47,9 @@ interface OnboardingDetails {
     bankName?: string;
   };
   documents?: {
-    aadharCard?: string;
+    aadharCard?: string; // Backward compatibility
+    aadharCardFront?: string;
+    aadharCardBack?: string;
     panCard?: string;
     highSchoolMarksheet?: string;
     interMarksheet?: string;
@@ -71,6 +73,7 @@ interface OnboardingDetails {
   yearsOfExperience?: string;
   companies?: Array<{
     companyName?: string;
+    yearsInCompany?: string;
     experienceLetter?: string;
     relievingLetter?: string;
     salarySlip?: string;
@@ -109,7 +112,9 @@ interface OnboardingDetailsViewProps {
 }
 
 const DOCUMENT_LABELS: Record<string, string> = {
-  aadharCard: "Aadhar Card",
+  aadharCard: "Aadhar Card", // Backward compatibility
+  aadharCardFront: "Aadhar Card - Front",
+  aadharCardBack: "Aadhar Card - Back",
   panCard: "PAN Card",
   highSchoolMarksheet: "High School Marksheet",
   interMarksheet: "Intermediate Marksheet",
@@ -416,6 +421,7 @@ export function OnboardingDetailsView({
                     {onboardingDetails.companies.map((company, index) => (
                       <div key={index} className="mb-3 last:mb-0 p-2 bg-muted/30 rounded text-xs">
                         <p className="font-medium">{company.companyName || `Company ${index + 1}`}</p>
+                        {company.yearsInCompany && <p className="text-muted-foreground">Years in Company: {company.yearsInCompany}</p>}
                         {company.hrPhone && <p className="text-muted-foreground">HR Phone: {company.hrPhone}</p>}
                         {company.hrEmail && <p className="text-muted-foreground">HR Email: {company.hrEmail}</p>}
                       </div>

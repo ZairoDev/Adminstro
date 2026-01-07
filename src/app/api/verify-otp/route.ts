@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionExpiryTimestamp } from "@/util/sessionExpiry";
 
 connectDb();
 
@@ -53,8 +54,15 @@ export async function POST(request: NextRequest) {
       allotedArea: savedUser[0].allotedArea,
     };
 
+    // Calculate session expiry based on 11:00 PM IST (testing)
+    const expiresAt = getSessionExpiryTimestamp();
+    const now = Math.floor(Date.now() / 1000);
+    const expiresInSeconds = expiresAt - now;
+
+    console.log(`🔐 OTP Login: ${savedUser[0].email} - Session expires at ${new Date(expiresAt * 1000).toISOString()} (${expiresInSeconds}s from now)`);
+
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET!, {
-      expiresIn: "1d",
+      expiresIn: expiresInSeconds,
     });
 
     const response = NextResponse.json({
@@ -64,9 +72,13 @@ export async function POST(request: NextRequest) {
       tokenData: tokenData,
       status: 200,
     });
+
+    // Set secure HttpOnly cookie with sameSite: strict
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      expires: new Date(expiresAt * 1000),
     });
 
     return response;

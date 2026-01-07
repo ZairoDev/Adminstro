@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,14 @@ interface SidebarProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  conversationCounts?: {
+    total: number;
+    owners: number;
+    guests: number;
+  };
   allowedPhoneConfigs: any[];
   selectedPhoneConfig: any;
   onPhoneConfigChange: (config: any) => void;
@@ -34,6 +42,7 @@ interface SidebarProps {
   onStartConversation: () => void;
   onSelectConversation: (conversation: Conversation) => void;
   isConnected: boolean;
+  onOpenAddGuest: () => void;
 }
 
 export function ConversationSidebar({
@@ -42,6 +51,10 @@ export function ConversationSidebar({
   searchQuery,
   onSearchQueryChange,
   loading,
+  loadingMore = false,
+  hasMore = false,
+  onLoadMore,
+  conversationCounts = { total: 0, owners: 0, guests: 0 },
   allowedPhoneConfigs,
   selectedPhoneConfig,
   onPhoneConfigChange,
@@ -52,10 +65,13 @@ export function ConversationSidebar({
   onStartConversation,
   onSelectConversation,
   isConnected,
+  onOpenAddGuest,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
-  
-  // Filter conversations by tab and search query
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  // Filter conversations by tab and search query (client-side filtering for loaded conversations)
   const filteredConversations = conversations.filter((conv) => {
     // Filter by tab
     if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
@@ -67,10 +83,11 @@ export function ConversationSidebar({
       conv.participantPhone.includes(searchQuery)
     );
   });
-  
-  // Count conversations by type
-  const ownerCount = conversations.filter((c) => c.conversationType === "owner").length;
-  const guestCount = conversations.filter((c) => c.conversationType === "guest").length;
+
+  // Use database counts from API, not UI calculations
+  const ownerCount = conversationCounts.owners;
+  const guestCount = conversationCounts.guests;
+  const totalCount = conversationCounts.total;
 
   const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
     if (!status) return null;
@@ -102,6 +119,29 @@ export function ConversationSidebar({
     }
   };
 
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && onLoadMore) {
+          onLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, onLoadMore]);
+
   return (
     <Card className="w-80 flex flex-col h-full">
       <CardHeader className="pb-2">
@@ -129,7 +169,7 @@ export function ConversationSidebar({
           <Tabs value={conversationTab} onValueChange={(v) => setConversationTab(v as "all" | "owners" | "guests")}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all" className="text-xs">
-                All ({conversations.length})
+                All ({totalCount})
               </TabsTrigger>
               <TabsTrigger value="owners" className="text-xs">
                 <User className="h-3 w-3 mr-1" />
@@ -142,7 +182,16 @@ export function ConversationSidebar({
             </TabsList>
           </Tabs>
         </div>
-        <div className="p-2 border-b">
+        <div className="p-2 border-b space-y-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-center"
+            onClick={onOpenAddGuest}
+          >
+            <Users className="h-3 w-3 mr-1" />
+            Add New Guest
+          </Button>
           <div className="flex gap-2">
             <div className="flex gap-1 flex-1">
               {allowedPhoneConfigs.length > 1 && (
@@ -213,7 +262,8 @@ export function ConversationSidebar({
               No conversations yet. Start a new chat by entering a phone number above.
             </div>
           ) : (
-            filteredConversations.map((conversation) => (
+            <>
+              {filteredConversations.map((conversation) => (
               <div
                 key={conversation._id}
                 className={cn(
@@ -288,7 +338,18 @@ export function ConversationSidebar({
                   </div>
                 </div>
               </div>
-            ))
+            ))}
+            {/* Infinite scroll trigger */}
+            {hasMore && (
+              <div ref={observerTarget} className="flex items-center justify-center py-4">
+                {loadingMore ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="h-1" />
+                )}
+              </div>
+            )}
+            </>
           )}
         </ScrollArea>
       </CardContent>

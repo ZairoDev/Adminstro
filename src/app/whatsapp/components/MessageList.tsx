@@ -38,6 +38,36 @@ const statusInfo = (status: Message["status"]) => {
   }
 };
 
+// Helper function to format date labels (Today, Yesterday, or formatted date)
+const formatDateLabel = (date: Date): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const messageDate = new Date(date);
+  messageDate.setHours(0, 0, 0, 0);
+  
+  const diffTime = today.getTime() - messageDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return "Today";
+  } else if (diffDays === 1) {
+    return "Yesterday";
+  } else {
+    return messageDate.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: messageDate.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+    });
+  }
+};
+
+// Helper to get date key for grouping (YYYY-MM-DD format)
+const getDateKey = (date: Date | string): string => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export function MessageList({
   messages,
   messagesLoading,
@@ -55,6 +85,26 @@ export function MessageList({
     [messages, messageSearchQuery]
   );
 
+  // Group messages with date separators
+  const messagesWithSeparators = useMemo(() => {
+    let lastDateKey = "";
+    return filteredMessages.map((message) => {
+      const messageDate = new Date(message.timestamp);
+      const currentDateKey = getDateKey(messageDate);
+      const showDateSeparator = currentDateKey !== lastDateKey;
+      
+      if (showDateSeparator) {
+        lastDateKey = currentDateKey;
+      }
+      
+      return {
+        message,
+        showDateSeparator,
+        dateLabel: showDateSeparator ? formatDateLabel(messageDate) : null,
+      };
+    });
+  }, [filteredMessages]);
+
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-4">
@@ -70,18 +120,26 @@ export function MessageList({
             <p className="text-sm">Send a message to start the conversation</p>
           </div>
         ) : (
-          filteredMessages.map((message) => {
+          messagesWithSeparators.map(({ message, showDateSeparator, dateLabel }) => {
             const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(
               message.type
             );
+            
             return (
-              <div
-                key={message._id || message.messageId}
-                className={cn(
-                  "flex",
-                  message.direction === "outgoing" ? "justify-end" : "justify-start"
+              <div key={message._id || message.messageId}>
+                {showDateSeparator && dateLabel && (
+                  <div className="flex justify-center my-4">
+                    <span className="px-3 py-1 rounded-full bg-muted/80 text-xs text-muted-foreground font-medium">
+                      {dateLabel}
+                    </span>
+                  </div>
                 )}
-              >
+                <div
+                  className={cn(
+                    "flex",
+                    message.direction === "outgoing" ? "justify-end" : "justify-start"
+                  )}
+                >
                 <div
                   className={cn(
                     "max-w-[70%] rounded-lg p-3",
@@ -228,6 +286,7 @@ export function MessageList({
                       );
                     })()}
                   </div>
+                </div>
                 </div>
               </div>
             );

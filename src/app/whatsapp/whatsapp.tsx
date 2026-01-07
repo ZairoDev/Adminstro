@@ -17,6 +17,7 @@ import { MessageList } from "./components/MessageList";
 import { WindowWarningDialog } from "./components/WindowWarningDialog";
 import { MessageComposer } from "./components/MessageComposer";
 import { RetargetPanel } from "./components/RetargetPanel";
+import { AddGuestDialog } from "./components/AddGuestDialog";
 
 export default function WhatsAppChat() {
   const { token } = useAuthStore();
@@ -37,6 +38,14 @@ export default function WhatsAppChat() {
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [conversationCounts, setConversationCounts] = useState({
+    total: 0,
+    owners: 0,
+    guests: 0,
+  });
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -109,6 +118,62 @@ export default function WhatsAppChat() {
     atMaxRetarget?: number;
   }>({});
   const [retargetSentCount, setRetargetSentCount] = useState(0);
+
+  // Add New Guest dialog state
+  const [showAddGuestDialog, setShowAddGuestDialog] = useState(false);
+
+  const handleAddGuest = async (data: { countryCode: string; phone: string; name?: string; referenceLink?: string }) => {
+    const fullPhone = `+${data.countryCode}${data.phone}`;
+
+    try {
+      const response = await axios.post("/api/whatsapp/conversations", {
+        participantPhone: fullPhone,
+        participantName: data.name,
+        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+        referenceLink: data.referenceLink,
+        conversationType: "guest",
+      });
+
+      if (response.data?.success && response.data.conversation) {
+        const conv = response.data.conversation as Conversation;
+
+        // Update local conversations list (add or replace)
+        setConversations((prev) => {
+          const existingIndex = prev.findIndex((c) => c._id === conv._id);
+          if (existingIndex !== -1) {
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...conv };
+            return updated;
+          }
+          return [conv, ...prev];
+        });
+
+        // Select the conversation and load its messages
+        setSelectedConversation(conv);
+        await fetchMessages(conv._id);
+
+        toast({
+          title: "Guest ready",
+          description: "Guest conversation opened.",
+        });
+      } else {
+        throw new Error(response.data?.error || "Failed to create guest conversation.");
+      }
+    } catch (error: any) {
+      console.error("Error adding guest:", error);
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to create or open guest conversation.";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+      // Re-throw for dialog-level error display
+      throw new Error(message);
+    }
+  };
 
   // Ref to track selected conversation for socket events (avoids stale closure)
   const selectedConversationRef = useRef<Conversation | null>(null);
@@ -202,6 +267,15 @@ useEffect(() => {
     fetchTemplates();
   }, []);
 
+  // Refetch conversations when search query changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchConversations();
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
   // Socket.io event listeners
   useEffect(() => {
     if (!socket) return;
@@ -223,14 +297,14 @@ useEffect(() => {
         ? message.content 
         : message.content?.text || message.content?.caption || `${message.type} message`;
 
-      // Update conversations list
+      // Update conversations list and re-sort by lastMessageTime
       setConversations((prev) => {
         const updated = prev.map((conv) => {
           if (conv._id === conversationId) {
             return {
               ...conv,
               lastMessageContent: displayText,
-              lastMessageTime: message.timestamp,
+              lastMessageTime: new Date(message.timestamp),
               lastMessageDirection: message.direction,
               unreadCount:
                 currentConversation?._id === conversationId
@@ -240,10 +314,13 @@ useEffect(() => {
           }
           return conv;
         });
+        // Re-sort by lastMessageTime (most recent first) - database-driven sorting
         return updated.sort(
-          (a, b) =>
-            new Date(b.lastMessageTime || 0).getTime() -
-            new Date(a.lastMessageTime || 0).getTime()
+          (a, b) => {
+            const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+            const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+            return timeB - timeA; // Descending order (newest first)
+          }
         );
       });
 
@@ -468,12 +545,53 @@ useEffect(() => {
     } catch (e) {}
   };
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (cursor: string | null = null, append: boolean = false) => {
     try {
-      setLoading(true);
-      const response = await axios.get("/api/whatsapp/conversations");
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const params = new URLSearchParams();
+      params.append("limit", "30");
+      if (cursor) {
+        params.append("cursor", cursor);
+      }
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+
+      const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);
       if (response.data.success) {
-        setConversations(response.data.conversations);
+        const newConversations = response.data.conversations;
+        
+        if (append) {
+          // Append new conversations to existing list
+          setConversations((prev) => {
+            // Avoid duplicates by checking _id
+            const existingIds = new Set(prev.map(c => c._id));
+            const uniqueNew = newConversations.filter((c: Conversation) => !existingIds.has(c._id));
+            return [...prev, ...uniqueNew];
+          });
+        } else {
+          // Replace conversations on initial load or search
+          setConversations(newConversations);
+        }
+
+        // Update pagination state
+        setHasMore(response.data.pagination?.hasMore || false);
+        setNextCursor(response.data.pagination?.nextCursor || null);
+
+        // Update counts from database
+        if (response.data.counts) {
+          setConversationCounts({
+            total: response.data.counts.total || 0,
+            owners: response.data.counts.owners || 0,
+            guests: response.data.counts.guests || 0,
+          });
+        }
+
         setAllowedPhoneConfigs(response.data.allowedPhoneConfigs || []);
         // If user has access to multiple numbers, default to first; else set only option
         if (response.data.allowedPhoneConfigs?.length > 0) {
@@ -485,7 +603,7 @@ useEffect(() => {
             return response.data.allowedPhoneConfigs[0];
           });
         }
-        return response.data.conversations;
+        return newConversations;
       }
       return [];
     } catch (error: any) {
@@ -497,8 +615,18 @@ useEffect(() => {
       });
       return [];
     } finally {
-      setLoading(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
+  };
+
+  // Load more conversations (infinite scroll)
+  const loadMoreConversations = async () => {
+    if (!hasMore || loadingMore || !nextCursor) return;
+    await fetchConversations(nextCursor, true);
   };
 
   const fetchMessages = async (conversationId: string) => {
@@ -1373,6 +1501,10 @@ useEffect(() => {
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
               loading={loading}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={loadMoreConversations}
+              conversationCounts={conversationCounts}
               allowedPhoneConfigs={allowedPhoneConfigs}
               selectedPhoneConfig={selectedPhoneConfig}
               onPhoneConfigChange={setSelectedPhoneConfig}
@@ -1383,6 +1515,7 @@ useEffect(() => {
               onStartConversation={startNewConversation}
               onSelectConversation={selectConversation}
               isConnected={isConnected}
+              onOpenAddGuest={() => setShowAddGuestDialog(true)}
             />
 
       <Card className="flex-1 flex flex-col">
@@ -1456,6 +1589,12 @@ useEffect(() => {
                     fileInputRef={fileInputRef}
                     imageInputRef={imageInputRef}
                     onOpenTemplateFromWarning={() => setShowTemplateDialog(true)}
+                  />
+
+                  <AddGuestDialog
+                    open={showAddGuestDialog}
+                    onOpenChange={setShowAddGuestDialog}
+                    onSubmit={handleAddGuest}
                   />
           </>
         ) : (

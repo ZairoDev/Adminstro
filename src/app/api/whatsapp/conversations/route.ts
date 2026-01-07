@@ -36,16 +36,17 @@ export async function GET(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = parseInt(searchParams.get("limit") || "30");
+    const cursor = searchParams.get("cursor") || null; // Cursor for pagination (lastMessageAt timestamp)
     const status = searchParams.get("status") || "active";
     const search = searchParams.get("search") || "";
     const phoneIdFilter = searchParams.get("phoneId") || ""; // Optional filter by specific phone
+    const conversationType = searchParams.get("conversationType") || ""; // Filter by owner/guest
 
-    const skip = (page - 1) * limit;
-
-    // Build query - filter by allowed phone IDs
-    const query: any = { 
+    // Build base query - filter by allowed phone IDs
+    // Note: We don't filter by conversationType here - all conversations are loaded
+    // Client-side filtering handles the tab selection
+    const baseQuery: any = { 
       status,
       businessPhoneId: phoneIdFilter && allowedPhoneIds.includes(phoneIdFilter)
         ? phoneIdFilter
@@ -53,20 +54,46 @@ export async function GET(req: NextRequest) {
     };
 
     if (search) {
-      query.$or = [
+      baseQuery.$or = [
         { participantPhone: { $regex: search, $options: "i" } },
         { participantName: { $regex: search, $options: "i" } },
       ];
     }
 
-    const [conversations, total] = await Promise.all([
-      WhatsAppConversation.find(query)
-        .sort({ lastMessageTime: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      WhatsAppConversation.countDocuments(query),
+    // Cursor-based pagination: if cursor provided, only fetch conversations with lastMessageTime < cursor
+    const query: any = { ...baseQuery };
+    if (cursor) {
+      query.lastMessageTime = { $lt: new Date(cursor) };
+    }
+
+    // Get counts from database (always from base query, not paginated)
+    const [totalCount, ownerCount, guestCount] = await Promise.all([
+      WhatsAppConversation.countDocuments(baseQuery),
+      WhatsAppConversation.countDocuments({ ...baseQuery, conversationType: "owner" }),
+      WhatsAppConversation.countDocuments({ ...baseQuery, conversationType: "guest" }),
     ]);
+
+    // Fetch conversations with cursor-based pagination, sorted by lastMessageTime (most recent first)
+    // Use lastMessageTime: -1 for descending order (newest first)
+    // If lastMessageTime is null/undefined, use updatedAt as fallback
+    const conversations = await WhatsAppConversation.find(query)
+      .sort({ 
+        lastMessageTime: -1,
+        updatedAt: -1 // Fallback for conversations without lastMessageTime
+      })
+      .limit(limit + 1) // Fetch one extra to determine if there are more
+      .lean();
+    
+    // Check if there are more conversations
+    const hasMore = conversations.length > limit;
+    const conversationsToReturn = hasMore ? conversations.slice(0, limit) : conversations;
+    
+    // Get the cursor for next page (last conversation's lastMessageTime)
+    const nextCursor = conversationsToReturn.length > 0 
+      ? conversationsToReturn[conversationsToReturn.length - 1].lastMessageTime 
+        ? new Date(conversationsToReturn[conversationsToReturn.length - 1].lastMessageTime).toISOString()
+        : new Date(conversationsToReturn[conversationsToReturn.length - 1].updatedAt).toISOString()
+      : null;
 
     // Populate lastMessageStatus and determine conversation type (owner/guest)
     const conversationsWithStatus = await Promise.all(
@@ -133,11 +160,15 @@ export async function GET(req: NextRequest) {
       success: true,
       conversations: conversationsWithStatus,
       allowedPhoneConfigs, // Send available phone configs to frontend
+      counts: {
+        total: totalCount,
+        owners: ownerCount,
+        guests: guestCount,
+      },
       pagination: {
-        page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        hasMore,
+        nextCursor,
       },
     });
   } catch (error: any) {
@@ -160,7 +191,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { participantPhone, participantName, phoneNumberId } = await req.json();
+    const { participantPhone, participantName, phoneNumberId, referenceLink, conversationType } = await req.json();
 
     if (!participantPhone) {
       return NextResponse.json(
@@ -175,6 +206,28 @@ export async function POST(req: NextRequest) {
         { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
         { status: 400 }
       );
+    }
+
+    // Optional reference link validation (if provided)
+    let safeReferenceLink: string | undefined;
+    if (referenceLink) {
+      try {
+        const url = new URL(
+          referenceLink.startsWith("http") ? referenceLink : `https://${referenceLink}`
+        );
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+          return NextResponse.json(
+            { error: "Reference link must be a valid HTTP or HTTPS URL." },
+            { status: 400 }
+          );
+        }
+        safeReferenceLink = url.toString();
+      } catch {
+        return NextResponse.json(
+          { error: "Reference link must be a valid URL." },
+          { status: 400 }
+        );
+      }
     }
 
     // Get user's allowed phone IDs
@@ -223,7 +276,22 @@ export async function POST(req: NextRequest) {
         businessPhoneId: selectedPhoneId,
         status: "active",
         unreadCount: 0,
+        ...(safeReferenceLink && { metadata: { referenceLink: safeReferenceLink } }),
+        ...(conversationType === "guest" && { conversationType: "guest" }),
       });
+    } else {
+      // If conversation already exists, update optional fields if new values are provided
+      const update: any = {};
+      if (safeReferenceLink) {
+        update["metadata.referenceLink"] = safeReferenceLink;
+      }
+      if (conversationType === "guest" && !conversation.conversationType) {
+        update.conversationType = "guest";
+      }
+
+      if (Object.keys(update).length > 0) {
+        await WhatsAppConversation.findByIdAndUpdate(conversation._id, update);
+      }
     }
 
     return NextResponse.json({

@@ -182,6 +182,20 @@ whatsAppConversationSchema.index({
   lastMessageTime: -1,
 });
 
+// Index for conversation type filtering and counting
+whatsAppConversationSchema.index({
+  status: 1,
+  conversationType: 1,
+  lastMessageTime: -1,
+});
+
+// Index for businessPhoneId + conversationType (for counts)
+whatsAppConversationSchema.index({
+  businessPhoneId: 1,
+  status: 1,
+  conversationType: 1,
+});
+
 const WhatsAppConversation =
   mongoose.models?.WhatsAppConversation ||
   mongoose.model<IWhatsAppConversation>(

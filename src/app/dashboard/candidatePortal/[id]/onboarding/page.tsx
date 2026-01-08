@@ -1897,7 +1897,7 @@ export default function OnboardingPage() {
         <div className="text-center">
           <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
           <p className="text-sm text-muted-foreground">
-            Click "Generate Preview" to view the document
+            Click &quot;Generate Preview&quot; to view the document
           </p>
         </div>
       </div>

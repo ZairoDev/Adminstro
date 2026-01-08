@@ -49,34 +49,56 @@ export async function GET(
 
     const { conversationId } = params;
     const searchParams = req.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const before = searchParams.get("before"); // For pagination by timestamp
-
-    const skip = (page - 1) * limit;
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const beforeMessageId = searchParams.get("beforeMessageId"); // For cursor-based pagination
+    const beforeTimestamp = searchParams.get("beforeTimestamp"); // Alternative: timestamp-based
 
     // Build query
     const query: any = { conversationId };
     
-    if (before) {
-      query.timestamp = { $lt: new Date(before) };
+    // For initial load, get latest messages
+    // For loading older messages, use cursor
+    if (beforeMessageId) {
+      // Find the message with this ID to get its timestamp
+      const beforeMessage = await WhatsAppMessage.findOne({ 
+        _id: beforeMessageId,
+        conversationId 
+      }).select("timestamp").lean() as { timestamp: Date } | null;
+      
+      if (beforeMessage && beforeMessage.timestamp) {
+        query.timestamp = { $lt: new Date(beforeMessage.timestamp) };
+      }
+    } else if (beforeTimestamp) {
+      query.timestamp = { $lt: new Date(beforeTimestamp) };
     }
 
-    const [rawMessages, total] = await Promise.all([
-      WhatsAppMessage.find(query)
-        .sort({ timestamp: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      WhatsAppMessage.countDocuments({ conversationId }),
-    ]);
+    // Fetch messages (sorted by timestamp descending for latest first)
+    const rawMessages = await WhatsAppMessage.find(query)
+      .sort({ timestamp: -1 })
+      .limit(limit + 1) // Fetch one extra to determine if there are more
+      .lean();
+
+    // Check if there are more messages
+    const hasMore = rawMessages.length > limit;
+    const messagesToReturn = hasMore ? rawMessages.slice(0, limit) : rawMessages;
 
     // Transform messages to include displayText for frontend compatibility
-    const messages = rawMessages.map((msg: any) => ({
+    const messages = messagesToReturn.map((msg: any) => ({
       ...msg,
       // Add displayText for frontend to use
       displayText: getDisplayText(msg.content, msg.type),
     }));
+
+    // Reverse to chronological order (oldest first)
+    const messagesChronological = messages.reverse();
+
+    // Get cursor for next page (first message's ID and timestamp)
+    const nextCursor = messagesChronological.length > 0
+      ? {
+          messageId: messagesChronological[0]._id.toString(),
+          timestamp: messagesChronological[0].timestamp.toISOString(),
+        }
+      : null;
 
     // Mark conversation as read (reset unread count)
     await WhatsAppConversation.findByIdAndUpdate(conversationId, {
@@ -85,13 +107,11 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      messages: messages.reverse(), // Return in chronological order
+      messages: messagesChronological, // Return in chronological order (oldest first)
       pagination: {
-        page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: skip + rawMessages.length < total,
+        hasMore,
+        nextCursor,
       },
     });
   } catch (error: any) {

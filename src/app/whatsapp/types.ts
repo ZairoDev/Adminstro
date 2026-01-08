@@ -40,6 +40,7 @@ export interface Conversation {
   lastCustomerMessageAt?: Date;
   sessionExpiresAt?: Date;
   conversationType?: "owner" | "guest"; // Determined by first template message
+  referenceLink?: string; // Property listing URL or reference link
 }
 
 export interface Template {

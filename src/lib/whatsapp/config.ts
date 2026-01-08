@@ -18,12 +18,15 @@ export interface WhatsAppPhoneConfig {
 // WhatsApp Business Account ID (shared across all numbers)
 export const WHATSAPP_BUSINESS_ACCOUNT_ID = process.env.WhatsApp_Business_Account_ID || "";
 
+// Retargeting-specific phone ID (used exclusively for retargeting campaigns)
+export const WHATSAPP_RETARGET_PHONE_ID = process.env.WHATSAPP_RETARGET_PHONE_ID || "";
+
 // Configuration for each WhatsApp Business phone number by area
 // Update these with your actual phone number IDs from Meta Business Suite
 export const WHATSAPP_PHONE_CONFIGS: WhatsAppPhoneConfig[] = [
   {
     phoneNumberId: process.env.WHATSAPP_ATHENS_PHONE_ID || process.env.Phone_number_ID || "",
-    displayNumber: "+30 21 0000 0001",
+    displayNumber: "+91 9125119177",
     displayName: "VacationSaga Athens",
     area: "athens",
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
@@ -154,4 +157,19 @@ export function hasWhatsAppAccess(
   userAreas: string[] = []
 ): boolean {
   return getAllowedPhoneIds(userRole, userAreas).length > 0;
+}
+
+/**
+ * Get the retarget phone ID (used exclusively for retargeting)
+ * Returns null if not configured
+ */
+export function getRetargetPhoneId(): string | null {
+  return WHATSAPP_RETARGET_PHONE_ID || null;
+}
+
+/**
+ * Check if a phone ID is the retarget phone ID
+ */
+export function isRetargetPhoneId(phoneNumberId: string): boolean {
+  return WHATSAPP_RETARGET_PHONE_ID === phoneNumberId;
 }

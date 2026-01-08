@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   Trash2,
   Video,
   X,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -68,7 +69,16 @@ export function ChatHeader({
   toastCopy,
   onDelete,
 }: ChatHeaderProps) {
-  const remaining = useMemo(() => getRemainingHours(conversation), [conversation]);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  const remaining = useMemo(() => {
+    if (!isMounted) return null;
+    return getRemainingHours(conversation);
+  }, [conversation, isMounted]);
 
   return (
     <CardHeader className="pb-2 border-b">
@@ -81,9 +91,22 @@ export function ChatHeader({
             </AvatarFallback>
           </Avatar>
           <div>
-            <CardTitle className="text-lg">
-              {conversation.participantName || conversation.participantPhone}
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">
+                {conversation.participantName || conversation.participantPhone}
+              </CardTitle>
+              {conversation.referenceLink && (
+                <a
+                  href={conversation.referenceLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Open reference link"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <p className="text-base text-muted-foreground">{conversation.participantPhone}</p>
               {remaining ? (

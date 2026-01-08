@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle, User, Users } from "lucide-react";
+import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle, User, Users, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
@@ -34,6 +34,15 @@ interface SidebarProps {
   onStartConversation: () => void;
   onSelectConversation: (conversation: Conversation) => void;
   isConnected: boolean;
+  conversationCounts?: {
+    totalCount: number;
+    ownerCount: number;
+    guestCount: number;
+  };
+  hasMoreConversations?: boolean;
+  loadingMoreConversations?: boolean;
+  onLoadMoreConversations?: () => void;
+  onAddGuest?: () => void;
 }
 
 export function ConversationSidebar({
@@ -52,8 +61,20 @@ export function ConversationSidebar({
   onStartConversation,
   onSelectConversation,
   isConnected,
+  conversationCounts,
+  hasMoreConversations,
+  loadingMoreConversations,
+  onLoadMoreConversations,
+  onAddGuest,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Track mount state to avoid hydration issues with date formatting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Filter conversations by tab and search query
   const filteredConversations = conversations.filter((conv) => {
@@ -68,9 +89,34 @@ export function ConversationSidebar({
     );
   });
   
-  // Count conversations by type
-  const ownerCount = conversations.filter((c) => c.conversationType === "owner").length;
-  const guestCount = conversations.filter((c) => c.conversationType === "guest").length;
+  // Use database counts if provided, otherwise fallback to UI counts
+  // Ensure consistent values during SSR to avoid hydration mismatch
+  const ownerCount = isMounted && conversationCounts?.ownerCount !== undefined
+    ? conversationCounts.ownerCount
+    : conversations.filter((c) => c.conversationType === "owner").length;
+  const guestCount = isMounted && conversationCounts?.guestCount !== undefined
+    ? conversationCounts.guestCount
+    : conversations.filter((c) => c.conversationType === "guest").length;
+  const totalCount = isMounted && conversationCounts?.totalCount !== undefined
+    ? conversationCounts.totalCount
+    : conversations.length;
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const scrollElement = sidebarScrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollElement || !onLoadMoreConversations || !hasMoreConversations) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      // Load more when 80% scrolled
+      if (scrollTop + clientHeight >= scrollHeight * 0.8 && !loadingMoreConversations) {
+        onLoadMoreConversations();
+      }
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll);
+    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  }, [hasMoreConversations, loadingMoreConversations, onLoadMoreConversations]);
 
   const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
     if (!status) return null;
@@ -108,10 +154,12 @@ export function ConversationSidebar({
         <CardTitle className="text-lg flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-green-500" />
           WhatsApp Chats
-          {isConnected ? (
-            <Wifi className="h-4 w-4 text-green-500" />
-          ) : (
-            <WifiOff className="h-4 w-4 text-red-500" />
+          {isMounted && (
+            isConnected ? (
+              <Wifi className="h-4 w-4 text-green-500" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-red-500" />
+            )
           )}
         </CardTitle>
         <div className="flex gap-2 mt-2">
@@ -129,7 +177,7 @@ export function ConversationSidebar({
           <Tabs value={conversationTab} onValueChange={(v) => setConversationTab(v as "all" | "owners" | "guests")}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all" className="text-xs">
-                All ({conversations.length})
+                All ({totalCount})
               </TabsTrigger>
               <TabsTrigger value="owners" className="text-xs">
                 <User className="h-3 w-3 mr-1" />
@@ -142,7 +190,20 @@ export function ConversationSidebar({
             </TabsList>
           </Tabs>
         </div>
-        <div className="p-2 border-b">
+        <div className="p-2 border-b space-y-2">
+          {/* Add New Owner Button */}
+          {onAddGuest && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={onAddGuest}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add New Owner
+            </Button>
+          )}
+          
           <div className="flex gap-2">
             <div className="flex gap-1 flex-1">
               {allowedPhoneConfigs.length > 1 && (
@@ -203,7 +264,7 @@ export function ConversationSidebar({
             </Button>
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1" ref={sidebarScrollRef}>
           {loading && conversations.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -246,7 +307,7 @@ export function ConversationSidebar({
                     </p>
                     {conversation.lastMessageTime && (
                       <span className="text-sm text-muted-foreground">
-                        {formatTime(conversation.lastMessageTime)}
+                        {isMounted ? formatTime(conversation.lastMessageTime) : "--:--"}
                       </span>
                     )}
                   </div>
@@ -289,6 +350,23 @@ export function ConversationSidebar({
                 </div>
               </div>
             ))
+          )}
+          {/* Load More Indicator */}
+          {hasMoreConversations && (
+            <div className="flex justify-center py-2">
+              {loadingMoreConversations ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLoadMoreConversations}
+                  className="text-muted-foreground"
+                >
+                  Load more...
+                </Button>
+              )}
+            </div>
           )}
         </ScrollArea>
       </CardContent>

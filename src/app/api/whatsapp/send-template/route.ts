@@ -8,6 +8,7 @@ import {
   canAccessPhoneId,
   getAllowedPhoneIds,
   getDefaultPhoneId,
+  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
@@ -57,21 +58,49 @@ export async function POST(req: NextRequest) {
     // Determine which phone ID to use
     let phoneNumberId = requestedPhoneId;
 
-    // If conversationId provided, get phone ID from conversation
-    if (conversationId && !phoneNumberId) {
+    // If this is a retarget message, use the retarget phone ID
+    if (isRetarget) {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        phoneNumberId = retargetPhoneId;
+        console.log(`🎯 Using retarget phone ID: ${phoneNumberId}`);
+      } else {
+        console.warn("⚠️ Retarget phone ID not configured, falling back to default");
+      }
+    }
+
+    // If conversationId provided, get phone ID from conversation (only if not retargeting)
+    if (conversationId && !phoneNumberId && !isRetarget) {
       const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
       if (conv) {
         phoneNumberId = conv.businessPhoneId;
       }
     }
 
-    // Fall back to default if not set
+    // Fall back to default if not set (only if not retargeting)
+    if (!phoneNumberId && !isRetarget) {
+      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
+    }
+
+    // Final fallback: if retarget phone ID is not configured, use default
     if (!phoneNumberId) {
       phoneNumberId = getDefaultPhoneId(userRole, userAreas);
     }
 
-    // Verify permission
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    // Verify permission (skip check for retarget phone ID if it's configured)
+    if (!phoneNumberId) {
+      return NextResponse.json(
+        { error: "No phone number ID available" },
+        { status: 400 }
+      );
+    }
+
+    // For retargeting, allow the retarget phone ID if configured
+    // For regular messages, check user permissions
+    if (isRetarget && getRetargetPhoneId() === phoneNumberId) {
+      // Retarget phone ID is allowed for retargeting (no permission check needed)
+      console.log(`✅ Using retarget phone ID for retargeting: ${phoneNumberId}`);
+    } else if (!canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
       return NextResponse.json(
         { error: "You don't have permission to send from this WhatsApp number" },
         { status: 403 }

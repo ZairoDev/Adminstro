@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import type { Message } from "../types";
 import { getMessageDisplayText } from "../utils";
 import { FileText } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { AlertTriangle, Check, CheckCheck, Clock } from "lucide-react";
 import {
   Tooltip,
@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 interface MessageListProps {
   messages: Message[];
@@ -19,6 +20,9 @@ interface MessageListProps {
   messageSearchQuery: string;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   selectedConversationActive: boolean;
+  onLoadOlderMessages?: () => void;
+  hasMoreMessages?: boolean;
+  loadingOlderMessages?: boolean;
 }
 
 const statusInfo = (status: Message["status"]) => {
@@ -38,13 +42,55 @@ const statusInfo = (status: Message["status"]) => {
   }
 };
 
+// Helper function to format date separator
+function formatDateSeparator(date: Date): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const messageDate = new Date(date);
+  messageDate.setHours(0, 0, 0, 0);
+
+  if (messageDate.getTime() === today.getTime()) {
+    return "Today";
+  } else if (messageDate.getTime() === yesterday.getTime()) {
+    return "Yesterday";
+  } else {
+    return messageDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }
+}
+
+// Helper function to check if two dates are on the same day
+function isSameDay(date1: Date, date2: Date): boolean {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  return d1.getTime() === d2.getTime();
+}
+
 export function MessageList({
   messages,
   messagesLoading,
   messageSearchQuery,
   messagesEndRef,
   selectedConversationActive,
+  onLoadOlderMessages,
+  hasMoreMessages,
+  loadingOlderMessages,
 }: MessageListProps) {
+  // Track if component is mounted (client-side only)
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const filteredMessages = useMemo(
     () =>
       messages.filter((msg) => {
@@ -55,9 +101,58 @@ export function MessageList({
     [messages, messageSearchQuery]
   );
 
+  // Group messages by date (only after mount to avoid hydration issues)
+  const messagesWithDates = useMemo(() => {
+    const grouped: Array<{ date?: string; message: Message }> = [];
+    
+    if (!isMounted) {
+      // During SSR, don't show date separators to avoid hydration mismatch
+      return filteredMessages.map((message) => ({ message } as { date?: string; message: Message }));
+    }
+
+    let lastDate: string | null = null;
+
+    filteredMessages.forEach((message, index) => {
+      const messageDate = new Date(message.timestamp);
+      const shouldShowDate =
+        index === 0 || !lastDate || !isSameDay(messageDate, new Date(filteredMessages[index - 1].timestamp));
+
+      if (shouldShowDate) {
+        lastDate = formatDateSeparator(messageDate);
+        grouped.push({ date: lastDate, message });
+      } else {
+        grouped.push({ message });
+      }
+    });
+
+    return grouped;
+  }, [filteredMessages, isMounted]);
+
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-4">
+        {/* Load Older Messages Button */}
+        {hasMoreMessages && onLoadOlderMessages && (
+          <div className="flex justify-center py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLoadOlderMessages}
+              disabled={loadingOlderMessages}
+              className="text-muted-foreground"
+            >
+              {loadingOlderMessages ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "Load older messages"
+              )}
+            </Button>
+          </div>
+        )}
+
         {messagesLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -70,18 +165,28 @@ export function MessageList({
             <p className="text-sm">Send a message to start the conversation</p>
           </div>
         ) : (
-          filteredMessages.map((message) => {
+          messagesWithDates.map((item, index) => {
+            const { date, message } = item;
             const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(
               message.type
             );
             return (
-              <div
-                key={message._id || message.messageId}
-                className={cn(
-                  "flex",
-                  message.direction === "outgoing" ? "justify-end" : "justify-start"
-                )}
-              >
+              <div key={`${message._id || message.messageId}-${index}`}>
+                {/* Date Separator */}
+                {date ? (
+                  <div className="flex justify-center my-4">
+                    <div className="bg-muted px-3 py-1 rounded-full text-sm text-muted-foreground">
+                      {date}
+                    </div>
+                  </div>
+                ) : null}
+                {/* Message */}
+                <div
+                  className={cn(
+                    "flex",
+                    message.direction === "outgoing" ? "justify-end" : "justify-start"
+                  )}
+                >
                 <div
                   className={cn(
                     "max-w-[70%] rounded-lg p-3",
@@ -204,10 +309,12 @@ export function MessageList({
                         message.direction === "outgoing" ? "text-green-100" : "text-muted-foreground"
                       )}
                     >
-                      {new Date(message.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {isMounted
+                        ? new Date(message.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "--:--"}
                     </span>
                     {message.direction === "outgoing" && (() => {
                       const info = statusInfo(message.status);
@@ -228,6 +335,7 @@ export function MessageList({
                       );
                     })()}
                   </div>
+                </div>
                 </div>
               </div>
             );

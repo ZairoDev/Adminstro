@@ -227,6 +227,143 @@ async function getMediaPermanentUrl(
   }
 }
 
+/**
+ * Send guest_questions template after receiving "Yes" reply to first_template
+ */
+async function sendGuestQuestionsTemplate(
+  recipientPhone: string,
+  recipientName: string,
+  phoneNumberId: string,
+  conversationId: string
+) {
+  try {
+    const whatsappToken = getWhatsAppToken();
+    if (!whatsappToken) {
+      console.error("❌ WhatsApp token not available");
+      return;
+    }
+
+    // Format phone number (E.164)
+    let formattedPhone = recipientPhone.replace(/\D/g, "");
+    if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
+      console.error("❌ Invalid phone number format:", recipientPhone);
+      return;
+    }
+
+    console.log(`📱 Sending guest_questions template to ${formattedPhone} for ${recipientName}`);
+
+    const response = await fetch(
+      `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${whatsappToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedPhone,
+          type: "template",
+          template: {
+            name: "guest_questions",
+            language: {
+              code: "en",
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  { type: "text", text: recipientName }
+                ]
+              }
+            ]
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("❌ WhatsApp Template API Error:", data);
+      return;
+    }
+
+    const whatsappMessageId = data.messages?.[0]?.id;
+    if (!whatsappMessageId) {
+      console.error("❌ No message ID returned from WhatsApp API");
+      return;
+    }
+
+    console.log(`✅ guest_questions template sent successfully:`, whatsappMessageId);
+
+    const timestamp = new Date();
+    const templateText = `Great, thank you ${recipientName}.\n\nTo help us find the most suitable apartment for you, could you please share the following details:\n\n• Number of people\n• Budget range\n• Duration of stay\n• Preferred location(s)\n\nYou may reply in a single message or one by one—whatever is convenient for you.`;
+
+    // Get conversation
+    const conversation = await WhatsAppConversation.findById(conversationId);
+    if (!conversation) {
+      console.error("❌ Conversation not found:", conversationId);
+      return;
+    }
+
+    const contentObj = { text: templateText };
+
+    // Save message to database
+    const savedMessage = await WhatsAppMessage.create({
+      conversationId: conversation._id,
+      messageId: whatsappMessageId,
+      businessPhoneId: phoneNumberId,
+      from: phoneNumberId,
+      to: formattedPhone,
+      type: "template",
+      content: contentObj,
+      templateName: "guest_questions",
+      templateLanguage: "en",
+      status: "sent",
+      statusEvents: [{ status: "sent", timestamp }],
+      direction: "outgoing",
+      timestamp,
+      conversationSnapshot: {
+        participantPhone: formattedPhone,
+        assignedAgent: conversation.assignedAgent,
+      },
+    });
+
+    // Update conversation last message
+    await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+      lastMessageId: whatsappMessageId,
+      lastMessageContent: templateText.substring(0, 100),
+      lastMessageTime: timestamp,
+      lastMessageDirection: "outgoing",
+      lastOutgoingMessageTime: timestamp,
+    });
+
+    // Emit socket event for real-time frontend updates
+    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+      conversationId: conversation._id.toString(),
+      businessPhoneId: phoneNumberId,
+      message: {
+        id: savedMessage._id.toString(),
+        messageId: whatsappMessageId,
+        from: phoneNumberId,
+        to: formattedPhone,
+        type: "template",
+        content: contentObj,
+        status: "sent",
+        direction: "outgoing",
+        timestamp,
+        senderName: "System (Auto)",
+      },
+    });
+
+    console.log(`✅ guest_questions message saved to DB and emitted to frontend`);
+  } catch (error) {
+    console.error("❌ Error sending guest_questions template:", error);
+  }
+}
+
 async function processIncomingMessage(
   message: any,
   contact: any,
@@ -481,6 +618,67 @@ async function processIncomingMessage(
     });
 
     console.log("✅ Message saved and broadcasted:", message.id, mediaUrl ? `(with media: ${mediaUrl.substring(0, 50)}...)` : "");
+
+    // Check for "Yes" reply after first_template and send guest_questions template
+    if (message.type === "text" && contentObj.text) {
+      const messageText = contentObj.text.trim().toLowerCase();
+      if (messageText === "yes" || messageText === "y") {
+        try {
+          // Check if guest_questions was already sent to prevent duplicates
+          const guestQuestionsAlreadySent = await WhatsAppMessage.findOne({
+            conversationId: conversation._id,
+            direction: "outgoing",
+            type: "template",
+            templateName: "guest_questions",
+          }).lean();
+
+          if (guestQuestionsAlreadySent) {
+            console.log(`⏭️ guest_questions template already sent, skipping`);
+          } else {
+            // Find the last outgoing template message in this conversation
+            const lastOutgoingTemplate = await WhatsAppMessage.findOne({
+              conversationId: conversation._id,
+              direction: "outgoing",
+              type: "template",
+              templateName: "first_template",
+            })
+              .sort({ timestamp: -1 })
+              .lean() as any;
+
+            // If last template was first_template, send guest_questions
+            if (lastOutgoingTemplate) {
+            console.log(`✅ Detected "Yes" reply after first_template, sending guest_questions template`);
+            
+            // Get lead name from Query model or use conversation participant name
+            const QueryModel = (await import("@/models/query")).default;
+            const normalizedSender = (senderPhone || "").toString().replace(/\D/g, "");
+            const tryLengths = [9, 8, 7];
+            let lead: any = null;
+
+            for (const len of tryLengths) {
+              if (normalizedSender.length < len) continue;
+              const lastDigits = normalizedSender.slice(-len);
+              const regex = new RegExp(`${lastDigits}$`);
+              lead = await QueryModel.findOne({ phoneNo: { $regex: regex } });
+              if (lead) break;
+            }
+
+            const leadName = lead?.name || conversation.participantName || senderPhone;
+            
+            // Send guest_questions template
+            await sendGuestQuestionsTemplate(
+              senderPhone,
+              leadName,
+              phoneNumberId,
+              conversation._id.toString()
+            );
+            }
+          }
+        } catch (err) {
+          console.error("❌ Error checking for Yes reply and sending guest_questions:", err);
+        }
+      }
+    }
 
         // STEP 5: First Reply Detection (Simple)
     // ========================================

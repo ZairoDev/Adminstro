@@ -36,6 +36,8 @@ export interface IWhatsAppConversation extends Document {
 
   conversationType?: "owner" | "guest"; // Determined by first template message
 
+  referenceLink?: string; // Property listing URL or reference link
+
   metadata?: Map<string, any>;
 }
 
@@ -153,6 +155,10 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
       type: String,
       enum: ["owner", "guest"],
       index: true,
+    },
+
+    referenceLink: {
+      type: String,
     },
 
     metadata: {

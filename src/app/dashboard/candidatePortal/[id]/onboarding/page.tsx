@@ -319,30 +319,40 @@ export default function OnboardingPage() {
    // Auto-generate and open PDF preview when component loads (if not already signed)
    useEffect(() => {
     if (!loading && candidate && !pdfGeneratedRef.current) {
-      // If signed PDF exists, open it automatically
+      // If signed PDF exists, just set it and open preview
       if (candidate.onboardingDetails?.signedPdfUrl) {
         setSignedPdfUrl(candidate.onboardingDetails.signedPdfUrl);
         setShowPdfPreview(true);
         pdfGeneratedRef.current = true;
       } 
-      // Otherwise, generate unsigned PDF
-      else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl) {
+      // Auto-generate unsigned PDF ONLY if:
+      // 1. No signed PDF exists
+      // 2. No unsigned PDF is already loaded
+      // 3. Not currently generating
+      // 4. Onboarding is not complete
+      else if (
+        !candidate.onboardingDetails?.signedPdfUrl && 
+        !unsignedPdfUrl && 
+        !generatingPdf &&
+        !candidate.onboardingDetails?.onboardingComplete
+      ) {
         pdfGeneratedRef.current = true;
-        // Auto-generate PDF after a short delay to ensure all data is loaded
+        // Auto-generate after short delay
         const timer = setTimeout(() => {
           generateUnsignedPdf();
-        }, 1000);
+        }, 800);
         return () => clearTimeout(timer);
       }
     }
-  }, [loading, candidate]);
+  }, [loading, candidate, unsignedPdfUrl, generatingPdf]);
+  
 
   // Auto-open PDF preview dialog when PDF is generated
-  useEffect(() => {
-    if ((unsignedPdfUrl || signedPdfUrl) && !showPdfPreview && !loading) {
-      setShowPdfPreview(true);
-    }
-  }, [unsignedPdfUrl, signedPdfUrl, loading]);
+  // useEffect(() => {
+  //   if ((unsignedPdfUrl || signedPdfUrl) && !showPdfPreview && !loading) {
+  //     setShowPdfPreview(true);
+  //   }
+  // }, [unsignedPdfUrl, signedPdfUrl, loading]);
 
 
   const handleDocumentChange = async (
@@ -918,6 +928,8 @@ export default function OnboardingPage() {
   if (loading) {
     return <LoadingSkeleton />;
   }
+  
+
 
   const generateUnsignedPdf = async () => {
     if (!candidate) return;
@@ -1784,118 +1796,114 @@ export default function OnboardingPage() {
 
           {/* PDF Preview Section */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-semibold">
-                7
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Onboarding Document Preview
-              </h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Preview and download the unsigned onboarding document before accepting terms and conditions. The document contains blank signature placeholders where signatures can be made.
-              </p>
-              {/* <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generateUnsignedPdf}
-                  disabled={generatingPdf}
-                  className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                >
-                  {generatingPdf ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview PDF
-                    </>
-                  )}
-                </Button>
-             
-                {(signedPdfUrl || unsignedPdfUrl) && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        const url = signedPdfUrl || unsignedPdfUrl;
-                        if (!url) return;
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = signedPdfUrl
-                          ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
-                          : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                      }}
-                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download {signedPdfUrl ? "Signed PDF" : "PDF"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowPdfPreview(true)}
-                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Full Screen
-                    </Button>
-                  </>
-                )}
-              </div> */}
-              {(signedPdfUrl || unsignedPdfUrl) && (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const url = signedPdfUrl || unsignedPdfUrl;
-                      if (!url) return;
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = signedPdfUrl
-                        ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
-                        : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                    }}
-                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download {signedPdfUrl ? "Signed PDF" : "PDF"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowPdfPreview(true)}
-                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Full Screen
-                  </Button>
-                </div>
-              )}
-       
-              {(signedPdfUrl || unsignedPdfUrl) && (
-                <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  <iframe
-                    src={signedPdfUrl || unsignedPdfUrl || ""}
-                    className="w-full h-[500px] border-0"
-                    title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
+  <div className="flex items-center gap-2 mb-4">
+    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-semibold">
+      7
+    </div>
+    <h2 className="text-lg font-semibold text-foreground">
+      Onboarding Document Preview
+    </h2>
+  </div>
+  <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      {signedPdfUrl 
+        ? "Your signed onboarding document is ready. This is the final version that will be saved."
+        : "Preview the onboarding document before signing. The document will be automatically generated for you."}
+    </p>
+    
+    {/* Action Buttons */}
+    <div className="flex gap-2 flex-wrap">
+      {!signedPdfUrl && !unsignedPdfUrl && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={generateUnsignedPdf}
+          disabled={generatingPdf}
+          className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+        >
+          {generatingPdf ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Eye className="w-4 h-4 mr-2" />
+              Generate Preview
+            </>
+          )}
+        </Button>
+      )}
+      
+      {(signedPdfUrl || unsignedPdfUrl) && (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              const url = signedPdfUrl || unsignedPdfUrl;
+              if (!url) return;
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = signedPdfUrl
+                ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
+                : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }}
+            className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download {signedPdfUrl ? "Signed PDF" : "PDF"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowPdfPreview(true)}
+            className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            View Full Screen
+          </Button>
+        </>
+      )}
+    </div>
+
+    {/* Loading State */}
+    {generatingPdf && (
+      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
+          <p className="text-sm text-muted-foreground">Generating document preview...</p>
+        </div>
+      </div>
+    )}
+
+    {/* PDF Preview */}
+    {!generatingPdf && (signedPdfUrl || unsignedPdfUrl) && (
+      <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <iframe
+          src={signedPdfUrl || unsignedPdfUrl || ""}
+          className="w-full h-[500px] border-0"
+          title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
+        />
+      </div>
+    )}
+
+    {/* No Preview State */}
+    {!generatingPdf && !signedPdfUrl && !unsignedPdfUrl && (
+      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+        <div className="text-center">
+          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-sm text-muted-foreground">
+            Click "Generate Preview" to view the document
+          </p>
+        </div>
+      </div>
+    )}
+  </div>
+</Card>
 
           {/* Terms & Conditions + E-Signature */}
           <Card className="p-6 shadow-sm space-y-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">

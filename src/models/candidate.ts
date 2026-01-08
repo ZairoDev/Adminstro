@@ -10,6 +10,7 @@ const CandidateSchema = new Schema(
     city: { type: String, required: true },
 
     country: { type: String, required: true },
+    college: { type: String, required: true },
     position: { type: String, required: true },
     coverLetter: { type: String },
     linkedin: { type: String },
@@ -42,6 +43,13 @@ const CandidateSchema = new Schema(
         lastUpdatedBy: { type: String, default: null },
         lastUpdatedAt: { type: Date, default: null },
       },
+    },
+    secondRoundInterviewDetails: {
+      scheduledDate: { type: Date, default: null },
+      scheduledTime: { type: String, default: null },
+      scheduledBy: { type: String, default: null },
+      scheduledAt: { type: Date, default: null },
+      notes: { type: String, default: null },
     },
     selectionDetails: {
       positionType: {

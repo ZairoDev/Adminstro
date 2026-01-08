@@ -447,6 +447,92 @@ export const getCandidateEmailTemplate = (
         </div>
       `,
     },
+    secondRoundInterview: {
+      subject: `Second Round Interview Scheduled - ${position} at ${companyName}`,
+      html: `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #000; line-height: 1.6;">
+          
+          <p>Dear ${candidateName},</p>
+    
+          <p>
+            We are pleased to inform you that you have successfully cleared the first round of interviews for the 
+            <strong>${position}</strong> position at <strong>${companyName}</strong>.
+          </p>
+    
+          <p>
+            Based on your performance, we would like to invite you to attend the second round of the interview process.
+            This round will help us further assess your skills, experience, and suitability for the role.
+          </p>
+    
+          <p><strong>Second Round Interview Details:</strong></p>
+    
+          <p>
+            <strong>Date:</strong> ${
+              interviewDetails?.scheduledDate
+                ? (() => {
+                    const date =
+                      typeof interviewDetails.scheduledDate === "string"
+                        ? parseLocalDateString(interviewDetails.scheduledDate)
+                        : new Date(interviewDetails.scheduledDate);
+                    return date.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    });
+                  })()
+                : "TBD"
+            }<br/>
+            <strong>Time:</strong> ${interviewDetails?.scheduledTime || "TBD"}
+          </p>
+    
+          <p><strong>Office Address:</strong><br/>
+            ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+          </p>
+    
+          ${
+            interviewDetails?.googleMapsLink
+              ? `
+                <p>
+                  <a href="${interviewDetails.googleMapsLink}">
+                    View location on Google Maps
+                  </a>
+                </p>
+              `
+              : ""
+          }
+    
+          <p><strong>Please note:</strong></p>
+          <ul>
+            <li>Please arrive 10–15 minutes before the scheduled time.</li>
+            <li>Carry a copy of your resume and any relevant documents.</li>
+            <li>Dress professionally.</li>
+            <li>If you are unable to attend, inform us at least 24 hours in advance.</li>
+          </ul>
+    
+          <p>
+            If you have any questions prior to the interview, feel free to reach out to us.
+          </p>
+    
+          <p>
+            We wish you the very best and look forward to meeting you.
+          </p>
+    
+          <p>
+            Sincerely,<br/>
+            ${getEmailSignature(hrEmployee)}
+          </p>
+    
+          <hr/>
+    
+          <p style="font-size: 12px; color: #555;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
+    
+        </div>
+      `,
+    },
+    
   };
 
   return templates[status];

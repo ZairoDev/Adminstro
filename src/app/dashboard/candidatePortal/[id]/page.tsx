@@ -20,6 +20,7 @@ import {
   ChevronUp,
   FileText,
   Loader2,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,6 +73,7 @@ interface Candidate {
   address: string;
   city: string;
   country: string;
+  college?: string;
   coverLetter?: string;
   linkedin?: string;
   portfolio?: string;
@@ -100,6 +102,13 @@ interface Candidate {
       lastUpdatedBy?: string;
       lastUpdatedAt?: string;
     };
+  };
+  secondRoundInterviewDetails?: {
+    scheduledDate?: string;
+    scheduledTime?: string;
+    scheduledBy?: string;
+    scheduledAt?: string;
+    notes?: string;
   };
   selectionDetails?: {
     positionType: "fulltime" | "intern";
@@ -202,6 +211,16 @@ export default function CandidateDetailPage() {
   const [interviewAmPm, setInterviewAmPm] = useState<"AM" | "PM">("PM");
   const [interviewNotes, setInterviewNotes] = useState("");
   const [schedulingInterview, setSchedulingInterview] = useState(false);
+
+  // Second Round Interview states
+  const [scheduleSecondRoundDialogOpen, setScheduleSecondRoundDialogOpen] = useState(false);
+  const [showSecondRoundConfirmation, setShowSecondRoundConfirmation] = useState(false);
+  const [secondRoundDate, setSecondRoundDate] = useState<Date | undefined>(undefined);
+  const [secondRoundHour, setSecondRoundHour] = useState<string>("4");
+  const [secondRoundMinute, setSecondRoundMinute] = useState<string>("00");
+  const [secondRoundAmPm, setSecondRoundAmPm] = useState<"AM" | "PM">("PM");
+  const [secondRoundNotes, setSecondRoundNotes] = useState("");
+  const [schedulingSecondRound, setSchedulingSecondRound] = useState(false);
 
   // Convert 12-hour format to 24-hour format (HH:MM)
   const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
@@ -619,8 +638,15 @@ export default function CandidateDetailPage() {
   };
 
   const canScheduleInterview = () => {
-    // Can schedule interview only for pending candidates
-    return candidate?.status === "pending";
+    // Can schedule interview only for pending candidates and if not already scheduled
+    return candidate?.status === "pending" && !candidate?.interviewDetails?.scheduledDate;
+  };
+
+  const canScheduleSecondRound = () => {
+    // Can schedule second round if not already scheduled
+    // Check both if the object exists and if scheduledDate has a value
+    const hasSecondRound = candidate?.secondRoundInterviewDetails?.scheduledDate;
+    return !hasSecondRound;
   };
 
   const handleScheduleInterview = async () => {
@@ -672,6 +698,82 @@ export default function CandidateDetailPage() {
     } finally {
       setSchedulingInterview(false);
     }
+  };
+
+  const handleScheduleSecondRound = async () => {
+    if (!candidate || !secondRoundDate) {
+      toast.error("Please select both date and time");
+      return;
+    }
+
+    // Final check before scheduling
+    if (!canScheduleSecondRound()) {
+      toast.error("Second round interview is already scheduled");
+      setScheduleSecondRoundDialogOpen(false);
+      return;
+    }
+
+    setSchedulingSecondRound(true);
+    setError(null);
+    try {
+      const dateString = formatDateToLocalString(secondRoundDate);
+      const time24Hour = convertTo24Hour(secondRoundHour, secondRoundMinute, secondRoundAmPm);
+
+      const response = await fetch(
+        `/api/candidates/${candidate._id}/schedule-second-round`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scheduledDate: dateString,
+            scheduledTime: time24Hour,
+            notes: secondRoundNotes || undefined,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Second round interview scheduled successfully");
+        setScheduleSecondRoundDialogOpen(false);
+        setSecondRoundDate(undefined);
+        setSecondRoundHour("4");
+        setSecondRoundMinute("00");
+        setSecondRoundAmPm("PM");
+        setSecondRoundNotes("");
+        setShowSecondRoundConfirmation(false);
+        await refreshCandidate();
+      } else {
+        setError(result.error || "Failed to schedule second round interview");
+        toast.error(result.error || "Failed to schedule second round interview");
+      }
+    } catch (error) {
+      console.error("Error scheduling second round interview:", error);
+      setError("Failed to schedule second round interview");
+      toast.error("Failed to schedule second round interview");
+    } finally {
+      setSchedulingSecondRound(false);
+    }
+  };
+
+  const openSecondRoundDialog = () => {
+    // Check if second round can be scheduled
+    if (!canScheduleSecondRound()) {
+      toast.error("Second round interview is already scheduled");
+      return;
+    }
+    setShowSecondRoundConfirmation(true);
+  };
+
+  const confirmSecondRound = () => {
+    // Double-check if second round can be scheduled
+    if (!canScheduleSecondRound()) {
+      toast.error("Second round interview is already scheduled");
+      setShowSecondRoundConfirmation(false);
+      return;
+    }
+    setShowSecondRoundConfirmation(false);
+    setScheduleSecondRoundDialogOpen(true);
   };
 
   const getButtonTooltip = (action: string) => {
@@ -770,6 +872,12 @@ export default function CandidateDetailPage() {
                   <MapPin className="w-3.5 h-3.5" />
                   {candidate.city}, {candidate.country}
                 </span>
+                {candidate.college && (
+                  <span className="flex items-center gap-1">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    {candidate.college}
+                  </span>
+                )}
               </div>
               </div>
             </div>
@@ -895,6 +1003,41 @@ export default function CandidateDetailPage() {
               </Card>
             )}
 
+            {/* Second Round Interview Schedule */}
+            {candidate.secondRoundInterviewDetails?.scheduledDate && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                  Second Round Interview
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {candidate.secondRoundInterviewDetails.scheduledDate && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date</span>
+                      <span className="text-foreground font-medium">
+                        {new Date(candidate.secondRoundInterviewDetails.scheduledDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.scheduledTime && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Time</span>
+                      <span className="text-foreground font-medium">
+                        {candidate.secondRoundInterviewDetails.scheduledTime}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.scheduledBy && (
+                    <div className="pt-2 mt-2 border-t text-xs text-muted-foreground">
+                      Scheduled by {candidate.secondRoundInterviewDetails.scheduledBy}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Actions */}
             <Card className="p-4">
@@ -908,7 +1051,13 @@ export default function CandidateDetailPage() {
                     <TooltipTrigger asChild>
                       <div>
                         <Button
-                          onClick={() => {
+                          onClick={(e) => {
+                            if (!canScheduleInterview()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toast.error("Interview is already scheduled");
+                              return;
+                            }
                             setScheduleInterviewDialogOpen(true);
                             setInterviewDate(undefined);
                             setInterviewHour("4");
@@ -926,7 +1075,7 @@ export default function CandidateDetailPage() {
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent><p>{candidate.status === "interview" ? "Interview scheduled" : "Schedule interview"}</p></TooltipContent>
+                    <TooltipContent><p>{candidate.status === "interview" ? "Interview already scheduled" : "Schedule interview"}</p></TooltipContent>
                   </Tooltip>
 
                   {/* Interview Remarks Button */}
@@ -948,6 +1097,32 @@ export default function CandidateDetailPage() {
                       <TooltipContent><p>{candidate.interviewDetails?.remarks?.evaluatedBy ? "Edit remarks" : "Add interview remarks"}</p></TooltipContent>
                     </Tooltip>
                   )}
+
+                  {/* Schedule Second Round Interview Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={(e) => {
+                            if (!canScheduleSecondRound()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              return;
+                            }
+                            openSecondRoundDialog();
+                          }}
+                          disabled={actionLoading || !canScheduleSecondRound()}
+                          variant={candidate.secondRoundInterviewDetails?.scheduledDate ? "default" : "outline"}
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
+                        >
+                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                          {candidate.secondRoundInterviewDetails?.scheduledDate ? "✓ Second Round" : "Schedule Second Round"}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent><p>{candidate.secondRoundInterviewDetails?.scheduledDate ? "Second round already scheduled" : "Schedule second round interview"}</p></TooltipContent>
+                  </Tooltip>
 
                   {/* Shortlist Button */}
                   <Tooltip>
@@ -1593,6 +1768,29 @@ export default function CandidateDetailPage() {
         submitButtonText="Discontinue"
       />
 
+      {/* Confirmation Dialog for Second Round */}
+      <Dialog open={showSecondRoundConfirmation} onOpenChange={setShowSecondRoundConfirmation}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Second Round Interview</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to schedule a second round interview? This can be done even if the first interview hasn&apos;t been scheduled yet.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSecondRoundConfirmation(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmSecondRound}>
+              Proceed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Schedule Interview Dialog */}
       <Dialog open={scheduleInterviewDialogOpen} onOpenChange={setScheduleInterviewDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -1679,6 +1877,95 @@ export default function CandidateDetailPage() {
             </Button>
             <Button onClick={handleScheduleInterview} disabled={schedulingInterview}>
               {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Second Round Interview Dialog */}
+      <Dialog open={scheduleSecondRoundDialogOpen} onOpenChange={setScheduleSecondRoundDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Second Round Interview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Candidate: {candidate?.name}
+              </Label>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Select Date
+              </Label>
+              <CalendarComponent
+                mode="single"
+                selected={secondRoundDate}
+                onSelect={setSecondRoundDate}
+                disabled={(date) => isDateBeforeToday(date)}
+                className="rounded-md border"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Select Time
+              </Label>
+              <div className="flex gap-2">
+                <Select value={secondRoundHour} onValueChange={setSecondRoundHour}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Hour" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                      <SelectItem key={hour} value={hour.toString()}>
+                        {hour}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondRoundMinute} onValueChange={setSecondRoundMinute}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Minute" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="00">00</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={secondRoundAmPm} onValueChange={(value: "AM" | "PM") => setSecondRoundAmPm(value)}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="AM/PM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="second-round-notes" className="text-sm font-medium mb-2 block">
+                Notes (Optional)
+              </Label>
+              <Textarea
+                id="second-round-notes"
+                value={secondRoundNotes}
+                onChange={(e) => setSecondRoundNotes(e.target.value)}
+                placeholder="Add any additional notes about the second round interview..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setScheduleSecondRoundDialogOpen(false)}
+              disabled={schedulingSecondRound}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleScheduleSecondRound} disabled={schedulingSecondRound}>
+              {schedulingSecondRound ? "Scheduling..." : "Schedule Second Round"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,7 +16,8 @@ import {
   MapPin,
   Linkedin,
   Globe,
-  Camera
+  Camera,
+  GraduationCap
 } from "lucide-react";
 import Image from "next/image";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
@@ -24,6 +25,34 @@ import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 
 const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
+const colleges = [
+  "Select College",
+  "Indian Institute of Technology Kanpur (IIT Kanpur)",
+  "Harcourt Butler Technical University (HBTU)",
+  "Chhatrapati Shahu Ji Maharaj University (CSJMU / Kanpur University)",
+  "Rama University",
+  "Pranveer Singh Institute of Technology (PSIT)",
+  "Maharana Pratap Group Of Institutions",
+  "Axis Colleges",
+  "Allenhouse Institute of Technology",
+  "Naraina Group of Institutions",
+  "Krishna Institute of Technology",
+  "Vision Group of Institutions",
+  "Kanpur Institute of Technology (KIT)",
+  "Banshi College of Engineering",
+  "Dr. Gaur Hari Singhania Institute of Management and Research",
+  "Dr Virendra Swarup Institute of Computer Studies (VSICS)",
+  "DAV College",
+  "Christ Church College",
+  "Dayanand Anglo Vedic College",
+  "BNSD Degree College",
+  "PPN Degree College",
+  "DG College",
+  "Brahmanand College",
+  "Jagran College of Arts Science and Commerce",
+  "DAMS Kanpur",
+  "Other"
+];
 const countryCodes = [
   { code: "+91", country: "India", flag: "🇮🇳" },
   { code: "+1", country: "USA/Canada", flag: "🇺🇸" },
@@ -53,6 +82,8 @@ export default function JobApplicationForm() {
     address: "",
     city: "",
     country: "",
+    college: colleges[0],
+    otherCollege: "",
     position: positions[0],
     resume: "",
     photo: "",
@@ -257,6 +288,14 @@ export default function JobApplicationForm() {
       newErrors.address = "Address is required";
     }
 
+    if (!formData.college || formData.college === "Select College") {
+      newErrors.college = "College is required";
+    }
+
+    if (formData.college === "Other" && !formData.otherCollege.trim()) {
+      newErrors.otherCollege = "Please specify your college";
+    }
+
     if (!formData.experience) {
       newErrors.experience = "Experience is required";
     }
@@ -300,6 +339,7 @@ export default function JobApplicationForm() {
       submitData.append("address", formData.address);
       submitData.append("city", formData.city);
       submitData.append("country", formData.country);
+      submitData.append("college", formData.college === "Other" ? formData.otherCollege : formData.college);
       submitData.append("position", formData.position);
       submitData.append("coverLetter", formData.coverLetter);
       submitData.append("linkedin", formData.linkedin);
@@ -337,6 +377,8 @@ export default function JobApplicationForm() {
           address: "",
           city: "",
           country: "",
+          college: colleges[0],
+          otherCollege: "",
           position: positions[0],
           resume: "",
           photo: "",
@@ -686,6 +728,74 @@ export default function JobApplicationForm() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Educational Information Section */}
+            <div className="space-y-4 sm:space-y-5">
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <div className="bg-primary/10 rounded-lg p-1.5">
+                  <GraduationCap className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                  Educational Information
+                </h3>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                  <GraduationCap className="w-3.5 h-3.5 text-muted-foreground" />
+                  College/University <span className="text-destructive">*</span>
+                </label>
+                <select
+                  name="college"
+                  value={formData.college}
+                  onChange={handleChange}
+                  className={`w-full bg-input border ${
+                    errors.college
+                      ? "border-destructive/50"
+                      : "border-transparent"
+                  } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
+                >
+                  {colleges.map((college) => (
+                    <option key={college} value={college}>
+                      {college}
+                    </option>
+                  ))}
+                </select>
+                {errors.college && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.college}
+                  </p>
+                )}
+              </div>
+
+              {formData.college === "Other" && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <GraduationCap className="w-3.5 h-3.5 text-muted-foreground" />
+                    Specify Your College <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="otherCollege"
+                    value={formData.otherCollege}
+                    onChange={handleChange}
+                    placeholder="Enter your college/university name"
+                    className={`w-full bg-input border ${
+                      errors.otherCollege
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all`}
+                  />
+                  {errors.otherCollege && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.otherCollege}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Professional Information Section */}

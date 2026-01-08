@@ -7,7 +7,8 @@ export type CandidateEmailStatus =
   | "shortlisted"
   | "onboarding"
   | "trainingDiscontinued"
-  | "interview";
+  | "interview"
+  | "secondRoundInterview";
 
 export interface SelectionDetails {
   positionType: string;

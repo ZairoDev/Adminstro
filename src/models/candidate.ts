@@ -15,6 +15,7 @@ const CandidateSchema = new Schema(
     linkedin: { type: String },
     portfolio: { type: String },
     resumeUrl: { type: String, required: true },
+    photoUrl: { type: String, required: true },
     status: {
       type: String,
       enum: ["pending", "interview", "shortlisted", "selected", "rejected", "onboarding"],
@@ -34,6 +35,7 @@ const CandidateSchema = new Schema(
         listeningSkills: { type: String, default: null },
         basicProfessionalism: { type: String, default: null },
         stabilitySignals: { type: String, default: null },
+        salaryExpectations: { type: String, default: null },
         hrNotes: { type: String, default: null },
         evaluatedBy: { type: String, default: null },
         evaluatedAt: { type: Date, default: null },
@@ -93,7 +95,10 @@ const CandidateSchema = new Schema(
         bankName: { type: String, default: null },
       },
       documents: {
+        // New fields: front and back of Aadhar card
         aadharCard: { type: String, default: null },
+        aadharCardFront: { type: String, default: null },
+        aadharCardBack: { type: String, default: null },
         panCard: { type: String, default: null },
         highSchoolMarksheet: { type: String, default: null },
         interMarksheet: { type: String, default: null },
@@ -104,6 +109,16 @@ const CandidateSchema = new Schema(
       },
       documentVerification: {
         aadharCard: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        aadharCardFront: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        aadharCardBack: {
           verified: { type: Boolean, default: false },
           verifiedBy: { type: String, default: null },
           verifiedAt: { type: Date, default: null },
@@ -153,6 +168,7 @@ const CandidateSchema = new Schema(
       companies: [
         {
           companyName: { type: String, default: null },
+          yearsInCompany: { type: String, default: null },
           experienceLetter: { type: String, default: null },
           relievingLetter: { type: String, default: null },
           salarySlip: { type: String, default: null },

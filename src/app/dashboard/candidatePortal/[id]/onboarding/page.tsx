@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, AlertCircle, Upload, Loader2, FileText, X, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,8 @@ import axios from "axios";
         bankName: string;
       };
       documents: {
-        aadharCard: string;
+        aadharCardFront: string;
+        aadharCardBack: string;
         panCard: string;
         highSchoolMarksheet: string;
         interMarksheet: string;
@@ -87,7 +88,8 @@ interface UploadedFile {
 }
 
 interface DocumentsState {
-  aadharCard: UploadedFile | null;
+  aadharCardFront: UploadedFile | null;
+  aadharCardBack: UploadedFile | null;
   panCard: UploadedFile | null;
   highSchoolMarksheet: UploadedFile | null;
   interMarksheet: UploadedFile | null;
@@ -97,6 +99,7 @@ interface DocumentsState {
 interface CompanyExperience {
   id: string;
   companyName: string;
+  yearsInCompany: string;
   experienceLetter: UploadedFile | null;
   relievingLetter: UploadedFile | null;
   salarySlip: UploadedFile | null;
@@ -177,7 +180,8 @@ export default function OnboardingPage() {
   });
 
   const [documents, setDocuments] = useState<DocumentsState>({
-    aadharCard: null,
+    aadharCardFront: null,
+    aadharCardBack: null,
     panCard: null,
     highSchoolMarksheet: null,
     interMarksheet: null,
@@ -189,6 +193,7 @@ export default function OnboardingPage() {
     {
       id: Date.now().toString(),
       companyName: "",
+      yearsInCompany: "",
       experienceLetter: null,
       relievingLetter: null,
       salarySlip: null,
@@ -209,6 +214,7 @@ export default function OnboardingPage() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+  const pdfGeneratedRef = useRef(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -230,6 +236,21 @@ export default function OnboardingPage() {
             setBankDetails(
               onboarding.bankDetails || bankDetails
             );
+
+             // Load documents with backward compatibility for aadharCard
+             if (onboarding.documents) {
+              const docs = onboarding.documents;
+              // Handle backward compatibility: if aadharCard exists, use it for front
+              const aadharCard = (docs as any).aadharCard;
+              setDocuments({
+                aadharCardFront: aadharCard ? { url: aadharCard, name: "Aadhar Card" } : (docs.aadharCardFront ? { url: docs.aadharCardFront, name: "Aadhar Card Front" } : null),
+                aadharCardBack: docs.aadharCardBack ? { url: docs.aadharCardBack, name: "Aadhar Card Back" } : null,
+                panCard: docs.panCard ? { url: docs.panCard, name: "PAN Card" } : null,
+                highSchoolMarksheet: docs.highSchoolMarksheet ? { url: docs.highSchoolMarksheet, name: "High School Marksheet" } : null,
+                interMarksheet: docs.interMarksheet ? { url: docs.interMarksheet, name: "Intermediate Marksheet" } : null,
+                graduationMarksheet: docs.graduationMarksheet ? { url: docs.graduationMarksheet, name: "Graduation Marksheet" } : null,
+              });
+            }
             
             // Load experience data if available
             if (onboarding.yearsOfExperience) {
@@ -241,6 +262,7 @@ export default function OnboardingPage() {
                 onboarding.companies.map((company: any, index: number) => ({
                   id: Date.now().toString() + index,
                   companyName: company.companyName || "",
+                  yearsInCompany: company.yearsInCompany || "",
                   experienceLetter: company.experienceLetter
                     ? { url: company.experienceLetter, name: "Experience Letter" }
                     : null,
@@ -293,6 +315,35 @@ export default function OnboardingPage() {
       fetchCandidate();
     }
   }, [candidateId]);
+
+   // Auto-generate and open PDF preview when component loads (if not already signed)
+   useEffect(() => {
+    if (!loading && candidate && !pdfGeneratedRef.current) {
+      // If signed PDF exists, open it automatically
+      if (candidate.onboardingDetails?.signedPdfUrl) {
+        setSignedPdfUrl(candidate.onboardingDetails.signedPdfUrl);
+        setShowPdfPreview(true);
+        pdfGeneratedRef.current = true;
+      } 
+      // Otherwise, generate unsigned PDF
+      else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl) {
+        pdfGeneratedRef.current = true;
+        // Auto-generate PDF after a short delay to ensure all data is loaded
+        const timer = setTimeout(() => {
+          generateUnsignedPdf();
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, candidate]);
+
+  // Auto-open PDF preview dialog when PDF is generated
+  useEffect(() => {
+    if ((unsignedPdfUrl || signedPdfUrl) && !showPdfPreview && !loading) {
+      setShowPdfPreview(true);
+    }
+  }, [unsignedPdfUrl, signedPdfUrl, loading]);
+
 
   const handleDocumentChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -410,6 +461,7 @@ export default function OnboardingPage() {
       {
         id: Date.now().toString(),
         companyName: "",
+        yearsInCompany: "",
         experienceLetter: null,
         relievingLetter: null,
         salarySlip: null,
@@ -514,8 +566,12 @@ export default function OnboardingPage() {
       setError("Please fill all bank details");
       return false;
     }
-    if (!documents.aadharCard) {
-      setError("Please upload Aadhar card");
+    if (!documents.aadharCardFront) {
+      setError("Please upload Aadhar card front");
+      return false;
+    }
+    if (!documents.aadharCardBack) {
+      setError("Please upload Aadhar card back");
       return false;
     }
     if (!documents.panCard) {
@@ -544,6 +600,11 @@ export default function OnboardingPage() {
       for (const company of companies) {
         if (!company.companyName || company.companyName.trim() === "") {
           setError("Please fill company name for all companies");
+          return false;
+        }
+
+        if (!company.yearsInCompany || company.yearsInCompany.trim() === "") {
+          setError("Please fill years of experience for all companies");
           return false;
         }
         if (!company.hrPhone || company.hrPhone.trim() === "") {
@@ -727,7 +788,8 @@ export default function OnboardingPage() {
       formData.append("personalDetails", JSON.stringify(personalDetails));
       formData.append("bankDetails", JSON.stringify(bankDetails));
 
-      formData.append("aadharCard", documents.aadharCard?.url || "");
+      formData.append("aadharCardFront", documents.aadharCardFront?.url || "");
+      formData.append("aadharCardBack", documents.aadharCardBack?.url || "");
       formData.append("panCard", documents.panCard?.url || "");
       formData.append(
         "highSchoolMarksheet",
@@ -1276,8 +1338,93 @@ export default function OnboardingPage() {
               </h2>
             </div>
             <div className="space-y-4">
+                            {/* Aadhar Card Front */}
+                            <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground items-center gap-2">
+                  Aadhar Card - Front
+                  <span className="text-red-500">*</span>
+                  {uploadingFiles.has("aadharCardFront") && (
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  )}
+                </label>
+                <div className="relative">
+                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                    <div className="flex items-center gap-2 text-foreground">
+                      {documents.aadharCardFront ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            {documents.aadharCardFront.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">
+                            Click to upload or drag and drop
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        handleDocumentChange(e, "aadharCardFront")
+                      }
+                      className="hidden"
+                      disabled={uploadingFiles.has("aadharCardFront")}
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Aadhar Card Back */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground items-center gap-2">
+                  Aadhar Card - Back
+                  <span className="text-red-500">*</span>
+                  {uploadingFiles.has("aadharCardBack") && (
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  )}
+                </label>
+                <div className="relative">
+                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                    <div className="flex items-center gap-2 text-foreground">
+                      {documents.aadharCardBack ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            {documents.aadharCardBack.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">
+                            Click to upload or drag and drop
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        handleDocumentChange(e, "aadharCardBack")
+                      }
+                      className="hidden"
+                      disabled={uploadingFiles.has("aadharCardBack")}
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Other Documents */}
               {[
-                { key: "aadharCard", label: "Aadhar Card" },
+               
                 { key: "panCard", label: "PAN Card" },
                 { key: "highSchoolMarksheet", label: "High School Marksheet" },
                 { key: "interMarksheet", label: "Intermediate Marksheet" },
@@ -1366,6 +1513,7 @@ export default function OnboardingPage() {
                       {
                         id: Date.now().toString(),
                         companyName: "",
+                        yearsInCompany: "",
                         experienceLetter: null,
                         relievingLetter: null,
                         salarySlip: null,
@@ -1428,6 +1576,27 @@ export default function OnboardingPage() {
                             })
                           }
                           required
+                        />
+                      </div>
+
+                       {/* Years in Company */}
+                       <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Years of Experience in this Company <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 2.5"
+                          value={company.yearsInCompany}
+                          onChange={(e) =>
+                            updateCompany(company.id, {
+                              yearsInCompany: e.target.value,
+                            })
+                          }
+                          min="0"
+                          step="0.1"
+                          required
+                          className="max-w-xs"
                         />
                       </div>
 
@@ -1627,7 +1796,7 @@ export default function OnboardingPage() {
               <p className="text-sm text-muted-foreground">
                 Preview and download the unsigned onboarding document before accepting terms and conditions. The document contains blank signature placeholders where signatures can be made.
               </p>
-              <div className="flex gap-2">
+              {/* <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -1647,7 +1816,7 @@ export default function OnboardingPage() {
                     </>
                   )}
                 </Button>
-                {/* CRITICAL: Show download button for signed PDF if available, otherwise unsigned */}
+             
                 {(signedPdfUrl || unsignedPdfUrl) && (
                   <>
                     <Button
@@ -1681,9 +1850,41 @@ export default function OnboardingPage() {
                     </Button>
                   </>
                 )}
-              </div>
-              {/* CRITICAL: Always prioritize signed PDF over unsigned PDF */}
-              {/* Once a document is signed, the signed version is authoritative */}
+              </div> */}
+              {(signedPdfUrl || unsignedPdfUrl) && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const url = signedPdfUrl || unsignedPdfUrl;
+                      if (!url) return;
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = signedPdfUrl
+                        ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
+                        : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download {signedPdfUrl ? "Signed PDF" : "PDF"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowPdfPreview(true)}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Full Screen
+                  </Button>
+                </div>
+              )}
+       
               {(signedPdfUrl || unsignedPdfUrl) && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
                   <iframe

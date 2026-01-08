@@ -1,13 +1,14 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Check, AlertCircle, Loader2, FileText } from "lucide-react";
+import { Check, AlertCircle, Loader2, FileText, Eye, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import axios from "axios";
@@ -56,17 +57,17 @@ function base64ToFile(base64: string, filename: string): File {
 }
 
 const LoadingSkeleton = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4 md:p-8 flex items-center justify-center">
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
     <div className="w-full max-w-4xl space-y-6">
       <div className="text-center space-y-4">
-        <div className="h-10 bg-gray-200 rounded-lg w-3/4 mx-auto animate-pulse" />
-        <div className="h-4 bg-gray-100 rounded w-2/3 mx-auto animate-pulse" />
+      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg w-3/4 mx-auto animate-pulse" />
+      <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-2/3 mx-auto animate-pulse" />
       </div>
-      <div className="space-y-3 p-6 bg-white rounded-lg border border-gray-100 animate-pulse">
-        <div className="h-6 bg-gray-200 rounded w-1/4" />
+      <div className="space-y-3 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 animate-pulse">
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
         <div className="space-y-2">
-          <div className="h-4 bg-gray-100 rounded w-full" />
-          <div className="h-4 bg-gray-100 rounded w-full" />
+        <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
+        <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
         </div>
       </div>
     </div>
@@ -90,6 +91,15 @@ export default function TrainingAgreementPage() {
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
   const [showSignaturePreview, setShowSignaturePreview] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
+  const [useDigitalSignature, setUseDigitalSignature] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [unsignedPdfUrl, setUnsignedPdfUrl] = useState<string | null>(null);
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const previousThemeRef = useRef<string | undefined>(undefined);
+  const pdfGeneratedRef = useRef(false);
+  const pdfAutoOpenedRef = useRef(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -99,6 +109,11 @@ export default function TrainingAgreementPage() {
 
         if (result.success) {
           setCandidate(result.data);
+           // Load signed PDF if available
+           if (result.data.trainingAgreementDetails?.signedPdfUrl) {
+            setSignedPdfUrl(result.data.trainingAgreementDetails.signedPdfUrl);
+            setUnsignedPdfUrl(null);
+          }
         } else {
           setError("Failed to load candidate information");
         }
@@ -114,6 +129,95 @@ export default function TrainingAgreementPage() {
       fetchCandidate();
     }
   }, [candidateId]);
+
+  const generateUnsignedPdf = async () => {
+    if (!candidate) return;
+    
+    // DEFENSIVE CHECK: If document is already signed, don't generate unsigned PDF
+    if (candidate.trainingAgreementDetails?.signedPdfUrl || signedPdfUrl) {
+      toast({
+        title: "Document Already Signed",
+        description: "This document has already been signed. Please use the signed PDF.",
+        variant: "destructive",
+      });
+      // Load signed PDF if available
+      if (candidate.trainingAgreementDetails?.signedPdfUrl) {
+        setSignedPdfUrl(candidate.trainingAgreementDetails.signedPdfUrl);
+        setShowPdfPreview(true);
+      }
+      return;
+    }
+    
+    setGeneratingPdf(true);
+    try {
+      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const agreementPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: agreementDate,
+        // No signature for unsigned PDF
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/trainingAgreement",
+        agreementPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setUnsignedPdfUrl(url);
+    } catch (error: any) {
+      console.error("Error generating unsigned PDF:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF preview",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  // Auto-generate unsigned PDF when component loads (if not already signed)
+  useEffect(() => {
+    if (!loading && candidate && !pdfGeneratedRef.current) {
+      // If signed PDF exists, open it automatically
+      if (candidate.trainingAgreementDetails?.signedPdfUrl) {
+        setSignedPdfUrl(candidate.trainingAgreementDetails.signedPdfUrl);
+        setShowPdfPreview(true);
+        pdfGeneratedRef.current = true;
+      } 
+      // Otherwise, generate unsigned PDF
+      else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl && candidate.name && candidate.position) {
+        pdfGeneratedRef.current = true;
+        // Auto-generate PDF after a short delay to ensure all data is loaded
+        const timer = setTimeout(() => {
+          generateUnsignedPdf();
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, candidate]);
+
+  // Auto-open PDF preview dialog when PDF is generated (only once)
+  useEffect(() => {
+    if ((unsignedPdfUrl || signedPdfUrl) && !showPdfPreview && !loading && !pdfAutoOpenedRef.current) {
+      // Small delay to ensure PDF is fully loaded
+      const timer = setTimeout(() => {
+        setShowPdfPreview(true);
+        pdfAutoOpenedRef.current = true;
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [unsignedPdfUrl, signedPdfUrl, loading]);
+
 
   const handleSignatureCapture = (signatureUrl: string) => {
     setPreviewSignature(signatureUrl);
@@ -183,8 +287,61 @@ export default function TrainingAgreementPage() {
     setShowSignaturePreview(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const file = files[0];
+    e.target.value = "";
+
+    try {
+      setUploadingSignature(true);
+
+      const { imageUrls, error } = await uploadFiles(
+        [file],
+        "Documents/Signatures"
+      );
+
+      if (error || !imageUrls?.length) {
+        toast({
+          title: "Upload failed",
+          description: error || "Failed to upload signature",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSignature({
+        url: imageUrls[0],
+        name: file.name,
+      });
+
+      toast({
+        title: "Signature uploaded",
+        description: "Your signature has been uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading signature:", error);
+      toast({
+        title: "Upload failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingSignature(false);
+    }
+  };
+
+  const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
+    // Show confirmation dialog before submitting
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    setShowConfirmDialog(false);
     setError(null);
     setSubmitting(true);
 
@@ -206,7 +363,7 @@ export default function TrainingAgreementPage() {
         signatureBase64: signature.url,
       };
 
-      // Request PDF from API
+      // Request signed PDF from API
       const pdfResponse = await axios.post(
         "/api/candidates/trainingAgreement",
         agreementPayload,
@@ -221,15 +378,21 @@ export default function TrainingAgreementPage() {
         type: "application/pdf",
       });
 
-      // Download PDF for user
-      const url = URL.createObjectURL(pdfBlob);
+     // Store signed PDF URL for preview
+     const signedUrl = URL.createObjectURL(pdfBlob);
+     setSignedPdfUrl(signedUrl);
+     setUnsignedPdfUrl(null); // Clear unsigned PDF when signed PDF exists
+     setShowPdfPreview(true);
+
+     // Download signed PDF for user
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `Pre-Employment-Training-Agreement-${candidateId}.pdf`;
+      a.href = signedUrl;
+      a.download = `Pre-Employment-Training-Agreement-${candidateId}-Signed.pdf`;
+   
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // URL.revokeObjectURL(url);
 
       // Upload signed PDF to BunnyCDN
       const pdfFile = new File(
@@ -274,9 +437,10 @@ export default function TrainingAgreementPage() {
         description: "Training agreement signed and submitted successfully",
       });
 
-      setTimeout(() => {
-        router.push(`/dashboard/candidatePortal/${candidateId}`);
-      }, 2000);
+      // setTimeout(() => {
+      //   router.push(`/dashboard/candidatePortal/${candidateId}`);
+      // }, 2000);
+      setSubmitting(false);
     } catch (err: any) {
       console.error("Error submitting training agreement:", err);
       setError(err.response?.data?.error || err.message);
@@ -296,10 +460,10 @@ export default function TrainingAgreementPage() {
 
   if (!candidate || candidate.status !== "selected") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-8 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <Card className="p-8 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
             <p className="text-lg font-semibold text-foreground mb-2">
               Access Denied
             </p>
@@ -312,33 +476,33 @@ export default function TrainingAgreementPage() {
     );
   }
 
-  if (candidate.trainingAgreementDetails?.agreementComplete) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-8 text-center">
-            <Check className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <p className="text-lg font-semibold text-foreground mb-2">
-              Training Agreement Already Signed
-            </p>
-            <p className="text-muted-foreground mb-4">
-              You have already signed the training agreement.
-            </p>
-            <Button onClick={() => router.push(`/dashboard/candidatePortal/${candidateId}`)}>
-              Go Back
-            </Button>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // if (candidate.trainingAgreementDetails?.agreementComplete) {
+  //   return (
+  //     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-8">
+  //       <div className="max-w-4xl mx-auto">
+  //         <Card className="p-8 text-center">
+  //           <Check className="w-12 h-12 text-green-500 mx-auto mb-4" />
+  //           <p className="text-lg font-semibold text-foreground mb-2">
+  //             Training Agreement Already Signed
+  //           </p>
+  //           <p className="text-muted-foreground mb-4">
+  //             You have already signed the training agreement.
+  //           </p>
+  //           <Button onClick={() => router.push(`/dashboard/candidatePortal/${candidateId}`)}>
+  //             Go Back
+  //           </Button>
+  //         </Card>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4 md:p-8 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-3">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent mb-3">
             Pre-Employment Training Agreement
           </h1>
           <p className="text-lg text-muted-foreground">
@@ -348,13 +512,13 @@ export default function TrainingAgreementPage() {
 
         {/* Success Message */}
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-lg flex items-center gap-3 shadow-sm">
-            <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
+            <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-green-800">
+              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
                 Training agreement signed successfully!
               </p>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-green-700 dark:text-green-400">
                 Redirecting to dashboard...
               </p>
             </div>
@@ -363,20 +527,20 @@ export default function TrainingAgreementPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-300 rounded-lg flex items-start gap-3 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-red-800">Error</p>
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
+              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
           {/* Candidate Information */}
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm">
+          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/10 dark:to-blue-800/10 border-blue-200 dark:border-blue-700 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+              <div className="w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
                 1
               </div>
               <h2 className="text-lg font-semibold text-foreground">
@@ -411,10 +575,102 @@ export default function TrainingAgreementPage() {
             </div>
           </Card>
 
-          {/* Training Agreement Content Preview */}
-          <Card className="p-6 shadow-sm">
+          {/* PDF Preview Section */}
+          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
-              <FileText className="w-5 h-5 text-blue-600" />
+              <div className="w-8 h-8 rounded-full bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center text-sm font-semibold">
+                2
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Training Agreement Document Preview
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Preview and download the unsigned training agreement document before signing. The document contains blank signature placeholders where signatures can be made.
+              </p>
+              
+              {generatingPdf && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Generating PDF preview...</p>
+                  </div>
+                </div>
+              )}
+
+              {!generatingPdf && !unsignedPdfUrl && !signedPdfUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={generateUnsignedPdf}
+                  className="w-full dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate PDF Preview
+                </Button>
+              )}
+
+              {/* CRITICAL: Show download button for signed PDF if available, otherwise unsigned */}
+              {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const url = signedPdfUrl || unsignedPdfUrl;
+                      if (!url) return;
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = signedPdfUrl
+                        ? `Pre-Employment-Training-Agreement-${candidateId}-Signed.pdf`
+                        : `Pre-Employment-Training-Agreement-${candidateId}-Unsigned.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download {signedPdfUrl ? "Signed PDF" : "PDF"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowPdfPreview(true)}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Full Screen
+                  </Button>
+                </div>
+              )}
+              {/* CRITICAL: Always prioritize signed PDF over unsigned PDF */}
+              {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
+                <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  <iframe
+                    src={signedPdfUrl || unsignedPdfUrl || ""}
+                    className="w-full h-[500px] border-0"
+                    title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
+                  />
+                </div>
+              )}
+              
+              {!generatingPdf && !unsignedPdfUrl && !signedPdfUrl && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">PDF preview will appear here</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Training Agreement Content Preview */}
+          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h2 className="text-lg font-semibold text-foreground">
                 Training Agreement Terms
               </h2>
@@ -436,57 +692,151 @@ export default function TrainingAgreementPage() {
           </Card>
 
           {/* Digital Signature */}
-          <Card className="p-6 shadow-sm">
+          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                2
+              <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
+                3
               </div>
               <h2 className="text-lg font-semibold text-foreground">
-                Digital Signature
+                E Signature
               </h2>
             </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {useDigitalSignature
+                ? "Draw your signature below."
+                : "Upload an image of your signature."}
+            </p>
+
+            {/* Signature Mode Switch */}
+            <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setUseDigitalSignature(true);
+                  setShowSignaturePad(false);
+                }}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  useDigitalSignature
+                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                    : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                Digital Signature
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUseDigitalSignature(false)}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  !useDigitalSignature
+                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                    : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                Upload Signature
+              </button>
+            </div>
+
             <div className="space-y-3">
-              {!showSignaturePad ? (
-                signature ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <img
-                      src={signature.url || "/placeholder.svg"}
-                      alt="Digital signature preview"
-                      className="w-full max-h-40 object-contain"
-                    />
+            {useDigitalSignature ? (
+                !showSignaturePad ? (
+                  signature ? (
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                      <img
+                        src={signature.url || "/placeholder.svg"}
+                        alt="Digital signature preview"
+                        className="w-full max-h-40 object-contain"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSignature(null);
+                          setShowSignaturePad(true);
+                        }}
+                        className="w-full mt-3 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        Redraw Signature
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => setShowSignaturePad(true)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                    >
+                      Start Drawing Signature
+                    </Button>
+                  )
+                ) : (
+                  <>
+                    <SignaturePad onSignatureCapture={handleSignatureCapture} />
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        setSignature(null);
-                        setShowSignaturePad(true);
-                      }}
-                      className="w-full mt-3"
+                      onClick={cancelSignaturePad}
+                      className="w-full bg-transparent dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
-                      Redraw Signature
+                      Cancel
                     </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={() => setShowSignaturePad(true)}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    Start Drawing Signature
-                  </Button>
+                  </>
                 )
               ) : (
-                <>
-                  <SignaturePad onSignatureCapture={handleSignatureCapture} />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={cancelSignaturePad}
-                    className="w-full bg-transparent"
-                  >
-                    Cancel
-                  </Button>
-                </>
+                /* Upload Signature */
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Upload Signature
+                  </label>
+
+                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                    <div className="flex items-center gap-2 text-foreground">
+                      {signature ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            {signature.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">
+                            {uploadingSignature ? "Uploading..." : "Click to upload signature"}
+                          </span>
+                        </>
+                      )}
+                      {uploadingSignature && (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleSignatureUpload}
+                      className="hidden"
+                      disabled={uploadingSignature}
+                      required={!signature}
+                    />
+                  </label>
+                  {signature && (
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                      <img
+                        src={signature.url || "/placeholder.svg"}
+                        alt="Uploaded signature preview"
+                        className="w-full max-h-40 object-contain"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSignature(null)}
+                        className="w-full mt-3 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        Remove Signature
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </Card>
@@ -495,11 +845,16 @@ export default function TrainingAgreementPage() {
           <div className="flex gap-4">
             <Button
               type="submit"
-              disabled={submitting || !signature || uploadingSignature}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+             disabled={submitting || !signature || uploadingSignature || success}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
               size="lg"
             >
-              {submitting ? (
+              {success ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Agreement Submitted Successfully
+                </>
+              ) : submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Submitting...
@@ -524,6 +879,114 @@ export default function TrainingAgreementPage() {
             setPreviewSignature(null);
           }}
         />
+
+
+        {/* Confirmation Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="bg-white dark:bg-gray-800">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">Confirm Submission</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Are you sure that you have read all the terms and conditions properly and correctly filled everything and want to submit?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={submitting}
+                className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={submitting}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Yes, Submit"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* PDF Preview Dialog */}
+        <Dialog 
+          open={showPdfPreview} 
+          onOpenChange={(open) => {
+            setShowPdfPreview(open);
+            if (!open) {
+              // Reset auto-opened flag when manually closed so it can be reopened if needed
+              pdfAutoOpenedRef.current = false;
+            }
+          }}
+        >
+          <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">
+                {signedPdfUrl ? "Signed Training Agreement Document" : "Training Agreement Document Preview"}
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                {signedPdfUrl 
+                  ? "Your signed training agreement document. This will be saved after submission."
+                  : "Preview of the unsigned training agreement document. Please review before signing."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+              {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
+              {(signedPdfUrl || unsignedPdfUrl) && (
+                <iframe
+                  src={signedPdfUrl || unsignedPdfUrl || ""}
+                  className="w-full h-[70vh] border-0"
+                  title={signedPdfUrl ? "Signed Training Agreement Document" : "Training Agreement Document Preview"}
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              {(unsignedPdfUrl || signedPdfUrl) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const url = signedPdfUrl || unsignedPdfUrl;
+                    if (!url) return;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = signedPdfUrl 
+                      ? `Pre-Employment-Training-Agreement-${candidateId}-Signed.pdf`
+                      : `Pre-Employment-Training-Agreement-${candidateId}-Unsigned.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                  className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowPdfPreview(false);
+                  pdfAutoOpenedRef.current = false;
+                }}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

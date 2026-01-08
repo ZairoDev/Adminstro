@@ -230,6 +230,7 @@ const publicRoutes = [
   "/application-form",
   "/zipl.pdf",
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
+  /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
 ];
 
 export async function middleware(request: NextRequest) {

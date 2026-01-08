@@ -21,8 +21,12 @@ export default function DashboardLayout({
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const isOnboarding = pathname.includes("/onboarding");
+  const isTrainingAgreement = pathname.includes("/training-agreement");
   
   if (isOnboarding) {
+    return <main className="min-h-screen bg-background">{children}</main>;
+  }
+  if(isTrainingAgreement) {
     return <main className="min-h-screen bg-background">{children}</main>;
   }
   return (

@@ -35,7 +35,6 @@ export async function POST(
         // Remove frontend-only 'id' field and ensure proper structure
         companies = companies.map((company: any) => ({
           companyName: company.companyName || null,
-          yearsInCompany: company.yearsInCompany || null,
           experienceLetter: company.experienceLetter?.url || company.experienceLetter || null,
           relievingLetter: company.relievingLetter?.url || company.relievingLetter || null,
           salarySlip: company.salarySlip?.url || company.salarySlip || null,
@@ -57,9 +56,7 @@ export async function POST(
     }
 
     const documents = {
-      // Handle backward compatibility: if aadharCardFront/Back exist, use them; otherwise fall back to aadharCard
-      aadharCardFront: formData.get("aadharCardFront") || formData.get("aadharCard") || null,
-      aadharCardBack: formData.get("aadharCardBack") || null,
+      aadharCard: formData.get("aadharCard") || null,
       panCard: formData.get("panCard") || null,
       highSchoolMarksheet: formData.get("highSchoolMarksheet") || null,
       interMarksheet: formData.get("interMarksheet") || null,

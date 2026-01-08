@@ -49,8 +49,11 @@ export async function GET(
 
     const { conversationId } = params;
     const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "20"); // Default to last 20 messages
-    const before = searchParams.get("before"); // Cursor: load messages before this timestamp
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const before = searchParams.get("before"); // For pagination by timestamp
+
+    const skip = (page - 1) * limit;
 
     // Build query
     const query: any = { conversationId };
@@ -59,27 +62,21 @@ export async function GET(
       query.timestamp = { $lt: new Date(before) };
     }
 
-    // Fetch messages sorted by newest first, then use cursor-based pagination
-    const rawMessages = await WhatsAppMessage.find(query)
-      .sort({ timestamp: -1 })
-      .limit(limit + 1) // Fetch one extra to determine if there are more
-      .lean();
-
-    const hasMore = rawMessages.length > limit;
-    const pageMessages = hasMore ? rawMessages.slice(0, limit) : rawMessages;
+    const [rawMessages, total] = await Promise.all([
+      WhatsAppMessage.find(query)
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      WhatsAppMessage.countDocuments({ conversationId }),
+    ]);
 
     // Transform messages to include displayText for frontend compatibility
-    const messages = pageMessages.map((msg: any) => ({
+    const messages = rawMessages.map((msg: any) => ({
       ...msg,
       // Add displayText for frontend to use
       displayText: getDisplayText(msg.content, msg.type),
     }));
-
-    // Determine cursor for loading older messages (earliest message in this batch)
-    const nextBefore =
-      pageMessages.length > 0
-        ? new Date(pageMessages[pageMessages.length - 1].timestamp).toISOString()
-        : null;
 
     // Mark conversation as read (reset unread count)
     await WhatsAppConversation.findByIdAndUpdate(conversationId, {
@@ -88,12 +85,13 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      // Return in chronological order (oldest at top for rendering)
-      messages: messages.reverse(),
+      messages: messages.reverse(), // Return in chronological order
       pagination: {
+        page,
         limit,
-        hasMore,
-        nextBefore,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + rawMessages.length < total,
       },
     });
   } catch (error: any) {

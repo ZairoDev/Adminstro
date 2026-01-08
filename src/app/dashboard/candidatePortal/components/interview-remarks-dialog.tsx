@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -25,7 +24,6 @@ interface InterviewRemarks {
   listeningSkills?: string;
   basicProfessionalism?: string;
   stabilitySignals?: string;
-  salaryExpectations?: string;
   hrNotes?: string;
   evaluatedBy?: string;
   evaluatedAt?: string;
@@ -131,7 +129,6 @@ export function InterviewRemarksDialog({
     listeningSkills: "",
     basicProfessionalism: "",
     stabilitySignals: "",
-    salaryExpectations: "",
     hrNotes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -148,7 +145,6 @@ export function InterviewRemarksDialog({
         listeningSkills: existingRemarks.listeningSkills || "",
         basicProfessionalism: existingRemarks.basicProfessionalism || "",
         stabilitySignals: existingRemarks.stabilitySignals || "",
-        salaryExpectations: existingRemarks.salaryExpectations || "",
         hrNotes: existingRemarks.hrNotes || "",
       });
       setCharacterCount(existingRemarks.hrNotes?.length || 0);
@@ -162,7 +158,6 @@ export function InterviewRemarksDialog({
         listeningSkills: "",
         basicProfessionalism: "",
         stabilitySignals: "",
-        salaryExpectations: "",
         hrNotes: "",
       });
       setCharacterCount(0);
@@ -200,7 +195,6 @@ export function InterviewRemarksDialog({
           listeningSkills: formData.listeningSkills,
           basicProfessionalism: formData.basicProfessionalism,
           stabilitySignals: formData.stabilitySignals,
-          salaryExpectations: formData.salaryExpectations || undefined,
           hrNotes: formData.hrNotes || undefined,
         }),
       });
@@ -270,22 +264,6 @@ export function InterviewRemarksDialog({
               </RadioGroup>
             </div>
           ))}
-
-          {/* Salary Expectations */}
-          <div className="space-y-2">
-            <Label htmlFor="salaryExpectations" className="text-sm font-semibold text-foreground">
-              Salary Expectations
-            </Label>
-            <Input
-              id="salaryExpectations"
-              value={formData.salaryExpectations}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, salaryExpectations: e.target.value }))
-              }
-              placeholder="e.g., ₹30,000 - ₹40,000 per month or Negotiable"
-              className="w-full"
-            />
-          </div>
 
           {/* HR Notes */}
           <div className="space-y-2">

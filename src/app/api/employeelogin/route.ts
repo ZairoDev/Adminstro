@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
-import { getSessionExpiryTimestamp } from "@/util/sessionExpiry";
 
 connectDb();
 
@@ -85,13 +84,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           });
         }
 
-        // Calculate session expiry based on 11:00 PM IST (testing)
-        const expiresAt = getSessionExpiryTimestamp();
-        const now = Math.floor(Date.now() / 1000);
-        const expiresInSeconds = expiresAt - now;
-
-        console.log(`🔐 Login: ${temp.email} - Session expires at ${new Date(expiresAt * 1000).toISOString()} (${expiresInSeconds}s from now)`);
-
         const token = jwt.sign(
           {
             id: temp._id,
@@ -101,10 +93,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             allotedArea: temp.allotedArea,
           },
           process.env.TOKEN_SECRET as string,
-          { expiresIn: expiresInSeconds }
+          { expiresIn: "2d" }
         );
 
-        const response = NextResponse.json(
+        return NextResponse.json(
           {
             message: "Login successful",
             otpRequired: false,
@@ -119,16 +111,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
           { status: 200 }
         );
-
-        // Set secure HttpOnly cookie
-        response.cookies.set("token", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          expires: new Date(expiresAt * 1000),
-        });
-
-        return response;
       }
       await sendEmail({
         email,
@@ -179,15 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       allotedArea: temp.allotedArea,
     };
 
-    // Calculate session expiry based on 11:00 PM IST (testing)
-    const expiresAt = getSessionExpiryTimestamp();
-    const now = Math.floor(Date.now() / 1000);
-    const expiresInSeconds = expiresAt - now;
-
-    console.log(`🔐 Login: ${temp.email} - Session expires at ${new Date(expiresAt * 1000).toISOString()} (${expiresInSeconds}s from now)`);
-
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
-      expiresIn: expiresInSeconds,
+      expiresIn: "2d",
     });
 
     const response = NextResponse.json({
@@ -197,12 +172,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tokenData: tokenData,
     });
 
-    // Set secure HttpOnly cookie with sameSite: strict
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      expires: new Date(expiresAt * 1000),
     });
 
     return response;

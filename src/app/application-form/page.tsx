@@ -16,7 +16,6 @@ import {
   MapPin,
   Linkedin,
   Globe,
-  Camera,
 } from "lucide-react";
 import Image from "next/image";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
@@ -43,7 +42,6 @@ export default function JobApplicationForm() {
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resume, setResume] = useState<File | null>(null);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -55,7 +53,6 @@ export default function JobApplicationForm() {
     country: "",
     position: positions[0],
     resume: "",
-    photo: "",
     coverLetter: "",
     linkedin: "",
     portfolio: "",
@@ -137,93 +134,6 @@ export default function JobApplicationForm() {
     setFormData({ ...formData, resume: "" });
   };
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      console.log("No file selected");
-      return;
-    }
-
-    const file = files[0];
-
-    // Validate image type
-    if (!file.type.startsWith("image/")) {
-      setErrors({ ...errors, photo: "Please upload an image file" });
-      return;
-    }
-
-    // Validate image types (jpeg, png, webp)
-    if (
-      !(
-        file.type === "image/jpeg" ||
-        file.type === "image/jpg" ||
-        file.type === "image/png" ||
-        file.type === "image/webp"
-      )
-    ) {
-      setErrors({
-        ...errors,
-        photo: "Please upload a JPEG, PNG, or WebP image",
-      });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors({
-        ...errors,
-        photo: "File size must be less than 5MB",
-      });
-      return;
-    }
-
-    e.target.value = ""; // reset input
-
-    try {
-      setLoading(true);
-      console.log("Uploading photo to Bunny...");
-
-      const { imageUrls, error } = await uploadFiles([file], "Photos");
-
-      if (error || !imageUrls?.length) {
-        console.error("Upload failed:", error);
-        toast({
-          title: "Upload failed",
-          description: error || "No URL returned from Bunny.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Success — store Bunny URL in form data
-      const photoUrl = imageUrls[0] || "";
-      console.log("Photo uploaded successfully:", photoUrl);
-
-      setFormData({ ...formData, photo: photoUrl }); // store URL instead of file
-      setPhoto(file);
-      setErrors({ ...errors, photo: "" });
-
-      toast({
-        title: "Photo uploaded successfully",
-        description: "Your photo has been uploaded.",
-      });
-    } catch (err) {
-      console.error("Photo upload error:", err);
-      toast({
-        title: "Upload failed",
-        description: "An unexpected error occurred while uploading.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removePhoto = () => {
-    setFormData({ ...formData, photo: "" });
-    setPhoto(null);
-  };
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -261,10 +171,6 @@ export default function JobApplicationForm() {
 
     if (!formData.resume) {
       newErrors.resume = "Resume is required";
-    }
-
-    if (!formData.photo) {
-      newErrors.photo = "Personal photograph is required";
     }
 
     if (formData.linkedin && !formData.linkedin.includes("linkedin.com")) {
@@ -305,9 +211,6 @@ export default function JobApplicationForm() {
       if (formData.resume) {
         submitData.append("resume", formData.resume);
       }
-      if (formData.photo) {
-        submitData.append("photo", formData.photo);
-      }
 
       // const response = await fetch("/api/job-application/setInterview", {
       //   method: "POST",
@@ -336,13 +239,11 @@ export default function JobApplicationForm() {
           country: "",
           position: positions[0],
           resume: "",
-          photo: "",
           coverLetter: "",
           linkedin: "",
           portfolio: "",
         });
         setResume(null);
-        setPhoto(null);
       }, 5000);
     } catch (error) {
       setSubmitError(
@@ -441,76 +342,6 @@ export default function JobApplicationForm() {
 
             {/* Personal Information Section */}
             <div className="space-y-4 sm:space-y-5">
-
-
-            <div className="space-y-2">
-                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
-                  <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-                  Personal Photograph <span className="text-destructive">*</span>
-                </label>
-                <p className="text-xs text-muted-foreground mb-2">
-                Please upload a clear, professional headshot with your face clearly visible.
-                </p>
-                {!formData.photo ? (
-                  <label
-                    className={`relative border-2 ${
-                      errors.photo
-                        ? "border-destructive/30 bg-destructive/5"
-                        : "border-dashed border-border"
-                    } rounded-xl px-4 py-8 sm:py-10 cursor-pointer transition-all hover:border-primary/50 hover:bg-accent bg-input block`}
-                  >
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="bg-primary/10 rounded-xl p-3 mb-3">
-                        <Camera className="w-6 h-6 text-primary" />
-                      </div>
-                      <span className="text-foreground font-medium text-sm mb-1">
-                        Click to upload your photograph
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        JPEG, PNG, WebP (Max 5MB)
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                  </label>
-                ) : (
-                  <div className="border border-primary/30 bg-primary/5 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="bg-primary/10 rounded-lg p-2 flex-shrink-0">
-                        <Camera className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-foreground text-sm truncate">
-                          {photo?.name || "Photo uploaded"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {photo?.size
-                            ? (photo.size / 1024).toFixed(1)
-                            : "N/A"}{" "}
-                          KB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removePhoto}
-                      className="ml-2 p-2 rounded-lg hover:bg-destructive/10 transition-colors flex-shrink-0"
-                    >
-                      <X className="w-4 h-4 text-destructive" />
-                    </button>
-                  </div>
-                )}
-                {errors.photo && (
-                  <p className="text-destructive text-xs flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {errors.photo}
-                  </p>
-                )}
-              </div>
               <div className="flex items-center gap-2 pb-2 border-b border-border">
                 <div className="bg-primary/10 rounded-lg p-1.5">
                   <User className="w-4 h-4 text-primary" />
@@ -685,7 +516,6 @@ export default function JobApplicationForm() {
                   </p>
                 )}
               </div>
-
             </div>
 
             {/* Professional Information Section */}

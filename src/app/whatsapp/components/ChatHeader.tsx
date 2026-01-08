@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Archive,
   BellOff,
-  ExternalLink,
   Loader2,
   MoreVertical,
   Phone,
@@ -70,7 +69,6 @@ export function ChatHeader({
   onDelete,
 }: ChatHeaderProps) {
   const remaining = useMemo(() => getRemainingHours(conversation), [conversation]);
-  const referenceLink = (conversation as any)?.metadata?.referenceLink as string | undefined;
 
   return (
     <CardHeader className="pb-2 border-b">
@@ -86,39 +84,21 @@ export function ChatHeader({
             <CardTitle className="text-lg">
               {conversation.participantName || conversation.participantPhone}
             </CardTitle>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <p className="text-base text-muted-foreground">{conversation.participantPhone}</p>
-                {remaining ? (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-sm gap-1",
-                      remaining.hours < 2 ? "border-orange-500 text-orange-500" : "border-green-500 text-green-500"
-                    )}
-                  >
-                    <Timer className="h-3.5 w-3.5" />
-                    {remaining.hours}h {remaining.minutes}m
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-sm gap-1 border-red-500 text-red-500">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Template only
-                  </Badge>
-                )}
-              </div>
-              {referenceLink && (
-                <div className="flex items-center gap-1">
-                  <a
-                    href={referenceLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Reference
-                  </a>
-                </div>
+            <div className="flex items-center gap-2">
+              <p className="text-base text-muted-foreground">{conversation.participantPhone}</p>
+              {remaining ? (
+                <Badge
+                  variant="outline"
+                  className={cn("text-sm gap-1", remaining.hours < 2 ? "border-orange-500 text-orange-500" : "border-green-500 text-green-500")}
+                >
+                  <Timer className="h-3.5 w-3.5" />
+                  {remaining.hours}h {remaining.minutes}m
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-sm gap-1 border-red-500 text-red-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Template only
+                </Badge>
               )}
             </div>
           </div>

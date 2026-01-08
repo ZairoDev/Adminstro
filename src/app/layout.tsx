@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
-import { AxiosProvider } from "@/components/AxiosProvider";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -45,9 +44,7 @@ export default function RootLayout({
             ]}
             disableTransitionOnChange
           >
-            <AxiosProvider>
-              {children}
-            </AxiosProvider>
+            {children}
           </ThemeProvider>
           <Toaster />
         </body>

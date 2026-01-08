@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { getDataFromToken, SessionExpiredError } from "./util/getDataFromToken";
+import { getDataFromToken } from "./util/getDataFromToken";
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
@@ -236,8 +236,6 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token")?.value || "";
 
-  const isApiRoute = path.startsWith("/api");
-
   const matchesRolePattern = (role: string, path: string): boolean => {
     const patterns = roleAccess[role] || [];
     return patterns.some((pattern) =>
@@ -249,23 +247,10 @@ export async function middleware(request: NextRequest) {
     typeof pattern === "string" ? path === pattern : pattern.test(path)
   );
 
-  // Public API routes (login, verify-otp, etc.) don't need authentication
-  const isPublicApiRoute = isApiRoute && (
-    path === "/api/employeelogin" ||
-    path === "/api/verify-otp" ||
-    path.startsWith("/api/employeelogout")
-  );
-
   if (token) {
     try {
       const obj: any = await getDataFromToken(request);
       const role = obj?.role as string;
-
-      // For API routes, just validate token (role-based access is handled in API routes)
-      if (isApiRoute && !isPublicApiRoute) {
-        // Token is valid, allow request to proceed
-        return NextResponse.next();
-      }
 
       if (path === "/login") {
         return NextResponse.redirect(
@@ -293,51 +278,14 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch (error: any) {
-      // Handle session expired errors
-      if (error instanceof SessionExpiredError || error.code === "SESSION_EXPIRED") {
-        const response = isApiRoute
-          ? NextResponse.json(
-              { error: "SESSION_EXPIRED", message: error.message },
-              { status: 401 }
-            )
-          : NextResponse.redirect(new URL("/login", request.url));
-        
+      if (error.message === "Token Expired") {
+        const response = NextResponse.redirect(new URL("/login", request.url));
         response.cookies.delete("token");
         return response;
       }
-      
-      // Handle other token errors
-      if (error.message === "Token Expired" || error.message?.includes("expired")) {
-        const response = isApiRoute
-          ? NextResponse.json(
-              { error: "SESSION_EXPIRED", message: "Session expired at 11:00 PM IST. Please log in again." },
-              { status: 401 }
-            )
-          : NextResponse.redirect(new URL("/login", request.url));
-        
-        response.cookies.delete("token");
-        return response;
-      }
-      
-      // Invalid token
-      const response = isApiRoute
-        ? NextResponse.json(
-            { error: "UNAUTHORIZED", message: "Invalid or missing token" },
-            { status: 401 }
-          )
-        : NextResponse.redirect(new URL("/login", request.url));
-      
-      response.cookies.delete("token");
-      return response;
+      return NextResponse.redirect(new URL("/login", request.url));
     }
-  } else if (!isPublicRoute && !isPublicApiRoute) {
-    // No token provided
-    if (isApiRoute) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED", message: "Authentication required" },
-        { status: 401 }
-      );
-    }
+  } else if (!isPublicRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -346,7 +294,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run middleware on all routes including API routes, except Next.js internals, favicon, and static files
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|pdf)).*)",
+    // Run middleware on everything except API routes, Next.js internals, favicon, and static files
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|pdf)).*)",
   ],
 };

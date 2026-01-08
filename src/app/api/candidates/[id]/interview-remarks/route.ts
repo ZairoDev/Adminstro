@@ -92,7 +92,6 @@ export async function PATCH(
       listeningSkills,
       basicProfessionalism,
       stabilitySignals,
-      salaryExpectations,
       hrNotes,
     } = body;
 
@@ -156,14 +155,6 @@ export async function PATCH(
       );
     }
 
-    // Validate salary expectations length (max 100 characters)
-    if (salaryExpectations && salaryExpectations.length > 100) {
-      return NextResponse.json(
-        { success: false, error: "Salary expectations must be 100 characters or less" },
-        { status: 400 }
-      );
-    }
-
     // Validate HR notes length (max 200 characters for 1-2 lines)
     if (hrNotes && hrNotes.length > 200) {
       return NextResponse.json(
@@ -199,7 +190,6 @@ export async function PATCH(
       "interviewDetails.remarks.listeningSkills": listeningSkills,
       "interviewDetails.remarks.basicProfessionalism": basicProfessionalism,
       "interviewDetails.remarks.stabilitySignals": stabilitySignals,
-      "interviewDetails.remarks.salaryExpectations": salaryExpectations || null,
       "interviewDetails.remarks.hrNotes": hrNotes || null,
       "interviewDetails.remarks.lastUpdatedBy": `${userName || "HR Team"} (${userRole})`,
       "interviewDetails.remarks.lastUpdatedAt": new Date(),

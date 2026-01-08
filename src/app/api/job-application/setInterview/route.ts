@@ -20,7 +20,6 @@ export async function POST(req: Request) {
       linkedin: data.linkedin,
       portfolio: data.portfolio,
       resumeUrl: data.resume, // Bunny file URL
-      photoUrl: data.photo, // Bunny file URL
     });
 
     return NextResponse.json({

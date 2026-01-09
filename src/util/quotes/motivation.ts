@@ -1,0 +1,36 @@
+
+    export const motivationQuotes = [
+        (n: string) => `Hello ${n}, discipline beats motivation.`,
+        (n: string) => `Hi ${n}, progress is built daily.`,
+        (n: string) => `Welcome ${n}, small actions create big outcomes.`,
+        (n: string) => `Hey ${n}, consistency is your advantage.`,
+        (n: string) => `Hello ${n}, effort compounds silently.`,
+        (n: string) => `Hi ${n}, show up and deliver.`,
+        (n: string) => `Welcome ${n}, growth starts with action.`,
+        (n: string) => `Hey ${n}, focus fuels results.`,
+        (n: string) => `Hello ${n}, improvement beats perfection.`,
+        (n: string) => `Hi ${n}, momentum matters.`,
+        (n: string) => `Welcome ${n}, trust the process.`,
+        (n: string) => `Hey ${n}, do the work even when it’s quiet.`,
+        (n: string) => `Hello ${n}, patience builds strength.`,
+        (n: string) => `Hi ${n}, progress looks good on you.`,
+        (n: string) => `Welcome ${n}, today’s effort matters.`,
+        (n: string) => `Hey ${n}, keep showing up.`,
+        (n: string) => `Hello ${n}, focus creates clarity.`,
+        (n: string) => `Hi ${n}, learn fast and move forward.`,
+        (n: string) => `Welcome ${n}, execution wins.`,
+        (n: string) => `Hey ${n}, stay consistent.`,
+        (n: string) => `Hello ${n}, strong habits bring strong results.`,
+        (n: string) => `Hi ${n}, your effort is noticed.`,
+        (n: string) => `Welcome ${n}, discipline builds freedom.`,
+        (n: string) => `Hey ${n}, do it properly.`,
+        (n: string) => `Hello ${n}, progress is never wasted.`,
+        (n: string) => `Hi ${n}, stay focused.`,
+        (n: string) => `Welcome ${n}, one task at a time.`,
+        (n: string) => `Hey ${n}, results reward patience.`,
+        (n: string) => `Hello ${n}, growth takes time.`,
+        (n: string) => `Hi ${n}, keep improving.`,
+      ];
+      
+
+  

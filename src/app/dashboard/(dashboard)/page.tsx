@@ -30,6 +30,7 @@ import axios from "axios";
 // Auth & Dashboard Access
 import { useAuthStore } from "@/AuthStore";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
+import { getRandomQuote } from "@/util/getRandomQuote";
 
 // Dashboard Components
 import { 
@@ -338,6 +339,14 @@ const Dashboard = () => {
     0
   );
 
+  // Get random quote for current user (must be before early returns)
+  const displayQuote = useMemo(() => {
+    if (!token?.name) return "Welcome to your dashboard!";
+  
+    const firstName = token.name.trim().split(" ")[0];
+    return getRandomQuote(firstName);
+  }, [token?.name]);
+  
   if (isError) {
     return (
       <div className="w-full h-screen flex flex-col justify-center items-center gap-4">
@@ -372,6 +381,15 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-6">
+
+      {/* Welcome Quote Section */}
+      <div className="mb-6 p-6 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
+        <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          {displayQuote}
+        </p>
+      </div>
+
+
       {/* Admin Dashboard (HR, SuperAdmin) */}
       {showAdminDashboard && <AdminDashboard />}
 

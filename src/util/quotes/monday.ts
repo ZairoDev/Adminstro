@@ -1,0 +1,17 @@
+export const mondayQuotes = [
+    (n: string) => `Hello ${n}, Monday sets the tone.`,
+    (n: string) => `Hi ${n}, slow start is okay.`,
+    (n: string) => `Welcome ${n}, week ki strong shuruaat.`,
+    (n: string) => `Hey ${n}, Monday ko lightly lete hain.`,
+    (n: string) => `Hello ${n}, focus banaye rakhen.`,
+    (n: string) => `Hi ${n}, week planning matters.`,
+    (n: string) => `Welcome ${n}, ek-ek task karein.`,
+    (n: string) => `Hey ${n}, pace set karte hain.`,
+    (n: string) => `Hello ${n}, Monday ka kaam clear rakhen.`,
+    (n: string) => `Hi ${n}, week strong banega.`,
+    (n: string) => `Welcome ${n}, aaj foundation banega.`,
+    (n: string) => `Hey ${n}, patience rakhen.`,
+    (n: string) => `Hello ${n}, Monday = momentum.`,
+    (n: string) => `Hi ${n}, kaam simple rakhen.`,
+    (n: string) => `Welcome ${n}, week start ho chuki hai.`,
+  ];

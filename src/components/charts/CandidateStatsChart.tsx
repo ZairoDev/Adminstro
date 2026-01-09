@@ -18,6 +18,8 @@ import {
   Clock,
   Briefcase,
   TrendingUp,
+  Calendar,
+  UserMinus,
 } from "lucide-react";
 
 import {
@@ -29,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
+import { MonthSelector } from "@/components/MonthSelector/page";
 import { CandidateCountData, CandidateSummary } from "@/hooks/(VS)/useCandidateCounts";
 
 interface CandidateChartProps {
@@ -40,6 +43,9 @@ interface CandidateChartProps {
   loading: boolean;
   isError: boolean;
   error: string;
+  selectedMonth?: Date;
+  onMonthChange?: (month: Date) => void;
+  direction?: "left" | "right";
 }
 
 const statusColors = {
@@ -48,6 +54,8 @@ const statusColors = {
   selected: "#22c55e",
   onboarding: "#8b5cf6",
   rejected: "#ef4444",
+  interviews: "#a855f7",
+  rejectedAfterTraining: "#dc2626",
 };
 
 const SummaryCard = ({
@@ -71,9 +79,9 @@ const SummaryCard = ({
       <p className="text-xs text-muted-foreground">{title}</p>
       <p className="text-lg font-bold">{value}</p>
     </div>
-    {percentage !== undefined && (
+    {/* {percentage !== undefined && (
       <span className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</span>
-    )}
+    )} */}
   </div>
 );
 
@@ -86,6 +94,9 @@ export const CandidateStatsChart = ({
   loading,
   isError,
   error,
+  selectedMonth,
+  onMonthChange,
+  direction,
 }: CandidateChartProps) => {
   const [isMounted, setIsMounted] = useState(false);
   
@@ -130,7 +141,13 @@ export const CandidateStatsChart = ({
               Candidate applications and their current status
             </CardDescription>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {selectedMonth && onMonthChange && (
+              <MonthSelector
+                selectedMonth={selectedMonth}
+                onMonthChange={onMonthChange}
+              />
+            )}
             <CustomSelect
               itemList={["12 days", "this month", "1 year", "last 3 years"]}
               triggerText="Time Range"
@@ -155,7 +172,7 @@ export const CandidateStatsChart = ({
 
       <CardContent>
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
           <SummaryCard
             title="Total"
             value={summary.total}
@@ -177,6 +194,13 @@ export const CandidateStatsChart = ({
             percentage={summary.total > 0 ? (summary.shortlisted / summary.total) * 100 : 0}
           />
           <SummaryCard
+            title="Interviews"
+            value={summary.interviews}
+            icon={Calendar}
+            color="bg-purple-500"
+            percentage={summary.total > 0 ? (summary.interviews / summary.total) * 100 : 0}
+          />
+          <SummaryCard
             title="Selected"
             value={summary.selected}
             icon={UserCheck}
@@ -187,7 +211,7 @@ export const CandidateStatsChart = ({
             title="Onboarding"
             value={summary.onboarding}
             icon={Briefcase}
-            color="bg-purple-500"
+            color="bg-indigo-500"
             percentage={summary.total > 0 ? (summary.onboarding / summary.total) * 100 : 0}
           />
           <SummaryCard
@@ -196,6 +220,13 @@ export const CandidateStatsChart = ({
             icon={UserX}
             color="bg-red-500"
             percentage={summary.total > 0 ? (summary.rejected / summary.total) * 100 : 0}
+          />
+          <SummaryCard
+            title="Rejected After Training"
+            value={summary.rejectedAfterTraining}
+            icon={UserMinus}
+            color="bg-red-600"
+            percentage={summary.total > 0 ? (summary.rejectedAfterTraining / summary.total) * 100 : 0}
           />
         </div>
 
@@ -239,6 +270,14 @@ export const CandidateStatsChart = ({
                   <linearGradient id="colorRejected" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={statusColors.rejected} stopOpacity={0.8} />
                     <stop offset="95%" stopColor={statusColors.rejected} stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient id="colorInterviews" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={statusColors.interviews} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={statusColors.interviews} stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient id="colorRejectedAfterTraining" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={statusColors.rejectedAfterTraining} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={statusColors.rejectedAfterTraining} stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -294,10 +333,24 @@ export const CandidateStatsChart = ({
                             </div>
                             <div className="flex justify-between">
                               <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                Interviews
+                              </span>
+                              <span className="font-medium">{data.interviews || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full bg-red-500" />
                                 Rejected
                               </span>
                               <span className="font-medium">{data.rejected}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-red-600" />
+                                Rejected After Training
+                              </span>
+                              <span className="font-medium">{data.rejectedAfterTraining || 0}</span>
                             </div>
                             <div className="flex justify-between border-t pt-1 mt-1">
                               <span className="font-semibold">Total</span>
@@ -351,11 +404,27 @@ export const CandidateStatsChart = ({
                 />
                 <Area
                   type="monotone"
+                  dataKey="interviews"
+                  stackId="1"
+                  stroke={statusColors.interviews}
+                  fill="url(#colorInterviews)"
+                  name="Interviews"
+                />
+                <Area
+                  type="monotone"
                   dataKey="rejected"
                   stackId="1"
                   stroke={statusColors.rejected}
                   fill="url(#colorRejected)"
                   name="Rejected"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="rejectedAfterTraining"
+                  stackId="1"
+                  stroke={statusColors.rejectedAfterTraining}
+                  fill="url(#colorRejectedAfterTraining)"
+                  name="Rejected After Training"
                 />
               </AreaChart>
             </ResponsiveContainer>

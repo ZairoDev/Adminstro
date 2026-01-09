@@ -156,6 +156,7 @@ export function SelectCandidateDialog({
               <option value="">Select a Role</option>
               <option value="LeadGen">LeadGen</option>
               <option value="Marketing">Marketing</option>
+              <option value="HR">Human Resource(HR)</option>
               <option value="Developer">Developer</option>
               <option value="Sales">Sales</option>
             </select>

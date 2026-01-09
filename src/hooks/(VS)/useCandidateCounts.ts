@@ -1,5 +1,5 @@
 import { getCandidateCounts, getCandidatePositions, getCandidateSummary } from "@/actions/(VS)/queryActions";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 export interface CandidateCountData {
   date: string;
@@ -8,6 +8,8 @@ export interface CandidateCountData {
   selected: number;
   rejected: number;
   onboarding: number;
+  interviews: number;
+  rejectedAfterTraining: number;
   total: number;
 }
 
@@ -17,12 +19,15 @@ export interface CandidateSummary {
   selected: number;
   rejected: number;
   onboarding: number;
+  interviews: number;
+  rejectedAfterTraining: number;
   total: number;
 }
 
 export interface CandidateFilters {
   days?: string;
   position?: string;
+  selectedMonth?: Date;
 }
 
 const useCandidateCounts = () => {
@@ -31,14 +36,29 @@ const useCandidateCounts = () => {
   const [error, setError] = useState("");
   const [candidateCounts, setCandidateCounts] = useState<CandidateCountData[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [direction, setDirection] = useState<"left" | "right">("right");
+  const previousMonthRef = useRef<Date>(new Date());
   const [summary, setSummary] = useState<CandidateSummary>({
     pending: 0,
     shortlisted: 0,
     selected: 0,
     rejected: 0,
     onboarding: 0,
+    interviews: 0,
+    rejectedAfterTraining: 0,
     total: 0,
   });
+
+  const handleMonthChange = (newMonth: Date) => {
+    // Determine direction based on whether we're going forward or backward
+    const prevTime = previousMonthRef.current.getTime();
+    const newTime = newMonth.getTime();
+    
+    setDirection(newTime > prevTime ? "right" : "left");
+    previousMonthRef.current = newMonth;
+    setSelectedMonth(newMonth);
+  };
 
   const fetchCandidateCounts = useCallback(async (filters: CandidateFilters) => {
     try {
@@ -47,8 +67,15 @@ const useCandidateCounts = () => {
       setError("");
       
       const [countsResponse, summaryResponse] = await Promise.all([
-        getCandidateCounts(filters),
-        getCandidateSummary({ position: filters.position }),
+        getCandidateCounts({
+          days: filters.days,
+          position: filters.position,
+          selectedMonth: filters.selectedMonth,
+        }),
+        getCandidateSummary({ 
+          position: filters.position,
+          selectedMonth: filters.selectedMonth,
+        }),
       ]);
       
       setCandidateCounts(countsResponse);
@@ -71,10 +98,17 @@ const useCandidateCounts = () => {
     }
   }, []);
 
+  // Fetch data whenever selectedMonth changes
   useEffect(() => {
-    fetchCandidateCounts({ days: "this month" });
+    fetchCandidateCounts({ 
+      days: "this month",
+      selectedMonth: selectedMonth 
+    });
+  }, [selectedMonth, fetchCandidateCounts]);
+
+  useEffect(() => {
     fetchPositions();
-  }, [fetchCandidateCounts, fetchPositions]);
+  }, [fetchPositions]);
 
   return {
     loading,
@@ -84,6 +118,9 @@ const useCandidateCounts = () => {
     positions,
     summary,
     fetchCandidateCounts,
+    selectedMonth,
+    setSelectedMonth: handleMonthChange,
+    direction,
   };
 };
 

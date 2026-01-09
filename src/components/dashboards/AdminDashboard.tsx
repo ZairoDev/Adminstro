@@ -105,6 +105,9 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
     error: candidateErrorMsg,
     positions: candidatePositions,
     summary: candidateSummary,
+    selectedMonth: candidateSelectedMonth,
+    setSelectedMonth: setCandidateSelectedMonth,
+    direction: candidateDirection,
   } = useCandidateCounts();
 
   // Transform data for charts
@@ -248,6 +251,9 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                   loading={candidateLoading}
                   isError={candidateError}
                   error={candidateErrorMsg}
+                  selectedMonth={candidateSelectedMonth}
+                  onMonthChange={setCandidateSelectedMonth}
+                  direction={candidateDirection}
                 />
               </div>
             )}

@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || "";
     const position = searchParams.get("position") || "";
     const experienceFilter = searchParams.get("experienceFilter") || "";
+    const collegeFilter = searchParams.get("college") || "";
     const onboarded = searchParams.get("onboarded") === "true";
 
     const skip = (page - 1) * limit;
@@ -61,6 +62,16 @@ export async function GET(request: NextRequest) {
       query.experience = 0;
     } else if (experienceFilter === "experienced") {
       query.experience = { $gt: 0 };
+    }
+
+    // Add college filter - use exact match with case-insensitive comparison
+    // Handle whitespace variations by matching with optional leading/trailing spaces
+    if (collegeFilter && collegeFilter !== "all") {
+      // Trim and escape special regex characters
+      const trimmedCollege = collegeFilter.trim();
+      const escapedCollege = trimmedCollege.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match exact string with optional leading/trailing whitespace, case-insensitive
+      query.college = { $regex: `^\\s*${escapedCollege}\\s*$`, $options: "i" };
     }
 
     // Combine $or conditions with $and, and merge other filters

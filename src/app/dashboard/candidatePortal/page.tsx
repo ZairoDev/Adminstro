@@ -59,6 +59,7 @@ interface Candidate {
   phone: string;
   position: string;
   experience: number;
+  college?: string;
   status: "pending" | "interview" | "shortlisted" | "selected" | "rejected" | "onboarding";
   createdAt: string;
   notes?: Array<{ _id: string; content: string; createdAt: string; updatedAt: string }>;
@@ -104,7 +105,9 @@ export default function CandidatesPage() {
   const [notesCandidate, setNotesCandidate] = useState<Candidate | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [experienceFilter, setExperienceFilter] = useState<string>("all");
+  const [collegeFilter, setCollegeFilter] = useState<string>("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
+  const [availableColleges, setAvailableColleges] = useState<string[]>([]);
 
   useEffect(() => {
     // Fetch available roles from API
@@ -119,7 +122,22 @@ export default function CandidatesPage() {
         console.error("Error fetching roles:", error);
       }
     };
+    
+    // Fetch available colleges from API
+    const fetchColleges = async () => {
+      try {
+        const response = await fetch("/api/candidates/colleges");
+        const result = await response.json();
+        if (result.success && result.data.length > 0) {
+          setAvailableColleges(result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+    
     fetchRoles();
+    fetchColleges();
   }, []);
 
   const fetchCandidates = async (
@@ -127,7 +145,8 @@ export default function CandidatesPage() {
     pageNum: number,
     statusFilter?: string,
     roleFilter?: string,
-    expFilter?: string
+    expFilter?: string,
+    collegeFilterParam?: string
   ) => {
     setLoading(true);
     try {
@@ -147,6 +166,9 @@ export default function CandidatesPage() {
       if (expFilter && expFilter !== "all") {
         params.append("experienceFilter", expFilter);
       }
+      if (collegeFilterParam && collegeFilterParam !== "all") {
+        params.append("college", collegeFilterParam);
+      }
 
       const response = await fetch(`/api/candidates?${params}`);
       const result = await response.json();
@@ -164,15 +186,15 @@ export default function CandidatesPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCandidates(search, 1, activeTab, selectedRole, experienceFilter);
+      fetchCandidates(search, 1, activeTab, selectedRole, experienceFilter, collegeFilter);
       setPage(1);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [search, activeTab, selectedRole, experienceFilter]);
+  }, [search, activeTab, selectedRole, experienceFilter, collegeFilter]);
 
   useEffect(() => {
-    fetchCandidates(search, page, activeTab, selectedRole, experienceFilter);
+    fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
   }, [page]);
 
   const getStatusColor = (status: string) => {
@@ -516,7 +538,7 @@ export default function CandidatesPage() {
                 Rejected
               </TabsTrigger>
             </TabsList>
-            <div className="flex gap-2 w-full lg:w-auto lg:max-w-md">
+            <div className="flex gap-2 w-full lg:w-auto lg:max-w-2xl flex-wrap">
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="h-10 w-full lg:w-[150px]">
                   <SelectValue placeholder="Filter by Role" />
@@ -541,6 +563,22 @@ export default function CandidatesPage() {
                   <SelectItem value="all">All Experience</SelectItem>
                   <SelectItem value="fresher">Fresher</SelectItem>
                   <SelectItem value="experienced">Experienced</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={collegeFilter}
+                onValueChange={setCollegeFilter}
+              >
+                <SelectTrigger className="h-10 w-full lg:w-[180px]">
+                  <SelectValue placeholder="Filter by College" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colleges</SelectItem>
+                  {availableColleges.map((college) => (
+                    <SelectItem key={college} value={college}>
+                      {college}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -699,7 +737,7 @@ export default function CandidatesPage() {
           candidateName={notesCandidate.name}
           onUpdate={() => {
             // Refresh candidates list to update notes indicator
-            fetchCandidates(search, page, activeTab, selectedRole, experienceFilter);
+            fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
           }}
         />
       )}

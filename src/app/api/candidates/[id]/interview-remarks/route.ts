@@ -114,52 +114,59 @@ export async function PATCH(
 
     // Validate each option is valid
     if (!EXPERIENCE_VALIDATION_OPTIONS.includes(experienceValidation)) {
+      console.error("Invalid experienceValidation:", experienceValidation);
       return NextResponse.json(
-        { success: false, error: "Invalid experience validation option" },
+        { success: false, error: `Invalid experience validation option: "${experienceValidation}". Valid options: ${EXPERIENCE_VALIDATION_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!MOTHER_TONGUE_INFLUENCE_OPTIONS.includes(motherTongueInfluence)) {
+      console.error("Invalid motherTongueInfluence:", motherTongueInfluence);
       return NextResponse.json(
-        { success: false, error: "Invalid mother tongue influence option" },
+        { success: false, error: `Invalid mother tongue influence option: "${motherTongueInfluence}". Valid options: ${MOTHER_TONGUE_INFLUENCE_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!ENGLISH_SPEAKING_OPTIONS.includes(englishSpeaking)) {
+      console.error("Invalid englishSpeaking:", englishSpeaking);
       return NextResponse.json(
-        { success: false, error: "Invalid English speaking option" },
+        { success: false, error: `Invalid English speaking option: "${englishSpeaking}". Valid options: ${ENGLISH_SPEAKING_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!UNDERSTANDING_SCALE_OPTIONS.includes(understandingScale)) {
+      console.error("Invalid understandingScale:", understandingScale);
       return NextResponse.json(
-        { success: false, error: "Invalid understanding scale option" },
+        { success: false, error: `Invalid understanding scale option: "${understandingScale}". Valid options: ${UNDERSTANDING_SCALE_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!LISTENING_SKILLS_OPTIONS.includes(listeningSkills)) {
+      console.error("Invalid listeningSkills:", listeningSkills);
       return NextResponse.json(
-        { success: false, error: "Invalid listening skills option" },
+        { success: false, error: `Invalid listening skills option: "${listeningSkills}". Valid options: ${LISTENING_SKILLS_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!BASIC_PROFESSIONALISM_OPTIONS.includes(basicProfessionalism)) {
+      console.error("Invalid basicProfessionalism:", basicProfessionalism);
       return NextResponse.json(
-        { success: false, error: "Invalid basic professionalism option" },
+        { success: false, error: `Invalid basic professionalism option: "${basicProfessionalism}". Valid options: ${BASIC_PROFESSIONALISM_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
     if (!STABILITY_SIGNALS_OPTIONS.includes(stabilitySignals)) {
+      console.error("Invalid stabilitySignals:", stabilitySignals);
       return NextResponse.json(
-        { success: false, error: "Invalid stability signals option" },
+        { success: false, error: `Invalid stability signals option: "${stabilitySignals}". Valid options: ${STABILITY_SIGNALS_OPTIONS.join(", ")}` },
         { status: 400 }
       );
     }
 
     //validate salary expectations length
-    if (salaryExpectations && salaryExpectations.length <100) {
+    if (salaryExpectations && salaryExpectations.length > 100) {
       return NextResponse.json(
-        { success: false, error: "Salary expectations must be 100 character or less" },
+        { success: false, error: "Salary expectations must be 100 characters or less" },
         { status: 400 }
       );
     }

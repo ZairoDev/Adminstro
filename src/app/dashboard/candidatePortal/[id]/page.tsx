@@ -614,7 +614,7 @@ export default function CandidateDetailPage() {
 
   // Helper functions for button availability
   const canShortlist = () => {
-    return candidate?.status === "pending";
+    return candidate?.status === "pending" || candidate?.status === "interview";
   };
 
   const hasInterviewRemarks = () => {

@@ -43,6 +43,16 @@ const CandidateSchema = new Schema(
         lastUpdatedBy: { type: String, default: null },
         lastUpdatedAt: { type: Date, default: null },
       },
+      rescheduleRequest: {
+        requestedDate: { type: String, default: null },
+        requestedTime: { type: String, default: null },
+        reason: { type: String, default: null },
+        requestedAt: { type: Date, default: null },
+        status: { type: String, enum: ["pending", "approved", "rejected"], default: null },
+        reviewedBy: { type: String, default: null },
+        reviewedAt: { type: Date, default: null },
+        token: { type: String, default: null },
+      },
     },
     secondRoundInterviewDetails: {
       scheduledDate: { type: Date, default: null },
@@ -50,6 +60,16 @@ const CandidateSchema = new Schema(
       scheduledBy: { type: String, default: null },
       scheduledAt: { type: Date, default: null },
       notes: { type: String, default: null },
+      rescheduleRequest: {
+        requestedDate: { type: String, default: null },
+        requestedTime: { type: String, default: null },
+        reason: { type: String, default: null },
+        requestedAt: { type: Date, default: null },
+        status: { type: String, enum: ["pending", "approved", "rejected"], default: null },
+        reviewedBy: { type: String, default: null },
+        reviewedAt: { type: Date, default: null },
+        token: { type: String, default: null },
+      },
     },
     selectionDetails: {
       positionType: {
@@ -95,6 +115,8 @@ const CandidateSchema = new Schema(
         gender: { type: String, default: null },
         nationality: { type: String, default: null },
         fatherName: { type: String, default: null },
+        aadhaarNumber: { type: String, default: null },
+        panNumber: { type: String, default: null },
       },
       bankDetails: {
         accountHolderName: { type: String, default: null },
@@ -102,6 +124,28 @@ const CandidateSchema = new Schema(
         ifscCode: { type: String, default: null },
         bankName: { type: String, default: null },
       },
+      // Document re-upload request tracking
+      reuploadRequest: {
+        isActive: { type: Boolean, default: false },
+        requestedDocuments: [{ type: String }], // Array of document keys that need re-upload
+        requestedAt: { type: Date, default: null },
+        requestedBy: { type: String, default: null },
+        reason: { type: String, default: null },
+        token: { type: String, default: null }, // Secure token for re-upload link
+        tokenExpiresAt: { type: Date, default: null },
+        emailSentAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+      },
+      // Audit history for document re-uploads
+      reuploadHistory: [
+        {
+          documentType: { type: String },
+          previousUrl: { type: String },
+          newUrl: { type: String },
+          reuploadedAt: { type: Date },
+          requestedBy: { type: String },
+        },
+      ],
       documents: {
         // New fields: front and back of Aadhar card
         aadharCard: { type: String, default: null },

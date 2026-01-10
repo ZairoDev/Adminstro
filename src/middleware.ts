@@ -229,6 +229,7 @@ const publicRoutes = [
   "/dashboard/room/*",
   "/application-form",
   "/zipl.pdf",
+  "/interview-reschedule",
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
 ];
@@ -247,6 +248,11 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some((pattern) =>
     typeof pattern === "string" ? path === pattern : pattern.test(path)
   );
+
+  // Allow public routes to pass through regardless of authentication
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
 
   if (token) {
     try {

@@ -435,6 +435,24 @@ export const getCandidateEmailTemplate = (
             If you have any questions or need to discuss the interview arrangements, please don't hesitate to reach out to us. You can reply to this email or contact our HR team.
           </p>
           
+          ${
+            payload.interviewDetails?.rescheduleLink
+              ? `
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${payload.interviewDetails.rescheduleLink}" 
+               style="display: inline-block; background: #f59e0b; color: #ffffff; padding: 14px 32px; 
+                      border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;
+                      box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2); transition: all 0.3s;">
+              📅 Request to Reschedule Interview
+            </a>
+            <p style="font-size: 13px; color: #6b7280; margin-top: 12px;">
+              Need to change your interview date or time? Click the button above to request a reschedule.
+            </p>
+          </div>
+          `
+              : ""
+          }
+          
           <p style="font-size: 16px; margin-top: 25px; line-height: 1.6;">
             Best of luck, and we'll see you soon!
           </p>
@@ -513,10 +531,168 @@ export const getCandidateEmailTemplate = (
           <p>
             If you have any questions prior to the interview, feel free to reach out to us.
           </p>
-    
+          
+          ${
+            payload.interviewDetails?.rescheduleLink
+              ? `
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${payload.interviewDetails.rescheduleLink}" 
+               style="display: inline-block; background: #f59e0b; color: #ffffff; padding: 14px 32px; 
+                      border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;
+                      box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2); transition: all 0.3s;">
+              📅 Request to Reschedule Interview
+            </a>
+            <p style="font-size: 13px; color: #6b7280; margin-top: 12px;">
+              Need to change your interview date or time? Click the button above to request a reschedule.
+            </p>
+          </div>
+          `
+              : ""
+          }
+          
           <p>
             We wish you the very best and look forward to meeting you.
           </p>
+          
+          <p>
+            Sincerely,<br/>
+            ${getEmailSignature(hrEmployee)}
+          </p>
+    
+          <hr/>
+    
+          <p style="font-size: 12px; color: #555;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
+    
+        </div>
+      `,
+    },
+    interviewRescheduled: {
+      subject: `Interview Rescheduled - ${position} at ${companyName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <p style="font-size: 16px; margin-bottom: 20px;">Dear ${candidateName},</p>
+          
+          <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
+            Your request to reschedule your interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>.
+          </p>
+          
+          <div style="margin: 30px 0; padding: 20px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600; color: #059669;">Your New Interview Details</h3>
+            
+            <p style="font-size: 16px; margin-bottom: 8px;">
+              <strong>Date:</strong> ${interviewDetails?.scheduledDate ? (() => {
+                const date = typeof interviewDetails.scheduledDate === 'string' 
+                  ? parseLocalDateString(interviewDetails.scheduledDate)
+                  : new Date(interviewDetails.scheduledDate);
+                return date.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                });
+              })() : "TBD"}
+            </p>
+            
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              <strong>Time:</strong> ${interviewDetails?.scheduledTime || "TBD"}
+            </p>
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
+            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
+              ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+            </p>
+            ${
+              interviewDetails?.googleMapsLink
+                ? `
+                <div style="margin: 20px 0;">
+                  <a href="${interviewDetails.googleMapsLink}" 
+                     style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; 
+                            border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
+                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);">
+                    📍 View on Google Maps
+                  </a>
+                </div>`
+                : ""
+            }
+          </div>
+          
+          <div style="margin: 30px 0; padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
+            <p style="font-size: 15px; margin: 0; line-height: 1.6; color: #92400e;">
+              <strong>⚠️ Important:</strong> Please be on time for your rescheduled interview. We look forward to meeting you!
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; margin-top: 25px; line-height: 1.6;">
+            Best regards,<br/>
+            ${getEmailSignature(hrEmployee)}
+          </p>
+          
+          <p style="font-size: 12px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
+        </div>
+      `,
+    },
+    secondRoundInterviewRescheduled: {
+      subject: `Second Round Interview Rescheduled - ${position} at ${companyName}`,
+      html: `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #000; line-height: 1.6;">
+          
+          <p>Dear ${candidateName},</p>
+    
+          <p>
+            Your request to reschedule your second round interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>.
+          </p>
+    
+          <div style="margin: 30px 0; padding: 20px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">
+            <p><strong style="color: #059669;">Your New Interview Details:</strong></p>
+    
+            <p>
+              <strong>Date:</strong> ${
+                interviewDetails?.scheduledDate
+                  ? (() => {
+                      const date =
+                        typeof interviewDetails.scheduledDate === "string"
+                          ? parseLocalDateString(interviewDetails.scheduledDate)
+                          : new Date(interviewDetails.scheduledDate);
+                      return date.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      });
+                    })()
+                  : "TBD"
+              }<br/>
+              <strong>Time:</strong> ${interviewDetails?.scheduledTime || "TBD"}
+            </p>
+          </div>
+    
+          <p><strong>Office Address:</strong><br/>
+            ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+          </p>
+    
+          ${
+            interviewDetails?.googleMapsLink
+              ? `
+                <p>
+                  <a href="${interviewDetails.googleMapsLink}">
+                    View location on Google Maps
+                  </a>
+                </p>
+              `
+              : ""
+          }
+    
+          <div style="margin: 30px 0; padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
+            <p style="margin: 0; line-height: 1.6; color: #92400e;">
+              <strong>⚠️ Important:</strong> Please be on time for your rescheduled interview. We look forward to meeting you!
+            </p>
+          </div>
     
           <p>
             Sincerely,<br/>

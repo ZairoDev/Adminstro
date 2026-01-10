@@ -21,6 +21,8 @@ import {
   FileText,
   Loader2,
   GraduationCap,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -102,6 +104,16 @@ interface Candidate {
       lastUpdatedBy?: string;
       lastUpdatedAt?: string;
     };
+    rescheduleRequest?: {
+      requestedDate?: string;
+      requestedTime?: string;
+      reason?: string;
+      requestedAt?: string;
+      status?: "pending" | "approved" | "rejected";
+      reviewedBy?: string;
+      reviewedAt?: string;
+      token?: string;
+    };
   };
   secondRoundInterviewDetails?: {
     scheduledDate?: string;
@@ -109,6 +121,16 @@ interface Candidate {
     scheduledBy?: string;
     scheduledAt?: string;
     notes?: string;
+    rescheduleRequest?: {
+      requestedDate?: string;
+      requestedTime?: string;
+      reason?: string;
+      requestedAt?: string;
+      status?: "pending" | "approved" | "rejected";
+      reviewedBy?: string;
+      reviewedAt?: string;
+      token?: string;
+    };
   };
   selectionDetails?: {
     positionType: "fulltime" | "intern";
@@ -756,6 +778,45 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const handleRescheduleRequest = async (action: "approve" | "reject", interviewType: "first" | "second") => {
+    if (!candidate) return;
+
+    setActionLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/candidates/${candidate._id}/approve-reschedule`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            interviewType,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success(
+          action === "approve"
+            ? "Reschedule request approved successfully"
+            : "Reschedule request rejected"
+        );
+        await refreshCandidate();
+      } else {
+        setError(result.error || `Failed to ${action} reschedule request`);
+        toast.error(result.error || `Failed to ${action} reschedule request`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing reschedule request:`, error);
+      setError(`Failed to ${action} reschedule request`);
+      toast.error(`Failed to ${action} reschedule request`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const openSecondRoundDialog = () => {
     // Check if second round can be scheduled
     if (!canScheduleSecondRound()) {
@@ -1000,6 +1061,73 @@ export default function CandidateDetailPage() {
                     </div>
                   )}
                 </div>
+                {/* Reschedule Request */}
+                {candidate.interviewDetails.rescheduleRequest?.status === "pending" && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                            Reschedule Request Pending
+                          </Badge>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Requested Date: </span>
+                            <span className="font-medium text-foreground">
+                              {candidate.interviewDetails.rescheduleRequest.requestedDate
+                                ? new Date(candidate.interviewDetails.rescheduleRequest.requestedDate).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Requested Time: </span>
+                            <span className="font-medium text-foreground">
+                              {candidate.interviewDetails.rescheduleRequest.requestedTime || "N/A"}
+                            </span>
+                          </div>
+                          {candidate.interviewDetails.rescheduleRequest.reason && (
+                            <div>
+                              <span className="text-muted-foreground">Reason: </span>
+                              <span className="text-foreground">{candidate.interviewDetails.rescheduleRequest.reason}</span>
+                            </div>
+                          )}
+                          {candidate.interviewDetails.rescheduleRequest.requestedAt && (
+                            <div className="text-xs text-muted-foreground mt-2">
+                              Requested on {new Date(candidate.interviewDetails.rescheduleRequest.requestedAt).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {canVerify && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleRescheduleRequest("approve", "first")}
+                            disabled={actionLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleRescheduleRequest("reject", "first")}
+                            disabled={actionLoading}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
 
@@ -1036,6 +1164,73 @@ export default function CandidateDetailPage() {
                     </div>
                   )}
                 </div>
+                {/* Reschedule Request */}
+                {candidate.secondRoundInterviewDetails.rescheduleRequest?.status === "pending" && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                            Reschedule Request Pending
+                          </Badge>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Requested Date: </span>
+                            <span className="font-medium text-foreground">
+                              {candidate.secondRoundInterviewDetails.rescheduleRequest.requestedDate
+                                ? new Date(candidate.secondRoundInterviewDetails.rescheduleRequest.requestedDate).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Requested Time: </span>
+                            <span className="font-medium text-foreground">
+                              {candidate.secondRoundInterviewDetails.rescheduleRequest.requestedTime || "N/A"}
+                            </span>
+                          </div>
+                          {candidate.secondRoundInterviewDetails.rescheduleRequest.reason && (
+                            <div>
+                              <span className="text-muted-foreground">Reason: </span>
+                              <span className="text-foreground">{candidate.secondRoundInterviewDetails.rescheduleRequest.reason}</span>
+                            </div>
+                          )}
+                          {candidate.secondRoundInterviewDetails.rescheduleRequest.requestedAt && (
+                            <div className="text-xs text-muted-foreground mt-2">
+                              Requested on {new Date(candidate.secondRoundInterviewDetails.rescheduleRequest.requestedAt).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {canVerify && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleRescheduleRequest("approve", "second")}
+                            disabled={actionLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleRescheduleRequest("reject", "second")}
+                            disabled={actionLoading}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
 

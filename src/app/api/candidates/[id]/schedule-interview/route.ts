@@ -5,6 +5,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendEmail } from "@/components/candidateEmail";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
+import crypto from "crypto";
 
 // Schedule an interview for a candidate
 export async function PATCH(
@@ -106,6 +107,18 @@ export async function PATCH(
       );
     }
 
+    // Generate reschedule token and link
+    const rescheduleToken = crypto.randomBytes(32).toString("hex");
+    const baseUrl =  process.env.APP_URL ||process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const rescheduleLink = `${baseUrl}/interview-reschedule?token=${rescheduleToken}&candidateId=${id}&type=first`;
+
+    // Store reschedule token in candidate record
+    await Candidate.findByIdAndUpdate(id, {
+      $set: {
+        "interviewDetails.rescheduleRequest.token": rescheduleToken,
+      },
+    });
+
     // Send interview scheduled email
     try {
       // CRITICAL: Use the original scheduledDate string (YYYY-MM-DD) directly
@@ -121,6 +134,9 @@ export async function PATCH(
           scheduledTime: scheduledTime,
           officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
           googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
+          candidateId: id,
+          interviewType: "first",
+          rescheduleLink: rescheduleLink,
         },
       });
       console.log(`✅ Interview scheduled email sent successfully to ${updatedCandidate.email}`);

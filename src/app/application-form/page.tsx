@@ -68,6 +68,7 @@ const countryCodes = [
 
 export default function JobApplicationForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -259,61 +260,111 @@ export default function JobApplicationForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+    const fieldLabels: Record<string, string> = {
+      name: "Full Name",
+      email: "Email Address",
+      phone: "Phone Number",
+      city: "City",
+      country: "Country",
+      address: "Complete Address",
+      college: "College/University",
+      otherCollege: "College Name",
+      experience: "Years of Experience",
+      resume: "Resume",
+      photo: "Personal Photograph",
+      linkedin: "LinkedIn Profile",
+      portfolio: "Portfolio URL",
+    };
+
+    let firstMissingField: string | null = null;
 
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.name;
     }
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.email;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
+      if (!firstMissingField) firstMissingField = fieldLabels.email;
     }
 
     if (!formData.phone.trim()) {
       newErrors.phone = "Phone number is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.phone;
     } else if (!/^\d{10}$/.test(formData.phone)) {
       newErrors.phone = "Please enter a valid 10-digit phone number";
+      if (!firstMissingField) firstMissingField = fieldLabels.phone;
     }
 
     if (!formData.city.trim()) {
       newErrors.city = "City is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.city;
     }
 
     if (!formData.country.trim()) {
       newErrors.country = "Country is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.country;
     }
 
     if (!formData.address.trim()) {
       newErrors.address = "Address is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.address;
     }
 
     if (!formData.college || formData.college === "Select College") {
       newErrors.college = "College is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.college;
     }
 
     if (formData.college === "Other" && !formData.otherCollege.trim()) {
       newErrors.otherCollege = "Please specify your college";
+      if (!firstMissingField) firstMissingField = fieldLabels.otherCollege;
     }
 
     if (!formData.experience) {
       newErrors.experience = "Experience is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.experience;
     }
 
     if (!formData.resume) {
       newErrors.resume = "Resume is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.resume;
     }
 
     if (!formData.photo) {
       newErrors.photo = "Photo is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.photo;
     }
 
     if (formData.linkedin && !formData.linkedin.includes("linkedin.com")) {
       newErrors.linkedin = "Please enter a valid LinkedIn URL";
+      if (!firstMissingField) firstMissingField = fieldLabels.linkedin;
     }
 
     if (formData.portfolio && !/^https?:\/\/.+/.test(formData.portfolio)) {
       newErrors.portfolio = "Please enter a valid URL";
+      if (!firstMissingField) firstMissingField = fieldLabels.portfolio;
+    }
+
+    // Show toast for the first missing field
+    if (firstMissingField) {
+      const errorCount = Object.keys(newErrors).length;
+      if (errorCount === 1) {
+        toast({
+          title: "Validation Error",
+          description: `Please fill in the ${firstMissingField} field.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Validation Error",
+          description: `Please fill in all required fields. Missing: ${firstMissingField} and ${errorCount - 1} more field${errorCount - 1 > 1 ? 's' : ''}.`,
+          variant: "destructive",
+        });
+      }
     }
 
     setErrors(newErrors);
@@ -366,6 +417,7 @@ export default function JobApplicationForm() {
       // }
 
       setSubmitted(true);
+      setIsFormSubmitted(true);
       setTimeout(() => {
         setSubmitted(false);
         setFormData({
@@ -997,13 +1049,18 @@ export default function JobApplicationForm() {
             <div className="pt-2 space-y-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || isFormSubmitted}
                 className="w-full bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold py-3.5 rounded-xl transition-all transform hover:scale-[1.02] hover:shadow-[var(--shadow-medium)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Submitting...
+                  </>
+                ) : isFormSubmitted ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Application Submitted
                   </>
                 ) : (
                   <>

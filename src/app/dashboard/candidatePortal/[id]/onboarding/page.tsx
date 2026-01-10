@@ -169,8 +169,80 @@ export default function OnboardingPage() {
     dateOfBirth: "",
     gender: "",
     nationality: "",
-    fatherName:"",
+    fatherName: "",
+    aadhaarNumber: "",
+    panNumber: "",
   });
+
+  // Validation states for Aadhaar and PAN
+  const [aadhaarError, setAadhaarError] = useState<string | null>(null);
+  const [panError, setPanError] = useState<string | null>(null);
+
+  // Re-upload mode state
+  const [isReuploadMode, setIsReuploadMode] = useState(false);
+  const [reuploadDocuments, setReuploadDocuments] = useState<string[]>([]);
+  const [reuploadReason, setReuploadReason] = useState<string | null>(null);
+  const [reuploadCompleted, setReuploadCompleted] = useState(false);
+
+  // Document labels for display
+  const DOCUMENT_LABELS: Record<string, string> = {
+    aadharCardFront: "Aadhaar Card - Front",
+    aadharCardBack: "Aadhaar Card - Back",
+    panCard: "PAN Card",
+    highSchoolMarksheet: "High School Marksheet",
+    interMarksheet: "Intermediate Marksheet",
+    graduationMarksheet: "Graduation Marksheet",
+    experienceLetter: "Experience Letter",
+    relievingLetter: "Relieving Letter",
+    salarySlips: "Salary Slips",
+  };
+
+  // Validation functions for Aadhaar and PAN
+  const validateAadhaar = (value: string): boolean => {
+    // Remove spaces for validation
+    const cleanedValue = value.replace(/\s/g, "");
+    // Aadhaar is exactly 12 digits
+    const isValid = /^\d{12}$/.test(cleanedValue);
+    if (!isValid && cleanedValue.length > 0) {
+      setAadhaarError("Aadhaar must be exactly 12 digits");
+    } else {
+      setAadhaarError(null);
+    }
+    return isValid;
+  };
+
+  const validatePAN = (value: string): boolean => {
+    // PAN format: 5 uppercase letters, 4 digits, 1 uppercase letter (e.g., ABCDE1234F)
+    const cleanedValue = value.toUpperCase().replace(/\s/g, "");
+    const isValid = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanedValue);
+    if (!isValid && cleanedValue.length > 0) {
+      setPanError("PAN must be in format: ABCDE1234F");
+    } else {
+      setPanError(null);
+    }
+    return isValid;
+  };
+
+  // Format Aadhaar with masking for display (show only last 4 digits)
+  const formatAadhaarForDisplay = (value: string): string => {
+    const cleanedValue = value.replace(/\s/g, "");
+    if (cleanedValue.length <= 4) return cleanedValue;
+    // Show XXXX XXXX + last 4 digits
+    return `XXXX XXXX ${cleanedValue.slice(-4)}`;
+  };
+
+  // Format Aadhaar for input (with spaces every 4 digits)
+  const formatAadhaarInput = (value: string): string => {
+    const cleanedValue = value.replace(/\D/g, "").slice(0, 12);
+    return cleanedValue.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+  };
+
+  // Check if document is locked (verified and not in re-upload list)
+  const isDocumentLocked = (docKey: string): boolean => {
+    if (!isReuploadMode) return false;
+    // In re-upload mode, only documents in the reuploadDocuments list are editable
+    return !reuploadDocuments.includes(docKey);
+  };
 
   const [bankDetails, setBankDetails] = useState({
     accountHolderName: "",
@@ -219,18 +291,73 @@ export default function OnboardingPage() {
   useEffect(() => {
     const fetchCandidate = async () => {
       try {
+        // Check if there's a re-upload token in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const reuploadToken = urlParams.get("reupload");
+
+        // Fetch candidate data first
         const response = await fetch(`/api/candidates/${candidateId}`);
         const result = await response.json();
 
         if (result.success) {
           setCandidate(result.data);
-          if (result.data.onboardingDetails) {
-            const onboarding = result.data.onboardingDetails;
-            
-            // Load personal details
-            setPersonalDetails(
-              onboarding.personalDetails || personalDetails
-            );
+          
+          // If re-upload token exists, validate it after candidate data is loaded
+          if (reuploadToken) {
+            try {
+              console.log("Validating re-upload token:", reuploadToken);
+              const validateResponse = await fetch(`/api/candidates/${candidateId}/validate-reupload?token=${reuploadToken}`);
+              const validateResult = await validateResponse.json();
+
+              console.log("Validation result:", validateResult);
+
+              if (validateResult.success && validateResult.valid) {
+                // Token is valid
+                setIsReuploadMode(true);
+                setReuploadDocuments(validateResult.data.requestedDocuments || []);
+                setReuploadReason(validateResult.data.reason || null);
+                
+                if (validateResult.completed) {
+                  setReuploadCompleted(true);
+                  toast({
+                    title: "Documents Already Submitted",
+                    description: "You have already re-uploaded the requested documents. HR will review them shortly.",
+                  });
+                } else {
+                  setReuploadCompleted(false);
+                }
+              } else {
+                // Token is invalid or expired
+                console.error("Validation failed:", validateResult);
+                toast({
+                  title: validateResult.error || "Invalid Link",
+                  description: validateResult.expired 
+                    ? "This re-upload link has expired. Please contact HR for a new link."
+                    : "This re-upload link is not valid. Please contact HR.",
+                  variant: "destructive",
+                });
+              }
+            } catch (validateError) {
+              console.error("Error validating re-upload token:", validateError);
+              toast({
+                title: "Validation Error",
+                description: "Failed to validate re-upload link. Please contact HR.",
+                variant: "destructive",
+              });
+            }
+          }
+          
+          const onboarding = result.data.onboardingDetails;
+          if (onboarding) {
+            // Load personal details with new fields
+            setPersonalDetails({
+              dateOfBirth: onboarding.personalDetails?.dateOfBirth || "",
+              gender: onboarding.personalDetails?.gender || "",
+              nationality: onboarding.personalDetails?.nationality || "",
+              fatherName: onboarding.personalDetails?.fatherName || "",
+              aadhaarNumber: onboarding.personalDetails?.aadhaarNumber || "",
+              panNumber: onboarding.personalDetails?.panNumber || "",
+            });
             
             // Load bank details
             setBankDetails(
@@ -558,14 +685,35 @@ export default function OnboardingPage() {
   };
 
   const validateForm = () => {
-    if (
-      !personalDetails.dateOfBirth ||
-      !personalDetails.gender ||
-      !personalDetails.nationality ||
-      !personalDetails.fatherName
-    ) {
-      setError("Please fill all personal details");
-      return false;
+    // Skip validation for fields not being updated in re-upload mode
+    if (!isReuploadMode) {
+      if (
+        !personalDetails.dateOfBirth ||
+        !personalDetails.gender ||
+        !personalDetails.nationality ||
+        !personalDetails.fatherName
+      ) {
+        setError("Please fill all personal details");
+        return false;
+      }
+      // Validate Aadhaar Number
+      if (!personalDetails.aadhaarNumber || personalDetails.aadhaarNumber.replace(/\s/g, "").length !== 12) {
+        setError("Please enter a valid 12-digit Aadhaar number");
+        return false;
+      }
+      if (!validateAadhaar(personalDetails.aadhaarNumber)) {
+        setError("Please enter a valid Aadhaar number");
+        return false;
+      }
+      // Validate PAN Number
+      if (!personalDetails.panNumber) {
+        setError("Please enter your PAN number");
+        return false;
+      }
+      if (!validatePAN(personalDetails.panNumber)) {
+        setError("Please enter a valid PAN number (format: ABCDE1234F)");
+        return false;
+      }
     }
     if (
       !bankDetails.accountHolderName ||
@@ -576,6 +724,27 @@ export default function OnboardingPage() {
       setError("Please fill all bank details");
       return false;
     }
+    // In re-upload mode, only validate the requested documents
+    if (isReuploadMode) {
+      for (const docKey of reuploadDocuments) {
+        const doc = documents[docKey as keyof typeof documents];
+        if (!doc) {
+          const labels: Record<string, string> = {
+            aadharCardFront: "Aadhar Card Front",
+            aadharCardBack: "Aadhar Card Back",
+            panCard: "PAN Card",
+            highSchoolMarksheet: "High School Marksheet",
+            interMarksheet: "Intermediate Marksheet",
+            graduationMarksheet: "Graduation Marksheet",
+          };
+          setError(`Please upload ${labels[docKey] || docKey}`);
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Regular onboarding validation
     if (!documents.aadharCardFront) {
       setError("Please upload Aadhar card front");
       return false;
@@ -650,6 +819,125 @@ export default function OnboardingPage() {
     return true;
   };
 
+  // Handle re-upload submission
+  const handleReuploadSubmit = async () => {
+    setShowConfirmDialog(false);
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      // Validate form first
+      if (!validateForm()) {
+        setSubmitting(false);
+        toast({
+          title: "Validation Error",
+          description: error || "Please fill all required fields and upload all requested documents.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get the re-upload token from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const reuploadToken = urlParams.get("reupload");
+
+      if (!reuploadToken) {
+        const errorMsg = "Re-upload token is missing. Please use the link from your email.";
+        setError(errorMsg);
+        toast({
+          title: "Missing Token",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      // Prepare only the requested documents
+      const documentsToUpload: Record<string, string> = {};
+      const missingDocuments: string[] = [];
+      
+      for (const docKey of reuploadDocuments) {
+        const doc = documents[docKey as keyof typeof documents];
+        if (doc && doc.url) {
+          documentsToUpload[docKey] = doc.url;
+        } else {
+          const label = DOCUMENT_LABELS[docKey] || docKey;
+          missingDocuments.push(label);
+        }
+      }
+
+      // Check if all requested documents are uploaded
+      if (missingDocuments.length > 0) {
+        const errorMsg = `Please upload the following documents: ${missingDocuments.join(", ")}`;
+        setError(errorMsg);
+        toast({
+          title: "Missing Documents",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      // Check if any documents were prepared
+      if (Object.keys(documentsToUpload).length === 0) {
+        const errorMsg = "No documents to upload. Please upload at least one document.";
+        setError(errorMsg);
+        toast({
+          title: "No Documents",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      console.log("Submitting re-upload with documents:", Object.keys(documentsToUpload));
+      console.log("Token:", reuploadToken);
+
+      const response = await fetch(`/api/candidates/${candidateId}/onboarding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documents: documentsToUpload,
+          reuploadToken,
+        }),
+      });
+
+      // Check if response is ok
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Network error occurred" }));
+        throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to re-upload documents");
+      }
+
+      setSuccess(true);
+      setReuploadCompleted(true);
+      setError(null);
+      toast({
+        title: "Documents Re-uploaded Successfully",
+        description: "HR has been notified and will review your documents shortly.",
+      });
+    } catch (err: any) {
+      console.error("Error re-uploading documents:", err);
+      const errorMessage = err.message || "Failed to re-upload documents. Please try again or contact HR.";
+      setError(errorMessage);
+      toast({
+        title: "Re-upload Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
@@ -658,6 +946,12 @@ export default function OnboardingPage() {
   };
 
   const handleConfirmSubmit = async () => {
+    // If in re-upload mode, use the re-upload handler
+    if (isReuploadMode) {
+      await handleReuploadSubmit();
+      return;
+    }
+
     setShowConfirmDialog(false);
     setError(null);
     setSubmitting(true);
@@ -1022,6 +1316,224 @@ export default function OnboardingPage() {
     );
   }
 
+  // Re-upload Mode - Simplified View with only requested documents
+  if (isReuploadMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
+        <div className="w-full max-w-2xl">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent mb-3">
+              Document Re-upload
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Please re-upload the following documents
+            </p>
+          </div>
+
+          {/* Success Message */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
+              <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                  Documents Re-uploaded Successfully!
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-400">
+                  HR has been notified and will review your documents shortly.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
+                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Already Completed Message */}
+          {reuploadCompleted && !success && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-800 rounded-lg flex items-center gap-3 shadow-sm">
+              <Check className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                  Documents Already Submitted
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  You have already re-uploaded the requested documents. HR will review them shortly.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Reason Banner */}
+          {reuploadReason && !reuploadCompleted && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    Reason for Re-upload
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                    {reuploadReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tips */}
+          {!reuploadCompleted && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">
+                💡 Tips for better document uploads:
+              </p>
+              <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
+                <li>Take photos in portrait mode with good lighting</li>
+                <li>Ensure all text is clearly visible and not blurred</li>
+                <li>Avoid shadows or glare on the document</li>
+                <li>Make sure the entire document is visible in the frame</li>
+              </ul>
+            </div>
+          )}
+
+          {/* Document Upload Cards - Only requested documents */}
+          {!reuploadCompleted && (
+            <form onSubmit={handleSubmitClick} noValidate className="space-y-4">
+              <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-semibold">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Documents to Re-upload
+                  </h2>
+                </div>
+                <div className="space-y-4">
+                  {reuploadDocuments.map((docKey) => {
+                    const doc = documents[docKey as keyof typeof documents] as UploadedFile | null;
+                    const isUploading = uploadingFiles.has(docKey);
+                    const label = DOCUMENT_LABELS[docKey] || docKey;
+
+                    return (
+                      <div key={docKey} className="space-y-2">
+                        <label className="block text-sm font-medium text-foreground items-center gap-2">
+                          {label}
+                          <span className="text-red-500">*</span>
+                          {isUploading && (
+                            <Loader2 className="w-4 h-4 animate-spin text-amber-600 inline-block ml-2" />
+                          )}
+                        </label>
+                        <div className="relative">
+                          <label className="flex items-center justify-center w-full px-4 py-4 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors hover:border-amber-400 dark:hover:border-amber-600">
+                            <div className="flex items-center gap-2 text-foreground">
+                              {doc ? (
+                                <>
+                                  <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                                    {doc.name}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-5 h-5 text-amber-600" />
+                                  <span className="text-sm text-amber-700 dark:text-amber-400">
+                                    Click to upload {label}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) =>
+                                handleDocumentChange(e, docKey as keyof typeof documents)
+                              }
+                              className="hidden"
+                              disabled={isUploading}
+                              name={`reupload-${docKey}`}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={submitting || uploadingFiles.size > 0}
+                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                size="lg"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Re-uploading Documents...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Submit Re-uploaded Documents
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+
+          {/* Confirmation Dialog */}
+          <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <DialogContent className="bg-white dark:bg-gray-800">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">
+                  Confirm Document Re-upload
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Are you sure you want to submit the re-uploaded documents? HR will be notified and will review them shortly.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowConfirmDialog(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  disabled={submitting}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Re-uploading...
+                    </>
+                  ) : (
+                    "Yes, Submit Documents"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal Onboarding Flow
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
       <div className="w-full max-w-4xl">
@@ -1254,6 +1766,70 @@ export default function OnboardingPage() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Aadhaar Number <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="XXXX XXXX XXXX"
+                  value={formatAadhaarInput(personalDetails.aadhaarNumber)}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, "").slice(0, 12);
+                    setPersonalDetails((prev) => ({
+                      ...prev,
+                      aadhaarNumber: cleaned,
+                    }));
+                    if (cleaned.length === 12) {
+                      validateAadhaar(cleaned);
+                    } else {
+                      setAadhaarError(null);
+                    }
+                  }}
+                  className={aadhaarError ? "border-red-500" : ""}
+                  required
+                  disabled={isReuploadMode}
+                />
+                {aadhaarError && (
+                  <p className="text-xs text-red-500 mt-1">{aadhaarError}</p>
+                )}
+                {personalDetails.aadhaarNumber && !aadhaarError && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Display: {formatAadhaarForDisplay(personalDetails.aadhaarNumber)}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  PAN Number <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="ABCDE1234F"
+                  value={personalDetails.panNumber.toUpperCase()}
+                  onChange={(e) => {
+                    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+                    setPersonalDetails((prev) => ({
+                      ...prev,
+                      panNumber: value,
+                    }));
+                    if (value.length === 10) {
+                      validatePAN(value);
+                    } else {
+                      setPanError(null);
+                    }
+                  }}
+                  className={panError ? "border-red-500" : ""}
+                  required
+                  disabled={isReuploadMode}
+                />
+                {panError && (
+                  <p className="text-xs text-red-500 mt-1">{panError}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Format: 5 letters + 4 digits + 1 letter (e.g., ABCDE1234F)
+                </p>
+              </div>
             </div>
           </Card>
 
@@ -1358,9 +1934,19 @@ export default function OnboardingPage() {
                   {uploadingFiles.has("aadharCardFront") && (
                     <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                   )}
+                  {isDocumentLocked("aadharCardFront") && (
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
+                  )}
+                  {isReuploadMode && reuploadDocuments.includes("aadharCardFront") && (
+                    <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
+                  )}
                 </label>
                 <div className="relative">
-                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                  <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
+                    isDocumentLocked("aadharCardFront") 
+                      ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
+                      : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
+                  }`}>
                     <div className="flex items-center gap-2 text-foreground">
                       {documents.aadharCardFront ? (
                         <>
@@ -1385,7 +1971,7 @@ export default function OnboardingPage() {
                         handleDocumentChange(e, "aadharCardFront")
                       }
                       className="hidden"
-                      disabled={uploadingFiles.has("aadharCardFront")}
+                      disabled={uploadingFiles.has("aadharCardFront") || isDocumentLocked("aadharCardFront")}
                       required
                     />
                   </label>
@@ -1400,9 +1986,19 @@ export default function OnboardingPage() {
                   {uploadingFiles.has("aadharCardBack") && (
                     <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                   )}
+                  {isDocumentLocked("aadharCardBack") && (
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
+                  )}
+                  {isReuploadMode && reuploadDocuments.includes("aadharCardBack") && (
+                    <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
+                  )}
                 </label>
                 <div className="relative">
-                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                  <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
+                    isDocumentLocked("aadharCardBack") 
+                      ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
+                      : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
+                  }`}>
                     <div className="flex items-center gap-2 text-foreground">
                       {documents.aadharCardBack ? (
                         <>
@@ -1427,7 +2023,7 @@ export default function OnboardingPage() {
                         handleDocumentChange(e, "aadharCardBack")
                       }
                       className="hidden"
-                      disabled={uploadingFiles.has("aadharCardBack")}
+                      disabled={uploadingFiles.has("aadharCardBack") || isDocumentLocked("aadharCardBack")}
                       required
                     />
                   </label>
@@ -1446,6 +2042,8 @@ export default function OnboardingPage() {
                   key as keyof typeof documents
                 ] as UploadedFile | null;
                 const isUploading = uploadingFiles.has(key);
+                const isLocked = isDocumentLocked(key);
+                const needsReupload = isReuploadMode && reuploadDocuments.includes(key);
 
                 return (
                   <div key={key} className="space-y-2">
@@ -1455,9 +2053,19 @@ export default function OnboardingPage() {
                       {isUploading && (
                         <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                       )}
+                      {isLocked && (
+                        <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
+                      )}
+                      {needsReupload && (
+                        <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
+                      )}
                     </label>
                     <div className="relative">
-                      <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                      <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
+                        isLocked 
+                          ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
+                          : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
+                      }`}>
                         <div className="flex items-center gap-2 text-foreground">
                           {doc ? (
                             <>
@@ -1485,7 +2093,7 @@ export default function OnboardingPage() {
                             )
                           }
                           className="hidden"
-                          disabled={isUploading}
+                          disabled={isUploading || isLocked}
                           required
                         />
                       </label>
@@ -2081,11 +2689,15 @@ export default function OnboardingPage() {
           <div className="flex gap-3 pb-8">
             <Button
               type="submit"
-              disabled={submitting || uploadingFiles.size > 0 || isOnboardingComplete}
-              className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitting || uploadingFiles.size > 0 || (isOnboardingComplete && !isReuploadMode)}
+              className={`flex-1 gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                isReuploadMode 
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                  : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              } text-white`}
               size="lg"
             >
-              {isOnboardingComplete ? (
+              {isOnboardingComplete && !isReuploadMode ? (
                 <>
                   <Check className="w-4 h-4" />
                   Onboarding Completed
@@ -2093,7 +2705,12 @@ export default function OnboardingPage() {
               ) : submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
+                  {isReuploadMode ? "Re-uploading..." : "Submitting..."}
+                </>
+              ) : isReuploadMode ? (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Submit Re-uploaded Documents
                 </>
               ) : (
                 <>
@@ -2127,9 +2744,14 @@ export default function OnboardingPage() {
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="bg-white dark:bg-gray-800">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Confirm Submission</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {isReuploadMode ? "Confirm Document Re-upload" : "Confirm Submission"}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to submit your onboarding details? Once submitted, you won&apos;t be able to make changes.
+              {isReuploadMode 
+                ? "Are you sure you want to submit the re-uploaded documents? HR will be notified and will review them shortly."
+                : "Are you sure you want to submit your onboarding details? Once submitted, you won't be able to make changes."
+              }
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -2145,15 +2767,15 @@ export default function OnboardingPage() {
               type="button"
               onClick={handleConfirmSubmit}
               disabled={submitting}
-              className="bg-blue-600 hover:bg-blue-700"
+              className={isReuploadMode ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"}
             >
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Submitting...
+                  {isReuploadMode ? "Re-uploading..." : "Submitting..."}
                 </>
               ) : (
-                "Yes, Submit"
+                isReuploadMode ? "Yes, Submit Documents" : "Yes, Submit"
               )}
             </Button>
           </DialogFooter>

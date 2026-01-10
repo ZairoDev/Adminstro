@@ -371,16 +371,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Register Candidate",
       Icon: <Speech size={18} />,
     },
-    {
-      path: "/dashboard/leftoverCandidate",
-      label: "Leftover Candidate",
-      Icon: <PersonStanding size={18} />,
-    },
-    {
-      path: "/dashboard/attendedCandidate",
-      label: "Attended Candidate",
-      Icon: <PersonStanding size={18} />,
-    },
+    // {
+    //   path: "/dashboard/leftoverCandidate",
+    //   label: "Leftover Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
+    // {
+    //   path: "/dashboard/attendedCandidate",
+    //   label: "Attended Candidate",
+    //   Icon: <PersonStanding size={18} />,
+    // },
     {
       path: "/dashboard/room/joinroom",
       label: "Join Room",

@@ -8,7 +8,9 @@ export type CandidateEmailStatus =
   | "onboarding"
   | "trainingDiscontinued"
   | "interview"
-  | "secondRoundInterview";
+  | "secondRoundInterview"
+  | "interviewRescheduled"
+  | "secondRoundInterviewRescheduled";
 
 export interface SelectionDetails {
   positionType: string;
@@ -33,6 +35,9 @@ export interface CandidateEmailPayload {
     scheduledTime: string;
     officeAddress: string;
     googleMapsLink: string;
+    candidateId?: string;
+    interviewType?: "first" | "second";
+    rescheduleLink?: string;
   };
   id?: string;
 }

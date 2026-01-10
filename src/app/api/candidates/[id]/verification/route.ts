@@ -6,7 +6,9 @@ import { type NextRequest, NextResponse } from "next/server";
 
 // Document types that can be verified
 const DOCUMENT_TYPES = [
-  "aadharCard",
+  "aadharCard", // Backward compatibility
+  "aadharCardFront",
+  "aadharCardBack",
   "panCard",
   "highSchoolMarksheet",
   "interMarksheet",
@@ -49,10 +51,17 @@ export async function PATCH(
     const body = await request.json();
     const { documentType, verified } = body;
 
+    // Log received data for debugging
+    console.log("Verification request:", { candidateId: id, documentType, verified });
+
     // Validate document type
     if (!DOCUMENT_TYPES.includes(documentType as DocumentType)) {
+      console.error("Invalid document type:", documentType, "Valid types:", DOCUMENT_TYPES);
       return NextResponse.json(
-        { success: false, error: "Invalid document type" },
+        { 
+          success: false, 
+          error: `Invalid document type: "${documentType}". Valid types: ${DOCUMENT_TYPES.join(", ")}` 
+        },
         { status: 400 }
       );
     }
@@ -75,11 +84,40 @@ export async function PATCH(
     }
 
     // Check if document exists
-    const documentValue = candidate.onboardingDetails?.documents?.[documentType];
+    // Handle backward compatibility: if checking aadharCardFront/Back but only old aadharCard exists
+    let documentValue = candidate.onboardingDetails?.documents?.[documentType];
+    
+    // Backward compatibility: if requesting aadharCardFront/Back but only old aadharCard exists
+    if ((documentType === "aadharCardFront" || documentType === "aadharCardBack") && !documentValue) {
+      const oldAadharCard = candidate.onboardingDetails?.documents?.aadharCard;
+      if (oldAadharCard) {
+        // Allow verification of front/back even if only old aadharCard exists
+        documentValue = oldAadharCard;
+        console.log("Using backward compatibility: old aadharCard found for", documentType);
+      }
+    }
+    
+    // Also handle reverse: if requesting old aadharCard but only new ones exist
+    if (documentType === "aadharCard" && !documentValue) {
+      const hasNewAadhar = candidate.onboardingDetails?.documents?.aadharCardFront || 
+                          candidate.onboardingDetails?.documents?.aadharCardBack;
+      if (hasNewAadhar) {
+        // Don't allow verification of old aadharCard if new ones exist
+        console.error("Cannot verify old aadharCard when new aadharCardFront/Back exists");
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "Cannot verify 'aadharCard' when 'aadharCardFront' or 'aadharCardBack' exists. Please verify the front and back separately." 
+          },
+          { status: 400 }
+        );
+      }
+    }
     
     if (!documentValue || (Array.isArray(documentValue) && documentValue.length === 0)) {
+      console.error("Document not found:", { documentType, candidateId: id });
       return NextResponse.json(
-        { success: false, error: "Document not found or not uploaded" },
+        { success: false, error: `Document "${documentType}" not found or not uploaded` },
         { status: 400 }
       );
     }

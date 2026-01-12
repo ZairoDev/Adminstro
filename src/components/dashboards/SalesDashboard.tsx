@@ -16,6 +16,8 @@ import { RetargetHistogram } from "@/components/charts/RetargetHistogram";
 import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import BookingChartImproved from "@/components/BookingChart";
 import WeeklyTargetDashboard from "@/components/BookingTable";
+import { PhoneNumberHealth } from "@/components/whatsapp/PhoneNumberHealth";
+import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 // Hooks
 import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
@@ -174,12 +176,28 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
   // Admin roles see Revenue Analytics & Target Performance in AdminDashboard, not here
   const showRevenueAndTargetHere = !isAdmin && !["SuperAdmin", "Admin", "Developer"].includes(role);
 
+  // WhatsApp features visible to SuperAdmin, Sales-TeamLead, and Sales
+  const canViewWhatsAppFeatures = ["SuperAdmin", "Sales-TeamLead", "Sales"].includes(role);
+
   if (!hasSalesAccess) {
     return null;
   }
 
   return (
     <div className={className}>
+      {/* Broadcast Notification Form - SuperAdmin/HR only */}
+      {(role === "SuperAdmin" || role === "HR") && (
+        <div className="my-6 flex justify-end">
+          <BroadcastNotificationForm />
+        </div>
+      )}
+      
+      {/* WhatsApp Phone Number Health */}
+      {canViewWhatsAppFeatures && (
+        <div className="my-6">
+          <PhoneNumberHealth />
+        </div>
+      )}
       {/* Revenue Analytics - Only for Sales Team and Sales-TeamLead (SuperAdmin/Admin sees it in AdminDashboard) */}
       {canAccess("revenueAnalytics") && showRevenueAndTargetHere && (
         <div className="my-6">

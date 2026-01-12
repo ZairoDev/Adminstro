@@ -14,6 +14,7 @@ import {
   ScanEye,
   CircleX,
   BellDot,
+  Bell,
   Notebook,
   PhoneOff,
   ThumbsUp,
@@ -234,6 +235,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard",
       label: "Dashboard",
       Icon: <LayoutDashboard size={18} />,
+    },
+    {
+      path: "/dashboard/notifications",
+      label: "Notifications",
+      Icon: <Bell size={18} />,
     },
     {
       path: "/spreadsheet",
@@ -1015,10 +1021,15 @@ const otherSettingsRoutes = [
     Icon: <Swords size={18} />,
   },
   {
+    path: "/dashboard/notifications",
+    label: "Notifications",
+    Icon: <Bell size={18} />,
+  },
+  {
     path: "/dashboard/coupons",
     label: "Manage Coupons",
     Icon: <Ticket size={18} />,
-  },  
+  },
   {
     path: "/dashboard/target",
     label: "Add Area",

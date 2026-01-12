@@ -10,29 +10,30 @@ import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   getDefaultPhoneId,
+  WHATSAPP_PHONE_CONFIGS,
 } from "@/lib/whatsapp/config";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 
 connectDb();
 
-// Test email that triggers WhatsApp template sending
-const TEST_EMAIL = "abhaytripathi6969@gmail.com";
-
-// Function to send WhatsApp template to lead
-async function sendFirstTemplateToLead(
+// Function to send WhatsApp template to lead (LIVE VERSION - Athens only)
+async function sendGuestGreetingTemplate(
   phoneNo: string,
   leadName: string,
-  creatorEmail: string
+  location: string
 ) {
   try {
-    // Only send for test email during testing phase
-    if (creatorEmail !== TEST_EMAIL) {
-      console.log(`⏭️ Skipping WhatsApp template - creator is not test user`);
+    // LIVE: Only send for Athens location
+    const normalizedLocation = location?.toLowerCase().trim();
+    if (normalizedLocation !== "athens") {
+      console.log(`⏭️ Skipping WhatsApp template - location is not Athens (got: ${location})`);
       return;
     }
 
     const whatsappToken = getWhatsAppToken();
-    const phoneNumberId = getDefaultPhoneId("SuperAdmin", ["all"]);
+    // Get Athens phone ID
+    const athensConfig = WHATSAPP_PHONE_CONFIGS.find(config => config.area === "athens");
+    const phoneNumberId = athensConfig?.phoneNumberId || getDefaultPhoneId("SuperAdmin", ["athens"]);
 
     if (!whatsappToken || !phoneNumberId) {
       console.error("❌ WhatsApp not configured - missing token or phone ID");
@@ -45,7 +46,7 @@ async function sendFirstTemplateToLead(
       formattedPhone = formattedPhone.substring(1);
     }
 
-    console.log(`📱 Sending first_template to ${formattedPhone} for lead: ${leadName}`);
+    console.log(`📱 [LIVE] Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
@@ -61,7 +62,7 @@ async function sendFirstTemplateToLead(
           to: formattedPhone,
           type: "template",
           template: {
-            name: "first_template",
+            name: "guest_greeting",
             language: {
               code: "en",
             },
@@ -69,8 +70,8 @@ async function sendFirstTemplateToLead(
               {
                 type: "body",
                 parameters: [
-                  { type: "text", text: leadName },
-                  { type: "text", text: formattedPhone }
+                  { type: "text", text: leadName }, // {{1}} = leadName
+                  { type: "text", text: location }   // {{2}} = location
                 ]
               }
             ]
@@ -87,12 +88,12 @@ async function sendFirstTemplateToLead(
     }
 
     const whatsappMessageId = data.messages?.[0]?.id;
-    console.log(`✅ WhatsApp template sent successfully to ${formattedPhone}:`, whatsappMessageId);
+    console.log(`✅ [LIVE] guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
 
     // Save message to database and emit socket event for frontend display
     if (whatsappMessageId) {
       const timestamp = new Date();
-      const templateText = `Hello ${leadName}, welcome to Zairo International! Your registered number is ${formattedPhone}.\nWe're here to help if you need anything.`;
+      const templateText = `Hello ${leadName},\nMy team informed me that you are looking for an apartment for rent in ${location}.\nPlease let me know if you'd like help with available options.`;
 
       // Get or create conversation
       let conversation = await WhatsAppConversation.findOne({
@@ -133,7 +134,7 @@ async function sendFirstTemplateToLead(
         to: formattedPhone,
         type: "template",
         content: contentObj,
-        templateName: "first_template",
+        templateName: "guest_greeting",
         templateLanguage: "en",
         status: "sent",
         statusEvents: [{ status: "sent", timestamp }],
@@ -277,9 +278,9 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ Socket.IO instance not found!");
     }
 
-    // ✅ Send WhatsApp first_template to lead (only for test user)
+    // ✅ Send WhatsApp guest_greeting template to lead (LIVE - Athens only)
     // This runs asynchronously - don't await to avoid blocking the response
-    sendFirstTemplateToLead(phoneNo, name, creatorEmail).catch((err) => {
+    sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
       console.error("❌ Failed to send WhatsApp template:", err);
     });
 

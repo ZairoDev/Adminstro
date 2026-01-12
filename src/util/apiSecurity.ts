@@ -78,11 +78,16 @@ export function applyLocationFilter(
       }
     } else {
       // No specific location requested - filter by all assigned areas
+      // Use case-insensitive regex matching for location field
       if (assignedArea) {
-        if (Array.isArray(assignedArea)) {
-          query.location = { $in: assignedArea };
-        } else {
-          query.location = assignedArea;
+        if (Array.isArray(assignedArea) && assignedArea.length > 0) {
+          // For array of locations, use $or with regex for case-insensitive matching
+          query.$or = assignedArea.map((area) => ({
+            location: new RegExp(`^${area}$`, "i") // Exact match (case-insensitive)
+          }));
+        } else if (typeof assignedArea === "string") {
+          // Single location - use case-insensitive regex for exact match
+          query.location = new RegExp(`^${assignedArea}$`, "i");
         }
       } else {
         // No assigned areas - deny access

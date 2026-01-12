@@ -29,12 +29,10 @@ class SocketManager {
     if (this.initialized || typeof window === "undefined") return;
     this.initialized = true;
 
-    // Determine socket URL based on current page location, not env vars
-    // This ensures local development connects to localhost
-    const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const socketUrl = isLocalhost 
-      ? `http://${window.location.host}`
-      : (process.env.NEXT_PUBLIC_SOCKET_URL || "https://adminstro.in");
+    // Determine socket URL based on current page location.
+    // Prefer explicit NEXT_PUBLIC_SOCKET_URL when provided; otherwise
+    // default to the current origin so the client connects back to the same server.
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin;
 
     console.log("🔗 Connecting to Socket:", socketUrl);
 

@@ -3,10 +3,42 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneIds, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import ConversationReadState from "@/models/conversationReadState";
+import Employee from "@/models/employee";
 
 // Ensure database connection
 connectDb();
+
+// Per-conversation emit debounce (prevents burst-spam)
+// Key: `${conversationId}:${userId}`, Value: last emit timestamp
+const lastEmitMap = new Map<string, number>();
+const EMIT_DEBOUNCE_MS = 300; // 300ms debounce per conversation per user
+
+function canEmit(conversationId: string, userId: string): boolean {
+  const key = `${conversationId}:${userId}`;
+  const now = Date.now();
+  const last = lastEmitMap.get(key) ?? 0;
+
+  if (now - last < EMIT_DEBOUNCE_MS) {
+    console.log(`⏸️ [DEBOUNCE] Skipping emit for ${key} (last emit ${now - last}ms ago)`);
+    return false;
+  }
+  
+  lastEmitMap.set(key, now);
+  
+  // Cleanup old entries (keep map size reasonable)
+  if (lastEmitMap.size > 1000) {
+    const entries = Array.from(lastEmitMap.entries());
+    const cutoff = now - 60000; // Keep last minute
+    lastEmitMap.clear();
+    entries.forEach(([k, v]) => {
+      if (v > cutoff) lastEmitMap.set(k, v);
+    });
+  }
+  
+  return true;
+}
 
 
 export async function GET(req: NextRequest) {
@@ -228,7 +260,7 @@ async function getMediaPermanentUrl(
 }
 
 /**
- * Send guest_questions template after receiving "Yes" reply to first_template
+ * Send guest_questions template after receiving "Yes, I'm Interested" reply to guest_greeting
  */
 async function sendGuestQuestionsTemplate(
   recipientPhone: string,
@@ -364,6 +396,108 @@ async function sendGuestQuestionsTemplate(
   }
 }
 
+/**
+ * Get all eligible users who should receive notifications for a conversation
+ * Based on role, location, and assignment
+ */
+async function getEligibleUsersForNotification(
+  conversation: any,
+  businessPhoneId: string
+): Promise<Array<{ userId: string; role: string; allotedArea: string[] }>> {
+  const eligibleUsers: Array<{ userId: string; role: string; allotedArea: string[] }> = [];
+  
+  // Get phone config to determine area
+  const { getAllowedPhoneConfigs } = await import("@/lib/whatsapp/config");
+  const phoneConfig = getAllowedPhoneConfigs("SuperAdmin", []).find(
+    (config) => config.phoneNumberId === businessPhoneId
+  );
+  
+  if (!phoneConfig) {
+    console.warn(`⚠️ Phone config not found for ${businessPhoneId}`);
+    return eligibleUsers;
+  }
+  
+  const area = phoneConfig.area;
+  
+  // Get all employees with WhatsApp access roles
+  const employees = await Employee.find({
+    role: { $in: WHATSAPP_ACCESS_ROLES },
+    $or: [
+      { isActive: { $exists: false } }, // If field doesn't exist, include
+      { isActive: true }, // If field exists, must be true
+    ],
+  }).select("_id role allotedArea").lean();
+  
+  for (const employee of employees) {
+    const employeeId = (employee._id as any)?.toString() || employee._id?.toString() || "";
+    if (!employeeId) continue;
+    
+    const employeeRole = (employee.role as string) || "";
+    const employeeAreas = Array.isArray(employee.allotedArea)
+      ? employee.allotedArea
+      : employee.allotedArea
+        ? [employee.allotedArea]
+        : [];
+    
+    // SuperAdmin/Admin/Developer: always eligible
+    if (["SuperAdmin", "Admin", "Developer"].includes(employeeRole)) {
+      eligibleUsers.push({
+        userId: employeeId,
+        role: employeeRole,
+        allotedArea: employeeAreas,
+      });
+      continue;
+    }
+    
+    // Sales: Check if user has access to this phone's area (area-based assignment, not conversation-based)
+    if (employeeRole === "Sales") {
+      // Normalize areas for comparison (case-insensitive)
+      const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
+      const normalizedPhoneArea = area.toLowerCase().trim();
+      
+      // Check if employee has this area in their assigned areas
+      // Also check for "all" or "both" which gives access to all areas
+      const hasAreaAccess = 
+        normalizedEmployeeAreas.includes(normalizedPhoneArea) ||
+        normalizedEmployeeAreas.includes("all") ||
+        normalizedEmployeeAreas.includes("both");
+      
+      if (hasAreaAccess) {
+        eligibleUsers.push({
+          userId: employeeId,
+          role: employeeRole,
+          allotedArea: employeeAreas,
+        });
+      }
+      continue;
+    }
+    
+    // Sales-TeamLead/LeadGen-TeamLead/LeadGen: check area access (area-based assignment)
+    if (["Sales-TeamLead", "LeadGen-TeamLead", "LeadGen"].includes(employeeRole)) {
+      // Normalize areas for comparison (case-insensitive)
+      const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
+      const normalizedPhoneArea = area.toLowerCase().trim();
+      
+      // Check if employee has this area in their assigned areas
+      // Also check for "all" or "both" which gives access to all areas
+      const hasAreaAccess = 
+        normalizedEmployeeAreas.includes(normalizedPhoneArea) ||
+        normalizedEmployeeAreas.includes("all") ||
+        normalizedEmployeeAreas.includes("both");
+      
+      if (hasAreaAccess) {
+        eligibleUsers.push({
+          userId: employeeId,
+          role: employeeRole,
+          allotedArea: employeeAreas,
+        });
+      }
+    }
+  }
+  
+  return eligibleUsers;
+}
+
 async function processIncomingMessage(
   message: any,
   contact: any,
@@ -402,26 +536,13 @@ async function processIncomingMessage(
         participantName: senderName,
         businessPhoneId: phoneNumberId,
         status: "active",
-        unreadCount: 1,
-      });
-
-      // Emit new conversation event via Socket.io
-      emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_CONVERSATION, {
-        conversation: {
-          id: conversation._id,
-          participantPhone: senderPhone,
-          participantName: senderName,
-          unreadCount: 1,
-          lastMessageTime: timestamp,
-          businessPhoneId: phoneNumberId,
-        },
+        unreadCount: 0, // Legacy field - will be removed, kept for backward compatibility
       });
     } else {
       console.log(`📝 Updating existing conversation ${conversation._id} for ${senderPhone}`);
-      // Update conversation with new message info
+      // Only update participant name - read state is per-user, not global
       await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
         participantName: senderName,
-        $inc: { unreadCount: 1 },
       });
     }
 
@@ -522,13 +643,18 @@ async function processIncomingMessage(
         break;
         
       case "button":
-        contentObj.text = message.button?.text || "Button response";
+        // Extract text from button - prioritize text, then payload
+        contentObj.text = message.button?.text || message.button?.payload || "Button response";
         break;
         
       case "interactive":
-        contentObj.text = message.interactive?.button_reply?.title || 
-                  message.interactive?.list_reply?.title || 
-                  "Interactive response";
+        // Extract text from interactive - check all possible sources
+        contentObj.text = 
+          message.interactive?.button_reply?.title || 
+          message.interactive?.button_reply?.id ||
+          message.interactive?.list_reply?.title ||
+          message.interactive?.list_reply?.id ||
+          "Interactive response";
         contentObj.interactivePayload = message.interactive;
         break;
         
@@ -545,109 +671,60 @@ async function processIncomingMessage(
       (contentObj.location ? `📍 ${contentObj.location.name || 'Location'}` : '') ||
       `${message.type} message`;
 
-    // Save message to database using upsert (idempotent - handles duplicate webhooks)
-    const savedMessage = await WhatsAppMessage.findOneAndUpdate(
-      { messageId: message.id }, // Find by unique messageId
-      {
-        $setOnInsert: {
+    // ============================================================
+    // AUTOMATION LOGIC: Run BEFORE deduplication
+    // ============================================================
+    // CRITICAL: Business logic must run even for duplicate webhooks
+    // Extract message text from all possible sources
+    const extractedText = 
+      contentObj.text || 
+      message.button?.text || 
+      message.button?.payload || 
+      message.interactive?.button_reply?.title ||
+      message.interactive?.list_reply?.title ||
+      message.interactive?.button_reply?.id ||
+      "";
+
+    const messageText = extractedText.trim().toLowerCase();
+    
+    // Check for "Yes, I'm Interested" reply after guest_greeting
+    // This must run BEFORE deduplication to handle button clicks on duplicate webhooks
+    const isYesInterested = 
+      messageText === "yes, i'm interested" ||
+      messageText === "yes im interested" ||
+      messageText === "yes i am interested" ||
+      messageText === "yes, im interested" ||
+      messageText === "yes, i am interested" ||
+      (messageText.includes("yes") && messageText.includes("interested"));
+
+    if (isYesInterested) {
+      try {
+        console.log(`🤖 [AUTOMATION] Detected "Yes, I'm Interested" - checking if guest_questions should be sent`);
+        
+        // Check if guest_questions was already sent to prevent duplicates
+        const guestQuestionsAlreadySent = await WhatsAppMessage.findOne({
           conversationId: conversation._id,
-          messageId: message.id,
-          businessPhoneId: phoneNumberId,
-          from: senderPhone,
-          to: phoneNumberId,
-          type: message.type,
-          content: contentObj,
-          mediaUrl, // Permanent CDN URL
-          mediaId,
-          mimeType,
-          filename,
-          status: "delivered",
-          statusEvents: [{ status: "delivered", timestamp }],
-          direction: "incoming",
-          timestamp,
-          conversationSnapshot: {
-            participantPhone: senderPhone,
-            assignedAgent: conversation.assignedAgent,
-          },
-        },
-      },
-      { upsert: true, new: true }
-    );
+          direction: "outgoing",
+          type: "template",
+          templateName: "guest_questions",
+        }).lean();
 
-    // Check if this was a new insert or existing document
-    // If createdAt equals updatedAt (within small margin), it's a new document
-    const isNewMessage = !savedMessage.createdAt || 
-      (savedMessage.updatedAt && 
-       Math.abs(new Date(savedMessage.createdAt).getTime() - new Date(savedMessage.updatedAt).getTime()) < 1000);
-
-    if (!isNewMessage) {
-      console.log(`⏭️ Message ${message.id} already processed, skipping duplicate webhook`);
-      return;
-    }
-
-    // Update conversation last message
-    await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
-      lastMessageId: message.id,
-      lastMessageContent: displayText.substring(0, 100),
-      lastMessageTime: timestamp,
-      lastMessageDirection: "incoming",
-      lastCustomerMessageAt: timestamp,
-      lastIncomingMessageTime: timestamp,
-    });
-
-    // Emit new message via Socket.io
-    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
-      conversationId: conversation._id.toString(),
-      businessPhoneId: phoneNumberId,
-      message: {
-        id: savedMessage._id,
-        messageId: message.id,
-        from: senderPhone,
-        to: phoneNumberId,
-        type: message.type,
-        content: contentObj,
-        mediaUrl, // Include permanent URL in socket event
-        mediaId,
-        mimeType,
-        filename,
-        status: "delivered",
-        direction: "incoming",
-        timestamp,
-        senderName,
-      },
-    });
-
-    console.log("✅ Message saved and broadcasted:", message.id, mediaUrl ? `(with media: ${mediaUrl.substring(0, 50)}...)` : "");
-
-    // Check for "Yes" reply after first_template and send guest_questions template
-    if (message.type === "text" && contentObj.text) {
-      const messageText = contentObj.text.trim().toLowerCase();
-      if (messageText === "yes" || messageText === "y") {
-        try {
-          // Check if guest_questions was already sent to prevent duplicates
-          const guestQuestionsAlreadySent = await WhatsAppMessage.findOne({
+        if (guestQuestionsAlreadySent) {
+          console.log(`⏭️ [AUTOMATION] guest_questions template already sent, skipping`);
+        } else {
+          // Find the last outgoing template message in this conversation
+          const lastOutgoingTemplate = await WhatsAppMessage.findOne({
             conversationId: conversation._id,
             direction: "outgoing",
             type: "template",
-            templateName: "guest_questions",
-          }).lean();
+            templateName: "guest_greeting",
+          })
+            .sort({ timestamp: -1 })
+            .lean() as any;
 
-          if (guestQuestionsAlreadySent) {
-            console.log(`⏭️ guest_questions template already sent, skipping`);
-          } else {
-            // Find the last outgoing template message in this conversation
-            const lastOutgoingTemplate = await WhatsAppMessage.findOne({
-              conversationId: conversation._id,
-              direction: "outgoing",
-              type: "template",
-              templateName: "first_template",
-            })
-              .sort({ timestamp: -1 })
-              .lean() as any;
-
-            // If last template was first_template, send guest_questions
-            if (lastOutgoingTemplate) {
-            console.log(`✅ Detected "Yes" reply after first_template, sending guest_questions template`);
+          // If last template was guest_greeting, send guest_questions
+          if (lastOutgoingTemplate) {
+            console.log(`✅ [AUTOMATION] Detected "Yes, I'm Interested" reply after guest_greeting, sending guest_questions template`);
             
             // Get lead name from Query model or use conversation participant name
             const QueryModel = (await import("@/models/query")).default;
@@ -665,20 +742,194 @@ async function processIncomingMessage(
 
             const leadName = lead?.name || conversation.participantName || senderPhone;
             
-            // Send guest_questions template
+            // Send guest_questions template (runs even for duplicate webhooks)
             await sendGuestQuestionsTemplate(
               senderPhone,
               leadName,
               phoneNumberId,
               conversation._id.toString()
             );
-            }
+          } else {
+            console.log(`⏭️ [AUTOMATION] Last template was not guest_greeting, skipping guest_questions`);
           }
-        } catch (err) {
-          console.error("❌ Error checking for Yes reply and sending guest_questions:", err);
         }
+      } catch (err) {
+        console.error("❌ [AUTOMATION] Error checking for Yes reply and sending guest_questions:", err);
+        // Don't throw - automation errors shouldn't block message processing
       }
     }
+
+    // ============================================================
+    // ATOMIC INSERT-FIRST DEDUPLICATION: Let MongoDB decide
+    // ============================================================
+    // CRITICAL: Use atomic insert with unique index for deduplication
+    // MongoDB unique index on { messageId, businessPhoneId } handles race conditions
+    // If insert succeeds → NEW message (proceed with unreadCount & notification)
+    // If insert fails with E11000 → DUPLICATE (skip ALL state changes)
+    // 🚫 NEVER use findOne, findOneAndUpdate, or upsert for deduplication
+    let savedMessage;
+    let isNewMessage = false;
+    
+    try {
+      console.log(`🔄 [ATOMIC INSERT] Attempting insert for messageId: ${message.id}`);
+      
+      savedMessage = await WhatsAppMessage.create({
+        conversationId: conversation._id,
+        messageId: message.id, // CRITICAL: Use message.id (wamid) for uniqueness
+        businessPhoneId: phoneNumberId,
+        from: senderPhone,
+        to: phoneNumberId,
+        type: message.type,
+        content: contentObj,
+        mediaUrl, // Permanent CDN URL
+        mediaId,
+        mimeType,
+        filename,
+        status: "delivered",
+        statusEvents: [{ status: "delivered", timestamp }],
+        direction: "incoming",
+        timestamp,
+        conversationSnapshot: {
+          participantPhone: senderPhone,
+          assignedAgent: conversation.assignedAgent,
+        },
+      });
+
+      // Insert succeeded → NEW message
+      isNewMessage = true;
+      console.log(`✅ [NEW MESSAGE] Insert successful: messageId=${message.id}, type=${message.type}`);
+    } catch (err: any) {
+      // Check if error is duplicate key error (E11000)
+      if (err.code === 11000 || err.code === 11001) {
+        // Duplicate key error → message already exists
+        isNewMessage = false;
+        console.log(`⏭️ [DUPLICATE] Message already exists (E11000): messageId=${message.id} - skipping ALL state changes`);
+        
+        // Fetch existing message for reference (but don't use for deduplication logic)
+        savedMessage = await WhatsAppMessage.findOne({ messageId: message.id });
+        if (!savedMessage) {
+          console.error(`❌ [ERROR] Duplicate key error but message not found: ${message.id}`);
+          return;
+        }
+        console.log(`📋 [DUPLICATE] Using existing message: DB _id=${savedMessage._id}`);
+        
+        // CRITICAL: Duplicate webhooks cause ZERO side effects for DB/socket
+        // DO NOT increment unreadCount, DO NOT update conversation, DO NOT emit notification
+        // BUT: Automation logic already ran above, so we can safely return now
+        return;
+      } else {
+        // Other error (validation, etc.) - rethrow
+        console.error(`❌ [ERROR] Error inserting message ${message.id}:`, err);
+        throw err;
+      }
+    }
+
+    // ============================================================
+    // PER-USER NOTIFICATION EMISSION: Only for NEW messages
+    // ============================================================
+    // CRITICAL: Notifications are per-user, based on read state
+    // A notification fires ONLY if:
+    // 1. Message is new (atomic insert succeeded)
+    // 2. User hasn't read this message (message.timestamp > lastReadAt)
+    if (isNewMessage) {
+      // Update conversation metadata (no unreadCount - that's per-user now)
+      const updatedConversation = await WhatsAppConversation.findByIdAndUpdate(
+        conversation._id,
+        {
+          participantName: senderName, // Update name in case it changed
+          lastMessageId: message.id,
+          lastMessageContent: displayText.substring(0, 100),
+          lastMessageTime: timestamp,
+          lastIncomingMessageTime: timestamp,
+          lastMessageDirection: "incoming",
+          lastCustomerMessageAt: timestamp,
+        },
+        { new: true } // Return updated document
+      );
+
+      if (!updatedConversation) {
+        console.error(`❌ [ERROR] Failed to update conversation ${conversation._id}`);
+        return;
+      }
+
+      // Get all eligible users for this conversation
+      const eligibleUsers = await getEligibleUsersForNotification(
+        conversation,
+        phoneNumberId
+      );
+
+      console.log(`👥 [ELIGIBLE USERS] Found ${eligibleUsers.length} eligible users for conversation ${conversation._id}`);
+
+      // For each eligible user, check read state and emit notification if unread
+      let notificationsEmitted = 0;
+      for (const user of eligibleUsers) {
+        // Get user's read state for this conversation
+        const readState = await ConversationReadState.findOne({
+          conversationId: conversation._id,
+          userId: user.userId,
+        }).lean() as any;
+
+        // Check if message is unread for this user
+        const isUnread = !readState || (readState.lastReadAt && timestamp > new Date(readState.lastReadAt));
+
+        if (isUnread) {
+          // CRITICAL: Per-conversation emit debounce (prevents burst-spam)
+          if (!canEmit(conversation._id.toString(), user.userId)) {
+            console.log(`⏸️ [DEBOUNCE] Skipping notification emit for conversation ${conversation._id} to user ${user.userId}`);
+            continue; // Skip this user, try next
+          }
+          
+          // Generate stable eventId for deduplication
+          const eventId = `${conversation._id}:${message.id}:${user.userId}`;
+          
+          // Generate deliveryId for acknowledgement tracking
+          const deliveryId = `${eventId}:${Date.now()}`;
+          
+          // FREEZE: Use first message time for stable notification identity
+          const firstMessageTime = conversation.firstMessageTime || conversation.createdAt || timestamp;
+          
+          console.log(`🔔 [NOTIFICATION] Emitting to user ${user.userId} (${user.role}): eventId=${eventId}, deliveryId=${deliveryId}`);
+          
+          // Emit notification to this specific user only
+          emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+            deliveryId, // For acknowledgement tracking
+            eventId, // Stable event ID for deduplication
+            conversationId: conversation._id.toString(),
+            businessPhoneId: phoneNumberId,
+            assignedAgent: conversation.assignedAgent?.toString(),
+            userId: user.userId, // Target user
+            participantName: senderName,
+            lastMessagePreview: displayText.substring(0, 100),
+            lastMessageTime: timestamp,
+            createdAt: firstMessageTime, // FREEZE: Use first message time for stable identity
+            message: {
+              id: savedMessage._id,
+              messageId: message.id,
+              from: senderPhone,
+              to: phoneNumberId,
+              type: message.type,
+              content: contentObj,
+              mediaUrl,
+              mediaId,
+              mimeType,
+              filename,
+              status: "delivered",
+              direction: "incoming",
+              timestamp,
+              senderName,
+            },
+          });
+          
+          notificationsEmitted++;
+        } else {
+          console.log(`⏭️ [SKIP] User ${user.userId} has already read this conversation (lastReadAt: ${readState.lastReadAt})`);
+        }
+      }
+
+      console.log(`✅ [SUCCESS] Message saved, ${notificationsEmitted}/${eligibleUsers.length} notifications emitted: ${message.id}`, mediaUrl ? `(with media: ${mediaUrl.substring(0, 50)}...)` : "");
+    }
+    
+    // NOTE: Automation logic moved BEFORE deduplication to ensure it runs even for duplicate webhooks
 
         // STEP 5: First Reply Detection (Simple)
     // ========================================

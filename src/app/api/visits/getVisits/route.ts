@@ -57,12 +57,61 @@ export async function POST(req: NextRequest) {
     const filterQuery: Record<string, any> = {};
 
     // Apply location filtering for Sales users (non-exempt roles)
+    // NOTE: Visits don't have a location field - location is on the lead (Query model)
+    // So we need to filter by lead IDs that match the location
+    let locationFilteredLeadIds: string[] | null = null;
+    
     if (!isLocationExempt(role)) {
+      // For non-exempt roles (Sales), filter by assigned areas
       const locationStr: string | undefined = typeof location === "string" ? location : undefined;
-      applyLocationFilter(filterQuery, role, assignedArea, locationStr);
+      
+      // Build location filter for Query model
+      const leadLocationFilter: Record<string, any> = {};
+      applyLocationFilter(leadLocationFilter, role, assignedArea, locationStr);
+      
+      // If location filter was applied, find matching leads
+      if (leadLocationFilter.location) {
+        const matchingLeads = await Query.find(leadLocationFilter).select("_id").lean();
+        locationFilteredLeadIds = matchingLeads.map((lead: any) => lead._id.toString());
+        
+        // If no leads match the location, return empty results
+        if (locationFilteredLeadIds.length === 0) {
+          return NextResponse.json(
+            {
+              data: [],
+              totalPages: 0,
+              totalVisits: 0,
+              updatedCount: 0,
+            },
+            { status: 200 }
+          );
+        }
+        
+        // Filter visits by matching lead IDs (convert strings to ObjectIds)
+        filterQuery.lead = { $in: locationFilteredLeadIds.map((id: string) => new Types.ObjectId(id)) };
+      }
     } else if (location && typeof location === "string" && location !== "All") {
       // For exempt roles, allow location filtering if requested
-      filterQuery.location = new RegExp(location, "i");
+      const matchingLeads = await Query.find({
+        location: new RegExp(location, "i"),
+      }).select("_id").lean();
+      
+      locationFilteredLeadIds = matchingLeads.map((lead: any) => lead._id.toString());
+      
+      if (locationFilteredLeadIds.length > 0) {
+        filterQuery.lead = { $in: locationFilteredLeadIds.map((id: string) => new Types.ObjectId(id)) };
+      } else {
+        // No leads match the location
+        return NextResponse.json(
+          {
+            data: [],
+            totalPages: 0,
+            totalVisits: 0,
+            updatedCount: 0,
+          },
+          { status: 200 }
+        );
+      }
     }
 
     if (ownerName) {
@@ -85,12 +134,49 @@ export async function POST(req: NextRequest) {
         leadQuery.phoneNo = { $regex: customerPhone, $options: "i" };
       }
 
-      // Find matching lead IDs
-      const matchingLeads = await Query.find(leadQuery).select("_id");
-      const leadIds = matchingLeads.map((lead) => lead._id);
+      // If location filtering was already applied, combine with it
+      if (locationFilteredLeadIds && locationFilteredLeadIds.length > 0) {
+        leadQuery._id = { $in: locationFilteredLeadIds.map((id: string) => new Types.ObjectId(id)) };
+      }
 
-      // Add lead IDs to the filter query
-      filterQuery.lead = { $in: leadIds };
+      // Find matching lead IDs
+      const matchingLeads = await Query.find(leadQuery).select("_id").lean();
+      const leadIds = matchingLeads.map((lead: any) => lead._id.toString());
+
+      // Combine with existing lead filter if it exists
+      if (filterQuery.lead && Array.isArray(filterQuery.lead.$in)) {
+        // Intersect the arrays to find common lead IDs
+        const existingIds = filterQuery.lead.$in.map((id: any) => id.toString());
+        const intersection = existingIds.filter((id: string) => leadIds.includes(id));
+        
+        if (intersection.length === 0) {
+          return NextResponse.json(
+            {
+              data: [],
+              totalPages: 0,
+              totalVisits: 0,
+              updatedCount: 0,
+            },
+            { status: 200 }
+          );
+        }
+        
+        filterQuery.lead = { $in: intersection.map((id: string) => new Types.ObjectId(id)) };
+      } else {
+        // Add lead IDs to the filter query
+        if (leadIds.length === 0) {
+          return NextResponse.json(
+            {
+              data: [],
+              totalPages: 0,
+              totalVisits: 0,
+              updatedCount: 0,
+            },
+            { status: 200 }
+          );
+        }
+        filterQuery.lead = { $in: leadIds.map((id: string) => new Types.ObjectId(id)) };
+      }
     }
 
     if (vsid) {

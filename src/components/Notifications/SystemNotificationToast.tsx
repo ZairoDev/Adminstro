@@ -1,0 +1,1224 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { unstable_batchedUpdates } from "react-dom";
+import { X, AlertCircle, Info, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa6";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useSocket } from "@/hooks/useSocket";
+import { useAuthStore } from "@/AuthStore";
+import { useRouter } from "next/navigation";
+import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
+import axios from "axios";
+import { cn } from "@/lib/utils";
+import {
+  UnifiedNotification,
+  RawSystemNotification,
+  RawWhatsAppMessage,
+  NotificationSeverity,
+} from "@/lib/notifications/types";
+import {
+  normalizeSystemNotification,
+  normalizeWhatsAppNotification,
+} from "@/lib/notifications/normalize";
+import { NotificationDeduplicator } from "@/lib/notifications/deduplication";
+import { NotificationMicroBatcher } from "@/lib/notifications/microBatch";
+import {
+  NotificationQueueEngine,
+  QueueConfig,
+} from "@/lib/notifications/queueEngine";
+import {
+  loadReplayState,
+  saveReplayState,
+  updateReplayState,
+  fetchMissedSystemNotifications,
+} from "@/lib/notifications/replay";
+import {
+  NotificationRateLimiter,
+  NotificationLogger,
+} from "@/lib/notifications/rateLimiter";
+
+interface SystemNotificationToastProps {
+  onNotificationReceived?: (notification: UnifiedNotification) => void;
+}
+
+export function SystemNotificationToast({
+  onNotificationReceived,
+}: SystemNotificationToastProps) {
+  const { socket, isConnected } = useSocket();
+  const { token } = useAuthStore();
+  const router = useRouter();
+
+  // Core state
+  const [dismissed, setDismissed] = useState<Map<string, number>>(new Map()); // Map<notificationId, timestamp>
+  const [expanded, setExpanded] = useState<Map<string, boolean>>(new Map());
+  const [muted, setMuted] = useState<Set<string>>(new Set()); // Separate from dismissed
+  const [visibleNotifications, setVisibleNotifications] = useState<
+    UnifiedNotification[]
+  >([]);
+  const [updatedNotifications, setUpdatedNotifications] = useState<Set<string>>(new Set()); // Track updated toasts for pulse animation
+  const [lastDismissedAt, setLastDismissedAt] = useState<Map<string, number>>(new Map()); // Track when each notification was dismissed (for cooldown)
+  const seenEventIdsRef = useRef<Set<string>>(new Set()); // Track seen event IDs for deduplication (per-user notifications) - use ref for synchronous checks
+  const acknowledgedDeliveryIdsRef = useRef<Set<string>>(new Set()); // Track acknowledged delivery IDs (FIX 3)
+  const lastUiUpdateRef = useRef<number>(0); // Track last UI update time for rate limiting (FIX 7)
+  const uiUpdateBufferRef = useRef<Array<() => void>>([]); // Buffer for batched UI updates (FIX 7)
+  
+  // Constants
+  const DISMISSED_TTL_MS = 10 * 60 * 1000; // 10 minutes
+  const REVIVE_COOLDOWN_MS = 500; // 500ms cooldown to prevent visual jitter
+  const UI_UPDATE_THROTTLE_MS = 200; // 200ms throttle for UI updates (FIX 7)
+
+  // Infrastructure instances (persist across renders)
+  const deduplicatorRef = useRef(new NotificationDeduplicator());
+  const rateLimiterRef = useRef(new NotificationRateLimiter());
+  const loggerRef = useRef(new NotificationLogger());
+  const replayStateRef = useRef(loadReplayState());
+  const queueEngineRef = useRef(
+    new NotificationQueueEngine({
+      maxVisible: 4, // Max 4 notifications on screen
+      minVisibleDurationMs: 0, // No minimum duration - dismiss based on inactivity
+      groupWindowMs: 10000, // 10 seconds for WhatsApp grouping
+    })
+  );
+  
+  // Track last interaction time for each notification (for inactivity-based auto-dismiss)
+  const lastInteractionRef = useRef<Map<string, number>>(new Map()); // Map<notificationId, lastInteractionTimestamp>
+  const INACTIVITY_DISMISS_MS = 20000; // 20 seconds of inactivity before auto-dismiss
+      
+  // Handler refs (prevent re-attachment by keeping stable references)
+  const handleSystemNotificationRef = useRef<((data: any) => void) | null>(null);
+  const handleWhatsAppMessageRef = useRef<((data: RawWhatsAppMessage) => void) | null>(null);
+
+  // User context
+  const userId = token?.id;
+  const userRole = token?.role || "";
+  const userLocations = useMemo(() => {
+    return Array.isArray(token?.allotedArea)
+      ? token.allotedArea
+      : token?.allotedArea
+        ? [token.allotedArea]
+        : [];
+  }, [token?.allotedArea]);
+
+  const hasWhatsAppAccess =
+    token?.role === "SuperAdmin" ||
+    token?.role === "Sales-TeamLead" ||
+    token?.role === "Sales";
+
+  // WhatsApp mute state
+  const getMutedWhatsAppConversations = useCallback((): Set<string> => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const muted = localStorage.getItem("whatsapp_muted_conversations");
+      if (!muted) return new Set();
+      const parsed = JSON.parse(muted);
+      const now = Date.now();
+      const valid = Object.entries(parsed)
+        .filter(
+          ([_, timestamp]: [string, any]) => now - timestamp < 30 * 60 * 1000
+        )
+        .map(([id]) => id);
+      return new Set(valid);
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const [mutedWhatsAppConversations, setMutedWhatsAppConversations] =
+    useState<Set<string>>(getMutedWhatsAppConversations);
+
+  // Micro-batcher callback
+  const handleBatchedRelease = useCallback(
+    (notifications: UnifiedNotification[]) => {
+      notifications.forEach((notification) => {
+        // Deduplication check
+        if (
+          deduplicatorRef.current.shouldDrop(
+            notification.id,
+            notification.timestamp
+          )
+        ) {
+          loggerRef.current.log(
+            notification.id,
+            notification.source,
+            "dismissed"
+          );
+          return;
+        }
+
+        // Rate limiting check
+        if (
+          rateLimiterRef.current.shouldThrottle(
+            notification.source,
+            notification.id
+          )
+        ) {
+          loggerRef.current.log(
+            notification.id,
+            notification.source,
+            "dismissed"
+          );
+          return;
+        }
+
+        // Add to queue
+        queueEngineRef.current.add(notification);
+
+        // Update replay state
+        replayStateRef.current = updateReplayState(
+          replayStateRef.current,
+          notification
+        );
+
+        // Log
+        loggerRef.current.log(
+          notification.id,
+          notification.source,
+          "received"
+        );
+
+        // Notify parent
+        if (onNotificationReceived) {
+          onNotificationReceived(notification);
+        }
+      });
+
+      // Update visible notifications
+      updateVisibleNotifications();
+    },
+    [onNotificationReceived]
+  );
+
+  // Micro-batcher instance
+  const microBatcherRef = useRef(
+    new NotificationMicroBatcher(handleBatchedRelease)
+  );
+
+  // FIX 7: Soft rate-limit UI updates (prevents too many updates too fast)
+  const flushUiUpdateBuffer = useCallback(() => {
+    if (uiUpdateBufferRef.current.length === 0) return;
+    
+    const updates = [...uiUpdateBufferRef.current];
+    uiUpdateBufferRef.current = [];
+    
+    // FIX 4: Batch notification state updates (prevents layout thrashing)
+    unstable_batchedUpdates(() => {
+      updates.forEach((update) => update());
+    });
+  }, []);
+
+  // Update visible notifications from queue engine
+  const updateVisibleNotifications = useCallback(() => {
+    const now = Date.now();
+    
+    // FIX 7: Soft rate-limit UI updates
+    if (now - lastUiUpdateRef.current < UI_UPDATE_THROTTLE_MS) {
+      // Buffer the update instead of executing immediately
+      uiUpdateBufferRef.current.push(() => {
+        updateVisibleNotificationsInternal();
+      });
+      return;
+    }
+    
+    lastUiUpdateRef.current = now;
+    updateVisibleNotificationsInternal();
+    flushUiUpdateBuffer(); // Flush any buffered updates
+  }, [dismissed, muted, visibleNotifications, flushUiUpdateBuffer]);
+
+  const updateVisibleNotificationsInternal = useCallback(() => {
+    const now = Date.now();
+    
+    // Auto-dismiss notifications that have been inactive for 6 seconds
+    const currentVisible = queueEngineRef.current.getVisible();
+    currentVisible.forEach((notification) => {
+      const notificationId = notification.id;
+      const lastInteraction = lastInteractionRef.current.get(notificationId) || notification.timestamp.getTime();
+      const inactiveTime = now - lastInteraction;
+      
+      // If inactive for 20+ seconds and not critical, auto-dismiss
+      if (inactiveTime >= INACTIVITY_DISMISS_MS && !notification.isCritical) {
+        console.log(`⏰ [AUTO-DISMISS] Notification ${notificationId} inactive for ${Math.round(inactiveTime / 1000)}s, auto-dismissing`);
+        handleDismiss(notificationId);
+      }
+    });
+    
+    // Update visible notifications from queue
+    const visible = queueEngineRef.current.updateVisible(dismissed, muted);
+    
+    // Initialize interaction time for new notifications
+    visible.forEach((n) => {
+      if (!lastInteractionRef.current.has(n.id)) {
+        lastInteractionRef.current.set(n.id, n.timestamp.getTime());
+      }
+    });
+    
+    // Check for updated notifications (grouped WhatsApp messages with incremented count)
+    const updated = new Set<string>();
+    visible.forEach((n) => {
+      const existing = visibleNotifications.find(
+        (existing) => existing.id === n.id || existing.groupKey === n.groupKey
+      );
+      if (existing) {
+        const existingCount = existing.metadata?.messageCount || 
+                             existing.metadata?.groupedMessages?.length || 
+                             1;
+        const newCount = n.metadata?.groupedMessages?.length || n.metadata?.messageCount || 
+                        n.metadata?.groupedMessages?.length || 
+                        1;
+        if (newCount > existingCount) {
+          updated.add(n.id);
+          // Clear the pulse animation after 2 seconds
+          setTimeout(() => {
+            setUpdatedNotifications((prev) => {
+              const next = new Set(prev);
+              next.delete(n.id);
+              return next;
+            });
+          }, 2000);
+        }
+      }
+    });
+
+    // FIX 4: Batch state updates (prevents multiple renders)
+    unstable_batchedUpdates(() => {
+      setUpdatedNotifications((prev) => {
+        const combined = new Set(prev);
+        updated.forEach(id => combined.add(id));
+        return combined;
+      });
+      setVisibleNotifications(visible);
+    });
+
+    // Log rendered notifications
+    visible.forEach((n) => {
+      loggerRef.current.log(n.id, n.source, "rendered");
+    });
+  }, [dismissed, muted, visibleNotifications]);
+
+  // Eligibility check for system notifications
+  const isSystemNotificationEligible = useCallback(
+    (notification: RawSystemNotification): boolean => {
+      // SuperAdmin receives all
+      if (userRole === "SuperAdmin") return true;
+
+      const { target } = notification;
+
+      if (target.allUsers) return true;
+
+      if (target.roles && target.roles.length > 0) {
+        if (!target.roles.includes(userRole)) return false;
+      }
+
+      if (target.locations && target.locations.length > 0) {
+        const normalizedUserLocations = userLocations.map((loc: string) =>
+          loc.toLowerCase().trim()
+        );
+        const normalizedTargetLocations = target.locations.map((loc: string) =>
+          loc.toLowerCase().trim()
+        );
+
+        const hasLocationMatch =
+          normalizedUserLocations.some((loc: string) =>
+            normalizedTargetLocations.includes(loc)
+          ) || normalizedUserLocations.includes("all");
+
+        if (!hasLocationMatch) return false;
+      }
+
+      return true;
+    },
+    [userRole, userLocations]
+  );
+
+  // Handle system notification
+  // CRITICAL: Store handler in ref to prevent socket re-attachment
+  const handleSystemNotification = useCallback(
+    (data: any) => {
+      const rawNotification: RawSystemNotification = data.notification;
+
+      // Eligibility check
+      if (!isSystemNotificationEligible(rawNotification)) {
+        return;
+      }
+
+      // Expiry check
+      if (rawNotification.expiresAt) {
+        const expiresAt = new Date(rawNotification.expiresAt);
+        if (expiresAt <= new Date()) return;
+      }
+
+      // Skip if dismissed or muted
+      if (dismissed.has(rawNotification._id)) return;
+      if (
+        rawNotification.type !== "critical" &&
+        muted.has(rawNotification._id)
+      ) {
+        return;
+      }
+
+      // Normalize and add to micro-batcher
+      const normalized = normalizeSystemNotification(rawNotification);
+      microBatcherRef.current.add(normalized);
+    },
+    [isSystemNotificationEligible, dismissed, muted, router]
+  );
+  
+  // Update ref whenever handler changes (but socket listener stays attached)
+  handleSystemNotificationRef.current = handleSystemNotification;
+  
+  // Update ref whenever handler changes (but socket listener stays attached)
+  handleSystemNotificationRef.current = handleSystemNotification;
+
+  // Helper: Check if message is actually new (not typing indicator, delivery status, or duplicate)
+  const checkIfMessageIsNew = useCallback((
+    normalized: UnifiedNotification,
+    existingNotification: UnifiedNotification,
+    rawMessage: any
+  ): boolean => {
+    // Skip typing indicators and delivery status updates
+    if (rawMessage.type === "typing" || rawMessage.type === "delivery" || rawMessage.type === "read") {
+      return false;
+    }
+    
+    // Check if message timestamp is newer than existing notification
+    const existingTimestamp = existingNotification.timestamp.getTime();
+    const newTimestamp = normalized.timestamp.getTime();
+    
+    if (newTimestamp <= existingTimestamp) {
+      // Message is not newer, likely a duplicate
+      return false;
+    }
+    
+    // Check if message ID is different (for deduplication)
+    const existingMessageId = existingNotification.metadata?.lastMessageId;
+    const newMessageId = rawMessage.messageId || rawMessage.id;
+    
+    if (existingMessageId && newMessageId === existingMessageId) {
+      // Same message ID, likely duplicate webhook
+      return false;
+    }
+    
+    // Check if message content is actually different
+    const existingContent = existingNotification.message;
+    const newContent = normalized.message;
+    
+    if (existingContent === newContent && newTimestamp - existingTimestamp < 2000) {
+      // Same content within 2 seconds, likely duplicate
+      return false;
+    }
+    
+    return true;
+  }, []);
+
+  // Handle WhatsApp message (per-user notifications)
+  const handleWhatsAppMessage = useCallback(
+    (data: RawWhatsAppMessage) => {
+      console.log(`📨 [WHATSAPP HANDLER] Received notification:`, {
+        eventId: data.eventId,
+        conversationId: data.conversationId,
+        messageId: data.message?.messageId,
+        targetUserId: data.userId,
+        currentUserId: userId,
+      });
+
+      if (!hasWhatsAppAccess || !token) {
+        console.log(`⏭️ [SKIP] No WhatsApp access or token`);
+        return;
+      }
+
+      const { conversationId, message, businessPhoneId, assignedAgent, eventId, userId: targetUserId, deliveryId, createdAt } = data;
+      if (!conversationId || !message) {
+        console.log(`⏭️ [SKIP] Missing conversationId or message`);
+        return;
+      }
+
+      // CRITICAL: Only process notifications meant for this user
+      if (targetUserId && userId && targetUserId !== userId.toString()) {
+        console.log(`⏭️ [SKIP] Notification eventId=${eventId} is for user ${targetUserId}, not current user ${userId}`);
+        return;
+      }
+
+      // FIX 3: Server-side event acknowledgement check
+      if (deliveryId) {
+        if (acknowledgedDeliveryIdsRef.current.has(deliveryId)) {
+          console.log(`⏭️ [ACKED] Delivery ${deliveryId} already acknowledged, skipping`);
+          return;
+        }
+        // Acknowledge immediately (prevent replay on reconnect)
+        acknowledgedDeliveryIdsRef.current.add(deliveryId);
+        // Keep only last 1000 delivery IDs
+        if (acknowledgedDeliveryIdsRef.current.size > 1000) {
+          const array = Array.from(acknowledgedDeliveryIdsRef.current);
+          acknowledgedDeliveryIdsRef.current = new Set(array.slice(-1000));
+        }
+        // Send ACK to server (optional, for server-side tracking)
+        if (socket) {
+          socket.emit("notification-ack", { deliveryId });
+        }
+      }
+
+      // CRITICAL: Deduplicate by eventId (per-user, per-message)
+      // Use ref for synchronous check to prevent race conditions
+      if (eventId) {
+        if (seenEventIdsRef.current.has(eventId)) {
+          console.log(`⏭️ [DUPLICATE] Event ${eventId} already seen, skipping (seen set size: ${seenEventIdsRef.current.size})`);
+          return;
+        }
+        // Mark as seen IMMEDIATELY (synchronous)
+        seenEventIdsRef.current.add(eventId);
+        // Keep only last 1000 event IDs to prevent memory leak
+        if (seenEventIdsRef.current.size > 1000) {
+          const array = Array.from(seenEventIdsRef.current);
+          seenEventIdsRef.current = new Set(array.slice(-1000));
+        }
+        console.log(`✅ [NEW EVENT] Added eventId ${eventId} to seen set (total: ${seenEventIdsRef.current.size})`);
+      } else {
+        console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly`);
+      }
+
+      // Only incoming messages
+      if (message.direction !== "incoming") return;
+
+      // Sales user filtering (backend already filtered, but double-check)
+      if (userRole === "Sales" && userId) {
+        if (
+          assignedAgent &&
+          assignedAgent.toString() !== userId.toString()
+        ) {
+          return;
+        }
+      }
+
+      // Location filtering (skip for SuperAdmin)
+      if (userRole !== "SuperAdmin") {
+        try {
+          const allowedPhoneIds = getAllowedPhoneIds(userRole, userLocations);
+          if (!allowedPhoneIds.includes(businessPhoneId)) {
+            return;
+          }
+        } catch (err) {
+          console.error("Error checking phone access:", err);
+          return;
+        }
+      }
+
+      // Mute check - muted conversations never show notifications
+      if (mutedWhatsAppConversations.has(conversationId)) {
+        return;
+      }
+
+      // Normalize the notification
+      const normalized = normalizeWhatsAppNotification(data);
+      const groupKey = normalized.groupKey || normalized.id;
+      
+      // Check if there's an existing notification for this conversation
+      const existingNotification = queueEngineRef.current.getNotification(groupKey);
+      
+      // Always process messages from same conversation - update existing or create new
+      if (existingNotification && !mutedWhatsAppConversations.has(conversationId)) {
+        // CRITICAL: Check if this exact message ID is already in the existing notification
+        const existingMessageId = normalized.metadata?.lastMessageId;
+        const existingGroupedMessages = existingNotification.metadata?.groupedMessages || [];
+        const isDuplicateMessage = existingGroupedMessages.some(
+          (msg: UnifiedNotification) => msg.metadata?.lastMessageId === existingMessageId
+        ) || existingNotification.metadata?.lastMessageId === existingMessageId;
+        
+        if (isDuplicateMessage) {
+          console.log(`⏭️ [DUPLICATE MESSAGE] Message ${existingMessageId} already in notification, skipping`);
+          return;
+        }
+        
+        // Check if this is actually a new message (not typing indicator, delivery status, or duplicate)
+        const isActuallyNew = checkIfMessageIsNew(
+          normalized,
+          existingNotification,
+          message
+        );
+        
+        if (!isActuallyNew) {
+          // Not a real new message, skip revival
+          return;
+        }
+        // Update existing notification instead of creating new one
+        // Access private groupedWhatsApp map via queue engine
+        const queueEngine = queueEngineRef.current as any;
+        if (!queueEngine.groupedWhatsApp) {
+          queueEngine.groupedWhatsApp = new Map();
+        }
+        
+        // Get or create group - extract existing messages if already grouped
+        if (!queueEngine.groupedWhatsApp.has(groupKey)) {
+          // If existing notification has grouped messages, use those
+          const existingMessages = existingNotification.metadata?.groupedMessages || [existingNotification];
+          queueEngine.groupedWhatsApp.set(groupKey, existingMessages);
+        }
+        const group = queueEngine.groupedWhatsApp.get(groupKey)!;
+        
+        // Check if this exact message is already in the group (dedupe by message ID/timestamp)
+        const isDuplicate = group.some((n: UnifiedNotification) => {
+          const sameId = n.id === normalized.id;
+          const sameConversation = n.metadata?.conversationId === normalized.metadata?.conversationId;
+          const sameTime = Math.abs(n.timestamp.getTime() - normalized.timestamp.getTime()) < 1000; // Within 1 second
+          return sameId || (sameConversation && sameTime);
+        });
+        
+        // Add new message if not duplicate
+        if (!isDuplicate) {
+          group.push(normalized);
+          queueEngine.groupedWhatsApp.set(groupKey, group);
+        }
+        
+        // Create updated grouped notification with incremented count
+        const updated = queueEngine.createGroupedNotification(group);
+        if (updated) {
+          // Update active groups
+          if (!queueEngine.activeGroups) {
+            queueEngine.activeGroups = new Map();
+          }
+          queueEngine.activeGroups.set(groupKey, updated);
+          
+          // Check if dismissed and apply cooldown to prevent visual jitter
+          const wasDismissed = dismissed.has(existingNotification.id) || dismissed.has(groupKey);
+          const dismissTimestamp = dismissed.get(existingNotification.id) || dismissed.get(groupKey) || 0;
+          const lastDismissTime = lastDismissedAt.get(groupKey) || 0;
+          const now = Date.now();
+          
+          // Revive cooldown: if dismissed recently, update silently without re-animation
+          const isInCooldown = wasDismissed && (now - lastDismissTime < REVIVE_COOLDOWN_MS);
+          
+          if (wasDismissed && !isInCooldown) {
+            // Remove from dismissed (revive it)
+            setDismissed((prev) => {
+              const next = new Map(prev);
+              next.delete(existingNotification.id);
+              next.delete(groupKey);
+              return next;
+            });
+          }
+          
+          // Update in queue if it exists there
+          const queueIndex = queueEngine.queue.findIndex(
+            (n: UnifiedNotification) => n.id === groupKey || n.groupKey === groupKey
+          );
+          if (queueIndex !== -1) {
+            queueEngine.queue[queueIndex] = updated;
+          } else if (wasDismissed) {
+            // If it was dismissed, add to queue so it can appear again
+            if (updated.isCritical) {
+              queueEngine.queue.unshift(updated);
+            } else {
+              queueEngine.queue.push(updated);
+            }
+          }
+          
+          // Update visible if it's visible, or make it visible if it was dismissed
+          const visibleIndex = queueEngine.visible.findIndex(
+            (n: UnifiedNotification) => n.id === groupKey || n.groupKey === groupKey
+          );
+          if (visibleIndex !== -1) {
+            // Update in place
+            queueEngine.visible[visibleIndex] = updated;
+            setVisibleNotifications([...queueEngine.visible]);
+            // Mark as updated for pulse animation (only if not in cooldown)
+            if (!isInCooldown) {
+              setUpdatedNotifications((prev) => new Set([...prev, updated.id]));
+            }
+          } else if (wasDismissed && !isInCooldown) {
+            // Was dismissed, now revive it - update queue and refresh visible
+            // Only if not in cooldown to prevent visual jitter
+            updateVisibleNotifications();
+          } else if (!wasDismissed) {
+            // Not visible and not dismissed, just update queue
+            updateVisibleNotifications();
+          }
+          // If in cooldown and dismissed, update silently without showing
+        }
+      } else {
+        // New conversation (no existing notification), add to micro-batcher normally
+        microBatcherRef.current.add(normalized);
+      }
+    },
+    [
+      hasWhatsAppAccess,
+      token,
+      userRole,
+      userId,
+      userLocations,
+      mutedWhatsAppConversations,
+      dismissed,
+      checkIfMessageIsNew,
+      router,
+    ]
+  );
+
+  // Socket replay on reconnect (SYSTEM NOTIFICATIONS ONLY - not WhatsApp)
+  // CRITICAL: Replay only fetches missed system notifications, does NOT trigger WhatsApp toasts
+  // WhatsApp notifications come ONLY from real-time socket events, never from replay
+  useEffect(() => {
+    if (!socket || !isConnected || !token) return;
+
+    const handleReconnect = async () => {
+      console.log("🔄 [REPLAY] Socket reconnected, fetching missed SYSTEM notifications only...");
+
+      // Fetch missed system notifications ONLY (not WhatsApp)
+      const missed = await fetchMissedSystemNotifications(
+        replayStateRef.current.lastNotificationTimestamp
+      );
+
+      // Process missed SYSTEM notifications only
+      missed.forEach((raw: RawSystemNotification) => {
+        if (isSystemNotificationEligible(raw)) {
+          const normalized = normalizeSystemNotification(raw);
+          microBatcherRef.current.add(normalized);
+        }
+      });
+
+      console.log(`✅ [REPLAY] Replayed ${missed.length} missed SYSTEM notifications (WhatsApp NOT replayed)`);
+    };
+
+    // Listen for reconnect
+    socket.io.on("reconnect", handleReconnect);
+
+    // Also check on initial connect
+    if (isConnected) {
+      handleReconnect();
+    }
+
+    return () => {
+      socket.io.off("reconnect", handleReconnect);
+    };
+  }, []); // Empty array - handlers are stable, socket refs are stable
+
+  // Listen for system notifications
+  // CRITICAL: Empty dependency array [] prevents re-attachment and jitter
+  // Use ref to access latest handler without re-attaching socket listener
+  useEffect(() => {
+    if (!socket || !token) return;
+
+    const handler = (data: any) => {
+      // Call latest handler via ref
+      if (handleSystemNotificationRef.current) {
+        handleSystemNotificationRef.current(data);
+      }
+    };
+
+    socket.on("system-notification", handler);
+
+    return () => {
+      socket.off("system-notification", handler);
+    };
+  }, []); // Empty array - prevents re-attachment
+
+  // Update WhatsApp handler ref whenever handler changes
+  handleWhatsAppMessageRef.current = handleWhatsAppMessage;
+
+  // Listen for WhatsApp messages
+  // CRITICAL: Empty dependency array [] prevents re-attachment and jitter
+  // Use refs to access latest handlers without re-attaching socket listeners
+  useEffect(() => {
+    if (!hasWhatsAppAccess || !socket || !token) return;
+
+    socket.emit("join-whatsapp-room");
+
+    const handleMessage = (data: any) => {
+      // Call latest handler via ref
+      if (handleWhatsAppMessageRef.current) {
+        handleWhatsAppMessageRef.current(data);
+      }
+    };
+
+    const handleCleared = (data: any) => {
+      // When notifications are cleared, remove from visible and queue
+      if (data.clearedAll) {
+        // Clear all WhatsApp notifications
+        const queueEngine = queueEngineRef.current as any;
+        queueEngine.queue = queueEngine.queue.filter(
+          (n: UnifiedNotification) => n.source !== "whatsapp"
+        );
+        queueEngine.visible = queueEngine.visible.filter(
+          (n: UnifiedNotification) => n.source !== "whatsapp"
+        );
+        updateVisibleNotifications();
+      } else if (data.conversationId) {
+        // Clear one conversation
+        const groupKey = `whatsapp:${data.conversationId}`;
+        const queueEngine = queueEngineRef.current as any;
+        queueEngine.queue = queueEngine.queue.filter(
+          (n: UnifiedNotification) => n.id !== data.conversationId && n.groupKey !== groupKey
+        );
+        queueEngine.visible = queueEngine.visible.filter(
+          (n: UnifiedNotification) => n.id !== data.conversationId && n.groupKey !== groupKey
+        );
+        updateVisibleNotifications();
+      }
+    };
+
+    socket.on("whatsapp-new-message", handleMessage);
+    socket.on("whatsapp-notifications-cleared", handleCleared);
+
+    return () => {
+      socket.off("whatsapp-new-message", handleMessage);
+      socket.off("whatsapp-notifications-cleared", handleCleared);
+    };
+  }, []); // Empty array - prevents re-attachment
+
+  // Periodic queue update (for inactivity-based auto-dismiss)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      updateVisibleNotifications();
+    }, 500); // Check every 500ms for smoother inactivity tracking
+
+    return () => clearInterval(interval);
+  }, [updateVisibleNotifications]);
+
+  // Periodic flush of UI update buffer (FIX 7)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      flushUiUpdateBuffer();
+    }, UI_UPDATE_THROTTLE_MS);
+
+    return () => clearInterval(interval);
+  }, [flushUiUpdateBuffer]);
+
+  // Cleanup rate limiter periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      rateLimiterRef.current.cleanup();
+    }, 60000); // Every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Cleanup old dismissed notifications (prevent memory leak)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDismissed((prev) => {
+        const now = Date.now();
+        const cleaned = new Map<string, number>();
+        for (const [id, timestamp] of prev.entries()) {
+          if (now - timestamp < DISMISSED_TTL_MS) {
+            cleaned.set(id, timestamp);
+          }
+        }
+        return cleaned;
+      });
+    }, 5 * 60 * 1000); // Cleanup every 5 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handlers
+  const handleDismiss = useCallback(
+    async (notificationId: string) => {
+      const now = Date.now();
+      
+      // Dismiss does NOT mute - just removes from visible
+      setDismissed((prev) => {
+        const next = new Map(prev);
+        next.set(notificationId, now);
+        return next;
+      });
+      
+      // Track dismissal time for cooldown
+      setLastDismissedAt((prev) => {
+        const next = new Map(prev);
+        next.set(notificationId, now);
+        return next;
+      });
+      
+      // Clean up interaction tracking
+      lastInteractionRef.current.delete(notificationId);
+      
+      // Also dismiss by groupKey if it's a WhatsApp notification
+      const notification = visibleNotifications.find(
+        (n) => n.id === notificationId
+      );
+      if (notification?.groupKey) {
+        setDismissed((prev) => {
+          const next = new Map(prev);
+          next.set(notification.groupKey!, now);
+          return next;
+        });
+        setLastDismissedAt((prev) => {
+          const next = new Map(prev);
+          next.set(notification.groupKey!, now);
+          return next;
+        });
+      }
+      
+      loggerRef.current.log(
+        notificationId,
+        notification?.source || "system",
+        "dismissed"
+      );
+
+      // Mark as read on server (only for system notifications)
+      if (notification && notification.source === "system") {
+        try {
+          await axios.post("/api/notifications/read", {
+            notificationId,
+          });
+        } catch (error) {
+          console.error("Error marking notification as read:", error);
+        }
+      }
+
+      // Update visible notifications (next one will appear)
+      setTimeout(() => {
+        updateVisibleNotifications();
+      }, 100);
+    },
+    [visibleNotifications, updateVisibleNotifications]
+  );
+
+  const handleMute = useCallback(
+    (notificationId: string) => {
+      // Mute is explicit and separate from dismiss
+      setMuted((prev) => new Set([...prev, notificationId]));
+      
+      // Also mute by groupKey if it's a WhatsApp notification
+      const notification = visibleNotifications.find(
+        (n) => n.id === notificationId
+      );
+      if (notification?.groupKey) {
+        setMuted((prev) => new Set([...prev, notification.groupKey!]));
+      }
+      
+      // Dismiss the current toast
+      handleDismiss(notificationId);
+    },
+    [handleDismiss, visibleNotifications]
+  );
+
+  const handleMuteWhatsApp = useCallback(
+    (conversationId: string) => {
+      // Mute is explicit - store in localStorage with TTL
+      const muted = getMutedWhatsAppConversations();
+      muted.add(conversationId);
+      if (typeof window !== "undefined") {
+        const mutedObj: Record<string, number> = {};
+        muted.forEach((id) => {
+          mutedObj[id] = Date.now();
+        });
+        localStorage.setItem(
+          "whatsapp_muted_conversations",
+          JSON.stringify(mutedObj)
+        );
+      }
+      setMutedWhatsAppConversations(new Set(muted));
+      
+      // Also add to muted set for queue engine
+      const groupKey = `whatsapp:${conversationId}`;
+      setMuted((prev) => new Set([...prev, conversationId, groupKey]));
+      
+      // Dismiss the current toast
+      handleDismiss(conversationId);
+    },
+    [getMutedWhatsAppConversations, handleDismiss]
+  );
+
+  const handleClearWhatsApp = useCallback(
+    async (conversationId: string) => {
+      try {
+        // Call backend to clear notifications (reset unreadCount)
+        await axios.post("/api/whatsapp/notifications/clear", {
+          conversationId,
+        });
+        
+        console.log(`🧹 [CLEAR] Cleared notifications for conversation: ${conversationId}`);
+        
+        // Dismiss the notification toast
+        handleDismiss(conversationId);
+        
+        loggerRef.current.log(conversationId, "whatsapp", "cleared");
+      } catch (error) {
+        console.error("❌ [ERROR] Error clearing WhatsApp notifications:", error);
+      }
+    },
+    [handleDismiss]
+  );
+
+  const toggleExpand = useCallback((notificationId: string) => {
+    setExpanded((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(notificationId, !newMap.get(notificationId));
+      return newMap;
+    });
+  }, []);
+
+  // Visual config
+  const getSeverityConfig = useCallback(
+    (severity: NotificationSeverity) => {
+      switch (severity) {
+        case "critical":
+          return {
+            icon: AlertTriangle,
+            color: "bg-red-500",
+            borderColor: "border-red-500",
+            textColor: "text-red-600",
+            bgColor: "bg-red-50 dark:bg-red-950/20",
+            animation: "animate-pulse",
+          };
+        case "warning":
+          return {
+            icon: AlertCircle,
+            color: "bg-yellow-500",
+            borderColor: "border-yellow-500",
+            textColor: "text-yellow-600",
+            bgColor: "bg-yellow-50 dark:bg-yellow-950/20",
+            animation: "",
+          };
+        case "whatsapp":
+          return {
+            icon: FaWhatsapp,
+            color: "bg-green-500",
+            borderColor: "border-green-500",
+            textColor: "text-green-600",
+            bgColor: "bg-green-50 dark:bg-green-950/20",
+            animation: "",
+          };
+        default:
+          return {
+            icon: Info,
+            color: "bg-blue-500",
+            borderColor: "border-blue-500",
+            textColor: "text-blue-600",
+            bgColor: "bg-blue-50 dark:bg-blue-950/20",
+            animation: "",
+          };
+      }
+    },
+    []
+  );
+
+  if (visibleNotifications.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* FIX 6: CSS for disabling re-entry animations on updates */}
+      <style dangerouslySetInnerHTML={{__html: `
+        [data-updating="true"] {
+          animation: none !important;
+          transition: none !important;
+        }
+      `}} />
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-md">
+      {visibleNotifications.map((notification) => {
+        if (dismissed.has(notification.id) || (notification.groupKey && dismissed.has(notification.groupKey))) {
+          return null;
+        }
+
+        const config = getSeverityConfig(notification.severity);
+        const Icon = config.icon;
+        const isExpanded = expanded.get(notification.id) || false;
+
+         const wasUpdated = updatedNotifications.has(notification.id);
+         const messageCount = notification.metadata?.groupedMessages?.length || notification.metadata?.messageCount || 
+                              notification.metadata?.groupedMessages?.length || 
+                              1;
+
+         // Track user interactions to reset inactivity timer
+         const handleInteraction = () => {
+           lastInteractionRef.current.set(notification.id, Date.now());
+         };
+
+         // FIX 5: Stable notification keys (NON-NEGOTIABLE)
+         // Use conversationId for WhatsApp, notification.id for system
+         const stableKey = notification.source === "whatsapp" 
+           ? notification.metadata?.conversationId || notification.id
+           : notification.id;
+         
+         // FIX 6: Disable re-entry animations for updates
+         const existingNotification = visibleNotifications.find(
+           (n) => n.id === notification.id || n.groupKey === notification.groupKey
+         );
+         const isUpdating = wasUpdated && existingNotification !== undefined;
+         
+         return (
+           <Card
+             key={stableKey} // STABLE KEY: Never changes for same conversation
+             data-updating={isUpdating ? "true" : undefined} // For CSS animation control
+             className={cn(
+               "p-4 shadow-lg border-2",
+               !isUpdating && "animate-in slide-in-from-top", // Only animate on creation
+               config.borderColor,
+               config.bgColor,
+               config.animation,
+               notification.isCritical && "ring-2 ring-red-500",
+               wasUpdated && !isUpdating && "animate-pulse" // Pulse only for new updates, not stacked
+             )}
+             onMouseEnter={handleInteraction}
+             onMouseMove={handleInteraction}
+             onClick={handleInteraction}
+           >
+            <div className="flex items-start gap-3">
+              <div className={cn("flex-shrink-0 p-2 rounded-full", config.color)}>
+                <Icon className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex-1">
+                     <div className="flex items-center gap-2 mb-1">
+                       <h4 className="font-semibold text-sm">{notification.title}</h4>
+                       <Badge
+                         variant="outline"
+                         className={cn("text-xs", config.textColor, config.borderColor)}
+                       >
+                         {notification.severity === "whatsapp"
+                           ? "WhatsApp"
+                           : notification.severity}
+                       </Badge>
+                       {notification.metadata?.groupedMessages && 
+                        notification.metadata.groupedMessages.length > 1 && 
+                        notification.source === "whatsapp" && (
+                         <Badge className="bg-green-600 text-white text-xs">
+                           {notification.metadata.groupedMessages.length} new
+                         </Badge>
+                       )}
+                       {notification.isCritical && (
+                         <Badge className="bg-red-500 text-white text-xs">
+                           Critical
+                         </Badge>
+                       )}
+                     </div>
+                    {isExpanded ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {notification.message}
+                        </p>
+                        {/* Show grouped messages if available */}
+                        {notification.metadata?.groupedMessages &&
+                          notification.metadata.groupedMessages.length > 1 && (
+                            <div className="pl-4 border-l-2 border-muted space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">
+                                {notification.metadata.groupedMessages.length} messages:
+                              </p>
+                              {notification.metadata.groupedMessages.map(
+                                (msg, idx) => (
+                                  <p
+                                    key={idx}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    • {msg.message}
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {notification.message}
+                      </p>
+                    )}
+                  </div>
+                  {/* Critical notifications cannot be dismissed silently */}
+                  {!notification.isCritical && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 flex-shrink-0"
+                      onClick={() => handleDismiss(notification.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => toggleExpand(notification.id)}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="h-3 w-3 mr-1" />
+                          Less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3 w-3 mr-1" />
+                          More
+                        </>
+                      )}
+                    </Button>
+                    {notification.source === "whatsapp" ? (
+                      <>
+                        {notification.actions?.map((action, idx) => (
+                          <Button
+                            key={idx}
+                            variant={action.variant || "outline"}
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => {
+                              if (action.label === "Mute") {
+                                handleMuteWhatsApp(
+                                  notification.metadata?.conversationId ||
+                                    notification.id
+                                );
+                              } else if (action.label === "Open") {
+                                // Mark conversation as read when opening
+                                if (notification.metadata?.conversationId) {
+                                  // Call mark-as-read API
+                                  fetch("/api/whatsapp/conversations/read", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      conversationId: notification.metadata.conversationId,
+                                    }),
+                                  }).catch((err) => {
+                                    console.error("Error marking conversation as read:", err);
+                                  });
+                                }
+                                if (notification.metadata?.participantPhone) {
+                                  router.push(
+                                    `/whatsapp?phone=${encodeURIComponent(notification.metadata.participantPhone)}`
+                                  );
+                                }
+                                handleDismiss(notification.id);
+                              } else if (action.label === "Clear") {
+                                // Clear WhatsApp notifications (reset unreadCount)
+                                if (notification.metadata?.conversationId) {
+                                  handleClearWhatsApp(notification.metadata.conversationId);
+                                }
+                              } else {
+                                action.action();
+                              }
+                            }}
+                          >
+                            {action.label}
+                          </Button>
+                        ))}
+                      </>
+                    ) : (
+                      !notification.isCritical && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={() => handleMute(notification.id)}
+                        >
+                          Mute
+                        </Button>
+                      )
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {notification.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+    </>
+  );
+}

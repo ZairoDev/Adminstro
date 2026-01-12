@@ -58,11 +58,13 @@ export async function GET(req: NextRequest) {
             : undefined)
         : undefined;
     const location = req.nextUrl.searchParams.get("location");
+    console.log("location", location,assignedArea,role);
 
     // Build query with location filtering
     const query: Record<string, any> = {};
 
     // Apply location filtering for Sales users (non-exempt roles)
+    // LeadGen and LeadGen-TeamLead are exempt and should see ALL properties (including reboosted)
     if (!isLocationExempt(role)) {
       const locationStr = location && typeof location === "string" ? location : undefined;
       applyLocationFilter(query, role, assignedArea, locationStr);
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest) {
       
       return bDate - aDate;
     });
-
+    // console.log("sortedProperties", sortedProperties[0]);
     return NextResponse.json(sortedProperties);
   } catch (error: any) {
     console.error("Error fetching properties:", error);

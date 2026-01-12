@@ -44,29 +44,13 @@ export default function BoostPropertiesPage() {
     return reboostedTime > oneDayAgo;
   };
 
-  // Helper function to sort properties by most recent activity
-  const sortPropertiesByActivity = (props: Property[]) => {
-    return props.sort((a, b) => {
-      // Get the most recent date for each property (either lastReboostedAt or createdAt)
-      const aDate = a.lastReboostedAt 
-        ? new Date(a.lastReboostedAt).getTime() 
-        : new Date(a.createdAt).getTime();
-      
-      const bDate = b.lastReboostedAt 
-        ? new Date(b.lastReboostedAt).getTime() 
-        : new Date(b.createdAt).getTime();
-      
-      return bDate - aDate; // Sort descending (most recent first)
-    });
-  };
-
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         const res = await fetch("/api/propertyBoost");
         const data = await res.json();
-        const sorted = sortPropertiesByActivity(data);
-        setProperties(sorted);
+        // Backend already sorts the properties, so no need to sort again
+        setProperties(data);
       } catch (err) {
         console.error("Failed to fetch properties", err);
       } finally {
@@ -86,15 +70,20 @@ export default function BoostPropertiesPage() {
     try {
       const response = await axios.post(`/api/propertyBoost/${propertyId}/reboost`);
 
-      // Update the property with new lastReboostedAt timestamp and re-sort
+      // Update the property with new lastReboostedAt timestamp
+      // Backend handles sorting, so we just update the property
       setProperties((prev) => {
-        const updatedProps = prev.map((prop) =>
+        return prev.map((prop) =>
           prop._id === propertyId
             ? { ...prop, lastReboostedAt: response.data.lastReboostedAt || new Date().toISOString() }
             : prop
         );
-        return sortPropertiesByActivity(updatedProps);
       });
+      
+      // Refetch to get properly sorted list from backend
+      const res = await fetch("/api/propertyBoost");
+      const data = await res.json();
+      setProperties(data);
 
       setTimeout(() => {
         setReboostingIds((prev) => {

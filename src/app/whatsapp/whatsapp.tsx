@@ -657,6 +657,24 @@ useEffect(() => {
   const selectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     fetchMessages(conversation._id, true);
+    
+    // CRITICAL: Mark conversation as read in ConversationReadState
+    // This updates the per-user read state so notifications stop for this user
+    if (conversation._id) {
+      axios.post("/api/whatsapp/conversations/read", {
+        conversationId: conversation._id,
+      })
+      .then((response) => {
+        console.log(`✅ [FRONTEND] Successfully marked conversation ${conversation._id} as read:`, response.data);
+      })
+      .catch((err) => {
+        console.error("❌ [FRONTEND] Error marking conversation as read:", err);
+        if (err.response) {
+          console.error("❌ [FRONTEND] Response error:", err.response.data);
+        }
+      });
+    }
+    
     // Reset unread count locally
     setConversations((prev) =>
       prev.map((c) =>

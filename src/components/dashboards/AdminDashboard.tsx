@@ -45,6 +45,7 @@ import ListingCounts from "@/hooks/(VS)/useListingCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/AuthStore";
+import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 // Types
 import { UserInterface } from "@/util/type";
@@ -228,6 +229,13 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
 
   return (
     <div className={className}>
+      {/* Broadcast Notification Form - SuperAdmin/HR only */}
+      {(role === "SuperAdmin" || role === "HR") && (
+        <div className="my-6 flex justify-end">
+          <BroadcastNotificationForm />
+        </div>
+      )}
+      
       {/* HR & Admin Section - Logged In Employees + Candidate Stats */}
       {(isSuperAdmin || isHR) && canAccess("loggedInEmployees") && (
         <div className="mb-8 w-full p-6 bg-gradient-to-br from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 rounded-xl border">

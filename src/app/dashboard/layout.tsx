@@ -6,6 +6,9 @@ import BreadCrumb from "@/components/BreadCrumb";
 import { LogoutButton } from "@/components/logoutAlertBox";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { Notifications } from "@/components/Notifications/Notifications";
+import { WhatsAppNotifications } from "@/components/whatsapp/WhatsAppNotifications";
+import { SystemNotificationToast } from "@/components/Notifications/SystemNotificationToast";
+import { SystemNotificationCenter } from "@/components/Notifications/SystemNotificationCenter";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
 import { useState } from "react";
@@ -46,7 +49,14 @@ export default function DashboardLayout({
             {<LeadSearch />}
             {(token?.role === "SuperAdmin" ||
               token?.role === "Sales" ||
-              token?.role === "Sales-TeamLead") && <Notifications />}
+              token?.role === "Sales-TeamLead") && (
+              <>
+                <Notifications />
+                <WhatsAppNotifications />
+              </>
+            )}
+            {/* System Notification Center - Visible to all authenticated users */}
+            {token && <SystemNotificationCenter />}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
                 <CommandDialogDemo />
@@ -74,6 +84,8 @@ export default function DashboardLayout({
         </div>
       </main>
       <ScrollToTopButton />
+      {/* Global System Notification Toast - Visible on all pages (includes WhatsApp messages) */}
+      {token && <SystemNotificationToast />}
     </div>
   );
 }

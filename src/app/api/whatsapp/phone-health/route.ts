@@ -5,6 +5,9 @@ import { WHATSAPP_PHONE_CONFIGS, getRetargetPhoneId, getWhatsAppToken, WHATSAPP_
 
 connectDb();
 
+// Force dynamic rendering (uses request.cookies)
+export const dynamic = 'force-dynamic';
+
 // Simple in-memory cache (6-hour TTL)
 const cache = new Map<string, { data: any; expiresAt: number; cachedAt: number }>();
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours

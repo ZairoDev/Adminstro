@@ -6,6 +6,9 @@ import { getAllowedPhoneIds, getAllowedPhoneConfigs } from "@/lib/whatsapp/confi
 
 connectDb();
 
+// Force dynamic rendering (uses request.cookies)
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const token = await getDataFromToken(req);

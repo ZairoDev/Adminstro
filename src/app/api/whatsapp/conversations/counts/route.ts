@@ -6,6 +6,9 @@ import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
 
 connectDb();
 
+// Force dynamic rendering (uses request.cookies)
+export const dynamic = 'force-dynamic';
+
 // Get database-driven conversation counts
 export async function GET(req: NextRequest) {
   try {

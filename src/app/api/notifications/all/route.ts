@@ -5,6 +5,9 @@ import SystemNotification from "@/models/systemNotification";
 
 connectDb();
 
+// Force dynamic rendering (uses request.cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/notifications/all
  * Fetch ALL notifications (past and present) - SuperAdmin only

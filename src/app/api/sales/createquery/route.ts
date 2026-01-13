@@ -16,17 +16,27 @@ import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 
 connectDb();
 
-// Function to send WhatsApp template to lead (LIVE VERSION - Athens only)
+// TESTING MODE: Only send WhatsApp templates when created by test email
+const TEST_EMAIL = process.env.TEST_EMAIL || "test@example.com";
+
+// Function to send WhatsApp template to lead (TESTING MODE - Athens only)
 async function sendGuestGreetingTemplate(
   phoneNo: string,
   leadName: string,
-  location: string
+  location: string,
+  creatorEmail: string
 ) {
   try {
-    // LIVE: Only send for Athens location
+    // TESTING: Only send if created by test email
+    if (creatorEmail !== TEST_EMAIL) {
+      console.log(`⏭️ [TESTING] Skipping WhatsApp template - creator email (${creatorEmail}) is not test email (${TEST_EMAIL})`);
+      return;
+    }
+
+    // TESTING: Only send for Athens location
     const normalizedLocation = location?.toLowerCase().trim();
     if (normalizedLocation !== "athens") {
-      console.log(`⏭️ Skipping WhatsApp template - location is not Athens (got: ${location})`);
+      console.log(`⏭️ [TESTING] Skipping WhatsApp template - location is not Athens (got: ${location})`);
       return;
     }
 
@@ -46,7 +56,7 @@ async function sendGuestGreetingTemplate(
       formattedPhone = formattedPhone.substring(1);
     }
 
-    console.log(`📱 [LIVE] Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
+    console.log(`📱 [TESTING] Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
@@ -88,7 +98,7 @@ async function sendGuestGreetingTemplate(
     }
 
     const whatsappMessageId = data.messages?.[0]?.id;
-    console.log(`✅ [LIVE] guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
+    console.log(`✅ [TESTING] guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
 
     // Save message to database and emit socket event for frontend display
     if (whatsappMessageId) {
@@ -278,9 +288,9 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ Socket.IO instance not found!");
     }
 
-    // ✅ Send WhatsApp guest_greeting template to lead (LIVE - Athens only)
+    // ✅ Send WhatsApp guest_greeting template to lead (TESTING MODE - Athens only, test email only)
     // This runs asynchronously - don't await to avoid blocking the response
-    sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
+    sendGuestGreetingTemplate(phoneNo, name, location, creatorEmail).catch((err) => {
       console.error("❌ Failed to send WhatsApp template:", err);
     });
 

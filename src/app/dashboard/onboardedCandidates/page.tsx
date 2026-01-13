@@ -11,11 +11,15 @@ import {
   Mail,
   CheckCircle2,
   FileText,
+  Clock,
+  Upload,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +54,18 @@ interface Candidate {
   onboardingDetails?: {
     onboardingComplete?: boolean;
     completedAt?: string;
+    documents?: Record<string, string | string[]>;
+    documentVerification?: Record<string, {
+      verified?: boolean;
+      verifiedBy?: string;
+      verifiedAt?: string;
+    }>;
+    verifiedByHR?: {
+      verified?: boolean;
+      verifiedBy?: string;
+      verifiedAt?: string;
+      notes?: string;
+    };
   };
 }
 
@@ -79,6 +95,7 @@ export default function OnboardedCandidatesPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [experienceFilter, setExperienceFilter] = useState<string>("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
+  const [activeTab, setActiveTab] = useState<"pending" | "uploaded-not-verified" | "verified">("pending");
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -99,7 +116,8 @@ export default function OnboardedCandidatesPage() {
     searchTerm: string,
     pageNum: number,
     roleFilter?: string,
-    expFilter?: string
+    expFilter?: string,
+    onboardingStatusFilter?: string
   ) => {
     setLoading(true);
     try {
@@ -116,6 +134,9 @@ export default function OnboardedCandidatesPage() {
       }
       if (expFilter && expFilter !== "all") {
         params.append("experienceFilter", expFilter);
+      }
+      if (onboardingStatusFilter) {
+        params.append("onboardingStatus", onboardingStatusFilter);
       }
 
       const response = await fetch(`/api/candidates?${params}`);
@@ -134,15 +155,15 @@ export default function OnboardedCandidatesPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCandidates(search, 1, selectedRole, experienceFilter);
+      fetchCandidates(search, 1, selectedRole, experienceFilter, activeTab);
       setPage(1);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [search, selectedRole, experienceFilter]);
+  }, [search, selectedRole, experienceFilter, activeTab]);
 
   useEffect(() => {
-    fetchCandidates(search, page, selectedRole, experienceFilter);
+    fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
   }, [page]);
 
   const getStatusColor = (status: string) => {
@@ -334,19 +355,44 @@ export default function OnboardedCandidatesPage() {
           </p>
         </div>
 
-        {/* Search Bar and Filters */}
+        {/* Search Bar */}
         <Card className="mb-6 p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, email, or role..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2 w-full lg:w-auto">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, or role..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </Card>
+
+        {/* Tabs and Filters */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value as typeof activeTab);
+            setPage(1);
+          }}
+          className="w-full"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+            <TabsList className="flex flex-wrap h-auto p-1 gap-1">
+              <TabsTrigger value="pending" className="flex items-center gap-1.5 px-3 py-1.5">
+                <Clock className="h-4 w-4" />
+                Pending
+              </TabsTrigger>
+              <TabsTrigger value="uploaded-not-verified" className="flex items-center gap-1.5 px-3 py-1.5">
+                <Upload className="h-4 w-4" />
+                Documents Uploaded (Not Verified)
+              </TabsTrigger>
+              <TabsTrigger value="verified" className="flex items-center gap-1.5 px-3 py-1.5">
+                <CheckCircle className="h-4 w-4" />
+                Documents Verified
+              </TabsTrigger>
+            </TabsList>
+            <div className="flex gap-2 w-full lg:w-auto flex-wrap">
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="h-10 w-full lg:w-[150px]">
                   <SelectValue placeholder="Filter by Role" />
@@ -375,20 +421,32 @@ export default function OnboardedCandidatesPage() {
               </Select>
             </div>
           </div>
-        </Card>
 
-        {/* Table */}
-        <Card className="overflow-hidden">
-          <CandidateTable />
+          <Card className="overflow-hidden">
+            <TabsContent value="pending" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="uploaded-not-verified" className="m-0">
+              <CandidateTable />
+            </TabsContent>
+            <TabsContent value="verified" className="m-0">
+              <CandidateTable />
+            </TabsContent>
 
-          {/* Pagination */}
-          {pagination && pagination.pages > 1 && (
-            <div className="px-6 py-4 border-t border-border flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {(page - 1) * pagination.limit + 1} to{" "}
-                {Math.min(page * pagination.limit, pagination.total)} of{" "}
-                {pagination.total} onboarded candidates
-              </div>
+            {/* Pagination */}
+            {pagination && pagination.pages > 1 && (
+              <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * pagination.limit + 1} to{" "}
+                  {Math.min(page * pagination.limit, pagination.total)} of{" "}
+                  {pagination.total}{" "}
+                  {activeTab === "pending"
+                    ? "pending"
+                    : activeTab === "uploaded-not-verified"
+                    ? "with uploaded documents (not verified)"
+                    : "with verified documents"}{" "}
+                  candidates
+                </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -450,7 +508,8 @@ export default function OnboardedCandidatesPage() {
               </div>
             </div>
           )}
-        </Card>
+          </Card>
+        </Tabs>
       </div>
 
       {/* Notes Modal */}

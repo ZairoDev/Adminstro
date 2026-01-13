@@ -6,5 +6,12 @@ export const festivalQuotes = {
     Holi: [
       (name: string) => `Happy Holi ${name} 🌈 — fresh colors, fresh energy.`,
     ],
+    MakarSakranti: [
+      (name: string) => `${name}, Khichdi Khaoge?`,
+      (name: string) => `${name}, dahi-bade/khichdi time! 😋`,
+      (name: string) => `Kite high, mood higher — Happy Sankranti ${name}! 🪁`,
+      (name: string) => `${name}, pech ladaoge? 🪁`,
+
+    ],
   };
   

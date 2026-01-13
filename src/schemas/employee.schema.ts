@@ -13,6 +13,7 @@ export const employeeSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
   aadhar: z.string().min(1, "Please enter your Aadhar number"),
   dateOfJoining: z.date(),
+  dateOfBirth: z.date(),
   experience: z.number().optional().default(0),
   alias: z.string().optional(),
   country: z.string().min(1, "Please enter your country"),

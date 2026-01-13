@@ -97,6 +97,9 @@ export default function TrainingAgreementPage() {
   const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [hrPoliciesPdfUrl, setHrPoliciesPdfUrl] = useState<string | null>(null);
+  const [generatingHrPoliciesPdf, setGeneratingHrPoliciesPdf] = useState(false);
+  const [showHrPoliciesPdfPreview, setShowHrPoliciesPdfPreview] = useState(false);
   const previousThemeRef = useRef<string | undefined>(undefined);
   const pdfGeneratedRef = useRef(false);
   const pdfAutoOpenedRef = useRef(false);
@@ -184,6 +187,46 @@ export default function TrainingAgreementPage() {
     }
   };
 
+  const generateHrPoliciesPdf = async () => {
+    if (!candidate) return;
+    
+    setGeneratingHrPoliciesPdf(true);
+    try {
+      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const hrPoliciesPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: agreementDate,
+        // No signature for unsigned PDF
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/hrPolicies",
+        hrPoliciesPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setHrPoliciesPdfUrl(url);
+    } catch (error: any) {
+      console.error("Error generating HR Policies PDF:", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to generate HR Policies PDF preview";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingHrPoliciesPdf(false);
+    }
+  };
+
   // Auto-generate unsigned PDF when component loads (if not already signed)
   useEffect(() => {
     if (!loading && candidate && !pdfGeneratedRef.current) {
@@ -205,6 +248,7 @@ export default function TrainingAgreementPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, candidate]);
+
 
   // Auto-open PDF preview dialog when PDF is generated (only once)
   useEffect(() => {
@@ -667,6 +711,94 @@ export default function TrainingAgreementPage() {
             </div>
           </Card>
 
+          {/* HR Policies PDF Preview Section */}
+          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center text-sm font-semibold">
+                3
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                HR Policies Document Preview
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Preview and download the HR Policies document. This document contains important company policies and guidelines.
+              </p>
+              
+              {generatingHrPoliciesPdf && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Generating HR Policies PDF...</p>
+                  </div>
+                </div>
+              )}
+
+              {!generatingHrPoliciesPdf && !hrPoliciesPdfUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={generateHrPoliciesPdf}
+                  className="w-full dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate HR Policies PDF
+                </Button>
+              )}
+
+              {hrPoliciesPdfUrl && !generatingHrPoliciesPdf && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (!hrPoliciesPdfUrl) return;
+                      const a = document.createElement("a");
+                      a.href = hrPoliciesPdfUrl;
+                      a.download = `HR-Policies-${candidateId}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowHrPoliciesPdfPreview(true)}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Full Screen
+                  </Button>
+                </div>
+              )}
+
+              {hrPoliciesPdfUrl && !generatingHrPoliciesPdf && (
+                <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  <iframe
+                    src={hrPoliciesPdfUrl}
+                    className="w-full h-[500px] border-0"
+                    title="HR Policies PDF Preview"
+                  />
+                </div>
+              )}
+              
+              {!generatingHrPoliciesPdf && !hrPoliciesPdfUrl && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">HR Policies PDF preview will appear here</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
           {/* Training Agreement Content Preview */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
@@ -695,7 +827,7 @@ export default function TrainingAgreementPage() {
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
-                3
+                4
               </div>
               <h2 className="text-lg font-semibold text-foreground">
                 E Signature
@@ -981,6 +1113,60 @@ export default function TrainingAgreementPage() {
                   pdfAutoOpenedRef.current = false;
                 }}
                 className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* HR Policies PDF Preview Dialog */}
+        <Dialog 
+          open={showHrPoliciesPdfPreview} 
+          onOpenChange={setShowHrPoliciesPdfPreview}
+        >
+          <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">
+                HR Policies Document Preview
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Preview of the HR Policies document. Please review the company policies and guidelines.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+              {hrPoliciesPdfUrl && (
+                <iframe
+                  src={hrPoliciesPdfUrl}
+                  className="w-full h-[70vh] border-0"
+                  title="HR Policies Document Preview"
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              {hrPoliciesPdfUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!hrPoliciesPdfUrl) return;
+                    const a = document.createElement("a");
+                    a.href = hrPoliciesPdfUrl;
+                    a.download = `HR-Policies-${candidateId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                  className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={() => setShowHrPoliciesPdfPreview(false)}
+                className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600"
               >
                 Close
               </Button>

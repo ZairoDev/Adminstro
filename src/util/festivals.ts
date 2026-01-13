@@ -9,6 +9,7 @@ export const festivals: Record<string, string> = {
   // Update these dates yearly
   "11-01": "Diwali",
   "03-25": "Holi",
+  "01-14": "MakarSakranti",
 };
 
 export function getTodayFestival(): string | null {

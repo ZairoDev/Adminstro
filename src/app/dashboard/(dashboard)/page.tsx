@@ -3,6 +3,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { DateRange } from "react-day-picker";
 import { Loader2, User, MapPin, Shield, Users } from "lucide-react";
+import { CelebrationView } from "@/components/CelebrationView";
+import { CelebrationNotification } from "@/components/CelebrationNotification";
+import { getTodaysEvents, TodaysEvents } from "@/util/getTodaysEvents";
+import { toast } from "sonner";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -339,6 +343,41 @@ const Dashboard = () => {
     0
   );
 
+  // Celebration state (for quote flip UI - current user's events)
+  const [todaysEvents, setTodaysEvents] = useState<TodaysEvents>({
+    birthdays: [],
+    anniversaries: [],
+    hasEvents: false,
+  });
+  const [isCelebrationDismissed, setIsCelebrationDismissed] = useState(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+
+  // Centralized celebrations state (for notifications - all employees)
+  const [centralizedCelebrations, setCentralizedCelebrations] = useState<{
+    birthdays: Array<{
+      employeeId: string;
+      firstName: string;
+      fullName: string;
+      eventType: "birthday" | "anniversary";
+    }>;
+    anniversaries: Array<{
+      employeeId: string;
+      firstName: string;
+      fullName: string;
+      eventType: "birthday" | "anniversary";
+      years?: number;
+    }>;
+    hasEvents: boolean;
+    totalCount: number;
+  }>({
+    birthdays: [],
+    anniversaries: [],
+    hasEvents: false,
+    totalCount: 0,
+  });
+  const [isNotificationDismissed, setIsNotificationDismissed] = useState(false);
+  const [isLoadingCelebrations, setIsLoadingCelebrations] = useState(true);
+
   // Get random quote for current user (must be before early returns)
   const displayQuote = useMemo(() => {
     if (!token?.name) return "Welcome to your dashboard!";
@@ -346,6 +385,189 @@ const Dashboard = () => {
     const firstName = token.name.trim().split(" ")[0];
     return getRandomQuote(firstName);
   }, [token?.name]);
+
+  // Fetch centralized celebrations from API (for notifications)
+  const fetchCentralizedCelebrations = async () => {
+    if (!token?.id) {
+      setIsLoadingCelebrations(false);
+      return;
+    }
+
+    try {
+      setIsLoadingCelebrations(true);
+      const response = await fetch("/api/celebrations/today");
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch celebrations");
+      }
+
+      const data = await response.json();
+      setCentralizedCelebrations(data);
+
+      // Check if notification was dismissed today
+      const todayKey = new Date().toDateString();
+      const seenKey = `celebrations_seen_${todayKey}`;
+      const wasSeen = sessionStorage.getItem(seenKey) === "true";
+      setIsNotificationDismissed(wasSeen);
+
+      // Show toast notification if there are events and not seen yet
+      if (data.hasEvents && !wasSeen) {
+        if (data.birthdays.length === 1 && data.anniversaries.length === 0) {
+          toast.success(`🎉 Today is ${data.birthdays[0].firstName}'s birthday!`);
+        } else if (data.anniversaries.length === 1 && data.birthdays.length === 0) {
+          toast.success(`👏 Today is ${data.anniversaries[0].firstName}'s ${data.anniversaries[0].years}-year work anniversary!`);
+        } else {
+          toast.success(`🎉 ${data.totalCount} celebration${data.totalCount !== 1 ? "s" : ""} today!`);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching centralized celebrations:", error);
+      setCentralizedCelebrations({
+        birthdays: [],
+        anniversaries: [],
+        hasEvents: false,
+        totalCount: 0,
+      });
+    } finally {
+      setIsLoadingCelebrations(false);
+    }
+  };
+
+  // Fetch centralized celebrations on mount and setup refresh
+  useEffect(() => {
+    fetchCentralizedCelebrations();
+
+    // Refresh every 10 minutes
+    const intervalId = setInterval(() => {
+      fetchCentralizedCelebrations();
+    }, 10 * 60 * 1000); // 10 minutes
+
+    // Refresh on tab focus
+    const handleFocus = () => {
+      fetchCentralizedCelebrations();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [token?.id]);
+
+  // Fetch employees and detect today's events (for quote flip UI)
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!token?.id) {
+        setIsLoadingEvents(false);
+        return;
+      }
+
+      try {
+        setIsLoadingEvents(true);
+        const allEmployeesList: any[] = [];
+        const fetchedEmployeeIds = new Set<string>();
+
+        // Fetch multiple pages of employees
+        for (let page = 1; page <= 10; page++) {
+          try {
+            const response = await fetch(`/api/employee/getAllEmployee?currentPage=${page}`);
+            if (!response.ok) break;
+
+            const data = await response.json();
+            if (data.allEmployees && Array.isArray(data.allEmployees)) {
+              // Filter only active employees with valid data
+              const activeEmployees = data.allEmployees.filter(
+                (emp: any) =>
+                  emp.isActive !== false &&
+                  emp._id &&
+                  emp.name &&
+                  emp.name.trim() !== ""
+              );
+
+              activeEmployees.forEach((emp: any) => {
+                if (!fetchedEmployeeIds.has(emp._id)) {
+                  allEmployeesList.push(emp);
+                  fetchedEmployeeIds.add(emp._id);
+                }
+              });
+
+              if (data.allEmployees.length < 10) break;
+            } else {
+              break;
+            }
+          } catch (fetchError) {
+            console.log("Could not fetch employees page", page, fetchError);
+            break;
+          }
+        }
+
+        // Detect today's events
+        const events = getTodaysEvents(allEmployeesList, token.id);
+        setTodaysEvents(events);
+
+        // Check if celebration was dismissed in this session
+        const dismissedKey = `celebration_dismissed_${new Date().toDateString()}`;
+        const wasDismissed = sessionStorage.getItem(dismissedKey) === "true";
+        setIsCelebrationDismissed(wasDismissed);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        setTodaysEvents({ birthdays: [], anniversaries: [], hasEvents: false });
+      } finally {
+        setIsLoadingEvents(false);
+      }
+    };
+
+    fetchEvents();
+  }, [token?.id]);
+
+  // Handle celebration dismissal (quote flip UI)
+  const handleDismissCelebration = () => {
+    setIsCelebrationDismissed(true);
+    const dismissedKey = `celebration_dismissed_${new Date().toDateString()}`;
+    sessionStorage.setItem(dismissedKey, "true");
+  };
+
+  // Handle notification dismissal (centralized notifications)
+  const handleDismissNotification = () => {
+    setIsNotificationDismissed(true);
+    const todayKey = new Date().toDateString();
+    const seenKey = `celebrations_seen_${todayKey}`;
+    sessionStorage.setItem(seenKey, "true");
+  };
+
+  // Handle view details - show celebration view
+  const handleViewCelebrationDetails = () => {
+    // Convert centralized celebrations to TodaysEvents format for CelebrationView
+    const eventsForView: TodaysEvents = {
+      birthdays: centralizedCelebrations.birthdays.map((b) => ({
+        employeeId: b.employeeId,
+        firstName: b.firstName,
+        fullName: b.fullName,
+        isCurrentUser: b.employeeId === token?.id,
+      })),
+      anniversaries: centralizedCelebrations.anniversaries.map((a) => ({
+        employeeId: a.employeeId,
+        firstName: a.firstName,
+        fullName: a.fullName,
+        years: a.years || 0,
+        isCurrentUser: a.employeeId === token?.id,
+      })),
+      hasEvents: centralizedCelebrations.hasEvents,
+    };
+    setTodaysEvents(eventsForView);
+    setIsCelebrationDismissed(false);
+    // Scroll to celebration view
+    setTimeout(() => {
+      const quoteSection = document.querySelector('[data-celebration-section]');
+      quoteSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  // Determine if celebration should be shown
+  const showCelebration =
+    !isLoadingEvents &&
+    !isCelebrationDismissed &&
+    todaysEvents.hasEvents;
   
   if (isError) {
     return (
@@ -381,12 +603,67 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-6">
+      {/* Centralized Celebration Notification Banner */}
+      {!isLoadingCelebrations &&
+        !isNotificationDismissed &&
+        centralizedCelebrations.hasEvents && (
+          <CelebrationNotification
+            birthdays={centralizedCelebrations.birthdays}
+            anniversaries={centralizedCelebrations.anniversaries}
+            onDismiss={handleDismissNotification}
+            onViewDetails={handleViewCelebrationDetails}
+          />
+        )}
 
-      {/* Welcome Quote Section */}
-      <div className="mb-6 p-6 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
-        <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-          {displayQuote}
-        </p>
+      {/* Welcome Quote Section / Celebration View */}
+      <div
+        className="mb-6 perspective-1000"
+        style={{ minHeight: "120px" }}
+        data-celebration-section
+      >
+        <div
+          className="relative w-full transition-transform duration-700 ease-in-out"
+          style={{
+            transform: showCelebration ? "rotateX(180deg)" : "rotateX(0deg)",
+            transformStyle: "preserve-3d",
+          }}
+        >
+          {/* Quote Card (back face) */}
+          <div
+            className="absolute inset-0 w-full backface-hidden"
+            style={{
+              transform: "rotateX(0deg)",
+            }}
+          >
+            <div className="p-6 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
+              <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+                {displayQuote}
+              </p>
+            </div>
+          </div>
+
+          {/* Celebration Card (front face) */}
+          <div
+            className="relative w-full backface-hidden"
+            style={{
+              transform: "rotateX(180deg)",
+            }}
+          >
+            {showCelebration ? (
+              <CelebrationView
+                birthdays={todaysEvents.birthdays}
+                anniversaries={todaysEvents.anniversaries}
+                onDismiss={handleDismissCelebration}
+              />
+            ) : (
+              <div className="p-6 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
+                <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+                  {displayQuote}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
 

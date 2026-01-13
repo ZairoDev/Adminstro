@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const experienceFilter = searchParams.get("experienceFilter") || "";
     const collegeFilter = searchParams.get("college") || "";
     const onboarded = searchParams.get("onboarded") === "true";
+    const onboardingStatus = searchParams.get("onboardingStatus") || "";
 
     const skip = (page - 1) * limit;
 
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
         ],
       });
     }
+
+    // Add onboarding status filter for onboarded candidates
+    // Note: We'll filter in memory after fetching for more reliable results
+    // This is because document verification structure can be complex
 
     // Add search conditions if search term exists
     if (search) {
@@ -85,15 +90,64 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get total count with the query
-    const total = await Candidate.countDocuments(query);
-
-    // Fetch candidates with pagination
-    const candidates = await Candidate.find(query)
+    // Fetch all candidates matching the base query (for onboarding status filtering)
+    let allCandidates = await Candidate.find(query)
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
       .lean();
+
+    // Filter by onboarding status if specified
+    if (onboarded && onboardingStatus) {
+      allCandidates = allCandidates.filter((candidate: any) => {
+        const onboardingDetails = candidate.onboardingDetails || {};
+        const documents = onboardingDetails.documents || {};
+        const documentVerification = onboardingDetails.documentVerification || {};
+        
+        // Get list of document keys that have actual document values (not null/empty)
+        const documentKeys = Object.keys(documents).filter((key) => {
+          const docValue = documents[key];
+          if (Array.isArray(docValue)) {
+            return docValue.length > 0 && docValue.some((item: any) => item !== null && item !== undefined && item !== "");
+          }
+          return docValue !== null && docValue !== undefined && docValue !== "";
+        });
+        
+        // Check if documents exist (has at least one document uploaded)
+        const hasDocuments = documentKeys.length > 0;
+        
+        // Check if any document is verified
+        const hasVerifiedDocuments = Object.values(documentVerification).some(
+          (verification: any) => verification && verification.verified === true
+        );
+
+        // Check if ALL documents are verified
+        const allDocumentsVerified = documentKeys.length > 0 && documentKeys.every((docKey) => {
+          const verification = documentVerification[docKey];
+          return verification && verification.verified === true;
+        });
+
+        // Check HR verification status
+        const hrVerified = onboardingDetails.verifiedByHR?.verified === true;
+
+        if (onboardingStatus === "pending") {
+          // Pending: onboarding not complete OR no documents uploaded
+          return !onboardingDetails.onboardingComplete || !hasDocuments;
+        } else if (onboardingStatus === "uploaded-not-verified") {
+          // Documents uploaded but not all verified (or HR not verified)
+          return hasDocuments && (!allDocumentsVerified || !hrVerified);
+        } else if (onboardingStatus === "verified") {
+          // ALL documents verified AND HR verification complete
+          return allDocumentsVerified && hrVerified;
+        }
+        
+        return true;
+      });
+    }
+
+    // Get total count after filtering
+    const total = allCandidates.length;
+
+    // Apply pagination
+    const candidates = allCandidates.slice(skip, skip + limit);
 
     // console.log("Query:", query);
     // console.log("Fetched Candidates:", candidates);

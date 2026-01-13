@@ -65,6 +65,10 @@ const employeeSchema = new Schema<IEmployee>(
       type: Date,
       default: new Date(),
     },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
     experience: {
       type: Number,
       default: 0,

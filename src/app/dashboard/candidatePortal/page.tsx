@@ -20,6 +20,7 @@ import {
   X,
   ChevronDown,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -104,6 +105,18 @@ interface Candidate {
       reviewedAt?: string;
       token?: string;
     };
+  };
+  trainingAgreementDetails?: {
+    signingLink?: string;
+    eSign?: {
+      signatureImage?: string;
+      signedAt?: string;
+    };
+    signedPdfUrl?: string;
+    agreementAccepted?: boolean;
+    agreementAcceptedAt?: string;
+    agreementComplete?: boolean;
+    completedAt?: string;
   };
 }
 
@@ -853,14 +866,31 @@ export default function CandidatesPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge className={getStatusColor(candidate.status)}>
-                    {candidate.status === "selected"
-                      ? "Selected for Training"
-                      : candidate.status === "interview"
-                      ? "Interview"
-                      : candidate?.status?.charAt(0).toUpperCase() +
-                        candidate?.status?.slice(1)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getStatusColor(candidate.status)}>
+                      {candidate.status === "selected"
+                        ? "Selected for Training"
+                        : candidate.status === "interview"
+                        ? "Interview"
+                        : candidate?.status?.charAt(0).toUpperCase() +
+                          candidate?.status?.slice(1)}
+                    </Badge>
+                    {candidate.status === "selected" && 
+                     candidate.trainingAgreementDetails?.agreementComplete && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center">
+                              <CheckCircle2 className="h-5 w-5 text-white dark:text-white" fill="green"  />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Training Agreement Signed</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 </td>
                 {activeTab === "interview" && (
                   <td className="px-6 py-4 text-sm text-foreground">

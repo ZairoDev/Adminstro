@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -47,6 +48,7 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
           <Toaster />
+          <SonnerToaster position="top-right" richColors />
         </body>
       </html>
     </ViewTransitions>

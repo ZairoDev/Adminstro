@@ -25,6 +25,7 @@ interface Candidate {
     duration: string;
     trainingPeriod: string;
     role: string;
+    salary?: string | number;
   };
   trainingAgreementDetails?: {
     signingLink: string;
@@ -100,6 +101,9 @@ export default function TrainingAgreementPage() {
   const [hrPoliciesPdfUrl, setHrPoliciesPdfUrl] = useState<string | null>(null);
   const [generatingHrPoliciesPdf, setGeneratingHrPoliciesPdf] = useState(false);
   const [showHrPoliciesPdfPreview, setShowHrPoliciesPdfPreview] = useState(false);
+  const [letterOfIntentPdfUrl, setLetterOfIntentPdfUrl] = useState<string | null>(null);
+  const [generatingLetterOfIntentPdf, setGeneratingLetterOfIntentPdf] = useState(false);
+  const [showLetterOfIntentPdfPreview, setShowLetterOfIntentPdfPreview] = useState(false);
   const previousThemeRef = useRef<string | undefined>(undefined);
   const pdfGeneratedRef = useRef(false);
   const pdfAutoOpenedRef = useRef(false);
@@ -224,6 +228,76 @@ export default function TrainingAgreementPage() {
       });
     } finally {
       setGeneratingHrPoliciesPdf(false);
+    }
+  };
+
+  const generateLetterOfIntentPdf = async () => {
+    if (!candidate) return;
+    
+    setGeneratingLetterOfIntentPdf(true);
+    try {
+      const letterDate = new Date().toISOString();
+      
+      // Format salary - convert number to LPA format if needed
+      let formattedSalary = "";
+      if (candidate.selectionDetails?.salary) {
+        const salary = candidate.selectionDetails.salary;
+        if (typeof salary === "number") {
+          // Convert to LPA format (e.g., 216000 -> ₹2.16 LPA)
+          const lpa = salary / 100000;
+          formattedSalary = `₹${lpa.toFixed(2)} LPA`;
+        } else {
+          formattedSalary = salary.toString();
+        }
+      }
+
+      // Format start date - add 3 days from today
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 3);
+      const startDay = startDate.getDate();
+      const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" : startDay === 2 || startDay === 22 ? "nd" : startDay === 3 || startDay === 23 ? "rd" : "th";
+      const startMonthName = startDate.toLocaleString("en-US", { month: "long" });
+      const startYear = startDate.getFullYear();
+      const formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
+
+      // Determine designation and department from position
+      const designation = candidate.selectionDetails?.role || `${candidate.position} Executive`;
+      const department = candidate.position || "Human Resources";
+
+      const letterOfIntentPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: letterDate,
+        salary: formattedSalary || undefined,
+        designation: designation,
+        department: department,
+        startDate: formattedStartDate,
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/letterOfIntent",
+        letterOfIntentPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setLetterOfIntentPdfUrl(url);
+    } catch (error: any) {
+      console.error("Error generating Letter of Intent PDF:", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to generate Letter of Intent PDF preview";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingLetterOfIntentPdf(false);
     }
   };
 
@@ -799,6 +873,94 @@ export default function TrainingAgreementPage() {
             </div>
           </Card>
 
+          {/* Letter of Intent PDF Preview Section */}
+          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-amber-600 dark:bg-amber-500 text-white flex items-center justify-center text-sm font-semibold">
+                4
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Letter of Intent Document Preview
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Preview and download the Letter of Intent document. This document contains the offer details and terms of employment.
+              </p>
+              
+              {generatingLetterOfIntentPdf && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-600 dark:text-amber-400 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Generating Letter of Intent PDF...</p>
+                  </div>
+                </div>
+              )}
+
+              {!generatingLetterOfIntentPdf && !letterOfIntentPdfUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={generateLetterOfIntentPdf}
+                  className="w-full dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Letter of Intent PDF
+                </Button>
+              )}
+
+              {letterOfIntentPdfUrl && !generatingLetterOfIntentPdf && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (!letterOfIntentPdfUrl) return;
+                      const a = document.createElement("a");
+                      a.href = letterOfIntentPdfUrl;
+                      a.download = `Letter-Of-Intent-${candidateId}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowLetterOfIntentPdfPreview(true)}
+                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Full Screen
+                  </Button>
+                </div>
+              )}
+
+              {letterOfIntentPdfUrl && !generatingLetterOfIntentPdf && (
+                <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  <iframe
+                    src={letterOfIntentPdfUrl}
+                    className="w-full h-[500px] border-0"
+                    title="Letter of Intent PDF Preview"
+                  />
+                </div>
+              )}
+              
+              {!generatingLetterOfIntentPdf && !letterOfIntentPdfUrl && (
+                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  <div className="text-center">
+                    <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Letter of Intent PDF preview will appear here</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
           {/* Training Agreement Content Preview */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
@@ -827,7 +989,7 @@ export default function TrainingAgreementPage() {
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
-                4
+                5
               </div>
               <h2 className="text-lg font-semibold text-foreground">
                 E Signature
@@ -1167,6 +1329,60 @@ export default function TrainingAgreementPage() {
                 type="button"
                 onClick={() => setShowHrPoliciesPdfPreview(false)}
                 className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Letter of Intent PDF Preview Dialog */}
+        <Dialog 
+          open={showLetterOfIntentPdfPreview} 
+          onOpenChange={setShowLetterOfIntentPdfPreview}
+        >
+          <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">
+                Letter of Intent Document Preview
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Preview of the Letter of Intent document. This document contains the offer details and terms of employment.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+              {letterOfIntentPdfUrl && (
+                <iframe
+                  src={letterOfIntentPdfUrl}
+                  className="w-full h-[70vh] border-0"
+                  title="Letter of Intent Document Preview"
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              {letterOfIntentPdfUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!letterOfIntentPdfUrl) return;
+                    const a = document.createElement("a");
+                    a.href = letterOfIntentPdfUrl;
+                    a.download = `Letter-Of-Intent-${candidateId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                  className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={() => setShowLetterOfIntentPdfPreview(false)}
+                className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600"
               >
                 Close
               </Button>

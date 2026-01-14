@@ -217,7 +217,7 @@ export async function POST(
     console.log("✅ Re-upload request saved and verified successfully!");
 
     // Generate re-upload link
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.APP_URL || "http://localhost:3000";
     const reuploadLink = `${baseUrl}/dashboard/candidatePortal/${id}/onboarding?reupload=${secureToken}`;
 
     // Send email to candidate

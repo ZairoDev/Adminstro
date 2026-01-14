@@ -132,7 +132,7 @@ jobs:
 
           ls -dt adminstro_rollback_* 2>/dev/null | tail -n +6 | while read dir; do
             echo "🗑️ Removing backup: $dir"
-            rm -rf "$dir"
+             sudo rm -rf "$dir"
           done
 
           echo "✅ Backup cleanup complete"

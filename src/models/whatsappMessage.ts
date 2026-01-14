@@ -74,6 +74,14 @@ export interface IWhatsAppMessage extends Document {
   };
 
   metadata?: Map<string, any>;
+
+  // Forwarding fields
+  isForwarded?: boolean;
+  forwardedFrom?: mongoose.Types.ObjectId; // Reference to original message
+
+  // Reaction fields
+  reactedToMessageId?: string; // WhatsApp message ID (wamid) of the message being reacted to
+  reactionEmoji?: string; // The emoji reaction (only for reaction type messages)
 }
 
 const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
@@ -229,6 +237,25 @@ const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
     metadata: {
       type: Map,
       of: Schema.Types.Mixed,
+    },
+
+    // Forwarding fields
+    isForwarded: {
+      type: Boolean,
+      default: false,
+    },
+    forwardedFrom: {
+      type: Schema.Types.ObjectId,
+      ref: "WhatsAppMessage",
+    },
+
+    // Reaction fields
+    reactedToMessageId: {
+      type: String,
+      index: true,
+    },
+    reactionEmoji: {
+      type: String,
     },
   },
   { timestamps: true }

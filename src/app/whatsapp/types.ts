@@ -19,10 +19,17 @@ export interface Message {
   content: MessageContent | string;
   displayText?: string;
   mediaUrl?: string;
+  filename?: string;
   timestamp: Date;
   status: "sending" | "sent" | "delivered" | "read" | "failed";
   direction: "incoming" | "outgoing";
   isEcho?: boolean;
+  isForwarded?: boolean;
+  forwardedFrom?: string;
+  reactions?: Array<{
+    emoji: string;
+    direction: "incoming" | "outgoing";
+  }>;
 }
 
 export interface Conversation {

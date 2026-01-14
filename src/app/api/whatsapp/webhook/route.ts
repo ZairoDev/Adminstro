@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     
     const body = await req.json();
     
-    console.log("📩 Incoming webhook payload:", JSON.stringify(body, null, 2));
+    // console.log("📩 Incoming webhook payload:", JSON.stringify(body, null, 2));
 
     // Process the webhook event
     if (body.object === "whatsapp_business_account") {
@@ -240,6 +240,7 @@ async function getMediaPermanentUrl(
         body: mediaBuffer,
       }
     );
+    console.log("uploadResponse", uploadResponse);
 
     if (!uploadResponse.ok) {
       console.error("Failed to upload to Bunny CDN:", await uploadResponse.text());
@@ -660,6 +661,7 @@ async function processIncomingMessage(
         
       case "reaction":
         contentObj.text = `Reacted: ${message.reaction?.emoji || "👍"}`;
+        // Store the original message ID that was reacted to
         break;
         
       default:
@@ -793,6 +795,11 @@ async function processIncomingMessage(
           participantPhone: senderPhone,
           assignedAgent: conversation.assignedAgent,
         },
+        // Store reaction data if this is a reaction message
+        ...(message.type === "reaction" && {
+          reactedToMessageId: message.reaction?.message_id,
+          reactionEmoji: message.reaction?.emoji || "👍",
+        }),
       });
 
       // Insert succeeded → NEW message

@@ -18,6 +18,7 @@ import { WindowWarningDialog } from "./components/WindowWarningDialog";
 import { MessageComposer } from "./components/MessageComposer";
 import { RetargetPanel } from "./components/RetargetPanel";
 import { AddGuestModal } from "./components/AddGuestModal";
+import { ForwardDialog } from "./components/ForwardDialog";
 
 export default function WhatsAppChat() {
   const { token } = useAuthStore();
@@ -26,6 +27,8 @@ export default function WhatsAppChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
@@ -53,6 +56,11 @@ export default function WhatsAppChat() {
   
   // Add Guest Modal state
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
+  
+  // Forward Dialog state
+  const [showForwardDialog, setShowForwardDialog] = useState(false);
+  const [messagesToForward, setMessagesToForward] = useState<string[]>([]);
+  const [forwardingMessages, setForwardingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("91"); // Default to India
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
@@ -271,6 +279,27 @@ useEffect(() => {
       // Add message to current conversation if selected
       if (currentConversation?._id === conversationId) {
         setMessages((prev) => {
+          // If this is a reaction message, update the original message with the reaction
+          if (message.type === "reaction" && message.reactedToMessageId) {
+            return prev.map((msg) => {
+              if (msg.messageId === message.reactedToMessageId) {
+                const existingReactions = msg.reactions || [];
+                const reactionEmoji = message.reactionEmoji || message.content?.text?.replace("Reacted: ", "") || "👍";
+                // Check if this reaction already exists
+                const hasReaction = existingReactions.some(
+                  (r) => r.emoji === reactionEmoji && r.direction === message.direction
+                );
+                if (!hasReaction) {
+                  return {
+                    ...msg,
+                    reactions: [...existingReactions, { emoji: reactionEmoji, direction: message.direction }],
+                  };
+                }
+              }
+              return msg;
+            });
+          }
+
           // Check if message already exists to avoid duplicates
           // Check messageId, _id, and also check if there's a temp message that was updated to this ID
           const exists = prev.find(
@@ -299,6 +328,7 @@ useEffect(() => {
               timestamp: new Date(message.timestamp),
               status: message.status,
               direction: message.direction,
+              reactions: message.reactions || [],
             },
           ];
         });
@@ -1282,6 +1312,236 @@ useEffect(() => {
     }
   };
 
+  // Handle forward messages
+  const handleForwardMessages = (messageIds: string[]) => {
+    setMessagesToForward(messageIds);
+    setShowForwardDialog(true);
+  };
+
+  // Handle reply to message
+  const handleReplyMessage = (message: Message) => {
+    const displayText = typeof message.content === "string"
+      ? message.content
+      : message.content?.text || message.content?.caption || "";
+    
+    // Prepend reply indicator to message
+    setNewMessage(`Replying to: ${displayText.substring(0, 50)}${displayText.length > 50 ? "..." : ""}\n\n`);
+    
+    // Focus on message composer (could scroll to bottom)
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea[placeholder*="Type a message"]') as HTMLTextAreaElement;
+      textarea?.focus();
+    }, 100);
+  };
+
+  // Handle react to message
+  const handleReactMessage = async (message: Message, emoji: string = "👍") => {
+    if (!selectedConversation || !message.messageId) return;
+
+    // Optimistically add reaction to the message
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.messageId === message.messageId) {
+          const existingReactions = msg.reactions || [];
+          // Check if this reaction already exists
+          const hasReaction = existingReactions.some(
+            (r) => r.emoji === emoji && r.direction === "outgoing"
+          );
+          if (!hasReaction) {
+            return {
+              ...msg,
+              reactions: [...existingReactions, { emoji, direction: "outgoing" }],
+            };
+          }
+        }
+        return msg;
+      })
+    );
+
+    try {
+      const response = await axios.post("/api/whatsapp/send-reaction", {
+        messageId: message.messageId, // WhatsApp message ID (wamid)
+        emoji: emoji,
+        conversationId: selectedConversation._id,
+        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+      });
+
+      if (response.data.success) {
+        toast({
+          title: "Reaction Sent",
+          description: `Reacted with ${emoji}`,
+        });
+      } else {
+        throw new Error(response.data.error || "Failed to send reaction");
+      }
+    } catch (error: any) {
+      console.error("React error:", error);
+      // Revert optimistic update on error
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.messageId === message.messageId) {
+            const reactions = msg.reactions || [];
+            return {
+              ...msg,
+              reactions: reactions.filter(
+                (r) => !(r.emoji === emoji && r.direction === "outgoing")
+              ),
+            };
+          }
+          return msg;
+        })
+      );
+      toast({
+        title: "Reaction Failed",
+        description: error.response?.data?.error || "Failed to send reaction",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleForwardConfirm = async (conversationIds: string[]) => {
+    if (messagesToForward.length === 0 || conversationIds.length === 0) return;
+
+    setForwardingMessages(true);
+    try {
+      const response = await axios.post("/api/whatsapp/forward-message", {
+        messageIds: messagesToForward,
+        conversationIds,
+        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+      });
+
+      if (response.data.success) {
+        toast({
+          title: "Messages Forwarded",
+          description: `Successfully forwarded ${response.data.summary.successful} message(s)`,
+        });
+        setShowForwardDialog(false);
+        setMessagesToForward([]);
+      } else {
+        throw new Error(response.data.error || "Failed to forward messages");
+      }
+    } catch (error: any) {
+      console.error("Forward error:", error);
+      toast({
+        title: "Forward Failed",
+        description: error.response?.data?.error || "Failed to forward messages",
+        variant: "destructive",
+      });
+    } finally {
+      setForwardingMessages(false);
+    }
+  };
+
+  // Handle drag & drop file upload
+  useEffect(() => {
+    const handleFileDropped = async (event: Event) => {
+      const customEvent = event as CustomEvent<{ file: File; mediaType: string; bunnyUrl: string; filename: string }>;
+      const { file, mediaType, bunnyUrl, filename } = customEvent.detail;
+      
+      if (!selectedConversation) return;
+
+      // Check if 24-hour messaging window is active
+      if (!isMessageWindowActive(selectedConversation)) {
+        setShowWindowWarning(true);
+        return;
+      }
+
+      setUploadingMedia(true);
+
+      const tempId = `temp-${Date.now()}`;
+      const sendTimestamp = new Date();
+      const mediaDisplayText = `📎 ${file.name}`;
+
+      // Add optimistic message
+      const tempMsg: Message = {
+        _id: tempId,
+        messageId: tempId,
+        from: "me",
+        to: selectedConversation.participantPhone,
+        type: mediaType,
+        content: { caption: file.name },
+        mediaUrl: bunnyUrl,
+        filename: filename || file.name, // Include filename for audio/video display
+        timestamp: sendTimestamp,
+        status: "sending",
+        direction: "outgoing",
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+
+      // Update conversation list optimistically
+      setConversations((prev) => {
+        const updated = prev.map((conv) =>
+          conv._id === selectedConversation._id
+            ? {
+                ...conv,
+                lastMessageContent: mediaDisplayText,
+                lastMessageTime: sendTimestamp,
+                lastMessageDirection: "outgoing",
+              }
+            : conv
+        );
+        return updated.sort(
+          (a, b) =>
+            new Date(b.lastMessageTime || 0).getTime() -
+            new Date(a.lastMessageTime || 0).getTime()
+        );
+      });
+
+      try {
+        // Send via send-media API using Bunny URL
+        const sendResponse = await axios.post("/api/whatsapp/send-media", {
+          to: selectedConversation.participantPhone,
+          conversationId: selectedConversation._id,
+          mediaType: mediaType,
+          mediaUrl: bunnyUrl, // Use Bunny CDN URL directly
+          caption: file.name,
+          filename: filename || file.name,
+          phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+        });
+
+        if (sendResponse.data.success) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === tempId
+                ? {
+                    ...msg,
+                    _id: sendResponse.data.savedMessageId,
+                    messageId: sendResponse.data.messageId,
+                    status: "sent",
+                  }
+                : msg
+            )
+          );
+          toast({
+            title: "Media Sent",
+            description: `${
+              mediaType.charAt(0).toUpperCase() + mediaType.slice(1)
+            } sent successfully`,
+          });
+        }
+      } catch (error: any) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === tempId ? { ...msg, status: "failed" } : msg
+          )
+        );
+        toast({
+          title: "Send Failed",
+          description:
+            error.response?.data?.error || "Failed to send media",
+          variant: "destructive",
+        });
+      } finally {
+        setUploadingMedia(false);
+      }
+    };
+
+    window.addEventListener("fileDropped", handleFileDropped);
+    return () => {
+      window.removeEventListener("fileDropped", handleFileDropped);
+    };
+  }, [selectedConversation, selectedPhoneConfig]);
+
   // Handle file/media upload
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -1289,6 +1549,18 @@ useEffect(() => {
   ) => {
     const file = event.target.files?.[0];
     if (!file || !selectedConversation) return;
+
+    // Validate file size before upload
+    const maxSize = mediaType === "document" ? 100 * 1024 * 1024 : 16 * 1024 * 1024; // 100MB for documents, 16MB for media
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: `File size exceeds maximum allowed size (${maxSize / 1024 / 1024}MB)`,
+        variant: "destructive",
+      });
+      event.target.value = "";
+      return;
+    }
 
     // Check if 24-hour messaging window is active
     if (!isMessageWindowActive(selectedConversation)) {
@@ -1317,7 +1589,8 @@ useEffect(() => {
       to: selectedConversation.participantPhone,
       type: mediaType,
       content: { caption: file.name },
-      mediaUrl: localPreviewUrl, // Show local preview immediately
+      mediaUrl: localPreviewUrl || (mediaType === "audio" ? URL.createObjectURL(file) : undefined), // Show local preview immediately (for audio, create URL for player)
+      filename: file.name, // Include filename for audio display
       timestamp: sendTimestamp,
       status: "sending",
       direction: "outgoing",
@@ -1344,39 +1617,54 @@ useEffect(() => {
     });
 
     try {
-      // First upload the media
+      // First upload to Bunny CDN with progress tracking
       const formData = new FormData();
       formData.append("file", file);
 
       const uploadResponse = await axios.post(
-        "/api/whatsapp/upload-media",
+        "/api/whatsapp/upload-to-bunny",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              // Update optimistic message to show upload progress
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg._id === tempId
+                    ? { ...msg, uploadProgress: percentCompleted }
+                    : msg
+                )
+              );
+            }
+          },
         }
       );
 
       if (!uploadResponse.data.success) {
-        throw new Error("Failed to upload media");
+        throw new Error("Failed to upload to CDN");
       }
 
-      const { mediaId, url, filename } = uploadResponse.data;
+      const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
 
-      // Update temp message with media URL
+      // Update temp message with Bunny URL
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === tempId ? { ...msg, mediaUrl: url } : msg
+          msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
         )
       );
 
-      // Now send the message with the media
-      const sendResponse = await axios.post("/api/whatsapp/send-message", {
+      // Now send the message using Bunny URL via send-media API
+      const sendResponse = await axios.post("/api/whatsapp/send-media", {
         to: selectedConversation.participantPhone,
         conversationId: selectedConversation._id,
-        type: mediaType,
-        mediaId,
+        mediaType: mediaType,
+        mediaUrl: bunnyUrl, // Use Bunny CDN URL directly
         caption: file.name,
-        filename: filename || file.name,
+        filename: bunnyFilename || file.name,
         phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
 
@@ -1417,6 +1705,8 @@ useEffect(() => {
       // Reset file inputs
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (imageInputRef.current) imageInputRef.current.value = "";
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      if (audioInputRef.current) audioInputRef.current.value = "";
     }
   };
 
@@ -1582,6 +1872,10 @@ useEffect(() => {
                       onLoadOlderMessages={loadOlderMessages}
                       hasMoreMessages={hasMoreMessages}
                       loadingOlderMessages={loadingOlderMessages}
+                      onForwardMessages={handleForwardMessages}
+                      conversations={conversations}
+                      onReplyMessage={handleReplyMessage}
+                      onReactMessage={handleReactMessage}
                     />
             </CardContent>
 
@@ -1613,6 +1907,8 @@ useEffect(() => {
                     onHandleFileUpload={handleFileUpload}
                     fileInputRef={fileInputRef}
                     imageInputRef={imageInputRef}
+                    videoInputRef={videoInputRef}
+                    audioInputRef={audioInputRef}
                     onOpenTemplateFromWarning={() => setShowTemplateDialog(true)}
                   />
           </>
@@ -1722,6 +2018,16 @@ useEffect(() => {
         onOpenChange={setShowAddGuestModal}
         onGuestAdded={handleGuestAdded}
         defaultPhoneNumberId={selectedPhoneConfig?.phoneNumberId}
+      />
+      
+      {/* Forward Dialog */}
+      <ForwardDialog
+        open={showForwardDialog}
+        onOpenChange={setShowForwardDialog}
+        onForward={handleForwardConfirm}
+        selectedMessageCount={messagesToForward.length}
+        conversations={conversations}
+        loading={forwardingMessages}
       />
     </div>
   );

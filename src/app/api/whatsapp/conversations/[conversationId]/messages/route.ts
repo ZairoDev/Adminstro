@@ -82,11 +82,39 @@ export async function GET(
     const hasMore = rawMessages.length > limit;
     const messagesToReturn = hasMore ? rawMessages.slice(0, limit) : rawMessages;
 
-    // Transform messages to include displayText for frontend compatibility
+    // Get all message IDs to query reactions
+    const messageIds = messagesToReturn.map((msg: any) => msg.messageId);
+    
+    // Fetch reactions for these messages
+    const reactions = await WhatsAppMessage.find({
+      type: "reaction",
+      reactedToMessageId: { $in: messageIds },
+      conversationId,
+    })
+      .select("reactedToMessageId reactionEmoji direction")
+      .lean() as any[];
+
+    // Group reactions by messageId
+    const reactionsByMessageId = new Map<string, Array<{ emoji: string; direction: string }>>();
+    reactions.forEach((reaction) => {
+      if (reaction.reactedToMessageId) {
+        if (!reactionsByMessageId.has(reaction.reactedToMessageId)) {
+          reactionsByMessageId.set(reaction.reactedToMessageId, []);
+        }
+        reactionsByMessageId.get(reaction.reactedToMessageId)!.push({
+          emoji: reaction.reactionEmoji || "👍",
+          direction: reaction.direction,
+        });
+      }
+    });
+
+    // Transform messages to include displayText and reactions for frontend compatibility
     const messages = messagesToReturn.map((msg: any) => ({
       ...msg,
       // Add displayText for frontend to use
       displayText: getDisplayText(msg.content, msg.type),
+      // Add reactions for this message
+      reactions: reactionsByMessageId.get(msg.messageId) || [],
     }));
 
     // Reverse to chronological order (oldest first)

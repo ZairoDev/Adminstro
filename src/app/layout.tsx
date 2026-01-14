@@ -11,7 +11,7 @@ const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 export const metadata: Metadata = {
-  title: "VacationSaga Helpdesk",
+  title: "Adminstro Portal",
   description: "Created for internal use only",
 };
 export default function RootLayout({

@@ -86,7 +86,7 @@ jobs:
           sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
           
           cd ${DEPLOY_DIR}
-          pm2 start npm --name ${PM2_APP_NAME} -- start
+          pm2 start npm --name ${PM2_APP_NAME} --update-env -- start
           pm2 save
           
           # Health check
@@ -125,6 +125,17 @@ jobs:
           echo "✅ Cleaning up..."
           sudo rm -rf ${TEMP_OLD}
           cd /var/www && ls -t adminstro_rollback_* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
+
+          # Cleanup old backups (keep last 5)
+          echo "🧹 Removing old rollback backups (keeping last 5)..."
+          cd /var/www
+
+          ls -dt adminstro_rollback_* 2>/dev/null | tail -n +6 | while read dir; do
+            echo "🗑️ Removing backup: $dir"
+            rm -rf "$dir"
+          done
+
+          echo "✅ Backup cleanup complete"
           
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

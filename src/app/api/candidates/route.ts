@@ -54,7 +54,18 @@ export async function GET(request: NextRequest) {
     // Add status filter if status is provided and not "all"
     // Note: Don't override status if onboarded filter is active
     if (status && status !== "all" && !onboarded) {
-      query.status = status;
+      // Special handling for interview status: include candidates with second round interviews
+      if (status === "interview") {
+        // Add to andConditions to properly combine with other filters
+        andConditions.push({
+          $or: [
+            { status: "interview" },
+            { "secondRoundInterviewDetails.scheduledDate": { $exists: true, $ne: null } },
+          ],
+        });
+      } else {
+        query.status = status;
+      }
     }
 
     // Add position/role filter

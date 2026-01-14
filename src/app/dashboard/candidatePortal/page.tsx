@@ -42,6 +42,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -178,7 +179,7 @@ export default function CandidatesPage() {
     currentDate?: string;
     currentTime?: string;
   }>>([]);
-  const [rescheduleDropdownOpen, setRescheduleDropdownOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
 
   // Convert 12-hour format to 24-hour format (HH:MM)
   const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
@@ -304,58 +305,91 @@ export default function CandidatesPage() {
 
   // Fetch pending reschedule requests
   const fetchPendingRescheduleRequests = async () => {
-    if (!canVerify) return;
+    if (!canVerify) {
+      console.log("Cannot verify - user role:", userRole);
+      return;
+    }
     
     try {
-      const response = await fetch("/api/candidates?status=interview&limit=1000");
+      console.log("Fetching pending reschedule requests...");
+      // Use dedicated endpoint for reschedule requests
+      const response = await fetch("/api/candidates/reschedule-requests");
+      
+      if (!response.ok) {
+        console.error("API response not OK:", response.status, response.statusText);
+        throw new Error(`API returned ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log("API response:", result);
       
       if (result.success && result.data) {
-        const pendingRequests: Array<{
-          candidateId: string;
-          candidateName: string;
-          interviewType: "first" | "second";
-          requestedDate: string;
-          requestedTime: string;
-          reason?: string;
-          currentDate?: string;
-          currentTime?: string;
-        }> = [];
-        
-        result.data.forEach((candidate: Candidate) => {
-          // Check first round interview reschedule request
-          if (candidate.interviewDetails?.rescheduleRequest?.status === "pending") {
-            pendingRequests.push({
-              candidateId: candidate._id,
-              candidateName: candidate.name,
-              interviewType: "first",
-              requestedDate: candidate.interviewDetails.rescheduleRequest.requestedDate || "",
-              requestedTime: candidate.interviewDetails.rescheduleRequest.requestedTime || "",
-              reason: candidate.interviewDetails.rescheduleRequest.reason,
-              currentDate: candidate.interviewDetails.scheduledDate,
-              currentTime: candidate.interviewDetails.scheduledTime,
-            });
-          }
+        console.log("Fetched pending reschedule requests:", result.data.length, result.data);
+        setPendingRescheduleRequests(result.data);
+      } else {
+        console.error("Failed to fetch pending reschedule requests:", result);
+        // Fallback: try fetching all candidates and filtering
+        try {
+          console.log("Trying fallback method...");
+          const fallbackResponse = await fetch("/api/candidates?status=all&limit=1000");
+          const fallbackResult = await fallbackResponse.json();
           
-          // Check second round interview reschedule request
-          if (candidate.secondRoundInterviewDetails?.rescheduleRequest?.status === "pending") {
-            pendingRequests.push({
-              candidateId: candidate._id,
-              candidateName: candidate.name,
-              interviewType: "second",
-              requestedDate: candidate.secondRoundInterviewDetails.rescheduleRequest.requestedDate || "",
-              requestedTime: candidate.secondRoundInterviewDetails.rescheduleRequest.requestedTime || "",
-              reason: candidate.secondRoundInterviewDetails.rescheduleRequest.reason,
-              currentDate: candidate.secondRoundInterviewDetails.scheduledDate,
-              currentTime: candidate.secondRoundInterviewDetails.scheduledTime,
+          if (fallbackResult.success && fallbackResult.data) {
+            const pendingRequests: Array<{
+              candidateId: string;
+              candidateName: string;
+              interviewType: "first" | "second";
+              requestedDate: string;
+              requestedTime: string;
+              reason?: string;
+              currentDate?: string;
+              currentTime?: string;
+            }> = [];
+            
+            fallbackResult.data.forEach((candidate: Candidate) => {
+              const firstRoundRequest = candidate.interviewDetails?.rescheduleRequest;
+              if (firstRoundRequest && firstRoundRequest.status === "pending" && candidate.interviewDetails) {
+                pendingRequests.push({
+                  candidateId: candidate._id,
+                  candidateName: candidate.name,
+                  interviewType: "first",
+                  requestedDate: firstRoundRequest.requestedDate || "",
+                  requestedTime: firstRoundRequest.requestedTime || "",
+                  reason: firstRoundRequest.reason,
+                  currentDate: candidate.interviewDetails.scheduledDate,
+                  currentTime: candidate.interviewDetails.scheduledTime,
+                });
+              }
+              
+              const secondRoundRequest = candidate.secondRoundInterviewDetails?.rescheduleRequest;
+              if (secondRoundRequest && secondRoundRequest.status === "pending" && candidate.secondRoundInterviewDetails) {
+                pendingRequests.push({
+                  candidateId: candidate._id,
+                  candidateName: candidate.name,
+                  interviewType: "second",
+                  requestedDate: secondRoundRequest.requestedDate || "",
+                  requestedTime: secondRoundRequest.requestedTime || "",
+                  reason: secondRoundRequest.reason,
+                  currentDate: candidate.secondRoundInterviewDetails.scheduledDate,
+                  currentTime: candidate.secondRoundInterviewDetails.scheduledTime,
+                });
+              }
             });
+            
+            console.log("Fallback found requests:", pendingRequests.length, pendingRequests);
+            setPendingRescheduleRequests(pendingRequests);
+          } else {
+            console.log("Fallback also returned no data");
+            setPendingRescheduleRequests([]);
           }
-        });
-        
-        setPendingRescheduleRequests(pendingRequests);
+        } catch (fallbackError) {
+          console.error("Fallback method also failed:", fallbackError);
+          setPendingRescheduleRequests([]);
+        }
       }
     } catch (error) {
       console.error("Error fetching pending reschedule requests:", error);
+      setPendingRescheduleRequests([]);
     }
   };
 
@@ -386,6 +420,10 @@ export default function CandidatesPage() {
         // Refresh candidates list and pending requests
         await fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
         await fetchPendingRescheduleRequests();
+        // Close modal if no more pending requests
+        if (pendingRescheduleRequests.length <= 1) {
+          setRescheduleModalOpen(false);
+        }
       } else {
         toast.error(result.error || `Failed to ${action} reschedule request`);
       }
@@ -551,6 +589,7 @@ export default function CandidatesPage() {
   /**
    * Groups and sorts candidates with interviews into four categories:
    * Today, Tomorrow, Later, and Past (in that order).
+   * Includes both first round and second round interviews.
    * 
    * @param candidates - Array of candidates to sort
    * @returns Sorted array with interviews grouped by date category
@@ -563,10 +602,28 @@ export default function CandidatesPage() {
       past: [] as Candidate[],
     };
 
-    // Categorize each candidate
+    // Categorize each candidate based on their interview dates
     candidates.forEach((candidate) => {
-      if (candidate.interviewDetails?.scheduledDate) {
-        const category = categorizeInterviewDate(candidate.interviewDetails.scheduledDate);
+      // Check for first round interview
+      const firstRoundDate = candidate.interviewDetails?.scheduledDate;
+      // Check for second round interview
+      const secondRoundDate = candidate.secondRoundInterviewDetails?.scheduledDate;
+      
+      // Use the earliest upcoming interview date, or second round if first round doesn't exist
+      let interviewDate: string | undefined;
+      if (firstRoundDate && secondRoundDate) {
+        // If both exist, use the earlier one
+        const firstDate = new Date(firstRoundDate).getTime();
+        const secondDate = new Date(secondRoundDate).getTime();
+        interviewDate = firstDate <= secondDate ? firstRoundDate : secondRoundDate;
+      } else if (firstRoundDate) {
+        interviewDate = firstRoundDate;
+      } else if (secondRoundDate) {
+        interviewDate = secondRoundDate;
+      }
+
+      if (interviewDate) {
+        const category = categorizeInterviewDate(interviewDate);
         categorized[category].push(candidate);
       } else {
         // Candidates without scheduled dates go to past
@@ -576,12 +633,18 @@ export default function CandidatesPage() {
 
     // Sort within each category by scheduled date (ascending for future, descending for past)
     const sortByDate = (a: Candidate, b: Candidate) => {
-      const dateA = a.interviewDetails?.scheduledDate 
-        ? new Date(a.interviewDetails.scheduledDate).getTime() 
-        : 0;
-      const dateB = b.interviewDetails?.scheduledDate 
-        ? new Date(b.interviewDetails.scheduledDate).getTime() 
-        : 0;
+      const getEarliestDate = (candidate: Candidate): number => {
+        const firstDate = candidate.interviewDetails?.scheduledDate 
+          ? new Date(candidate.interviewDetails.scheduledDate).getTime() 
+          : Infinity;
+        const secondDate = candidate.secondRoundInterviewDetails?.scheduledDate 
+          ? new Date(candidate.secondRoundInterviewDetails.scheduledDate).getTime() 
+          : Infinity;
+        return Math.min(firstDate, secondDate);
+      };
+      
+      const dateA = getEarliestDate(a);
+      const dateB = getEarliestDate(b);
       return dateA - dateB;
     };
 
@@ -589,12 +652,18 @@ export default function CandidatesPage() {
     categorized.tomorrow.sort(sortByDate);
     categorized.later.sort(sortByDate);
     categorized.past.sort((a, b) => {
-      const dateA = a.interviewDetails?.scheduledDate 
-        ? new Date(a.interviewDetails.scheduledDate).getTime() 
+      const getEarliestDate = (candidate: Candidate): number => {
+        const firstDate = candidate.interviewDetails?.scheduledDate 
+          ? new Date(candidate.interviewDetails.scheduledDate).getTime() 
         : 0;
-      const dateB = b.interviewDetails?.scheduledDate 
-        ? new Date(b.interviewDetails.scheduledDate).getTime() 
+        const secondDate = candidate.secondRoundInterviewDetails?.scheduledDate 
+          ? new Date(candidate.secondRoundInterviewDetails.scheduledDate).getTime() 
         : 0;
+        return Math.max(firstDate, secondDate);
+      };
+      
+      const dateA = getEarliestDate(a);
+      const dateB = getEarliestDate(b);
       return dateB - dateA; // Descending for past dates
     });
 
@@ -867,14 +936,14 @@ export default function CandidatesPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(candidate.status)}>
-                      {candidate.status === "selected"
-                        ? "Selected for Training"
-                        : candidate.status === "interview"
-                        ? "Interview"
-                        : candidate?.status?.charAt(0).toUpperCase() +
-                          candidate?.status?.slice(1)}
-                    </Badge>
+                  <Badge className={getStatusColor(candidate.status)}>
+                    {candidate.status === "selected"
+                      ? "Selected for Training"
+                      : candidate.status === "interview"
+                      ? "Interview"
+                      : candidate?.status?.charAt(0).toUpperCase() +
+                        candidate?.status?.slice(1)}
+                  </Badge>
                     {candidate.status === "selected" && 
                      candidate.trainingAgreementDetails?.agreementComplete && (
                       <TooltipProvider>
@@ -894,10 +963,15 @@ export default function CandidatesPage() {
                 </td>
                 {activeTab === "interview" && (
                   <td className="px-6 py-4 text-sm text-foreground">
-                    {candidate.interviewDetails?.scheduledDate && candidate.interviewDetails?.scheduledTime ? (
+                    <div className="space-y-3">
+                      {/* First Round Interview */}
+                      {candidate.interviewDetails?.scheduledDate && candidate.interviewDetails?.scheduledTime && (
                       <div>
                         <div className="font-medium flex items-center gap-2 flex-wrap">
                           {formatDateForDisplay(candidate.interviewDetails.scheduledDate)}
+                            <Badge variant="outline" className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
+                              First Round
+                            </Badge>
                           {(() => {
                             const category = categorizeInterviewDate(candidate.interviewDetails.scheduledDate);
                             if (category === "today") {
@@ -924,50 +998,51 @@ export default function CandidatesPage() {
                             Scheduled by: {candidate.interviewDetails.scheduledBy}
                           </div>
                         )}
-                        {/* Reschedule Request */}
-                        {candidate.interviewDetails.rescheduleRequest?.status === "pending" && (
-                          <div className="mt-2 pt-2 border-t">
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 mb-2">
-                              Reschedule Request
-                            </Badge>
-                            <div className="text-xs text-muted-foreground mb-2">
-                              <div>Requested: {candidate.interviewDetails.rescheduleRequest.requestedDate 
-                                ? new Date(candidate.interviewDetails.rescheduleRequest.requestedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                                : "N/A"} at {candidate.interviewDetails.rescheduleRequest.requestedTime || "N/A"}</div>
-                              {candidate.interviewDetails.rescheduleRequest.reason && (
-                                <div className="mt-1 italic">&quot;{candidate.interviewDetails.rescheduleRequest.reason}&quot;</div>
-                              )}
-                            </div>
-                            {canVerify && (
-                              <div className="flex gap-1 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                                  onClick={() => handleRescheduleRequest(candidate._id, "approve", "first")}
-                                  disabled={processingReschedule === candidate._id}
-                                >
-                                  <Check className="w-3 h-3 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 text-xs bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                                  onClick={() => handleRescheduleRequest(candidate._id, "reject", "first")}
-                                  disabled={processingReschedule === candidate._id}
-                                >
-                                  <X className="w-3 h-3 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    ) : (
+                      )}
+
+                      {/* Second Round Interview */}
+                      {candidate.secondRoundInterviewDetails?.scheduledDate && candidate.secondRoundInterviewDetails?.scheduledTime && (
+                        <div className={candidate.interviewDetails?.scheduledDate ? "pt-3 border-t" : ""}>
+                          <div className="font-medium flex items-center gap-2 flex-wrap">
+                            {formatDateForDisplay(candidate.secondRoundInterviewDetails.scheduledDate)}
+                            <Badge variant="outline" className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
+                              Second Round
+                            </Badge>
+                            {(() => {
+                              const category = categorizeInterviewDate(candidate.secondRoundInterviewDetails.scheduledDate);
+                              if (category === "today") {
+                                return (
+                                  <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                                    Today
+                                  </Badge>
+                                );
+                              } else if (category === "tomorrow") {
+                                return (
+                                  <Badge variant="outline" className="text-xs font-normal bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
+                                    Tomorrow
+                                  </Badge>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {candidate.secondRoundInterviewDetails.scheduledTime}
+                          </div>
+                          {candidate.secondRoundInterviewDetails.scheduledBy && (
+                            <div className="text-muted-foreground text-xs mt-1">
+                              Scheduled by: {candidate.secondRoundInterviewDetails.scheduledBy}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* No interviews scheduled */}
+                      {!candidate.interviewDetails?.scheduledDate && !candidate.secondRoundInterviewDetails?.scheduledDate && (
                       <span className="text-muted-foreground">Not scheduled</span>
                     )}
+                    </div>
                   </td>
                 )}
                 <td className="px-6 py-4 text-sm text-muted-foreground">
@@ -1070,117 +1145,43 @@ export default function CandidatesPage() {
           </p>
         </div>
 
-        {/* Pending Reschedule Requests Banner */}
-        {canVerify && pendingRescheduleRequests.length > 0 && (
-          <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Pending Reschedule Requests ({pendingRescheduleRequests.length})
-                  </h2>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRescheduleDropdownOpen(!rescheduleDropdownOpen)}
-                  className="border-amber-300 dark:border-amber-700"
-                >
-                  {rescheduleDropdownOpen ? "Hide" : "Show"} Requests
-                  <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${rescheduleDropdownOpen ? "rotate-180" : ""}`} />
-                </Button>
-              </div>
-              
-              {rescheduleDropdownOpen && (
-                <div className="space-y-3 mt-4">
-                  {pendingRescheduleRequests.map((request, index) => (
-                    <div
-                      key={`${request.candidateId}-${request.interviewType}-${index}`}
-                      className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-800"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Link
-                              href={`/dashboard/candidatePortal/${request.candidateId}`}
-                              className="font-semibold text-foreground hover:text-primary hover:underline"
-                            >
-                              {request.candidateName}
-                            </Link>
-                            <Badge variant="outline" className="text-xs">
-                              {request.interviewType === "first" ? "First Round" : "Second Round"}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            {request.currentDate && request.currentTime && (
-                              <div>
-                                <span className="font-medium">Current:</span>{" "}
-                                {new Date(request.currentDate).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })}{" "}
-                                at {request.currentTime}
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-medium">Requested:</span>{" "}
-                              {request.requestedDate
-                                ? new Date(request.requestedDate).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })
-                                : "N/A"}{" "}
-                              at {request.requestedTime || "N/A"}
-                            </div>
-                            {request.reason && (
-                              <div className="mt-1 italic text-xs">
-                                &quot;{request.reason}&quot;
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            onClick={() => handleRescheduleRequest(request.candidateId, "approve", request.interviewType)}
-                            disabled={processingReschedule === request.candidateId}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <Check className="w-4 h-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRescheduleRequest(request.candidateId, "reject", request.interviewType)}
-                            disabled={processingReschedule === request.candidateId}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {/* Search Bar */}
+        {/* Search Bar with Reschedule Requests */}
         <Card className="mb-6 p-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or role..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or role..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {/* Pending Reschedule Requests Button */}
+            {canVerify && (
+              <Button
+                variant="outline"
+                onClick={() => setRescheduleModalOpen(true)}
+                disabled={pendingRescheduleRequests.length === 0}
+                className={`shrink-0 ${
+                  pendingRescheduleRequests.length > 0
+                    ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-900 dark:text-amber-100"
+                    : "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 opacity-60"
+                }`}
+              >
+                <AlertCircle className={`w-4 h-4 mr-2 ${
+                  pendingRescheduleRequests.length > 0
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-gray-400 dark:text-gray-500"
+                }`} />
+                Reschedule Requests
+                {pendingRescheduleRequests.length > 0 && (
+                  <Badge className="ml-2 bg-amber-600 dark:bg-amber-500 text-white">
+                    {pendingRescheduleRequests.length}
+                  </Badge>
+                )}
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -1507,6 +1508,128 @@ export default function CandidatesPage() {
             </Button>
             <Button onClick={handleScheduleInterview} disabled={schedulingInterview}>
               {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Requests Modal */}
+      <Dialog 
+        open={rescheduleModalOpen} 
+        onOpenChange={(open) => {
+          setRescheduleModalOpen(open);
+          // Refresh requests when modal opens
+          if (open && canVerify) {
+            fetchPendingRescheduleRequests();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] bg-white dark:bg-gray-800">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              Pending Reschedule Requests ({pendingRescheduleRequests.length})
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Review and approve or reject reschedule requests from candidates.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 max-h-[60vh] overflow-y-auto">
+            {pendingRescheduleRequests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No pending reschedule requests
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingRescheduleRequests.map((request, index) => (
+                  <Card
+                    key={`${request.candidateId}-${request.interviewType}-${index}`}
+                    className="p-4 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Link
+                            href={`/dashboard/candidatePortal/${request.candidateId}`}
+                            className="font-semibold text-foreground hover:text-primary hover:underline"
+                            onClick={() => setRescheduleModalOpen(false)}
+                          >
+                            {request.candidateName}
+                          </Link>
+                          <Badge variant="outline" className="text-xs">
+                            {request.interviewType === "first" ? "First Round" : "Second Round"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-2">
+                          {request.currentDate && request.currentTime && (
+                            <div>
+                              <span className="font-medium text-foreground">Current Schedule:</span>{" "}
+                              {new Date(request.currentDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}{" "}
+                              at {request.currentTime}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-medium text-foreground">Requested Schedule:</span>{" "}
+                            {request.requestedDate
+                              ? new Date(request.requestedDate).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })
+                              : "N/A"}{" "}
+                            at {request.requestedTime || "N/A"}
+                          </div>
+                          {request.reason && (
+                            <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border border-amber-200 dark:border-amber-800">
+                              <span className="font-medium text-foreground text-xs">Reason:</span>
+                              <p className="text-xs text-muted-foreground italic mt-1">
+                                &quot;{request.reason}&quot;
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            handleRescheduleRequest(request.candidateId, "approve", request.interviewType);
+                          }}
+                          disabled={processingReschedule === request.candidateId}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            handleRescheduleRequest(request.candidateId, "reject", request.interviewType);
+                          }}
+                          disabled={processingReschedule === request.candidateId}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRescheduleModalOpen(false)}
+              className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

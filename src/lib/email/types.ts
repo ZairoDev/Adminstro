@@ -10,7 +10,9 @@ export type CandidateEmailStatus =
   | "interview"
   | "secondRoundInterview"
   | "interviewRescheduled"
-  | "secondRoundInterviewRescheduled";
+  | "secondRoundInterviewRescheduled"
+  | "interviewRescheduleRejected"
+  | "secondRoundInterviewRescheduleRejected";
 
 export interface SelectionDetails {
   positionType: string;

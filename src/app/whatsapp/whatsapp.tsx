@@ -1689,6 +1689,14 @@ useEffect(() => {
         });
       }
     } catch (error: any) {
+      console.error("❌ File upload error:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        fileType: mediaType,
+        fileName: file.name,
+        fileSize: file.size,
+      });
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
@@ -1697,7 +1705,7 @@ useEffect(() => {
       toast({
         title: "Upload Failed",
         description:
-          error.response?.data?.error || "Failed to upload and send media",
+          error.response?.data?.error || error.response?.data?.details || error.message || "Failed to upload and send media",
         variant: "destructive",
       });
     } finally {

@@ -9,6 +9,9 @@ import { connectDb } from "@/util/db";
  * Uses timezone-safe local date comparison
  */
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 interface CelebrationEvent {
   employeeId: string;
   firstName: string;

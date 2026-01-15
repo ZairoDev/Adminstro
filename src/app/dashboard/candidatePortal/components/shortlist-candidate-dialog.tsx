@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Check, X } from "lucide-react";
@@ -12,6 +12,7 @@ interface ShortlistCandidateDialogProps {
   onClose: () => void;
   onSubmit: (data: ShortlistData) => Promise<void>;
   loading: boolean;
+  candidatePosition?: string; // Candidate's position to prefill roles
 }
 
 export interface ShortlistData {
@@ -24,28 +25,64 @@ export function ShortlistCandidateDialog({
   onClose,
   onSubmit,
   loading,
+  candidatePosition,
 }: ShortlistCandidateDialogProps) {
-  const [roles, setRoles] = useState("");
+  const availableRoles = ["LeadGen", "Marketing", "HR", "Developer", "Sales"];
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+
+  // Prefill roles with candidate position when dialog opens
+  useEffect(() => {
+    if (candidatePosition && open) {
+      // Map candidate position to available roles
+      const positionMap: Record<string, string> = {
+        "HR": "HR",
+        "Sales": "Sales",
+        "LeadGen": "LeadGen",
+        "Marketing": "Marketing",
+        "Developer": "Developer",
+      };
+      
+      // Try exact match first, then try case-insensitive match
+      const matchedRole = positionMap[candidatePosition] || 
+                         Object.keys(positionMap).find(key => 
+                           key.toLowerCase() === candidatePosition.toLowerCase()
+                         );
+      
+      if (matchedRole && availableRoles.includes(matchedRole)) {
+        setSelectedRoles([matchedRole]);
+      } else if (candidatePosition && !availableRoles.includes(candidatePosition)) {
+        // If candidate position doesn't match, add it to selected roles anyway
+        setSelectedRoles([candidatePosition]);
+      }
+    } else if (open && !candidatePosition) {
+      // Reset if no candidate position
+      setSelectedRoles([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidatePosition, open]);
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(role)
+        ? prev.filter((r) => r !== role)
+        : [...prev, role]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roles.trim()) {
-      alert("Please specify at least one suitable role");
+    if (selectedRoles.length === 0) {
+      alert("Please select at least one suitable role");
       return;
     }
 
-    const suitableRoles = roles
-      .split(",")
-      .map((role) => role.trim())
-      .filter((role) => role.length > 0);
-
     await onSubmit({
-      suitableRoles,
+      suitableRoles: selectedRoles,
       notes,
     });
 
-    setRoles("");
+    setSelectedRoles([]);
     setNotes("");
   };
 
@@ -53,7 +90,7 @@ export function ShortlistCandidateDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md p-6 max-h-96 overflow-y-auto">
+      <Card className="w-full max-w-2xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-foreground">
             Shortlist Candidate
@@ -72,16 +109,43 @@ export function ShortlistCandidateDialog({
             <label className="block text-sm font-medium text-foreground mb-2">
               Suitable Roles
             </label>
-            <textarea
-              placeholder="Enter roles separated by comma. e.g., Frontend Developer, UI Developer, React Developer"
-              value={roles}
-              onChange={(e) => setRoles(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none resize-none"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Separate multiple roles with commas
-            </p>
+            <div className="space-y-2 border border-muted rounded p-3 bg-background">
+              {availableRoles.map((role) => (
+                <label
+                  key={role}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(role)}
+                    onChange={() => toggleRole(role)}
+                    className="w-4 h-4 rounded border-muted text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-foreground">{role}</span>
+                </label>
+              ))}
+              {/* Show candidate position if it doesn't match available roles */}
+              {candidatePosition && 
+               !availableRoles.includes(candidatePosition) && 
+               candidatePosition && (
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(candidatePosition)}
+                    onChange={() => toggleRole(candidatePosition)}
+                    className="w-4 h-4 rounded border-muted text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-foreground">
+                    {candidatePosition} <span className="text-xs text-muted-foreground">(from candidate)</span>
+                  </span>
+                </label>
+              )}
+            </div>
+            {candidatePosition && selectedRoles.includes(candidatePosition) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Candidate's position ({candidatePosition}) is pre-selected
+              </p>
+            )}
           </div>
 
           {/* Notes */}

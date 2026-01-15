@@ -166,6 +166,7 @@ export default function CandidatesPage() {
   const [interviewAmPm, setInterviewAmPm] = useState<"AM" | "PM">("PM");
   const [interviewNotes, setInterviewNotes] = useState("");
   const [schedulingInterview, setSchedulingInterview] = useState(false);
+  const [interviewRound, setInterviewRound] = useState<"first" | "second">("first");
   const [viewedCandidates, setViewedCandidates] = useState<Set<string>>(new Set());
   const [userRole, setUserRole] = useState<string | null>(null);
   const [processingReschedule, setProcessingReschedule] = useState<string | null>(null);
@@ -761,6 +762,7 @@ export default function CandidatesPage() {
     setInterviewMinute("00");
     setInterviewAmPm("PM");
     setInterviewNotes("");
+    setInterviewRound("first"); // Default to first round
     setScheduleInterviewDialogOpen(true);
   };
 
@@ -777,28 +779,31 @@ export default function CandidatesPage() {
       const dateString = formatDateToLocalString(interviewDate);
       const time24Hour = convertTo24Hour(interviewHour, interviewMinute, interviewAmPm);
       
-      const response = await fetch(
-        `/api/candidates/${interviewCandidate._id}/schedule-interview`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scheduledDate: dateString,
-            scheduledTime: time24Hour,
-            notes: interviewNotes || undefined,
-          }),
-        }
-      );
+      // Determine which API endpoint to use based on interview round selection
+      const apiEndpoint = interviewRound === "first" 
+        ? `/api/candidates/${interviewCandidate._id}/schedule-interview`
+        : `/api/candidates/${interviewCandidate._id}/schedule-second-round`;
+      
+      const response = await fetch(apiEndpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledDate: dateString,
+          scheduledTime: time24Hour,
+          notes: interviewNotes || undefined,
+        }),
+      });
 
       const result = await response.json();
       if (result.success) {
-        toast.success("Interview scheduled successfully");
+        toast.success(`${interviewRound === "first" ? "First" : "Second"} round interview scheduled successfully`);
         setScheduleInterviewDialogOpen(false);
         setInterviewDate(undefined);
         setInterviewHour("4");
         setInterviewMinute("00");
         setInterviewAmPm("PM");
         setInterviewNotes("");
+        setInterviewRound("first");
         setInterviewCandidate(null);
         // Refresh candidates list
         await fetchCandidates(search, page, activeTab, selectedRole, experienceFilter);
@@ -1479,6 +1484,35 @@ export default function CandidatesPage() {
               <Label className="text-sm font-medium mb-2 block">
                 Candidate: {interviewCandidate?.name}
               </Label>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Interview Round *
+              </Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setInterviewRound("first")}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewRound === "first"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  First Round
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInterviewRound("second")}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewRound === "second"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Second Round
+                </button>
+              </div>
             </div>
             <div>
               <Label htmlFor="interview-date" className="text-sm font-medium mb-2 block">

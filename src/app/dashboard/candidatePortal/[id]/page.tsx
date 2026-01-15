@@ -432,6 +432,7 @@ export default function CandidateDetailPage() {
             trainingPeriod: data.trainingPeriod,
             role: data.role,
             salary: data.salary, // Include salary in the payload
+            duration: data.duration, // Include duration in the payload
           },
         }
       );
@@ -1942,12 +1943,14 @@ export default function CandidateDetailPage() {
         onClose={() => setSelectDialogOpen(false)}
         onSubmit={handleSelectCandidate}
         loading={actionLoading}
+        candidatePosition={candidate?.position}
       />
       <ShortlistCandidateDialog
         open={shortlistDialogOpen}
         onClose={() => setShortlistDialogOpen(false)}
         onSubmit={handleShortlistCandidate}
         loading={actionLoading}
+        candidatePosition={candidate?.position}
       />
       <RejectCandidateDialog
         open={rejectDialogOpen}

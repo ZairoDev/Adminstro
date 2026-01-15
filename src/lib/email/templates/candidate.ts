@@ -108,6 +108,12 @@ export const getCandidateEmailTemplate = (
                     <td style="padding: 8px 0; font-weight: 600;">Training Period:</td>
                     <td style="padding: 8px 0;">${selectionDetails.trainingPeriod}</td>
                   </tr>
+                  ${selectionDetails.duration ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Training Duration:</td>
+                    <td style="padding: 8px 0;">${selectionDetails.duration}</td>
+                  </tr>
+                  ` : ""}
                   <tr>
                     <td style="padding: 8px 0; font-weight: 600;">Role Description:</td>
                     <td style="padding: 8px 0;">${selectionDetails.role}</td>

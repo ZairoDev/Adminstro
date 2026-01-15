@@ -3,7 +3,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher"; // ADD THIS IMPORT
+import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   canAccessPhoneId,
   getAllowedPhoneIds,
@@ -11,6 +11,7 @@ import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
 connectDb();
 
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
       interactiveAction,
       headerText,
       footerText,
+      // Reply fields (optional - for replying to a specific message)
+      replyToMessageId, // WhatsApp message ID (wamid) to reply to
     } = body;
 
     if (!to) {
@@ -129,6 +132,14 @@ export async function POST(req: NextRequest) {
       to: formattedPhone,
       type,
     };
+
+    // Add reply context if replying to a message
+    // WhatsApp API: context.message_id specifies the message being replied to
+    if (replyToMessageId) {
+      messagePayload.context = {
+        message_id: replyToMessageId,
+      };
+    }
 
     switch (type) {
       case "text":
@@ -273,26 +284,20 @@ export async function POST(req: NextRequest) {
 
     const whatsappMessageId = data.messages?.[0]?.id;
 
-    // Get or create conversation
+    // Get or create conversation using snapshot-safe helper
     let conversation;
     if (conversationId) {
       conversation = await WhatsAppConversation.findById(conversationId);
     }
 
     if (!conversation) {
-      conversation = await WhatsAppConversation.findOne({
+      // Use helper to find or create with proper snapshot semantics
+      // User-initiated message sending is "trusted" - can backfill empty snapshot fields
+      conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
-      });
-    }
-
-    if (!conversation) {
-      conversation = await WhatsAppConversation.create({
-        participantPhone: formattedPhone,
-        participantName: formattedPhone,
-        businessPhoneId: phoneNumberId,
-        status: "active",
-        unreadCount: 0,
+        participantName: formattedPhone, // Default name for new conversations
+        snapshotSource: "trusted",
       });
     }
 
@@ -339,6 +344,28 @@ export async function POST(req: NextRequest) {
 
     const timestamp = new Date(); // Use same timestamp for consistency
 
+    // Build reply context if this is a reply
+    let replyContext = null;
+    if (replyToMessageId) {
+      // Look up the original message to store context
+      const originalMessage = await WhatsAppMessage.findOne({
+        messageId: replyToMessageId,
+      }).lean() as any;
+
+      if (originalMessage) {
+        replyContext = {
+          messageId: originalMessage.messageId,
+          from: originalMessage.from,
+          type: originalMessage.type,
+          content: {
+            text: originalMessage.content?.text,
+            caption: originalMessage.content?.caption,
+          },
+          mediaUrl: originalMessage.mediaUrl,
+        };
+      }
+    }
+
     // Save message to database
     const savedMessage = await WhatsAppMessage.create({
       conversationId: conversation._id,
@@ -355,6 +382,11 @@ export async function POST(req: NextRequest) {
       ...(type === "template" && {
         templateName,
         templateLanguage: templateLanguage || "en",
+      }),
+      // Reply context fields
+      ...(replyToMessageId && {
+        replyToMessageId,
+        replyContext,
       }),
       status: "sent",
       statusEvents: [{ status: "sent", timestamp }],
@@ -395,6 +427,11 @@ export async function POST(req: NextRequest) {
         direction: "outgoing",
         timestamp: timestamp,
         senderName: token.name || "You",
+        // Include reply context if this is a reply
+        ...(replyToMessageId && {
+          replyToMessageId,
+          replyContext,
+        }),
       },
     });
 

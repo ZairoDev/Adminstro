@@ -11,6 +11,7 @@ import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
 connectDb();
 
@@ -143,26 +144,20 @@ export async function POST(req: NextRequest) {
     const whatsappMessageId = data.messages?.[0]?.id;
     const timestamp = new Date();
 
-    // Get or create conversation
+    // Get or create conversation using snapshot-safe helper
     let conversation;
     if (conversationId) {
       conversation = await WhatsAppConversation.findById(conversationId);
     }
 
     if (!conversation) {
-      conversation = await WhatsAppConversation.findOne({
+      // Use helper to find or create with proper snapshot semantics
+      // User-initiated interactive message sending is "trusted" - can backfill empty snapshot fields
+      conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
-      });
-    }
-
-    if (!conversation) {
-      conversation = await WhatsAppConversation.create({
-        participantPhone: formattedPhone,
-        participantName: formattedPhone,
-        businessPhoneId: phoneNumberId,
-        status: "active",
-        unreadCount: 0,
+        participantName: formattedPhone, // Default name for new conversations
+        snapshotSource: "trusted",
       });
     }
 

@@ -82,6 +82,19 @@ export interface IWhatsAppMessage extends Document {
   // Reaction fields
   reactedToMessageId?: string; // WhatsApp message ID (wamid) of the message being reacted to
   reactionEmoji?: string; // The emoji reaction (only for reaction type messages)
+
+  // Reply context fields (for messages that are replies to other messages)
+  replyToMessageId?: string; // WhatsApp message ID (wamid) of the message being replied to
+  replyContext?: {
+    messageId: string; // The wamid of the quoted message
+    from: string; // Sender of the quoted message
+    type: string; // Type of the quoted message (text, image, video, etc.)
+    content?: {
+      text?: string;
+      caption?: string;
+    };
+    mediaUrl?: string; // Media URL if the quoted message had media
+  };
 }
 
 const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
@@ -256,6 +269,22 @@ const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
     },
     reactionEmoji: {
       type: String,
+    },
+
+    // Reply context fields
+    replyToMessageId: {
+      type: String,
+      index: true, // Index for quick lookup of messages replied to
+    },
+    replyContext: {
+      messageId: String,
+      from: String,
+      type: String,
+      content: {
+        text: String,
+        caption: String,
+      },
+      mediaUrl: String,
     },
   },
   { timestamps: true }

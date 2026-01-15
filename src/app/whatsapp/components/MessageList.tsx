@@ -1,10 +1,25 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2 } from "lucide-react";
+import { Loader2, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message } from "../types";
 import { getMessageDisplayText } from "../utils";
-import { FileText, Forward, Download, X, Check, MoreVertical, Copy, Reply, Smile, ChevronLeft, ChevronRight, Film, Music } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import {
+  FileText,
+  Forward,
+  Download,
+  X,
+  Check,
+  MoreVertical,
+  Copy,
+  Reply,
+  Smile,
+  ChevronLeft,
+  ChevronRight,
+  Film,
+  Music,
+  ChevronDown,
+  Play,
+} from "lucide-react";
+import { useMemo, useState, useEffect, useRef, useCallback, memo } from "react";
 import { AlertTriangle, CheckCheck, Clock } from "lucide-react";
 import {
   Tooltip,
@@ -21,10 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface MessageListProps {
@@ -42,24 +54,25 @@ interface MessageListProps {
   onReactMessage?: (message: Message, emoji: string) => void;
 }
 
-const statusInfo = (status: Message["status"]) => {
+// Status icon component
+const StatusIcon = memo(function StatusIcon({ status }: { status: Message["status"] }) {
   switch (status) {
     case "sending":
-      return { icon: <Clock className="h-3.5 w-3.5" />, label: "Sending...", color: "text-gray-300" };
+      return <Clock className="h-3 w-3 text-[#8696a0]" />;
     case "sent":
-      return { icon: <Check className="h-3.5 w-3.5" />, label: "Sent", color: "text-gray-300" };
+      return <Check className="h-3 w-3 text-[#8696a0]" />;
     case "delivered":
-      return { icon: <CheckCheck className="h-3.5 w-3.5" />, label: "Delivered", color: "text-gray-300" };
+      return <CheckCheck className="h-3 w-3 text-[#8696a0]" />;
     case "read":
-      return { icon: <CheckCheck className="h-3.5 w-3.5" />, label: "Read", color: "text-blue-400" };
+      return <CheckCheck className="h-3 w-3 text-[#53bdeb]" />;
     case "failed":
-      return { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: "Failed", color: "text-red-400" };
+      return <AlertTriangle className="h-3 w-3 text-red-500" />;
     default:
       return null;
   }
-};
+});
 
-// Helper function to format date separator
+// Format date for separator
 function formatDateSeparator(date: Date): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -68,21 +81,15 @@ function formatDateSeparator(date: Date): string {
   const messageDate = new Date(date);
   messageDate.setHours(0, 0, 0, 0);
 
-  if (messageDate.getTime() === today.getTime()) {
-    return "Today";
-  } else if (messageDate.getTime() === yesterday.getTime()) {
-    return "Yesterday";
-  } else {
-    return messageDate.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }
+  if (messageDate.getTime() === today.getTime()) return "TODAY";
+  if (messageDate.getTime() === yesterday.getTime()) return "YESTERDAY";
+  return messageDate.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).toUpperCase();
 }
 
-// Helper function to check if two dates are on the same day
 function isSameDay(date1: Date, date2: Date): boolean {
   const d1 = new Date(date1);
   const d2 = new Date(date2);
@@ -90,6 +97,682 @@ function isSameDay(date1: Date, date2: Date): boolean {
   d2.setHours(0, 0, 0, 0);
   return d1.getTime() === d2.getTime();
 }
+
+// Common reactions
+const commonReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+// Image Group Component
+const ImageGroup = memo(function ImageGroup({
+  images,
+  isOutgoing,
+  onImageClick,
+  onForward,
+  selectMode,
+  selectedIds,
+  onSelect,
+  isMounted,
+}: {
+  images: Message[];
+  isOutgoing: boolean;
+  onImageClick: (url: string, index: number) => void;
+  onForward?: (ids: string[]) => void;
+  selectMode: boolean;
+  selectedIds: Set<string>;
+  onSelect: (id: string) => void;
+  isMounted: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const displayImages = images.slice(0, 4);
+  const remainingCount = images.length > 4 ? images.length - 4 : 0;
+
+  const getGridClass = (count: number) => {
+    if (count === 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-2";
+    return "grid-cols-2";
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex gap-2 px-[63px] py-1 group",
+        isOutgoing ? "justify-end" : "justify-start"
+      )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Checkbox for select mode */}
+      {selectMode && (
+        <div className="flex items-center">
+          <Checkbox
+            checked={images.every((m) => selectedIds.has(m._id || m.messageId))}
+            onCheckedChange={() => images.forEach((m) => onSelect(m._id || m.messageId))}
+          />
+        </div>
+      )}
+
+      {/* Forward button - left side for outgoing, hidden for incoming in this position */}
+      {!selectMode && isHovered && onForward && isOutgoing && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full self-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => onForward(images.map((m) => m._id || m.messageId))}
+              >
+                <Forward className="h-4 w-4 text-[#8696a0]" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Forward</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Image Grid */}
+      <div
+        className={cn(
+          "relative rounded-lg overflow-hidden shadow-sm max-w-[320px]",
+          isOutgoing ? "bg-[#d9fdd3] dark:bg-[#005c4b]" : "bg-white dark:bg-[#202c33]"
+        )}
+      >
+        <div className={cn("grid gap-0.5 p-0.5", getGridClass(displayImages.length))}>
+          {displayImages.map((img, idx) => (
+            <div
+              key={img._id || img.messageId}
+              className={cn(
+                "relative cursor-pointer overflow-hidden",
+                displayImages.length === 1 ? "w-full" : "aspect-square",
+                displayImages.length === 3 && idx === 2 && "col-span-2"
+              )}
+              onClick={() => onImageClick(img.mediaUrl!, idx)}
+            >
+              <img
+                src={img.mediaUrl}
+                alt="Image"
+                className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                loading="lazy"
+              />
+              {/* Remaining count overlay on last image */}
+              {remainingCount > 0 && idx === 3 && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <span className="text-white text-2xl font-semibold">+{remainingCount}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Timestamp */}
+        <div className="absolute bottom-1 right-2 flex items-center gap-1">
+          <span className="text-[11px] text-white/90 drop-shadow-md">
+            {isMounted
+              ? new Date(images[0].timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "--:--"}
+          </span>
+          {isOutgoing && <StatusIcon status={images[images.length - 1].status} />}
+        </div>
+
+        {/* Hover menu */}
+        {!selectMode && (
+          <div
+            className={cn(
+              "absolute z-20",
+              // Nudge the trigger slightly outside the bubble so the menu
+              // doesn't overlap the content and accidentally click items.
+              isOutgoing ? "-top-2 -left-3" : "-top-2 -right-3"
+            )}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full bg-black/30 hover:bg-black/50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                >
+                  <ChevronDown className="h-4 w-4 text-white" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={isOutgoing ? "start" : "end"}>
+                {onForward && (
+                  <DropdownMenuItem onClick={() => onForward(images.map((m) => m._id || m.messageId))}>
+                    <Forward className="h-4 w-4 mr-2" />
+                    Forward all
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      {/* Forward button - right side for incoming */}
+      {!selectMode && isHovered && onForward && !isOutgoing && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full self-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => onForward(images.map((m) => m._id || m.messageId))}
+              >
+                <Forward className="h-4 w-4 text-[#8696a0]" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Forward</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
+});
+
+// Single message bubble component
+const MessageBubble = memo(function MessageBubble({
+  message,
+  isFirstInGroup,
+  isLastInGroup,
+  selectMode,
+  isSelected,
+  onSelect,
+  onForward,
+  onReply,
+  onReact,
+  onCopy,
+  onDownload,
+  onImageClick,
+  onVideoClick,
+  onScrollToMessage,
+  isHighlighted,
+  isMounted,
+}: {
+  message: Message;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+  selectMode: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+  onForward?: () => void;
+  onReply?: () => void;
+  onReact?: (emoji: string) => void;
+  onCopy: () => void;
+  onDownload?: () => void;
+  onImageClick?: () => void;
+  onVideoClick?: (url: string) => void;
+  onScrollToMessage?: (messageId: string) => void;
+  isHighlighted?: boolean;
+  isMounted: boolean;
+}) {
+  const isOutgoing = message.direction === "outgoing";
+  const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
+  const displayText = getMessageDisplayText(message);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const hasReactions = message.reactions && message.reactions.length > 0;
+
+  return (
+    <div
+      className={cn(
+        "flex gap-2 px-[63px] py-[1px] group",
+        isOutgoing ? "justify-end" : "justify-start",
+        isFirstInGroup && "pt-1",
+        isLastInGroup && "pb-1",
+        hasReactions && "mb-3" // Extra margin when reactions are present
+      )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Checkbox for select mode */}
+      {selectMode && (
+        <div className="flex items-center">
+          <Checkbox checked={isSelected} onCheckedChange={onSelect} />
+        </div>
+      )}
+
+      {/* Forward button - left side for outgoing messages */}
+      {!selectMode && isHovered && onForward && isOutgoing && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full self-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={onForward}
+              >
+                <Forward className="h-4 w-4 text-[#8696a0]" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Forward</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Message bubble */}
+      <div
+        data-message-id={message.messageId}
+        className={cn(
+          "relative max-w-[65%] rounded-lg shadow-sm transition-all duration-300",
+          isOutgoing
+            ? "bg-[#d9fdd3] dark:bg-[#005c4b]"
+            : "bg-white dark:bg-[#202c33]",
+          isFirstInGroup && isOutgoing && "rounded-tr-none",
+          isFirstInGroup && !isOutgoing && "rounded-tl-none",
+          isMediaType && message.mediaUrl ? "p-1" : "px-[9px] py-[6px]",
+          // Highlight effect when scrolled to
+          isHighlighted && "ring-2 ring-[#25d366] ring-opacity-75 bg-[#25d366]/10 dark:bg-[#25d366]/20"
+        )}
+        onClick={selectMode ? onSelect : undefined}
+      >
+        {/* Bubble tail SVG */}
+        {isFirstInGroup && (
+          <div className={cn("absolute top-0 w-2 h-3", isOutgoing ? "-right-2" : "-left-2")}>
+            <svg viewBox="0 0 8 13" width="8" height="13">
+              <path
+                fill={isOutgoing ? "#d9fdd3" : "#ffffff"}
+                className={cn("dark:fill-[#005c4b]", !isOutgoing && "dark:fill-[#202c33]")}
+                d={isOutgoing
+                  ? "M1.533 3.568 8 12.193V1H2.812c-.705 0-1.28.607-1.28 1.356 0 .423.18.815.47 1.06z"
+                  : "M6.467 3.568 0 12.193V1h5.188c.705 0 1.28.607 1.28 1.356 0 .423-.18.815-.47 1.06z"
+                }
+              />
+            </svg>
+          </div>
+        )}
+
+        {/* Forwarded indicator */}
+        {message.isForwarded && (
+          <div className="flex items-center gap-1 text-[11px] text-[#667781] dark:text-[#8696a0] mb-1">
+            <Forward className="h-3 w-3" />
+            <span className="italic">Forwarded</span>
+          </div>
+        )}
+
+        {/* Quoted message (reply context) - WhatsApp style */}
+        {/* Support both old (quotedMessage) and new (replyContext) field names */}
+        {(() => {
+          const replyData = message.replyContext || message.quotedMessage;
+          const replyToId = message.replyToMessageId || message.quotedMessageId;
+          if (!replyData) return null;
+
+          // Determine if original message was from same person
+          const isOwnMessage = replyData.from === message.from;
+          const quotedText = replyData.content?.text || replyData.content?.caption || 
+            (replyData.type === "image" ? "📷 Photo" :
+             replyData.type === "video" ? "🎬 Video" :
+             replyData.type === "audio" ? "🎵 Audio" :
+             replyData.type === "document" ? "📄 Document" :
+             replyData.type === "sticker" ? "🎭 Sticker" :
+             replyData.type === "unknown" ? "Message unavailable" : "Message");
+
+          return (
+            <div
+              className={cn(
+                "rounded-md mb-1 overflow-hidden cursor-pointer hover:brightness-95 transition-all",
+                isOutgoing
+                  ? "bg-[#c7f8ca]/60 dark:bg-[#025144]/60"
+                  : "bg-[#f5f6f6] dark:bg-[#1d282f]"
+              )}
+              onClick={() => {
+                if (replyToId && onScrollToMessage) {
+                  onScrollToMessage(replyToId);
+                }
+              }}
+            >
+              <div className="flex">
+                {/* Left accent bar - WhatsApp colors */}
+                <div
+                  className={cn(
+                    "w-1 flex-shrink-0",
+                    isOwnMessage
+                      ? "bg-[#06cf9c]" // Green for own messages
+                      : "bg-[#53bdeb]" // Blue for others
+                  )}
+                />
+                <div className="flex-1 px-2 py-1.5 min-w-0">
+                  {/* Sender name */}
+                  <p
+                    className={cn(
+                      "text-[12.5px] font-medium truncate",
+                      isOwnMessage
+                        ? "text-[#06cf9c]"
+                        : "text-[#53bdeb]"
+                    )}
+                  >
+                    {isOwnMessage ? "You" : replyData.from}
+                  </p>
+                  {/* Quoted content */}
+                  <div className="flex items-center gap-2">
+                    {replyData.mediaUrl && (
+                      <div className="w-10 h-10 rounded flex-shrink-0 bg-black/10 dark:bg-white/10 overflow-hidden">
+                        {replyData.type === "image" || replyData.type === "sticker" ? (
+                          <img
+                            src={replyData.mediaUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : replyData.type === "video" ? (
+                          <div className="w-full h-full flex items-center justify-center bg-black/20">
+                            <Play className="h-4 w-4 text-white" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-[#8696a0]" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-[13px] text-[#667781] dark:text-[#8696a0] truncate">
+                      {quotedText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Upload progress for pending media */}
+        {!message.mediaUrl && message.status === "sending" && isMediaType && (
+          <div className="flex items-center justify-center p-8 bg-black/10 dark:bg-black/20 rounded-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-[#8696a0]" />
+          </div>
+        )}
+
+        {/* Image/Sticker - Single image (not in group) */}
+        {message.mediaUrl && (message.type === "image" || message.type === "sticker") && (
+          <div className="relative cursor-pointer" onClick={onImageClick}>
+            {message.status === "sending" && (
+              <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center z-10">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            )}
+            <img
+              src={message.mediaUrl}
+              alt={displayText || "Image"}
+              className="max-w-full rounded-lg max-h-[330px] object-contain"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        {/* Video */}
+        {message.mediaUrl && message.type === "video" && (
+          <div
+            className="relative cursor-pointer group/video"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onVideoClick) {
+                onVideoClick(message.mediaUrl!);
+              }
+            }}
+          >
+            {message.status === "sending" && (
+              <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center z-10">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            )}
+            <div className="relative">
+              <video
+                src={message.mediaUrl}
+                className="max-w-full rounded-lg max-h-[330px] bg-black pointer-events-none"
+                preload="metadata"
+                muted
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-black/60 group-hover/video:bg-black/80 flex items-center justify-center transition-colors">
+                  <Play className="h-7 w-7 text-white ml-1" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Audio */}
+        {message.mediaUrl && message.type === "audio" && (
+          <div className="flex items-center gap-3 p-2 min-w-[250px]">
+            <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center flex-shrink-0">
+              <Music className="h-5 w-5 text-white" />
+            </div>
+            <audio src={message.mediaUrl} controls className="flex-1 h-8" preload="metadata" />
+          </div>
+        )}
+
+        {/* Document */}
+        {message.mediaUrl && message.type === "document" && (
+          <a
+            href={message.mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "flex items-center gap-3 p-2 rounded-lg min-w-[250px]",
+              isOutgoing
+                ? "bg-[#c7f8ca] dark:bg-[#025144] hover:bg-[#b8f0bc] dark:hover:bg-[#024c3f]"
+                : "bg-[#f5f6f6] dark:bg-[#1d282f] hover:bg-[#ebedef] dark:hover:bg-[#182229]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-[#8696a0] flex items-center justify-center flex-shrink-0">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] text-[#111b21] dark:text-[#e9edef] truncate">
+                {message.filename || "Document"}
+              </p>
+              <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">
+                {message.fileSize ? `${(message.fileSize / 1024).toFixed(1)} KB` : "Document"}
+              </p>
+            </div>
+            <Download className="h-5 w-5 text-[#8696a0] flex-shrink-0" />
+          </a>
+        )}
+
+        {/* Location */}
+        {message.type === "location" && typeof message.content === "object" && message.content?.location && (
+          <a
+            href={`https://www.google.com/maps?q=${message.content.location.latitude},${message.content.location.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block p-2 rounded-lg bg-[#f5f6f6] dark:bg-[#1d282f] hover:bg-[#ebedef] dark:hover:bg-[#182229]"
+          >
+            <div className="flex items-center gap-2">
+              <span>📍</span>
+              <span className="text-[14px] text-[#111b21] dark:text-[#e9edef]">
+                {message.content.location.name || message.content.location.address || "View location"}
+              </span>
+            </div>
+          </a>
+        )}
+
+        {/* Text content */}
+        {(() => {
+          const hasCaption =
+            typeof message.content === "object" &&
+            message.content?.caption &&
+            message.content.caption !== message.content.caption?.split("/").pop();
+
+          if (isMediaType && message.mediaUrl) {
+            if (hasCaption && typeof message.content === "object" && message.content?.caption) {
+              return (
+                <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words px-1 pt-1">
+                  {message.content.caption}
+                </p>
+              );
+            }
+            return null;
+          }
+
+          if (displayText && !displayText.startsWith("📷") && !displayText.startsWith("🎬")) {
+            return (
+              <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words">
+                {displayText}
+              </p>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Reactions - WhatsApp style (positioned at bottom, overlapping edge) */}
+        {message.reactions && message.reactions.length > 0 && (
+          <div
+            className={cn(
+              "absolute -bottom-3 z-10",
+              isOutgoing ? "left-1" : "right-1"
+            )}
+          >
+            <div className="flex items-center bg-white dark:bg-[#202c33] rounded-full px-1.5 py-0.5 shadow-md border border-[#e9edef] dark:border-[#222d34]">
+              {/* Group reactions by emoji and show count */}
+              {(() => {
+                const grouped = message.reactions.reduce((acc, r) => {
+                  acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                return Object.entries(grouped).map(([emoji, count]) => (
+                  <span key={emoji} className="text-sm flex items-center">
+                    {emoji}
+                    {count > 1 && (
+                      <span className="text-[10px] text-[#667781] dark:text-[#8696a0] ml-0.5">
+                        {count}
+                      </span>
+                    )}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Timestamp and status */}
+        <div
+          className={cn(
+            "flex items-center justify-end gap-1 mt-1",
+            isMediaType && message.mediaUrl && !(typeof message.content === "object" && message.content?.caption) && "absolute bottom-1 right-2"
+          )}
+        >
+          <span
+            className={cn(
+              "text-[11px]",
+              isMediaType && message.mediaUrl && !(typeof message.content === "object" && message.content?.caption)
+                ? "text-white/90 drop-shadow-md"
+                : "text-[#667781] dark:text-[#8696a0]"
+            )}
+          >
+            {isMounted
+              ? new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "--:--"}
+          </span>
+          {isOutgoing && <StatusIcon status={message.status} />}
+        </div>
+
+        {/* Hover menu - Always mounted, visibility controlled by CSS */}
+        {!selectMode && (
+          <div
+            className={cn(
+              "absolute z-20",
+              isOutgoing ? "-top-2 -left-3" : "-top-2 -right-3"
+            )}
+          >
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-6 w-6 rounded-full transition-opacity duration-150",
+                    // Show on hover via CSS
+                    isHovered ? "opacity-100" : "opacity-0 pointer-events-none",
+                    isOutgoing
+                      ? "bg-[#d9fdd3]/80 dark:bg-[#005c4b]/80 hover:bg-[#c7f8ca] dark:hover:bg-[#025144]"
+                      : "bg-white/80 dark:bg-[#202c33]/80 hover:bg-[#f5f6f6] dark:hover:bg-[#2a3942]"
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <ChevronDown className="h-4 w-4 text-[#8696a0]" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align={isOutgoing ? "start" : "end"}
+                side="top"
+                sideOffset={6}
+                className="w-48"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+              >
+                {onReply && (
+                  <DropdownMenuItem onSelect={onReply}>
+                    <Reply className="h-4 w-4 mr-2" />
+                    Reply
+                  </DropdownMenuItem>
+                )}
+                {onReact && (
+                  <>
+                    <div className="px-2 py-1.5 flex items-center justify-center gap-1">
+                      {commonReactions.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onReact(emoji);
+                          }}
+                          className="w-8 h-8 rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#374045] flex items-center justify-center text-lg transition-transform hover:scale-110"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {onForward && (
+                  <DropdownMenuItem onSelect={onForward}>
+                    <Forward className="h-4 w-4 mr-2" />
+                    Forward
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={onCopy}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </DropdownMenuItem>
+                {message.mediaUrl && onDownload && (
+                  <DropdownMenuItem onSelect={onDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      {/* Forward button - right side for incoming messages */}
+      {!selectMode && isHovered && onForward && !isOutgoing && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full self-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={onForward}
+              >
+                <Forward className="h-4 w-4 text-[#8696a0]" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Forward</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
+});
 
 export function MessageList({
   messages,
@@ -106,114 +789,87 @@ export function MessageList({
   onReactMessage,
 }: MessageListProps) {
   const { toast } = useToast();
-  // Track if component is mounted (client-side only)
   const [isMounted, setIsMounted] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
-  const [selectedImageGroup, setSelectedImageGroup] = useState<Message[] | null>(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handle download
-  const handleDownload = (message: Message) => {
-    if (!message.mediaUrl) return;
-    
-    const link = document.createElement("a");
-    link.href = message.mediaUrl;
-    link.download = message.filename || `download.${message.mediaUrl.split('.').pop()?.split('?')[0] || 'bin'}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Scroll to a specific message and highlight it (WhatsApp-style)
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-  // Handle copy message
-  const handleCopy = (message: Message) => {
-    // For media messages, copy the URL; for text, copy the text
-    if (message.mediaUrl) {
-      navigator.clipboard.writeText(message.mediaUrl).then(() => {
-        toast({
-          title: "Copied",
-          description: "Media URL copied to clipboard. You can paste and send it to others.",
-        });
-      });
+    // Find the message element
+    const messageElement = container.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+      // Scroll the message into view
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      
+      // Highlight the message briefly
+      setHighlightedMessageId(messageId);
+      
+      // Remove highlight after animation
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 2000);
     } else {
-      const textToCopy = getMessageDisplayText(message);
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        toast({
-          title: "Copied",
-          description: "Message text copied to clipboard",
-        });
+      // Message not found - might need to load older messages
+      toast({
+        title: "Message not found",
+        description: "The original message may have been deleted or is not loaded yet.",
+        variant: "default",
       });
     }
-  };
+  }, [toast]);
 
-  // Handle reply
-  const handleReply = (message: Message) => {
-    if (onReplyMessage) {
-      onReplyMessage(message);
+  // Get all images from messages for gallery navigation
+  const imageMessages = useMemo(() => {
+    return messages.filter((m) => (m.type === "image" || m.type === "sticker") && m.mediaUrl);
+  }, [messages]);
+
+  // Handle scroll
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const nearBottom = distanceFromBottom < 100;
+
+    setIsNearBottom(nearBottom);
+    if (nearBottom) setShowNewMessagesButton(false);
+
+    if (scrollTop < 50 && hasMoreMessages && !loadingOlderMessages && onLoadOlderMessages) {
+      onLoadOlderMessages();
     }
-  };
+  }, [hasMoreMessages, loadingOlderMessages, onLoadOlderMessages]);
 
-  // Handle react
-  const handleReact = (message: Message, emoji: string = "👍") => {
-    if (onReactMessage) {
-      onReactMessage(message, emoji);
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  useEffect(() => {
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else if (messages.length > 0) {
+      setShowNewMessagesButton(true);
     }
-  };
+  }, [messages.length, isNearBottom, messagesEndRef]);
 
-  // Common emoji reactions
-  const commonReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-
-  // Handle message selection
-  const handleMessageSelect = (messageId: string) => {
-    if (!selectMode) return;
-    setSelectedMessageIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(messageId)) {
-        newSet.delete(messageId);
-      } else {
-        newSet.add(messageId);
-      }
-      return newSet;
-    });
-  };
-
-  // Handle long press to enter select mode
-  const handleMouseDown = (messageId: string) => {
-    if (selectMode) return;
-    const timer = setTimeout(() => {
-      setSelectMode(true);
-      setSelectedMessageIds(new Set([messageId]));
-    }, 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleMouseUp = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
-
-  // Exit select mode
-  const exitSelectMode = () => {
-    setSelectMode(false);
-    setSelectedMessageIds(new Set());
-  };
-
-  // Handle forward
-  const handleForward = () => {
-    if (selectedMessageIds.size > 0 && onForwardMessages) {
-      onForwardMessages(Array.from(selectedMessageIds));
-      exitSelectMode();
-    }
-  };
-
+  // Filter messages by search
   const filteredMessages = useMemo(
     () =>
       messages.filter((msg) => {
@@ -224,901 +880,472 @@ export function MessageList({
     [messages, messageSearchQuery]
   );
 
-  // Group messages by date and group consecutive images (only after mount to avoid hydration issues)
-  const messagesWithDates = useMemo(() => {
-    type GroupedItem = { date?: string; message: Message } | { date?: string; imageGroup: Message[] };
-    const grouped: GroupedItem[] = [];
-    
-    if (!isMounted) {
-      // During SSR, don't show date separators to avoid hydration mismatch
-      return filteredMessages.map((message) => ({ message }));
-    }
+  // Group messages with image clustering
+  type GroupedItem =
+    | { type: "message"; date?: string; message: Message; isFirstInGroup: boolean; isLastInGroup: boolean }
+    | { type: "imageGroup"; date?: string; images: Message[] };
 
-    let lastDate: string | undefined = undefined;
+  const groupedMessages = useMemo(() => {
+    if (!isMounted) return filteredMessages.map((m) => ({ type: "message" as const, date: undefined, message: m, isFirstInGroup: true, isLastInGroup: true }));
+
+    const result: GroupedItem[] = [];
+    let lastDate: string | undefined;
     let currentImageGroup: Message[] = [];
-    let currentImageGroupDate: string | undefined = undefined;
-    let lastGroupDirection: "incoming" | "outgoing" | null = null;
-    let lastGroupFrom: string | null = null;
-    let lastGroupTimestamp: Date | null = null;
+    let imageGroupDirection: "incoming" | "outgoing" | null = null;
+    let imageGroupFrom: string | null = null;
 
-    const flushImageGroup = () => {
-      if (currentImageGroup.length > 0) {
-        // Only group if there are 2 or more images
-        if (currentImageGroup.length >= 2) {
-          if (currentImageGroupDate) {
-            grouped.push({ date: currentImageGroupDate, imageGroup: [...currentImageGroup] });
-          } else {
-            grouped.push({ imageGroup: [...currentImageGroup] });
-          }
-        } else {
-          // Single image, add as regular message
-          if (currentImageGroupDate) {
-            grouped.push({ date: currentImageGroupDate, message: currentImageGroup[0] });
-          } else {
-            grouped.push({ message: currentImageGroup[0] });
-          }
-        }
-        currentImageGroup = [];
-        currentImageGroupDate = undefined;
+    const flushImageGroup = (showDate?: string) => {
+      if (currentImageGroup.length >= 2) {
+        result.push({ type: "imageGroup", date: showDate, images: [...currentImageGroup] });
+      } else if (currentImageGroup.length === 1) {
+        // Single image - render as regular message
+        result.push({
+          type: "message",
+          date: showDate,
+          message: currentImageGroup[0],
+          isFirstInGroup: true,
+          isLastInGroup: true,
+        });
       }
+      currentImageGroup = [];
+      imageGroupDirection = null;
+      imageGroupFrom = null;
     };
 
-    filteredMessages.forEach((message, index) => {
+    filteredMessages.forEach((message, idx) => {
       const messageDate = new Date(message.timestamp);
-      const shouldShowDate =
-        index === 0 || !lastDate || !isSameDay(messageDate, new Date(filteredMessages[index - 1].timestamp));
+      const prevMessage = idx > 0 ? filteredMessages[idx - 1] : null;
+      const nextMessage = idx < filteredMessages.length - 1 ? filteredMessages[idx + 1] : null;
 
-      // Check if this is an image message
-      const isImage = (message.type === "image" || message.type === "sticker") && message.mediaUrl;
-      
-      // Check if we should continue the current image group
-      const shouldContinueGroup = 
-        isImage &&
-        currentImageGroup.length > 0 &&
-        message.direction === lastGroupDirection &&
-        message.from === lastGroupFrom &&
-        lastGroupTimestamp &&
-        // Within 2 minutes of the last image
-        Math.abs(new Date(message.timestamp).getTime() - lastGroupTimestamp.getTime()) < 2 * 60 * 1000;
-
-      if (shouldShowDate) {
-        // Flush any pending image group before adding date separator
-        flushImageGroup();
+      // Date separator check
+      const showDate = !lastDate || !isSameDay(messageDate, new Date(filteredMessages[idx - 1]?.timestamp));
+      if (showDate) {
+        // Flush any pending image group before date change
+        if (currentImageGroup.length > 0) {
+          flushImageGroup();
+        }
         lastDate = formatDateSeparator(messageDate);
       }
 
+      const isImage = (message.type === "image" || message.type === "sticker") && message.mediaUrl;
+
+      // Check if we should continue current image group
+      const shouldContinueGroup =
+        isImage &&
+        currentImageGroup.length > 0 &&
+        message.direction === imageGroupDirection &&
+        message.from === imageGroupFrom &&
+        // Within 2 minutes of the first image in group
+        Math.abs(new Date(message.timestamp).getTime() - new Date(currentImageGroup[0].timestamp).getTime()) < 2 * 60 * 1000;
+
       if (shouldContinueGroup) {
-        // Add to current image group
         currentImageGroup.push(message);
-        lastGroupTimestamp = new Date(message.timestamp);
       } else {
-        // Flush current group and start new one
-        flushImageGroup();
-        
+        // Flush current group
+        flushImageGroup(showDate ? lastDate : undefined);
+
         if (isImage) {
           // Start new image group
           currentImageGroup = [message];
-          currentImageGroupDate = shouldShowDate ? lastDate : undefined;
-          lastGroupDirection = message.direction;
-          lastGroupFrom = message.from;
-          lastGroupTimestamp = new Date(message.timestamp);
-          
-          // Don't add to grouped yet - wait to see if more images follow
+          imageGroupDirection = message.direction;
+          imageGroupFrom = message.from;
         } else {
           // Regular message
-          if (shouldShowDate) {
-            grouped.push({ date: lastDate, message });
-          } else {
-            grouped.push({ message });
-          }
+          const isFirstInGroup =
+            !prevMessage ||
+            prevMessage.direction !== message.direction ||
+            prevMessage.from !== message.from ||
+            Math.abs(new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime()) > 60000 ||
+            showDate;
+
+          const isLastInGroup =
+            !nextMessage ||
+            nextMessage.direction !== message.direction ||
+            nextMessage.from !== message.from ||
+            Math.abs(new Date(nextMessage.timestamp).getTime() - new Date(message.timestamp).getTime()) > 60000 ||
+            (nextMessage && !isSameDay(new Date(nextMessage.timestamp), messageDate));
+
+          result.push({
+            type: "message",
+            date: showDate ? lastDate : undefined,
+            message,
+            isFirstInGroup,
+            isLastInGroup,
+          });
         }
       }
     });
 
-    // Flush any remaining image group
+    // Flush remaining image group
     flushImageGroup();
 
-    return grouped;
+    return result;
   }, [filteredMessages, isMounted]);
 
+  // Handlers
+  const handleCopy = useCallback((message: Message) => {
+    const text = message.mediaUrl || getMessageDisplayText(message);
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Copied", description: message.mediaUrl ? "URL copied" : "Text copied" });
+    });
+  }, [toast]);
+
+  const handleDownload = useCallback((message: Message) => {
+    if (!message.mediaUrl) return;
+    const link = document.createElement("a");
+    link.href = message.mediaUrl;
+    link.download = message.filename || "download";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
+
+  const handleSelect = useCallback((messageId: string) => {
+    setSelectedMessageIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) newSet.delete(messageId);
+      else newSet.add(messageId);
+      return newSet;
+    });
+  }, []);
+
+  const handleForward = useCallback(() => {
+    if (selectedMessageIds.size > 0 && onForwardMessages) {
+      onForwardMessages(Array.from(selectedMessageIds));
+      setSelectMode(false);
+      setSelectedMessageIds(new Set());
+    }
+  }, [selectedMessageIds, onForwardMessages]);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setShowNewMessagesButton(false);
+  }, [messagesEndRef]);
+
+  const handleImageClick = useCallback((url: string, groupIndex?: number) => {
+    setSelectedImageUrl(url);
+    const idx = imageMessages.findIndex((m) => m.mediaUrl === url);
+    setCurrentImageIndex(idx >= 0 ? idx : 0);
+  }, [imageMessages]);
+
   return (
-    <div className="relative h-full">
-      <ScrollArea className="h-full pr-4">
-        <div className="space-y-4">
-        {/* Load Older Messages Button */}
+    <div className="relative flex-1 flex flex-col overflow-hidden bg-[#efeae2] dark:bg-[#0b141a]">
+      {/* WhatsApp wallpaper pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.05] pointer-events-none bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFY0lEQVR4nO2Z2W4TURSAZ/R/rAQEE0JY0gnZJrMkM0lnMpNJMrMkEwIJYRGIRUhcwAVw7+HGG27ggqeAG97AoAC6AAAAAAAAAAAAAAD+t7iu++u+l5Cs2vLAshFCUGkbmA3Dh4APX3wBf37+Bb59+4Z+/f1v9O37d4TH59Ffv/9BHn38PfTp0y/o4/OP0O9+/gn98scfKPbbH+j3P/2Ifvr5Z/TLH/+EffH7n+jzb78HX/71F/j863dk+eUX+NP3P0T+8O13dPiPP6LPv/0e+vjFZ8j806fIx48fo88/fEKfv/5M/Pj6NeTXb7+Ab79+A719+xZ6//Ej+u7rd+jNl5+Q558+Iz+9+Rr59NNn9MOHD8iHd+/QT+/foW8+vEXvf/yE3n37Eb394TN6//0P6NuP79C3Hz8gH959RN9/+IK+/vAJff3lO+T9l6/I55++oy8/fkNvPn1CP374iv74/S/Qu6/fwb9/+B79/fv34F+++gV89+l78Pcvv0L/+OUn+M8vvoEf//qCvv/6LfLq1RvkzZs36OXLl8izZ8/Qs+cv0JuPn9Gr12/Ruy8/oJ9evEJPn75AT548QY+ePEHPX75C3738gj55/gp59PIL+uzZK/Ty5UfkzZfvkbefvqNvvvqMvn77Frn3+Bl69foz8vLFG+Thoyfo9ZsP6LN3X9CLb76gL96+R+4+eIKePn+N3n34GDl+/x68++Qp+uLDJ+TFq3fo8dNn6OrVq+jBvTvo3r078PTZSwShPwAAAAAAAAAAaB9v3rx5cPny5ftDQ0PbExMT/6alpT2lp6d7MzMznTk5Ofa8vDxXQUGBp7Cw0FVcXOwuKSlxlpWVOcvKyhwVFRX2ioqK9RUVFRaqqqqsqamp+tHR0XUjI8PWkZGRxpGRkWXD4+Prh4eHV4+MjKwaHR1dNjo6unx0dHTZ2NjYktHR0cXjY2MLxsbGFoyPjy8YHx8fHx8fnzM+Pj57fHz81Pj4+PTY2NjpkZGRGaOjo9NHR0dPGB0dnTA0NDRucHBw3NDQ0NjBwcExo6OjY4aGhsYMDg6OHhoaGjM8PDxmeHh4zMjIyJjR0dHRo6OjY4aHh8cNDQ2NGxwcHDcwMDB+YGBg/MDA4PjBwaHxAwNDE8bGxicMDAxOGBgYmjg4ODBpaGhg0tDQ4KShwcFJg4ODkwcHBycPDg1NHhoamjI0NDR1aGhw6tDQ4LTh4cHpw8MDM4aGBmYODw/MHB4enDU8PDR7eHhozsjI0Jzh4eE5o6PDc0dGhueNjAzPHx0dnj86MrJgZGRk4cjI8KLR0ZHFo6Mji0dHRpeOjIwsHR0dXTY6OrJ8dHR0xejo6MrR0dFVY2Ojq8bGRlePjo6tGRsbXTs2NrZ+bGxs/djY+IaxsfENY2Pjm8fGJjaNjU1sGh+f2DwxPrllfHxyy8TExJbJicmtExOTWycmJrdOTk5tm5yc2D41NbF9cnJyx9TU5M6pqcmdU1OTu6amJnfv2TO1Z/fuyb27d0/t3bNnas/u3VP79uye2rdn9559e3bvP7Bn94F9+/YeOLBv34GD+/cfPLh//8FD+/cfPHRg/4HDhw4cPHzwwMEjhw4cPHLowMGjhw8ePHbk4MFjRw4dOnbk0KHjhw8fOn748KETx44eOXns2JGTJ44fPXXi+JHTx48fOXPi+JHTx48fOXvq1NGzp06dOHf69Ikfzp07ceb8uZPnfzh35syF8+fPXLhw/sy/L144c/HCuTOXLp47d/nShXNXLl04d/XyhfPXrlw8f+36pfPXrl+8cOPqxfM3r128cOvq1Uu3rl25eOva1Ut3r1+7dO/G9cv3b1y7fP/mtcsP7964evnRvRtXHz68dfXxo1vXHj26ff3xo9vXnz66c/PJo9s3nz66c+vpkzu3/gO+1sPH54TYJgAAAABJRU5ErkJggg==')]" />
+
+      {/* Messages container */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+        {/* Load older messages button */}
         {hasMoreMessages && onLoadOlderMessages && (
-          <div className="flex justify-center py-2">
+          <div className="flex justify-center py-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={onLoadOlderMessages}
               disabled={loadingOlderMessages}
-              className="text-muted-foreground"
+              className="bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full px-4 shadow-sm"
             >
-              {loadingOlderMessages ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                "Load older messages"
-              )}
+              {loadingOlderMessages && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Load earlier messages
             </Button>
           </div>
         )}
 
+        {/* Loading state */}
         {messagesLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#25d366]" />
           </div>
         ) : filteredMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-20">
-            <p className="text-lg font-medium">
-              {selectedConversationActive ? "No messages yet" : "Select a conversation"}
-            </p>
-            <p className="text-sm">Send a message to start the conversation</p>
+          <div className="flex flex-col items-center justify-center h-full text-center py-20">
+            <div className="bg-white dark:bg-[#202c33] rounded-lg p-6 shadow-sm">
+              <p className="text-[17px] text-[#111b21] dark:text-[#e9edef] mb-1">
+                {selectedConversationActive ? "No messages yet" : "Select a conversation"}
+              </p>
+              <p className="text-[14px] text-[#667781] dark:text-[#8696a0]">
+                Send a message to start chatting
+              </p>
+            </div>
           </div>
         ) : (
-          messagesWithDates.map((item, index) => {
-            // Handle image groups
-            if ("imageGroup" in item && item.imageGroup && item.imageGroup.length >= 2) {
-              const date = "date" in item ? item.date : undefined;
-              const imageGroup = item.imageGroup;
-              const groupDirection = imageGroup[0].direction;
-              const getGridCols = (count: number) => {
-                if (count === 1) return "grid-cols-1";
-                if (count === 2) return "grid-cols-2";
-                if (count === 3) return "grid-cols-2"; // 2 columns, last one spans
-                if (count === 4) return "grid-cols-2";
-                return "grid-cols-2"; // Default to 2 columns for 5+
-              };
-              
-              // Limit display to first 4 images, show "+N" overlay on 4th if more
-              const displayImages = imageGroup.slice(0, 4);
-              const remainingCount = imageGroup.length > 4 ? imageGroup.length - 4 : 0;
-
+          groupedMessages.map((item, idx) => {
+            if (item.type === "imageGroup") {
               return (
-                <div key={`image-group-${imageGroup[0]._id || imageGroup[0].messageId}-${index}`}>
-                  {/* Date Separator */}
-                  {date ? (
-                    <div className="flex justify-center my-4">
-                      <div className="bg-muted px-3 py-1 rounded-full text-sm text-muted-foreground">
-                        {date}
-                      </div>
-                    </div>
-                  ) : null}
-                  {/* Image Group */}
-                  <div
-                    className={cn(
-                      "flex gap-2 items-start group",
-                      groupDirection === "outgoing" ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    {/* Checkbox in select mode */}
-                    {selectMode && (
-                      <div className="flex items-start pt-3">
-                        <Checkbox
-                          checked={imageGroup.every(msg => selectedMessageIds.has(msg._id || msg.messageId))}
-                          onCheckedChange={() => {
-                            imageGroup.forEach(msg => handleMessageSelect(msg._id || msg.messageId));
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "max-w-[35%] rounded-lg p-2 relative group",
-                        groupDirection === "outgoing" ? "bg-green-800" : "bg-muted"
-                      )}
-                    >
-                      {/* Menu button at top right */}
-                      {!selectMode && (
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                  "h-6 w-6",
-                                  groupDirection === "outgoing"
-                                    ? "text-white hover:bg-white/20"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                              {onForwardMessages && (
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectMode(true);
-                                    setSelectedMessageIds(new Set(imageGroup.map(msg => msg._id || msg.messageId)));
-                                  }}
-                                >
-                                  <Forward className="h-4 w-4 mr-2" />
-                                  Forward
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      )}
-                      
-                      {/* Image Grid */}
-                      <div className={cn("grid gap-1", getGridCols(displayImages.length))}>
-                        {displayImages.map((imgMsg, imgIdx) => (
-                          <div
-                            key={imgMsg._id || imgMsg.messageId || imgIdx}
-                            className={cn(
-                              "relative overflow-hidden rounded-lg cursor-pointer hover:opacity-90",
-                              displayImages.length === 1 ? "w-full" : "aspect-square",
-                              // Special handling for 3 images: make last one span 2 columns
-                              displayImages.length === 3 && imgIdx === 2 && "col-span-2"
-                            )}
-                            onClick={() => {
-                              if (!selectMode) {
-                                setSelectedImageUrl(imgMsg.mediaUrl || null);
-                                setSelectedImageGroup(imageGroup);
-                                setCurrentImageIndex(imageGroup.findIndex(m => (m._id || m.messageId) === (imgMsg._id || imgMsg.messageId)));
-                              }
-                            }}
-                          >
-                            {imgMsg.status === "sending" && (
-                              <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center z-10">
-                                <Loader2 className="h-6 w-6 animate-spin text-white" />
-                              </div>
-                            )}
-                            <img
-                              src={imgMsg.mediaUrl}
-                              alt={getMessageDisplayText(imgMsg) || "Image"}
-                              className="w-full h-full object-cover"
-                            />
-                            {remainingCount > 0 && imgIdx === 3 && (
-                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                <span className="text-white text-lg font-semibold">
-                                  +{remainingCount}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Timestamp */}
-                      <div className="flex items-center justify-end gap-1.5 mt-1">
-                        <span
-                          className={cn(
-                            "text-xs",
-                            groupDirection === "outgoing" ? "text-green-100" : "text-muted-foreground"
-                          )}
-                        >
-                          {isMounted
-                            ? new Date(imageGroup[0].timestamp).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "--:--"}
+                <div key={`img-group-${idx}`}>
+                  {item.date && (
+                    <div className="flex justify-center py-2">
+                      <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
+                        <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
+                          {item.date}
                         </span>
                       </div>
                     </div>
-                    {/* Forward button */}
-                    {!selectMode && onForwardMessages && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center self-center">
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectMode(true);
-                                  setSelectedMessageIds(new Set(imageGroup.map(msg => msg._id || msg.messageId)));
-                                }}
-                              >
-                                <Forward className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">
-                              <p>Forward</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                  <ImageGroup
+                    images={item.images}
+                    isOutgoing={item.images[0].direction === "outgoing"}
+                    onImageClick={handleImageClick}
+                    onForward={
+                      onForwardMessages
+                        ? (ids) => {
+                            setSelectMode(true);
+                            setSelectedMessageIds(new Set(ids));
+                          }
+                        : undefined
+                    }
+                    selectMode={selectMode}
+                    selectedIds={selectedMessageIds}
+                    onSelect={handleSelect}
+                    isMounted={isMounted}
+                  />
                 </div>
               );
             }
 
-            // Regular message rendering
-            if (!("message" in item)) return null;
-            
-            const message = item.message;
-            const date = "date" in item ? item.date : undefined;
-            const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(
-              message.type
-            );
+            const msgId = item.message._id || item.message.messageId;
             return (
-              <div key={`${message._id || message.messageId}-${index}`}>
-                {/* Date Separator */}
-                {date ? (
-                  <div className="flex justify-center my-4">
-                    <div className="bg-muted px-3 py-1 rounded-full text-sm text-muted-foreground">
-                      {date}
-                    </div>
-                  </div>
-                ) : null}
-                {/* Message */}
-                <div
-                  className={cn(
-                    "flex gap-2 items-start group",
-                    message.direction === "outgoing" ? "justify-end" : "justify-start"
-                  )}
-                >
-                {/* Checkbox in select mode */}
-                {selectMode && (
-                  <div className="flex items-start pt-3">
-                    <Checkbox
-                      checked={selectedMessageIds.has(message._id || message.messageId)}
-                      onCheckedChange={() => handleMessageSelect(message._id || message.messageId)}
-                    />
-                  </div>
-                )}
-                <div
-                  className={cn(
-                    "max-w-[70%] rounded-lg p-3 relative group",
-                    message.direction === "outgoing" ? "bg-green-800 text-white" : "bg-muted",
-                    selectMode && selectedMessageIds.has(message._id || message.messageId) && "ring-2 ring-blue-500"
-                  )}
-                  onMouseDown={() => handleMouseDown(message._id || message.messageId)}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                >
-                  {/* Menu button at top right inside bubble */}
-                  {!selectMode && (
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "h-6 w-6",
-                              message.direction === "outgoing"
-                                ? "text-white hover:bg-white/20"
-                                : "hover:bg-muted-foreground/10"
-                            )}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          {onReplyMessage && (
-                            <DropdownMenuItem onClick={() => handleReply(message)}>
-                              <Reply className="h-4 w-4 mr-2" />
-                              Reply
-                            </DropdownMenuItem>
-                          )}
-                          {onReactMessage && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleReact(message, "👍")}>
-                                <Smile className="h-4 w-4 mr-2" />
-                                React 👍
-                              </DropdownMenuItem>
-                              <div className="px-2 py-1 flex gap-1">
-                                {commonReactions.map((emoji) => (
-                                  <Button
-                                    key={emoji}
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleReact(message, emoji);
-                                    }}
-                                  >
-                                    {emoji}
-                                  </Button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                          <DropdownMenuSeparator />
-                          {onForwardMessages && (
-                            <DropdownMenuItem 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Enter select mode and pre-select this message
-                                setSelectMode(true);
-                                setSelectedMessageIds(new Set([message._id || message.messageId]));
-                              }}
-                            >
-                              <Forward className="h-4 w-4 mr-2" />
-                              Forward
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => handleCopy(message)}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy
-                          </DropdownMenuItem>
-                          {message.mediaUrl && (
-                            <DropdownMenuItem onClick={() => handleDownload(message)}>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-
-                  {/* Forwarded indicator */}
-                  {message.isForwarded && (
-                    <div className="mb-1 text-xs opacity-70 flex items-center gap-1">
-                      <Forward className="h-3 w-3" />
-                      Forwarded
-                    </div>
-                  )}
-                  {!message.mediaUrl &&
-                    message.status === "sending" &&
-                    (message.type === "image" ||
-                      message.type === "video" ||
-                      message.type === "audio" ||
-                      message.type === "document") && (
-                      <div className="mb-2 flex items-center justify-center p-4 bg-black/10 rounded-lg">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                        <span className="ml-2 text-sm">Uploading...</span>
-                      </div>
-                    )}
-
-                  {message.mediaUrl && (message.type === "image" || message.type === "sticker") && (
-                    <div className="mb-2 relative group/media">
-                      {message.status === "sending" && (
-                        <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        </div>
-                      )}
-                      <img
-                        src={message.mediaUrl}
-                        alt={getMessageDisplayText(message) || "Image"}
-                        className="max-w-full rounded-lg max-h-64 object-contain cursor-pointer hover:opacity-90"
-                        onClick={() => {
-                          if (!selectMode) {
-                            setSelectedImageUrl(message.mediaUrl || null);
-                            setSelectedImageGroup(null); // Single image, no group
-                            setCurrentImageIndex(0);
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {message.mediaUrl && message.type === "video" && (
-                    <div className="mb-2 relative group/media">
-                      {message.status === "sending" && (
-                        <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center z-10">
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        </div>
-                      )}
-                      <video 
-                        src={message.mediaUrl} 
-                        controls 
-                        className="max-w-full rounded-lg max-h-64 w-full object-contain bg-black/10"
-                        preload="metadata"
-                      />
-                    </div>
-                  )}
-
-                  {message.mediaUrl && message.type === "audio" && (
-                    <div className="mb-2 relative group/media">
-                      {message.status === "sending" && (
-                        <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center z-10">
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        </div>
-                      )}
-                      <div className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border",
-                        message.direction === "outgoing"
-                          ? "bg-green-700/30 border-green-300"
-                          : "bg-muted/50 border-gray-300"
-                      )}>
-                        <div className={cn(
-                          "flex-shrink-0 p-2 rounded-full",
-                          message.direction === "outgoing"
-                            ? "bg-green-600"
-                            : "bg-gray-200 dark:bg-gray-700"
-                        )}>
-                          <Music className={cn(
-                            "h-5 w-5",
-                            message.direction === "outgoing" ? "text-white" : "text-gray-700 dark:text-gray-200"
-                          )} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {message.filename && (
-                            <p className={cn(
-                              "text-sm font-medium truncate mb-1",
-                              message.direction === "outgoing" ? "text-green-50" : "text-foreground"
-                            )}>
-                              {message.filename}
-                            </p>
-                          )}
-                          <audio 
-                            src={message.mediaUrl} 
-                            controls 
-                            className="w-full h-8"
-                            preload="metadata"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {message.mediaUrl && message.type === "document" && (
-                    <div className="mb-2">
-                      <div className={cn(
-                        "flex items-center gap-2 p-2 rounded border",
-                        message.direction === "outgoing"
-                          ? "border-green-300 hover:bg-green-600"
-                          : "border-gray-300 hover:bg-gray-100"
-                      )}>
-                        <FileText className="h-6 w-6" />
-                        <a
-                          href={message.mediaUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm underline flex-1"
-                          onClick={(e) => !selectMode && e.stopPropagation()}
-                        >
-                          {message.filename || "Download Document"}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {message.type === "location" &&
-                    typeof message.content === "object" &&
-                    message.content?.location && (
-                      <div className="mb-2">
-                        <a
-                          href={`https://www.google.com/maps?q=${message.content.location.latitude},${message.content.location.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(
-                            "flex items-center gap-2 p-2 rounded border",
-                            message.direction === "outgoing"
-                              ? "border-green-300 hover:bg-green-600"
-                              : "border-gray-300 hover:bg-gray-100"
-                          )}
-                        >
-                          📍{" "}
-                          {message.content.location.name ||
-                            message.content.location.address ||
-                            "View Location"}
-                        </a>
-                      </div>
-                    )}
-
-                  {(() => {
-                    const displayText = getMessageDisplayText(message);
-                    const hasCaption =
-                      typeof message.content === "object" &&
-                      message.content?.caption &&
-                      message.content.caption !== message.content.caption?.split("/").pop();
-
-                    if (!isMediaType || (isMediaType && hasCaption)) {
-                      const textToShow =
-                        isMediaType && typeof message.content === "object"
-                          ? message.content.caption
-                          : displayText;
-                      if (
-                        textToShow &&
-                        !textToShow.startsWith("📷") &&
-                        !textToShow.startsWith("🎬") &&
-                        !textToShow.startsWith("🎵") &&
-                        !textToShow.startsWith("📄") &&
-                        !textToShow.startsWith("🎨")
-                      ) {
-                        return <p className="text-base break-words whitespace-pre-wrap">{textToShow}</p>;
-                      }
-                    }
-                    if (isMediaType && message.mediaUrl) return null;
-                    return <p className="text-base break-words whitespace-pre-wrap">{displayText}</p>;
-                  })()}
-
-                  {/* Reactions display */}
-                  {message.reactions && message.reactions.length > 0 && (
-                    <div className={cn(
-                      "flex items-center gap-1 mt-1 mb-1",
-                      message.direction === "outgoing" ? "justify-end" : "justify-start"
-                    )}>
-                      <div className={cn(
-                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs",
-                        message.direction === "outgoing" 
-                          ? "bg-green-700/50" 
-                          : "bg-muted"
-                      )}>
-                        {message.reactions.map((reaction, idx) => (
-                          <span key={idx} className="text-sm">
-                            {reaction.emoji}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-end gap-1.5 mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          "text-xs",
-                          message.direction === "outgoing" ? "text-green-100" : "text-muted-foreground"
-                        )}
-                      >
-                        {isMounted
-                          ? new Date(message.timestamp).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "--:--"}
+              <div key={`${msgId}-${idx}`}>
+                {item.date && (
+                  <div className="flex justify-center py-2">
+                    <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
+                      <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
+                        {item.date}
                       </span>
-                      {message.direction === "outgoing" && (() => {
-                        const info = statusInfo(message.status);
-                        if (!info) return null;
-                        return (
-                          <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className={cn("cursor-default flex items-center", info.color)}>
-                                  {info.icon}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-xs">
-                                <p>{info.label}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        );
-                      })()}
                     </div>
                   </div>
-                </div>
-                {/* Forward button outside message bubble on the right - center justified */}
-                {!selectMode && onForwardMessages && (
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center self-center">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onForwardMessages([message._id || message.messageId]);
-                            }}
-                          >
-                            <Forward className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="left" className="text-xs">
-                          <p>Forward</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
                 )}
-                </div>
+                <MessageBubble
+                  message={item.message}
+                  isFirstInGroup={item.isFirstInGroup}
+                  isLastInGroup={item.isLastInGroup}
+                  selectMode={selectMode}
+                  isSelected={selectedMessageIds.has(msgId)}
+                  onSelect={() => handleSelect(msgId)}
+                  onForward={
+                    onForwardMessages
+                      ? () => {
+                          setSelectMode(true);
+                          setSelectedMessageIds(new Set([msgId]));
+                        }
+                      : undefined
+                  }
+                  onReply={onReplyMessage ? () => onReplyMessage(item.message) : undefined}
+                  onReact={onReactMessage ? (emoji) => onReactMessage(item.message, emoji) : undefined}
+                  onCopy={() => handleCopy(item.message)}
+                  onDownload={item.message.mediaUrl ? () => handleDownload(item.message) : undefined}
+                  onImageClick={
+                    (item.message.type === "image" || item.message.type === "sticker") && item.message.mediaUrl
+                      ? () => handleImageClick(item.message.mediaUrl!)
+                      : undefined
+                  }
+                  onVideoClick={
+                    item.message.type === "video" && item.message.mediaUrl
+                      ? (url) => setSelectedVideoUrl(url)
+                      : undefined
+                  }
+                  onScrollToMessage={handleScrollToMessage}
+                  isHighlighted={highlightedMessageId === item.message.messageId}
+                  isMounted={isMounted}
+                />
               </div>
             );
           })
         )}
+
         <div ref={messagesEndRef} />
       </div>
-      </ScrollArea>
-      
-      {/* Floating Action Bar for Multi-Select */}
+
+      {/* New messages button */}
+      {showNewMessagesButton && (
+        <div className="absolute bottom-4 right-1/2 z-20 flex items-center justify-center">
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-4 right-4 bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full px-4 py-2 shadow-lg flex items-center gap-1 hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition-colors z-20"
+        >
+          <ChevronDown className="h-5 w-10" />
+          <span className="text-[12px] font-medium">New messages</span>
+        </button>
+        </div>
+      )}
+
+      {/* Selection action bar */}
       {selectMode && selectedMessageIds.size > 0 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background border rounded-lg shadow-lg p-2 flex items-center gap-2 z-50">
-          <span className="text-sm font-medium px-2">
-            {selectedMessageIds.size} {selectedMessageIds.size === 1 ? "message" : "messages"} selected
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-[#202c33] rounded-full shadow-lg px-4 py-2 flex items-center gap-3 z-20">
+          <span className="text-[14px] text-[#111b21] dark:text-[#e9edef]">
+            {selectedMessageIds.size} selected
           </span>
           <Button
-            variant="default"
             size="sm"
             onClick={handleForward}
-            className="bg-green-500 hover:bg-green-600"
+            className="bg-[#25d366] hover:bg-[#1da851] text-white rounded-full"
           >
             <Forward className="h-4 w-4 mr-1" />
             Forward
           </Button>
           <Button
             variant="ghost"
-            size="sm"
-            onClick={exitSelectMode}
+            size="icon"
+            onClick={() => {
+              setSelectMode(false);
+              setSelectedMessageIds(new Set());
+            }}
+            className="h-8 w-8 rounded-full"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
       )}
 
-      {/* Image Lightbox Dialog */}
-      <Dialog open={!!selectedImageUrl} onOpenChange={(open) => {
-        if (!open) {
-          setSelectedImageUrl(null);
-          setSelectedImageGroup(null);
-          setCurrentImageIndex(0);
-        }
-      }}>
-        <DialogContent className="w-[90vw] h-[90vh] max-w-[90vw] max-h-[90vh] p-4 bg-black/95 border-0 flex flex-col">
-          {selectedImageUrl && (() => {
-            const currentMessage = selectedImageGroup 
-              ? selectedImageGroup[currentImageIndex] 
-              : messages.find(m => m.mediaUrl === selectedImageUrl);
-            
-            return (
-              <div className="relative w-full h-full flex items-center justify-center">
-                {/* Left Navigation Arrow - on container edge */}
-                {selectedImageGroup && selectedImageGroup.length > 1 && currentImageIndex > 0 && (
+      {/* Image lightbox */}
+      <Dialog
+        open={!!selectedImageUrl}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedImageUrl(null);
+            setCurrentImageIndex(0);
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0">
+          <DialogTitle className="sr-only">Image viewer</DialogTitle>
+          {selectedImageUrl && (
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Toolbar for image actions */}
+              {imageMessages.length > 0 && (
+                <div className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute left-0 z-20 h-16 w-16 bg-black/70 hover:bg-black/90 text-white rounded-r-lg"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const prevIndex = currentImageIndex - 1;
-                      setCurrentImageIndex(prevIndex);
-                      setSelectedImageUrl(selectedImageGroup[prevIndex].mediaUrl || null);
+                    className="h-8 w-8 text-white hover:bg-black/60 rounded-full"
+                    onClick={() => {
+                      const msg = imageMessages[currentImageIndex];
+                      handleDownload(msg);
                     }}
                   >
-                    <ChevronLeft className="h-8 w-8" />
+                    <Download className="h-4 w-4" />
                   </Button>
-                )}
-                
-                {/* Image Container - Fixed Size */}
-                <div className="w-full h-full flex items-center justify-center p-4">
-                  <img
-                    src={selectedImageUrl}
-                    alt="Full size image"
-                    className="max-w-full max-h-full object-contain rounded-lg"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  {onForwardMessages && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-white hover:bg-black/60 rounded-full"
+                      onClick={() => {
+                        const msg = imageMessages[currentImageIndex];
+                        const id = msg._id || msg.messageId;
+                        if (id) {
+                          onForwardMessages([id]);
+                        }
+                      }}
+                    >
+                      <Forward className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onReactMessage && (
+                    <div className="flex items-center gap-1">
+                      {commonReactions.slice(0, 3).map((emoji) => (
+                        <button
+                          key={emoji}
+                          className="w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 flex items-center justify-center text-lg"
+                          onClick={() => {
+                            const msg = imageMessages[currentImageIndex];
+                            onReactMessage(msg, emoji);
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
-                {/* Right Navigation Arrow - on container edge */}
-                {selectedImageGroup && selectedImageGroup.length > 1 && currentImageIndex < selectedImageGroup.length - 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 z-20 h-16 w-16 bg-black/70 hover:bg-black/90 text-white rounded-l-lg"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const nextIndex = currentImageIndex + 1;
-                      setCurrentImageIndex(nextIndex);
-                      setSelectedImageUrl(selectedImageGroup[nextIndex].mediaUrl || null);
-                    }}
-                  >
-                    <ChevronRight className="h-8 w-8" />
-                  </Button>
-                )}
-                
-                {/* Action Buttons - Top Right */}
-                {currentMessage && (
-                  <div className="absolute top-4 right-4 z-20 flex gap-2">
-                    {onForwardMessages && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="default"
-                              size="icon"
-                              className="h-10 w-10 bg-black/70 hover:bg-black/90 text-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onForwardMessages([currentMessage._id || currentMessage.messageId]);
-                              }}
-                            >
-                              <Forward className="h-5 w-5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Forward</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    {onReactMessage && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="default"
-                                  size="icon"
-                                  className="h-10 w-10 bg-black/70 hover:bg-black/90 text-white"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Smile className="h-5 w-5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                <div className="px-2 py-1 flex gap-1">
-                                  {commonReactions.map((emoji) => (
-                                    <Button
-                                      key={emoji}
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (onReactMessage) {
-                                          onReactMessage(currentMessage, emoji);
-                                        }
-                                      }}
-                                    >
-                                      {emoji}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TooltipTrigger>
-                          <TooltipContent>React</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="default"
-                            size="icon"
-                            className="h-10 w-10 bg-black/70 hover:bg-black/90 text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopy(currentMessage);
-                            }}
-                          >
-                            <Copy className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copy</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
-                
-                {/* Image Counter - Bottom Center */}
-                {selectedImageGroup && selectedImageGroup.length > 1 && (
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm z-20">
-                    {currentImageIndex + 1} / {selectedImageGroup.length}
-                  </div>
-                )}
-                
-                {/* Close Button - Top Left */}
+              )}
+
+              {imageMessages.length > 1 && currentImageIndex > 0 && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-4 left-4 z-20 h-10 w-10 bg-black/70 hover:bg-black/90 text-white"
+                  className="absolute left-2 z-20 h-12 w-12 bg-black/50 hover:bg-black/70 text-white rounded-full"
                   onClick={() => {
-                    setSelectedImageUrl(null);
-                    setSelectedImageGroup(null);
-                    setCurrentImageIndex(0);
+                    const prev = currentImageIndex - 1;
+                    setCurrentImageIndex(prev);
+                    setSelectedImageUrl(imageMessages[prev].mediaUrl || null);
                   }}
                 >
-                  <X className="h-5 w-5" />
+                  <ChevronLeft className="h-6 w-6" />
                 </Button>
-              </div>
-            );
-          })()}
+              )}
+
+              <img src={selectedImageUrl} alt="Full size" className="max-w-full max-h-full object-contain" />
+
+              {imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 z-20 h-12 w-12 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  onClick={() => {
+                    const next = currentImageIndex + 1;
+                    setCurrentImageIndex(next);
+                    setSelectedImageUrl(imageMessages[next].mediaUrl || null);
+                  }}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              )}
+
+              {imageMessages.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-1.5 rounded-full text-sm">
+                  {currentImageIndex + 1} / {imageMessages.length}
+                </div>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 z-20 h-10 w-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                onClick={() => {
+                  setSelectedImageUrl(null);
+                  setCurrentImageIndex(0);
+                }}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Video lightbox */}
+      <Dialog
+        open={!!selectedVideoUrl}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedVideoUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0 [&>button]:hidden">
+          <DialogTitle className="sr-only">Video player</DialogTitle>
+          {selectedVideoUrl && (
+            <div className="relative w-full h-full flex items-center justify-center">
+              <video
+                src={selectedVideoUrl}
+                controls
+                autoPlay
+                playsInline
+                className="max-w-full max-h-full object-contain bg-black"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 z-20 h-10 w-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                onClick={() => setSelectedVideoUrl(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-

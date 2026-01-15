@@ -1,13 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, MessageSquare, Phone, Wifi, WifiOff, Check, CheckCheck, Clock, AlertTriangle, User, Users, UserPlus } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  Phone,
+  Wifi,
+  WifiOff,
+  Check,
+  CheckCheck,
+  Clock,
+  AlertTriangle,
+  User,
+  Users,
+  UserPlus,
+  ArrowLeft,
+  MoreVertical,
+  Filter,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
@@ -17,6 +29,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -45,6 +63,132 @@ interface SidebarProps {
   onAddGuest?: () => void;
 }
 
+// Memoized conversation item to prevent unnecessary re-renders
+const ConversationItem = memo(function ConversationItem({
+  conversation,
+  isSelected,
+  onClick,
+  isMounted,
+}: {
+  conversation: Conversation;
+  isSelected: boolean;
+  onClick: () => void;
+  isMounted: boolean;
+}) {
+  const hasUnread =
+    (conversation.unreadCount || 0) > 0 &&
+    conversation.lastMessageDirection === "incoming";
+
+  const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
+    if (!status) return null;
+    switch (status) {
+      case "sending":
+        return <Clock className="h-3 w-3 text-[#8696a0]" />;
+      case "sent":
+        return <Check className="h-3 w-3 text-[#8696a0]" />;
+      case "delivered":
+        return <CheckCheck className="h-3 w-3 text-[#8696a0]" />;
+      case "read":
+        return <CheckCheck className="h-3 w-3 text-[#53bdeb]" />;
+      case "failed":
+        return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const displayName = (() => {
+    const savedName = conversation.participantName;
+    const whatsappName =
+      (conversation as any).whatsappName ||
+      (conversation as any).waName ||
+      (conversation as any).waDisplayName;
+    const phone = conversation.participantPhone;
+
+    if (savedName && whatsappName && whatsappName !== savedName) {
+      return `${savedName} (${whatsappName})`;
+    }
+    if (savedName) return savedName;
+    if (whatsappName) return whatsappName;
+    return phone;
+  })();
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors",
+        "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
+        isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
+        hasUnread && !isSelected && "bg-[#f0f2f5] dark:bg-[#182229]"
+      )}
+      onClick={onClick}
+    >
+      {/* Avatar */}
+      <div className="relative flex-shrink-0">
+        <Avatar className="h-12 w-12">
+          <AvatarImage src={conversation.participantProfilePic} />
+          <AvatarFallback className="bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white text-sm font-medium">
+            {displayName?.slice(0, 2).toUpperCase() || "??"}
+          </AvatarFallback>
+        </Avatar>
+        {/* Online indicator (if available) */}
+        {conversation.isOnline && (
+          <span className="absolute bottom-0 right-0 h-3 w-3 bg-[#25d366] rounded-full border-2 border-white dark:border-[#111b21]" />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 border-b border-[#e9edef] dark:border-[#222d34] py-1">
+        <div className="flex items-center justify-between mb-0.5">
+          <span
+            className={cn(
+              "text-[15px] truncate",
+              hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-normal text-[#111b21] dark:text-[#e9edef]"
+            )}
+          >
+            {displayName}
+          </span>
+          <span
+            className={cn(
+              "text-xs flex-shrink-0 ml-2",
+              hasUnread ? "text-[#25d366] font-medium" : "text-[#667781] dark:text-[#8696a0]"
+            )}
+          >
+            {isMounted ? formatTime(conversation.lastMessageTime) : ""}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            {conversation.lastMessageDirection === "outgoing" && (
+              <span className="flex-shrink-0">
+                {getStatusIcon(conversation.lastMessageStatus)}
+              </span>
+            )}
+            <span
+              className={cn(
+                "text-[13px] truncate",
+                hasUnread
+                  ? "text-[#111b21] dark:text-[#d1d7db] font-medium"
+                  : "text-[#667781] dark:text-[#8696a0]"
+              )}
+            >
+              {conversation.lastMessageContent || conversation.participantPhone}
+            </span>
+          </div>
+
+          {/* Unread badge */}
+          {hasUnread && (
+            <span className="ml-2 flex-shrink-0 bg-[#25d366] text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+              {conversation.unreadCount}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export function ConversationSidebar({
   conversations,
   selectedConversation,
@@ -68,29 +212,25 @@ export function ConversationSidebar({
   onAddGuest,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
-  
-  // Track mount state to avoid hydration issues with date formatting
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   // Filter conversations by tab and search query
   const filteredConversations = conversations.filter((conv) => {
-    // Filter by tab
     if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
     if (conversationTab === "guests" && conv.conversationType !== "guest") return false;
-    
-    // Filter by search query
     return (
       conv.participantName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.participantPhone.includes(searchQuery)
     );
   });
-  
-  // Use database counts if provided, otherwise fallback to UI counts
-  // Ensure consistent values during SSR to avoid hydration mismatch
+
+  // Counts
   const ownerCount = isMounted && conversationCounts?.ownerCount !== undefined
     ? conversationCounts.ownerCount
     : conversations.filter((c) => c.conversationType === "owner").length;
@@ -101,276 +241,254 @@ export function ConversationSidebar({
     ? conversationCounts.totalCount
     : conversations.length;
 
-  // Infinite scroll handler
-  useEffect(() => {
-    const scrollElement = sidebarScrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollElement || !onLoadMoreConversations || !hasMoreConversations) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-      // Load more when 80% scrolled
-      if (scrollTop + clientHeight >= scrollHeight * 0.8 && !loadingMoreConversations) {
-        onLoadMoreConversations();
-      }
-    };
-
-    scrollElement.addEventListener('scroll', handleScroll);
-    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  // Infinite scroll
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !onLoadMoreConversations || !hasMoreConversations || loadingMoreConversations) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      onLoadMoreConversations();
+    }
   }, [hasMoreConversations, loadingMoreConversations, onLoadMoreConversations]);
 
-  const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
-    if (!status) return null;
-    switch (status) {
-      case "sending":
-        return <Clock className="h-3 w-3 text-gray-400" />;
-      case "sent":
-        return <Check className="h-3 w-3 text-gray-400" />;
-      case "delivered":
-        return <CheckCheck className="h-3 w-3 text-gray-400" />;
-      case "read":
-        return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case "failed":
-        return <AlertTriangle className="h-3 w-3 text-red-500" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusLabel = (status?: Conversation["lastMessageStatus"]) => {
-    if (!status) return "";
-    switch (status) {
-      case "sending": return "Sending...";
-      case "sent": return "Sent";
-      case "delivered": return "Delivered";
-      case "read": return "Read";
-      case "failed": return "Failed";
-      default: return "";
-    }
-  };
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   return (
-    <Card className="w-80 flex flex-col h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-green-500" />
-          WhatsApp Chats
-          {isMounted && (
-            isConnected ? (
-              <Wifi className="h-4 w-4 text-green-500" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-red-500" />
-            )
-          )}
-        </CardTitle>
-        <div className="flex gap-2 mt-2">
-          <Input
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => onSearchQueryChange(e.target.value)}
-            className="h-9"
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 p-0 overflow-hidden flex flex-col">
-        {/* Tabs for Owners/Guests */}
-        <div className="p-2 border-b">
-          <Tabs value={conversationTab} onValueChange={(v) => setConversationTab(v as "all" | "owners" | "guests")}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="all" className="text-xs">
-                All ({totalCount})
-              </TabsTrigger>
-              <TabsTrigger value="owners" className="text-xs">
-                <User className="h-3 w-3 mr-1" />
-                Owners ({ownerCount})
-              </TabsTrigger>
-              <TabsTrigger value="guests" className="text-xs">
-                <Users className="h-3 w-3 mr-1" />
-                Guests ({guestCount})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        <div className="p-2 border-b space-y-2">
-          {/* Add New Owner Button */}
-          {onAddGuest && (
+    <div className="w-[400px] min-w-[300px] max-w-[500px] flex flex-col h-full bg-white dark:bg-[#111b21] border-r border-[#e9edef] dark:border-[#222d34]">
+      {/* Header */}
+      <div className="h-[60px] px-4 flex items-center justify-between bg-[#f0f2f5] dark:bg-[#202c33] flex-shrink-0">
+        {showNewChat ? (
+          <>
             <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={onAddGuest}
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowNewChat(false)}
+              className="text-[#54656f] dark:text-[#aebac1] hover:bg-transparent"
             >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add New Owner
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-          )}
-          
-          <div className="flex gap-2">
-            <div className="flex gap-1 flex-1">
-              {allowedPhoneConfigs.length > 1 && (
-                <div className="w-48">
-                  <Select
-                    value={selectedPhoneConfig?.phoneNumberId || ""}
-                    onValueChange={(val) => {
-                      const found = allowedPhoneConfigs.find((c: any) => c.phoneNumberId === val);
-                      onPhoneConfigChange(found || null);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select WhatsApp Number" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allowedPhoneConfigs.map((config: any) => (
-                        <SelectItem key={config.phoneNumberId} value={config.phoneNumberId}>
-                          {config.displayName} ({config.displayNumber})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <span className="text-[17px] font-medium text-[#111b21] dark:text-[#e9edef]">New chat</span>
+            <div className="w-10" />
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <span className="text-[20px] font-semibold text-[#111b21] dark:text-[#e9edef]">Chats</span>
+              {isMounted && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      {isConnected ? (
+                        <Wifi className="h-4 w-4 text-[#25d366]" />
+                      ) : (
+                        <WifiOff className="h-4 w-4 text-red-500" />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {isConnected ? "Connected" : "Disconnected"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                  +
-                </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowNewChat(true)}
+                className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+              >
+                <UserPlus className="h-5 w-5" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+                  >
+                    <Filter className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setConversationTab("all")}>
+                    All ({totalCount})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setConversationTab("owners")}>
+                    <User className="h-4 w-4 mr-2" />
+                    Owners ({ownerCount})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setConversationTab("guests")}>
+                    <Users className="h-4 w-4 mr-2" />
+                    Guests ({guestCount})
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {allowedPhoneConfigs.length > 1 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+                    >
+                      <Phone className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {allowedPhoneConfigs.map((config: any) => (
+                      <DropdownMenuItem
+                        key={config.phoneNumberId}
+                        onClick={() => onPhoneConfigChange(config)}
+                        className={cn(
+                          selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent"
+                        )}
+                      >
+                        {config.displayName}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Search / New Chat Input */}
+      <div className="px-3 py-2 bg-white dark:bg-[#111b21]">
+        {showNewChat ? (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <div className="relative w-20">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">+</span>
                 <Input
                   placeholder="91"
                   value={newCountryCode}
                   onChange={(e) => onCountryCodeChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="h-9 text-sm w-16 pl-5"
+                  className="h-9 pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]"
                   maxLength={4}
                 />
               </div>
               <Input
-                placeholder="Phone number..."
+                placeholder="Phone number"
                 value={newPhoneNumber}
                 onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, ""))}
-                className="h-9 text-sm flex-1"
+                className="flex-1 h-9 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") onStartConversation();
                 }}
               />
-            </div>
-            <Button
-              size="sm"
-              onClick={onStartConversation}
-              disabled={loading || !newCountryCode.trim() || !newPhoneNumber.trim()}
-              title={
-                !newCountryCode.trim() || !newPhoneNumber.trim()
-                  ? "Enter country code and phone number"
-                  : "Start conversation"
-              }
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <ScrollArea className="flex-1" ref={sidebarScrollRef}>
-          {loading && conversations.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredConversations.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              No conversations yet. Start a new chat by entering a phone number above.
-            </div>
-          ) : (
-            filteredConversations.map((conversation) => (
-              <div
-                key={conversation._id}
-                className={cn(
-                  "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors border-b",
-                  selectedConversation?._id === conversation._id && "bg-muted",
-                  conversation.unreadCount > 0 && "bg-green-50 dark:bg-green-950/20"
-                )}
-                onClick={() => onSelectConversation(conversation)}
+              <Button
+                size="sm"
+                onClick={onStartConversation}
+                disabled={loading || !newCountryCode.trim() || !newPhoneNumber.trim()}
+                className="bg-[#25d366] hover:bg-[#1da851] text-white"
               >
-                <div className="relative">
-                  <Avatar>
-                    <AvatarImage src={conversation.participantProfilePic} />
-                    <AvatarFallback className="bg-green-100 text-green-700">
-                      {conversation.participantName?.slice(0, 2).toUpperCase() || "??"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {conversation.unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full animate-pulse" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p
-                      className={cn(
-                        "text-base truncate",
-                        conversation.unreadCount > 0 ? "font-bold" : "font-medium"
-                      )}
-                    >
-                      {conversation.participantName || conversation.participantPhone}
-                    </p>
-                    {conversation.lastMessageTime && (
-                      <span className="text-sm text-muted-foreground">
-                        {isMounted ? formatTime(conversation.lastMessageTime) : "--:--"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      {conversation.lastMessageDirection === "outgoing" && conversation.lastMessageStatus && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="flex-shrink-0">
-                                {getStatusIcon(conversation.lastMessageStatus)}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{getStatusLabel(conversation.lastMessageStatus)}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      <p
-                        className={cn(
-                          "text-sm truncate",
-                          conversation.unreadCount > 0
-                            ? "text-foreground font-medium"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {conversation.lastMessageContent || conversation.participantPhone}
-                      </p>
-                    </div>
-                    {conversation.unreadCount > 0 && (
-                      <Badge
-                        variant="default"
-                        className="h-5 min-w-5 rounded-full p-0 flex items-center justify-center bg-green-500 text-xs flex-shrink-0"
-                      >
-                        {conversation.unreadCount}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-          {/* Load More Indicator */}
-          {hasMoreConversations && (
-            <div className="flex justify-center py-2">
-              {loadingMoreConversations ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLoadMoreConversations}
-                  className="text-muted-foreground"
-                >
-                  Load more...
-                </Button>
-              )}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start"}
+              </Button>
             </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+            {onAddGuest && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+                onClick={() => {
+                  onAddGuest();
+                  setShowNewChat(false);
+                }}
+              >
+                <UserPlus className="h-4 w-4 mr-3" />
+                Add new owner with details
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
+            <Input
+              placeholder="Search or start new chat"
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              className="h-[35px] pl-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[14px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Filter tabs indicator */}
+      {conversationTab !== "all" && (
+        <div className="px-3 py-1.5 bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-between">
+          <span className="text-xs text-[#54656f] dark:text-[#8696a0]">
+            Showing: {conversationTab === "owners" ? "Owners" : "Guests"}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConversationTab("all")}
+            className="h-6 text-xs text-[#008069] dark:text-[#00a884] hover:bg-transparent"
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
+      {/* Conversation List */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+      >
+        {loading && conversations.length === 0 ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
+          </div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
+              <Search className="h-8 w-8 text-[#8696a0]" />
+            </div>
+            <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">No chats found</p>
+            <p className="text-sm text-[#667781] dark:text-[#8696a0]">
+              {searchQuery ? "Try a different search" : "Start a new conversation"}
+            </p>
+          </div>
+        ) : (
+          <>
+            {filteredConversations.map((conversation) => (
+              <ConversationItem
+                key={conversation._id}
+                conversation={conversation}
+                isSelected={selectedConversation?._id === conversation._id}
+                onClick={() => onSelectConversation(conversation)}
+                isMounted={isMounted}
+              />
+            ))}
+            
+            {/* Load More */}
+            {hasMoreConversations && (
+              <div className="flex justify-center py-3">
+                {loadingMoreConversations ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-[#25d366]" />
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLoadMoreConversations}
+                    className="text-[#008069] dark:text-[#00a884] hover:bg-transparent"
+                  >
+                    Load more chats
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
-

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
+import ConversationReadState from "@/models/conversationReadState";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { 
   getAllowedPhoneIds, 
   canAccessPhoneId,
@@ -87,9 +89,23 @@ export async function GET(req: NextRequest) {
       ? conversationsToReturn[conversationsToReturn.length - 1].lastMessageTime?.toISOString()
       : null;
 
-    // Populate lastMessageStatus and determine conversation type (owner/guest)
+    // Preload per-user read state for these conversations (per-employee unread tracking)
+    const conversationIds = conversationsToReturn.map((c: any) => c._id);
+    const readStates = await ConversationReadState.find({
+      conversationId: { $in: conversationIds },
+      userId: token.id || token._id,
+    })
+      .select("conversationId lastReadMessageId lastReadAt")
+      .lean();
+
+    const readStateMap = new Map<string, any>();
+    for (const rs of readStates) {
+      readStateMap.set(String(rs.conversationId), rs);
+    }
+
+    // Populate lastMessageStatus, determine conversation type, and compute per-user unreadCount
     const conversationsWithStatus = await Promise.all(
-      conversations.map(async (conv: any) => {
+      conversationsToReturn.map(async (conv: any) => {
         if (conv.lastMessageDirection === "outgoing" && conv.lastMessageId) {
           const lastMessage = await WhatsAppMessage.findOne({
             messageId: conv.lastMessageId,
@@ -138,7 +154,36 @@ export async function GET(req: NextRequest) {
         }
         
         conv.conversationType = conversationType;
-        
+
+        // ---- Per-employee unread logic (WhatsApp-style) ----
+        // Default to zero; we'll compute based on read state and incoming messages.
+        let unreadCount = 0;
+        const readState = readStateMap.get(String(conv._id));
+
+        // Only client (incoming) messages can make a conversation unread.
+        if (conv.lastMessageDirection === "incoming" && conv.lastMessageId) {
+          const lastReadMessageId = readState?.lastReadMessageId;
+
+          // If no read state exists, or the last message differs from lastReadMessageId,
+          // this conversation is unread for this employee.
+          if (!lastReadMessageId || lastReadMessageId !== conv.lastMessageId) {
+            const msgQuery: any = {
+              conversationId: conv._id,
+              direction: "incoming",
+            };
+
+            // If we have a lastReadAt timestamp, only count messages after that.
+            if (readState?.lastReadAt) {
+              msgQuery.timestamp = { $gt: readState.lastReadAt };
+            }
+
+            unreadCount = await WhatsAppMessage.countDocuments(msgQuery);
+          }
+        }
+
+        // Override stored unreadCount with per-employee value
+        conv.unreadCount = unreadCount;
+
         return conv;
       })
     );
@@ -178,7 +223,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { participantPhone, participantName, phoneNumberId, referenceLink, conversationType } = await req.json();
+    const {
+      participantPhone,
+      participantName,
+      phoneNumberId,
+      referenceLink,
+      conversationType,
+      participantLocation,
+    } = await req.json();
 
     if (!participantPhone) {
       return NextResponse.json(
@@ -228,32 +280,19 @@ export async function POST(req: NextRequest) {
     }
 
 
-    // Find or create conversation
-    let conversation = await WhatsAppConversation.findOne({
+    // Find or create conversation with snapshot semantics.
+    // This path is considered a trusted creation flow (manual / lead).
+    const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: normalizedPhone,
       businessPhoneId: selectedPhoneId,
+      participantName,
+      participantLocation,
+      participantRole: conversationType === "owner" || conversationType === "guest"
+        ? conversationType
+        : undefined,
+      referenceLink,
+      snapshotSource: "trusted",
     });
-
-    if (!conversation) {
-      conversation = await WhatsAppConversation.create({
-        participantPhone: normalizedPhone,
-        participantName: participantName || `+${normalizedPhone}`,
-        businessPhoneId: selectedPhoneId,
-        status: "active",
-        unreadCount: 0,
-        conversationType: conversationType || "guest", // Use provided type or default to guest
-        referenceLink: referenceLink || undefined,
-      });
-    } else {
-      // Update reference link if provided and conversation exists
-      if (referenceLink) {
-        conversation = await WhatsAppConversation.findByIdAndUpdate(
-          conversation._id,
-          { referenceLink },
-          { new: true }
-        );
-      }
-    }
 
     return NextResponse.json({
       success: true,

@@ -97,13 +97,28 @@ export async function POST(req: NextRequest) {
       console.error(`❌ [MARK READ] Failed to create/update ConversationReadState`);
     }
 
-    // Emit conversation-read event only to this user
+    // Emit conversation-read event via Pusher (existing real-time pipeline)
     emitWhatsAppEvent("whatsapp-conversation-read", {
       conversationId: conversation._id.toString(),
       userId: userId,
       lastReadMessageId: lastReadMessageId,
       lastReadAt: lastReadAt,
     });
+
+    // Also broadcast via Socket.IO (if available) so all viewers update instantly
+    try {
+      const io = (global as any).io;
+      if (io) {
+        io.to(`conversation-${conversation._id.toString()}`).emit("whatsapp-conversation-read", {
+          conversationId: conversation._id.toString(),
+          userId,
+          lastReadMessageId,
+          lastReadAt,
+        });
+      }
+    } catch (socketError) {
+      console.error("⚠️ [MARK READ] Failed to emit Socket.IO conversation-read event:", socketError);
+    }
 
     return NextResponse.json({
       success: true,

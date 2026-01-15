@@ -5,12 +5,17 @@ import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
 import axios from "axios";
-import { Card, CardContent } from "@/components/ui/card";
+// Card components no longer needed for WhatsApp Web-style layout
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare } from "lucide-react";
 import type { Message, Conversation, Template } from "./types";
-import { buildTemplateComponents, isMessageWindowActive, getTemplatePreviewText } from "./utils";
+import {
+  buildTemplateComponents,
+  isMessageWindowActive,
+  getTemplatePreviewText,
+  getConversationTemplateContext,
+} from "./utils";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
@@ -62,6 +67,7 @@ export default function WhatsAppChat() {
   const [messagesToForward, setMessagesToForward] = useState<string[]>([]);
   const [forwardingMessages, setForwardingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [newCountryCode, setNewCountryCode] = useState("91"); // Default to India
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,6 +145,9 @@ export default function WhatsAppChat() {
   }>({});
   const [retargetSentCount, setRetargetSentCount] = useState(0);
 
+  // Readers refresh token (bumps when we receive a real-time read event)
+  const [readersRefreshToken, setReadersRefreshToken] = useState(0);
+
   // Ref to track selected conversation for socket events (avoids stale closure)
   const selectedConversationRef = useRef<Conversation | null>(null);
 
@@ -198,15 +207,6 @@ useEffect(() => {
     }
   };
 
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   // Check call permissions on mount
   useEffect(() => {
     const checkCallPermissions = async () => {
@@ -261,10 +261,13 @@ useEffect(() => {
               lastMessageContent: displayText,
               lastMessageTime: message.timestamp,
               lastMessageDirection: message.direction,
+              // Only incoming (client) messages should contribute to unread count.
               unreadCount:
-                currentConversation?._id === conversationId
-                  ? 0
-                  : conv.unreadCount + 1,
+                message.direction === "incoming"
+                  ? currentConversation?._id === conversationId
+                    ? 0
+                    : (conv.unreadCount || 0) + 1
+                  : conv.unreadCount || 0,
             };
           }
           return conv;
@@ -275,6 +278,20 @@ useEffect(() => {
             new Date(a.lastMessageTime || 0).getTime()
         );
       });
+
+      // If this is the open conversation, update timestamp instantly
+      if (currentConversation?._id === conversationId) {
+        // Update selected conversation timestamp instantly
+        setSelectedConversation((prev) => {
+          if (prev && prev._id === conversationId) {
+            return {
+              ...prev,
+              lastMessageTime: message.timestamp,
+            };
+          }
+          return prev;
+        });
+      }
 
       // Add message to current conversation if selected
       if (currentConversation?._id === conversationId) {
@@ -497,6 +514,29 @@ useEffect(() => {
       console.log("App state sync:", data);
     });
 
+    // Handle conversation read events (when someone reads a conversation)
+    socket.on("whatsapp-conversation-read", (data: any) => {
+      const { conversationId, userId } = data;
+      const currentConversation = selectedConversationRef.current;
+
+      // If this is the currently open conversation, bump the refresh token
+      // so ChatHeader can refetch readers immediately (socket-first, polling-fallback)
+      if (currentConversation?._id === conversationId) {
+        setReadersRefreshToken((prev) => prev + 1);
+      }
+
+      // If this read event is for the current logged-in user, clear unread
+      // state for that conversation across all tabs/devices.
+      const currentUserId = token?.id || (token as any)?._id;
+      if (currentUserId && String(userId) === String(currentUserId)) {
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          )
+        );
+      }
+    });
+
     return () => {
       socket.emit("leave-whatsapp-room");
       socket.off("whatsapp-new-message");
@@ -508,8 +548,9 @@ useEffect(() => {
       socket.off("whatsapp-call-status");
       socket.off("whatsapp-history-sync");
       socket.off("whatsapp-app-state-sync");
+      socket.off("whatsapp-conversation-read");
     };
-  }, [socket, toast]);
+  }, [socket, toast, token]);
 
   const playNotificationSound = () => {
     try {
@@ -686,6 +727,7 @@ useEffect(() => {
 
   const selectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setReplyToMessage(null); // Clear any pending reply when switching conversations
     fetchMessages(conversation._id, true);
     
     // CRITICAL: Mark conversation as read in ConversationReadState
@@ -791,8 +833,9 @@ useEffect(() => {
     const tempId = `temp-${Date.now()}`;
     const messageContent = newMessage;
     const sendTimestamp = new Date();
+    const currentReplyTo = replyToMessage; // Capture current reply context
 
-    // Add message to UI optimistically with content object
+    // Add message to UI optimistically with content object and reply context
     const tempMsg: Message = {
       _id: tempId,
       messageId: tempId,
@@ -803,9 +846,34 @@ useEffect(() => {
       timestamp: sendTimestamp,
       status: "sending",
       direction: "outgoing",
+      // Include reply context if replying (use both old and new field names for compatibility)
+      ...(currentReplyTo && {
+        replyToMessageId: currentReplyTo.messageId,
+        replyContext: {
+          messageId: currentReplyTo.messageId,
+          from: currentReplyTo.from,
+          type: currentReplyTo.type,
+          content: typeof currentReplyTo.content === "string"
+            ? { text: currentReplyTo.content }
+            : { text: currentReplyTo.content?.text, caption: currentReplyTo.content?.caption },
+          mediaUrl: currentReplyTo.mediaUrl,
+        },
+        // Also include old field names for backwards compatibility
+        quotedMessageId: currentReplyTo.messageId,
+        quotedMessage: {
+          messageId: currentReplyTo.messageId,
+          from: currentReplyTo.from,
+          type: currentReplyTo.type,
+          content: typeof currentReplyTo.content === "string"
+            ? { text: currentReplyTo.content }
+            : { text: currentReplyTo.content?.text, caption: currentReplyTo.content?.caption },
+          mediaUrl: currentReplyTo.mediaUrl,
+        },
+      }),
     };
     setMessages((prev) => [...prev, tempMsg]);
     setNewMessage("");
+    setReplyToMessage(null); // Clear reply after sending
 
     // Immediately update conversation list optimistically
     setConversations((prev) => {
@@ -826,12 +894,27 @@ useEffect(() => {
       );
     });
 
+    // Update selected conversation timestamp instantly
+    setSelectedConversation((prev) => {
+      if (prev && prev._id === selectedConversation._id) {
+        return {
+          ...prev,
+          lastMessageTime: sendTimestamp,
+        };
+      }
+      return prev;
+    });
+
     try {
       const response = await axios.post("/api/whatsapp/send-message", {
         to: selectedConversation.participantPhone,
         message: messageContent,
         conversationId: selectedConversation._id,
         phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+        // Include reply context for WhatsApp API
+        ...(currentReplyTo && {
+          replyToMessageId: currentReplyTo.messageId,
+        }),
       });
 
       if (response.data.success) {
@@ -907,6 +990,17 @@ useEffect(() => {
           new Date(b.lastMessageTime || 0).getTime() -
           new Date(a.lastMessageTime || 0).getTime()
       );
+    });
+
+    // Update selected conversation timestamp instantly
+    setSelectedConversation((prev) => {
+      if (prev && prev._id === selectedConversation._id) {
+        return {
+          ...prev,
+          lastMessageTime: sendTimestamp,
+        };
+      }
+      return prev;
     });
 
     try {
@@ -1320,18 +1414,18 @@ useEffect(() => {
 
   // Handle reply to message
   const handleReplyMessage = (message: Message) => {
-    const displayText = typeof message.content === "string"
-      ? message.content
-      : message.content?.text || message.content?.caption || "";
+    setReplyToMessage(message);
     
-    // Prepend reply indicator to message
-    setNewMessage(`Replying to: ${displayText.substring(0, 50)}${displayText.length > 50 ? "..." : ""}\n\n`);
-    
-    // Focus on message composer (could scroll to bottom)
+    // Focus on message composer
     setTimeout(() => {
       const textarea = document.querySelector('textarea[placeholder*="Type a message"]') as HTMLTextAreaElement;
       textarea?.focus();
     }, 100);
+  };
+  
+  // Cancel reply
+  const handleCancelReply = () => {
+    setReplyToMessage(null);
   };
 
   // Handle react to message
@@ -1487,6 +1581,17 @@ useEffect(() => {
         );
       });
 
+      // Update selected conversation timestamp instantly
+      setSelectedConversation((prev) => {
+        if (prev && prev._id === selectedConversation._id) {
+          return {
+            ...prev,
+            lastMessageTime: sendTimestamp,
+          };
+        }
+        return prev;
+      });
+
       try {
         // Send via send-media API using Bunny URL
         const sendResponse = await axios.post("/api/whatsapp/send-media", {
@@ -1614,6 +1719,17 @@ useEffect(() => {
           new Date(b.lastMessageTime || 0).getTime() -
           new Date(a.lastMessageTime || 0).getTime()
       );
+    });
+
+    // Update selected conversation timestamp instantly
+    setSelectedConversation((prev) => {
+      if (prev && prev._id === selectedConversation._id) {
+        return {
+          ...prev,
+          lastMessageTime: sendTimestamp,
+        };
+      }
+      return prev;
     });
 
     try {
@@ -1806,15 +1922,32 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full fixed inset-0 top-5">
+    <div className="flex flex-col h-full w-full bg-[#f0f2f5] dark:bg-[#0b141a]">
       <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-        <TabsList className="px-4 flex-shrink-0">
-          <TabsTrigger value="chat">Chat</TabsTrigger>
-          <TabsTrigger value="retarget">Retarget</TabsTrigger>
-        </TabsList>
+        {/* WhatsApp-style header tabs */}
+        <div className="h-[50px] bg-[#008069] dark:bg-[#202c33] flex items-center px-4 shadow-sm flex-shrink-0">
+          <TabsList className="bg-transparent border-0 h-auto p-0 gap-1">
+            <TabsTrigger 
+              value="chat" 
+              className="text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 px-4 py-2 rounded-lg transition-all"
+            >
+              Chat
+            </TabsTrigger>
+            <TabsTrigger 
+              value="retarget"
+              className="text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 px-4 py-2 rounded-lg transition-all"
+            >
+              Retarget
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex-1" />
+          <div className="text-white/80 text-sm">
+            {token?.name} • {token?.role}
+          </div>
+        </div>
 
-        <TabsContent value="chat" className="flex-1 px-4 pb-0 overflow-hidden">
-          <div className="flex h-full gap-4 ">
+        <TabsContent value="chat" className="flex-1 m-0 overflow-hidden">
+          <div className="flex h-full">
             <ConversationSidebar
               conversations={conversations}
               selectedConversation={selectedConversation}
@@ -1838,9 +1971,10 @@ useEffect(() => {
               onAddGuest={() => setShowAddGuestModal(true)}
             />
 
-      <Card className="flex-1 flex flex-col">
-        {selectedConversation ? (
-          <>
+            {/* Chat Panel */}
+            <div className="flex-1 flex flex-col bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden">
+              {selectedConversation ? (
+                <>
                   <ChatHeader
                     conversation={selectedConversation}
                     callPermissions={callPermissions}
@@ -1855,7 +1989,6 @@ useEffect(() => {
                     onCloseSearch={() => {
                       setShowMessageSearch(false);
                       setMessageSearchQuery("");
-                      
                     }}
                     messageSearchQuery={messageSearchQuery}
                     onMessageSearchChange={setMessageSearchQuery}
@@ -1863,29 +1996,29 @@ useEffect(() => {
                     onArchive={handleArchiveConversation}
                     toastCopy={copyPhoneNumber}
                     onDelete={() =>
-                          toast({
-                            title: "Delete",
-                            description: "Delete feature coming soon",
-                          })
-                        }
+                      toast({
+                        title: "Delete",
+                        description: "Delete feature coming soon",
+                      })
+                    }
+                    readersRefreshToken={readersRefreshToken}
+                    currentUserId={token?.id || (token as any)?._id}
                   />
 
-            <CardContent className="flex-1 px-4 pt-4 pb-0 overflow-hidden">
-                    <MessageList
-                      messages={messages}
-                      messagesLoading={messagesLoading}
-                      messageSearchQuery={messageSearchQuery}
-                      messagesEndRef={messagesEndRef}
-                      selectedConversationActive={!!selectedConversation}
-                      onLoadOlderMessages={loadOlderMessages}
-                      hasMoreMessages={hasMoreMessages}
-                      loadingOlderMessages={loadingOlderMessages}
-                      onForwardMessages={handleForwardMessages}
-                      conversations={conversations}
-                      onReplyMessage={handleReplyMessage}
-                      onReactMessage={handleReactMessage}
-                    />
-            </CardContent>
+                  <MessageList
+                    messages={messages}
+                    messagesLoading={messagesLoading}
+                    messageSearchQuery={messageSearchQuery}
+                    messagesEndRef={messagesEndRef}
+                    selectedConversationActive={!!selectedConversation}
+                    onLoadOlderMessages={loadOlderMessages}
+                    hasMoreMessages={hasMoreMessages}
+                    loadingOlderMessages={loadingOlderMessages}
+                    onForwardMessages={handleForwardMessages}
+                    conversations={conversations}
+                    onReplyMessage={handleReplyMessage}
+                    onReactMessage={handleReactMessage}
+                  />
 
                   <WindowWarningDialog
                     open={showWindowWarning}
@@ -1918,29 +2051,51 @@ useEffect(() => {
                     videoInputRef={videoInputRef}
                     audioInputRef={audioInputRef}
                     onOpenTemplateFromWarning={() => setShowTemplateDialog(true)}
+                    templateContext={getConversationTemplateContext(
+                      selectedConversation
+                    )}
+                    replyToMessage={replyToMessage}
+                    onCancelReply={handleCancelReply}
                   />
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-muted-foreground">
-            <div className="w-64 h-64 mb-6 relative">
-              <div className="absolute inset-0 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                <MessageSquare className="h-32 w-32 text-green-500" />
-              </div>
+                </>
+              ) : (
+                /* Empty state - WhatsApp Web style */
+                <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#222e35]">
+                  <div className="max-w-md text-center">
+                    {/* WhatsApp illustration */}
+                    <div className="w-[320px] h-[188px] mx-auto mb-8">
+                      <svg viewBox="0 0 320 188" className="w-full h-full">
+                        <rect fill="#d9fdd3" x="116" y="22" width="88" height="136" rx="10" className="dark:fill-[#005c4b]"/>
+                        <rect fill="#25d366" x="128" y="33" width="64" height="10" rx="5"/>
+                        <rect fill="#fff" x="128" y="54" width="54" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="68" width="40" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="86" width="60" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="100" width="45" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="118" width="55" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="132" width="35" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <circle fill="#25d366" cx="160" cy="170" r="14"/>
+                        <path fill="#fff" d="M155 170l3 3 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    
+                    <h1 className="text-[32px] font-light text-[#41525d] dark:text-[#e9edef] mb-4">
+                      WhatsApp Business
+                    </h1>
+                    <p className="text-[14px] text-[#667781] dark:text-[#8696a0] leading-relaxed mb-8">
+                      Send and receive messages without keeping your phone online.<br />
+                      Use WhatsApp on up to 4 linked devices and 1 phone at the same time.
+                    </p>
+                    
+                    <div className="flex items-center justify-center gap-2 text-[14px] text-[#667781] dark:text-[#8696a0]">
+                      <svg viewBox="0 0 10 12" width="10" height="12" className="text-[#8696a0]">
+                        <path fill="currentColor" d="M5.0 0.65C2.648 0.65 0.75 2.548 0.75 4.9V6.125L0.0 6.875V8.375H10.0V6.875L9.25 6.125V4.9C9.25 2.548 7.352 0.65 5.0 0.65ZM5.0 11.35C5.967 11.35 6.75 10.567 6.75 9.6H3.25C3.25 10.567 4.033 11.35 5.0 11.35Z"/>
+                      </svg>
+                      <span>End-to-end encrypted</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              WhatsApp Business
-            </h2>
-            <p className="max-w-sm">
-              Send and receive messages using your WhatsApp Business account.
-              Select a contact or start a new conversation.
-            </p>
-            <div className="mt-6 text-sm text-muted-foreground">
-              <p>Logged in as: {token?.name}</p>
-              <p>Role: {token?.role}</p>
-            </div>
-          </div>
-        )}
-      </Card>
           </div>
         </TabsContent>
 

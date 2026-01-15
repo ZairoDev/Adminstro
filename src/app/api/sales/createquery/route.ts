@@ -13,14 +13,15 @@ import {
   WHATSAPP_PHONE_CONFIGS,
 } from "@/lib/whatsapp/config";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
 connectDb();
 
 // TESTING MODE: Only send WhatsApp templates when created by test email
-const TEST_EMAIL = process.env.TEST_EMAIL || "test@example.com";
+const TEST_EMAIL = process.env.TEST_EMAIL || "abhaytripathi6969@gmail.com";
 
-// Function to send WhatsApp template to lead (TESTING MODE - Athens only)
-async function sendGuestGreetingTemplate(
+// Function to send WhatsApp template to lead (TESTING MODE - thessaloniki only)
+async function sendGuestGreetingTemplate( 
   phoneNo: string,
   leadName: string,
   location: string,
@@ -33,17 +34,17 @@ async function sendGuestGreetingTemplate(
       return;
     }
 
-    // TESTING: Only send for Athens location
+    // TESTING: Only send for thessaloniki location
     const normalizedLocation = location?.toLowerCase().trim();
-    if (normalizedLocation !== "athens") {
-      console.log(`⏭️ [TESTING] Skipping WhatsApp template - location is not Athens (got: ${location})`);
+    if (normalizedLocation !== "thessaloniki") {
+      console.log(`⏭️ [TESTING] Skipping WhatsApp template - location is not thessaloniki (got: ${location})`);
       return;
     }
 
     const whatsappToken = getWhatsAppToken();
-    // Get Athens phone ID
-    const athensConfig = WHATSAPP_PHONE_CONFIGS.find(config => config.area === "athens");
-    const phoneNumberId = athensConfig?.phoneNumberId || getDefaultPhoneId("SuperAdmin", ["athens"]);
+    // Get thessaloniki phone ID
+    const thessalonikiConfig = WHATSAPP_PHONE_CONFIGS.find(config => config.area === "thessaloniki");
+    const phoneNumberId = thessalonikiConfig?.phoneNumberId || getDefaultPhoneId("SuperAdmin", ["thessaloniki"]);
 
     if (!whatsappToken || !phoneNumberId) {
       console.error("❌ WhatsApp not configured - missing token or phone ID");
@@ -105,22 +106,24 @@ async function sendGuestGreetingTemplate(
       const timestamp = new Date();
       const templateText = `Hello ${leadName},\nMy team informed me that you are looking for an apartment for rent in ${location}.\nPlease let me know if you'd like help with available options.`;
 
-      // Get or create conversation
-      let conversation = await WhatsAppConversation.findOne({
+      // Get or create conversation using snapshot-safe helper
+      // Lead auto-message is a "trusted" source - can set snapshot fields including location
+      const isNewConversation = !(await WhatsAppConversation.findOne({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
-      });
+      }));
 
-      if (!conversation) {
-        conversation = await WhatsAppConversation.create({
-          participantPhone: formattedPhone,
-          participantName: leadName || formattedPhone,
-          businessPhoneId: phoneNumberId,
-          status: "active",
-          unreadCount: 0,
-        });
+      const conversation = await findOrCreateConversationWithSnapshot({
+        participantPhone: formattedPhone,
+        businessPhoneId: phoneNumberId,
+        participantName: leadName || formattedPhone,
+        participantLocation: location, // Capture location at conversation creation
+        participantRole: "guest", // Lead auto-message creates guest conversations
+        snapshotSource: "trusted",
+      }) as any; // Cast to any to access Mongoose document properties like _id
 
-        // Emit new conversation event
+      // Emit new conversation event if this was a new conversation
+      if (isNewConversation) {
         emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_CONVERSATION, {
           conversation: {
             id: conversation._id,
@@ -288,7 +291,7 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ Socket.IO instance not found!");
     }
 
-    // ✅ Send WhatsApp guest_greeting template to lead (TESTING MODE - Athens only, test email only)
+    // ✅ Send WhatsApp guest_greeting template to lead (TESTING MODE - thessaloniki only, test email only)
     // This runs asynchronously - don't await to avoid blocking the response
     sendGuestGreetingTemplate(phoneNo, name, location, creatorEmail).catch((err) => {
       console.error("❌ Failed to send WhatsApp template:", err);

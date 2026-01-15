@@ -518,3 +518,98 @@ html{
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+
+/* WhatsApp Web specific styles */
+@layer utilities {
+  /* Smooth scrolling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  /* WhatsApp-style scrollbars */
+  .scrollbar-whatsapp::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-whatsapp::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-whatsapp::-webkit-scrollbar-thumb {
+    background: #c5c6c8;
+    border-radius: 3px;
+  }
+  
+  .dark .scrollbar-whatsapp::-webkit-scrollbar-thumb {
+    background: #374045;
+  }
+  
+  .scrollbar-whatsapp::-webkit-scrollbar-thumb:hover {
+    background: #a8a9ab;
+  }
+  
+  .dark .scrollbar-whatsapp::-webkit-scrollbar-thumb:hover {
+    background: #4a5459;
+  }
+  
+  /* Animate slide in */
+  .animate-slide-in-right {
+    animation: slideInRight 0.2s ease-out;
+  }
+  
+  .animate-slide-in-up {
+    animation: slideInUp 0.15s ease-out;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.15s ease-out;
+  }
+  
+  /* Pulse animation for unread indicator */
+  .animate-pulse-subtle {
+    animation: pulseSuttle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulseSuttle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}

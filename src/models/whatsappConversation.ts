@@ -5,6 +5,10 @@ export interface IWhatsAppConversation extends Document {
   participantName?: string;
   participantProfilePic?: string;
 
+  // Snapshot identity fields (immutable unless explicitly edited)
+  participantLocation?: string;
+  participantRole?: "owner" | "guest";
+
   businessPhoneId: string;
 
   assignedAgent?: mongoose.Types.ObjectId;
@@ -56,6 +60,18 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     participantProfilePic: {
       type: String,
+    },
+
+    // Snapshot identity: where this participant belongs (e.g. city/area)
+    participantLocation: {
+      type: String,
+      default: "",
+    },
+
+    // Snapshot identity: role of participant in our system
+    participantRole: {
+      type: String,
+      enum: ["owner", "guest"],
     },
 
     businessPhoneId: {

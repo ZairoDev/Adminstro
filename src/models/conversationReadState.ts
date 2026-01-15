@@ -19,7 +19,8 @@ const conversationReadStateSchema = new Schema<IConversationReadState>(
     },
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      // This references the Employees collection/model
+      ref: "Employees",
       required: true,
       index: true,
     },

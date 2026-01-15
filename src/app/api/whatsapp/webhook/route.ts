@@ -6,6 +6,7 @@ import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneIds, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import ConversationReadState from "@/models/conversationReadState";
 import Employee from "@/models/employee";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
 // Ensure database connection
 connectDb();
@@ -524,28 +525,17 @@ async function processIncomingMessage(
       return;
     }
 
-    // Get or create conversation
-    let conversation = await WhatsAppConversation.findOne({
+    // Get or create conversation using snapshot-safe helper
+    // CRITICAL: Webhooks are "untrusted" - they must NEVER overwrite snapshot fields
+    // on existing conversations. Only allowed to set snapshots on NEW conversations.
+    console.log(`📝 Finding or creating conversation for ${senderPhone}`);
+    const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: senderPhone,
       businessPhoneId: phoneNumberId,
-    });
-
-    if (!conversation) {
-      console.log(`📝 Creating new conversation for ${senderPhone}`);
-      conversation = await WhatsAppConversation.create({
-        participantPhone: senderPhone,
-        participantName: senderName,
-        businessPhoneId: phoneNumberId,
-        status: "active",
-        unreadCount: 0, // Legacy field - will be removed, kept for backward compatibility
-      });
-    } else {
-      console.log(`📝 Updating existing conversation ${conversation._id} for ${senderPhone}`);
-      // Only update participant name - read state is per-user, not global
-      await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
-        participantName: senderName,
-      });
-    }
+      participantName: senderName,
+      // Webhook doesn't know location/role - leave undefined
+      snapshotSource: "untrusted", // CRITICAL: Never overwrite existing snapshot fields
+    }) as any; // Cast to any to access Mongoose document properties like _id
 
     // Extract message content based on type
     let contentObj: { text?: string; caption?: string; location?: any; interactivePayload?: any } = {};
@@ -674,6 +664,46 @@ async function processIncomingMessage(
       `${message.type} message`;
 
     // ============================================================
+    // REPLY CONTEXT EXTRACTION: Extract reply reference if present
+    // ============================================================
+    // WhatsApp webhook includes context.id when message is a reply
+    // CRITICAL: Reply reference is CONTEXT ONLY, never use for deduplication
+    let replyToMessageId: string | undefined;
+    let replyContext: any = null;
+
+    if (message.context?.id) {
+      replyToMessageId = message.context.id;
+      console.log(`↩️ [REPLY] Message ${message.id} is a reply to ${replyToMessageId}`);
+
+      // Look up the original message to store context
+      const originalMessage = await WhatsAppMessage.findOne({
+        messageId: replyToMessageId,
+      }).lean() as any;
+
+      if (originalMessage) {
+        replyContext = {
+          messageId: originalMessage.messageId,
+          from: originalMessage.from,
+          type: originalMessage.type,
+          content: {
+            text: originalMessage.content?.text,
+            caption: originalMessage.content?.caption,
+          },
+          mediaUrl: originalMessage.mediaUrl,
+        };
+        console.log(`↩️ [REPLY] Found original message context: type=${originalMessage.type}`);
+      } else {
+        // Original message not found - store minimal context
+        replyContext = {
+          messageId: replyToMessageId,
+          from: "unknown",
+          type: "unknown",
+        };
+        console.log(`⚠️ [REPLY] Original message not found: ${replyToMessageId}`);
+      }
+    }
+
+    // ============================================================
     // AUTOMATION LOGIC: Run BEFORE deduplication
     // ============================================================
     // CRITICAL: Business logic must run even for duplicate webhooks
@@ -800,6 +830,11 @@ async function processIncomingMessage(
           reactedToMessageId: message.reaction?.message_id,
           reactionEmoji: message.reaction?.emoji || "👍",
         }),
+        // Store reply context if this message is a reply
+        ...(replyToMessageId && {
+          replyToMessageId,
+          replyContext,
+        }),
       });
 
       // Insert succeeded → NEW message
@@ -840,10 +875,12 @@ async function processIncomingMessage(
     // 2. User hasn't read this message (message.timestamp > lastReadAt)
     if (isNewMessage) {
       // Update conversation metadata (no unreadCount - that's per-user now)
+      // CRITICAL: Do NOT update participantName here - it's a snapshot field
+      // Snapshot fields are immutable except through explicit user edits
       const updatedConversation = await WhatsAppConversation.findByIdAndUpdate(
         conversation._id,
         {
-          participantName: senderName, // Update name in case it changed
+          // participantName is a SNAPSHOT field - never update from webhooks
           lastMessageId: message.id,
           lastMessageContent: displayText.substring(0, 100),
           lastMessageTime: timestamp,
@@ -909,6 +946,9 @@ async function processIncomingMessage(
             lastMessagePreview: displayText.substring(0, 100),
             lastMessageTime: timestamp,
             createdAt: firstMessageTime, // FREEZE: Use first message time for stable identity
+            // Include reply context if this is a reply (for notification preview)
+            isReply: !!replyToMessageId,
+            replyToPreview: replyContext?.content?.text?.substring(0, 50) || replyContext?.content?.caption?.substring(0, 50),
             message: {
               id: savedMessage._id,
               messageId: message.id,
@@ -924,6 +964,11 @@ async function processIncomingMessage(
               direction: "incoming",
               timestamp,
               senderName,
+              // Include reply context in message payload
+              ...(replyToMessageId && {
+                replyToMessageId,
+                replyContext,
+              }),
             },
           });
           
@@ -1328,21 +1373,14 @@ async function processMessageEchoEvent(value: any) {
 
       console.log(`🔁 Message echo: ${message.type} to ${recipientPhone}`);
 
-      // Find or create conversation
-      let conversation = await WhatsAppConversation.findOne({
+      // Find or create conversation using snapshot-safe helper
+      // CRITICAL: Message echoes are "untrusted" - they must NEVER overwrite snapshot fields
+      const conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: recipientPhone,
         businessPhoneId: phoneNumberId,
-      });
-
-      if (!conversation) {
-        conversation = await WhatsAppConversation.create({
-          participantPhone: recipientPhone,
-          participantName: recipientPhone,
-          businessPhoneId: phoneNumberId,
-          status: "active",
-          unreadCount: 0,
-        });
-      }
+        participantName: recipientPhone, // Fallback name for new conversations only
+        snapshotSource: "untrusted", // CRITICAL: Never overwrite existing snapshot fields
+      }) as any; // Cast to any to access Mongoose document properties like _id
 
       // Extract message content based on type
       let contentObj: { text?: string; caption?: string; location?: any; interactivePayload?: any } = {};

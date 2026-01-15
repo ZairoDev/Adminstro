@@ -90,6 +90,22 @@ export function buildTemplateComponents(
   return components;
 }
 
+// ---- Snapshot-based template context ----------------------------------------
+
+export function getConversationTemplateContext(conversation: Conversation | null): {
+  clientName: string;
+  locationName: string;
+} {
+  if (!conversation) {
+    return { clientName: "", locationName: "" };
+  }
+
+  const clientName = conversation.participantName || conversation.participantPhone;
+  const locationName = (conversation as any).participantLocation || "";
+
+  return { clientName, locationName };
+}
+
 export function isMessageWindowActive(conversation: Conversation | null): boolean {
   if (!conversation?.lastCustomerMessageAt) return false;
   const lastMessage = new Date(conversation.lastCustomerMessageAt);

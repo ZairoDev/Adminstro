@@ -15,6 +15,7 @@ type Payload = {
   startDate?: string; // e.g., "13th Jan 2026"
   candidateSignatureBase64?: string; // Candidate's signature
   ankitaSignatureBase64?: string; // Ankita mam's signature
+  signingDate?: string; // ISO string of when candidate signed (for Date of Signing field)
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -92,17 +93,33 @@ export async function POST(req: NextRequest) {
     const officeStart = "10:00 hrs ISD";
     const officeEnd = "18:30 hrs ISD";
 
-    // Convert Ankita mam's signature if provided
+    // Convert Ankita mam's signature if provided, otherwise load from public folder
     let ankitaSignatureBase64: string | undefined;
+    let ankitaSignatureBytes: Buffer | undefined;
+    
     if (data.ankitaSignatureBase64) {
       try {
         const ankitaSigRes = await axios.get(data.ankitaSignatureBase64, {
           responseType: "arraybuffer",
         });
-        ankitaSignatureBase64 = Buffer.from(ankitaSigRes.data).toString("base64");
+        ankitaSignatureBytes = Buffer.from(ankitaSigRes.data);
+        ankitaSignatureBase64 = ankitaSignatureBytes.toString("base64");
       } catch (err) {
         console.error("Error fetching Ankita mam's signature:", err);
         ankitaSignatureBase64 = undefined;
+        ankitaSignatureBytes = undefined;
+      }
+    } else {
+      // Automatically load Ankita mam's signature from public folder
+      try {
+        const filePath = path.join(process.cwd(), "public", "Ankita-mam.png");
+        ankitaSignatureBytes = await fs.readFile(filePath);
+        ankitaSignatureBase64 = ankitaSignatureBytes.toString("base64");
+        console.log("✅ Loaded Ankita mam's signature from public folder");
+      } catch (err) {
+        console.error("Error loading Ankita mam's signature from public folder:", err);
+        ankitaSignatureBase64 = undefined;
+        ankitaSignatureBytes = undefined;
       }
     }
 
@@ -110,12 +127,27 @@ export async function POST(req: NextRequest) {
     let candidateSignatureBase64: string | undefined;
     if (data.candidateSignatureBase64) {
       try {
-        const candidateSigRes = await axios.get(data.candidateSignatureBase64, {
-          responseType: "arraybuffer",
-        });
-        candidateSignatureBase64 = Buffer.from(candidateSigRes.data).toString("base64");
+        // Check if it's already a base64 data URL (starts with "data:")
+        if (data.candidateSignatureBase64.startsWith("data:")) {
+          // Extract base64 part from data URL (format: "data:image/png;base64,<base64data>")
+          const base64Match = data.candidateSignatureBase64.match(/base64,(.+)$/);
+          if (base64Match && base64Match[1]) {
+            candidateSignatureBase64 = base64Match[1];
+            console.log("✅ Extracted candidate signature from data URL");
+          } else {
+            // If no match, try to use the whole string (might already be pure base64)
+            candidateSignatureBase64 = data.candidateSignatureBase64;
+          }
+        } else {
+          // If it's a URL, fetch it
+          const candidateSigRes = await axios.get(data.candidateSignatureBase64, {
+            responseType: "arraybuffer",
+          });
+          candidateSignatureBase64 = Buffer.from(candidateSigRes.data).toString("base64");
+          console.log("✅ Fetched candidate signature from URL");
+        }
       } catch (err) {
-        console.error("Error fetching candidate signature:", err);
+        console.error("Error processing candidate signature:", err);
         candidateSignatureBase64 = undefined;
       }
     }
@@ -439,7 +471,7 @@ export async function POST(req: NextRequest) {
 
     conditions.forEach((condition, index) => {
       drawWrappedText(`${index + 1}. ${condition}`, leftMargin, bodySize);
-      yPosition -= lineHeight;
+    yPosition -= lineHeight;
     });
 
     yPosition -= paragraphSpacing * 2;
@@ -469,7 +501,7 @@ export async function POST(req: NextRequest) {
       `- Department: ${data.department || data.position || "Human Resources"}`,
       `- Work Location: Kakadeo, Kanpur`,
       `- Proposed Start Date: ${formattedStartDate}`,
-      `- Remuneration: ${data.salary || "______________"}`
+      `- Remuneration: ${data.salary ? data.salary.replace(/₹/g, "Rs. ") : "______________"}`
     ];
 
     proposedDetails.forEach((detail) => {
@@ -502,15 +534,19 @@ export async function POST(req: NextRequest) {
     drawWrappedText("Designation: C.O.O", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
-    // Add Ankita mam's signature if provided
-    if (ankitaSignatureBase64) {
+    // Add Ankita mam's signature (automatically loaded from public folder if not provided)
+    if (ankitaSignatureBytes) {
       try {
-        const ankitaSigBytes = Buffer.from(ankitaSignatureBase64, "base64");
         let ankitaSigImg;
         try {
-          ankitaSigImg = await pdfDoc.embedPng(ankitaSigBytes);
+          ankitaSigImg = await pdfDoc.embedPng(ankitaSignatureBytes);
         } catch {
-          ankitaSigImg = await pdfDoc.embedJpg(ankitaSigBytes);
+          try {
+            ankitaSigImg = await pdfDoc.embedJpg(ankitaSignatureBytes);
+          } catch (embedErr) {
+            console.error("Error embedding Ankita mam's signature (both PNG and JPG failed):", embedErr);
+            throw embedErr;
+          }
         }
         const sigW = 150;
         const sigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
@@ -538,7 +574,7 @@ export async function POST(req: NextRequest) {
         yPosition -= paragraphSpacing * 2;
       }
     } else {
-      // Draw signature line
+      // Draw signature line if signature couldn't be loaded
       currentPage.drawLine({
         start: { x: leftMargin, y: yPosition },
         end: { x: leftMargin + 200, y: yPosition },
@@ -559,20 +595,25 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing * 2;
 
     // Signature label
-    drawWrappedText("Signature: ____________________", leftMargin, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText(`Date: ___________________`, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
 
-    // Add candidate signature if provided
+    
+    // Add candidate signature if provided (BEFORE the date)
     if (candidateSignatureBase64) {
       try {
+        console.log("🔍 Processing candidate signature for LOI...");
         const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
         let candidateSigImg;
         try {
           candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
+          console.log("✅ Candidate signature embedded as PNG");
         } catch {
-          candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
+          try {
+            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
+            console.log("✅ Candidate signature embedded as JPG");
+          } catch (embedErr) {
+            console.error("❌ Failed to embed candidate signature as PNG or JPG:", embedErr);
+            throw embedErr;
+          }
         }
         const sigW = 150;
         const sigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
@@ -587,11 +628,35 @@ export async function POST(req: NextRequest) {
           width: sigW,
           height: sigH,
         });
-        yPosition -= sigH + paragraphSpacing * 2;
+        yPosition -= sigH + paragraphSpacing;
+        console.log("✅ Candidate signature drawn in LOI PDF");
       } catch (err) {
-        console.error("Error embedding candidate signature:", err);
+        console.error("❌ Error embedding candidate signature:", err);
+        // Continue without signature if embedding fails
       }
     }
+    
+    // Date of Signing - use signingDate if provided, otherwise show placeholder
+    let signingDateText = "Date: ___________________";
+    if (data.signingDate) {
+      try {
+        const signingDate = new Date(data.signingDate);
+        const signDay = signingDate.getDate();
+        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
+          : signDay === 2 || signDay === 22 ? "nd" 
+          : signDay === 3 || signDay === 23 ? "rd" 
+          : "th";
+        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
+        const signYear = signingDate.getFullYear();
+        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
+        signingDateText = `Date: ${formattedSigningDate}`;
+      } catch (err) {
+        console.error("Error formatting signing date:", err);
+        signingDateText = "Date: ___________________";
+      }
+    }
+    drawWrappedText(signingDateText, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
 
     yPosition -= lineHeight * 3;
 

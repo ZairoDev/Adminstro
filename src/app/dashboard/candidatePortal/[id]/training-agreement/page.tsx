@@ -34,6 +34,9 @@ interface Candidate {
       signedAt: string;
     };
     signedPdfUrl: string;
+    signedHrPoliciesPdfUrl?: string;
+    signedLetterOfIntentPdfUrl?: string;
+    letterOfIntentSigningDate?: string;
     agreementAccepted: boolean;
     agreementComplete: boolean;
   };
@@ -196,12 +199,20 @@ export default function TrainingAgreementPage() {
     
     setGeneratingHrPoliciesPdf(true);
     try {
+      // DEFENSIVE CHECK: Use signed PDF if available, otherwise generate unsigned preview
+      if (candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl) {
+        setHrPoliciesPdfUrl(candidate.trainingAgreementDetails.signedHrPoliciesPdfUrl);
+        setGeneratingHrPoliciesPdf(false);
+        return;
+      }
+
       const agreementDate = new Date().toLocaleDateString("en-IN");
       const hrPoliciesPayload = {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
-        // No signature for unsigned PDF
+        // Include signature if Training Agreement is signed
+        signatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
       };
 
       const pdfResponse = await axios.post(
@@ -236,26 +247,55 @@ export default function TrainingAgreementPage() {
     
     setGeneratingLetterOfIntentPdf(true);
     try {
-      const letterDate = new Date().toISOString();
+      // DEFENSIVE CHECK: Use signed PDF if available, otherwise generate unsigned preview
+      if (candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl) {
+        setLetterOfIntentPdfUrl(candidate.trainingAgreementDetails.signedLetterOfIntentPdfUrl);
+        setGeneratingLetterOfIntentPdf(false);
+        return;
+      }
+
+      // Use signing date if available, otherwise use current date
+      const letterDate = candidate.trainingAgreementDetails?.letterOfIntentSigningDate
+        ? new Date(candidate.trainingAgreementDetails.letterOfIntentSigningDate).toISOString()
+        : new Date().toISOString();
       
-      // Format salary - convert number to LPA format if needed
+      // Format salary - convert monthly salary to LPA format
       let formattedSalary = "";
       if (candidate.selectionDetails?.salary) {
         const salary = candidate.selectionDetails.salary;
         if (typeof salary === "number") {
-          // Convert to LPA format (e.g., 216000 -> ₹2.16 LPA)
-          const lpa = salary / 100000;
+          // Assume salary is monthly, convert to annual then LPA
+          const annualSalary = salary * 12;
+          const lpa = annualSalary / 100000;
           formattedSalary = `₹${lpa.toFixed(2)} LPA`;
+        } else if (typeof salary === "string") {
+          // Try to parse if it's a string number
+          const numSalary = parseFloat(salary);
+          if (!isNaN(numSalary)) {
+            const annualSalary = numSalary * 12;
+            const lpa = annualSalary / 100000;
+            formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+          } else {
+            formattedSalary = String(salary).replace(/₹/g, "Rs. ");
+          }
         } else {
-          formattedSalary = salary.toString();
+          formattedSalary = String(salary).replace(/₹/g, "Rs. ");
         }
+      }
+
+      // DEFENSIVE CHECK: Ensure salary is not empty or "TBD"
+      if (!formattedSalary || formattedSalary === "TBD") {
+        console.warn("⚠️ Salary not found or invalid. LOI will be generated without salary.");
       }
 
       // Format start date - add 3 days from today
       const startDate = new Date();
       startDate.setDate(startDate.getDate() + 3);
       const startDay = startDate.getDate();
-      const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" : startDay === 2 || startDay === 22 ? "nd" : startDay === 3 || startDay === 23 ? "rd" : "th";
+      const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" 
+        : startDay === 2 || startDay === 22 ? "nd" 
+        : startDay === 3 || startDay === 23 ? "rd" 
+        : "th";
       const startMonthName = startDate.toLocaleString("en-US", { month: "long" });
       const startYear = startDate.getFullYear();
       const formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
@@ -272,6 +312,12 @@ export default function TrainingAgreementPage() {
         designation: designation,
         department: department,
         startDate: formattedStartDate,
+        // Include signature if Training Agreement is signed
+        candidateSignatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
+        // Include signing date for LOI
+        signingDate: candidate.trainingAgreementDetails?.eSign?.signedAt 
+          ? new Date(candidate.trainingAgreementDetails.eSign.signedAt).toISOString()
+          : undefined,
       };
 
       const pdfResponse = await axios.post(
@@ -548,11 +594,144 @@ export default function TrainingAgreementPage() {
       }
 
       setSuccess(true);
-      setCandidate(trainingAgreementRes.data.data);
+      const updatedCandidate = trainingAgreementRes.data.data;
+      setCandidate(updatedCandidate);
+
+      // DEFENSIVE CHECK: Only regenerate PDFs if signature was successfully saved
+      if (updatedCandidate.trainingAgreementDetails?.eSign?.signatureImage) {
+        console.log("✅ Signature saved successfully. Regenerating HR Policies and LOI PDFs with signature...");
+        
+        // Regenerate HR Policies PDF with signature
+        try {
+          const hrPoliciesPayload = {
+            candidateName: updatedCandidate.name,
+            position: updatedCandidate.position,
+            date: new Date().toLocaleDateString("en-IN"),
+            signatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
+          };
+
+          const hrPdfResponse = await axios.post(
+            "/api/candidates/hrPolicies",
+            hrPoliciesPayload,
+            {
+              responseType: "arraybuffer",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          const hrPdfBlob = new Blob([hrPdfResponse.data], { type: "application/pdf" });
+          const hrPdfFile = new File(
+            [hrPdfBlob],
+            `HR-Policies-${candidateId}-Signed.pdf`,
+            { type: "application/pdf" }
+          );
+
+          // Upload signed HR Policies PDF
+          const { imageUrls: hrUrls } = await uploadFiles([hrPdfFile], "Documents/SignedPDFs");
+          if (hrUrls?.length) {
+            // Store signed HR Policies PDF URL in database
+            await axios.patch(`/api/candidates/${candidateId}`, {
+              "trainingAgreementDetails.signedHrPoliciesPdfUrl": hrUrls[0],
+            });
+            console.log("✅ Signed HR Policies PDF generated and stored");
+          }
+        } catch (hrErr) {
+          console.error("❌ Error generating signed HR Policies PDF:", hrErr);
+          // Don't fail the entire process if HR Policies PDF generation fails
+        }
+
+        // Regenerate Letter of Intent PDF with signature
+        try {
+          const signingDate = updatedCandidate.trainingAgreementDetails.eSign.signedAt 
+            ? new Date(updatedCandidate.trainingAgreementDetails.eSign.signedAt).toISOString()
+            : new Date().toISOString();
+
+          // Format salary - convert to LPA format
+          let formattedSalary = "";
+          if (updatedCandidate.selectionDetails?.salary) {
+            const salary = updatedCandidate.selectionDetails.salary;
+            if (typeof salary === "number") {
+              // Assume salary is monthly, convert to annual then LPA
+              const annualSalary = salary * 12;
+              const lpa = annualSalary / 100000;
+              formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+            } else if (typeof salary === "string") {
+              // Try to parse if it's a string number
+              const numSalary = parseFloat(salary);
+              if (!isNaN(numSalary)) {
+                const annualSalary = numSalary * 12;
+                const lpa = annualSalary / 100000;
+                formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+              } else {
+                formattedSalary = String(salary).replace(/₹/g, "Rs. ");
+              }
+            } else {
+              formattedSalary = String(salary).replace(/₹/g, "Rs. ");
+            }
+          }
+
+          // Format start date
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() + 3);
+          const startDay = startDate.getDate();
+          const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" 
+            : startDay === 2 || startDay === 22 ? "nd" 
+            : startDay === 3 || startDay === 23 ? "rd" 
+            : "th";
+          const startMonthName = startDate.toLocaleString("en-US", { month: "long" });
+          const startYear = startDate.getFullYear();
+          const formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
+
+          const designation = updatedCandidate.selectionDetails?.role || `${updatedCandidate.position} Executive`;
+          const department = updatedCandidate.position || "Human Resources";
+
+          const loiPayload = {
+            candidateName: updatedCandidate.name,
+            position: updatedCandidate.position,
+            date: signingDate,
+            salary: formattedSalary || undefined,
+            designation: designation,
+            department: department,
+            startDate: formattedStartDate,
+            candidateSignatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
+            signingDate: signingDate, // Add signing date for LOI
+          };
+
+          const loiPdfResponse = await axios.post(
+            "/api/candidates/letterOfIntent",
+            loiPayload,
+            {
+              responseType: "arraybuffer",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          const loiPdfBlob = new Blob([loiPdfResponse.data], { type: "application/pdf" });
+          const loiPdfFile = new File(
+            [loiPdfBlob],
+            `Letter-Of-Intent-${candidateId}-Signed.pdf`,
+            { type: "application/pdf" }
+          );
+
+          // Upload signed LOI PDF
+          const { imageUrls: loiUrls } = await uploadFiles([loiPdfFile], "Documents/SignedPDFs");
+          if (loiUrls?.length) {
+            // Store signed LOI PDF URL and signing date in database
+            await axios.patch(`/api/candidates/${candidateId}`, {
+              "trainingAgreementDetails.signedLetterOfIntentPdfUrl": loiUrls[0],
+              "trainingAgreementDetails.letterOfIntentSigningDate": signingDate,
+            });
+            console.log("✅ Signed Letter of Intent PDF generated and stored");
+          }
+        } catch (loiErr) {
+          console.error("❌ Error generating signed Letter of Intent PDF:", loiErr);
+          // Don't fail the entire process if LOI PDF generation fails
+        }
+      }
 
       toast({
         title: "Success",
-        description: "Training agreement signed and submitted successfully",
+        description: "Training agreement signed and submitted successfully. All documents have been updated with your signature.",
       });
 
       // setTimeout(() => {
@@ -995,6 +1174,17 @@ export default function TrainingAgreementPage() {
                 E Signature
               </h2>
             </div>
+            
+            {/* Warning Message */}
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium leading-relaxed">
+                  <strong>Important:</strong> Your signature will be applicable to all the documents (Training Agreement, HR Policies, and Letter of Intent), so please read all the documents carefully before signing.
+                </p>
+              </div>
+            </div>
+            
             <p className="text-sm text-muted-foreground mb-4">
               {useDigitalSignature
                 ? "Draw your signature below."

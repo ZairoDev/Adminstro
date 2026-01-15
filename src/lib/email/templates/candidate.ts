@@ -79,104 +79,90 @@ export const getCandidateEmailTemplate = (
       `,
     },
     selected: {
-      subject: `🎊 Congratulations! Offer for ${position} at ${companyName}`,
+      subject: `Offer Confirmation - ${position} at ${companyName}`,
       html: `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Congratulations! 🎉</h1>
-          </div>
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6;">
           
-          <div style="padding: 40px 30px; color: #333; line-height: 1.8;">
-            <p style="font-size: 18px; color: #1f2937; margin-bottom: 20px;">Dear ${candidateName},</p>
-            
-            <p style="font-size: 16px; margin-bottom: 20px;">
-              We are delighted to inform you that you have been <strong style="color: #10b981;">selected</strong> for the position of <strong>${position}</strong> at <strong>${companyName}</strong>!
-            </p>
-            
-            <p style="font-size: 16px; margin-bottom: 25px;">
-              After careful consideration of all candidates, your skills, experience, and enthusiasm stood out. We believe you'll be a valuable addition to our team.
-            </p>
-            
-            ${
-              selectionDetails
-                ? `
-                <div style="background: #f0fdf4; border: 2px solid #10b981; padding: 25px; border-radius: 8px; margin: 30px 0;">
-                  <h3 style="color: #059669; margin-top: 0; margin-bottom: 20px; font-size: 18px;">📄 Your Position Details</h3>
-                  
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #065f46; font-weight: 600;">Position Type:</td>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #1f2937;">${selectionDetails.positionType}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #065f46; font-weight: 600;">Duration:</td>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #1f2937;">${selectionDetails.duration}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #065f46; font-weight: 600;">Training Period:</td>
-                      <td style="padding: 12px 0; border-bottom: 1px solid #d1fae5; color: #1f2937;">${selectionDetails.trainingPeriod}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 12px 0; color: #065f46; font-weight: 600;">Role Description:</td>
-                      <td style="padding: 12px 0; color: #1f2937;">${selectionDetails.role}</td>
-                    </tr>
-                  </table>
-                </div>`
-                : ""
-            }
-            
-            ${
-              trainingAgreementLink
-                ? `
-                <div style="background: #f0f9ff; border-left: 4px solid #2563eb; padding: 20px; margin: 30px 0; border-radius: 4px;">
-                  <p style="margin: 0; font-size: 16px; color: #1e40af;">
-                    <strong>📋 Next Step:</strong> Please review and sign the Pre-Employment Training Agreement to proceed with your training.
-                  </p>
-                </div>
-                
-                <div style="text-align: center; margin: 35px 0;">
+          <p>Dear ${candidateName},</p>
+    
+          <p>
+            We are pleased to inform you that you have been selected for the position of 
+            <strong>${position}</strong> at <strong>${companyName}</strong>.
+          </p>
+    
+          <p>
+            After reviewing all applications and interview discussions, we found your profile suitable for the role. 
+            We appreciate the time and effort you invested throughout the selection process.
+          </p>
+    
+          ${
+            selectionDetails
+              ? `
+                <p><strong>Position Details</strong></p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Position Type:</td>
+                    <td style="padding: 8px 0;">${selectionDetails.positionType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Training Period:</td>
+                    <td style="padding: 8px 0;">${selectionDetails.trainingPeriod}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Role Description:</td>
+                    <td style="padding: 8px 0;">${selectionDetails.role}</td>
+                  </tr>
+                </table>
+              `
+              : ""
+          }
+    
+          ${
+            trainingAgreementLink
+              ? `
+                <p>
+                  <strong>Next Step:</strong> Please review and sign the Pre-Employment Training Agreement to proceed with the training process.
+                </p>
+    
+                <div style="text-align: center; margin: 20px 0;">
                   <a href="${trainingAgreementLink}" 
                      style="display: inline-block; background: #2563eb; color: #ffffff; padding: 16px 40px; 
-                            border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;
-                            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2); transition: all 0.3s;">
+                            border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
                     Sign Training Agreement
                   </a>
                 </div>
-                
-                <div style="background: #f9fafb; padding: 15px; border-radius: 6px; margin: 25px 0;">
-                  <p style="font-size: 13px; color: #6b7280; margin: 0;">
-                    <strong>Having trouble with the button?</strong> Copy and paste this link into your browser:
-                  </p>
-                  <p style="font-size: 13px; color: #2563eb; word-break: break-all; margin: 8px 0 0 0;">
-                    ${trainingAgreementLink}
-                  </p>
-                </div>
-                `
-                : `
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 30px 0; border-radius: 4px;">
-                  <p style="margin: 0; font-size: 15px; color: #92400e;">
-                    <strong>⏭️ What's Next?</strong><br/>
-                    Our HR team will contact you within 2-3 business days with detailed information about your joining formalities, documentation requirements, and start date.
-                  </p>
-                </div>
-                `
-            }
-            
-            <p style="font-size: 15px; margin-top: 25px;">
-              We're excited to see the impact you'll make and look forward to having you as part of our team!
-            </p>
-            
-            ${getEmailSignature(hrEmployee)}
-          </div>
-          
-          <div style="background: #f9fafb; padding: 20px 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-            <p style="font-size: 12px; color: #6b7280; margin: 0;">
-              © ${new Date().getFullYear()} ${companyName}. All rights reserved.
-            </p>
-          </div>
+    
+                <p style="font-size: 13px; color: #444; margin: 18px 0 6px 0;">
+                  If you are unable to access the button above, please copy and paste the following link into your browser:
+                </p>
+                <p style="font-size: 13px; color: #2563eb; word-break: break-all; margin: 0;">
+                  ${trainingAgreementLink}
+                </p>
+              `
+              : `
+                <p>
+                  Our HR team will share the next steps regarding training and onboarding formalities shortly.
+                  You may expect further communication within 2–3 business days.
+                </p>
+              `
+          }
+    
+          <p>
+            We look forward to your association with ${companyName} and wish you success in your upcoming training period.
+          </p>
+    
+          ${getEmailSignature(hrEmployee)}
+    
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+    
+          <p style="font-size: 12px; color: #555; margin: 0;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
+    
         </div>
       `,
     },
+    
     rejected: {
       subject: `Application Update - ${position} at ${companyName}`,
       html: `

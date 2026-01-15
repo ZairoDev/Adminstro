@@ -431,6 +431,7 @@ export default function CandidateDetailPage() {
             trainingDate: data.trainingDate,
             trainingPeriod: data.trainingPeriod,
             role: data.role,
+            salary: data.salary, // Include salary in the payload
           },
         }
       );

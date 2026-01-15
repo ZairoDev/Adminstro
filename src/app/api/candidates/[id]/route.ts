@@ -39,13 +39,23 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const updateData: Record<string, string> = {};
+    // Build update object supporting nested fields (dot notation)
+    const updateData: Record<string, any> = {};
+    
+    // Handle flat fields
     if (body.status) updateData.status = body.status;
     if (body.position) updateData.position = body.position;
+    
+    // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl")
+    Object.keys(body).forEach((key) => {
+      if (key.includes(".")) {
+        updateData[key] = body[key];
+      }
+    });
 
     const candidate = await Candidate.findByIdAndUpdate(
       id,
-      updateData,
+      { $set: updateData },
       { new: true }
     );
 
@@ -58,6 +68,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, data: candidate });
   } catch (error) {
+    console.error("Error updating candidate:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update candidate" },
       { status: 500 }

@@ -314,9 +314,14 @@ export default function CandidatesPage() {
       console.log("🔍 [Frontend] Fetching pending reschedule requests...");
       console.log("🔍 [Frontend] User role:", userRole, "Can verify:", canVerify);
       
-      // Use dedicated endpoint for reschedule requests
-      const response = await fetch("/api/candidates/reschedule-requests", {
+      // Use dedicated endpoint for reschedule requests with cache-busting
+      const timestamp = Date.now(); // Add timestamp to prevent caching
+      const response = await fetch(`/api/candidates/reschedule-requests?t=${timestamp}`, {
         cache: "no-store", // Prevent caching issues
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       });
       
       console.log("🔍 [Frontend] Response status:", response.status, response.statusText);
@@ -426,13 +431,41 @@ export default function CandidatesPage() {
             ? "Reschedule request approved successfully"
             : "Reschedule request rejected"
         );
-        // Refresh candidates list and pending requests
+        // Refresh candidates list first
         await fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
-        await fetchPendingRescheduleRequests();
-        // Close modal if no more pending requests
-        if (pendingRescheduleRequests.length <= 1) {
-          setRescheduleModalOpen(false);
-        }
+        
+        // Wait a bit for database to update, then refresh pending requests
+        setTimeout(async () => {
+          console.log("🔄 [Frontend] Refreshing reschedule requests after action...");
+          
+          // Fetch updated requests and check count
+          const timestamp = Date.now();
+          const refreshResponse = await fetch(`/api/candidates/reschedule-requests?t=${timestamp}`, {
+            cache: "no-store",
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+            },
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshResult = await refreshResponse.json();
+            if (refreshResult.success) {
+              setPendingRescheduleRequests(refreshResult.data || []);
+              console.log("✅ [Frontend] Updated count:", refreshResult.count);
+              
+              // Close modal if no more pending requests
+              if (refreshResult.count === 0) {
+                setTimeout(() => {
+                  setRescheduleModalOpen(false);
+                }, 200);
+              }
+            }
+          }
+          
+          // Also call the regular fetch function to ensure state is synced
+          await fetchPendingRescheduleRequests();
+        }, 500);
       } else {
         toast.error(result.error || `Failed to ${action} reschedule request`);
       }
@@ -1170,7 +1203,11 @@ export default function CandidatesPage() {
             {canVerify && (
               <Button
                 variant="outline"
-                onClick={() => setRescheduleModalOpen(true)}
+                onClick={() => {
+                  console.log("🔄 [Frontend] Reschedule button clicked - refreshing requests...");
+                  fetchPendingRescheduleRequests(); // Refresh before opening modal
+                  setRescheduleModalOpen(true);
+                }}
                 disabled={pendingRescheduleRequests.length === 0}
                 className={`shrink-0 ${
                   pendingRescheduleRequests.length > 0
@@ -1529,7 +1566,11 @@ export default function CandidatesPage() {
           setRescheduleModalOpen(open);
           // Refresh requests when modal opens
           if (open && canVerify) {
-            fetchPendingRescheduleRequests();
+            console.log("🔄 [Frontend] Modal opened - refreshing reschedule requests...");
+            // Force refresh when modal opens with a small delay to ensure state is updated
+            setTimeout(() => {
+              fetchPendingRescheduleRequests();
+            }, 100);
           }
         }}
       >

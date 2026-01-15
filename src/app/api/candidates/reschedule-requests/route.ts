@@ -2,6 +2,10 @@ import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
 
+// Force dynamic rendering to prevent caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Disable revalidation
+
 export async function GET(request: NextRequest) {
   try {
     await connectDb();
@@ -132,16 +136,29 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(`✅ [Reschedule Requests API] Returning ${pendingRequests.length} pending requests`);
+    console.log(`✅ [Reschedule Requests API] Timestamp: ${new Date().toISOString()}`);
 
-    return NextResponse.json({
-      success: true,
-      data: pendingRequests,
-      count: pendingRequests.length,
-      debug: {
-        candidatesFound: candidates.length,
-        requestsProcessed: pendingRequests.length,
+    // Add cache-busting headers to prevent any caching
+    return NextResponse.json(
+      {
+        success: true,
+        data: pendingRequests,
+        count: pendingRequests.length,
+        timestamp: new Date().toISOString(), // Add timestamp to help debug caching
+        debug: {
+          candidatesFound: candidates.length,
+          requestsProcessed: pendingRequests.length,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Timestamp': new Date().toISOString(),
+        },
+      }
+    );
   } catch (error: any) {
     console.error("❌ [Reschedule Requests API] Error fetching pending reschedule requests:", error);
     console.error("❌ [Reschedule Requests API] Error stack:", error?.stack);

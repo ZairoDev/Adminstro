@@ -119,10 +119,24 @@ export default function TrainingAgreementPage() {
 
         if (result.success) {
           setCandidate(result.data);
-           // Load signed PDF if available
-           if (result.data.trainingAgreementDetails?.signedPdfUrl) {
+          
+          // Load all signed PDFs if available (from database)
+          if (result.data.trainingAgreementDetails?.signedPdfUrl) {
             setSignedPdfUrl(result.data.trainingAgreementDetails.signedPdfUrl);
             setUnsignedPdfUrl(null);
+            console.log("✅ Loaded signed Training Agreement PDF from database on page load");
+          }
+          
+          // Load signed HR Policies PDF if available
+          if (result.data.trainingAgreementDetails?.signedHrPoliciesPdfUrl) {
+            setHrPoliciesPdfUrl(result.data.trainingAgreementDetails.signedHrPoliciesPdfUrl);
+            console.log("✅ Loaded signed HR Policies PDF from database on page load");
+          }
+          
+          // Load signed Letter of Intent PDF if available
+          if (result.data.trainingAgreementDetails?.signedLetterOfIntentPdfUrl) {
+            setLetterOfIntentPdfUrl(result.data.trainingAgreementDetails.signedLetterOfIntentPdfUrl);
+            console.log("✅ Loaded signed Letter of Intent PDF from database on page load");
           }
         } else {
           setError("Failed to load candidate information");
@@ -630,10 +644,14 @@ export default function TrainingAgreementPage() {
           const { imageUrls: hrUrls } = await uploadFiles([hrPdfFile], "Documents/SignedPDFs");
           if (hrUrls?.length) {
             // Store signed HR Policies PDF URL in database
-            await axios.patch(`/api/candidates/${candidateId}`, {
+            const hrStoreResponse = await axios.patch(`/api/candidates/${candidateId}`, {
               "trainingAgreementDetails.signedHrPoliciesPdfUrl": hrUrls[0],
             });
-            console.log("✅ Signed HR Policies PDF generated and stored");
+            if (hrStoreResponse.data.success) {
+              console.log("✅ Signed HR Policies PDF generated and stored in database");
+            } else {
+              console.error("❌ Failed to store HR Policies PDF URL in database");
+            }
           }
         } catch (hrErr) {
           console.error("❌ Error generating signed HR Policies PDF:", hrErr);
@@ -717,11 +735,15 @@ export default function TrainingAgreementPage() {
           const { imageUrls: loiUrls } = await uploadFiles([loiPdfFile], "Documents/SignedPDFs");
           if (loiUrls?.length) {
             // Store signed LOI PDF URL and signing date in database
-            await axios.patch(`/api/candidates/${candidateId}`, {
+            const loiStoreResponse = await axios.patch(`/api/candidates/${candidateId}`, {
               "trainingAgreementDetails.signedLetterOfIntentPdfUrl": loiUrls[0],
               "trainingAgreementDetails.letterOfIntentSigningDate": signingDate,
             });
-            console.log("✅ Signed Letter of Intent PDF generated and stored");
+            if (loiStoreResponse.data.success) {
+              console.log("✅ Signed Letter of Intent PDF generated and stored in database");
+            } else {
+              console.error("❌ Failed to store Letter of Intent PDF URL in database");
+            }
           }
         } catch (loiErr) {
           console.error("❌ Error generating signed Letter of Intent PDF:", loiErr);
@@ -729,9 +751,64 @@ export default function TrainingAgreementPage() {
         }
       }
 
+      // CRITICAL: Refresh candidate data from database to get all signed PDF URLs
+      // This ensures the UI displays the signed PDFs that were just stored in DB
+      // This is especially important in live environment where there might be caching
+      // Add a small delay to ensure database writes are committed before refreshing
+      setTimeout(async () => {
+        try {
+          console.log("🔄 Refreshing candidate data to load signed PDF URLs from database...");
+          // Add cache-busting timestamp and no-cache headers for live environment
+          const refreshResponse = await fetch(`/api/candidates/${candidateId}?t=${Date.now()}`, {
+            cache: "no-store",
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+            },
+          });
+          const refreshResult = await refreshResponse.json();
+          
+          console.log("🔍 Refresh result:", {
+            success: refreshResult.success,
+            hasHrPdf: !!refreshResult.data?.trainingAgreementDetails?.signedHrPoliciesPdfUrl,
+            hasLoiPdf: !!refreshResult.data?.trainingAgreementDetails?.signedLetterOfIntentPdfUrl,
+          });
+          
+          if (refreshResult.success && refreshResult.data) {
+            const refreshedCandidate = refreshResult.data;
+            setCandidate(refreshedCandidate);
+            
+            // Load all signed PDFs if available
+            if (refreshedCandidate.trainingAgreementDetails?.signedPdfUrl) {
+              setSignedPdfUrl(refreshedCandidate.trainingAgreementDetails.signedPdfUrl);
+              setUnsignedPdfUrl(null);
+              console.log("✅ Loaded signed Training Agreement PDF from database");
+            }
+            
+            if (refreshedCandidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl) {
+              setHrPoliciesPdfUrl(refreshedCandidate.trainingAgreementDetails.signedHrPoliciesPdfUrl);
+              console.log("✅ Loaded signed HR Policies PDF from database:", refreshedCandidate.trainingAgreementDetails.signedHrPoliciesPdfUrl);
+            } else {
+              console.warn("⚠️ Signed HR Policies PDF URL not found in database after refresh");
+            }
+            
+            if (refreshedCandidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl) {
+              setLetterOfIntentPdfUrl(refreshedCandidate.trainingAgreementDetails.signedLetterOfIntentPdfUrl);
+              console.log("✅ Loaded signed Letter of Intent PDF from database:", refreshedCandidate.trainingAgreementDetails.signedLetterOfIntentPdfUrl);
+            } else {
+              console.warn("⚠️ Signed Letter of Intent PDF URL not found in database after refresh");
+            }
+          }
+        } catch (refreshErr) {
+          console.error("❌ Error refreshing candidate data:", refreshErr);
+          // Don't fail the entire process if refresh fails - PDFs are already stored in DB
+        }
+      }, 1000); // Wait 1 second to ensure database writes are committed
+
       toast({
         title: "Success",
-        description: "Training agreement signed and submitted successfully. All documents have been updated with your signature.",
+        description: "Training agreement signed and submitted successfully. All documents have been updated with your signature. Please download all signed documents below.",
+        duration: 6000, // Show for 6 seconds
       });
 
       // setTimeout(() => {
@@ -809,17 +886,32 @@ export default function TrainingAgreementPage() {
 
         {/* Success Message */}
         {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
-            <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                Training agreement signed successfully!
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-400">
-                Redirecting to dashboard...
-              </p>
+          <Card className="mb-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 border-2 border-green-400 dark:border-green-700 rounded-lg shadow-lg">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center">
+                  <Check className="w-7 h-7 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-green-800 dark:text-green-300 mb-2">
+                  Training Agreement Signed Successfully! ✅
+                </h3>
+                <p className="text-base text-green-700 dark:text-green-400 mb-4">
+                  Your signature has been applied to all documents (Training Agreement, HR Policies, and Letter of Intent).
+                </p>
+                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    Important: Please Download All Signed Documents
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-400">
+                    Please download all three signed documents below for your records. These documents contain your signature and are legally binding.
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Error Message */}

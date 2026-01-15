@@ -311,20 +311,29 @@ export default function CandidatesPage() {
     }
     
     try {
-      console.log("Fetching pending reschedule requests...");
+      console.log("🔍 [Frontend] Fetching pending reschedule requests...");
+      console.log("🔍 [Frontend] User role:", userRole, "Can verify:", canVerify);
+      
       // Use dedicated endpoint for reschedule requests
-      const response = await fetch("/api/candidates/reschedule-requests");
+      const response = await fetch("/api/candidates/reschedule-requests", {
+        cache: "no-store", // Prevent caching issues
+      });
+      
+      console.log("🔍 [Frontend] Response status:", response.status, response.statusText);
       
       if (!response.ok) {
-        console.error("API response not OK:", response.status, response.statusText);
+        console.error("❌ [Frontend] API response not OK:", response.status, response.statusText);
+        const errorText = await response.text();
+        console.error("❌ [Frontend] Error response body:", errorText);
         throw new Error(`API returned ${response.status}`);
       }
       
       const result = await response.json();
-      console.log("API response:", result);
+      console.log("🔍 [Frontend] API response:", result);
+      console.log("🔍 [Frontend] Debug info:", result.debug);
       
       if (result.success && result.data) {
-        console.log("Fetched pending reschedule requests:", result.data.length, result.data);
+        console.log("✅ [Frontend] Fetched pending reschedule requests:", result.data.length, result.data);
         setPendingRescheduleRequests(result.data);
       } else {
         console.error("Failed to fetch pending reschedule requests:", result);

@@ -426,8 +426,45 @@ const NewUser: React.FC<NewUserProps> = ({
       return;
     }
 
+    // Ensure dates are Date objects (not strings)
+    // Convert dateOfBirth to Date if it's a string
+    let dateOfBirth = cleanedData.dateOfBirth;
+    if (dateOfBirth) {
+      if (typeof dateOfBirth === "string") {
+        dateOfBirth = new Date(dateOfBirth);
+      }
+      // Ensure it's a valid date
+      if (isNaN(dateOfBirth.getTime())) {
+        toast({
+          variant: "destructive",
+          description: "Invalid date of birth.",
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Convert dateOfJoining to Date if it's a string
+    let dateOfJoining = cleanedData.dateOfJoining;
+    if (dateOfJoining) {
+      if (typeof dateOfJoining === "string") {
+        dateOfJoining = new Date(dateOfJoining);
+      }
+      // Ensure it's a valid date
+      if (isNaN(dateOfJoining.getTime())) {
+        toast({
+          variant: "destructive",
+          description: "Invalid date of joining.",
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     const userData = {
       ...cleanedData,
+      dateOfBirth: dateOfBirth instanceof Date ? dateOfBirth : cleanedData.dateOfBirth,
+      dateOfJoining: dateOfJoining instanceof Date ? dateOfJoining : cleanedData.dateOfJoining,
       profilePic,
       candidateId: candidateProp?._id || candidateId || null,
     };

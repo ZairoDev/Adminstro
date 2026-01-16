@@ -70,9 +70,10 @@ export async function PATCH(
       );
     }
 
-    // Update candidate with second round interview details
+    // Update candidate with second round interview details and change status to interview
     // CRITICAL: Store the date as parsed from local date string to preserve the intended calendar date
     const updateData: Record<string, unknown> = {
+      status: "interview", // Set status to interview when scheduling second round
       "secondRoundInterviewDetails.scheduledDate": interviewDate, // Already parsed as local date
       "secondRoundInterviewDetails.scheduledTime": scheduledTime,
       "secondRoundInterviewDetails.scheduledBy": userName || "Admin",

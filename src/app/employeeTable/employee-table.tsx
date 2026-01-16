@@ -1,7 +1,7 @@
 import axios from "axios";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis, Plus, RefreshCcw } from "lucide-react";
+import { Ellipsis, Plus, RefreshCcw, Lock } from "lucide-react";
 
 import {
   Table,
@@ -32,6 +32,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
 
+/**
+ * Utility function to check if HR user is viewing SuperAdmin account
+ * @param viewerRole - Role of the currently logged-in user
+ * @param employeeRole - Role of the employee being viewed
+ * @returns true if HR is trying to view SuperAdmin, false otherwise
+ */
+const isHRViewingSuperAdmin = (viewerRole: string, employeeRole: string): boolean => {
+  return viewerRole === "HR" && employeeRole === "SuperAdmin";
+};
+
 export default function EmployeeTable({
   employees,
   role,
@@ -51,6 +61,11 @@ export default function EmployeeTable({
     /* Regenerate Individual Password */
   }
   const regeneratePassword = async (employee: UserInterface) => {
+    // Prevent HR from regenerating SuperAdmin passwords
+    if (isHRViewingSuperAdmin(role, employee.role)) {
+      return;
+    }
+
     try {
       setLoadingIndex(employee._id);
       const response = await axios.post("/api/generateNewpassword", {
@@ -157,9 +172,10 @@ export default function EmployeeTable({
           {/* Copy Passwords */}
           <Button
             onClick={() => {
-              const copyPasswords = filteredEmployee?.map(
-                (row) => `${row.email} : ${row.password}`
-              );
+              // Exclude SuperAdmin accounts when HR is viewing
+              const copyPasswords = filteredEmployee
+                ?.filter((row) => !isHRViewingSuperAdmin(role, row.role))
+                .map((row) => `${row.email} : ${row.password}`);
               navigator.clipboard.writeText(
                 JSON.stringify(copyPasswords, null, 2)
               );
@@ -187,68 +203,108 @@ export default function EmployeeTable({
 
         {/* Rows */}
         <TableBody>
-          {filteredEmployee?.map((employee, index) => (
-            <TableRow key={employee?._id}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}>{employee.name}</TableCell>
-              <TableCell>{employee.phone}</TableCell>
-              <TableCell>{employee.email}</TableCell>
-              <TableCell>{employee.role}</TableCell>
-              <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
-                <p>{employee?.password}</p>
-                <RefreshCcw
-                  size={16}
-                  className={`cursor-pointer ${
-                    employee._id === loadingIndex ? "animate-spin" : ""
-                  } `}
-                  onClick={() => regeneratePassword(employee)}
-                />
-              </TableCell>
+          {filteredEmployee?.map((employee, index) => {
+            const isRestricted = isHRViewingSuperAdmin(role, employee.role);
+            
+            return (
+              <TableRow key={employee?._id}>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}>
+                  {employee.name}
+                </TableCell>
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    employee.phone
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    employee.email
+                  )}
+                </TableCell>
+                <TableCell>{employee.role}</TableCell>
+                <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    <>
+                      <p>{employee?.password}</p>
+                      <RefreshCcw
+                        size={16}
+                        className={`cursor-pointer ${
+                          employee._id === loadingIndex ? "animate-spin" : ""
+                        } `}
+                        onClick={() => regeneratePassword(employee)}
+                      />
+                    </>
+                  )}
+                </TableCell>
 
-              {/* Actions */}
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      ref={ellipsisRef}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Ellipsis size={18} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const textToCopy = `${employee.email} ${employee.password}`;
-                          navigator.clipboard.writeText(textToCopy);
-                        }}
-                      >
-                        Copy Credentials
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/dashboard/editemployeedetails/${employee._id}`}
+                {/* Actions */}
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span className="text-xs">Restricted</span>
+                    </div>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          ref={ellipsisRef}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Edit Profile
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/dashboard/employeedetails/${employee._id}`}
-                        >
-                          Actions
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
+                          <Ellipsis size={18} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="">
+                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const textToCopy = `${employee.email} ${employee.password}`;
+                              navigator.clipboard.writeText(textToCopy);
+                            }}
+                          >
+                            Copy Credentials
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Link
+                              href={`/dashboard/editemployeedetails/${employee._id}`}
+                            >
+                              Edit Profile
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Link
+                              href={`/dashboard/employeedetails/${employee._id}`}
+                            >
+                              Actions
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

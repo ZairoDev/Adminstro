@@ -245,6 +245,14 @@ const CandidateSchema = new Schema(
         notes: { type: String, default: null },
       },
     },
+    // Important candidate flag
+    isImportant: { type: Boolean, default: false },
+    // Interview attendance status
+    interviewAttendance: {
+      type: String,
+      enum: ["appeared", "not_appeared", null],
+      default: null,
+    },
   },
   { timestamps: true }
 );

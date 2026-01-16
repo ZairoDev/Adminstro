@@ -45,6 +45,15 @@ export async function PATCH(
     // Handle flat fields
     if (body.status) updateData.status = body.status;
     if (body.position) updateData.position = body.position;
+    if (body.isImportant !== undefined) updateData.isImportant = body.isImportant;
+    if (body.interviewAttendance !== undefined) {
+      // Validate interviewAttendance value
+      if (body.interviewAttendance === null || 
+          body.interviewAttendance === "appeared" || 
+          body.interviewAttendance === "not_appeared") {
+        updateData.interviewAttendance = body.interviewAttendance;
+      }
+    }
     
     // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl")
     Object.keys(body).forEach((key) => {

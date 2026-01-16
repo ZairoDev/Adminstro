@@ -188,8 +188,12 @@ export async function PATCH(
       );
     }
 
-    // Check if candidate has interview scheduled
-    if (!candidate.interviewDetails?.scheduledDate) {
+    // Check if candidate has any interview scheduled (first round or second round)
+    // Allow remarks if either first round or second round is scheduled
+    const hasFirstRound = candidate.interviewDetails?.scheduledDate;
+    const hasSecondRound = candidate.secondRoundInterviewDetails?.scheduledDate;
+    
+    if (!hasFirstRound && !hasSecondRound) {
       return NextResponse.json(
         { success: false, error: "Interview must be scheduled before adding remarks" },
         { status: 400 }

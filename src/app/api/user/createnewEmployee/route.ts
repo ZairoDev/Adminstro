@@ -9,8 +9,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   await connectDb();
   try {
     const reqBody = await request.json();
-    const dt = new Date(reqBody.dateOfJoining);
-    reqBody.dateOfJoining = dt;
+    // Convert dateOfJoining from string to Date
+    if (reqBody.dateOfJoining) {
+      const dt = new Date(reqBody.dateOfJoining);
+      reqBody.dateOfJoining = dt;
+    }
+    // Convert dateOfBirth from string to Date
+    if (reqBody.dateOfBirth) {
+      const dob = new Date(reqBody.dateOfBirth);
+      reqBody.dateOfBirth = dob;
+    }
     const parsedBody = employeeSchema.parse(reqBody);
     // console.log(parsedBody);
     const {
@@ -32,6 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       aadhar,
       alias,
       dateOfJoining,
+      dateOfBirth,
       experience,
       phone,
       password,
@@ -69,6 +78,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       assignedCountry,
       salary,
       dateOfJoining,
+      dateOfBirth,
       experience,
       phone,
       // password: hashedPassword,

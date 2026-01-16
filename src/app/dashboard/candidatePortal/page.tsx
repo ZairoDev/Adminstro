@@ -21,6 +21,7 @@ import {
   ChevronDown,
   AlertCircle,
   CheckCircle2,
+  Star,
 } from "lucide-react";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,8 @@ interface Candidate {
   college?: string;
   status: "pending" | "interview" | "shortlisted" | "selected" | "rejected" | "onboarding";
   createdAt: string;
+  isImportant?: boolean;
+  interviewAttendance?: "appeared" | "not_appeared" | null;
   notes?: Array<{ _id: string; content: string; createdAt: string; updatedAt: string }>;
   interviewDetails?: {
     scheduledDate?: string;
@@ -850,6 +853,73 @@ export default function CandidatesPage() {
     }
   };
 
+  // Toggle important status
+  const handleToggleImportant = async (candidate: Candidate) => {
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isImportant: !candidate.isImportant }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCandidates((prev) =>
+          prev.map((c) =>
+            c._id === candidate._id
+              ? { ...c, isImportant: !candidate.isImportant }
+              : c
+          )
+        );
+        toast.success(
+          candidate.isImportant
+            ? "Removed from important candidates"
+            : "Marked as important candidate"
+        );
+      } else {
+        toast.error(result.error || "Failed to update important status");
+      }
+    } catch (error) {
+      console.error("Error updating important status:", error);
+      toast.error("Failed to update important status");
+    }
+  };
+
+  // Update interview attendance
+  const handleUpdateAttendance = async (
+    candidate: Candidate,
+    attendance: "appeared" | "not_appeared" | null
+  ) => {
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interviewAttendance: attendance }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCandidates((prev) =>
+          prev.map((c) =>
+            c._id === candidate._id ? { ...c, interviewAttendance: attendance } : c
+          )
+        );
+        const attendanceText =
+          attendance === "appeared"
+            ? "Appeared"
+            : attendance === "not_appeared"
+            ? "Not Appeared"
+            : "Cleared";
+        toast.success(`Interview attendance marked as: ${attendanceText}`);
+      } else {
+        toast.error(result.error || "Failed to update attendance");
+      }
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+      toast.error("Failed to update attendance");
+    }
+  };
+
   const CandidateTable = () => {
     // Sort interviews by date when viewing the interview tab
     const displayCandidates = activeTab === "interview" 
@@ -861,6 +931,9 @@ export default function CandidatesPage() {
         <table className="w-full">
           <thead className="bg-muted border-b border-border">
             <tr>
+              <th className="px-6 py-3 text-center text-sm font-semibold text-foreground w-12">
+                <Star className="h-4 w-4 mx-auto" />
+              </th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Name
               </th>
@@ -880,9 +953,14 @@ export default function CandidatesPage() {
                 Status
               </th>
               {activeTab === "interview" && (
-                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                  Interview Date & Time
-                </th>
+                <>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Interview Date & Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Attendance
+                  </th>
+                </>
               )}
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                 Applied
@@ -906,7 +984,7 @@ export default function CandidatesPage() {
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={activeTab === "interview" ? 10 : activeTab === "pending" ? 10 : 9} className="px-6 py-8 text-center">
+                <td colSpan={activeTab === "interview" ? 12 : activeTab === "pending" ? 11 : 10} className="px-6 py-8 text-center">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
@@ -915,7 +993,7 @@ export default function CandidatesPage() {
             ) : displayCandidates.length === 0 ? (
               <tr>
                 <td
-                  colSpan={activeTab === "interview" ? 10 : activeTab === "pending" ? 10 : 9}
+                  colSpan={activeTab === "interview" ? 12 : activeTab === "pending" ? 11 : 10}
                   className="px-6 py-8 text-center text-muted-foreground"
                 >
                   No candidates found
@@ -933,6 +1011,21 @@ export default function CandidatesPage() {
                     : "hover:bg-muted/50"
                 }`}
               >
+                <td className="px-6 py-4 text-center">
+                  <button
+                    onClick={() => handleToggleImportant(candidate)}
+                    className="transition-colors hover:scale-110"
+                    title={candidate.isImportant ? "Remove from important" : "Mark as important"}
+                  >
+                    <Star
+                      className={`h-5 w-5 ${
+                        candidate.isImportant
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground hover:text-yellow-400"
+                      } transition-colors`}
+                    />
+                  </button>
+                </td>
                 <td className="px-6 py-4">
                   <div className="font-medium text-foreground">
                     {candidate.name}
@@ -1009,55 +1102,19 @@ export default function CandidatesPage() {
                   </div>
                 </td>
                 {activeTab === "interview" && (
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    <div className="space-y-3">
-                      {/* First Round Interview */}
-                      {candidate.interviewDetails?.scheduledDate && candidate.interviewDetails?.scheduledTime && (
-                      <div>
-                        <div className="font-medium flex items-center gap-2 flex-wrap">
-                          {formatDateForDisplay(candidate.interviewDetails.scheduledDate)}
-                            <Badge variant="outline" className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
-                              First Round
-                            </Badge>
-                          {(() => {
-                            const category = categorizeInterviewDate(candidate.interviewDetails.scheduledDate);
-                            if (category === "today") {
-                              return (
-                                <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                                  Today
-                                </Badge>
-                              );
-                            } else if (category === "tomorrow") {
-                              return (
-                                <Badge variant="outline" className="text-xs font-normal bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
-                                  Tomorrow
-                                </Badge>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {candidate.interviewDetails.scheduledTime}
-                        </div>
-                        {candidate.interviewDetails.scheduledBy && (
-                          <div className="text-muted-foreground text-xs mt-1">
-                            Scheduled by: {candidate.interviewDetails.scheduledBy}
-                          </div>
-                        )}
-                      </div>
-                      )}
-
-                      {/* Second Round Interview */}
-                      {candidate.secondRoundInterviewDetails?.scheduledDate && candidate.secondRoundInterviewDetails?.scheduledTime && (
-                        <div className={candidate.interviewDetails?.scheduledDate ? "pt-3 border-t" : ""}>
+                  <>
+                    <td className="px-6 py-4 text-sm text-foreground">
+                      <div className="space-y-3">
+                        {/* First Round Interview */}
+                        {candidate.interviewDetails?.scheduledDate && candidate.interviewDetails?.scheduledTime && (
+                        <div>
                           <div className="font-medium flex items-center gap-2 flex-wrap">
-                            {formatDateForDisplay(candidate.secondRoundInterviewDetails.scheduledDate)}
-                            <Badge variant="outline" className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
-                              Second Round
-                            </Badge>
+                            {formatDateForDisplay(candidate.interviewDetails.scheduledDate)}
+                              <Badge variant="outline" className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
+                                First Round
+                              </Badge>
                             {(() => {
-                              const category = categorizeInterviewDate(candidate.secondRoundInterviewDetails.scheduledDate);
+                              const category = categorizeInterviewDate(candidate.interviewDetails.scheduledDate);
                               if (category === "today") {
                                 return (
                                   <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
@@ -1075,22 +1132,107 @@ export default function CandidatesPage() {
                             })()}
                           </div>
                           <div className="text-muted-foreground text-xs">
-                            {candidate.secondRoundInterviewDetails.scheduledTime}
+                            {candidate.interviewDetails.scheduledTime}
                           </div>
-                          {candidate.secondRoundInterviewDetails.scheduledBy && (
+                          {candidate.interviewDetails.scheduledBy && (
                             <div className="text-muted-foreground text-xs mt-1">
-                              Scheduled by: {candidate.secondRoundInterviewDetails.scheduledBy}
+                              Scheduled by: {candidate.interviewDetails.scheduledBy}
                             </div>
                           )}
                         </div>
-                      )}
+                        )}
 
-                      {/* No interviews scheduled */}
-                      {!candidate.interviewDetails?.scheduledDate && !candidate.secondRoundInterviewDetails?.scheduledDate && (
-                      <span className="text-muted-foreground">Not scheduled</span>
-                    )}
-                    </div>
-                  </td>
+                        {/* Second Round Interview */}
+                        {candidate.secondRoundInterviewDetails?.scheduledDate && candidate.secondRoundInterviewDetails?.scheduledTime && (
+                          <div className={candidate.interviewDetails?.scheduledDate ? "pt-3 border-t" : ""}>
+                            <div className="font-medium flex items-center gap-2 flex-wrap">
+                              {formatDateForDisplay(candidate.secondRoundInterviewDetails.scheduledDate)}
+                              <Badge variant="outline" className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
+                                Second Round
+                              </Badge>
+                              {(() => {
+                                const category = categorizeInterviewDate(candidate.secondRoundInterviewDetails.scheduledDate);
+                                if (category === "today") {
+                                  return (
+                                    <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                                      Today
+                                    </Badge>
+                                  );
+                                } else if (category === "tomorrow") {
+                                  return (
+                                    <Badge variant="outline" className="text-xs font-normal bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
+                                      Tomorrow
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              {candidate.secondRoundInterviewDetails.scheduledTime}
+                            </div>
+                            {candidate.secondRoundInterviewDetails.scheduledBy && (
+                              <div className="text-muted-foreground text-xs mt-1">
+                                Scheduled by: {candidate.secondRoundInterviewDetails.scheduledBy}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* No interviews scheduled */}
+                        {!candidate.interviewDetails?.scheduledDate && !candidate.secondRoundInterviewDetails?.scheduledDate && (
+                        <span className="text-muted-foreground">Not scheduled</span>
+                      )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={
+                            candidate.interviewAttendance === "appeared"
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            handleUpdateAttendance(
+                              candidate,
+                              candidate.interviewAttendance === "appeared"
+                                ? null
+                                : "appeared"
+                            )
+                          }
+                          className={`${
+                            candidate.interviewAttendance === "appeared"
+                              ? "bg-green-600 hover:bg-green-700 text-white"
+                              : ""
+                          }`}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Appeared
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            candidate.interviewAttendance === "not_appeared"
+                              ? "destructive"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            handleUpdateAttendance(
+                              candidate,
+                              candidate.interviewAttendance === "not_appeared"
+                                ? null
+                                : "not_appeared"
+                            )
+                          }
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Not Appeared
+                        </Button>
+                      </div>
+                    </td>
+                  </>
                 )}
                 <td className="px-6 py-4 text-sm text-muted-foreground">
                   {formatDate(candidate.createdAt)}

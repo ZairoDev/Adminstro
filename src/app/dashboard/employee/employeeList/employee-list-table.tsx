@@ -1,6 +1,6 @@
 import axios from "axios";
 import Link from "next/link";
-import { Ellipsis, RefreshCcw } from "lucide-react";
+import { Ellipsis, RefreshCcw, Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -32,6 +32,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
 
+/**
+ * Utility function to check if HR user is viewing SuperAdmin account
+ * @param viewerRole - Role of the currently logged-in user
+ * @param employeeRole - Role of the employee being viewed
+ * @returns true if HR is trying to view SuperAdmin, false otherwise
+ */
+const isHRViewingSuperAdmin = (viewerRole: string, employeeRole: string): boolean => {
+  return viewerRole === "HR" && employeeRole === "SuperAdmin";
+};
+
 export default function EmployeeListTable({
   employees,
   role,
@@ -52,9 +62,14 @@ export default function EmployeeListTable({
   }
 
   useEffect(() => {
-    setEmployeeList(employees);
-    setFilteredEmployee(employees);
-  }, [employees]);
+    // Filter out inactive employees if user is HR
+    const filtered = role === "HR" 
+      ? employees.filter((emp) => emp.isActive === true)
+      : employees;
+    
+    setEmployeeList(filtered);
+    setFilteredEmployee(filtered);
+  }, [employees, role]);
 
   return (
     <div className=" w-full ">
@@ -84,12 +99,12 @@ export default function EmployeeListTable({
                 setFilteredEmployee(employeeList ?? []);
                 return;
               }
-              const updatedEmployeeList = filteredEmployee?.filter((emp) =>
+              const updatedEmployeeList = (employeeList ?? []).filter((emp) =>
                 (emp[queryType as "name" | "email" | "phone"] as string)
                   .toLowerCase()
                   .includes(value)
               );
-              setFilteredEmployee(updatedEmployeeList ?? []);
+              setFilteredEmployee(updatedEmployeeList);
             }}
             placeholder="Search..."
           />
@@ -104,19 +119,19 @@ export default function EmployeeListTable({
                   setFilteredEmployee(employeeList ?? []);
                   return;
                 }
-                const empList = employeeList?.filter(
+                const empList = (employeeList ?? []).filter(
                   (emp) => emp.role === value
                 );
-                setFilteredEmployee(empList ?? []);
+                setFilteredEmployee(empList);
               }}
             >
               <SelectTrigger className="w-[100px]">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>
-                {["All", ...employeeRoles].map((role, index) => (
-                  <SelectItem key={index} value={role}>
-                    {role}
+                {["All", ...employeeRoles].map((roleOption, index) => (
+                  <SelectItem key={index} value={roleOption}>
+                    {roleOption}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -126,9 +141,10 @@ export default function EmployeeListTable({
           {/* Copy Passwords */}
           <Button
             onClick={() => {
-              const copyPasswords = filteredEmployee?.map(
-                (row) => `${row.email} : ${row.password}`
-              );
+              // Exclude SuperAdmin accounts when HR is viewing
+              const copyPasswords = filteredEmployee
+                ?.filter((row) => !isHRViewingSuperAdmin(role, row.role))
+                .map((row) => `${row.email} : ${row.password}`);
               navigator.clipboard.writeText(
                 JSON.stringify(copyPasswords, null, 2)
               );
@@ -156,67 +172,103 @@ export default function EmployeeListTable({
 
         {/* Rows */}
         <TableBody>
-          {filteredEmployee?.map((employee, index) => (
-            <TableRow key={employee?._id}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell
-                className={`${
-                  employee.isActive ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {employee.name}
-              </TableCell>
-              <TableCell>{employee.phone}</TableCell>
-              <TableCell>{employee.email}</TableCell>
-              <TableCell>{employee.role}</TableCell>
-              <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
-                <p>{employee?.password}</p>
-              </TableCell>
+          {filteredEmployee?.map((employee, index) => {
+            const isRestricted = isHRViewingSuperAdmin(role, employee.role);
+            
+            return (
+              <TableRow key={employee?._id}>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell
+                  className={`${
+                    employee.isActive ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {employee.name}
+                </TableCell>
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    employee.phone
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    employee.email
+                  )}
+                </TableCell>
+                <TableCell>{employee.role}</TableCell>
+                <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span>Restricted</span>
+                    </div>
+                  ) : (
+                    <p>{employee?.password}</p>
+                  )}
+                </TableCell>
 
-              {/* Actions */}
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      ref={ellipsisRef}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Ellipsis size={18} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const textToCopy = `${employee.email} ${employee.password}`;
-                          navigator.clipboard.writeText(textToCopy);
-                        }}
-                      >
-                        Copy Credentials
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/dashboard/editemployeedetails/${employee._id}`}
+                {/* Actions */}
+                <TableCell>
+                  {isRestricted ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Lock size={16} />
+                      <span className="text-xs">Restricted</span>
+                    </div>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          ref={ellipsisRef}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Edit Profile
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/dashboard/employeedetails/${employee._id}`}
-                        >
-                          Actions
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
+                          <Ellipsis size={18} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="">
+                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const textToCopy = `${employee.email} ${employee.password}`;
+                              navigator.clipboard.writeText(textToCopy);
+                            }}
+                          >
+                            Copy Credentials
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Link
+                              href={`/dashboard/editemployeedetails/${employee._id}`}
+                            >
+                              Edit Profile
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Link
+                              href={`/dashboard/employeedetails/${employee._id}`}
+                            >
+                              Actions
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

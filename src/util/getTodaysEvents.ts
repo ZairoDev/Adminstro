@@ -139,7 +139,9 @@ export function getTodaysEvents(
     // Check work anniversary
     if (emp.dateOfJoining && isDateToday(emp.dateOfJoining)) {
       const years = calculateYears(emp.dateOfJoining);
-      if (years !== null) {
+      // Only show anniversaries for employees who have been with the company for at least 1 year
+      // This prevents showing "0th anniversary" for newly registered employees
+      if (years !== null && years > 0) {
         anniversaries.push({
           employeeId: emp._id,
           firstName,

@@ -71,15 +71,8 @@ export async function PATCH(
       );
     }
 
-    // Check if candidate is in pending status
-    if (candidate.status !== "pending") {
-      return NextResponse.json(
-        { success: false, error: "Only pending candidates can be scheduled for interview" },
-        { status: 400 }
-      );
-    }
-
     // Update candidate with interview details and change status to interview
+    // Allow scheduling from any status to avoid redundancy issues
     // CRITICAL: Store the date as parsed from local date string to preserve the intended calendar date
     // MongoDB will store this as UTC, but we parse it back correctly on retrieval
     const updateData: Record<string, unknown> = {

@@ -83,6 +83,8 @@ interface Candidate {
   photoUrl?: string;
   status: "pending"|"interview"|"shortlisted"|"selected"|"rejected"|"onboarding";
   createdAt: string;
+  isImportant?: boolean;
+  interviewAttendance?: "appeared" | "not_appeared" | null;
   interviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;
@@ -623,6 +625,14 @@ export default function CandidateDetailPage() {
 
   const hasInterviewRemarks = () => {
     return !!candidate?.interviewDetails?.remarks?.evaluatedBy;
+  };
+
+  const hasAnyInterviewScheduled = () => {
+    // Check if either first round or second round interview is scheduled
+    return !!(
+      candidate?.interviewDetails?.scheduledDate ||
+      candidate?.secondRoundInterviewDetails?.scheduledDate
+    );
   };
 
   const canSelect = () => {
@@ -1278,7 +1288,8 @@ export default function CandidateDetailPage() {
                   </Tooltip>
 
                   {/* Interview Remarks Button */}
-                  {candidate.status === "interview" && canVerify && (
+                  {/* Show remarks button if any interview (first or second round) is scheduled */}
+                  {hasAnyInterviewScheduled() && canVerify && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div>
@@ -2201,7 +2212,8 @@ export default function CandidateDetailPage() {
       </Dialog>
 
       {/* Interview Remarks Dialog */}
-      {candidate.status === "interview" && (
+      {/* Show remarks dialog if any interview (first or second round) is scheduled */}
+      {hasAnyInterviewScheduled() && (
         <InterviewRemarksDialog
           open={interviewRemarksDialogOpen}
           onOpenChange={setInterviewRemarksDialogOpen}

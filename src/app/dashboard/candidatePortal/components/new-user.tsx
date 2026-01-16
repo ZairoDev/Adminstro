@@ -11,10 +11,12 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 import { employeeSchema, type EmployeeSchema } from "@/schemas/employee.schema";
 
@@ -32,6 +34,13 @@ import {
   SelectTrigger,
   SelectContent,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 // --- Types ---
@@ -49,6 +58,42 @@ export type CandidateLite = {
   spokenLanguage?: string;
   gender?: "Male" | "Female" | "Other" | string;
   resumeUrl?: string;
+  photoUrl?: string;
+  college?: string;
+  linkedin?: string;
+  portfolio?: string;
+  dateOfBirth?: string | Date;
+  nationality?: string;
+  bankDetails?: {
+    accountNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    accountHolderName?: string;
+  };
+  aadhar?: string;
+  onboardingDetails?: {
+    personalDetails?: {
+      dateOfBirth?: string | Date;
+      gender?: string;
+      nationality?: string;
+      fatherName?: string;
+      aadhaarNumber?: string;
+      panNumber?: string;
+    };
+    bankDetails?: {
+      accountNumber?: string;
+      ifscCode?: string;
+      bankName?: string;
+      accountHolderName?: string;
+    };
+    documents?: {
+      aadharCard?: string;
+    };
+  };
+  selectionDetails?: {
+    salary?: number;
+    role?: string;
+  };
 };
 
 export interface NewUserProps {
@@ -97,6 +142,7 @@ const NewUser: React.FC<NewUserProps> = ({
       aadhar: "",
       alias: "",
       dateOfJoining: new Date(),
+      dateOfBirth: undefined,
       address: "",
       role: undefined,
       experience: 0,
@@ -154,24 +200,164 @@ const NewUser: React.FC<NewUserProps> = ({
       }
       if (!data) return;
 
+      // Basic information
       setValue("name", data.name || "");
       setValue("email", data.email || "");
       setValue("country", data.country || "");
       setValue("address", data.address || "");
-      setValue("nationality", data.country || "Indian");
-      if (data.gender) {
-        setValue("gender", data.gender as "Male" | "Female" | "Other");
-      }
+      setValue("nationality", data.onboardingDetails?.personalDetails?.nationality || data.nationality || data.country || "Indian");
       setValue("experience", data.experience ?? 0);
       setValue("spokenLanguage", data.spokenLanguage || "Hindi");
-      if (data.position) {
-        setValue("role", data.position as any);
-      }
       if (data.phone) {
         setValue("phone", data.phone);
       }
 
-      if (data.resumeUrl) {
+      // Gender - check onboardingDetails first, then candidate level
+      // Normalize gender to match enum: "Male", "Female", or "Other"
+      const gender = data.onboardingDetails?.personalDetails?.gender || data.gender;
+      if (gender) {
+        let normalizedGender: string;
+        if (typeof gender === "string") {
+          // Normalize: capitalize first letter, lowercase rest
+          normalizedGender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
+        } else {
+          normalizedGender = String(gender);
+        }
+        
+        // Map common variations to enum values
+        const genderMap: Record<string, "Male" | "Female" | "Other"> = {
+          "male": "Male",
+          "m": "Male",
+          "female": "Female",
+          "f": "Female",
+          "other": "Other",
+          "o": "Other",
+        };
+        
+        const mappedGender = genderMap[normalizedGender.toLowerCase()] || normalizedGender;
+        
+        // Only set if it matches one of the valid enum values
+        if (mappedGender === "Male" || mappedGender === "Female" || mappedGender === "Other") {
+          setValue("gender", mappedGender);
+        }
+      }
+
+      // Role/Position - validate against enum values
+      const validRoles = [
+        "Admin",
+        "Advert",
+        "Content",
+        "LeadGen",
+        "LeadGen-TeamLead",
+        "Sales",
+        "Sales-TeamLead",
+        "HR",
+        "Guest",
+        "Developer",
+      ] as const;
+      
+      // Helper function to find matching role
+      const findMatchingRole = (position: string | undefined): typeof validRoles[number] | null => {
+        if (!position) return null;
+        
+        const positionLower = position.toLowerCase();
+        
+        // Direct match
+        const directMatch = validRoles.find(
+          role => role.toLowerCase() === positionLower
+        );
+        if (directMatch) return directMatch;
+        
+        // Partial matches for common variations
+        if (positionLower.includes("content")) return "Content";
+        if (positionLower.includes("leadgen") || positionLower.includes("lead gen")) {
+          if (positionLower.includes("teamlead") || positionLower.includes("team lead")) {
+            return "LeadGen-TeamLead";
+          }
+          return "LeadGen";
+        }
+        if (positionLower.includes("sales")) {
+          if (positionLower.includes("teamlead") || positionLower.includes("team lead")) {
+            return "Sales-TeamLead";
+          }
+          return "Sales";
+        }
+        if (positionLower.includes("admin")) return "Admin";
+        if (positionLower.includes("advert")) return "Advert";
+        if (positionLower.includes("hr") || positionLower.includes("human resource")) return "HR";
+        if (positionLower.includes("developer") || positionLower.includes("dev")) return "Developer";
+        if (positionLower.includes("guest")) return "Guest";
+        
+        return null;
+      };
+      
+      // Try position first
+      if (data.position) {
+        const matchingRole = findMatchingRole(data.position);
+        if (matchingRole) {
+          setValue("role", matchingRole);
+        }
+      }
+      
+      // If position didn't match, try selectionDetails.role
+      if (!data.position || !findMatchingRole(data.position)) {
+        if (data.selectionDetails?.role) {
+          const matchingRole = findMatchingRole(data.selectionDetails.role);
+          if (matchingRole) {
+            setValue("role", matchingRole);
+          }
+        }
+      }
+
+      // Date of Birth - from onboardingDetails.personalDetails.dateOfBirth
+      if (data.onboardingDetails?.personalDetails?.dateOfBirth) {
+        const dob = data.onboardingDetails.personalDetails.dateOfBirth;
+        const dobDate = dob instanceof Date ? dob : new Date(dob);
+        if (!isNaN(dobDate.getTime())) {
+          setValue("dateOfBirth", dobDate);
+        }
+      } else if (data.dateOfBirth) {
+        const dobDate = data.dateOfBirth instanceof Date ? data.dateOfBirth : new Date(data.dateOfBirth);
+        if (!isNaN(dobDate.getTime())) {
+          setValue("dateOfBirth", dobDate);
+        }
+      }
+
+      // Bank Details - from onboardingDetails.bankDetails
+      if (data.onboardingDetails?.bankDetails) {
+        const bankDetails = data.onboardingDetails.bankDetails;
+        if (bankDetails.accountNumber) {
+          setValue("accountNo", bankDetails.accountNumber);
+        }
+        if (bankDetails.ifscCode) {
+          setValue("ifsc", bankDetails.ifscCode);
+        }
+      } else if (data.bankDetails) {
+        if (data.bankDetails.accountNumber) {
+          setValue("accountNo", data.bankDetails.accountNumber);
+        }
+        if (data.bankDetails.ifscCode) {
+          setValue("ifsc", data.bankDetails.ifscCode);
+        }
+      }
+
+      // Aadhar - from onboardingDetails.personalDetails.aadhaarNumber
+      if (data.onboardingDetails?.personalDetails?.aadhaarNumber) {
+        setValue("aadhar", data.onboardingDetails.personalDetails.aadhaarNumber);
+      } else if (data.aadhar) {
+        setValue("aadhar", data.aadhar);
+      }
+
+      // Salary - from selectionDetails
+      if (data.selectionDetails?.salary) {
+        setValue("salary", data.selectionDetails.salary);
+      }
+
+      // Profile Picture - prefer photoUrl over resumeUrl
+      if (data.photoUrl) {
+        setProfilepic(data.photoUrl);
+        setPreviewImage(data.photoUrl);
+      } else if (data.resumeUrl) {
         setProfilepic(data.resumeUrl);
         setPreviewImage(data.resumeUrl);
       }
@@ -401,6 +587,47 @@ const NewUser: React.FC<NewUserProps> = ({
                     {errors.gender && (
                       <p className="text-red-500 text-xs">
                         {errors.gender.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date of Birth *</Label>
+                    <Controller
+                      name="dateOfBirth"
+                      control={control}
+                      render={({ field }) => (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full h-11 justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? (
+                                format(new Date(field.value), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    />
+                    {errors.dateOfBirth && (
+                      <p className="text-red-500 text-xs">
+                        {errors.dateOfBirth.message}
                       </p>
                     )}
                   </div>

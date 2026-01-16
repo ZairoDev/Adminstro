@@ -153,6 +153,8 @@ interface Candidate {
       gender?: string;
       nationality?: string;
       fatherName?: string;
+      aadhaarNumber?: string;
+      panNumber?: string;
     };
     bankDetails?: {
       accountHolderName?: string;
@@ -1925,12 +1927,40 @@ export default function CandidateDetailPage() {
           name: candidate.name,
           email: candidate.email,
           phone: candidate.phone,
+          
           experience: candidate.experience,
           address: candidate.address,
           city: candidate.city,
           country: candidate.country,
           position: candidate.position,
           resumeUrl: candidate.resumeUrl,
+          photoUrl: candidate.photoUrl,
+          college: candidate.college,
+          linkedin: candidate.linkedin,
+          portfolio: candidate.portfolio,
+          onboardingDetails: candidate.onboardingDetails ? {
+            personalDetails: candidate.onboardingDetails.personalDetails ? {
+              dateOfBirth: candidate.onboardingDetails.personalDetails.dateOfBirth,
+              gender: candidate.onboardingDetails.personalDetails.gender,
+              nationality: candidate.onboardingDetails.personalDetails.nationality,
+              fatherName: candidate.onboardingDetails.personalDetails.fatherName,
+              aadhaarNumber: candidate.onboardingDetails.personalDetails.aadhaarNumber,
+              panNumber: candidate.onboardingDetails.personalDetails.panNumber,
+            } : undefined,
+            bankDetails: candidate.onboardingDetails.bankDetails ? {
+              accountNumber: candidate.onboardingDetails.bankDetails.accountNumber,
+              ifscCode: candidate.onboardingDetails.bankDetails.ifscCode,
+              bankName: candidate.onboardingDetails.bankDetails.bankName,
+              accountHolderName: candidate.onboardingDetails.bankDetails.accountHolderName,
+            } : undefined,
+            documents: candidate.onboardingDetails.documents ? {
+              aadharCard: candidate.onboardingDetails.documents.aadharCard,
+            } : undefined,
+          } : undefined,
+          selectionDetails: candidate.selectionDetails ? {
+            salary: candidate.selectionDetails.salary,
+            role: candidate.selectionDetails.role,
+          } : undefined,
         }}
         onCreated={() => {
           // Optionally refresh candidate after creation

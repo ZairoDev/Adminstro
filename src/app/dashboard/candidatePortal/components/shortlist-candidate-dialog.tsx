@@ -143,7 +143,7 @@ export function ShortlistCandidateDialog({
             </div>
             {candidatePosition && selectedRoles.includes(candidatePosition) && (
               <p className="text-xs text-muted-foreground mt-1">
-                Candidate's position ({candidatePosition}) is pre-selected
+                Candidate&apos;s position ({candidatePosition}) is pre-selected
               </p>
             )}
           </div>

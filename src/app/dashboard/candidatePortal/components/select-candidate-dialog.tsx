@@ -233,7 +233,7 @@ export function SelectCandidateDialog({
                 )}
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                Role is locked to candidate's current position. Use "Edit Role" to change it first.
+                Role is locked to candidate&apos;s current position. Use &quot;Edit Role&quot; to change it first.
               </p>
             </div>
 

@@ -115,7 +115,7 @@ export function ShortlistCandidateDialog({
                   </h4>
                   <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
                     <p>
-                      <span className="font-medium">Candidate's Current Role:</span>{" "}
+                      <span className="font-medium">Candidate&apos;s Current Role:</span>{" "}
                       <span className="font-semibold">{candidatePosition}</span>
                     </p>
                     <p>
@@ -124,7 +124,7 @@ export function ShortlistCandidateDialog({
                     </p>
                     {!selectedRoles.includes(candidatePosition) && (
                       <p className="mt-2 font-medium">
-                        ⚠️ The candidate's current role ({candidatePosition}) is not included in the selected roles. Please verify this is intentional.
+                        ⚠️ The candidate&apos;s current role ({candidatePosition}) is not included in the selected roles. Please verify this is intentional.
                       </p>
                     )}
                   </div>

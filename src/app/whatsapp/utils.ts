@@ -107,6 +107,11 @@ export function getConversationTemplateContext(conversation: Conversation | null
 }
 
 export function isMessageWindowActive(conversation: Conversation | null): boolean {
+  // "You" conversations (internal) are always active - no 24-hour window restriction
+  if (conversation?.isInternal || conversation?.source === "internal") {
+    return true;
+  }
+  
   if (!conversation?.lastCustomerMessageAt) return false;
   const lastMessage = new Date(conversation.lastCustomerMessageAt);
   const now = new Date();

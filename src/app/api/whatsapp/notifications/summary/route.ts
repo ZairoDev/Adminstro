@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import ConversationArchiveState from "@/models/conversationArchiveState";
+import ConversationReadState from "@/models/conversationReadState";
 import { getAllowedPhoneIds, getAllowedPhoneConfigs } from "@/lib/whatsapp/config";
+import mongoose from "mongoose";
 
 connectDb();
 
@@ -44,7 +48,23 @@ export async function GET(req: NextRequest) {
     const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+    // =========================================================
+    // CRITICAL: Get archived conversations for this user
+    // Archived conversations NEVER trigger notifications
+    // =========================================================
+    const archivedStates = await ConversationArchiveState.find({
+      userId: new mongoose.Types.ObjectId(userId),
+      isArchived: true,
+    })
+      .select("conversationId")
+      .lean();
+
+    const archivedConversationIds = archivedStates.map(
+      (state: any) => state.conversationId
+    );
+
     // Build conversation query with location and ownership filtering
+    // CRITICAL: Exclude archived conversations and internal conversations
     let conversationQuery: any = {
       status: "active",
       businessPhoneId: { $in: allowedPhoneIds },
@@ -52,6 +72,12 @@ export async function GET(req: NextRequest) {
         $gte: twentyFourHoursAgo,
         $lte: now,
       },
+      // Exclude internal conversations (they never notify)
+      source: { $ne: "internal" },
+      // Exclude archived conversations for this user
+      ...(archivedConversationIds.length > 0 && {
+        _id: { $nin: archivedConversationIds },
+      }),
     };
 
     // Sales users: only see conversations assigned to them OR unassigned
@@ -101,39 +127,95 @@ export async function GET(req: NextRequest) {
       .filter((conv): conv is NonNullable<typeof conv> => conv !== null)
       .sort((a, b) => a.totalMinutes - b.totalMinutes); // Most urgent first
 
-    // Fetch unread conversations (location and ownership filtered)
-    const unreadQuery: any = {
+    // =========================================================
+    // CRITICAL: Per-User Unread Count Calculation
+    // =========================================================
+    // Do NOT use global unreadCount field
+    // Calculate unread state using ConversationReadState per user
+    // Count messages with timestamp > lastReadAt
+    const candidateConversationsQuery: any = {
       status: "active",
       businessPhoneId: { $in: allowedPhoneIds },
-      unreadCount: { $gt: 0 },
       // Only incoming messages create unread count
       lastMessageDirection: "incoming",
+      // Exclude internal conversations (they never notify)
+      source: { $ne: "internal" },
+      // Exclude archived conversations for this user
+      ...(archivedConversationIds.length > 0 && {
+        _id: { $nin: archivedConversationIds },
+      }),
     };
 
     if (userRole === "Sales" && userId) {
-      unreadQuery.$or = [
+      candidateConversationsQuery.$or = [
         { assignedAgent: userId },
         { assignedAgent: { $exists: false } },
         { assignedAgent: null },
       ];
     }
 
-    const unreadConversations = await WhatsAppConversation.find(unreadQuery)
-      .select("_id participantPhone participantName lastMessageContent unreadCount lastMessageTime businessPhoneId assignedAgent")
-      .sort({ lastMessageTime: -1 })
-      .limit(5)
+    // Get all candidate conversations
+    const candidateConversations = await WhatsAppConversation.find(candidateConversationsQuery)
+      .select("_id participantPhone participantName lastMessageContent lastMessageId lastMessageTime businessPhoneId assignedAgent")
       .lean();
 
-    const unreadItems = unreadConversations.map((conv: any) => ({
-      _id: conv._id.toString(),
-      participantPhone: conv.participantPhone,
-      participantName: conv.participantName || conv.participantPhone,
-      lastMessageContent: conv.lastMessageContent || "No message",
-      unreadCount: conv.unreadCount,
-      lastMessageTime: conv.lastMessageTime,
-      businessPhoneId: conv.businessPhoneId,
-      assignedAgent: conv.assignedAgent?.toString(),
-    }));
+    // Calculate per-user unread counts for each conversation
+    const unreadConversationsWithCounts = await Promise.all(
+      candidateConversations.map(async (conv: any) => {
+        // Get user's read state for this conversation
+        const readState = await ConversationReadState.findOne({
+          conversationId: conv._id,
+          userId: new mongoose.Types.ObjectId(userId),
+        }).lean() as any;
+
+        // Only incoming messages can be unread
+        if (conv.lastMessageDirection !== "incoming" || !conv.lastMessageId) {
+          return null;
+        }
+
+        // Check if conversation is unread for this user
+        const isUnread = !readState || !readState.lastReadAt || 
+          (conv.lastMessageTime && new Date(conv.lastMessageTime) > new Date(readState.lastReadAt));
+
+        if (!isUnread) {
+          return null;
+        }
+
+        // Count unread messages: messages with timestamp > lastReadAt
+        const msgQuery: any = {
+          conversationId: conv._id,
+          direction: "incoming",
+        };
+
+        // If we have a lastReadAt timestamp, only count messages after that
+        if (readState?.lastReadAt) {
+          msgQuery.timestamp = { $gt: readState.lastReadAt };
+        }
+
+        const unreadCount = await WhatsAppMessage.countDocuments(msgQuery);
+
+        if (unreadCount === 0) {
+          return null;
+        }
+
+        return {
+          _id: conv._id.toString(),
+          participantPhone: conv.participantPhone,
+          participantName: conv.participantName || conv.participantPhone,
+          lastMessageContent: conv.lastMessageContent || "No message",
+          unreadCount,
+          lastMessageTime: conv.lastMessageTime,
+          businessPhoneId: conv.businessPhoneId,
+          assignedAgent: conv.assignedAgent?.toString(),
+        };
+      })
+    );
+
+    // Filter out nulls and sort by lastMessageTime
+    const unreadItems = unreadConversationsWithCounts
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime())
+      .slice(0, 5); // Limit to top 5
 
     // Combine and sort by severity (critical expiring first, then urgent, then unread)
     const topItems = [
@@ -145,7 +227,7 @@ export async function GET(req: NextRequest) {
       success: true,
       summary: {
         expiringCount: expiringWithTime.length,
-        unreadCount: unreadConversations.length,
+        unreadCount: unreadItems.length,
         topItems,
       },
     });

@@ -57,6 +57,8 @@ interface MessageComposerProps {
   // Reply functionality
   replyToMessage?: Message | null;
   onCancelReply?: () => void;
+  // "You" conversation flag - templates not needed, always active
+  isYouConversation?: boolean;
 }
 
 export const MessageComposer = memo(function MessageComposer({
@@ -84,6 +86,7 @@ export const MessageComposer = memo(function MessageComposer({
   templateContext,
   replyToMessage,
   onCancelReply,
+  isYouConversation = false,
 }: MessageComposerProps) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -311,8 +314,8 @@ export const MessageComposer = memo(function MessageComposer({
         </div>
       )}
 
-      {/* Template expired warning */}
-      {!canSendFreeForm && (
+      {/* Template expired warning - Hidden for "You" conversations */}
+      {!canSendFreeForm && !isYouConversation && (
         <div className="px-4 py-3 bg-[#fdf4e3] dark:bg-[#3b2c13] border-b border-[#e9c96c] dark:border-[#5c4516]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -483,18 +486,21 @@ export const MessageComposer = memo(function MessageComposer({
                 <span className="text-[12px] text-[#54656f] dark:text-[#8696a0]">Audio</span>
               </button>
 
-              <button
-                onClick={() => {
-                  onTemplateDialogChange(true);
-                  setShowAttachmentMenu(false);
-                }}
-                className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center">
-                  <LayoutTemplate className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-[12px] text-[#54656f] dark:text-[#8696a0]">Template</span>
-              </button>
+              {/* Template button - Hidden for "You" conversations */}
+              {!isYouConversation && (
+                <button
+                  onClick={() => {
+                    onTemplateDialogChange(true);
+                    setShowAttachmentMenu(false);
+                  }}
+                  className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center">
+                    <LayoutTemplate className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[12px] text-[#54656f] dark:text-[#8696a0]">Template</span>
+                </button>
+              )}
             </div>
           </PopoverContent>
         </Popover>

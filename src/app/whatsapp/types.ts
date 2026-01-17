@@ -52,6 +52,16 @@ export interface Message {
   // Aliases for backwards compatibility
   quotedMessageId?: string;
   quotedMessage?: QuotedMessage;
+  /**
+   * Source of message:
+   * - "meta": Real WhatsApp message via Meta API
+   * - "internal": Internal-only message (e.g., "You" messages, notes)
+   */
+  source?: "meta" | "internal";
+  /**
+   * Flag for internal messages (convenience flag)
+   */
+  isInternal?: boolean;
 }
 
 export interface Conversation {
@@ -79,6 +89,21 @@ export interface Conversation {
   isOnline?: boolean;
   isTyping?: boolean;
   lastSeen?: Date;
+  /**
+   * Source of conversation:
+   * - "meta": Real WhatsApp conversation via Meta API
+   * - "internal": Internal-only conversation (e.g., "You" virtual number)
+   */
+  source?: "meta" | "internal";
+  /**
+   * Per-user archive state (WhatsApp-style)
+   */
+  isArchivedByUser?: boolean;
+  archivedAt?: Date;
+  /**
+   * Flag for internal conversations (convenience flag)
+   */
+  isInternal?: boolean;
 }
 
 export interface Template {

@@ -77,6 +77,7 @@ import CustomTooltip from "../CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
+import { SelectableCell } from "@/app/spreadsheet/components/cells/SelectableCell";
 import { AreaSelect} from "../leadTableSearch/page";
 import { FaWhatsapp } from "react-icons/fa6";
 
@@ -111,11 +112,43 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
   const [creatingNote, setCreatingNote] = useState(false);
   const [page, setPage] = useState(1);
   const [targets, setTargets] = useState<TargetType[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
+  // Check if user can edit location - only for LeadGen-TeamLead, SuperAdmin, and Sales-TeamLead
+  const canEditLocation = 
+    token?.role === "LeadGen-TeamLead" || 
+    token?.role === "SuperAdmin" || 
+    token?.role === "Sales-TeamLead";
 
   useEffect(() => {
     if (searchParams.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
+  }, []);
+
+  // Fetch locations from monthlyTargets collection
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLoadingLocations(true);
+        const response = await axios.get("/api/monthlyTargets/getLocations");
+        if (response.data?.locations) {
+          // Extract city values from the locations array and convert to lowercase
+          const locationNames: string[] = response.data.locations.map(
+            (location: { city: string }) => location.city.toLowerCase()
+          );
+          // Remove duplicates and sort
+          const uniqueLocations: string[] = Array.from(new Set(locationNames)).sort();
+          setLocations(uniqueLocations);
+        }
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+    fetchLocations();
   }, []);
 
   const handleQualityChange = async (
@@ -529,10 +562,12 @@ const handleSave = async (
             <TableHead>Budget</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Location</TableHead>
+
             {/* {(token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin") && ( */}
             <TableHead>Lead Quality</TableHead>
             {/*  )}*/}
+            <TableHead>Reply</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
@@ -718,7 +753,6 @@ const handleSave = async (
               </TableCell>
 
               <TableCell>{query?.typeOfProperty}</TableCell>
-              
 
               <TableCell className="">
                 <div className="flex gap-x-2">
@@ -729,9 +763,9 @@ const handleSave = async (
                     icon={<Users size={18} />}
                     maxWidth="40px"
                   />
-                 
+
                   <div> | </div>
-                  
+
                   <TooltipEditableCell
                     value={query?.noOfBeds.toString() ?? ""}
                     onSave={(val) => handleSave(query._id!, "noOfBeds", val)}
@@ -794,7 +828,18 @@ const handleSave = async (
 
               <TableCell>
                 <div className=" flex gap-x-1">
-                  
+                  {/* Location SelectableCell - editable for LeadGen-TeamLead and SuperAdmin */}
+                  {canEditLocation && !loadingLocations ? (
+                    <SelectableCell
+                      data={locations}
+                      value={query?.location?.toLowerCase() || ""}
+                      save={(val) => handleSave(query._id!, "location", val.toLowerCase())}
+                      maxWidth="150px"
+                    />
+                  ) : (
+                    <span className="capitalize">{query?.location || "-"}</span>
+                  )}
+                  <div>|</div>
                   <AreaSelect
                     data={
                       targets
@@ -920,12 +965,14 @@ const handleSave = async (
                 </DropdownMenu>
               </TableCell>
               {/*)}*/}
-              {/* First Reply Status Cell */}
+              {/* Reply Status Cell - based on WhatsApp message status */}
               <TableCell>
-                {query.firstReply ? (
+                {(query as any)?.whatsappLastErrorCode ? (
+                  <span className="text-red-600 font-semibold">Not Delivered</span>
+                ) : query.firstReply ? (
                   <span className="text-green-600 font-semibold">Replied</span>
                 ) : (
-                  <span className="text-gray-400">No Reply</span>
+                  <span className="text-gray-400">Not Replied</span>
                 )}
               </TableCell>
 
@@ -942,9 +989,12 @@ const handleSave = async (
                     }}
                   />
                   {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
-                  {path.toString().trim().split("/")[2] !== "createquery" && query.firstReply  ? (
+                  {path.toString().trim().split("/")[2] !== "createquery" &&
+                  query.firstReply ? (
                     <Link
-                      href={`/whatsapp?phone=${encodeURIComponent(query?.phoneNo)}`}
+                      href={`/whatsapp?phone=${encodeURIComponent(
+                        query?.phoneNo
+                      )}`}
                       target="_self"
                       rel="noopener noreferrer"
                       onClick={() => {
@@ -1155,7 +1205,6 @@ const handleSave = async (
                                 </DropdownMenuSubContent>
                               </DropdownMenuPortal>
                             </DropdownMenuSub>
-                            
                           )}
                         </>
                         {/* )}*/}
@@ -1182,7 +1231,7 @@ const handleSave = async (
                                     query?._id,
                                     index,
                                     "rejected",
-                                    `${reason}`,
+                                    `${reason}`
                                   )
                                 }
                               >

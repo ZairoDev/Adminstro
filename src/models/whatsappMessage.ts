@@ -3,11 +3,23 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IWhatsAppMessage extends Document {
   conversationId: mongoose.Types.ObjectId;
 
-  messageId: string; // WhatsApp message ID (wamid)
-  businessPhoneId: string; // WhatsApp Business Phone Number ID
+  messageId: string; // WhatsApp message ID (wamid) or internal UUID
+  businessPhoneId: string; // WhatsApp Business Phone Number ID (empty for internal)
 
-  from: string; // Sender phone number
-  to: string; // Recipient phone number
+  from: string; // Sender phone number or "internal"
+  to: string; // Recipient phone number or conversation participant
+
+  /**
+   * Source of message:
+   * - "meta": Real WhatsApp message via Meta API
+   * - "internal": Internal-only message (e.g., notes, "You" messages)
+   * 
+   * Internal messages:
+   * - Never sent to Meta API
+   * - Never trigger notifications
+   * - No delivery status updates
+   */
+  source?: "meta" | "internal";
 
   type:
     | "text"
@@ -114,7 +126,17 @@ const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
 
     businessPhoneId: {
       type: String,
-      required: true,
+      required: function(this: any) {
+        // businessPhoneId is required only for meta (external) messages
+        return this.source !== "internal";
+      },
+      index: true,
+    },
+
+    source: {
+      type: String,
+      enum: ["meta", "internal"],
+      default: "meta",
       index: true,
     },
 
@@ -277,14 +299,8 @@ const whatsAppMessageSchema = new Schema<IWhatsAppMessage>(
       index: true, // Index for quick lookup of messages replied to
     },
     replyContext: {
-      messageId: String,
-      from: String,
-      type: String,
-      content: {
-        text: String,
-        caption: String,
-      },
-      mediaUrl: String,
+      type: Schema.Types.Mixed,
+      default: undefined,
     },
   },
   { timestamps: true }

@@ -58,6 +58,11 @@ export default function WhatsAppChat() {
     ownerCount: 0,
     guestCount: 0,
   });
+
+  // Archive functionality (WhatsApp-style per-user archive)
+  const [archivedCount, setArchivedCount] = useState(0);
+  const [showingArchived, setShowingArchived] = useState(false);
+  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   
   // Add Guest Modal state
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
@@ -253,6 +258,9 @@ useEffect(() => {
         : message.content?.text || message.content?.caption || `${message.type} message`;
 
       // Update conversations list
+      // CRITICAL: Frontend must trust backend APIs for unread counts
+      // Do NOT increment unreadCount based on socket events
+      // Frontend should refetch or rely on backend state updates
       setConversations((prev) => {
         const updated = prev.map((conv) => {
           if (conv._id === conversationId) {
@@ -261,13 +269,8 @@ useEffect(() => {
               lastMessageContent: displayText,
               lastMessageTime: message.timestamp,
               lastMessageDirection: message.direction,
-              // Only incoming (client) messages should contribute to unread count.
-              unreadCount:
-                message.direction === "incoming"
-                  ? currentConversation?._id === conversationId
-                    ? 0
-                    : (conv.unreadCount || 0) + 1
-                  : conv.unreadCount || 0,
+              // Unread count is backend-authoritative - do not modify here
+              // Frontend should refetch conversations to get accurate counts
             };
           }
           return conv;
@@ -596,6 +599,11 @@ useEffect(() => {
       if (response.data.success) {
         const newConversations = response.data.conversations || [];
         
+        // Update archived count from response
+        if (response.data.archivedCount !== undefined) {
+          setArchivedCount(response.data.archivedCount);
+        }
+        
         if (reset) {
           // Deduplicate even on reset in case of any issues
           const uniqueConversations = Array.from(
@@ -613,16 +621,25 @@ useEffect(() => {
           });
         }
 
-        setAllowedPhoneConfigs(response.data.allowedPhoneConfigs || []);
+        // CRITICAL: Always use fresh phone configs from API (synced with Meta)
+        // No local caching - Meta is source of truth
+        const syncedPhoneConfigs = response.data.allowedPhoneConfigs || [];
+        setAllowedPhoneConfigs(syncedPhoneConfigs);
         
         // If user has access to multiple numbers, default to first; else set only option
-        if (response.data.allowedPhoneConfigs?.length > 0) {
+        // Update selected config to use synced values (Meta metadata)
+        if (syncedPhoneConfigs.length > 0) {
           setSelectedPhoneConfig((prev: WhatsAppPhoneConfig | null) => {
-            // If already selected and still allowed, keep it
-            if (prev && response.data.allowedPhoneConfigs.some((c:any) => c.phoneNumberId === prev.phoneNumberId)) {
-              return prev;
+            // Find the synced version of the previously selected config
+            if (prev) {
+              const syncedVersion = syncedPhoneConfigs.find((c: any) => c.phoneNumberId === prev.phoneNumberId);
+              if (syncedVersion) {
+                // Return synced version (Meta metadata overwrites local)
+                return syncedVersion;
+              }
             }
-            return response.data.allowedPhoneConfigs[0];
+            // Default to first synced config
+            return syncedPhoneConfigs[0];
           });
         }
 
@@ -704,6 +721,120 @@ useEffect(() => {
     if (selectedConversation && messagesCursor && !loadingOlderMessages) {
       fetchMessages(selectedConversation._id, false);
     }
+  };
+
+  // =========================================================
+  // Archive Functionality (WhatsApp-style per-user archive)
+  // =========================================================
+  
+  /**
+   * Fetch archived conversations for the current user
+   */
+  const fetchArchivedConversations = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/api/whatsapp/conversations/archive");
+      if (response.data.success) {
+        setArchivedConversations(response.data.conversations || []);
+        setArchivedCount(response.data.count || 0);
+      }
+    } catch (error: any) {
+      console.error("Error fetching archived conversations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch archived conversations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Archive a conversation for the current user
+   * WhatsApp-style: removes from main inbox, suppresses notifications
+   */
+  const archiveConversation = async (conversationId: string) => {
+    try {
+      const response = await axios.post("/api/whatsapp/conversations/archive", {
+        conversationId,
+      });
+      
+      if (response.data.success) {
+        // Remove from main conversations list
+        setConversations((prev) => prev.filter((c) => c._id !== conversationId));
+        setArchivedCount((prev) => prev + 1);
+        
+        // If the archived conversation was selected, deselect it
+        if (selectedConversation?._id === conversationId) {
+          setSelectedConversation(null);
+          setMessages([]);
+        }
+        
+        toast({
+          title: "Chat archived",
+          description: "This chat has been archived. You can find it in the Archived section.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error archiving conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive conversation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  /**
+   * Unarchive a conversation for the current user
+   * WhatsApp-style: returns to main inbox, notifications resume
+   */
+  const unarchiveConversation = async (conversationId: string) => {
+    try {
+      const response = await axios.delete(
+        `/api/whatsapp/conversations/archive?conversationId=${conversationId}`
+      );
+      
+      if (response.data.success) {
+        // Remove from archived list
+        setArchivedConversations((prev) => prev.filter((c) => c._id !== conversationId));
+        setArchivedCount((prev) => Math.max(0, prev - 1));
+        
+        // Refresh main conversations to include the unarchived one
+        await fetchConversations(true);
+        
+        toast({
+          title: "Chat unarchived",
+          description: "This chat has been restored to your inbox.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error unarchiving conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to unarchive conversation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  /**
+   * Toggle between main inbox and archived view
+   */
+  const toggleArchiveView = () => {
+    if (showingArchived) {
+      // Going back to main inbox
+      setShowingArchived(false);
+      fetchConversations(true);
+    } else {
+      // Showing archived
+      setShowingArchived(true);
+      fetchArchivedConversations();
+    }
+    // Clear selection when switching views
+    setSelectedConversation(null);
+    setMessages([]);
   };
 
   const fetchTemplates = async () => {
@@ -823,8 +954,9 @@ useEffect(() => {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
-    // Check if 24-hour messaging window is active
-    if (!isMessageWindowActive(selectedConversation)) {
+    // Skip 24-hour window check for "You" conversations (always active)
+    const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
+    if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
       setShowWindowWarning(true);
       return;
     }
@@ -951,6 +1083,17 @@ useEffect(() => {
 
   const sendTemplateMessage = async () => {
     if (!selectedTemplate || !selectedConversation) return;
+
+    // Templates are not needed for "You" conversations
+    const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
+    if (isYouConv) {
+      toast({
+        title: "Templates not needed",
+        description: "You can send regular messages to yourself",
+        variant: "default",
+      });
+      return;
+    }
 
     setSendingMessage(true);
     const tempId = `temp-${Date.now()}`;
@@ -1534,8 +1677,9 @@ useEffect(() => {
       
       if (!selectedConversation) return;
 
-      // Check if 24-hour messaging window is active
-      if (!isMessageWindowActive(selectedConversation)) {
+      // Skip 24-hour window check for "You" conversations (always active)
+      const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
+      if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
         setShowWindowWarning(true);
         return;
       }
@@ -1667,8 +1811,9 @@ useEffect(() => {
       return;
     }
 
-    // Check if 24-hour messaging window is active
-    if (!isMessageWindowActive(selectedConversation)) {
+    // Skip 24-hour window check for "You" conversations (always active)
+    const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
+    if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
       setShowWindowWarning(true);
       // Reset the file input
       event.target.value = "";
@@ -1910,7 +2055,9 @@ useEffect(() => {
     });
   };
 
-  const canSendFreeForm = selectedConversation ? isMessageWindowActive(selectedConversation) : false;
+  // "You" conversations are always active - no template requirement, no 24-hour window
+  const isYouConversation = selectedConversation?.isInternal || selectedConversation?.source === "internal";
+  const canSendFreeForm = isYouConversation || (selectedConversation ? isMessageWindowActive(selectedConversation) : false);
 
   const copyPhoneNumber = () => {
     if (!selectedConversation) return;
@@ -1949,7 +2096,7 @@ useEffect(() => {
         <TabsContent value="chat" className="flex-1 m-0 overflow-hidden">
           <div className="flex h-full">
             <ConversationSidebar
-              conversations={conversations}
+              conversations={showingArchived ? archivedConversations : conversations}
               selectedConversation={selectedConversation}
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
@@ -1965,10 +2112,16 @@ useEffect(() => {
               onSelectConversation={selectConversation}
               isConnected={isConnected}
               conversationCounts={conversationCounts}
-              hasMoreConversations={hasMoreConversations}
+              hasMoreConversations={showingArchived ? false : hasMoreConversations}
               loadingMoreConversations={loadingMoreConversations}
-              onLoadMoreConversations={() => fetchConversations(false)}
+              onLoadMoreConversations={showingArchived ? undefined : () => fetchConversations(false)}
               onAddGuest={() => setShowAddGuestModal(true)}
+              // Archive functionality
+              archivedCount={archivedCount}
+              showingArchived={showingArchived}
+              onToggleArchiveView={toggleArchiveView}
+              onArchiveConversation={archiveConversation}
+              onUnarchiveConversation={unarchiveConversation}
             />
 
             {/* Chat Panel */}
@@ -2056,6 +2209,7 @@ useEffect(() => {
                     )}
                     replyToMessage={replyToMessage}
                     onCancelReply={handleCancelReply}
+                    isYouConversation={isYouConversation}
                   />
                 </>
               ) : (

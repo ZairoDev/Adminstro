@@ -3,14 +3,20 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import ConversationReadState from "@/models/conversationReadState";
+import ConversationArchiveState from "@/models/conversationArchiveState";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { 
   getAllowedPhoneIds, 
   canAccessPhoneId,
   getDefaultPhoneId,
-  WHATSAPP_PHONE_CONFIGS 
+  WHATSAPP_PHONE_CONFIGS,
+  getAllowedPhoneConfigs,
+  INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
+import { syncPhoneConfigsWithMeta } from "@/lib/whatsapp/phoneMetadataSync";
+import mongoose from "mongoose";
 
 connectDb();
 
@@ -44,6 +50,29 @@ export async function GET(req: NextRequest) {
     const phoneIdFilter = searchParams.get("phoneId") || ""; // Optional filter by specific phone
     const cursor = searchParams.get("cursor"); // Cursor for pagination (lastMessageTime timestamp)
     const conversationType = searchParams.get("conversationType") || ""; // Filter by owner/guest
+    const includeArchived = searchParams.get("includeArchived") === "true"; // Include archived conversations
+    const archivedOnly = searchParams.get("archivedOnly") === "true"; // Only archived conversations
+
+    const userId = token.id || token._id;
+
+    // =========================================================
+    // Get archive states for this user (WhatsApp-style per-user archive)
+    // =========================================================
+    const archiveStates = await ConversationArchiveState.find({
+      userId: new mongoose.Types.ObjectId(userId),
+    })
+      .select("conversationId isArchived archivedAt")
+      .lean();
+
+    const archiveStateMap = new Map<string, any>();
+    const archivedConversationIds: mongoose.Types.ObjectId[] = [];
+    
+    for (const state of archiveStates) {
+      archiveStateMap.set(String(state.conversationId), state);
+      if (state.isArchived) {
+        archivedConversationIds.push(state.conversationId);
+      }
+    }
 
     // Build query - filter by allowed phone IDs
     const query: any = { 
@@ -52,6 +81,27 @@ export async function GET(req: NextRequest) {
         ? phoneIdFilter
         : { $in: allowedPhoneIds }
     };
+
+    // Handle archive filtering (WhatsApp-style)
+    if (archivedOnly) {
+      // Only show archived conversations for this user
+      if (archivedConversationIds.length === 0) {
+        // Sync with Meta API - Meta is the ONLY source of truth
+        const localPhoneConfigs = getAllowedPhoneConfigs(userRole, userAreas);
+        const syncedPhoneConfigs = await syncPhoneConfigsWithMeta(localPhoneConfigs);
+        
+        return NextResponse.json({
+          success: true,
+          conversations: [],
+          allowedPhoneConfigs: syncedPhoneConfigs,
+          pagination: { limit, hasMore: false, nextCursor: null },
+        });
+      }
+      query._id = { $in: archivedConversationIds };
+    } else if (!includeArchived && archivedConversationIds.length > 0) {
+      // Exclude archived conversations from main inbox (default behavior)
+      query._id = { $nin: archivedConversationIds };
+    }
 
     // Filter by conversation type if provided
     if (conversationType && (conversationType === "owner" || conversationType === "guest")) {
@@ -93,7 +143,7 @@ export async function GET(req: NextRequest) {
     const conversationIds = conversationsToReturn.map((c: any) => c._id);
     const readStates = await ConversationReadState.find({
       conversationId: { $in: conversationIds },
-      userId: token.id || token._id,
+      userId: userId,
     })
       .select("conversationId lastReadMessageId lastReadAt")
       .lean();
@@ -184,19 +234,113 @@ export async function GET(req: NextRequest) {
         // Override stored unreadCount with per-employee value
         conv.unreadCount = unreadCount;
 
+        // Add archive state for this user
+        const archiveState = archiveStateMap.get(String(conv._id));
+        conv.isArchivedByUser = archiveState?.isArchived || false;
+        conv.archivedAt = archiveState?.archivedAt || null;
+
+        // Flag internal conversations
+        conv.isInternal = conv.source === "internal";
+
         return conv;
       })
     );
 
-    // Get phone configs for response
-    const allowedPhoneConfigs = WHATSAPP_PHONE_CONFIGS.filter(
-      config => allowedPhoneIds.includes(config.phoneNumberId)
-    );
+    // =========================================================
+    // Get or create "You" conversation (WhatsApp-style Message Yourself)
+    // =========================================================
+    let youConversation: any = null;
+    try {
+      // Get user's phone number from employee record
+      const employee = await Employee.findById(userId).select("phone name").lean() as any;
+      if (employee && employee.phone) {
+        const userPhone = employee.phone.replace(/\D/g, ""); // Normalize phone
+        
+        // Find or create "You" conversation
+        youConversation = await WhatsAppConversation.findOne({
+          participantPhone: userPhone,
+          source: "internal",
+          businessPhoneId: INTERNAL_YOU_PHONE_ID,
+        }).lean();
+
+        if (!youConversation) {
+          // Create the "You" conversation
+          const newYouConv = await WhatsAppConversation.create({
+            participantPhone: userPhone,
+            participantName: employee.name || "You",
+            businessPhoneId: INTERNAL_YOU_PHONE_ID,
+            source: "internal",
+            status: "active",
+            unreadCount: 0,
+            lastMessageTime: new Date(),
+          });
+          youConversation = newYouConv.toObject();
+        }
+
+        // Check if "You" conversation is archived
+        const youArchiveState = await ConversationArchiveState.findOne({
+          conversationId: youConversation._id,
+          userId: new mongoose.Types.ObjectId(userId),
+          isArchived: true,
+        }).lean();
+
+        // Only include "You" conversation if not archived and not in archived-only view
+        if (!archivedOnly && !youArchiveState) {
+          // Get read state for "You" conversation
+          const youReadState = await ConversationReadState.findOne({
+            conversationId: youConversation._id,
+            userId: new mongoose.Types.ObjectId(userId),
+          }).lean();
+
+          // Get last message for "You" conversation to set proper lastMessageTime
+          const lastMessage = await WhatsAppMessage.findOne({
+            conversationId: youConversation._id,
+          })
+            .sort({ timestamp: -1 })
+            .select("timestamp content type")
+            .lean() as any;
+
+          // Calculate unread count (should always be 0 for "You" since messages are outgoing)
+          youConversation.unreadCount = 0;
+          youConversation.isArchivedByUser = false;
+          youConversation.isInternal = true;
+          youConversation.participantName = "You"; // Always show as "You"
+          
+          // Set last message info if exists
+          if (lastMessage) {
+            youConversation.lastMessageTime = lastMessage.timestamp;
+            const messageContent = lastMessage.content;
+            youConversation.lastMessageContent = 
+              typeof messageContent === "string"
+                ? messageContent
+                : (messageContent?.text || messageContent?.caption || `${lastMessage.type} message`);
+            youConversation.lastMessageDirection = "outgoing";
+            youConversation.lastMessageStatus = undefined; // No status for internal
+          }
+
+          // Add to conversations list (at the top, like WhatsApp)
+          conversationsWithStatus.unshift(youConversation);
+        }
+      }
+    } catch (error) {
+      console.error("Error getting/creating 'You' conversation:", error);
+      // Continue without "You" conversation if there's an error
+    }
+
+    // Get phone configs for response (exclude internal "You" from phone selection)
+    // Internal "You" is handled automatically, not as a selectable phone number
+    // CRITICAL: Sync with Meta API - Meta is the ONLY source of truth for phone metadata
+    const localPhoneConfigs = getAllowedPhoneConfigs(userRole, userAreas);
+    const allowedPhoneConfigs = await syncPhoneConfigsWithMeta(localPhoneConfigs);
+
+    // Count archived conversations for badge display
+    const archivedCount = archivedConversationIds.length;
 
     return NextResponse.json({
       success: true,
       conversations: conversationsWithStatus,
-      allowedPhoneConfigs, // Send available phone configs to frontend
+      allowedPhoneConfigs, // Send available phone configs to frontend (including internal)
+      archivedCount, // Number of archived conversations for this user
       pagination: {
         limit,
         hasMore,

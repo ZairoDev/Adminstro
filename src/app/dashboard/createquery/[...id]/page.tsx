@@ -33,10 +33,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/DatePicker";
 import { Toaster } from "@/components/ui/toaster";
+import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
+import { metroLines } from "@/app/dashboard/target/components/editArea";
 
 interface PageProps {
   params: {
-    id: string;
+    id: string[];
   };
 }
 interface PropertyBooster {
@@ -52,7 +54,7 @@ interface PropertyBooster {
 
 
 const QueryDetails = ({ params }: PageProps) => {
-  const id = params.id;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { token } = useAuthStore();
 
   const [apiData, setApiData] = useState<IQuery>();
@@ -66,6 +68,9 @@ const QueryDetails = ({ params }: PageProps) => {
   const [budgetFrom, setBudgetFrom] = useState(0);
   const [createdByEmail, setCreatedByEmail] = useState<string>("");
   const [booster, setBooster] = useState<PropertyBooster | null>(null);
+  const [startDateState, setStartDateState] = useState<Date | undefined>(undefined);
+  const [endDateState, setEndDateState] = useState<Date | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
 
   // const handleSave = async () => {
   //   try {
@@ -82,21 +87,74 @@ const QueryDetails = ({ params }: PageProps) => {
   //   }
   // };
 
-  const response = async () => {
+  const response = React.useCallback(async () => {
+    if (!id) return;
     try {
       setLoading(true);
+      setError(null);
       const data = await axios.post("/api/sales/getQuerybyId", { id });
       
-      setApiData(data.data.data);
+      if (data.data.success && data.data.data) {
+        const queryData = data.data.data;
+        setApiData(queryData);
+        
+        // Parse budget - handle both string format and separate fields
+        if (queryData.budget && typeof queryData.budget === 'string') {
+          const budgetParts = queryData.budget.split(" to ");
+          if (budgetParts.length === 2) {
+            setBudgetFrom(Number(budgetParts[0]) || 0);
+            setBudgetTo(Number(budgetParts[1]) || 0);
+          }
+        } else if (queryData.minBudget !== undefined && queryData.maxBudget !== undefined) {
+          setBudgetFrom(queryData.minBudget || 0);
+          setBudgetTo(queryData.maxBudget || 0);
+        }
+        
+        // Parse dates - handle MM/dd/yyyy format
+        if (queryData.startDate) {
+          let startDate: Date;
+          if (typeof queryData.startDate === 'string' && queryData.startDate.includes('/')) {
+            // Handle MM/dd/yyyy format
+            const [month, day, year] = queryData.startDate.split('/');
+            startDate = new Date(Number(year), Number(month) - 1, Number(day));
+          } else {
+            startDate = new Date(queryData.startDate);
+          }
+          setStartDateState(isNaN(startDate.getTime()) ? undefined : startDate);
+        }
+        if (queryData.endDate) {
+          let endDate: Date;
+          if (typeof queryData.endDate === 'string' && queryData.endDate.includes('/')) {
+            // Handle MM/dd/yyyy format
+            const [month, day, year] = queryData.endDate.split('/');
+            endDate = new Date(Number(year), Number(month) - 1, Number(day));
+          } else {
+            endDate = new Date(queryData.endDate);
+          }
+          setEndDateState(isNaN(endDate.getTime()) ? undefined : endDate);
+        }
+      } else {
+        setError("Failed to fetch lead details");
+      }
       setLoading(false);
     } catch (error: any) {
-      console.log(error);
+      console.error("Error fetching lead:", error);
+      setError(error.response?.data?.message || "Failed to load lead details");
       setLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load lead details",
+      });
     }
-  };
+  }, [id]);
+  
   useEffect(() => {
-    response();
-  }, []);
+    if (id) {
+      response();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const getQueryByPhoneNumber = async () => {
     if (!apiData?.phoneNo) return;
@@ -114,10 +172,10 @@ const QueryDetails = ({ params }: PageProps) => {
   };
 
   useEffect(() => {
-    setBudgetFrom(Number(apiData?.budget?.split(" to ")[0] ?? 0));
-    setBudgetTo(Number(apiData?.budget?.split(" to ")[1] ?? 0));
-    getQueryByPhoneNumber();
-    fetchEmployeeDetails();
+    if (apiData) {
+      getQueryByPhoneNumber();
+      fetchEmployeeDetails();
+    }
   }, [apiData]);
 
   const retrieveLead = async (leadId: string) => {
@@ -141,17 +199,42 @@ const QueryDetails = ({ params }: PageProps) => {
   };
 
   const handleUpdate = async () => {
-    const newData = { ...apiData };
-    newData.budget = `${budgetFrom} to ${budgetTo}`;
+    if (!apiData) return;
+    
     try {
-      setEditDisabled(true);
+      setLoading(true);
+      const newData = { 
+        ...apiData,
+        minBudget: budgetFrom,
+        maxBudget: budgetTo,
+        budget: `${budgetFrom} to ${budgetTo}`,
+        startDate: startDateState 
+          ? `${String(startDateState.getMonth() + 1).padStart(2, '0')}/${String(startDateState.getDate()).padStart(2, '0')}/${startDateState.getFullYear()}`
+          : apiData.startDate,
+        endDate: endDateState 
+          ? `${String(endDateState.getMonth() + 1).padStart(2, '0')}/${String(endDateState.getDate()).padStart(2, '0')}/${endDateState.getFullYear()}`
+          : apiData.endDate,
+      };
+      
       await axios.post("/api/sales/editquery", newData);
+      
+      setEditDisabled(true);
       toast({
         title: "Success",
         description: "Lead updated successfully",
       });
+      
+      // Refresh data after update
+      await response();
     } catch (err: any) {
-      console.log("error in updating lead: ", err);
+      console.error("error in updating lead: ", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.response?.data?.error || "Failed to update lead",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,9 +278,28 @@ setBooster(res.data);
       />
       <div className=" relative ">
         {loading ? (
-          <div className="flex items-center justify-center">
-            <Loader2 size={18} className="animate-spin" />
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 size={24} className="animate-spin" />
           </div>
+        ) : error ? (
+          <Card className="p-6">
+            <div className="text-center text-red-500">
+              <p className="text-lg font-semibold">{error}</p>
+              <Button 
+                onClick={() => response()} 
+                className="mt-4"
+                variant="outline"
+              >
+                Retry
+              </Button>
+            </div>
+          </Card>
+        ) : !apiData ? (
+          <Card className="p-6">
+            <div className="text-center text-muted-foreground">
+              <p>No lead data found</p>
+            </div>
+          </Card>
         ) : (
           <div>
             <Card className="p-6 space-y-4">
@@ -219,17 +321,22 @@ setBooster(res.data);
                     <h2 className="text-xl font-bold">{apiData?.name}</h2>
                     {/* <p className="text-gray-400">{apiData?.phoneNo}</p> */}
                     <Input
-                      value={apiData?.phoneNo}
-                      onChange={(e) =>
+                      type="tel"
+                      value={apiData?.phoneNo || ""}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ""); // Remove non-digits
                         setApiData(
                           (prev) =>
-                          ({
-                            ...prev,
-                            phoneNo: Number(e.target.value),
-                          } as IQuery)
-                        )
-                      }
+                            prev
+                              ? ({
+                                  ...prev,
+                                  phoneNo: value ? Number(value) : 0,
+                                } as IQuery)
+                              : undefined
+                        );
+                      }}
                       disabled={editDisabled}
+                      placeholder="Enter phone number"
                     />
                   </div>
                   <div className=" flex items-center gap-x-16">
@@ -357,36 +464,154 @@ setBooster(res.data);
                     onChange={(e) =>
                       setApiData(
                         (prev) =>
-                        ({
-                          ...prev,
-                          location: e.target.value,
-                        } as IQuery)
+                          prev
+                            ? ({
+                                ...prev,
+                                location: e.target.value.toLowerCase(),
+                              } as IQuery)
+                            : undefined
                       )
                     }
                   />
                 </div>
                 <div className="flex items-center space-x-2">
                   <FileText size={20} />
-                  <Label>Property Type:</Label>
+                  <Label>Email:</Label>
+                  <Input
+                    type="email"
+                    disabled={editDisabled}
+                    value={apiData?.email ?? ""}
+                    className="w-full"
+                    onChange={(e) =>
+                      setApiData(
+                        (prev) =>
+                          prev
+                            ? ({
+                                ...prev,
+                                email: e.target.value,
+                              } as IQuery)
+                            : undefined
+                      )
+                    }
+                    placeholder="Enter email"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CalendarIcon size={20} />
+                  <Label>Booking Term:</Label>
                   <Select
+                    value={apiData?.bookingTerm || ""}
                     onValueChange={(value) =>
                       setApiData(
                         (prev) =>
-                        ({
-                          ...prev,
-                          propertyType: value,
-                        } as IQuery)
+                          prev
+                            ? ({
+                                ...prev,
+                                bookingTerm: value,
+                              } as IQuery)
+                            : undefined
                       )
                     }
+                    disabled={editDisabled}
+                  >
+                    <SelectTrigger disabled={editDisabled}>
+                      <SelectValue placeholder="Select term" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Short Term">Short Term</SelectItem>
+                      <SelectItem value="Mid Term">Mid Term</SelectItem>
+                      <SelectItem value="Long Term">Long Term</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <FileText size={20} />
+                  <Label>Type of Property:</Label>
+                  <Select
+                    value={apiData?.typeOfProperty || ""}
+                    onValueChange={(value) =>
+                      setApiData(
+                        (prev) =>
+                          prev
+                            ? ({
+                                ...prev,
+                                typeOfProperty: value,
+                              } as IQuery)
+                            : undefined
+                      )
+                    }
+                    disabled={editDisabled}
+                  >
+                    <SelectTrigger disabled={editDisabled}>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Apartment">Apartment</SelectItem>
+                      <SelectItem value="House">House</SelectItem>
+                      <SelectItem value="Studio">Studio</SelectItem>
+                      <SelectItem value="Room">Room</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin size={20} />
+                  <Label>Zone:</Label>
+                  <Select
+                    value={apiData?.zone || ""}
+                    onValueChange={(value) =>
+                      setApiData(
+                        (prev) =>
+                          prev
+                            ? ({
+                                ...prev,
+                                zone: value,
+                              } as IQuery)
+                            : undefined
+                      )
+                    }
+                    disabled={editDisabled}
+                  >
+                    <SelectTrigger disabled={editDisabled}>
+                      <SelectValue placeholder="Select zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="East">East</SelectItem>
+                      <SelectItem value="West">West</SelectItem>
+                      <SelectItem value="North">North</SelectItem>
+                      <SelectItem value="South">South</SelectItem>
+                      <SelectItem value="Center">Center</SelectItem>
+                      <SelectItem value="North-East">North-East</SelectItem>
+                      <SelectItem value="North-West">North-West</SelectItem>
+                      <SelectItem value="South-East">South-East</SelectItem>
+                      <SelectItem value="South-West">South-West</SelectItem>
+                      <SelectItem value="Anywhere">Anywhere</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <FileText size={20} />
+                  <Label>Property Type:</Label>
+                  <Select
+                    value={apiData?.propertyType || ""}
+                    onValueChange={(value) =>
+                      setApiData(
+                        (prev) =>
+                          prev
+                            ? ({
+                                ...prev,
+                                propertyType: value,
+                              } as IQuery)
+                            : undefined
+                      )
+                    }
+                    disabled={editDisabled}
                   >
                     <SelectTrigger disabled={editDisabled}>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Furnished">Furnished</SelectItem>
-                      <SelectItem defaultChecked value="Un - furnished">
-                        Un- furnished
-                      </SelectItem>
+                      <SelectItem value="Unfurnished">Unfurnished</SelectItem>
                       <SelectItem value="Semi-furnished">Semi-furnished</SelectItem>
                     </SelectContent>
                   </Select>
@@ -395,21 +620,25 @@ setBooster(res.data);
                   <FileText size={20} />
                   <Label>Bill Status:</Label>
                   <Select
+                    value={apiData?.billStatus || ""}
                     onValueChange={(value) =>
                       setApiData(
                         (prev) =>
-                        ({
-                          ...prev,
-                          billStatus: value,
-                        } as IQuery)
+                          prev
+                            ? ({
+                                ...prev,
+                                billStatus: value,
+                              } as IQuery)
+                            : undefined
                       )
                     }
+                    disabled={editDisabled}
                   >
                     <SelectTrigger disabled={editDisabled}>
                       <SelectValue placeholder="Select Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="With Bill">With Bill*</SelectItem>
+                      <SelectItem value="With Bill">With Bill</SelectItem>
                       <SelectItem value="Without Bill">Without Bill</SelectItem>
                     </SelectContent>
                   </Select>
@@ -418,16 +647,25 @@ setBooster(res.data);
                   <CalendarIcon size={20} />
                   <Label>Start Date:</Label>
                   <DatePicker
-                    date={new Date(apiData?.startDate ?? "")}
-                    setDate={(date) =>
+                    date={startDateState || (apiData?.startDate ? (() => {
+                      if (typeof apiData.startDate === 'string' && apiData.startDate.includes('/')) {
+                        const [month, day, year] = apiData.startDate.split('/');
+                        return new Date(Number(year), Number(month) - 1, Number(day));
+                      }
+                      return new Date(apiData.startDate);
+                    })() : new Date())}
+                    setDate={(date) => {
+                      setStartDateState(date);
                       setApiData(
                         (prev) =>
-                        ({
-                          ...prev,
-                          startDate: date.toLocaleString(),
-                        } as IQuery)
-                      )
-                    }
+                          prev
+                            ? ({
+                                ...prev,
+                                startDate: `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`,
+                              } as IQuery)
+                            : undefined
+                      );
+                    }}
                     disabled={editDisabled}
                   />
                 </div>
@@ -435,16 +673,25 @@ setBooster(res.data);
                   <CalendarIcon size={20} />
                   <Label>End Date:</Label>
                   <DatePicker
-                    date={new Date(apiData?.endDate ?? "")}
-                    setDate={(date) =>
+                    date={endDateState || (apiData?.endDate ? (() => {
+                      if (typeof apiData.endDate === 'string' && apiData.endDate.includes('/')) {
+                        const [month, day, year] = apiData.endDate.split('/');
+                        return new Date(Number(year), Number(month) - 1, Number(day));
+                      }
+                      return new Date(apiData.endDate);
+                    })() : new Date())}
+                    setDate={(date) => {
+                      setEndDateState(date);
                       setApiData(
                         (prev) =>
-                        ({
-                          ...prev,
-                          endDate: date.toLocaleString(),
-                        } as IQuery)
-                      )
-                    }
+                          prev
+                            ? ({
+                                ...prev,
+                                endDate: `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`,
+                              } as IQuery)
+                            : undefined
+                      );
+                    }}
                     disabled={editDisabled}
                   />
                 </div>

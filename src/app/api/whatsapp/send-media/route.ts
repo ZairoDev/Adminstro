@@ -10,8 +10,10 @@ import {
   getDefaultPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
+  INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import crypto from "crypto";
 
 connectDb();
 
@@ -60,6 +62,109 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // =========================================================
+    // CRITICAL: Check if this is a "You" conversation FIRST
+    // "You" conversations should NEVER call WhatsApp API - only save to DB
+    // =========================================================
+    let conversation;
+    if (conversationId) {
+      conversation = await WhatsAppConversation.findById(conversationId);
+    }
+
+    // Check if this is a "You" conversation BEFORE any WhatsApp API setup
+    const isYouConversation = conversation && (
+      conversation.source === "internal" || 
+      conversation.businessPhoneId === INTERNAL_YOU_PHONE_ID
+    );
+
+    if (isYouConversation) {
+      // =========================================================
+      // "You" conversation - Save to DB ONLY, NO WhatsApp API
+      // =========================================================
+      const internalMessageId = `internal_${crypto.randomUUID()}`;
+      const timestamp = new Date();
+
+      // Build content object
+      const contentObj: { text?: string; caption?: string } = {};
+      if (caption) {
+        contentObj.caption = caption;
+      } else {
+        contentObj.text = `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`;
+      }
+
+      const displayText = caption || `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`;
+
+      // Save message to database ONLY (no WhatsApp API call)
+      const savedMessage = await WhatsAppMessage.create({
+        conversationId: conversation._id,
+        messageId: internalMessageId,
+        businessPhoneId: INTERNAL_YOU_PHONE_ID,
+        from: INTERNAL_YOU_PHONE_ID,
+        to: conversation.participantPhone,
+        type: mediaType,
+        content: contentObj,
+        mediaUrl: mediaUrl || "",
+        mediaId: mediaId || "",
+        filename: filename || "",
+        source: "internal",
+        status: "sent",
+        statusEvents: [],
+        direction: "outgoing",
+        timestamp,
+        sentBy: token.id || token._id,
+        conversationSnapshot: {
+          participantPhone: conversation.participantPhone,
+          assignedAgent: conversation.assignedAgent,
+        },
+      });
+
+      // Update conversation last message
+      await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+        lastMessageId: internalMessageId,
+        lastMessageContent: displayText.substring(0, 100),
+        lastMessageTime: timestamp,
+        lastMessageDirection: "outgoing",
+        lastOutgoingMessageTime: timestamp,
+      });
+
+      // Emit socket event for real-time UI updates
+      emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+        conversationId: conversation._id.toString(),
+        businessPhoneId: INTERNAL_YOU_PHONE_ID,
+        isInternal: true,
+        message: {
+          id: savedMessage._id.toString(),
+          messageId: internalMessageId,
+          from: INTERNAL_YOU_PHONE_ID,
+          to: conversation.participantPhone,
+          type: mediaType,
+          content: contentObj,
+          mediaUrl: mediaUrl || "",
+          mediaId: mediaId || "",
+          filename: filename || "",
+          source: "internal",
+          status: "sent",
+          direction: "outgoing",
+          timestamp,
+          senderName: token.name || "You",
+          isInternal: true,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        messageId: internalMessageId,
+        savedMessageId: savedMessage._id,
+        conversationId: conversation._id,
+        source: "internal",
+        timestamp: timestamp.toISOString(),
+      });
+    }
+
+    // =========================================================
+    // Regular WhatsApp conversation - Continue with Meta API
+    // =========================================================
+
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
@@ -76,11 +181,8 @@ export async function POST(req: NextRequest) {
     let phoneNumberId = requestedPhoneId;
 
     // If conversationId provided, get phone ID from conversation
-    if (conversationId && !phoneNumberId) {
-      const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (conv) {
-        phoneNumberId = conv.businessPhoneId;
-      }
+    if (conversationId && !phoneNumberId && conversation) {
+      phoneNumberId = conversation.businessPhoneId;
     }
 
     // Fall back to default if not set
@@ -155,21 +257,22 @@ export async function POST(req: NextRequest) {
     const whatsappMessageId = data.messages?.[0]?.id;
     const timestamp = new Date();
 
-    // Get or create conversation using snapshot-safe helper
-    let conversation;
-    if (conversationId) {
-      conversation = await WhatsAppConversation.findById(conversationId);
-    }
-
+    // Get or create conversation if not already loaded
     if (!conversation) {
-      // Use helper to find or create with proper snapshot semantics
-      // User-initiated media sending is "trusted" - can backfill empty snapshot fields
-      conversation = await findOrCreateConversationWithSnapshot({
-        participantPhone: formattedPhone,
-        businessPhoneId: phoneNumberId,
-        participantName: formattedPhone, // Default name for new conversations
-        snapshotSource: "trusted",
-      });
+      if (conversationId) {
+        conversation = await WhatsAppConversation.findById(conversationId);
+      }
+
+      if (!conversation) {
+        // Use helper to find or create with proper snapshot semantics
+        // User-initiated media sending is "trusted" - can backfill empty snapshot fields
+        conversation = await findOrCreateConversationWithSnapshot({
+          participantPhone: formattedPhone,
+          businessPhoneId: phoneNumberId,
+          participantName: formattedPhone, // Default name for new conversations
+          snapshotSource: "trusted",
+        });
+      }
     }
 
     // Build content object

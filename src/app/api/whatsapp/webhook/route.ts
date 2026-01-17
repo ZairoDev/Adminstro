@@ -5,6 +5,7 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneIds, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import ConversationReadState from "@/models/conversationReadState";
+import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
@@ -537,6 +538,16 @@ async function processIncomingMessage(
       snapshotSource: "untrusted", // CRITICAL: Never overwrite existing snapshot fields
     }) as any; // Cast to any to access Mongoose document properties like _id
 
+    // ============================================================
+    // CRITICAL: Internal vs Meta Message Safety
+    // ============================================================
+    // If conversation.source === "internal", immediately return
+    // Internal conversations must NEVER be processed by webhook logic
+    if (conversation.source === "internal") {
+      console.log(`⏭️ [SKIP] Internal conversation detected - skipping webhook processing for conversation ${conversation._id}`);
+      return;
+    }
+
     // Extract message content based on type
     let contentObj: { text?: string; caption?: string; location?: any; interactivePayload?: any } = {};
     let mediaUrl = "";
@@ -817,6 +828,7 @@ async function processIncomingMessage(
         mediaId,
         mimeType,
         filename,
+        source: "meta", // CRITICAL: Explicitly set source for all webhook-created messages
         status: "delivered",
         statusEvents: [{ status: "delivered", timestamp }],
         direction: "incoming",
@@ -907,6 +919,22 @@ async function processIncomingMessage(
       // For each eligible user, check read state and emit notification if unread
       let notificationsEmitted = 0;
       for (const user of eligibleUsers) {
+        // ============================================================
+        // CRITICAL: Archive State Enforcement
+        // ============================================================
+        // Check if this user has archived the conversation
+        // Archived conversations NEVER trigger notifications
+        const archiveState = await ConversationArchiveState.findOne({
+          conversationId: conversation._id,
+          userId: user.userId,
+          isArchived: true,
+        }).lean() as any;
+
+        if (archiveState) {
+          console.log(`⏭️ [SKIP] User ${user.userId} has archived conversation ${conversation._id} - skipping notification`);
+          continue; // Skip this user, try next
+        }
+
         // Get user's read state for this conversation
         const readState = await ConversationReadState.findOne({
           conversationId: conversation._id,
@@ -914,7 +942,8 @@ async function processIncomingMessage(
         }).lean() as any;
 
         // Check if message is unread for this user
-        const isUnread = !readState || (readState.lastReadAt && timestamp > new Date(readState.lastReadAt));
+        // CRITICAL: Count messages with timestamp > lastReadAt
+        const isUnread = !readState || !readState.lastReadAt || timestamp > new Date(readState.lastReadAt);
 
         if (isUnread) {
           // CRITICAL: Per-conversation emit debounce (prevents burst-spam)

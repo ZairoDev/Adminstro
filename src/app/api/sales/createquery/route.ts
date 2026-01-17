@@ -17,27 +17,17 @@ import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversatio
 
 connectDb();
 
-// TESTING MODE: Only send WhatsApp templates when created by test email
-const TEST_EMAIL = process.env.TEST_EMAIL || "abhaytripathi6969@gmail.com";
-
-// Function to send WhatsApp template to lead (TESTING MODE - thessaloniki only)
+// Function to send WhatsApp template to lead (Thessaloniki only)
 async function sendGuestGreetingTemplate( 
   phoneNo: string,
   leadName: string,
-  location: string,
-  creatorEmail: string
+  location: string
 ) {
   try {
-    // TESTING: Only send if created by test email
-    if (creatorEmail !== TEST_EMAIL) {
-      console.log(`⏭️ [TESTING] Skipping WhatsApp template - creator email (${creatorEmail}) is not test email (${TEST_EMAIL})`);
-      return;
-    }
-
-    // TESTING: Only send for thessaloniki location
+    // Only send for thessaloniki location
     const normalizedLocation = location?.toLowerCase().trim();
     if (normalizedLocation !== "thessaloniki") {
-      console.log(`⏭️ [TESTING] Skipping WhatsApp template - location is not thessaloniki (got: ${location})`);
+      console.log(`⏭️ Skipping WhatsApp template - location is not thessaloniki (got: ${location})`);
       return;
     }
 
@@ -57,7 +47,7 @@ async function sendGuestGreetingTemplate(
       formattedPhone = formattedPhone.substring(1);
     }
 
-    console.log(`📱 [TESTING] Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
+    console.log(`📱 Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
@@ -99,7 +89,7 @@ async function sendGuestGreetingTemplate(
     }
 
     const whatsappMessageId = data.messages?.[0]?.id;
-    console.log(`✅ [TESTING] guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
+    console.log(`✅ guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
 
     // Save message to database and emit socket event for frontend display
     if (whatsappMessageId) {
@@ -149,6 +139,7 @@ async function sendGuestGreetingTemplate(
         content: contentObj,
         templateName: "guest_greeting",
         templateLanguage: "en",
+        source: "meta", // Explicitly set source for Meta API messages
         status: "sent",
         statusEvents: [{ status: "sent", timestamp }],
         direction: "outgoing",
@@ -195,7 +186,6 @@ async function sendGuestGreetingTemplate(
 
 export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
-  const creatorEmail = (token?.email as string) || "";
   try {
     const {
       date,
@@ -291,9 +281,9 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ Socket.IO instance not found!");
     }
 
-    // ✅ Send WhatsApp guest_greeting template to lead (TESTING MODE - thessaloniki only, test email only)
+    // ✅ Send WhatsApp guest_greeting template to lead (Thessaloniki only)
     // This runs asynchronously - don't await to avoid blocking the response
-    sendGuestGreetingTemplate(phoneNo, name, location, creatorEmail).catch((err) => {
+    sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
       console.error("❌ Failed to send WhatsApp template:", err);
     });
 

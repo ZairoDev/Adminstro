@@ -13,6 +13,43 @@ export interface WhatsAppPhoneConfig {
   displayName: string;
   area: WhatsAppArea;
   businessAccountId: string;
+  /**
+   * If true, this is an internal-only "phone" that:
+   * - Never sends messages to Meta
+   * - Never triggers notifications
+   * - Doesn't appear in Phone Health
+   * - Used for internal notes and drafting
+   */
+  isInternal?: boolean;
+}
+
+// =========================================================
+// "YOU" VIRTUAL NUMBER CONFIGURATION
+// =========================================================
+// This is a special internal-only WhatsApp identity for notes,
+// internal replies, and drafting. Messages sent from "You":
+// - Are saved to DB
+// - Appear instantly in chat
+// - Never reach Meta API
+// - Never trigger notifications
+// - Have no delivery status updates
+
+export const INTERNAL_YOU_PHONE_ID = "internal-you";
+
+export const INTERNAL_YOU_CONFIG: WhatsAppPhoneConfig = {
+  phoneNumberId: INTERNAL_YOU_PHONE_ID,
+  displayNumber: "Internal",
+  displayName: "You (Internal Notes)",
+  area: "all",
+  businessAccountId: "",
+  isInternal: true,
+};
+
+/**
+ * Check if a phone ID is the internal "You" virtual number
+ */
+export function isInternalPhoneId(phoneNumberId: string): boolean {
+  return phoneNumberId === INTERNAL_YOU_PHONE_ID;
 }
 
 // WhatsApp Business Account ID (shared across all numbers)
@@ -25,15 +62,16 @@ export const WHATSAPP_RETARGET_PHONE_ID = process.env.WHATSAPP_RETARGET_PHONE_ID
 // Update these with your actual phone number IDs from Meta Business Suite
 export const WHATSAPP_PHONE_CONFIGS: WhatsAppPhoneConfig[] = [
   {
-    phoneNumberId: process.env.WHATSAPP_ATHENS_PHONE_ID || process.env.Phone_number_ID || "",
-    displayNumber: "+91 9125119177",
+    phoneNumberId:
+      process.env.WHATSAPP_ATHENS_PHONE_ID || process.env.Phone_number_ID || "",
+    displayNumber: "+91 28 0000 0003 ",
     displayName: "VacationSaga Athens",
     area: "athens",
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
   {
     phoneNumberId: process.env.WHATSAPP_THESSALONIKI_PHONE_ID || "",
-    displayNumber: "+30 23 0000 0002",
+    displayNumber: "+30 9125119177",
     displayName: "VacationSaga Thessaloniki",
     area: "thessaloniki",
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
@@ -172,4 +210,36 @@ export function getRetargetPhoneId(): string | null {
  */
 export function isRetargetPhoneId(phoneNumberId: string): boolean {
   return WHATSAPP_RETARGET_PHONE_ID === phoneNumberId;
+}
+
+/**
+ * Get all phone configs including the internal "You" number
+ * Use this when you need to show all available "senders" in the UI
+ */
+export function getAllPhoneConfigsWithInternal(
+  userRole: string,
+  userAreas: string[] = []
+): WhatsAppPhoneConfig[] {
+  const metaConfigs = getAllowedPhoneConfigs(userRole, userAreas);
+  // Always include the internal "You" number for all WhatsApp-enabled users
+  if (metaConfigs.length > 0) {
+    return [...metaConfigs, INTERNAL_YOU_CONFIG];
+  }
+  return metaConfigs;
+}
+
+/**
+ * Get Meta-only phone configs (excludes internal "You" number)
+ * Use this for:
+ * - Phone Health dashboard
+ * - Any Meta API operations
+ * - External message sending
+ */
+export function getMetaOnlyPhoneConfigs(
+  userRole: string,
+  userAreas: string[] = []
+): WhatsAppPhoneConfig[] {
+  return getAllowedPhoneConfigs(userRole, userAreas).filter(
+    (config) => !config.isInternal
+  );
 }

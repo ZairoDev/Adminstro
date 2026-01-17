@@ -11,6 +11,18 @@ export interface IWhatsAppConversation extends Document {
 
   businessPhoneId: string;
 
+  /**
+   * Source of conversation:
+   * - "meta": Real WhatsApp conversation via Meta API
+   * - "internal": Internal-only conversation (e.g., "You" virtual number)
+   * 
+   * Internal conversations:
+   * - Never sync with Meta
+   * - Never trigger notifications
+   * - Don't affect phone health tracking
+   */
+  source?: "meta" | "internal";
+
   assignedAgent?: mongoose.Types.ObjectId;
   assignmentHistory?: {
     agentId: mongoose.Types.ObjectId;
@@ -76,7 +88,17 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     businessPhoneId: {
       type: String,
-      required: true,
+      required: function(this: any) {
+        // businessPhoneId is required only for meta (external) conversations
+        return this.source !== "internal";
+      },
+      index: true,
+    },
+
+    source: {
+      type: String,
+      enum: ["meta", "internal"],
+      default: "meta",
       index: true,
     },
 

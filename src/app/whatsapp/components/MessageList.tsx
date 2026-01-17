@@ -311,6 +311,9 @@ const MessageBubble = memo(function MessageBubble({
   const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
   const displayText = getMessageDisplayText(message);
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Check if this is an internal "You" message
+  const isInternal = message.source === "internal" || message.isInternal;
 
   const hasReactions = message.reactions && message.reactions.length > 0;
 
@@ -357,10 +360,13 @@ const MessageBubble = memo(function MessageBubble({
         data-message-id={message.messageId}
         className={cn(
           "relative max-w-[65%] rounded-lg shadow-sm transition-all duration-300",
-          isOutgoing
-            ? "bg-[#d9fdd3] dark:bg-[#005c4b]"
-            : "bg-white dark:bg-[#202c33]",
-          isFirstInGroup && isOutgoing && "rounded-tr-none",
+          // Internal "You" messages have distinct styling (blue tint like sticky notes)
+          isInternal
+            ? "bg-[#fff3cd] dark:bg-[#4a4000] border-l-4 border-[#ffc107]"
+            : isOutgoing
+              ? "bg-[#d9fdd3] dark:bg-[#005c4b]"
+              : "bg-white dark:bg-[#202c33]",
+          isFirstInGroup && isOutgoing && !isInternal && "rounded-tr-none",
           isFirstInGroup && !isOutgoing && "rounded-tl-none",
           isMediaType && message.mediaUrl ? "p-1" : "px-[9px] py-[6px]",
           // Highlight effect when scrolled to
@@ -384,8 +390,15 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
+        {/* Internal message indicator */}
+        {isInternal && (
+          <div className="flex items-center gap-1 text-[11px] text-[#856404] dark:text-[#ffc107] mb-1 font-medium">
+            <span>📝 Internal Note</span>
+          </div>
+        )}
+
         {/* Forwarded indicator */}
-        {message.isForwarded && (
+        {message.isForwarded && !isInternal && (
           <div className="flex items-center gap-1 text-[11px] text-[#667781] dark:text-[#8696a0] mb-1">
             <Forward className="h-3 w-3" />
             <span className="italic">Forwarded</span>
@@ -667,7 +680,8 @@ const MessageBubble = memo(function MessageBubble({
                 })
               : "--:--"}
           </span>
-          {isOutgoing && <StatusIcon status={message.status} />}
+          {/* No status icons for internal messages (no delivery tracking) */}
+          {isOutgoing && !isInternal && <StatusIcon status={message.status} />}
         </div>
 
         {/* Hover menu - Always mounted, visibility controlled by CSS */}

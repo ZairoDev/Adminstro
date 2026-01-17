@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { WHATSAPP_PHONE_CONFIGS, getRetargetPhoneId, getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneConfigs } from "@/lib/whatsapp/config";
+import { WHATSAPP_PHONE_CONFIGS, getRetargetPhoneId, getWhatsAppToken, WHATSAPP_API_BASE_URL, getMetaOnlyPhoneConfigs } from "@/lib/whatsapp/config";
+import { syncPhoneConfigsWithMeta } from "@/lib/whatsapp/phoneMetadataSync";
 
 connectDb();
 
@@ -195,13 +196,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Get location-scoped phone configs based on role
+    // CRITICAL: Use getMetaOnlyPhoneConfigs to EXCLUDE internal "You" number
+    // Internal numbers should NEVER appear in Phone Health
     const userAreas = (token as any).allotedArea || [];
-    const allowedPhoneConfigs = getAllowedPhoneConfigs(userRole, userAreas);
+    const localPhoneConfigs = getMetaOnlyPhoneConfigs(userRole, userAreas);
     
     // Add retarget phone if SuperAdmin
     const retargetPhoneId = getRetargetPhoneId();
     if (retargetPhoneId && userRole === "SuperAdmin") {
-      allowedPhoneConfigs.push({
+      localPhoneConfigs.push({
         phoneNumberId: retargetPhoneId,
         displayNumber: "Retarget Phone",
         displayName: "Retarget Phone",
@@ -209,6 +212,10 @@ export async function GET(req: NextRequest) {
         businessAccountId: "",
       });
     }
+
+    // CRITICAL: Sync with Meta API - Meta is the ONLY source of truth for phone metadata
+    // Overwrite local displayName/displayNumber with Meta values
+    const allowedPhoneConfigs = await syncPhoneConfigsWithMeta(localPhoneConfigs);
 
     // Check if manual refresh requested (SuperAdmin only)
     const searchParams = req.nextUrl.searchParams;
@@ -232,10 +239,12 @@ export async function GET(req: NextRequest) {
         // Fetch from Meta API (with cache metadata)
         const { data: metaData, source, cacheAge } = await fetchMetaPhoneHealth(phoneNumberId);
 
+        // Use Meta-synced displayName/displayNumber (already synced in allowedPhoneConfigs)
+        // Meta values have already overwritten local values
         return {
           phoneNumberId,
-          displayName: config.displayName,
-          displayNumber: config.displayNumber,
+          displayName: config.displayName, // Already synced from Meta
+          displayNumber: config.displayNumber, // Already synced from Meta
           qualityRating: metaData?.quality_rating,
           status: metaData?.status,
           throughputLevel: metaData?.throughput?.level,

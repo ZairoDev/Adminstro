@@ -19,6 +19,9 @@ import {
   ArrowLeft,
   MoreVertical,
   Filter,
+  Archive,
+  ArchiveRestore,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
@@ -61,6 +64,12 @@ interface SidebarProps {
   loadingMoreConversations?: boolean;
   onLoadMoreConversations?: () => void;
   onAddGuest?: () => void;
+  // Archive functionality (WhatsApp-style)
+  archivedCount?: number;
+  showingArchived?: boolean;
+  onToggleArchiveView?: () => void;
+  onArchiveConversation?: (conversationId: string) => void;
+  onUnarchiveConversation?: (conversationId: string) => void;
 }
 
 // Memoized conversation item to prevent unnecessary re-renders
@@ -69,11 +78,17 @@ const ConversationItem = memo(function ConversationItem({
   isSelected,
   onClick,
   isMounted,
+  onArchive,
+  onUnarchive,
+  isArchived,
 }: {
   conversation: Conversation;
   isSelected: boolean;
   onClick: () => void;
   isMounted: boolean;
+  onArchive?: (id: string) => void;
+  onUnarchive?: (id: string) => void;
+  isArchived?: boolean;
 }) {
   const hasUnread =
     (conversation.unreadCount || 0) > 0 &&
@@ -98,6 +113,11 @@ const ConversationItem = memo(function ConversationItem({
   };
 
   const displayName = (() => {
+    // Check if this is the "You" conversation (internal)
+    if (conversation.isInternal || conversation.source === "internal") {
+      return "You";
+    }
+    
     const savedName = conversation.participantName;
     const whatsappName =
       (conversation as any).whatsappName ||
@@ -116,7 +136,7 @@ const ConversationItem = memo(function ConversationItem({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors",
+        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors group",
         "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
         isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
         hasUnread && !isSelected && "bg-[#f0f2f5] dark:bg-[#182229]"
@@ -127,8 +147,15 @@ const ConversationItem = memo(function ConversationItem({
       <div className="relative flex-shrink-0">
         <Avatar className="h-12 w-12">
           <AvatarImage src={conversation.participantProfilePic} />
-          <AvatarFallback className="bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white text-sm font-medium">
-            {displayName?.slice(0, 2).toUpperCase() || "??"}
+          <AvatarFallback className={cn(
+            "text-sm font-medium",
+            conversation.isInternal || conversation.source === "internal"
+              ? "bg-[#25d366] text-white" // Green background for "You" conversation
+              : "bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
+          )}>
+            {conversation.isInternal || conversation.source === "internal" 
+              ? "You" 
+              : displayName?.slice(0, 2).toUpperCase() || "??"}
           </AvatarFallback>
         </Avatar>
         {/* Online indicator (if available) */}
@@ -183,6 +210,39 @@ const ConversationItem = memo(function ConversationItem({
               {conversation.unreadCount}
             </span>
           )}
+          
+          {/* Archive/Unarchive button on hover */}
+          {(onArchive || onUnarchive) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="ml-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#e9edef] dark:hover:bg-[#374045] transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4 text-[#54656f] dark:text-[#aebac1]" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isArchived ? (
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onUnarchive?.(conversation._id);
+                  }}>
+                    <ArchiveRestore className="h-4 w-4 mr-2" />
+                    Unarchive
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive?.(conversation._id);
+                  }}>
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archive
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </div>
@@ -210,6 +270,12 @@ export function ConversationSidebar({
   loadingMoreConversations,
   onLoadMoreConversations,
   onAddGuest,
+  // Archive props
+  archivedCount = 0,
+  showingArchived = false,
+  onToggleArchiveView,
+  onArchiveConversation,
+  onUnarchiveConversation,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -330,32 +396,39 @@ export function ConversationSidebar({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {allowedPhoneConfigs.length > 1 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
-                    >
-                      <Phone className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {allowedPhoneConfigs.map((config: any) => (
-                      <DropdownMenuItem
-                        key={config.phoneNumberId}
-                        onClick={() => onPhoneConfigChange(config)}
-                        className={cn(
-                          selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent"
-                        )}
+              {/* Only show phone selector if there are multiple REAL (non-internal) phone numbers */}
+              {(() => {
+                // Filter out internal phone numbers (like "You") from selection
+                const realPhoneConfigs = allowedPhoneConfigs.filter(
+                  (config: any) => !config.isInternal
+                );
+                return realPhoneConfigs.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
                       >
-                        {config.displayName}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                        <Phone className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {realPhoneConfigs.map((config: any) => (
+                        <DropdownMenuItem
+                          key={config.phoneNumberId}
+                          onClick={() => onPhoneConfigChange(config)}
+                          className={cn(
+                            selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent"
+                          )}
+                        >
+                          {config.displayName}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })()}
             </div>
           </>
         )}
@@ -466,6 +539,9 @@ export function ConversationSidebar({
                 isSelected={selectedConversation?._id === conversation._id}
                 onClick={() => onSelectConversation(conversation)}
                 isMounted={isMounted}
+                onArchive={showingArchived ? undefined : onArchiveConversation}
+                onUnarchive={showingArchived ? onUnarchiveConversation : undefined}
+                isArchived={showingArchived || conversation.isArchivedByUser}
               />
             ))}
             
@@ -489,6 +565,36 @@ export function ConversationSidebar({
           </>
         )}
       </div>
+
+      {/* Archive Section - WhatsApp Style (at bottom) */}
+      {onToggleArchiveView && (
+        <div
+          className={cn(
+            "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-t border-[#e9edef] dark:border-[#222d34]",
+            "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
+            showingArchived && "bg-[#d9fdd3] dark:bg-[#005c4b]"
+          )}
+          onClick={onToggleArchiveView}
+        >
+          <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center flex-shrink-0">
+            {showingArchived ? (
+              <ArrowLeft className="h-5 w-5 text-white" />
+            ) : (
+              <Archive className="h-5 w-5 text-white" />
+            )}
+          </div>
+          <div className="flex-1">
+            <span className="text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">
+              {showingArchived ? "Back to all chats" : "Archived"}
+            </span>
+          </div>
+          {!showingArchived && archivedCount > 0 && (
+            <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1.5">
+              {archivedCount}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

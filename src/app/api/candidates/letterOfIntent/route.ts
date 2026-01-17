@@ -426,8 +426,20 @@ export async function POST(req: NextRequest) {
     // Add spacing before main content
     yPosition -= 15;
 
-    // Format date
-    const letterDate = new Date(data.date);
+    // Format date with validation
+    let letterDate: Date;
+    try {
+      letterDate = new Date(data.date);
+      // Check if date is valid
+      if (isNaN(letterDate.getTime())) {
+        // If invalid, use current date
+        letterDate = new Date();
+      }
+    } catch (error) {
+      // If parsing fails, use current date
+      letterDate = new Date();
+    }
+    
     const day = letterDate.getDate();
     const daySuffix = day === 1 || day === 21 || day === 31 ? "st" : day === 2 || day === 22 ? "nd" : day === 3 || day === 23 ? "rd" : "th";
     const monthName = letterDate.toLocaleString("en-US", { month: "long" });

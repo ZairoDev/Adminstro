@@ -5,7 +5,7 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, X } from "lucide-react";
+import { Check, X, AlertTriangle } from "lucide-react";
 
 interface ShortlistCandidateDialogProps {
   open: boolean;
@@ -104,6 +104,35 @@ export function ShortlistCandidateDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Safety Check Warning */}
+          {candidatePosition && selectedRoles.length > 0 && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                    Role Mismatch Warning
+                  </h4>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <p>
+                      <span className="font-medium">Candidate's Current Role:</span>{" "}
+                      <span className="font-semibold">{candidatePosition}</span>
+                    </p>
+                    <p>
+                      <span className="font-medium">Selected Roles for Shortlisting:</span>{" "}
+                      <span className="font-semibold">{selectedRoles.join(", ")}</span>
+                    </p>
+                    {!selectedRoles.includes(candidatePosition) && (
+                      <p className="mt-2 font-medium">
+                        ⚠️ The candidate's current role ({candidatePosition}) is not included in the selected roles. Please verify this is intentional.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Suitable Roles */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">

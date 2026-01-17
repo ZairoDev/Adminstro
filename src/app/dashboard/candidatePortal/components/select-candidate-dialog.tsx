@@ -5,7 +5,7 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, X } from "lucide-react";
+import { Check, X, AlertTriangle } from "lucide-react";
 
 interface SelectCandidateDialogProps {
   open: boolean;
@@ -120,6 +120,35 @@ export function SelectCandidateDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Safety Check Warning */}
+          {/* {candidatePosition && role && role.trim() !== "" && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                    Role Mismatch Warning
+                  </h4>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <p>
+                      <span className="font-medium">Candidate's Current Role:</span>{" "}
+                      <span className="font-semibold">{candidatePosition}</span>
+                    </p>
+                    <p>
+                      <span className="font-medium">Selected Role for Training:</span>{" "}
+                      <span className="font-semibold">{role}</span>
+                    </p>
+                    {candidatePosition.toLowerCase() !== role.toLowerCase() && (
+                      <p className="mt-2 font-medium">
+                        ⚠️ The candidate's current role ({candidatePosition}) does not match the selected role for training ({role}). Please verify this is intentional.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )} */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Position Type Selection */}
             <div>
@@ -187,7 +216,8 @@ export function SelectCandidateDialog({
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground focus:border-primary focus:outline-none"
+                disabled
+                className="w-full px-3 py-2 border border-muted rounded bg-muted text-foreground cursor-not-allowed opacity-60"
               >
                 <option value="">Select a Role</option>
                 <option value="LeadGen">LeadGen</option>
@@ -202,11 +232,9 @@ export function SelectCandidateDialog({
                   <option value={candidatePosition}>{candidatePosition}</option>
                 )}
               </select>
-              {candidatePosition && role === candidatePosition && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Prefilled from candidate position
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Role is locked to candidate's current position. Use "Edit Role" to change it first.
+              </p>
             </div>
 
             {/* Salary Input */}

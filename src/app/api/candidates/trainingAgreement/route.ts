@@ -106,7 +106,20 @@ export async function POST(req: NextRequest) {
     const footerSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    const agreementDate = new Date(data.date);
+    // Parse and validate date
+    let agreementDate: Date;
+    try {
+      agreementDate = new Date(data.date);
+      // Check if date is valid
+      if (isNaN(agreementDate.getTime())) {
+        // If invalid, use current date
+        agreementDate = new Date();
+      }
+    } catch (error) {
+      // If parsing fails, use current date
+      agreementDate = new Date();
+    }
+    
     const day = agreementDate.getDate();
     const monthName = agreementDate.toLocaleString("en-US", { month: "long" });
     const year = agreementDate.getFullYear();

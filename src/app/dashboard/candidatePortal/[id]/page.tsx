@@ -23,6 +23,7 @@ import {
   GraduationCap,
   Check,
   X,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,6 +65,14 @@ import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist
 import { OnboardingDetailsView } from "../components/onboarding-details-view";
 import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
 import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
+
+const ROLE_OPTIONS = [
+  "Developer",
+  "LeadGen",
+  "Sales",
+  "Marketing",
+  "HR",
+];
 
 interface Candidate {
   _id: string;
@@ -206,6 +215,9 @@ interface Candidate {
       signedAt?: string;
     };
     signedPdfUrl?: string;
+    signedHrPoliciesPdfUrl?: string;
+    signedLetterOfIntentPdfUrl?: string;
+    letterOfIntentSigningDate?: string;
     agreementAccepted?: boolean;
     agreementAcceptedAt?: string;
     agreementComplete?: boolean;
@@ -262,6 +274,9 @@ export default function CandidateDetailPage() {
   const [remarksExpanded, setRemarksExpanded] = useState(true);
   const [resumeExpanded, setResumeExpanded] = useState(true);
   const [trainingAgreementExpanded, setTrainingAgreementExpanded] = useState(true);
+  const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [updatingRole, setUpdatingRole] = useState(false);
   const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
   const [showSignedPdfDialog, setShowSignedPdfDialog] = useState(false);
@@ -271,13 +286,26 @@ export default function CandidateDetailPage() {
   const [generatingUnsignedOnboardingPdf, setGeneratingUnsignedOnboardingPdf] = useState(false);
   const [showSignedOnboardingPdfDialog, setShowSignedOnboardingPdfDialog] = useState(false);
   const [showUnsignedOnboardingPdfDialog, setShowUnsignedOnboardingPdfDialog] = useState(false);
+  
+  // HR Policies and Letter of Intent states
+  const [hrPoliciesExpanded, setHrPoliciesExpanded] = useState(true);
+  const [letterOfIntentExpanded, setLetterOfIntentExpanded] = useState(true);
+  const [unsignedHrPoliciesUrl, setUnsignedHrPoliciesUrl] = useState<string | null>(null);
+  const [unsignedLetterOfIntentUrl, setUnsignedLetterOfIntentUrl] = useState<string | null>(null);
+  const [generatingHrPoliciesPdf, setGeneratingHrPoliciesPdf] = useState(false);
+  const [generatingLetterOfIntentPdf, setGeneratingLetterOfIntentPdf] = useState(false);
+  const [showSignedHrPoliciesDialog, setShowSignedHrPoliciesDialog] = useState(false);
+  const [showUnsignedHrPoliciesDialog, setShowUnsignedHrPoliciesDialog] = useState(false);
+  const [showSignedLetterOfIntentDialog, setShowSignedLetterOfIntentDialog] = useState(false);
+  const [showUnsignedLetterOfIntentDialog, setShowUnsignedLetterOfIntentDialog] = useState(false);
 
   const generateUnsignedTrainingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
     
     setGeneratingUnsignedPdf(true);
     try {
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      // Use ISO date string format for proper parsing
+      const agreementDate = new Date().toISOString();
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,
@@ -303,6 +331,81 @@ export default function CandidateDetailPage() {
       console.error("Error generating unsigned training agreement PDF:", error);
     } finally {
       setGeneratingUnsignedPdf(false);
+    }
+  };
+
+  const generateUnsignedHrPolicies = async () => {
+    if (!candidate || !candidate.name || !candidate.position) return;
+    
+    setGeneratingHrPoliciesPdf(true);
+    try {
+      // Use ISO date string format for proper parsing
+      const agreementDate = new Date().toISOString();
+      const hrPoliciesPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: agreementDate,
+        // No signature for unsigned PDF
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/hrPolicies",
+        hrPoliciesPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setUnsignedHrPoliciesUrl(url);
+    } catch (error: any) {
+      console.error("Error generating unsigned HR Policies PDF:", error);
+      toast.error("Failed to generate HR Policies PDF");
+    } finally {
+      setGeneratingHrPoliciesPdf(false);
+    }
+  };
+
+  const generateUnsignedLetterOfIntent = async () => {
+    if (!candidate || !candidate.name || !candidate.position) return;
+    
+    setGeneratingLetterOfIntentPdf(true);
+    try {
+      // Use ISO date string format for proper parsing
+      const agreementDate = new Date().toISOString();
+      const letterOfIntentPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: agreementDate,
+        salary: candidate.selectionDetails?.salary?.toString() || undefined,
+        designation: candidate.selectionDetails?.role || candidate.position,
+        department: candidate.selectionDetails?.role || candidate.position,
+        // No signature for unsigned PDF
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/letterOfIntent",
+        letterOfIntentPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setUnsignedLetterOfIntentUrl(url);
+    } catch (error: any) {
+      console.error("Error generating unsigned Letter of Intent PDF:", error);
+      toast.error("Failed to generate Letter of Intent PDF");
+    } finally {
+      setGeneratingLetterOfIntentPdf(false);
     }
   };
 
@@ -579,6 +682,43 @@ export default function CandidateDetailPage() {
         err.response?.data?.error ||
           "An error occurred while updating the candidate"
       );
+    }
+  };
+
+  // Handle edit role
+  const handleEditRole = () => {
+    if (!candidate) return;
+    setNewRole(candidate.position);
+    setEditRoleDialogOpen(true);
+  };
+
+  // Update role
+  const handleUpdateRole = async () => {
+    if (!candidate || !newRole) return;
+
+    setUpdatingRole(true);
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: newRole }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCandidate((prev) =>
+          prev ? { ...prev, position: newRole } : null
+        );
+        toast.success("Role updated successfully");
+        setEditRoleDialogOpen(false);
+      } else {
+        toast.error(result.error || "Failed to update role");
+      }
+    } catch (error) {
+      console.error("Error updating role:", error);
+      toast.error("Failed to update role");
+    } finally {
+      setUpdatingRole(false);
     }
   };
 
@@ -1308,6 +1448,24 @@ export default function CandidateDetailPage() {
                     </Tooltip>
                   )}
 
+                  {/* Edit Role Button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={handleEditRole}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs"
+                        >
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                          Edit Role
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Edit candidate role/position</p></TooltipContent>
+                  </Tooltip>
+
                   {/* Schedule Second Round Interview Button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1463,7 +1621,7 @@ export default function CandidateDetailPage() {
 
 
             {/* Training Agreement */}
-            {candidate.status === "selected" && (
+            {(candidate.status === "selected" || candidate.status === "onboarding") && (
               <Card className="p-4">
                 <button
                   onClick={() => setTrainingAgreementExpanded(!trainingAgreementExpanded)}
@@ -1549,6 +1707,194 @@ export default function CandidateDetailPage() {
                       {candidate.trainingAgreementDetails?.signedPdfUrl 
                         ? "Signed agreement available - Click to view" 
                         : "Click to preview training agreement documents"}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* HR Policies */}
+            {(candidate.status === "selected" || candidate.status === "onboarding") && (
+              <Card className="p-4">
+                <button
+                  onClick={() => setHrPoliciesExpanded(!hrPoliciesExpanded)}
+                  className="w-full flex items-center justify-between mb-2"
+                >
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                    HR Policies
+                  </h3>
+                  {hrPoliciesExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {hrPoliciesExpanded && (
+                  <div className="flex items-start gap-3 mt-3">
+                    {/* Signed PDF Preview */}
+                    {candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl && (
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs font-medium text-foreground">Signed</p>
+                        <div 
+                          onClick={() => setShowSignedHrPoliciesDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const a = document.createElement("a");
+                            a.href = candidate.trainingAgreementDetails!.signedHrPoliciesPdfUrl!;
+                            a.download = `HR-Policies-${candidate._id}-Signed.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                          className="w-full gap-1.5 h-7 text-xs"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Unsigned PDF Preview */}
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      {generatingHrPoliciesPdf ? (
+                        <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                          </div>
+                        </div>
+                      ) : unsignedHrPoliciesUrl ? (
+                        <div 
+                          onClick={() => setShowUnsignedHrPoliciesDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={generateUnsignedHrPolicies}
+                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        >
+                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!hrPoliciesExpanded && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>
+                      {candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl 
+                        ? "Signed HR Policies available - Click to view" 
+                        : "Click to preview HR Policies documents"}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Letter of Intent */}
+            {(candidate.status === "selected" || candidate.status === "onboarding") && (
+              <Card className="p-4">
+                <button
+                  onClick={() => setLetterOfIntentExpanded(!letterOfIntentExpanded)}
+                  className="w-full flex items-center justify-between mb-2"
+                >
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                    Letter of Intent
+                  </h3>
+                  {letterOfIntentExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {letterOfIntentExpanded && (
+                  <div className="flex items-start gap-3 mt-3">
+                    {/* Signed PDF Preview */}
+                    {candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl && (
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs font-medium text-foreground">Signed</p>
+                        <div 
+                          onClick={() => setShowSignedLetterOfIntentDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const a = document.createElement("a");
+                            a.href = candidate.trainingAgreementDetails!.signedLetterOfIntentPdfUrl!;
+                            a.download = `Letter-of-Intent-${candidate._id}-Signed.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                          className="w-full gap-1.5 h-7 text-xs"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Unsigned PDF Preview */}
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      {generatingLetterOfIntentPdf ? (
+                        <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                          </div>
+                        </div>
+                      ) : unsignedLetterOfIntentUrl ? (
+                        <div 
+                          onClick={() => setShowUnsignedLetterOfIntentDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={generateUnsignedLetterOfIntent}
+                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        >
+                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!letterOfIntentExpanded && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>
+                      {candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl 
+                        ? "Signed Letter of Intent available - Click to view" 
+                        : "Click to preview Letter of Intent documents"}
                     </span>
                   </div>
                 )}
@@ -1891,6 +2237,156 @@ export default function CandidateDetailPage() {
               </Dialog>
             )}
 
+            {/* Signed HR Policies PDF Dialog */}
+            {candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl && (
+              <Dialog open={showSignedHrPoliciesDialog} onOpenChange={setShowSignedHrPoliciesDialog}>
+                <DialogContent className="max-w-6xl max-h-[95vh] bg-white dark:bg-gray-800 flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Signed HR Policies</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      View and download the signed HR Policies document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
+                    <iframe
+                      src={`${candidate.trainingAgreementDetails.signedHrPoliciesPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                      className="w-full h-full min-h-[75vh] border-0"
+                      title="Signed HR Policies"
+                      style={{ minHeight: '75vh' }}
+                    />
+                  </div>
+                  <DialogFooter className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowSignedHrPoliciesDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = candidate.trainingAgreementDetails!.signedHrPoliciesPdfUrl!;
+                        a.download = `HR-Policies-${candidate._id}-Signed.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download PDF
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Unsigned HR Policies PDF Dialog */}
+            {unsignedHrPoliciesUrl && (
+              <Dialog open={showUnsignedHrPoliciesDialog} onOpenChange={setShowUnsignedHrPoliciesDialog}>
+                <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Unsigned HR Policies Preview</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Preview of the unsigned HR Policies document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                    <iframe
+                      src={unsignedHrPoliciesUrl}
+                      className="w-full h-[70vh] border-0"
+                      title="Unsigned HR Policies Preview"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowUnsignedHrPoliciesDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Signed Letter of Intent PDF Dialog */}
+            {candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl && (
+              <Dialog open={showSignedLetterOfIntentDialog} onOpenChange={setShowSignedLetterOfIntentDialog}>
+                <DialogContent className="max-w-6xl max-h-[95vh] bg-white dark:bg-gray-800 flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Signed Letter of Intent</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      View and download the signed Letter of Intent document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
+                    <iframe
+                      src={`${candidate.trainingAgreementDetails.signedLetterOfIntentPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                      className="w-full h-full min-h-[75vh] border-0"
+                      title="Signed Letter of Intent"
+                      style={{ minHeight: '75vh' }}
+                    />
+                  </div>
+                  <DialogFooter className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowSignedLetterOfIntentDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = candidate.trainingAgreementDetails!.signedLetterOfIntentPdfUrl!;
+                        a.download = `Letter-of-Intent-${candidate._id}-Signed.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download PDF
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Unsigned Letter of Intent PDF Dialog */}
+            {unsignedLetterOfIntentUrl && (
+              <Dialog open={showUnsignedLetterOfIntentDialog} onOpenChange={setShowUnsignedLetterOfIntentDialog}>
+                <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Unsigned Letter of Intent Preview</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Preview of the unsigned Letter of Intent document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                    <iframe
+                      src={unsignedLetterOfIntentUrl}
+                      className="w-full h-[70vh] border-0"
+                      title="Unsigned Letter of Intent Preview"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowUnsignedLetterOfIntentDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
 
             {/* Cover Letter */}
             {candidate.coverLetter && (
@@ -2223,6 +2719,54 @@ export default function CandidateDetailPage() {
           onSuccess={refreshCandidate}
         />
       )}
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editRoleDialogOpen} onOpenChange={setEditRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>
+              Update the role/position for {candidate?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="text-sm font-medium mb-2 block">
+              Role/Position
+            </Label>
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Include current role if not in options */}
+                {candidate?.position &&
+                  !ROLE_OPTIONS.includes(candidate.position) && (
+                    <SelectItem value={candidate.position}>
+                      {candidate.position} (Current)
+                    </SelectItem>
+                  )}
+                {ROLE_OPTIONS.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditRoleDialogOpen(false)}
+              disabled={updatingRole}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRole} disabled={updatingRole}>
+              {updatingRole ? "Updating..." : "Update Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

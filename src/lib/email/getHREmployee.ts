@@ -20,7 +20,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
       .select("name email phone")
       .lean() as EmployeeInterface | null;
 
-    if (hrEmployee) {
+    if (hrEmployee && hrEmployee.name) {
       return {
         name: hrEmployee.name,
         title: "HR Manager",

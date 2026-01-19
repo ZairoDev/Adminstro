@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
     const companyAddress =
-      "282, Second Floor, Near Thaggu K Laddu, Express Road, Kanpur-208012, India";
+      "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, 208025 ";
     const officeStart = "10:00 hrs ISD";
     const officeEnd = "18:30 hrs ISD";
 
@@ -289,7 +289,7 @@ export async function POST(req: NextRequest) {
       `${companyName}`,
       `CIN: ${companyCIN}`,
       `Registered Office: ${companyAddress}`,
-      "+91 9598 023492",
+      "+91 95198 03665",
       "zairointernationalpvtltd@gmail.com",
     ];
 

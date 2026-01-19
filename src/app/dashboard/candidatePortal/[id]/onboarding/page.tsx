@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect,useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Check, AlertCircle, Upload, Loader2, FileText, X, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +38,7 @@ import axios from "axios";
       duration: string;
       trainingPeriod: string;
       role: string;
+      salary?: number;
     };
     onboardingDetails?: {
       personalDetails: {
@@ -79,6 +80,17 @@ import axios from "axios";
       signedPdfUrl?: string;
       termsAccepted: boolean;
       onboardingComplete: boolean;
+      resignatureRequest?: {
+        agreementType: string;
+        token: string;
+        tokenExpiresAt: string;
+        requestedBy: string;
+        requestedAt: string;
+        reason?: string | null;
+        isActive: boolean;
+        emailSentAt?: string | null;
+        completedAt?: string;
+      };
     };
   }
 
@@ -152,9 +164,16 @@ function base64ToFile(base64: string, filename: string): File {
 export default function OnboardingPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
   const candidateId = params.id as string;
+
+  // Resignature mode - check for token in URL
+  const resignatureToken = searchParams.get("resignature");
+  const [isResignatureMode, setIsResignatureMode] = useState(false);
+  const [resignatureValid, setResignatureValid] = useState(false);
+  const [validatingResignature, setValidatingResignature] = useState(false);
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,6 +320,64 @@ export default function OnboardingPage() {
 
         if (result.success) {
           setCandidate(result.data);
+          
+          // If resignature token exists, validate it
+          if (resignatureToken) {
+            setValidatingResignature(true);
+            try {
+              const validateResponse = await fetch(
+                `/api/candidates/${candidateId}/validate-resignature?token=${resignatureToken}&agreementType=onboarding`
+              );
+              
+              // Handle non-OK responses
+              if (!validateResponse.ok) {
+                const errorResult = await validateResponse.json().catch(() => ({
+                  success: false,
+                  valid: false,
+                  error: "Failed to validate re-signature link",
+                }));
+                setResignatureValid(false);
+                toast({
+                  title: errorResult.error || "Invalid Link",
+                  description: errorResult.expired 
+                    ? "This re-signature link has expired. Please contact HR for a new link."
+                    : "This re-signature link is not valid. Please contact HR.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              const validateResult = await validateResponse.json();
+
+              if (validateResult.success && validateResult.valid) {
+                setIsResignatureMode(true);
+                setResignatureValid(true);
+                toast({
+                  title: "Re-signature Required",
+                  description: "Please re-sign the onboarding agreement document only.",
+                });
+              } else {
+                setResignatureValid(false);
+                toast({
+                  title: validateResult.error || "Invalid Link",
+                  description: validateResult.expired 
+                    ? "This re-signature link has expired. Please contact HR for a new link."
+                    : "This re-signature link is not valid. Please contact HR.",
+                  variant: "destructive",
+                });
+              }
+            } catch (validateError) {
+              console.error("Error validating resignature token:", validateError);
+              setResignatureValid(false);
+              toast({
+                title: "Validation Error",
+                description: "Failed to validate re-signature link. Please contact HR.",
+                variant: "destructive",
+              });
+            } finally {
+              setValidatingResignature(false);
+            }
+          }
           
           // If re-upload token exists, validate it after candidate data is loaded
           if (reuploadToken) {
@@ -952,6 +1029,126 @@ export default function OnboardingPage() {
       return;
     }
 
+    // If in resignature mode, only validate signature and submit onboarding document
+    if (isResignatureMode) {
+      if (!signature?.url) {
+        setError("Signature is required to re-sign the document");
+        toast({
+          title: "Signature Required",
+          description: "Please provide your signature to re-sign the onboarding agreement.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!candidate) {
+        setError("Candidate data missing");
+        return;
+      }
+      
+      setShowConfirmDialog(false);
+      setError(null);
+      setSubmitting(true);
+      
+      try {
+        // Generate signed PDF with signature
+        const agreementPayload = {
+          agreementDate: new Date().toLocaleDateString("en-IN"),
+          agreementCity: candidate.city ?? "Kanpur",
+          employeeName: candidate.name,
+          fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || personalDetails.fatherName || "",
+          employeeAddress: candidate.address,
+          designation: candidate.position,
+          effectiveFrom: new Date().toLocaleDateString("en-IN"),
+          postingLocation: candidate.city || "Kanpur",
+          salaryINR: candidate.selectionDetails?.salary 
+            ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+            : "As per employment terms",
+          witness1: "____________________",
+          witness2: "____________________",
+          signatureBase64: signature.url,
+        };
+
+        const pdfResponse = await axios.post(
+          "/api/candidates/onboardingDocument",
+          agreementPayload,
+          {
+            responseType: "arraybuffer",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        const pdfBlob = new Blob([pdfResponse.data], { type: "application/pdf" });
+        const signedUrl = URL.createObjectURL(pdfBlob);
+        setSignedPdfUrl(signedUrl);
+        setUnsignedPdfUrl(null);
+        setShowPdfPreview(true);
+
+        // Download signed PDF
+        const a = document.createElement("a");
+        a.href = signedUrl;
+        a.download = `ZIPL-Service-Agreement-${candidateId}-ReSigned.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Upload signed PDF to CDN
+        const pdfFile = new File(
+          [pdfBlob],
+          `ZIPL-Service-Agreement-${candidateId}-ReSigned.pdf`,
+          { type: "application/pdf" }
+        );
+
+        const { imageUrls, error: uploadErr } = await uploadFiles(
+          [pdfFile],
+          "Documents/SignedPDFs"
+        );
+
+        if (uploadErr || !imageUrls?.length) {
+          throw new Error("Failed to upload signed PDF to CDN");
+        }
+
+        const signedPdfUrl = imageUrls[0];
+
+        // Submit only the onboarding document with resignature token
+        const response = await axios.post(
+          `/api/candidates/${candidateId}/onboarding/resignature`,
+          {
+            signedPdfUrl,
+            signatureImage: signature.url,
+            resignatureToken,
+          }
+        );
+
+        if (!response.data.success) {
+          throw new Error(response.data.error || "Failed to submit re-signed document");
+        }
+
+        setSuccess(true);
+        toast({
+          title: "Document Re-signed Successfully",
+          description: "Your onboarding agreement has been re-signed and submitted.",
+        });
+
+        // Refresh candidate data
+        const refreshResponse = await fetch(`/api/candidates/${candidateId}`);
+        const refreshResult = await refreshResponse.json();
+        if (refreshResult.success) {
+          setCandidate(refreshResult.data);
+        }
+      } catch (err: any) {
+        console.error("Error submitting re-signed document:", err);
+        setError(err.response?.data?.error || err.message || "Failed to submit re-signed document");
+        toast({
+          title: "Submission Failed",
+          description: err.response?.data?.error || err.message || "Failed to submit re-signed document",
+          variant: "destructive",
+        });
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     setShowConfirmDialog(false);
     setError(null);
     setSubmitting(true);
@@ -982,8 +1179,9 @@ export default function OnboardingPage() {
         designation: candidate.position,
         effectiveFrom: new Date().toLocaleDateString("en-IN"),
         postingLocation: candidate.city,
-        salaryINR:
-          candidate.selectionDetails?.role ?? "As per employment terms",
+        salaryINR: candidate.selectionDetails?.salary 
+          ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+          : "As per employment terms",
 
         witness1: "____________________",
         witness2: "____________________",
@@ -1143,6 +1341,7 @@ export default function OnboardingPage() {
   
   const handleSignatureCapture = (signatureUrl: string) => {
     setPreviewSignature(signatureUrl);
+    setShowSignaturePad(false); // Hide the signature pad to show the preview
     setShowSignaturePreview(true);
   };
 
@@ -1228,34 +1427,44 @@ export default function OnboardingPage() {
   const generateUnsignedPdf = async () => {
     if (!candidate) return;
     
-    // DEFENSIVE CHECK: If document is already signed, don't generate unsigned PDF
-    // Once signed, the signed PDF is the only valid document
-    if (candidate.onboardingDetails?.signedPdfUrl || signedPdfUrl) {
-      toast({
-        title: "Document Already Signed",
-        description: "This document has already been signed. Please use the signed PDF.",
-        variant: "destructive",
-      });
-      // Load signed PDF if available
-      if (candidate.onboardingDetails?.signedPdfUrl) {
-        setSignedPdfUrl(candidate.onboardingDetails.signedPdfUrl);
-        setShowPdfPreview(true);
+    // In resignature mode, allow generating PDF even if signed (for re-signing)
+    if (!isResignatureMode) {
+      // DEFENSIVE CHECK: If document is already signed, don't generate unsigned PDF
+      // Once signed, the signed PDF is the only valid document
+      if (candidate.onboardingDetails?.signedPdfUrl || signedPdfUrl) {
+        toast({
+          title: "Document Already Signed",
+          description: "This document has already been signed. Please use the signed PDF.",
+          variant: "destructive",
+        });
+        // Load signed PDF if available
+        if (candidate.onboardingDetails?.signedPdfUrl) {
+          setSignedPdfUrl(candidate.onboardingDetails.signedPdfUrl);
+          setShowPdfPreview(true);
+        }
+        return;
       }
-      return;
     }
     
     setGeneratingPdf(true);
     try {
+      // In resignature mode, use existing onboarding data; otherwise use form data
+      const fatherName = isResignatureMode 
+        ? (candidate.onboardingDetails?.personalDetails?.fatherName || "")
+        : (personalDetails.fatherName || candidate.fatherName || "");
+      
       const agreementPayload = {
         agreementDate: new Date().toLocaleDateString("en-IN"),
         agreementCity: candidate.city ?? "Kanpur",
         employeeName: candidate.name,
-        fatherName: personalDetails.fatherName || candidate.fatherName,
+        fatherName: fatherName,
         employeeAddress: candidate.address,
         designation: candidate.position,
         effectiveFrom: new Date().toLocaleDateString("en-IN"),
         postingLocation: candidate.city,
-        salaryINR: candidate.selectionDetails?.role ?? "As per employment terms",
+        salaryINR: candidate.selectionDetails?.salary 
+          ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+          : "As per employment terms",
         witness1: "____________________",
         witness2: "____________________",
         // No signature for unsigned PDF
@@ -1533,6 +1742,308 @@ export default function OnboardingPage() {
     );
   }
 
+  // Resignature Mode - Only show document signing
+  if (isResignatureMode && resignatureValid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
+        <div className="w-full max-w-4xl">
+          {/* Enhanced Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent mb-3">
+              Re-sign Onboarding Agreement
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Please review and re-sign the onboarding agreement document only
+            </p>
+            {candidate?.onboardingDetails?.resignatureRequest?.reason && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Reason:</strong> {candidate.onboardingDetails.resignatureRequest.reason}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
+                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
+              <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                  Document Re-signed Successfully!
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-400">
+                  Your onboarding agreement has been re-signed and submitted.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
+            {/* PDF Preview Section */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Onboarding Agreement Document
+                </h2>
+              </div>
+              <div className="space-y-4">
+                {unsignedPdfUrl && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <iframe
+                      src={unsignedPdfUrl}
+                      className="w-full h-[600px] border-0"
+                      title="Onboarding Agreement Preview"
+                    />
+                  </div>
+                )}
+                {!unsignedPdfUrl && !generatingPdf && (
+                  <Button
+                    type="button"
+                    onClick={generateUnsignedPdf}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Generate Document Preview
+                  </Button>
+                )}
+                {generatingPdf && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <span className="ml-2 text-muted-foreground">Generating document...</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Signature Section */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                  2
+                </div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Signature <span className="text-red-500">*</span>
+                </h2>
+              </div>
+              
+              {/* Signature Mode Switch */}
+              <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseDigitalSignature(true);
+                    setShowSignaturePad(false);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    useDigitalSignature
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                      : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  Digital Signature
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseDigitalSignature(false)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    !useDigitalSignature
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                      : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  Upload Signature
+                </button>
+              </div>
+
+              {/* Digital Signature */}
+              {useDigitalSignature && (
+                <div className="space-y-4">
+                  {showSignaturePad ? (
+                    <>
+                      <SignaturePad onSignatureCapture={handleSignatureCapture} />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowSignaturePad(false)}
+                        className="w-full bg-transparent"
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Show confirmed signature */}
+                      {signature?.url && !previewSignature && (
+                        <div className="border-2 border-green-300 dark:border-green-600 rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <span className="text-sm font-medium text-green-700 dark:text-green-400">Signature Confirmed</span>
+                          </div>
+                          <img
+                            src={signature.url}
+                            alt="Confirmed signature"
+                            className="max-w-full h-auto mx-auto max-h-32"
+                          />
+                        </div>
+                      )}
+                      {/* Show preview before confirmation */}
+                      {previewSignature && (
+                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900">
+                          <img
+                            src={previewSignature}
+                            alt="Signature preview"
+                            className="max-w-full h-auto mx-auto"
+                          />
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setShowSignaturePad(true);
+                            setPreviewSignature(null);
+                          }}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          {signature?.url ? "Redraw Signature" : previewSignature ? "Redraw Signature" : "Draw Signature"}
+                        </Button>
+                        {previewSignature && (
+                          <Button
+                            type="button"
+                            onClick={confirmSignature}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Confirm Signature
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Upload Signature */}
+              {!useDigitalSignature && (
+                <div className="space-y-4">
+                  {signature?.url && (
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900">
+                      <img
+                        src={signature.url}
+                        alt="Signature"
+                        className="max-w-full h-auto mx-auto max-h-32"
+                      />
+                    </div>
+                  )}
+                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
+                    <div className="flex items-center gap-2 text-foreground">
+                      {signature ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            {signature.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">Upload Signature Image</span>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSignatureChange}
+                      className="hidden"
+                      disabled={uploadingFiles.has("signature")}
+                      required
+                    />
+                  </label>
+                </div>
+              )}
+            </Card>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={submitting || !signature?.url || generatingPdf}
+              className="w-full gap-2 shadow-md bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+              size="lg"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Re-sign and Submit Document
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Confirmation Dialog for Resignature */}
+          <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <DialogContent className="bg-white dark:bg-gray-800">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">
+                  Confirm Re-signature
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  You are about to re-sign the onboarding agreement document. Please confirm to proceed.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowConfirmDialog(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  disabled={submitting}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Yes, Re-sign Document"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    );
+  }
+
   // Normal Onboarding Flow
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
@@ -1684,7 +2195,8 @@ export default function OnboardingPage() {
             </Card>
           )}
 
-          {/* Personal Details */}
+          {/* Personal Details - Hide in resignature mode */}
+          {!isResignatureMode && (
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
@@ -1832,8 +2344,10 @@ export default function OnboardingPage() {
               </div>
             </div>
           </Card>
+          )}
 
-          {/* Bank Details */}
+          {/* Bank Details - Hide in resignature mode */}
+          {!isResignatureMode && (
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-semibold">
@@ -1914,8 +2428,10 @@ export default function OnboardingPage() {
               </div>
             </div>
           </Card>
+          )}
 
-          {/* Document Upload - Required */}
+          {/* Document Upload - Required - Hide in resignature mode */}
+          {!isResignatureMode && (
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-semibold">
@@ -2103,8 +2619,10 @@ export default function OnboardingPage() {
               })}
             </div>
           </Card>
+          )}
 
-          {/* Experience Section */}
+          {/* Experience Section - Hide in resignature mode */}
+          {!isResignatureMode && (
           <Card className="p-6 shadow-sm border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-semibold">
@@ -2401,6 +2919,7 @@ export default function OnboardingPage() {
               </div>
             ) : null}
           </Card>
+          )}
 
           {/* PDF Preview Section */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">

@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
       `${companyName}`,
       `CIN: ${companyCIN}`,
       `Registered Office: ${companyAddress}`,
-      "+91 9598 023492",
+      "+91 95198 03665",
       "zairointernationalpvtltd@gmail.com",
     ];
 
@@ -507,13 +507,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Format salary - convert monthly salary to LPA format
+    let formattedSalary = "______________";
+    if (data.salary) {
+      try {
+        // Remove any currency symbols and extract numeric value
+        const salaryStr = String(data.salary).replace(/[₹Rs.,\s]/g, "").trim();
+        const monthlySalary = parseFloat(salaryStr);
+        
+        if (!isNaN(monthlySalary) && monthlySalary > 0) {
+          // Convert monthly to annual, then to LPA
+          const annualSalary = monthlySalary * 12;
+          const lpa = annualSalary / 100000;
+          formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+        } else {
+          // If already formatted (e.g., "2.16 LPA"), use as-is but replace ₹ with Rs.
+          formattedSalary = String(data.salary).replace(/₹/g, "Rs. ");
+        }
+      } catch (error) {
+        // Fallback: just replace ₹ with Rs. if conversion fails
+        formattedSalary = String(data.salary).replace(/₹/g, "Rs. ");
+      }
+    }
+
     // Proposed details items
     const proposedDetails = [
       `- Designation: ${data.designation || data.position + " Executive" || "Human Resource Executive (HR Executive)"}`,
       `- Department: ${data.department || data.position || "Human Resources"}`,
       `- Work Location: Kakadeo, Kanpur`,
       `- Proposed Start Date: ${formattedStartDate}`,
-      `- Remuneration: ${data.salary ? data.salary.replace(/₹/g, "Rs. ") : "______________"}`
+      `- Remuneration: ${formattedSalary}`
     ];
 
     proposedDetails.forEach((detail) => {

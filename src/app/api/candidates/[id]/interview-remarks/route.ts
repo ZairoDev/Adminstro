@@ -200,6 +200,14 @@ export async function PATCH(
       );
     }
 
+    // Ensure interviewDetails exists (it should exist if hasFirstRound is true)
+    if (!candidate.interviewDetails) {
+      return NextResponse.json(
+        { success: false, error: "Interview details not found" },
+        { status: 400 }
+      );
+    }
+
     // Determine if this is a new entry or update
     const isNewEntry = !candidate.interviewDetails.remarks?.evaluatedBy;
     const updateData: Record<string, unknown> = {

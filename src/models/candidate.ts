@@ -110,6 +110,17 @@ const CandidateSchema = new Schema(
       agreementAcceptedAt: { type: Date, default: null },
       agreementComplete: { type: Boolean, default: false },
       completedAt: { type: Date, default: null },
+      resignatureRequest: {
+        agreementType: { type: String, default: null },
+        token: { type: String, default: null },
+        tokenExpiresAt: { type: Date, default: null },
+        requestedBy: { type: String, default: null },
+        requestedAt: { type: Date, default: null },
+        reason: { type: String, default: null },
+        isActive: { type: Boolean, default: false },
+        emailSentAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+      },
     },
     onboardingDetails: {
       onboardingLink: { type: String, default: null },
@@ -244,6 +255,17 @@ const CandidateSchema = new Schema(
         verifiedAt: { type: Date, default: null },
         notes: { type: String, default: null },
       },
+      resignatureRequest: {
+        agreementType: { type: String, default: null },
+        token: { type: String, default: null },
+        tokenExpiresAt: { type: Date, default: null },
+        requestedBy: { type: String, default: null },
+        requestedAt: { type: Date, default: null },
+        reason: { type: String, default: null },
+        isActive: { type: Boolean, default: false },
+        emailSentAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+      },
     },
     // Important candidate flag
     isImportant: { type: Boolean, default: false },
@@ -257,5 +279,10 @@ const CandidateSchema = new Schema(
   { timestamps: true }
 );
 
-const Candidate = models.Candidate || model("Candidate", CandidateSchema);
+// Delete the cached model to pick up schema changes (needed for development)
+if (models.Candidate) {
+  delete models.Candidate;
+}
+
+const Candidate = model("Candidate", CandidateSchema);
 export default Candidate;

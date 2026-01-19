@@ -73,15 +73,24 @@ export async function POST(
       updatedAt: new Date(),
     };
 
-    if (!candidate.notes) {
-      candidate.notes = [];
+    // Use $push which automatically initializes the array if it doesn't exist
+    const updatedCandidate = await Candidate.findByIdAndUpdate(
+      id,
+      {
+        $push: { notes: newNote },
+      },
+      { new: true }
+    );
+
+    if (!updatedCandidate) {
+      return NextResponse.json(
+        { success: false, error: "Candidate not found" },
+        { status: 404 }
+      );
     }
 
-    candidate.notes.push(newNote);
-    await candidate.save();
-
-    // Get the saved note with its _id
-    const savedNote = candidate.notes[candidate.notes.length - 1];
+    // Get the saved note with its _id (last item in the array)
+    const savedNote = updatedCandidate.notes[updatedCandidate.notes.length - 1];
 
     return NextResponse.json({
       success: true,

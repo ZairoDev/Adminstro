@@ -146,9 +146,17 @@ export default function CandidatesPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "all" | "pending" | "interview" | "shortlisted" | "selected" | "rejected"
-  >("pending");
+  // Load activeTab from localStorage or default to "pending"
+  type TabValue = "all" | "pending" | "interview" | "shortlisted" | "selected" | "rejected";
+  const [activeTab, setActiveTab] = useState<TabValue>(() => {
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem("candidatePortalActiveTab");
+      if (savedTab && ["all", "pending", "interview", "shortlisted", "selected", "rejected"].includes(savedTab)) {
+        return savedTab as TabValue;
+      }
+    }
+    return "pending";
+  });
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [newRole, setNewRole] = useState("");
@@ -158,6 +166,7 @@ export default function CandidatesPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [experienceFilter, setExperienceFilter] = useState<string>("all");
   const [collegeFilter, setCollegeFilter] = useState<string>("all");
+  const [trainingDocumentFilter, setTrainingDocumentFilter] = useState<string>("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
   const [unmaskedPhoneId, setUnmaskedPhoneId] = useState<string | null>(null);
@@ -533,6 +542,13 @@ export default function CandidatesPage() {
 
     return () => clearTimeout(timer);
   }, [search, activeTab, selectedRole, experienceFilter, collegeFilter]);
+
+  // Reset training document filter when switching away from selected tab
+  useEffect(() => {
+    if (activeTab !== "selected") {
+      setTrainingDocumentFilter("all");
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
@@ -922,9 +938,22 @@ export default function CandidatesPage() {
 
   const CandidateTable = () => {
     // Sort interviews by date when viewing the interview tab
-    const displayCandidates = activeTab === "interview" 
+    let displayCandidates = activeTab === "interview" 
       ? sortInterviewsByDate(candidates)
       : candidates;
+
+    // Filter by training document completion when viewing selected tab
+    if (activeTab === "selected" && trainingDocumentFilter !== "all") {
+      displayCandidates = displayCandidates.filter((candidate) => {
+        const hasCompletedTraining = candidate.trainingAgreementDetails?.agreementComplete === true;
+        if (trainingDocumentFilter === "completed") {
+          return hasCompletedTraining;
+        } else if (trainingDocumentFilter === "pending") {
+          return !hasCompletedTraining;
+        }
+        return true;
+      });
+    }
 
     return (
       <div className="overflow-x-auto">
@@ -1382,8 +1411,13 @@ export default function CandidatesPage() {
         <Tabs
           value={activeTab}
           onValueChange={(value) => {
-            setActiveTab(value as typeof activeTab);
+            const tabValue = value as typeof activeTab;
+            setActiveTab(tabValue);
             setPage(1);
+            // Save to localStorage to preserve tab selection
+            if (typeof window !== "undefined") {
+              localStorage.setItem("candidatePortalActiveTab", tabValue);
+            }
           }}
           className="w-full"
         >
@@ -1411,7 +1445,7 @@ export default function CandidatesPage() {
                 Rejected
               </TabsTrigger>
             </TabsList>
-            <div className="flex gap-2 w-full lg:w-auto lg:max-w-2xl flex-wrap">
+            <div className="flex gap-1 w-full lg:w-auto lg:max-w-2xl flex-wrap">
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="h-10 w-full lg:w-[150px]">
                   <SelectValue placeholder="Filter by Role" />
@@ -1454,6 +1488,21 @@ export default function CandidatesPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {activeTab === "selected" && (
+                <Select
+                  value={trainingDocumentFilter}
+                  onValueChange={setTrainingDocumentFilter}
+                >
+                  <SelectTrigger className="h-10 w-full lg:w-[180px]">
+                    <SelectValue placeholder="Training Document" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Candidates</SelectItem>
+                    <SelectItem value="completed">Completed documetation</SelectItem>
+                    <SelectItem value="pending">Pending documetation</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

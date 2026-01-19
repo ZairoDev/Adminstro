@@ -273,34 +273,11 @@ export default function TrainingAgreementPage() {
         ? new Date(candidate.trainingAgreementDetails.letterOfIntentSigningDate).toISOString()
         : new Date().toISOString();
       
-      // Format salary - convert monthly salary to LPA format
-      let formattedSalary = "";
-      if (candidate.selectionDetails?.salary) {
-        const salary = candidate.selectionDetails.salary;
-        if (typeof salary === "number") {
-          // Assume salary is monthly, convert to annual then LPA
-          const annualSalary = salary * 12;
-          const lpa = annualSalary / 100000;
-          formattedSalary = `₹${lpa.toFixed(2)} LPA`;
-        } else if (typeof salary === "string") {
-          // Try to parse if it's a string number
-          const numSalary = parseFloat(salary);
-          if (!isNaN(numSalary)) {
-            const annualSalary = numSalary * 12;
-            const lpa = annualSalary / 100000;
-            formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
-          } else {
-            formattedSalary = String(salary).replace(/₹/g, "Rs. ");
-          }
-        } else {
-          formattedSalary = String(salary).replace(/₹/g, "Rs. ");
-        }
-      }
-
-      // DEFENSIVE CHECK: Ensure salary is not empty or "TBD"
-      if (!formattedSalary || formattedSalary === "TBD") {
-        console.warn("⚠️ Salary not found or invalid. LOI will be generated without salary.");
-      }
+      // Pass raw salary number (not formatted) - the API will handle the formatting
+      // This matches how the candidate detail page passes salary for preview
+      const rawSalary = candidate.selectionDetails?.salary 
+        ? candidate.selectionDetails.salary.toString() 
+        : undefined;
 
       // Format start date - add 3 days from today
       const startDate = new Date();
@@ -322,7 +299,7 @@ export default function TrainingAgreementPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: letterDate,
-        salary: formattedSalary || undefined,
+        salary: rawSalary, // Pass raw salary number, API will format it correctly
         designation: designation,
         department: department,
         startDate: formattedStartDate,

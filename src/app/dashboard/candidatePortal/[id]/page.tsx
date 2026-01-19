@@ -24,6 +24,8 @@ import {
   Check,
   X,
   Pencil,
+  Copy,
+  IndianRupee,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -66,175 +68,37 @@ import { OnboardingDetailsView } from "../components/onboarding-details-view";
 import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
 import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
 
-const ROLE_OPTIONS = [
-  "Developer",
-  "LeadGen",
-  "Sales",
-  "Marketing",
-  "HR",
-];
+// Import refactored modules
+import { Candidate } from "./types";
+import { ROLE_OPTIONS, getStatusColor, getStatusLabel } from "./constants";
+import { useCandidate } from "./hooks/useCandidate";
+import { useCandidateActions } from "./hooks/useCandidateActions";
+import { useCandidatePermissions } from "./hooks/useCandidatePermissions";
+import { convertTo24Hour, formatSalary } from "./utils/time-utils";
+import { CandidateHeader } from "./components/CandidateHeader";
 
-interface Candidate {
-  _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  position: string;
-  experience: number;
-  address: string;
-  city: string;
-  country: string;
-  college?: string;
-  coverLetter?: string;
-  linkedin?: string;
-  portfolio?: string;
-  resumeUrl: string;
-  photoUrl?: string;
-  status: "pending"|"interview"|"shortlisted"|"selected"|"rejected"|"onboarding";
-  createdAt: string;
-  isImportant?: boolean;
-  interviewAttendance?: "appeared" | "not_appeared" | null;
-  interviewDetails?: {
-    scheduledDate?: string;
-    scheduledTime?: string;
-    scheduledBy?: string;
-    scheduledAt?: string;
-    notes?: string;
-    remarks?: {
-      experienceValidation?: string;
-      motherTongueInfluence?: string;
-      englishSpeaking?: string;
-      understandingScale?: string;
-      listeningSkills?: string;
-      basicProfessionalism?: string;
-      stabilitySignals?: string;
-      salaryExpectations?: string;
-      hrNotes?: string;
-      evaluatedBy?: string;
-      evaluatedAt?: string;
-      lastUpdatedBy?: string;
-      lastUpdatedAt?: string;
-    };
-    rescheduleRequest?: {
-      requestedDate?: string;
-      requestedTime?: string;
-      reason?: string;
-      requestedAt?: string;
-      status?: "pending" | "approved" | "rejected";
-      reviewedBy?: string;
-      reviewedAt?: string;
-      token?: string;
-    };
-  };
-  secondRoundInterviewDetails?: {
-    scheduledDate?: string;
-    scheduledTime?: string;
-    scheduledBy?: string;
-    scheduledAt?: string;
-    notes?: string;
-    rescheduleRequest?: {
-      requestedDate?: string;
-      requestedTime?: string;
-      reason?: string;
-      requestedAt?: string;
-      status?: "pending" | "approved" | "rejected";
-      reviewedBy?: string;
-      reviewedAt?: string;
-      token?: string;
-    };
-  };
-  selectionDetails?: {
-    positionType: "fulltime" | "intern";
-    duration: string;
-    trainingPeriod: string;
-    role: string;
-    salary?: number;
-  };
-  shortlistDetails?: {
-    suitableRoles: string[];
-    notes?: string;
-  };
-  rejectionDetails?: {
-    reason: string;
-  };
-  onboardingDetails?: {
-    onboardingLink?: string;
-    personalDetails?: {
-      dateOfBirth?: string;
-      gender?: string;
-      nationality?: string;
-      fatherName?: string;
-      aadhaarNumber?: string;
-      panNumber?: string;
-    };
-    bankDetails?: {
-      accountHolderName?: string;
-      accountNumber?: string;
-      ifscCode?: string;
-      bankName?: string;
-    };
-    documents?: {
-      aadharCard?: string;
-      aadharCardFront?: string;
-      aadharCardBack?: string;
-      panCard?: string;
-      highSchoolMarksheet?: string;
-      interMarksheet?: string;
-      graduationMarksheet?: string;
-      experienceLetter?: string;
-      relievingLetter?: string;
-      salarySlips?: string[];
-    };
-    documentVerification?: {
-      [key: string]: {
-        verified: boolean;
-        verifiedBy?: string | null;
-        verifiedAt?: Date | string | null;
-      };
-    };
-    eSign?: {
-      signatureImage?: string;
-      signedAt?: string;
-    };
-    termsAccepted?: boolean;
-    termsAcceptedAt?: string;
-    onboardingComplete?: boolean;
-    completedAt?: string | Date;
-    signedPdfUrl?: string;
-    verifiedByHR?: {
-      verified: boolean;
-      verifiedBy?: string | null;
-      verifiedAt?: Date | string | null;
-      notes?: string | null;
-    };
-  };
-  trainingAgreementDetails?: {
-    signingLink?: string;
-    eSign?: {
-      signatureImage?: string;
-      signedAt?: string;
-    };
-    signedPdfUrl?: string;
-    signedHrPoliciesPdfUrl?: string;
-    signedLetterOfIntentPdfUrl?: string;
-    letterOfIntentSigningDate?: string;
-    agreementAccepted?: boolean;
-    agreementAcceptedAt?: string;
-    agreementComplete?: boolean;
-    completedAt?: string;
-  };
-}
+// Candidate interface is now imported from types.ts - removed duplicate definition
 
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const candidateId = params.id as string;
 
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  // Use refactored hooks
+  const { candidate, loading, error: candidateError, refreshCandidate, setCandidate } = useCandidate(candidateId);
+  const { actionLoading, error: actionError, handleSelectCandidate, handleShortlistCandidate, handleRejectCandidate, handleDiscontinueTraining, handleOnboarding } = useCandidateActions(candidateId, (updatedCandidate) => {
+    setCandidate(updatedCandidate);
+  });
+  const { canShortlist, canSelect, canReject, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled } = useCandidatePermissions(candidate);
+  
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  
+  // Combine errors
+  useEffect(() => {
+    setError(candidateError || actionError || null);
+  }, [candidateError, actionError]);
 
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
@@ -260,16 +124,7 @@ export default function CandidateDetailPage() {
   const [secondRoundNotes, setSecondRoundNotes] = useState("");
   const [schedulingSecondRound, setSchedulingSecondRound] = useState(false);
 
-  // Convert 12-hour format to 24-hour format (HH:MM)
-  const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
-    let hour24 = parseInt(hour);
-    if (amPm === "PM" && hour24 !== 12) {
-      hour24 += 12;
-    } else if (amPm === "AM" && hour24 === 12) {
-      hour24 = 0;
-    }
-    return `${hour24.toString().padStart(2, "0")}:${minute}`;
-  };
+  // convertTo24Hour is now imported from utils/time-utils
   const [interviewRemarksDialogOpen, setInterviewRemarksDialogOpen] = useState(false);
   const [remarksExpanded, setRemarksExpanded] = useState(true);
   const [resumeExpanded, setResumeExpanded] = useState(true);
@@ -298,6 +153,13 @@ export default function CandidateDetailPage() {
   const [showUnsignedHrPoliciesDialog, setShowUnsignedHrPoliciesDialog] = useState(false);
   const [showSignedLetterOfIntentDialog, setShowSignedLetterOfIntentDialog] = useState(false);
   const [showUnsignedLetterOfIntentDialog, setShowUnsignedLetterOfIntentDialog] = useState(false);
+  
+  // Re-signature request states
+  const [resignatureDialogOpen, setResignatureDialogOpen] = useState(false);
+  const [resignatureAgreementType, setResignatureAgreementType] = useState<"training" | "onboarding" | null>(null);
+  const [resignatureReason, setResignatureReason] = useState("");
+  const [requestingResignature, setRequestingResignature] = useState(false);
+  const [resignatureLink, setResignatureLink] = useState<string | null>(null);
 
   const generateUnsignedTrainingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
@@ -409,22 +271,8 @@ export default function CandidateDetailPage() {
     }
   };
 
+  // Candidate fetching is now handled by useCandidate hook
   useEffect(() => {
-    const fetchCandidate = async () => {
-      try {
-        const response = await fetch(`/api/candidates/${candidateId}`);
-        const result = await response.json();
-
-        if (result.success) {
-          setCandidate(result.data);
-        }
-      } catch (error) {
-        console.error("Error fetching candidate:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     const fetchUser = async () => {
       try {
         const response = await fetch("/api/user/getloggedinuser");
@@ -439,11 +287,8 @@ export default function CandidateDetailPage() {
       }
     };
 
-    if (candidateId) {
-      fetchCandidate();
-      fetchUser();
-    }
-  }, [candidateId]);
+    fetchUser();
+  }, []);
 
   const generateUnsignedOnboardingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) {
@@ -462,7 +307,9 @@ export default function CandidateDetailPage() {
         designation: candidate.position,
         effectiveFrom: new Date().toLocaleDateString("en-IN"),
         postingLocation: candidate.city || "Kanpur",
-        salaryINR: candidate.selectionDetails?.role ?? "As per employment terms",
+        salaryINR: candidate.selectionDetails?.salary 
+          ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+          : "As per employment terms",
         witness1: "____________________",
         witness2: "____________________",
         // No signature for unsigned PDF - this is the key difference
@@ -511,178 +358,44 @@ export default function CandidateDetailPage() {
   }, [candidate]);
 
 
-  const refreshCandidate = async () => {
-    try {
-      const response = await fetch(`/api/candidates/${candidateId}`);
-      const result = await response.json();
-      if (result.success) {
-        setCandidate(result.data);
-      }
-    } catch (error) {
-      console.error("Error refreshing candidate:", error);
-    }
+  // refreshCandidate, handleSelectCandidate, handleShortlistCandidate, etc. are now from hooks
+  const refreshCandidateWrapper = async () => {
+    await refreshCandidate();
   };
 
   const canVerify = userRole === "HR" || userRole === "SuperAdmin";
 
-  const handleSelectCandidate = async (data: SelectionData) => {
-    setActionLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(
-        `/api/candidates/${candidateId}/action`,
-        {
-          status: "selected",
-          selectionDetails: {
-            positionType: data.positionType,
-            trainingDate: data.trainingDate,
-            trainingPeriod: data.trainingPeriod,
-            role: data.role,
-            salary: data.salary, // Include salary in the payload
-            duration: data.duration, // Include duration in the payload
-          },
-        }
-      );
-
-      const result = response.data;
-      if (result.success) {
-        setCandidate(result.data);
-        setSelectDialogOpen(false);
-      } else {
-        setError(result.error || "Failed to select candidate");
-      }
-    } catch (err: any) {
-      console.error("Error selecting candidate:", err);
-      setError(
-        err.response?.data?.error ||
-          "An error occurred while selecting the candidate"
-      );
-    } finally {
-      setActionLoading(false);
+  // Wrapper functions to close dialogs after actions
+  const handleSelectCandidateWrapper = async (data: SelectionData) => {
+    const result = await handleSelectCandidate(data);
+    if (result.success) {
+      setSelectDialogOpen(false);
     }
   };
 
-  const handleShortlistCandidate = async (data: ShortlistData) => {
-    setActionLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(
-        `/api/candidates/${candidateId}/action`,
-        {
-          status: "shortlisted",
-          shortlistDetails: {
-            suitableRoles: data.suitableRoles,
-            notes: data.notes,
-          },
-        }
-      );
-
-      const result = response.data;
-      if (result.success) {
-        setCandidate(result.data);
-        setShortlistDialogOpen(false);
-      } else {
-        setError(result.error || "Failed to shortlist candidate");
-      }
-    } catch (err: any) {
-      console.error("Error shortlisting candidate:", err);
-      setError(
-        err.response?.data?.error ||
-          "An error occurred while shortlisting the candidate"
-      );
-    } finally {
-      setActionLoading(false);
+  const handleShortlistCandidateWrapper = async (data: ShortlistData) => {
+    const result = await handleShortlistCandidate(data);
+    if (result.success) {
+      setShortlistDialogOpen(false);
     }
   };
 
-  const handleRejectCandidate = async (data: RejectionData) => {
-    setActionLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(
-        `/api/candidates/${candidateId}/action`,
-        {
-          status: "rejected",
-          rejectionDetails: {
-            reason: data.reason,
-          },
-        }
-      );
-
-      const result = response.data;
-      if (result.success) {
-        setCandidate(result.data);
-        setRejectDialogOpen(false);
-      } else {
-        setError(result.error || "Failed to reject candidate");
-      }
-    } catch (err: any) {
-      console.error("Error rejecting candidate:", err);
-      setError(
-        err.response?.data?.error ||
-          "An error occurred while rejecting the candidate"
-      );
-    } finally {
-      setActionLoading(false);
+  const handleRejectCandidateWrapper = async (data: RejectionData) => {
+    const result = await handleRejectCandidate(data);
+    if (result.success) {
+      setRejectDialogOpen(false);
     }
   };
 
-  const handleDiscontinueTraining = async (data: RejectionData) => {
-    setActionLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(
-        `/api/candidates/${candidateId}/action`,
-        {
-          status: "rejected",
-          rejectionDetails: {
-            reason: data.reason,
-          },
-          isTrainingDiscontinuation: true, // Flag to indicate this is training discontinuation
-        }
-      );
-
-      const result = response.data;
-      if (result.success) {
-        setCandidate(result.data);
-        setRejectAfterTrainingDialogOpen(false);
-      } else {
-        setError(result.error || "Failed to discontinue training");
-      }
-    } catch (err: any) {
-      console.error("Error discontinuing training:", err);
-      setError(
-        err.response?.data?.error ||
-          "An error occurred while discontinuing training"
-      );
-    } finally {
-      setActionLoading(false);
+  const handleDiscontinueTrainingWrapper = async (data: RejectionData) => {
+    const result = await handleDiscontinueTraining(data);
+    if (result.success) {
+      setRejectAfterTrainingDialogOpen(false);
     }
   };
 
-  const handleOnboarding = async (candidateId: string) => {
-
-    try {
-      const response = await axios.post(
-        `/api/candidates/${candidateId}/action`,
-        {
-          status: "onboarding"
-
-        }
-      );
-      const result = response.data;
-      if (result.success) {
-        setCandidate(result.data);
-      } else {
-        setError(result.error || "Failed to update candidate");
-      }
-    } catch (err: any) {
-      console.error("Error updating candidate:", err);
-      setError(
-        err.response?.data?.error ||
-          "An error occurred while updating the candidate"
-      );
-    }
+  const handleOnboardingWrapper = async () => {
+    await handleOnboarding();
   };
 
   // Handle edit role
@@ -722,6 +435,67 @@ export default function CandidateDetailPage() {
     }
   };
 
+  // Handle request re-signature
+  const handleRequestResignature = async () => {
+    if (!candidate || !resignatureAgreementType) return;
+
+    setRequestingResignature(true);
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}/request-resignature`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agreementType: resignatureAgreementType,
+          reason: resignatureReason || null,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setResignatureLink(result.data.resignatureLink);
+        toast.success("Re-signature request sent to candidate");
+        await refreshCandidate();
+      } else {
+        toast.error(result.error || "Failed to request re-signature");
+      }
+    } catch (error) {
+      console.error("Error requesting re-signature:", error);
+      toast.error("Failed to request re-signature");
+    } finally {
+      setRequestingResignature(false);
+    }
+  };
+
+  // Handle cancel re-signature request
+  const handleCancelResignature = async (agreementType: "training" | "onboarding") => {
+    if (!candidate) return;
+
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}/request-resignature?agreementType=${agreementType}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Re-signature request cancelled");
+        await refreshCandidate();
+      } else {
+        toast.error(result.error || "Failed to cancel re-signature request");
+      }
+    } catch (error) {
+      console.error("Error cancelling re-signature request:", error);
+      toast.error("Failed to cancel re-signature request");
+    }
+  };
+
+  // Copy link to clipboard
+  const copyResignatureLink = () => {
+    if (resignatureLink) {
+      navigator.clipboard.writeText(resignatureLink);
+      toast.success("Link copied to clipboard");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -740,90 +514,7 @@ export default function CandidateDetailPage() {
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "selected":
-        return "bg-green-100 text-green-800";
-      case "shortlisted":
-        return "bg-blue-100 text-blue-800";
-      case "interview":
-        return "bg-purple-100 text-purple-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      case "onboarding":
-        return "bg-purple-100 text-purple-800";
-      case "pending":
-      default:
-        return "bg-yellow-100 text-yellow-800";
-    }
-  };        
-
-  // Helper functions for button availability
-  const canShortlist = () => {
-    return candidate?.status === "pending";
-  };
-
-  const hasInterviewRemarks = () => {
-    return !!candidate?.interviewDetails?.remarks?.evaluatedBy;
-  };
-
-  const hasAnyInterviewScheduled = () => {
-    // Check if either first round or second round interview is scheduled
-    return !!(
-      candidate?.interviewDetails?.scheduledDate ||
-      candidate?.secondRoundInterviewDetails?.scheduledDate
-    );
-  };
-
-  const canSelect = () => {
-    // Can select from pending, interview, or shortlisted
-    // If status is interview, remarks must be completed
-    const status = candidate?.status;
-    if (status === "interview") {
-      return hasInterviewRemarks();
-    }
-    if (status === "pending" || status === "shortlisted") {
-      return true;
-    }
-    return false;
-  };
-
-  const canReject = () => {
-    // Can reject from any status except already rejected or onboarding
-    // If status is interview, remarks must be completed
-    const status = candidate?.status;
-    if (status === "interview") {
-      return hasInterviewRemarks();
-    }
-    return status !== "rejected" && status !== "onboarding";
-  };
-
-  const canDiscontinueTraining = () => {
-    // Can discontinue training only when candidate is selected for training
-    return candidate?.status === "selected";
-  };
-
-  const canStartOnboarding = () => {
-    // Can only start onboarding if candidate is selected
-    return candidate?.status === "selected";
-  };
-
-  const canCreateEmployee = () => {
-    // Can create employee only if onboarding is complete
-    return candidate?.status === "onboarding" && candidate?.onboardingDetails?.onboardingComplete === true;
-  };
-
-  const canScheduleInterview = () => {
-    // Can schedule interview only for pending candidates and if not already scheduled
-    return candidate?.status === "pending" && !candidate?.interviewDetails?.scheduledDate;
-  };
-
-  const canScheduleSecondRound = () => {
-    // Can schedule second round if not already scheduled
-    // Check both if the object exists and if scheduledDate has a value
-    const hasSecondRound = candidate?.secondRoundInterviewDetails?.scheduledDate;
-    return !hasSecondRound;
-  };
+  // getStatusColor and permission checks are now from hooks/constants
 
   const handleScheduleInterview = async () => {
     if (!candidate || !interviewDate) {
@@ -935,7 +626,8 @@ export default function CandidateDetailPage() {
   const handleRescheduleRequest = async (action: "approve" | "reject", interviewType: "first" | "second") => {
     if (!candidate) return;
 
-    setActionLoading(true);
+    // rescheduleLoading state is declared at component top level
+    setRescheduleLoading(true);
     setError(null);
     try {
       const response = await fetch(
@@ -967,7 +659,7 @@ export default function CandidateDetailPage() {
       setError(`Failed to ${action} reschedule request`);
       toast.error(`Failed to ${action} reschedule request`);
     } finally {
-      setActionLoading(false);
+      setRescheduleLoading(false);
     }
   };
 
@@ -1036,108 +728,8 @@ export default function CandidateDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Compact Header */}
-      <div className="border-b bg-card sticky top-0 z-10">
-        <div className="max-w-[1600px] mx-auto px-6 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <Link href="/dashboard/candidatePortal">
-              <Button variant="ghost" size="sm" className="gap-1.5 h-8">
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back
-              </Button>
-            </Link>
-            <Badge className={`${getStatusColor(candidate.status)} text-xs px-3 py-1`}>
-              {candidate.status === "selected"
-                ? "Selected for Training"
-                : candidate.status === "interview"
-                ? "Interview"
-                : candidate?.status?.charAt(0)?.toUpperCase() +
-                  candidate?.status?.slice(1)}
-            </Badge>
-          </div>
-          <div className="flex items-start justify-between">
-
-                       <div className="flex items-start gap-4">
-              {candidate.photoUrl && (
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
-                  <Image
-                    src={candidate.photoUrl}
-                    alt={candidate.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-foreground leading-tight">
-                  {candidate.name}
-                </h1>
-              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  {candidate.position}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {candidate.experience === 0
-                    ? "Fresher"
-                    : `${candidate.experience} ${candidate.experience === 1 ? "year" : "years"} exp`}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {candidate.city}, {candidate.country}
-                </span>
-                {candidate.college && (
-                  <span className="flex items-center gap-1">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    {candidate.college}
-                  </span>
-                )}
-              </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={candidate.resumeUrl}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="outline" size="sm" className="gap-1.5 h-8">
-                  <Download className="w-3.5 h-3.5" />
-                  Resume
-                </Button>
-              </a>
-              {(candidate.linkedin || candidate.portfolio) && (
-                <div className="flex gap-1">
-                  {candidate.linkedin && (
-                    <a
-                      href={candidate.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Linkedin className="w-4 h-4" />
-                      </Button>
-                    </a>
-                  )}
-                  {candidate.portfolio && (
-                    <a
-                      href={candidate.portfolio}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Globe className="w-4 h-4" />
-                      </Button>
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Compact Header - Now using CandidateHeader component */}
+      <CandidateHeader candidate={candidate} />
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 py-4">
@@ -1262,7 +854,7 @@ export default function CandidateDetailPage() {
                           <Button
                             size="sm"
                             onClick={() => handleRescheduleRequest("approve", "first")}
-                            disabled={actionLoading}
+                            disabled={rescheduleLoading}
                             className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <Check className="w-4 h-4 mr-1" />
@@ -1272,7 +864,7 @@ export default function CandidateDetailPage() {
                             size="sm"
                             variant="destructive"
                             onClick={() => handleRescheduleRequest("reject", "first")}
-                            disabled={actionLoading}
+                            disabled={rescheduleLoading}
                           >
                             <X className="w-4 h-4 mr-1" />
                             Reject
@@ -1365,7 +957,7 @@ export default function CandidateDetailPage() {
                           <Button
                             size="sm"
                             onClick={() => handleRescheduleRequest("approve", "second")}
-                            disabled={actionLoading}
+                            disabled={rescheduleLoading}
                             className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <Check className="w-4 h-4 mr-1" />
@@ -1375,7 +967,7 @@ export default function CandidateDetailPage() {
                             size="sm"
                             variant="destructive"
                             onClick={() => handleRescheduleRequest("reject", "second")}
-                            disabled={actionLoading}
+                            disabled={rescheduleLoading}
                           >
                             <X className="w-4 h-4 mr-1" />
                             Reject
@@ -1401,7 +993,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={(e) => {
-                            if (!canScheduleInterview()) {
+                            if (!canScheduleInterview) {
                               e.preventDefault();
                               e.stopPropagation();
                               toast.error("Interview is already scheduled");
@@ -1414,7 +1006,7 @@ export default function CandidateDetailPage() {
                             setInterviewAmPm("PM");
                             setInterviewNotes("");
                           }}
-                          disabled={actionLoading || !canScheduleInterview()}
+                          disabled={actionLoading || !canScheduleInterview}
                           variant={candidate.status === "interview" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1472,14 +1064,14 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={(e) => {
-                            if (!canScheduleSecondRound()) {
+                            if (!canScheduleSecondRound) {
                               e.preventDefault();
                               e.stopPropagation();
                               return;
                             }
                             openSecondRoundDialog();
                           }}
-                          disabled={actionLoading || !canScheduleSecondRound()}
+                          disabled={actionLoading || !canScheduleSecondRound}
                           variant={candidate.secondRoundInterviewDetails?.scheduledDate ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1498,7 +1090,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={() => setShortlistDialogOpen(true)}
-                          disabled={actionLoading || !canShortlist()}
+                          disabled={actionLoading || !canShortlist}
                           variant={candidate.status === "shortlisted" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1516,7 +1108,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={() => setSelectDialogOpen(true)}
-                          disabled={actionLoading || !canSelect()}
+                          disabled={actionLoading || !canSelect}
                           variant={candidate.status === "selected" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1534,7 +1126,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={() => setRejectDialogOpen(true)}
-                          disabled={actionLoading || !canReject()}
+                          disabled={actionLoading || !canReject}
                           variant={candidate.status === "rejected" ? "destructive" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1555,8 +1147,8 @@ export default function CandidateDetailPage() {
                     <TooltipTrigger asChild>
                       <div>
                         <Button
-                          onClick={() => handleOnboarding(candidate._id)}
-                          disabled={actionLoading || !canStartOnboarding()}
+                          onClick={handleOnboardingWrapper}
+                          disabled={actionLoading || !canStartOnboarding}
                           variant={
                             candidate.status === "onboarding"
                               ? candidate.onboardingDetails?.onboardingComplete
@@ -1585,7 +1177,7 @@ export default function CandidateDetailPage() {
                         <div>
                           <Button
                             onClick={() => setRejectAfterTrainingDialogOpen(true)}
-                            disabled={actionLoading || !canDiscontinueTraining()}
+                            disabled={actionLoading || !canDiscontinueTraining}
                             variant="destructive"
                             size="sm"
                             className="w-full justify-start h-8 text-xs"
@@ -1666,6 +1258,54 @@ export default function CandidateDetailPage() {
                           <Download className="w-3 h-3" />
                           Download
                         </Button>
+                        {canVerify && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setResignatureAgreementType("training");
+                              setResignatureDialogOpen(true);
+                            }}
+                            className="w-full gap-1.5 h-7 text-xs border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Request Re-signature
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {/* Active Re-signature Request Banner */}
+                    {candidate.trainingAgreementDetails?.resignatureRequest?.isActive && (
+                      <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                              Re-signature Request Active
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                              Requested by {candidate.trainingAgreementDetails.resignatureRequest.requestedBy} on{" "}
+                              {new Date(candidate.trainingAgreementDetails.resignatureRequest.requestedAt).toLocaleDateString()}
+                            </p>
+                            {candidate.trainingAgreementDetails.resignatureRequest.reason && (
+                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                                Reason: {candidate.trainingAgreementDetails.resignatureRequest.reason}
+                              </p>
+                            )}
+                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                              ⏰ Expires: {new Date(candidate.trainingAgreementDetails.resignatureRequest.tokenExpiresAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {canVerify && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCancelResignature("training")}
+                              className="h-6 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                     
@@ -1947,6 +1587,55 @@ export default function CandidateDetailPage() {
                           <Download className="w-3 h-3" />
                           Download
                         </Button>
+                        {canVerify && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setResignatureAgreementType("onboarding");
+                              setResignatureDialogOpen(true);
+                            }}
+                            disabled={actionLoading || candidate.onboardingDetails?.resignatureRequest?.isActive}
+                            className="w-full gap-1.5 h-7 text-xs border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Request Re-signature
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {/* Active Re-signature Request Banner */}
+                    {candidate.onboardingDetails?.resignatureRequest?.isActive && (
+                      <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                              Re-signature Request Active
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                              Requested by {candidate.onboardingDetails.resignatureRequest.requestedBy} on{" "}
+                              {new Date(candidate.onboardingDetails.resignatureRequest.requestedAt).toLocaleDateString()}
+                            </p>
+                            {candidate.onboardingDetails.resignatureRequest.reason && (
+                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                                Reason: {candidate.onboardingDetails.resignatureRequest.reason}
+                              </p>
+                            )}
+                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                              ⏰ Expires: {new Date(candidate.onboardingDetails.resignatureRequest.tokenExpiresAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {canVerify && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCancelResignature("onboarding")}
+                              className="h-6 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                     
@@ -2004,8 +1693,54 @@ export default function CandidateDetailPage() {
 
           {/* Main Content Area */}
           <div className="col-span-12 lg:col-span-9 space-y-3">
+            {/* Selection Details - Show when candidate is selected or in onboarding */}
+            {(candidate.status === "selected" || candidate.status === "onboarding") && candidate.selectionDetails && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                  Selection Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                  {candidate.selectionDetails.role && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Role</p>
+                      <p className="text-foreground font-medium">{candidate.selectionDetails.role}</p>
+                    </div>
+                  )}
+                  {candidate.selectionDetails.positionType && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Position Type</p>
+                      <p className="text-foreground font-medium capitalize">{candidate.selectionDetails.positionType}</p>
+                    </div>
+                  )}
+                  {candidate.selectionDetails.salary && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Salary</p>
+                      <p className="text-foreground font-medium">
+                        {(() => {
+                          return formatSalary(candidate.selectionDetails.salary);
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                  {candidate.selectionDetails.duration && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
+                      <p className="text-foreground font-medium">{candidate.selectionDetails.duration}</p>
+                    </div>
+                  )}
+                  {candidate.selectionDetails.trainingPeriod && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Training Period</p>
+                      <p className="text-foreground font-medium">{candidate.selectionDetails.trainingPeriod}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             {/* Interview Remarks - Prominent Section */}
-            {candidate.status === "interview" && candidate.interviewDetails?.remarks && (
+            {/* Show remarks if status is interview, selected, or onboarding and remarks exist */}
+            {(candidate.status === "interview" || candidate.status === "selected" || candidate.status === "onboarding") && candidate.interviewDetails?.remarks && (
               <Card className="p-4">
                 <button
                   onClick={() => setRemarksExpanded(!remarksExpanded)}
@@ -2478,27 +2213,27 @@ export default function CandidateDetailPage() {
       <SelectCandidateDialog
         open={selectDialogOpen}
         onClose={() => setSelectDialogOpen(false)}
-        onSubmit={handleSelectCandidate}
+        onSubmit={handleSelectCandidateWrapper}
         loading={actionLoading}
         candidatePosition={candidate?.position}
       />
       <ShortlistCandidateDialog
         open={shortlistDialogOpen}
         onClose={() => setShortlistDialogOpen(false)}
-        onSubmit={handleShortlistCandidate}
+        onSubmit={handleShortlistCandidateWrapper}
         loading={actionLoading}
         candidatePosition={candidate?.position}
       />
       <RejectCandidateDialog
         open={rejectDialogOpen}
         onClose={() => setRejectDialogOpen(false)}
-        onSubmit={handleRejectCandidate}
+        onSubmit={handleRejectCandidateWrapper}
         loading={actionLoading}
       />
       <RejectCandidateDialog
         open={rejectAfterTrainingDialogOpen}
         onClose={() => setRejectAfterTrainingDialogOpen(false)}
-        onSubmit={handleDiscontinueTraining}
+        onSubmit={handleDiscontinueTrainingWrapper}
         loading={actionLoading}
         title="Discontinue Training"
         submitButtonText="Discontinue"
@@ -2709,14 +2444,14 @@ export default function CandidateDetailPage() {
 
       {/* Interview Remarks Dialog */}
       {/* Show remarks dialog if any interview (first or second round) is scheduled */}
-      {hasAnyInterviewScheduled() && (
+      {hasAnyInterviewScheduled() && candidate && (
         <InterviewRemarksDialog
           open={interviewRemarksDialogOpen}
           onOpenChange={setInterviewRemarksDialogOpen}
           candidateId={candidate._id}
           candidateName={candidate.name}
           existingRemarks={candidate.interviewDetails?.remarks}
-          onSuccess={refreshCandidate}
+          onSuccess={refreshCandidateWrapper}
         />
       )}
 
@@ -2740,7 +2475,7 @@ export default function CandidateDetailPage() {
               <SelectContent>
                 {/* Include current role if not in options */}
                 {candidate?.position &&
-                  !ROLE_OPTIONS.includes(candidate.position) && (
+                  !ROLE_OPTIONS.includes(candidate.position as typeof ROLE_OPTIONS[number]) && (
                     <SelectItem value={candidate.position}>
                       {candidate.position} (Current)
                     </SelectItem>
@@ -2764,6 +2499,112 @@ export default function CandidateDetailPage() {
             <Button onClick={handleUpdateRole} disabled={updatingRole}>
               {updatingRole ? "Updating..." : "Update Role"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Re-signature Dialog */}
+      <Dialog open={resignatureDialogOpen} onOpenChange={(open) => {
+        setResignatureDialogOpen(open);
+        if (!open) {
+          setResignatureReason("");
+          setResignatureLink(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Request Re-signature</DialogTitle>
+            <DialogDescription>
+              Request {candidate?.name} to re-sign their {resignatureAgreementType === "training" ? "Training Agreement" : "Onboarding Agreement"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!resignatureLink ? (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="resignature-reason" className="text-sm">Reason for Re-signature (Optional)</Label>
+                <Textarea
+                  id="resignature-reason"
+                  value={resignatureReason}
+                  onChange={(e) => setResignatureReason(e.target.value)}
+                  placeholder="e.g., Signature not clear, needs to be on plain background, etc."
+                  rows={3}
+                  className="mt-2"
+                />
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Note:</strong> An email will be sent to the candidate with a secure link to re-sign the agreement. 
+                  The link will expire in 7 days.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <p className="text-sm font-semibold text-green-800 dark:text-green-200 mb-2">
+                  Re-signature request sent successfully!
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                  The candidate has been notified via email.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={resignatureLink}
+                    readOnly
+                    className="flex-1 text-xs font-mono"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyResignatureLink}
+                    className="gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {resignatureLink ? (
+              <Button onClick={() => {
+                setResignatureDialogOpen(false);
+                setResignatureLink(null);
+                setResignatureReason("");
+              }}>
+                Close
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResignatureDialogOpen(false);
+                    setResignatureReason("");
+                  }}
+                  disabled={requestingResignature}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleRequestResignature}
+                  disabled={requestingResignature}
+                >
+                  {requestingResignature ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Request"
+                  )}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

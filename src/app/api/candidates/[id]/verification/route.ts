@@ -66,6 +66,9 @@ export async function PATCH(
       );
     }
 
+    // Type assertion after validation - we know documentType is valid
+    const validDocumentType = documentType as DocumentType;
+
     // Validate verified is boolean
     if (typeof verified !== "boolean") {
       return NextResponse.json(
@@ -85,20 +88,20 @@ export async function PATCH(
 
     // Check if document exists
     // Handle backward compatibility: if checking aadharCardFront/Back but only old aadharCard exists
-    let documentValue = candidate.onboardingDetails?.documents?.[documentType];
+    let documentValue = candidate.onboardingDetails?.documents?.[validDocumentType];
     
     // Backward compatibility: if requesting aadharCardFront/Back but only old aadharCard exists
-    if ((documentType === "aadharCardFront" || documentType === "aadharCardBack") && !documentValue) {
+    if ((validDocumentType === "aadharCardFront" || validDocumentType === "aadharCardBack") && !documentValue) {
       const oldAadharCard = candidate.onboardingDetails?.documents?.aadharCard;
       if (oldAadharCard) {
         // Allow verification of front/back even if only old aadharCard exists
         documentValue = oldAadharCard;
-        console.log("Using backward compatibility: old aadharCard found for", documentType);
+        console.log("Using backward compatibility: old aadharCard found for", validDocumentType);
       }
     }
     
     // Also handle reverse: if requesting old aadharCard but only new ones exist
-    if (documentType === "aadharCard" && !documentValue) {
+    if (validDocumentType === "aadharCard" && !documentValue) {
       const hasNewAadhar = candidate.onboardingDetails?.documents?.aadharCardFront || 
                           candidate.onboardingDetails?.documents?.aadharCardBack;
       if (hasNewAadhar) {
@@ -115,9 +118,9 @@ export async function PATCH(
     }
     
     if (!documentValue || (Array.isArray(documentValue) && documentValue.length === 0)) {
-      console.error("Document not found:", { documentType, candidateId: id });
+      console.error("Document not found:", { documentType: validDocumentType, candidateId: id });
       return NextResponse.json(
-        { success: false, error: `Document "${documentType}" not found or not uploaded` },
+        { success: false, error: `Document "${validDocumentType}" not found or not uploaded` },
         { status: 400 }
       );
     }
@@ -125,9 +128,9 @@ export async function PATCH(
     // Update verification status with human-readable verifier name and role
     const verifierDisplay = verified ? `${userName || "HR Team"} (${userRole})` : null;
     const updateData: Record<string, unknown> = {
-      [`onboardingDetails.documentVerification.${documentType}.verified`]: verified,
-      [`onboardingDetails.documentVerification.${documentType}.verifiedBy`]: verifierDisplay,
-      [`onboardingDetails.documentVerification.${documentType}.verifiedAt`]: verified ? new Date() : null,
+      [`onboardingDetails.documentVerification.${validDocumentType}.verified`]: verified,
+      [`onboardingDetails.documentVerification.${validDocumentType}.verifiedBy`]: verifierDisplay,
+      [`onboardingDetails.documentVerification.${validDocumentType}.verifiedAt`]: verified ? new Date() : null,
     };
 
     const updatedCandidate = await Candidate.findByIdAndUpdate(

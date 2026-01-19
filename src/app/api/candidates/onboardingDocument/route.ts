@@ -578,7 +578,7 @@ export async function POST(req: NextRequest) {
     const companyInfoLines = [
       "117/N/70 3rd Floor, Kakadeo, Kanpur, U.P. 208025",
       "www.zairointernational.com",
-      "+91 9598 023492",
+      "+91 95198 03665",
       "zairointernationalpvtltd@gmail.com",
     ];
 
@@ -849,9 +849,38 @@ export async function POST(req: NextRequest) {
     );
     yPosition -= lineHeight;
 
+    // Format salary - convert monthly salary to LPA format
+    let formattedSalary = "________________";
+    if (data.salaryINR && data.salaryINR !== "As per employment terms") {
+      try {
+        // Extract numeric value from string (e.g., "30,000 per month" -> 30000)
+        const salaryStr = String(data.salaryINR)
+          .replace(/[₹Rs.,\s]/g, "") // Remove currency symbols, commas, spaces
+          .replace(/permonth/gi, "") // Remove "per month" text
+          .trim();
+        
+        const monthlySalary = parseFloat(salaryStr);
+        
+        if (!isNaN(monthlySalary) && monthlySalary > 0) {
+          // Convert monthly to annual, then to LPA
+          const annualSalary = monthlySalary * 12;
+          const lpa = annualSalary / 100000;
+          formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+        } else {
+          // If parsing fails, use original value but replace ₹ with Rs.
+          formattedSalary = String(data.salaryINR).replace(/₹/g, "Rs. ");
+        }
+      } catch (error) {
+        // Fallback: just replace ₹ with Rs. if conversion fails
+        formattedSalary = String(data.salaryINR).replace(/₹/g, "Rs. ");
+      }
+    } else if (data.salaryINR === "As per employment terms") {
+      formattedSalary = "As per employment terms";
+    }
+
     drawWrappedText(
-      `14. As compensation for services to be rendered by you to the Company, you shall be paid a remuneration of Rs. ${
-        data.salaryINR || "________________"
+      `14. As compensation for services to be rendered by you to the Company, you shall be paid a remuneration of ${
+        formattedSalary
       }. Any additional bonus payable will be at the discretion of the Company. You shall be solely responsible for paying any taxes, direct or indirect, state or local, whether payable in India or elsewhere which may result from the remuneration pursuant to your employment hereunder. You are expected to keep your salary related information strictly confidential and not to share with anyone. The Company is entitled to deduct from your remuneration, income tax, other taxes and levies as required under the applicable provisions and/or law for the time being in force or as amended from time to time.`,
       leftMargin + 5,
       bodySize

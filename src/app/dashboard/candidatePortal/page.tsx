@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -59,7 +59,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { NotesModal } from "./components/notes-modal";
 
@@ -141,9 +141,22 @@ interface PaginationData {
 
 export default function CandidatesPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  
+  // Load state from localStorage or use defaults
+  const [search, setSearch] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalSearch") || "";
+    }
+    return "";
+  });
+  // Load page from URL search params, default to 1
+  const [page, setPage] = useState<number>(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) || 1 : 1;
+  });
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
   // Load activeTab from localStorage or default to "pending"
@@ -163,10 +176,30 @@ export default function CandidatesPage() {
   const [updatingRole, setUpdatingRole] = useState(false);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notesCandidate, setNotesCandidate] = useState<Candidate | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [experienceFilter, setExperienceFilter] = useState<string>("all");
-  const [collegeFilter, setCollegeFilter] = useState<string>("all");
-  const [trainingDocumentFilter, setTrainingDocumentFilter] = useState<string>("all");
+  const [selectedRole, setSelectedRole] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalSelectedRole") || "all";
+    }
+    return "all";
+  });
+  const [experienceFilter, setExperienceFilter] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalExperienceFilter") || "all";
+    }
+    return "all";
+  });
+  const [collegeFilter, setCollegeFilter] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalCollegeFilter") || "all";
+    }
+    return "all";
+  });
+  const [trainingDocumentFilter, setTrainingDocumentFilter] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalTrainingDocumentFilter") || "all";
+    }
+    return "all";
+  });
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
   const [unmaskedPhoneId, setUnmaskedPhoneId] = useState<string | null>(null);
@@ -193,6 +226,16 @@ export default function CandidatesPage() {
     currentTime?: string;
   }>>([]);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  
+  // Track if this is the initial mount to preserve pagination
+  const isInitialMount = useRef(true);
+  const prevFilters = useRef({
+    search: "",
+    activeTab: "pending" as TabValue,
+    selectedRole: "all",
+    experienceFilter: "all",
+    collegeFilter: "all",
+  });
 
   // Convert 12-hour format to 24-hour format (HH:MM)
   const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
@@ -535,23 +578,164 @@ export default function CandidatesPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCandidates(search, 1, activeTab, selectedRole, experienceFilter, collegeFilter);
-      setPage(1);
-    }, 500);
+    // On initial mount, fetch with the saved page number
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevFilters.current = {
+        search,
+        activeTab,
+        selectedRole,
+        experienceFilter,
+        collegeFilter,
+      };
+      // Fetch with the current page (loaded from localStorage)
+      fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
+      return;
+    }
 
-    return () => clearTimeout(timer);
+    // Check if filters actually changed
+    const filtersChanged =
+      prevFilters.current.search !== search ||
+      prevFilters.current.activeTab !== activeTab ||
+      prevFilters.current.selectedRole !== selectedRole ||
+      prevFilters.current.experienceFilter !== experienceFilter ||
+      prevFilters.current.collegeFilter !== collegeFilter;
+
+    if (filtersChanged) {
+      // Only reset page to 1 if filters changed
+      const timer = setTimeout(() => {
+        fetchCandidates(search, 1, activeTab, selectedRole, experienceFilter, collegeFilter);
+        setPage(1);
+        prevFilters.current = {
+          search,
+          activeTab,
+          selectedRole,
+          experienceFilter,
+          collegeFilter,
+        };
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, activeTab, selectedRole, experienceFilter, collegeFilter]);
 
   // Reset training document filter when switching away from selected tab
   useEffect(() => {
     if (activeTab !== "selected") {
       setTrainingDocumentFilter("all");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("candidatePortalTrainingDocumentFilter", "all");
+      }
     }
   }, [activeTab]);
 
+  // Persist search to localStorage
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalSearch", search);
+    }
+  }, [search]);
+
+  // Get stable page value from URL
+  const urlPage = useMemo(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) || 1 : 1;
+  }, [searchParams]);
+
+  // Track if we're updating URL to prevent sync loop
+  const isUpdatingUrl = useRef(false);
+  const lastUrlPage = useRef<number | null>(null);
+
+  // Initialize lastUrlPage on mount
+  useEffect(() => {
+    lastUrlPage.current = urlPage;
+  }, []);
+
+  // Update URL when page state changes (user clicks pagination)
+  useEffect(() => {
+    // Skip on initial mount - page is already synced from URL
+    if (isInitialMount.current) {
+      lastUrlPage.current = urlPage;
+      return;
+    }
+    
+    // Skip if URL already matches
+    if (urlPage === page) {
+      return;
+    }
+    
+    // Mark that we're updating URL
+    isUpdatingUrl.current = true;
+    lastUrlPage.current = page;
+    
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString());
+    if (page === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", page.toString());
+    }
+    const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    router.replace(newUrl, { scroll: false });
+    
+    // Reset flag after a microtask to allow URL to update
+    Promise.resolve().then(() => {
+      isUpdatingUrl.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pathname, router]);
+
+  // Sync page from URL only when URL changes externally (browser back/forward)
+  useEffect(() => {
+    // Skip if we're currently updating URL ourselves
+    if (isUpdatingUrl.current) {
+      return;
+    }
+    
+    // Only sync if URL page changed externally and is different from current page
+    if (lastUrlPage.current !== null && urlPage !== lastUrlPage.current && urlPage !== page) {
+      setPage(urlPage);
+      lastUrlPage.current = urlPage;
+    }
+  }, [urlPage, page]);
+
+  // Persist selectedRole to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalSelectedRole", selectedRole);
+    }
+  }, [selectedRole]);
+
+  // Persist experienceFilter to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalExperienceFilter", experienceFilter);
+    }
+  }, [experienceFilter]);
+
+  // Persist collegeFilter to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalCollegeFilter", collegeFilter);
+    }
+  }, [collegeFilter]);
+
+  // Persist trainingDocumentFilter to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalTrainingDocumentFilter", trainingDocumentFilter);
+    }
+  }, [trainingDocumentFilter]);
+
+  useEffect(() => {
+    // Skip on initial mount - the filter useEffect handles initial fetch
+    if (isInitialMount.current) {
+      return;
+    }
+    // Only fetch when page changes (user clicks pagination)
     fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const getStatusColor = (status: string) => {

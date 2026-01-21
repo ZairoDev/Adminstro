@@ -5,13 +5,13 @@
  * Each Greek city has its own WhatsApp Business number for local support
  */
 
-export type WhatsAppArea = "athens" | "thessaloniki" | "crete" | "all";
+export type WhatsAppArea = "athens" | "thessaloniki" | "crete" | "milan" | "all";
 
 export interface WhatsAppPhoneConfig {
   phoneNumberId: string;
   displayNumber: string;
   displayName: string;
-  area: WhatsAppArea;
+  area: WhatsAppArea | WhatsAppArea[]; // Support single area or array of areas
   businessAccountId: string;
   /**
    * If true, this is an internal-only "phone" that:
@@ -72,8 +72,8 @@ export const WHATSAPP_PHONE_CONFIGS: WhatsAppPhoneConfig[] = [
   {
     phoneNumberId: process.env.WHATSAPP_THESSALONIKI_PHONE_ID || "",
     displayNumber: "+30 9125119177",
-    displayName: "VacationSaga Thessaloniki",
-    area: "thessaloniki",
+    displayName: "VacationSaga Thessaloniki & Milan",
+    area: ["thessaloniki", "milan"], // Same number for both areas
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
   {
@@ -141,7 +141,12 @@ export function getAllowedPhoneConfigs(
 
   return WHATSAPP_PHONE_CONFIGS.filter(config => {
     if (!config.phoneNumberId) return false;
-    return normalizedAreas.includes(config.area);
+    
+    // Support both single area and array of areas
+    const configAreas = Array.isArray(config.area) ? config.area : [config.area];
+    
+    // Check if any of the user's areas match any of the phone's areas
+    return configAreas.some(phoneArea => normalizedAreas.includes(phoneArea));
   });
 }
 

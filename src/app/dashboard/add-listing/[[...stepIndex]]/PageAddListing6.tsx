@@ -13,8 +13,8 @@ interface Page6State {
 }
 
 const PageAddListing6: FC<PageAddListing6Props> = () => {
-  const params = useSearchParams();
-  const userId = params.get("userId");
+  const params = useSearchParams() ?? null;
+  const userId = params?.get("userId") ?? null;
 
 
   let portions = 0;

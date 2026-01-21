@@ -94,7 +94,7 @@ export const LeadPage = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [page, setPage] = useState<number>(
-    parseInt(searchParams.get("page") ?? "1")
+    parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState<string>("Table View");
   const [allotedArea, setAllotedArea] = useState<string | string[]>("");
@@ -263,7 +263,7 @@ export const LeadPage = () => {
   // Handle page change
   const handlePageChange = useCallback(
     (newPage: number) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString());
       params.set("page", newPage.toString());
       router.push(`?${params.toString()}`);
 

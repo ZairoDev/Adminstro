@@ -540,6 +540,36 @@ useEffect(() => {
       }
     });
 
+    // Handle conversation update events (archive/unarchive, etc.)
+    socket.on("whatsapp-conversation-update", (data: any) => {
+      const { conversationId, isArchived, archivedAt, archivedBy } = data;
+      
+      // Update conversation archive state in real-time (global archive)
+      if (conversationId && typeof isArchived === "boolean") {
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id === conversationId
+              ? {
+                  ...conv,
+                  isArchivedByUser: isArchived,
+                  archivedAt: archivedAt ? new Date(archivedAt) : undefined,
+                  archivedBy: archivedBy,
+                }
+              : conv
+          )
+        );
+
+        // If conversation was archived and we're viewing it, close it
+        if (isArchived && selectedConversation?._id === conversationId) {
+          setSelectedConversation(null);
+          setMessages([]);
+        }
+
+        // Refetch conversations to get updated archive count
+        fetchConversations();
+      }
+    });
+
     return () => {
       socket.emit("leave-whatsapp-room");
       socket.off("whatsapp-new-message");
@@ -552,6 +582,7 @@ useEffect(() => {
       socket.off("whatsapp-history-sync");
       socket.off("whatsapp-app-state-sync");
       socket.off("whatsapp-conversation-read");
+      socket.off("whatsapp-conversation-update");
     };
   }, [socket, toast, token]);
 

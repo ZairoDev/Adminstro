@@ -55,7 +55,7 @@ export const DeclinedLeads = () => {
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
   const [page, setPage] = useState<number>(
-    parseInt(searchParams.get("page") ?? "1")
+    parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState<string | string[]>("");
@@ -88,7 +88,7 @@ export const DeclinedLeads = () => {
   });
 
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
     // console.log("area ::", area);
@@ -183,7 +183,7 @@ export const DeclinedLeads = () => {
 
   useEffect(() => {
     filterLeads(1, defaultFilters);
-    setPage(parseInt(searchParams.get("page") ?? "1"));
+    setPage(parseInt(searchParams?.get("page") ?? "1"));
     const getAllotedArea = async () => {
       try {
         const response = await axios.get("/api/getAreaFromToken");

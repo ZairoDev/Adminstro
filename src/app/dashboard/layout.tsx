@@ -23,8 +23,8 @@ export default function DashboardLayout({
   const { token } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const isOnboarding = pathname.includes("/onboarding");
-  const isTrainingAgreement = pathname.includes("/training-agreement");
+  const isOnboarding = pathname?.includes("/onboarding");
+  const isTrainingAgreement = pathname?.includes("/training-agreement");
   
   if (isOnboarding) {
     return <main className="min-h-screen bg-background">{children}</main>;

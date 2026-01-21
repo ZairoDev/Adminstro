@@ -85,7 +85,7 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    if (searchParams.get("page")) {
+    if (searchParams?.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
   }, []);

@@ -69,7 +69,7 @@ export default function VisitTable({ visits }: { visits: VisitInterface[] }) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    if (searchParams.get("page")) {
+    if (searchParams?.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
   }, []);

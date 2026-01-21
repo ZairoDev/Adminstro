@@ -22,7 +22,7 @@ interface Page3State {
 
 const PageAddListing3: FC<PageAddListing3Props> = () => {
   const params = useSearchParams();
-  const userId = params.get("userId");
+  const userId = params?.get("userId") ?? null;
 
   let portions = 0;
   const data = localStorage.getItem("page1") || "";

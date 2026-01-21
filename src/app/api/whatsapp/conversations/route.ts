@@ -56,12 +56,10 @@ export async function GET(req: NextRequest) {
     const userId = token.id || token._id;
 
     // =========================================================
-    // Get archive states for this user (WhatsApp-style per-user archive)
+    // Get global archive states (shared across all users)
     // =========================================================
-    const archiveStates = await ConversationArchiveState.find({
-      userId: new mongoose.Types.ObjectId(userId),
-    })
-      .select("conversationId isArchived archivedAt")
+    const archiveStates = await ConversationArchiveState.find({})
+      .select("conversationId isArchived archivedAt archivedBy")
       .lean();
 
     const archiveStateMap = new Map<string, any>();
@@ -82,9 +80,9 @@ export async function GET(req: NextRequest) {
         : { $in: allowedPhoneIds }
     };
 
-    // Handle archive filtering (WhatsApp-style)
+    // Handle archive filtering (global archive)
     if (archivedOnly) {
-      // Only show archived conversations for this user
+      // Only show globally archived conversations
       if (archivedConversationIds.length === 0) {
         // Sync with Meta API - Meta is the ONLY source of truth
         const localPhoneConfigs = getAllowedPhoneConfigs(userRole, userAreas);
@@ -234,10 +232,11 @@ export async function GET(req: NextRequest) {
         // Override stored unreadCount with per-employee value
         conv.unreadCount = unreadCount;
 
-        // Add archive state for this user
+        // Add global archive state
         const archiveState = archiveStateMap.get(String(conv._id));
-        conv.isArchivedByUser = archiveState?.isArchived || false;
+        conv.isArchivedByUser = archiveState?.isArchived || false; // Keep field name for backward compatibility
         conv.archivedAt = archiveState?.archivedAt || null;
+        conv.archivedBy = archiveState?.archivedBy?.toString() || null; // Track who archived
 
         // Flag internal conversations
         conv.isInternal = conv.source === "internal";
@@ -277,14 +276,13 @@ export async function GET(req: NextRequest) {
           youConversation = newYouConv.toObject();
         }
 
-        // Check if "You" conversation is archived
+        // Check if "You" conversation is globally archived
         const youArchiveState = await ConversationArchiveState.findOne({
           conversationId: youConversation._id,
-          userId: new mongoose.Types.ObjectId(userId),
           isArchived: true,
         }).lean();
 
-        // Only include "You" conversation if not archived and not in archived-only view
+        // Only include "You" conversation if not globally archived and not in archived-only view
         if (!archivedOnly && !youArchiveState) {
           // Get read state for "You" conversation
           const youReadState = await ConversationReadState.findOne({

@@ -24,17 +24,20 @@ async function sendGuestGreetingTemplate(
   location: string
 ) {
   try {
-    // Only send for thessaloniki location
+    // Only send for thessaloniki or milan location (same phone number)
     const normalizedLocation = location?.toLowerCase().trim();
-    if (normalizedLocation !== "thessaloniki") {
-      console.log(`⏭️ Skipping WhatsApp template - location is not thessaloniki (got: ${location})`);
+    if (normalizedLocation !== "thessaloniki" && normalizedLocation !== "milan") {
+      console.log(`⏭️ Skipping WhatsApp template - location is not thessaloniki or milan (got: ${location})`);
       return;
     }
 
     const whatsappToken = getWhatsAppToken();
-    // Get thessaloniki phone ID
-    const thessalonikiConfig = WHATSAPP_PHONE_CONFIGS.find(config => config.area === "thessaloniki");
-    const phoneNumberId = thessalonikiConfig?.phoneNumberId || getDefaultPhoneId("SuperAdmin", ["thessaloniki"]);
+    // Get phone ID for thessaloniki or milan (same number)
+    const phoneConfig = WHATSAPP_PHONE_CONFIGS.find(config => {
+      const configAreas = Array.isArray(config.area) ? config.area : [config.area];
+      return configAreas.includes("thessaloniki") || configAreas.includes("milan");
+    });
+    const phoneNumberId = phoneConfig?.phoneNumberId || getDefaultPhoneId("SuperAdmin", [normalizedLocation]);
 
     if (!whatsappToken || !phoneNumberId) {
       console.error("❌ WhatsApp not configured - missing token or phone ID");

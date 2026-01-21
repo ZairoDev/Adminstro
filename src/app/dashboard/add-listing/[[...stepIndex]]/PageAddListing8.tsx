@@ -47,7 +47,8 @@ export const MONTHS = [
 
 const PageAddListing8: FC<PageAddListing8Props> = () => {
   const params = useSearchParams();
-  const userId = params.get("userId");
+  // const userId = params.get("userId");
+  const userId = params?.get("userId") ?? null;
 
 
   let portions = 0;

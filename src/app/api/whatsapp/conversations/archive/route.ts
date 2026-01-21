@@ -9,9 +9,9 @@ import mongoose from "mongoose";
 connectDb();
 
 /**
- * Archive a conversation for the current user
- * WhatsApp-style behavior:
- * - Archived chats disappear from main inbox
+ * Archive a conversation globally (for all users)
+ * Archive behavior:
+ * - Archived chats disappear from main inbox for ALL users
  * - They remain searchable
  * - They do NOT trigger notifications
  * - Incoming messages do NOT auto-unarchive
@@ -43,16 +43,16 @@ export async function POST(req: NextRequest) {
 
     const userId = token.id || token._id;
 
-    // Upsert archive state for this user
+    // Upsert global archive state (no userId - global for everyone)
     const archiveState = await ConversationArchiveState.findOneAndUpdate(
       {
         conversationId: new mongoose.Types.ObjectId(conversationId),
-        userId: new mongoose.Types.ObjectId(userId),
       },
       {
         isArchived: true,
         archivedAt: new Date(),
-        $unset: { unarchivedAt: 1 },
+        archivedBy: new mongoose.Types.ObjectId(userId), // Track who archived (audit)
+        $unset: { unarchivedAt: 1, unarchivedBy: 1 },
       },
       {
         upsert: true,
@@ -64,12 +64,13 @@ export async function POST(req: NextRequest) {
     // CRITICAL: Archive API Real-Time Sync
     // ============================================================
     // Emit socket event for real-time UI updates
-    // Event is user-scoped (not global) - only affects this user's view
+    // Event is GLOBAL - affects all users' views
     emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
       conversationId: conversationId.toString(),
-      userId: userId.toString(), // Target user
+      // No userId - broadcast to all users
       isArchived: true,
       archivedAt: archiveState.archivedAt,
+      archivedBy: userId.toString(), // Track who archived
       businessPhoneId: conversation.businessPhoneId,
     });
 
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
         conversationId: archiveState.conversationId,
         isArchived: archiveState.isArchived,
         archivedAt: archiveState.archivedAt,
+        archivedBy: archiveState.archivedBy?.toString(),
       },
     });
   } catch (error: any) {
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Unarchive a conversation for the current user
+ * Unarchive a conversation globally (for all users)
  */
 export async function DELETE(req: NextRequest) {
   try {
@@ -122,15 +124,16 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Update archive state to unarchived
+    // Update global archive state to unarchived (no userId - global for everyone)
     const archiveState = await ConversationArchiveState.findOneAndUpdate(
       {
         conversationId: new mongoose.Types.ObjectId(conversationId),
-        userId: new mongoose.Types.ObjectId(userId),
       },
       {
         isArchived: false,
         unarchivedAt: new Date(),
+        unarchivedBy: new mongoose.Types.ObjectId(userId), // Track who unarchived (audit)
+        $unset: { archivedAt: 1, archivedBy: 1 },
       },
       {
         new: true,
@@ -141,12 +144,13 @@ export async function DELETE(req: NextRequest) {
     // CRITICAL: Archive API Real-Time Sync
     // ============================================================
     // Emit socket event for real-time UI updates
-    // Event is user-scoped (not global) - only affects this user's view
+    // Event is GLOBAL - affects all users' views
     emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
       conversationId: conversationId.toString(),
-      userId: userId.toString(), // Target user
+      // No userId - broadcast to all users
       isArchived: false,
       unarchivedAt: archiveState?.unarchivedAt || new Date(),
+      unarchivedBy: userId.toString(), // Track who unarchived
       businessPhoneId: conversation.businessPhoneId,
     });
 
@@ -158,6 +162,7 @@ export async function DELETE(req: NextRequest) {
             conversationId: archiveState.conversationId,
             isArchived: archiveState.isArchived,
             unarchivedAt: archiveState.unarchivedAt,
+            unarchivedBy: archiveState.unarchivedBy?.toString(),
           }
         : null,
     });
@@ -171,7 +176,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 /**
- * Get archived conversations for the current user
+ * Get all globally archived conversations
  */
 export async function GET(req: NextRequest) {
   try {
@@ -180,14 +185,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = token.id || token._id;
-
-    // Get all archived conversation IDs for this user
+    // Get all globally archived conversation IDs (no userId filter - global)
     const archivedStates = await ConversationArchiveState.find({
-      userId: new mongoose.Types.ObjectId(userId),
       isArchived: true,
     })
-      .select("conversationId archivedAt")
+      .select("conversationId archivedAt archivedBy")
       .lean();
 
     const archivedConversationIds = archivedStates.map(
@@ -201,17 +203,24 @@ export async function GET(req: NextRequest) {
       .sort({ lastMessageTime: -1 })
       .lean();
 
-    // Create a map of archive times
-    const archiveTimeMap = new Map<string, Date>();
+    // Create a map of archive info
+    const archiveInfoMap = new Map<string, { archivedAt: Date; archivedBy?: string }>();
     archivedStates.forEach((state: any) => {
-      archiveTimeMap.set(String(state.conversationId), state.archivedAt);
+      archiveInfoMap.set(String(state.conversationId), {
+        archivedAt: state.archivedAt,
+        archivedBy: state.archivedBy?.toString(),
+      });
     });
 
-    // Add archivedAt to each conversation
-    const conversationsWithArchiveInfo = conversations.map((conv: any) => ({
-      ...conv,
-      archivedAt: archiveTimeMap.get(String(conv._id)),
-    }));
+    // Add archive info to each conversation
+    const conversationsWithArchiveInfo = conversations.map((conv: any) => {
+      const archiveInfo = archiveInfoMap.get(String(conv._id));
+      return {
+        ...conv,
+        archivedAt: archiveInfo?.archivedAt,
+        archivedBy: archiveInfo?.archivedBy,
+      };
+    });
 
     return NextResponse.json({
       success: true,

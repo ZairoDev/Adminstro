@@ -35,12 +35,12 @@ const BookingPage = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
 
   const [page, setPage] = useState<number>(
-    Number.parseInt(searchParams.get("page") ?? "1")
+    Number.parseInt(searchParams?.get("page") ?? "1") ?? 1
   );
 
   // ✅ Only two tabs: pending | paid
   const [paymentTab, setPaymentTab] = useState<"pending" | "paid">(
-    (searchParams.get("tab") as "pending" | "paid") || "pending"
+    (searchParams?.get("tab") as "pending" | "paid") || "pending"
   );
 
   const defaultFilters: BookingFilterState = {
@@ -57,14 +57,14 @@ const BookingPage = () => {
 
   /* ------------------------- Handlers ------------------------- */
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
     setPage(newPage);
   };
 
   const handleTabChange = (tab: "pending" | "paid") => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("tab", tab);
     params.set("page", "1");
     router.push(`?${params.toString()}`);
@@ -75,7 +75,7 @@ const BookingPage = () => {
   const handleFilterChange = (newFilters: BookingFilterState) => {
     setFilters(newFilters);
     setPage(1);
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", "1");
     router.push(`?${params.toString()}`);
   };
@@ -83,7 +83,7 @@ const BookingPage = () => {
   const handleResetFilters = () => {
     setFilters({ ...defaultFilters });
     setPage(1);
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", "1");
     router.push(`?${params.toString()}`);
   };
@@ -158,8 +158,8 @@ const BookingPage = () => {
 
   /* ------------------------- Effects ------------------------- */
   useEffect(() => {
-    setPage(Number.parseInt(searchParams.get("page") ?? "1"));
-    setPaymentTab((searchParams.get("tab") as "pending" | "paid") || "pending");
+    setPage(Number.parseInt(searchParams?.get("page") ?? "1"));
+    setPaymentTab((searchParams?.get("tab") as "pending" | "paid") || "pending");
   }, []);
 
   useEffect(() => {

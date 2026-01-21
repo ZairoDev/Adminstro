@@ -83,7 +83,7 @@ export default function TrainingAgreementPage() {
   const router = useRouter();
   const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
-  const candidateId = params.id as string;
+  const candidateId = params?.id as string;
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);

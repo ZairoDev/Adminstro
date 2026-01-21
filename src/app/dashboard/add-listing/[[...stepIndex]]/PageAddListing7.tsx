@@ -18,7 +18,8 @@ export interface PageAddListing7Props {}
 const PageAddListing7: FC<PageAddListing7Props> = () => {
   const params = useSearchParams();
 
-  const userId = params.get("userId");
+  // const userId = params.get("userId") ?? null;
+  const userId = params?.get("userId") ?? null;
 
 
   let portions = 0;

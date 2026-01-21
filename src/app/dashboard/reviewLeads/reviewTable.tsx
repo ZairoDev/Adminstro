@@ -121,7 +121,7 @@ export default function LeadTable({ queries ,setQueries}: { queries: IQuery[] ,s
   const [targets, setTargets] = useState<TargetType[]>([]);
 
   useEffect(() => {
-    if (searchParams.get("page")) {
+    if (searchParams?.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
   }, []);

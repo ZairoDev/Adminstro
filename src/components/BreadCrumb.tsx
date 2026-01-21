@@ -11,7 +11,7 @@ import {
 } from "./ui/breadcrumb";
 
 const BreadCrumb = () => {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const pathnames = pathname.split("/").filter((x) => x);
 
   const isClickable = (name: string) => {

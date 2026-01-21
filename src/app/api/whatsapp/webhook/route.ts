@@ -420,7 +420,9 @@ async function getEligibleUsersForNotification(
     return eligibleUsers;
   }
   
-  const area = phoneConfig.area;
+  // Support both single area and array of areas
+  const phoneAreas = Array.isArray(phoneConfig.area) ? phoneConfig.area : [phoneConfig.area];
+  const normalizedPhoneAreas = phoneAreas.map(a => a.toLowerCase().trim());
   
   // Get all employees with WhatsApp access roles
   const employees = await Employee.find({
@@ -452,16 +454,15 @@ async function getEligibleUsersForNotification(
       continue;
     }
     
-    // Sales: Check if user has access to this phone's area (area-based assignment, not conversation-based)
+    // Sales: Check if user has access to any of this phone's areas (area-based assignment, not conversation-based)
     if (employeeRole === "Sales") {
       // Normalize areas for comparison (case-insensitive)
       const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
-      const normalizedPhoneArea = area.toLowerCase().trim();
       
-      // Check if employee has this area in their assigned areas
+      // Check if employee has any of the phone's areas in their assigned areas
       // Also check for "all" or "both" which gives access to all areas
       const hasAreaAccess = 
-        normalizedEmployeeAreas.includes(normalizedPhoneArea) ||
+        normalizedPhoneAreas.some(phoneArea => normalizedEmployeeAreas.includes(phoneArea)) ||
         normalizedEmployeeAreas.includes("all") ||
         normalizedEmployeeAreas.includes("both");
       
@@ -479,12 +480,11 @@ async function getEligibleUsersForNotification(
     if (["Sales-TeamLead", "LeadGen-TeamLead", "LeadGen"].includes(employeeRole)) {
       // Normalize areas for comparison (case-insensitive)
       const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
-      const normalizedPhoneArea = area.toLowerCase().trim();
       
-      // Check if employee has this area in their assigned areas
+      // Check if employee has any of the phone's areas in their assigned areas
       // Also check for "all" or "both" which gives access to all areas
       const hasAreaAccess = 
-        normalizedEmployeeAreas.includes(normalizedPhoneArea) ||
+        normalizedPhoneAreas.some(phoneArea => normalizedEmployeeAreas.includes(phoneArea)) ||
         normalizedEmployeeAreas.includes("all") ||
         normalizedEmployeeAreas.includes("both");
       
@@ -916,24 +916,24 @@ async function processIncomingMessage(
 
       console.log(`👥 [ELIGIBLE USERS] Found ${eligibleUsers.length} eligible users for conversation ${conversation._id}`);
 
+      // ============================================================
+      // CRITICAL: Global Archive State Enforcement
+      // ============================================================
+      // Check if conversation is globally archived
+      // Archived conversations NEVER trigger notifications for ANY user
+      const archiveState = await ConversationArchiveState.findOne({
+        conversationId: conversation._id,
+        isArchived: true,
+      }).lean() as any;
+
+      if (archiveState) {
+        console.log(`⏭️ [SKIP] Conversation ${conversation._id} is globally archived - skipping ALL notifications`);
+        return; // Skip ALL users - conversation is archived globally
+      }
+
       // For each eligible user, check read state and emit notification if unread
       let notificationsEmitted = 0;
       for (const user of eligibleUsers) {
-        // ============================================================
-        // CRITICAL: Archive State Enforcement
-        // ============================================================
-        // Check if this user has archived the conversation
-        // Archived conversations NEVER trigger notifications
-        const archiveState = await ConversationArchiveState.findOne({
-          conversationId: conversation._id,
-          userId: user.userId,
-          isArchived: true,
-        }).lean() as any;
-
-        if (archiveState) {
-          console.log(`⏭️ [SKIP] User ${user.userId} has archived conversation ${conversation._id} - skipping notification`);
-          continue; // Skip this user, try next
-        }
 
         // Get user's read state for this conversation
         const readState = await ConversationReadState.findOne({

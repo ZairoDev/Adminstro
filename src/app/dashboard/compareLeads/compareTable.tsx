@@ -40,7 +40,7 @@ export default function CompareTable({
   const token = useAuthStore();
 
   useEffect(() => {
-    if (searchParams.get("page")) {
+    if (searchParams?.get("page")) {
       // Keep page-related behavior harmless for other components
     }
   }, [searchParams]);

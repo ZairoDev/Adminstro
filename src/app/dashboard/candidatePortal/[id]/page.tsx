@@ -82,7 +82,7 @@ import { CandidateHeader } from "./components/CandidateHeader";
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const candidateId = params.id as string;
+  const candidateId = params?.id as string;
 
   // Use refactored hooks
   const { candidate, loading, error: candidateError, refreshCandidate, setCandidate } = useCandidate(candidateId);

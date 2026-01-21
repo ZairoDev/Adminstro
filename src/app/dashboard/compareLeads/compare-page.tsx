@@ -62,7 +62,7 @@ export const CompareLeadsPage = () => {
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
   const [page, setPage] = useState<number>(
-    parseInt(searchParams.get("page") ?? "1")
+    parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
   const [allotedArea, setAllotedArea] = useState("");
@@ -93,7 +93,7 @@ export const CompareLeadsPage = () => {
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
     filterLeads(newPage, { ...filters, allotedArea: area });
@@ -211,7 +211,7 @@ export const CompareLeadsPage = () => {
 
   useEffect(() => {
     filterLeads(1, defaultFilters);
-    setPage(parseInt(searchParams.get("page") ?? "1"));
+    setPage(parseInt(searchParams?.get("page") ?? "1"));
     const getAllotedArea = async () => {
       try {
         const response = await axios.get("/api/getAreaFromToken");

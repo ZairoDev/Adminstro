@@ -459,14 +459,15 @@ export function SystemNotificationToast({
         }
       }
 
-      // CRITICAL: Deduplicate by eventId (per-user, per-message)
+      // CRITICAL: Deduplicate by eventId FIRST (per-user, per-message)
       // Use ref for synchronous check to prevent race conditions
+      // This must happen BEFORE any other processing to prevent duplicates
       if (eventId) {
         if (seenEventIdsRef.current.has(eventId)) {
           console.log(`⏭️ [DUPLICATE] Event ${eventId} already seen, skipping (seen set size: ${seenEventIdsRef.current.size})`);
-          return;
+          return; // EARLY RETURN - prevent all duplicate processing
         }
-        // Mark as seen IMMEDIATELY (synchronous)
+        // Mark as seen IMMEDIATELY (synchronous) - BEFORE any async operations
         seenEventIdsRef.current.add(eventId);
         // Keep only last 1000 event IDs to prevent memory leak
         if (seenEventIdsRef.current.size > 1000) {
@@ -475,7 +476,8 @@ export function SystemNotificationToast({
         }
         console.log(`✅ [NEW EVENT] Added eventId ${eventId} to seen set (total: ${seenEventIdsRef.current.size})`);
       } else {
-        console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly`);
+        console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly - REJECTING`);
+        return; // REJECT notifications without eventId to prevent duplicates
       }
 
       // Only incoming messages

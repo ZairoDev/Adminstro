@@ -89,7 +89,7 @@ interface AreaType { _id: string; city: string; name: string; }
 const PageAddListing2: FC = () => {
   const { toast } = useToast();
   const params = useSearchParams();
-  const userId = params.get("userId");
+  const userId = params?.get("userId") ?? null;
   const [type, setType] = useState<string>("");
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");

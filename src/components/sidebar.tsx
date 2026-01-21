@@ -1048,7 +1048,7 @@ const otherSettingsRoutes = [
 ];
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
   // const [collapsed, setCollapsed] = useState(false);
 

@@ -167,10 +167,10 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams();
   const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
-  const candidateId = params.id as string;
+  const candidateId = params?.id as string;
 
   // Resignature mode - check for token in URL
-  const resignatureToken = searchParams.get("resignature");
+  const resignatureToken = searchParams?.get("resignature") ?? null;
   const [isResignatureMode, setIsResignatureMode] = useState(false);
   const [resignatureValid, setResignatureValid] = useState(false);
   const [validatingResignature, setValidatingResignature] = useState(false);

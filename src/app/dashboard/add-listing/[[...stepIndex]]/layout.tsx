@@ -17,7 +17,7 @@ export interface CommonLayoutProps {
 
 const CommonLayout: FC<CommonLayoutProps> = ({ children, params }) => {
   const searchParams = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = searchParams?.get("userId") ?? null;
   const index = Number(params.stepIndex) || 1;
   const progress = (index / 10) * 100;
   const nextHref = (

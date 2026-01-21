@@ -77,13 +77,13 @@ const WebsiteLeadsPage = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [page, setPage] = useState<number>(
-    Number.parseInt(searchParams.get("page") ?? "1")
+    Number.parseInt(searchParams?.get("page") ?? "1")
   );
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("name");
 
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
     setPage(newPage);
@@ -179,7 +179,7 @@ const WebsiteLeadsPage = () => {
   };
 
   useEffect(() => {
-    setPage(Number.parseInt(searchParams.get("page") ?? "1"));
+    setPage(Number.parseInt(searchParams?.get("page") ?? "1"));
   }, [searchParams]);
 
   useEffect(() => {

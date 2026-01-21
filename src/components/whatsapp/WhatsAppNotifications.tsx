@@ -62,7 +62,7 @@ export function WhatsAppNotifications() {
                    token?.role === "Sales-TeamLead" || 
                    token?.role === "Sales";
 
-  // Feature flag
+  // Feature flag - default to true if not explicitly set to false
   const FEATURE_WHATSAPP_NOTIFICATIONS = process.env.NEXT_PUBLIC_FEATURE_WHATSAPP_NOTIFICATIONS !== "false";
 
   useEffect(() => {
@@ -70,20 +70,25 @@ export function WhatsAppNotifications() {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
-    if (!hasAccess) return;
+    if (!hasAccess) {
+      console.log("⏭️ [WHATSAPP NOTIFICATIONS] No access, skipping fetch");
+      return;
+    }
 
     try {
       setLoading(true);
       const response = await axios.get("/api/whatsapp/notifications/summary");
       if (response.data.success) {
-        setSummary(response.data.summary || {
+        const summaryData = response.data.summary || {
           expiringCount: 0,
           unreadCount: 0,
           topItems: [],
-        });
+        };
+        setSummary(summaryData);
+        console.log(`✅ [WHATSAPP NOTIFICATIONS] Fetched: ${summaryData.unreadCount} unread, ${summaryData.expiringCount} expiring`);
       }
     } catch (err: any) {
-      console.error("Error fetching WhatsApp notifications:", err);
+      console.error("❌ [WHATSAPP NOTIFICATIONS] Error fetching:", err);
       setSummary({
         expiringCount: 0,
         unreadCount: 0,
@@ -105,23 +110,38 @@ export function WhatsAppNotifications() {
 
   // Listen for real-time updates via Socket.IO
   useEffect(() => {
-    if (!socket || !hasAccess) return;
+    if (!socket || !hasAccess) {
+      console.log("⏭️ [WHATSAPP NOTIFICATIONS] Socket or access not available");
+      return;
+    }
 
+    console.log("🔌 [WHATSAPP NOTIFICATIONS] Setting up socket listeners");
     socket.emit("join-whatsapp-room");
 
     // Listen for new messages and conversation updates
+    // Debounce to prevent too many refetches
+    let fetchTimeout: NodeJS.Timeout | null = null;
     const handleNewMessage = () => {
-      fetchNotifications();
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(() => {
+        console.log("📨 [WHATSAPP NOTIFICATIONS] New message received, refetching...");
+        fetchNotifications();
+      }, 500); // 500ms debounce
     };
 
     const handleConversationUpdate = () => {
-      fetchNotifications();
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(() => {
+        console.log("🔄 [WHATSAPP NOTIFICATIONS] Conversation updated, refetching...");
+        fetchNotifications();
+      }, 500); // 500ms debounce
     };
 
     socket.on("whatsapp-new-message", handleNewMessage);
     socket.on("whatsapp-conversation-update", handleConversationUpdate);
 
     return () => {
+      if (fetchTimeout) clearTimeout(fetchTimeout);
       socket.off("whatsapp-new-message", handleNewMessage);
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
     };
@@ -135,9 +155,23 @@ export function WhatsAppNotifications() {
     setIsOpen(false);
   };
 
-  if (!hasAccess || !isMounted || !FEATURE_WHATSAPP_NOTIFICATIONS) {
+  // Debug logging
+  if (!isMounted) {
+    console.log("⏭️ [WHATSAPP NOTIFICATIONS] Not mounted yet");
     return null;
   }
+  
+  if (!hasAccess) {
+    console.log("⏭️ [WHATSAPP NOTIFICATIONS] No access (role:", token?.role, ")");
+    return null;
+  }
+  
+  if (!FEATURE_WHATSAPP_NOTIFICATIONS) {
+    console.log("⏭️ [WHATSAPP NOTIFICATIONS] Feature disabled");
+    return null;
+  }
+  
+  console.log("✅ [WHATSAPP NOTIFICATIONS] Component visible, count:", totalCount);
 
   // Connection health indicator
   const getConnectionStatus = () => {

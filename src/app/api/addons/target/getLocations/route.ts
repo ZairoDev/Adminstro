@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const target = searchParams.get("target");
+    const target = searchParams.get("target") ;
     if (target === "country") {
       const val = await MonthlyTarget.find({}, { country: 1, _id: 0 }).distinct(
         "country"

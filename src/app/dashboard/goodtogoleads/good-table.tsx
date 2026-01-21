@@ -133,8 +133,8 @@ export default function GoodTable({
   //   const timers:Timers = useRef({});
 
   useEffect(() => {
-    if (searchParams.get("page")) {
-      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+    if (searchParams?.get("page")) {
+      setPage(parseInt(searchParams?.get("page") ?? "1") || 1);
     }
   }, []);
 
@@ -1031,7 +1031,7 @@ export default function GoodTable({
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
-                      {path.toString().trim().split("/")[2] ===
+                      {path?.toString().trim().split("/")[2] ===
                         "goodtogoleads" && (
                         <>
                           <DropdownMenuItem
@@ -1090,7 +1090,7 @@ export default function GoodTable({
                         {/* {(token?.role === "SuperAdmin" ||
                           token?.role === "Sales-TeamLead") && ( */}
                         <>
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "rolebaseLead" && (
                             <DropdownMenuItem
                               onClick={() =>
@@ -1101,7 +1101,7 @@ export default function GoodTable({
                               Good To Go <ThumbsUp size={16} />
                             </DropdownMenuItem>
                           )}
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "rolebaseLead" && (
                             <DropdownMenuSubTrigger className="w-40 truncate">
                               Rej re:
@@ -1110,7 +1110,7 @@ export default function GoodTable({
                               </span>
                             </DropdownMenuSubTrigger>
                           )}
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "goodtogoleads" && (
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger>
@@ -1159,7 +1159,7 @@ export default function GoodTable({
                           )}
                         </>
                         {/* )}*/}
-                        {path.toString().trim().split("/")[2] ===
+                        {path?.toString().trim().split("/")[2] ===
                           "rolebaseLead" && (
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>

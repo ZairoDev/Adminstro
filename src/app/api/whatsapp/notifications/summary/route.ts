@@ -49,11 +49,10 @@ export async function GET(req: NextRequest) {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // =========================================================
-    // CRITICAL: Get archived conversations for this user
-    // Archived conversations NEVER trigger notifications
+    // CRITICAL: Get globally archived conversations
+    // Archived conversations NEVER trigger notifications for ANY user
     // =========================================================
     const archivedStates = await ConversationArchiveState.find({
-      userId: new mongoose.Types.ObjectId(userId),
       isArchived: true,
     })
       .select("conversationId")

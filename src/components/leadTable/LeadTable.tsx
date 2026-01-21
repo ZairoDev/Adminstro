@@ -122,7 +122,7 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
     token?.role === "Sales-TeamLead";
 
   useEffect(() => {
-    if (searchParams.get("page")) {
+    if (searchParams?.get("page")) {
       setPage(parseInt(searchParams.get("page") ?? "1") || 1);
     }
   }, []);
@@ -656,7 +656,7 @@ const handleSave = async (
 
                   {/* 🔹 For LeadGen: Only Replying & NR */}
                   {token?.role === "LeadGen" &&
-                  path.toString().trim().split("/")[2] !== "notReplying" ? (
+                  path?.toString().trim().split("/")[2] !== "notReplying" ? (
                     query.salesPriority === "Replying" ? (
                       <CustomTooltip
                         icon={<CheckCheck color="green" />}
@@ -989,7 +989,7 @@ const handleSave = async (
                     }}
                   />
                   {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
-                  {path.toString().trim().split("/")[2] !== "createquery" &&
+                  {path?.toString().trim().split("/")[2] !== "createquery" &&
                   query.firstReply ? (
                     <Link
                       href={`/whatsapp?phone=${encodeURIComponent(
@@ -1120,7 +1120,7 @@ const handleSave = async (
                       >
                         <DropdownMenuItem>Detailed View</DropdownMenuItem>
                       </Link>
-                      {path.toString().trim().split("/")[2] ===
+                      {path?.toString().trim().split("/")[2] ===
                         "goodtogoleads" && (
                         <>
                           <DropdownMenuItem
@@ -1151,7 +1151,7 @@ const handleSave = async (
                         {/* {(token?.role === "SuperAdmin" ||
                           token?.role === "Sales-TeamLead") && ( */}
                         <>
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "rolebaseLead" && (
                             <DropdownMenuItem
                               onClick={() =>
@@ -1162,7 +1162,7 @@ const handleSave = async (
                               Good To Go <ThumbsUp size={16} />
                             </DropdownMenuItem>
                           )}
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "rolebaseLead" && (
                             <DropdownMenuSubTrigger className="w-40 truncate">
                               Rej re:
@@ -1171,7 +1171,7 @@ const handleSave = async (
                               </span>
                             </DropdownMenuSubTrigger>
                           )}
-                          {path.toString().trim().split("/")[2] ===
+                          {path?.toString().trim().split("/")[2] ===
                             "goodtogoleads" && (
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger>

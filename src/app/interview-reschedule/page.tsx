@@ -15,9 +15,9 @@ import { formatDateToLocalString, parseLocalDateString, getTodayLocalMidnight, n
 function InterviewRescheduleContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
-  const candidateId = searchParams.get("candidateId");
-  const interviewType = searchParams.get("type");
+  const token = searchParams?.get("token");
+  const candidateId = searchParams?.get("candidateId");
+  const interviewType = searchParams?.get("type");
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

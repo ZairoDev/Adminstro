@@ -124,7 +124,7 @@ interface CombinedData {
 const PageAddListing10: FC<PageAddListing10Props> = () => {
   const { toast } = useToast();
   const params = useSearchParams();
-  const userId = params.get("userId");
+  const userId = params?.get("userId") ?? null;
 
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

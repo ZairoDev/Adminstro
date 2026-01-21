@@ -52,11 +52,11 @@ export default function RecommendationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null); // property id being toggled
 
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const { toast } = useToast();
 
-  const queryId = params.id as string;
+  const queryId = params?.id;
 
   useEffect(() => {
     if (!queryId) {

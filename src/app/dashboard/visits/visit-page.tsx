@@ -33,7 +33,7 @@ const VisitsPage = () => {
   const [totalPages, setTotalPages] = useState<number>(1)
   const [activeTab, setActiveTab] = useState<string>("scheduled")
 
-  const [page, setPage] = useState<number>(Number.parseInt(searchParams.get("page") ?? "1"))
+  const [page, setPage] = useState<number>(Number.parseInt(searchParams?.get("page") ?? "1"))
   const [allotedArea, setAllotedArea] = useState("")
 
   const defaultFilters: VisitFilterState = {
@@ -49,7 +49,7 @@ const VisitsPage = () => {
   const [filters, setFilters] = useState<VisitFilterState>({ ...defaultFilters })
 
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams)
+    const params = new URLSearchParams(searchParams ?? undefined)
     params.set("page", newPage.toString())
     router.push(`?${params.toString()}`)
     setPage(newPage)
@@ -170,7 +170,7 @@ const VisitsPage = () => {
   }
 
   useEffect(() => {
-    setPage(Number.parseInt(searchParams.get("page") ?? "1"))
+    setPage(Number.parseInt(searchParams?.get("page") ?? "1"))
     const getAllotedArea = async () => {
       try {
         const response = await axios.get("/api/getAreaFromToken")

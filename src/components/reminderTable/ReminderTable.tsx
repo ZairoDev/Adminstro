@@ -199,8 +199,8 @@ export default function ReminderTable({ queries, setQueries }: ReminderTableProp
   };
 
   useEffect(() => {
-    if (searchParams.get("page")) {
-      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+    if (searchParams?.get("page")) {
+      setPage(parseInt(searchParams?.get("page") ?? "1") || 1);
     }
   }, []);
 

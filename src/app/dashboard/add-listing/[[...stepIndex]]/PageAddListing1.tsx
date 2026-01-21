@@ -27,8 +27,8 @@ interface Page1State {
 }
 
 const PageAddListing1: FC<PageAddListing1Props> = () => {
-  const params = useSearchParams();
-  const userId = params.get("userId");
+  const params = useSearchParams() ?? null;
+  const userId = params?.get("userId") ?? null;
   const { toast } = useToast();
 
   // ✅ Set safe defaults that work on SSR

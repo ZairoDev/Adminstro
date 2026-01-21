@@ -49,7 +49,7 @@ export default function BookingTable({ bookings, onUpdate }: Props) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    setPage(parseInt(searchParams.get("page") ?? "1") || 1);
+    setPage(parseInt(searchParams?.get("page") ?? "1") || 1);
   }, [searchParams]);
 
   return (

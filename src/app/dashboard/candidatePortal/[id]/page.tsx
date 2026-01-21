@@ -172,6 +172,7 @@ export default function CandidateDetailPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
+          candidateId: candidate._id,
         // No signature for unsigned PDF
       };
 
@@ -227,7 +228,7 @@ export default function CandidateDetailPage() {
     } catch (error: any) {
       console.error("Error generating unsigned HR Policies PDF:", error);
       toast.error("Failed to generate HR Policies PDF");
-    } finally {
+      } finally {
       setGeneratingHrPoliciesPdf(false);
     }
   };
@@ -287,7 +288,7 @@ export default function CandidateDetailPage() {
       }
     };
 
-    fetchUser();
+      fetchUser();
   }, []);
 
   const generateUnsignedOnboardingAgreement = async () => {
@@ -375,7 +376,7 @@ export default function CandidateDetailPage() {
 
   const handleShortlistCandidateWrapper = async (data: ShortlistData) => {
     const result = await handleShortlistCandidate(data);
-    if (result.success) {
+      if (result.success) {
       setShortlistDialogOpen(false);
     }
   };
@@ -389,7 +390,7 @@ export default function CandidateDetailPage() {
 
   const handleDiscontinueTrainingWrapper = async (data: RejectionData) => {
     const result = await handleDiscontinueTraining(data);
-    if (result.success) {
+      if (result.success) {
       setRejectAfterTrainingDialogOpen(false);
     }
   };

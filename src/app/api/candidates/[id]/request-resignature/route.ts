@@ -147,7 +147,7 @@ export async function POST(
     }
 
     // Generate re-signature link
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.APP_URL || "http://localhost:3000";
     const resignatureLink = `${baseUrl}/dashboard/candidatePortal/${id}/${
       agreementType === "training" ? "training-agreement" : "onboarding"
     }?resignature=${tokenValue}`;

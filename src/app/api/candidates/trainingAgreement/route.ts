@@ -3,12 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import Candidate from "@/models/candidate";
+import { connectDb } from "@/util/db";
 
 type Payload = {
   candidateName: string;
   position: string;
   date: string;
   signatureBase64?: string;
+  candidateId?: string;
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -75,6 +78,39 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("Error fetching signature:", err);
         signatureBase64 = undefined;
+      }
+    }
+
+    // Fetch candidate training duration if candidateId is provided
+    let phase1Duration = "4 to 5 working days"; // Default fallback
+    if (data.candidateId) {
+      try {
+        await connectDb();
+        const candidate = await Candidate.findById(data.candidateId).lean();
+        if (candidate?.selectionDetails?.trainingPeriod) {
+          // Use trainingPeriod from selectionDetails
+          // Format: "5 days" -> "5 working days" or keep as is if already formatted
+          const trainingPeriod = candidate.selectionDetails.trainingPeriod;
+          if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
+            phase1Duration = trainingPeriod.includes("working") 
+              ? trainingPeriod 
+              : trainingPeriod.replace(/days?/i, "working days");
+          } else {
+            // If it's just a number, format it
+            const days = parseInt(trainingPeriod);
+            if (!isNaN(days)) {
+              phase1Duration = `${days} working days`;
+            } else {
+              phase1Duration = trainingPeriod;
+            }
+          }
+        } else if (candidate?.selectionDetails?.duration) {
+          // Fallback to duration field
+          phase1Duration = candidate.selectionDetails.duration;
+        }
+      } catch (err) {
+        console.error("Error fetching candidate training duration:", err);
+        // Use default fallback
       }
     }
 
@@ -423,7 +459,7 @@ export async function POST(req: NextRequest) {
     // Phase 1
     drawWrappedText("Phase 1 – Initial Training Period", leftMargin + 10, bodySize, true);
     yPosition -= lineHeight;
-    drawWrappedText("Duration: 4 to 5 working days", leftMargin + 20, bodySize);
+    drawWrappedText(`Duration: ${phase1Duration}`, leftMargin + 20, bodySize);
     yPosition -= lineHeight;
     drawWrappedText("Nature: Unpaid", leftMargin + 20, bodySize);
     yPosition -= lineHeight;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -139,7 +139,7 @@ interface PaginationData {
   pages: number;
 }
 
-export default function CandidatesPage() {
+function CandidatesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -2095,5 +2095,20 @@ export default function CandidatesPage() {
       </Dialog>
 
     </div>
+  );
+}
+
+export default function CandidatesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background p-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading candidates...</p>
+        </div>
+      </div>
+    }>
+      <CandidatesPageContent />
+    </Suspense>
   );
 }

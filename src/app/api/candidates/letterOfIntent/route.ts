@@ -511,18 +511,25 @@ export async function POST(req: NextRequest) {
     let formattedSalary = "______________";
     if (data.salary) {
       try {
-        // Remove any currency symbols and extract numeric value
-        const salaryStr = String(data.salary).replace(/[₹Rs.,\s]/g, "").trim();
-        const monthlySalary = parseFloat(salaryStr);
+        const salaryStr = String(data.salary).trim();
         
-        if (!isNaN(monthlySalary) && monthlySalary > 0) {
-          // Convert monthly to annual, then to LPA
-          const annualSalary = monthlySalary * 12;
-          const lpa = annualSalary / 100000;
-          formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+        // Check if salary already contains "LPA" - if so, use as-is (just normalize currency symbol)
+        if (salaryStr.toLowerCase().includes("lpa")) {
+          formattedSalary = salaryStr.replace(/₹/g, "Rs. ");
         } else {
-          // If already formatted (e.g., "2.16 LPA"), use as-is but replace ₹ with Rs.
-          formattedSalary = String(data.salary).replace(/₹/g, "Rs. ");
+          // Remove any currency symbols, commas, spaces and extract numeric value
+          const numericStr = salaryStr.replace(/[₹Rs.,\s]/g, "").trim();
+          const monthlySalary = parseFloat(numericStr);
+          
+          if (!isNaN(monthlySalary) && monthlySalary > 0) {
+            // Convert monthly to annual, then to LPA
+            const annualSalary = monthlySalary * 12;
+            const lpa = annualSalary / 100000;
+            formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+          } else {
+            // If parsing fails, use as-is but replace ₹ with Rs.
+            formattedSalary = salaryStr.replace(/₹/g, "Rs. ");
+          }
         }
       } catch (error) {
         // Fallback: just replace ₹ with Rs. if conversion fails

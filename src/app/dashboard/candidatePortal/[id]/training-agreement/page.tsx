@@ -179,6 +179,7 @@ export default function TrainingAgreementPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
+        candidateId: candidate._id,
         // No signature for unsigned PDF
       };
 
@@ -515,6 +516,7 @@ export default function TrainingAgreementPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
+        candidateId: candidate._id,
         signatureBase64: signature.url,
       };
 
@@ -641,29 +643,11 @@ export default function TrainingAgreementPage() {
             ? new Date(updatedCandidate.trainingAgreementDetails.eSign.signedAt).toISOString()
             : new Date().toISOString();
 
-          // Format salary - convert to LPA format
-          let formattedSalary = "";
-          if (updatedCandidate.selectionDetails?.salary) {
-            const salary = updatedCandidate.selectionDetails.salary;
-            if (typeof salary === "number") {
-              // Assume salary is monthly, convert to annual then LPA
-              const annualSalary = salary * 12;
-              const lpa = annualSalary / 100000;
-              formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
-            } else if (typeof salary === "string") {
-              // Try to parse if it's a string number
-              const numSalary = parseFloat(salary);
-              if (!isNaN(numSalary)) {
-                const annualSalary = numSalary * 12;
-                const lpa = annualSalary / 100000;
-                formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
-              } else {
-                formattedSalary = String(salary).replace(/₹/g, "Rs. ");
-              }
-            } else {
-              formattedSalary = String(salary).replace(/₹/g, "Rs. ");
-            }
-          }
+          // Pass raw salary number (not formatted) - the API will handle the formatting
+          // This matches how the unsigned PDF preview passes salary
+          const rawSalary = updatedCandidate.selectionDetails?.salary 
+            ? updatedCandidate.selectionDetails.salary.toString() 
+            : undefined;
 
           // Format start date
           const startDate = new Date();
@@ -684,7 +668,7 @@ export default function TrainingAgreementPage() {
             candidateName: updatedCandidate.name,
             position: updatedCandidate.position,
             date: signingDate,
-            salary: formattedSalary || undefined,
+            salary: rawSalary, // Pass raw salary number, API will format it correctly
             designation: designation,
             department: department,
             startDate: formattedStartDate,

@@ -39,6 +39,7 @@ import {
   NotificationRateLimiter,
   NotificationLogger,
 } from "@/lib/notifications/rateLimiter";
+import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
 
 interface SystemNotificationToastProps {
   onNotificationReceived?: (notification: UnifiedNotification) => void;
@@ -60,15 +61,26 @@ export function SystemNotificationToast({
   >([]);
   const [updatedNotifications, setUpdatedNotifications] = useState<Set<string>>(new Set()); // Track updated toasts for pulse animation
   const [lastDismissedAt, setLastDismissedAt] = useState<Map<string, number>>(new Map()); // Track when each notification was dismissed (for cooldown)
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission
+  >(
+    typeof window !== "undefined" && "Notification" in window
+      ? Notification.permission
+      : "default"
+  );
   const seenEventIdsRef = useRef<Set<string>>(new Set()); // Track seen event IDs for deduplication (per-user notifications) - use ref for synchronous checks
   const acknowledgedDeliveryIdsRef = useRef<Set<string>>(new Set()); // Track acknowledged delivery IDs (FIX 3)
   const lastUiUpdateRef = useRef<number>(0); // Track last UI update time for rate limiting (FIX 7)
   const uiUpdateBufferRef = useRef<Array<() => void>>([]); // Buffer for batched UI updates (FIX 7)
+  const archivedConversationIdsRef = useRef<Set<string>>(new Set()); // Track archived conversations for current user
+  const lastReadAtRef = useRef<Map<string, number>>(new Map()); // Track per-conversation lastReadAt for current user
+  const activeConversationIdRef = useRef<string | null>(null); // Track currently open conversation (cross-tab)
+  const permissionRequestedRef = useRef<boolean>(false);
   
   // Constants
   const DISMISSED_TTL_MS = 10 * 60 * 1000; // 10 minutes
   const REVIVE_COOLDOWN_MS = 500; // 500ms cooldown to prevent visual jitter
-  const UI_UPDATE_THROTTLE_MS = 200; // 200ms throttle for UI updates (FIX 7)
+  const UI_UPDATE_THROTTLE_MS = 200; // 50ms throttle for UI updates (FIX 7)
 
   // Infrastructure instances (persist across renders)
   const deduplicatorRef = useRef(new NotificationDeduplicator());
@@ -82,11 +94,109 @@ export function SystemNotificationToast({
       groupWindowMs: 10000, // 10 seconds for WhatsApp grouping
     })
   );
+  const notificationController = useMemo(
+    () => getWhatsAppNotificationController(),
+    []
+  );
   
   // Track last interaction time for each notification (for inactivity-based auto-dismiss)
   const lastInteractionRef = useRef<Map<string, number>>(new Map()); // Map<notificationId, lastInteractionTimestamp>
   const INACTIVITY_DISMISS_MS = 20000; // 20 seconds of inactivity before auto-dismiss
-      
+  
+  // ---------- Cross-tab state hydration ----------
+  const hydrateArchivedFromStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("whatsapp_archived_conversations");
+      if (!raw) {
+        archivedConversationIdsRef.current = new Set();
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        archivedConversationIdsRef.current = new Set(parsed as string[]);
+      } else if (parsed && typeof parsed === "object") {
+        archivedConversationIdsRef.current = new Set(Object.keys(parsed));
+      }
+    } catch (err) {
+      console.error("Failed to hydrate archived conversations from storage", err);
+    }
+  }, []);
+
+  const hydrateLastReadFromStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("whatsapp_last_read_at");
+      if (!raw) {
+        lastReadAtRef.current = new Map();
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      const next = new Map<string, number>();
+      if (parsed && typeof parsed === "object") {
+        Object.entries(parsed).forEach(([conversationId, timestamp]) => {
+          const ms = new Date(timestamp as string).getTime();
+          if (!Number.isNaN(ms)) {
+            next.set(conversationId, ms);
+          }
+        });
+      }
+      lastReadAtRef.current = next;
+    } catch (err) {
+      console.error("Failed to hydrate lastReadAt from storage", err);
+    }
+  }, []);
+
+  const hydrateActiveConversationFromStorage = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("whatsapp_active_conversation");
+      if (!raw) {
+        activeConversationIdRef.current = null;
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.conversationId) {
+        activeConversationIdRef.current = parsed.conversationId;
+      }
+    } catch (err) {
+      console.error("Failed to hydrate active conversation from storage", err);
+    }
+  }, []);
+
+  const getArchivedConversationIds = useCallback(() => {
+    return archivedConversationIdsRef.current;
+  }, []);
+
+  const getLastReadForConversation = useCallback((conversationId: string) => {
+    return lastReadAtRef.current.get(conversationId);
+  }, []);
+
+  const getActiveConversationId = useCallback(() => {
+    let activeConversationId = activeConversationIdRef.current;
+    if (!activeConversationId && typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("whatsapp_active_conversation");
+        const parsed = raw ? JSON.parse(raw) : null;
+        activeConversationId = parsed?.conversationId || null;
+      } catch {
+        activeConversationId = null;
+      }
+    }
+    return activeConversationId;
+  }, []);
+
+  const isTabVisible = useCallback(() => {
+    return typeof document === "undefined"
+      ? true
+      : document.visibilityState === "visible";
+  }, []);
+
+  const isOnWhatsAppRoute = useCallback(() => {
+    if (typeof window === "undefined") return true;
+    return window.location.pathname.startsWith("/whatsapp");
+  }, []);
+
   // Handler refs (prevent re-attachment by keeping stable references)
   const handleSystemNotificationRef = useRef<((data: any) => void) | null>(null);
   const handleWhatsAppMessageRef = useRef<((data: RawWhatsAppMessage) => void) | null>(null);
@@ -132,6 +242,18 @@ export function SystemNotificationToast({
   // Micro-batcher callback
   const handleBatchedRelease = useCallback(
     (notifications: UnifiedNotification[]) => {
+      console.log("📦 MICRO-BATCHER RELEASING:", {
+        count: notifications.length,
+        notifications: notifications.map((n) => ({
+          id: n.id,
+          source: n.source,
+          title: n.title,
+          message: n.message?.substring
+            ? n.message.substring(0, 50)
+            : n.message,
+        })),
+      });
+
       notifications.forEach((notification) => {
         // Deduplication check
         if (
@@ -163,8 +285,19 @@ export function SystemNotificationToast({
           return;
         }
 
+        console.log("➕ ADDING TO QUEUE:", {
+          id: notification.id,
+          queueBefore: (queueEngineRef.current as any).queue?.length || 0,
+        });
+
         // Add to queue
         queueEngineRef.current.add(notification);
+
+        console.log("✅ ADDED TO QUEUE:", {
+          id: notification.id,
+          queueAfter: (queueEngineRef.current as any).queue?.length || 0,
+          visibleCount: queueEngineRef.current.getVisible().length || 0,
+        });
 
         // Update replay state
         replayStateRef.current = updateReplayState(
@@ -229,7 +362,15 @@ export function SystemNotificationToast({
 
   const updateVisibleNotificationsInternal = useCallback(() => {
     const now = Date.now();
-    
+
+    console.log("🔄 UPDATE_VISIBLE_NOTIFICATIONS CALLED:", {
+      timestamp: new Date().toISOString(),
+      queueSize: (queueEngineRef.current as any).queue?.length || 0,
+      currentVisibleCount: visibleNotifications.length,
+      dismissedCount: dismissed.size,
+      mutedCount: muted.size,
+    });
+
     // Auto-dismiss notifications that have been inactive for 6 seconds
     const currentVisible = queueEngineRef.current.getVisible();
     currentVisible.forEach((notification) => {
@@ -246,6 +387,14 @@ export function SystemNotificationToast({
     
     // Update visible notifications from queue
     const visible = queueEngineRef.current.updateVisible(dismissed, muted);
+
+    console.log("👀 VISIBLE NOTIFICATIONS COMPUTED:", {
+      count: visible.length,
+      ids: visible.map((n) => n.id),
+      willUpdate:
+        visible.length !== visibleNotifications.length ||
+        visible.some((n, i) => n.id !== visibleNotifications[i]?.id),
+    });
     
     // Initialize interaction time for new notifications
     visible.forEach((n) => {
@@ -295,7 +444,200 @@ export function SystemNotificationToast({
     visible.forEach((n) => {
       loggerRef.current.log(n.id, n.source, "rendered");
     });
+
+    console.log("✨ STATE UPDATED, visible count:", visible.length);
   }, [dismissed, muted, visibleNotifications]);
+
+  const clearConversationNotifications = useCallback(
+    (conversationId: string) => {
+      const groupKey = `whatsapp:${conversationId}`;
+      const queueEngine = queueEngineRef.current as any;
+      queueEngine.queue = queueEngine.queue.filter(
+        (n: UnifiedNotification) => n.id !== conversationId && n.groupKey !== groupKey
+      );
+      queueEngine.visible = queueEngine.visible.filter(
+        (n: UnifiedNotification) => n.id !== conversationId && n.groupKey !== groupKey
+      );
+      setDismissed((prev) => {
+        const next = new Map(prev);
+        next.delete(conversationId);
+        next.delete(groupKey);
+        return next;
+      });
+      updateVisibleNotifications();
+    },
+    [updateVisibleNotifications]
+  );
+
+  // Persist per-conversation lastReadAt locally and clear notifications
+  const persistLastReadAt = useCallback(
+    (conversationId: string, timestampMs?: number) => {
+      if (typeof window === "undefined") return;
+      const ts = timestampMs || Date.now();
+      const next = new Map(lastReadAtRef.current);
+      next.set(conversationId, ts);
+      lastReadAtRef.current = next;
+      try {
+        const asObject: Record<string, string> = {};
+        next.forEach((value, key) => {
+          asObject[key] = new Date(value).toISOString();
+        });
+        localStorage.setItem("whatsapp_last_read_at", JSON.stringify(asObject));
+      } catch (err) {
+        console.error("Failed to persist lastReadAt to storage", err);
+      }
+      clearConversationNotifications(conversationId);
+    },
+    [clearConversationNotifications]
+  );
+
+  // Hydrate cross-tab state on mount
+  useEffect(() => {
+    hydrateArchivedFromStorage();
+    hydrateLastReadFromStorage();
+    hydrateActiveConversationFromStorage();
+
+    if (typeof window !== "undefined") {
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === "whatsapp_archived_conversations") {
+          hydrateArchivedFromStorage();
+          if (event.newValue) {
+            try {
+              const parsed = JSON.parse(event.newValue);
+              if (Array.isArray(parsed)) {
+                parsed.forEach((id: string) =>
+                  clearConversationNotifications(id)
+                );
+              } else if (parsed && typeof parsed === "object") {
+                Object.keys(parsed).forEach((id) =>
+                  clearConversationNotifications(id)
+                );
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+        if (event.key === "whatsapp_last_read_at") {
+          hydrateLastReadFromStorage();
+          if (event.newValue) {
+            try {
+              const nextMap = JSON.parse(event.newValue) || {};
+              const prevMap = event.oldValue ? JSON.parse(event.oldValue) : {};
+              Object.keys(nextMap).forEach((conversationId) => {
+                if (nextMap[conversationId] !== prevMap[conversationId]) {
+                  clearConversationNotifications(conversationId);
+                }
+              });
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+        if (event.key === "whatsapp_active_conversation") {
+          hydrateActiveConversationFromStorage();
+        }
+        if (event.key === "whatsapp_muted_conversations") {
+          setMutedWhatsAppConversations(getMutedWhatsAppConversations());
+        }
+      };
+
+      window.addEventListener("storage", handleStorage);
+      return () => window.removeEventListener("storage", handleStorage);
+    }
+  }, [
+    hydrateArchivedFromStorage,
+    hydrateLastReadFromStorage,
+    hydrateActiveConversationFromStorage,
+    clearConversationNotifications,
+    getMutedWhatsAppConversations,
+  ]);
+
+  // Fetch archived conversations to keep archive filter accurate
+  // Only fetch once on mount or when access/token changes, not on every render
+  useEffect(() => {
+    if (!hasWhatsAppAccess || !token) return;
+    const fetchArchived = async () => {
+      try {
+        const res = await axios.get("/api/whatsapp/conversations/archive");
+        const ids =
+          res.data?.conversations?.map(
+            (conv: any) => conv._id || conv.conversationId
+          ) || [];
+        archivedConversationIdsRef.current = new Set(
+          ids.filter(Boolean) as string[]
+        );
+        // Clear notifications for archived conversations
+        archivedConversationIdsRef.current.forEach((id) =>
+          clearConversationNotifications(id)
+        );
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "whatsapp_archived_conversations",
+            JSON.stringify(Array.from(archivedConversationIdsRef.current))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch archived conversations for notifications", err);
+      }
+    };
+    fetchArchived();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasWhatsAppAccess, token]); // Removed clearConversationNotifications - it's stable enough via ref
+
+  // Request browser notification permission only after a user gesture
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      console.log(`🔔 [PERMISSION] Notifications not supported`);
+      return;
+    }
+    
+    const currentPermission = Notification.permission;
+    console.log(`🔔 [PERMISSION] Current permission: ${currentPermission}`);
+    
+    if (currentPermission === "granted") {
+      setNotificationPermission("granted");
+      console.log(`🔔 [PERMISSION] Permission already granted`);
+      return;
+    }
+
+    const requestOnce = () => {
+      if (permissionRequestedRef.current) return;
+      permissionRequestedRef.current = true;
+      console.log(`🔔 [PERMISSION] Requesting notification permission...`);
+      Notification.requestPermission()
+        .then((permission) => {
+          console.log(`🔔 [PERMISSION] Permission result: ${permission}`);
+          setNotificationPermission(permission);
+        })
+        .catch((err) => {
+          console.error(`🔔 [PERMISSION] Error requesting permission:`, err);
+          setNotificationPermission(Notification.permission);
+        });
+      detach();
+    };
+
+    const events = ["click", "keydown", "touchstart"];
+    const detach = () =>
+      events.forEach((evt) =>
+        window.removeEventListener(evt, requestOnce, true)
+      );
+    events.forEach((evt) => window.addEventListener(evt, requestOnce, true));
+
+    return detach;
+  }, []);
+
+  // Debug visibility changes
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    
+    const handleVisibilityChange = () => {
+      console.log(`👁️ [VISIBILITY CHANGE] New state: ${document.visibilityState}`);
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   // Eligibility check for system notifications
   const isSystemNotificationEligible = useCallback(
@@ -412,19 +754,154 @@ export function SystemNotificationToast({
     return true;
   }, []);
 
+  // Centralized eligibility gate for WhatsApp notifications
+  const shouldSkipWhatsAppNotification = useCallback(
+    (payload: RawWhatsAppMessage): boolean => {
+      const { conversationId, message } = payload;
+      if (!conversationId || !message) return true;
+
+      // Archived or muted conversations never notify
+      if (archivedConversationIdsRef.current.has(conversationId)) return true;
+      if (mutedWhatsAppConversations.has(conversationId)) return true;
+
+      // Internal / "You" messages never notify
+      const participantName =
+        (payload as any).participantName || message.senderName || "";
+      const messageSource = (message as any).source;
+      const isInternalMessage =
+        messageSource === "internal" ||
+        (message as any).isInternal ||
+        participantName.toLowerCase() === "you";
+      if (isInternalMessage) {
+        return true;
+      }
+
+      // Skip if already read (per-user lastReadAt cache)
+      const messageTimestamp = new Date(
+        (message as any).timestamp || (payload as any).createdAt || Date.now()
+      ).getTime();
+      const lastReadAt = lastReadAtRef.current.get(conversationId);
+      if (lastReadAt && messageTimestamp <= lastReadAt) return true;
+
+      // Skip if user is actively viewing this conversation and tab is visible
+      let activeConversationId = activeConversationIdRef.current;
+      if (!activeConversationId && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("whatsapp_active_conversation");
+          const parsed = raw ? JSON.parse(raw) : null;
+          activeConversationId = parsed?.conversationId || null;
+        } catch {
+          activeConversationId = null;
+        }
+      }
+
+      if (
+        activeConversationId &&
+        activeConversationId === conversationId &&
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
+        return true;
+      }
+
+      return false;
+    },
+    [mutedWhatsAppConversations]
+  );
+
+  // Browser notification (only when tab hidden)
+  const showBrowserNotification = useCallback(
+    (normalized: UnifiedNotification, raw: RawWhatsAppMessage) => {
+      if (
+        typeof window === "undefined" ||
+        !("Notification" in window) ||
+        typeof document === "undefined"
+      ) {
+        console.log(`🔔 [BROWSER NOTIF] Skipping - window/document not available`);
+        return;
+      }
+      
+      // Double-check visibility (should already be checked, but be safe)
+      if (document.visibilityState !== "hidden") {
+        console.log(`🔔 [BROWSER NOTIF] Skipping - tab is visible (state: ${document.visibilityState})`);
+        return;
+      }
+
+      const permission =
+        notificationPermission || Notification.permission || "default";
+      if (permission !== "granted") {
+        console.log(`🔔 [BROWSER NOTIF] Skipping - permission not granted (${permission})`);
+        return;
+      }
+
+      console.log(`🔔 [BROWSER NOTIF] Showing notification for ${normalized.title}: ${normalized.message}`);
+      const notif = new Notification(normalized.title, {
+        body: normalized.message,
+        icon: "/favicon.ico",
+        badge: "/favicon.ico",
+        tag: normalized.id,
+        data: {
+          conversationId: raw.conversationId,
+          participantPhone: raw.message?.from,
+        },
+      });
+
+      const timeout = window.setTimeout(() => {
+        try {
+          notif.close();
+        } catch {
+          /* no-op */
+        }
+      }, 5000);
+
+      notif.onclick = () => {
+        try {
+          notif.close();
+        } catch {
+          /* no-op */
+        }
+        window.focus();
+        if (raw.conversationId) {
+          persistLastReadAt(raw.conversationId);
+          fetch("/api/whatsapp/conversations/read", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversationId: raw.conversationId }),
+          }).catch(() => {});
+        }
+        if (raw.message?.from) {
+          router.push(
+            `/whatsapp?phone=${encodeURIComponent(raw.message.from)}`
+          );
+        } else if (raw.conversationId) {
+          router.push(`/whatsapp?conversationId=${raw.conversationId}`);
+        } else {
+          router.push("/whatsapp");
+        }
+        window.clearTimeout(timeout);
+      };
+    },
+    [notificationPermission, persistLastReadAt, router]
+  );
+
   // Handle WhatsApp message (per-user notifications)
   const handleWhatsAppMessage = useCallback(
-    (data: RawWhatsAppMessage) => {
-      console.log(`📨 [WHATSAPP HANDLER] Received notification:`, {
+    (data: RawWhatsAppMessage, opts?: { skipDedup?: boolean }) => {
+      console.log("📨📨📨 HANDLE_WHATSAPP_MESSAGE CALLED:", {
+        timestamp: new Date().toISOString(),
         eventId: data.eventId,
         conversationId: data.conversationId,
-        messageId: data.message?.messageId,
-        targetUserId: data.userId,
-        currentUserId: userId,
+        skipDedup: opts?.skipDedup,
+        hasAccess: hasWhatsAppAccess,
+        hasToken: !!token,
+        seenSetSize: seenEventIdsRef.current.size,
+        alreadySeen: data.eventId
+          ? seenEventIdsRef.current.has(data.eventId)
+          : false,
       });
 
       if (!hasWhatsAppAccess || !token) {
-        console.log(`⏭️ [SKIP] No WhatsApp access or token`);
+        console.log("⏭️ [SKIP] No WhatsApp access or token");
         return;
       }
 
@@ -459,25 +936,27 @@ export function SystemNotificationToast({
         }
       }
 
-      // CRITICAL: Deduplicate by eventId FIRST (per-user, per-message)
-      // Use ref for synchronous check to prevent race conditions
-      // This must happen BEFORE any other processing to prevent duplicates
-      if (eventId) {
-        if (seenEventIdsRef.current.has(eventId)) {
-          console.log(`⏭️ [DUPLICATE] Event ${eventId} already seen, skipping (seen set size: ${seenEventIdsRef.current.size})`);
-          return; // EARLY RETURN - prevent all duplicate processing
+      if (!opts?.skipDedup) {
+        // CRITICAL: Deduplicate by eventId FIRST (per-user, per-message)
+        // Use ref for synchronous check to prevent race conditions
+        // This must happen BEFORE any other processing to prevent duplicates
+        if (eventId) {
+          if (seenEventIdsRef.current.has(eventId)) {
+            console.log(`⏭️ [DUPLICATE] Event ${eventId} already seen, skipping (seen set size: ${seenEventIdsRef.current.size})`);
+            return; // EARLY RETURN - prevent all duplicate processing
+          }
+          // Mark as seen IMMEDIATELY (synchronous) - BEFORE any async operations
+          seenEventIdsRef.current.add(eventId);
+          // Keep only last 1000 event IDs to prevent memory leak
+          if (seenEventIdsRef.current.size > 1000) {
+            const array = Array.from(seenEventIdsRef.current);
+            seenEventIdsRef.current = new Set(array.slice(-1000));
+          }
+          console.log(`✅ [NEW EVENT] Added eventId ${eventId} to seen set (total: ${seenEventIdsRef.current.size})`);
+        } else {
+          console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly - REJECTING`);
+          return; // REJECT notifications without eventId to prevent duplicates
         }
-        // Mark as seen IMMEDIATELY (synchronous) - BEFORE any async operations
-        seenEventIdsRef.current.add(eventId);
-        // Keep only last 1000 event IDs to prevent memory leak
-        if (seenEventIdsRef.current.size > 1000) {
-          const array = Array.from(seenEventIdsRef.current);
-          seenEventIdsRef.current = new Set(array.slice(-1000));
-        }
-        console.log(`✅ [NEW EVENT] Added eventId ${eventId} to seen set (total: ${seenEventIdsRef.current.size})`);
-      } else {
-        console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly - REJECTING`);
-        return; // REJECT notifications without eventId to prevent duplicates
       }
 
       // Only incoming messages
@@ -506,15 +985,15 @@ export function SystemNotificationToast({
         }
       }
 
-      // Mute check - muted conversations never show notifications
-      if (mutedWhatsAppConversations.has(conversationId)) {
+      // Centralized eligibility (archive/mute/internal/read/active tab)
+      if (shouldSkipWhatsAppNotification(data)) {
         return;
       }
 
-      // Normalize the notification
+      // Normalize the notification (in-app toast only; browser handled by controller)
       const normalized = normalizeWhatsAppNotification(data);
       const groupKey = normalized.groupKey || normalized.id;
-      
+
       // Check if there's an existing notification for this conversation
       const existingNotification = queueEngineRef.current.getNotification(groupKey);
       
@@ -652,8 +1131,43 @@ export function SystemNotificationToast({
       dismissed,
       checkIfMessageIsNew,
       router,
+      shouldSkipWhatsAppNotification,
+      showBrowserNotification,
     ]
   );
+
+  // Initialize cross-tab notification controller (singleton per tab)
+  useEffect(() => {
+    notificationController.init({
+      hasWhatsAppAccess,
+      userId,
+      userRole,
+      userLocations,
+      getMuted: () => mutedWhatsAppConversations,
+      getArchived: getArchivedConversationIds,
+      getLastReadAt: getLastReadForConversation,
+      getActiveConversationId,
+      isTabVisible,
+      isOnWhatsAppRoute,
+      onInApp: (raw) => handleWhatsAppMessage(raw, { skipDedup: true }),
+      onBrowser: (raw) =>
+        showBrowserNotification(normalizeWhatsAppNotification(raw), raw),
+    });
+  }, [
+    notificationController,
+    hasWhatsAppAccess,
+    userId,
+    userRole,
+    userLocations,
+    mutedWhatsAppConversations,
+    getArchivedConversationIds,
+    getLastReadForConversation,
+    getActiveConversationId,
+    isTabVisible,
+    isOnWhatsAppRoute,
+    handleWhatsAppMessage,
+    showBrowserNotification,
+  ]);
 
   // Socket replay on reconnect (SYSTEM NOTIFICATIONS ONLY - not WhatsApp)
   // CRITICAL: Replay only fetches missed system notifications, does NOT trigger WhatsApp toasts
@@ -693,9 +1207,6 @@ export function SystemNotificationToast({
     };
   }, []); // Empty array - handlers are stable, socket refs are stable
 
-  // Listen for system notifications
-  // CRITICAL: Empty dependency array [] prevents re-attachment and jitter
-  // Use ref to access latest handler without re-attaching socket listener
   useEffect(() => {
     if (!socket || !token) return;
 
@@ -711,25 +1222,16 @@ export function SystemNotificationToast({
     return () => {
       socket.off("system-notification", handler);
     };
-  }, []); // Empty array - prevents re-attachment
+  }, [socket, token]);
 
   // Update WhatsApp handler ref whenever handler changes
   handleWhatsAppMessageRef.current = handleWhatsAppMessage;
 
-  // Listen for WhatsApp messages
-  // CRITICAL: Empty dependency array [] prevents re-attachment and jitter
-  // Use refs to access latest handlers without re-attaching socket listeners
+  // Listen for WhatsApp notification cleared events only
+  // NOTE: The whatsapp-new-message listener is registered ONCE in whatsapp.tsx
+  // to avoid duplicate processing. This component only handles notification clearing.
   useEffect(() => {
     if (!hasWhatsAppAccess || !socket || !token) return;
-
-    socket.emit("join-whatsapp-room");
-
-    const handleMessage = (data: any) => {
-      // Call latest handler via ref
-      if (handleWhatsAppMessageRef.current) {
-        handleWhatsAppMessageRef.current(data);
-      }
-    };
 
     const handleCleared = (data: any) => {
       // When notifications are cleared, remove from visible and queue
@@ -757,14 +1259,12 @@ export function SystemNotificationToast({
       }
     };
 
-    socket.on("whatsapp-new-message", handleMessage);
     socket.on("whatsapp-notifications-cleared", handleCleared);
 
     return () => {
-      socket.off("whatsapp-new-message", handleMessage);
       socket.off("whatsapp-notifications-cleared", handleCleared);
     };
-  }, []); // Empty array - prevents re-attachment
+  }, [socket, hasWhatsAppAccess, token]); // Dependencies for safety
 
   // Periodic queue update (for inactivity-based auto-dismiss)
   useEffect(() => {
@@ -996,6 +1496,10 @@ export function SystemNotificationToast({
   );
 
   if (visibleNotifications.length === 0) {
+    console.log("🚫 NO NOTIFICATIONS TO SHOW", {
+      dismissedCount: dismissed.size,
+      mutedCount: muted.size,
+    });
     return null;
   }
 
@@ -1177,6 +1681,7 @@ export function SystemNotificationToast({
                                   }).catch((err) => {
                                     console.error("Error marking conversation as read:", err);
                                   });
+                                persistLastReadAt(notification.metadata.conversationId);
                                 }
                                 if (notification.metadata?.participantPhone) {
                                   router.push(

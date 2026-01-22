@@ -137,12 +137,12 @@ export function WhatsAppNotifications() {
       }, 500); // 500ms debounce
     };
 
-    socket.on("whatsapp-new-message", handleNewMessage);
+    // NOTE: whatsapp-new-message listener is registered ONCE in whatsapp.tsx
+    // to avoid duplicate processing. This component only listens for conversation updates.
     socket.on("whatsapp-conversation-update", handleConversationUpdate);
 
     return () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
-      socket.off("whatsapp-new-message", handleNewMessage);
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
     };
   }, [socket, hasAccess, fetchNotifications]);

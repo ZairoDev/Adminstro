@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 interface AddGuestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGuestAdded: (conversationId: string) => void;
+  onGuestAdded: (conversationId: string, conversation?: any) => void;
   defaultPhoneNumberId?: string;
 }
 
@@ -124,8 +124,9 @@ export const AddGuestModal = memo(function AddGuestModal({
         setErrors({});
         onOpenChange(false);
 
+        // Pass both the ID and the full conversation object
         if (response.data.conversation?._id) {
-          onGuestAdded(response.data.conversation._id);
+          onGuestAdded(response.data.conversation._id, response.data.conversation);
         }
       }
     } catch (error: any) {
@@ -147,7 +148,7 @@ export const AddGuestModal = memo(function AddGuestModal({
                 description: "Opening existing conversation",
               });
               onOpenChange(false);
-              onGuestAdded(existingConv._id);
+              onGuestAdded(existingConv._id, existingConv);
               return;
             }
           }

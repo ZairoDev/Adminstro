@@ -5,7 +5,7 @@
  * Each Greek city has its own WhatsApp Business number for local support
  */
 
-export type WhatsAppArea = "athens" | "thessaloniki" | "crete" | "milan" | "all";
+export type WhatsAppArea = "athens" | "thessaloniki" | "chania" | "milan" | "all";
 
 export interface WhatsAppPhoneConfig {
   phoneNumberId: string;
@@ -56,7 +56,7 @@ export function isInternalPhoneId(phoneNumberId: string): boolean {
 export const WHATSAPP_BUSINESS_ACCOUNT_ID = process.env.WhatsApp_Business_Account_ID || "";
 
 // Retargeting-specific phone ID (used exclusively for retargeting campaigns)
-export const WHATSAPP_RETARGET_PHONE_ID = process.env.WHATSAPP_RETARGET_PHONE_ID || "";
+export const WHATSAPP_RETARGET_PHONE_ID = process.env.WHATSAPP_ATHENS_PHONE_ID|| "";
 
 // Configuration for each WhatsApp Business phone number by area
 // Update these with your actual phone number IDs from Meta Business Suite
@@ -77,10 +77,10 @@ export const WHATSAPP_PHONE_CONFIGS: WhatsAppPhoneConfig[] = [
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
   {
-    phoneNumberId: process.env.WHATSAPP_CRETE_PHONE_ID || "",
+    phoneNumberId: process.env.WHATSAPP_CHANIA_PHONE_ID || "",
     displayNumber: "+30 28 0000 0003",
     displayName: "VacationSaga Crete",
-    area: "crete",
+    area: "chania",
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
 ];

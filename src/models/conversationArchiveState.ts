@@ -25,8 +25,7 @@ const conversationArchiveStateSchema = new Schema<IConversationArchiveState>(
       type: Schema.Types.ObjectId,
       ref: "WhatsAppConversation",
       required: true,
-      unique: true, // One archive state per conversation (global)
-      index: true,
+      // Unique + index are defined via schema.index below to avoid duplicate index warnings
     },
     isArchived: {
       type: Boolean,

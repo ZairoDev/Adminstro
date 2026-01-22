@@ -930,7 +930,14 @@ export default function GoodTable({
                             Set Visit
                           </DropdownMenuItem>
 
-                          <AlertDialog open={activeModalRow === index}>
+                          <AlertDialog 
+                            open={activeModalRow === index}
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setActiveModalRow(-1);
+                              }
+                            }}
+                          >
                             <AlertDialogContent>
                               <VisitModal
                                 leadId={query._id!}
@@ -1043,7 +1050,14 @@ export default function GoodTable({
                             Set Visit
                           </DropdownMenuItem>
 
-                          <AlertDialog open={activeModalRow === index}>
+                          <AlertDialog 
+                            open={activeModalRow === index}
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setActiveModalRow(-1);
+                              }
+                            }}
+                          >
                             <AlertDialogContent>
                               <VisitModal
                                 leadId={query._id!}
@@ -1065,7 +1079,15 @@ export default function GoodTable({
                           Get Recommendation
                         </DropdownMenuItem>
 
-                        <AlertDialog open={activeModalRow === index}>
+                        <AlertDialog 
+                          open={activeModalRow === index}
+                          onOpenChange={(open) => {
+                            if (!open) {
+                              setActiveModalRow(-1);
+                              setRecommendationData([]); // Clear previous data
+                            }
+                          }}
+                        >
                           <AlertDialogContent>
                             <VisitModal
                               leadId={query._id!}

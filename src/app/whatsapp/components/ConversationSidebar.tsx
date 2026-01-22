@@ -136,7 +136,7 @@ const ConversationItem = memo(function ConversationItem({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors group",
+        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors group border border-transparent rounded-md",
         "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
         isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
         hasUnread && !isSelected && "bg-[#f0f2f5] dark:bg-[#182229]"
@@ -158,8 +158,8 @@ const ConversationItem = memo(function ConversationItem({
               : displayName?.slice(0, 2).toUpperCase() || "??"}
           </AvatarFallback>
         </Avatar>
-        {/* Online indicator (if available) */}
-        {conversation.isOnline && (
+        {/* Green dot: online OR has unread incoming messages */}
+        {(conversation.isOnline || hasUnread) && (
           <span className="absolute bottom-0 right-0 h-3 w-3 bg-[#25d366] rounded-full border-2 border-white dark:border-[#111b21]" />
         )}
       </div>
@@ -398,7 +398,7 @@ export function ConversationSidebar({
               </DropdownMenu>
               {/* Only show phone selector if there are multiple REAL (non-internal) phone numbers */}
               {(() => {
-                // Filter out internal phone numbers (like "You") from selection
+                // Filter out internal phone numbers (like "You") and testing numbers from selection
                 const realPhoneConfigs = allowedPhoneConfigs.filter(
                   (config: any) => !config.isInternal
                 );

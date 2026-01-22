@@ -13,7 +13,7 @@ connectDb();
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 // Increase max duration for large file uploads (default is 10s, max is 300s)
-export const maxDuration = 300;
+export const maxDuration = 3000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file size (max 100MB for documents, 16MB for media)
-    const maxSize = fileType.startsWith("application/") ? 100 * 1024 * 1024 : 16 * 1024 * 1024;
+    const maxSize = fileType.startsWith("application/") ? 100 * 1024 * 1024 : 200 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: `File size exceeds maximum allowed size (${maxSize / 1024 / 1024}MB)` },

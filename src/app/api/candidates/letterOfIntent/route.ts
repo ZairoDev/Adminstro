@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import Candidate from "@/models/candidate";
+import { connectDb } from "@/util/db";
 
 type Payload = {
   candidateName: string;
@@ -16,6 +18,7 @@ type Payload = {
   candidateSignatureBase64?: string; // Candidate's signature
   ankitaSignatureBase64?: string; // Ankita mam's signature
   signingDate?: string; // ISO string of when candidate signed (for Date of Signing field)
+  candidateId?: string;
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -82,6 +85,39 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("Error fetching signature:", err);
         signatureBase64 = undefined;
+      }
+    }
+
+    // Fetch candidate training duration if candidateId is provided
+    let phase1Duration = "4 to 5 working days"; // Default fallback
+    if (data.candidateId) {
+      try {
+        await connectDb();
+        const candidate = await Candidate.findById(data.candidateId).lean();
+        if (candidate?.selectionDetails?.trainingPeriod) {
+          // Use trainingPeriod from selectionDetails
+          // Format: "5 days" -> "5 working days" or keep as is if already formatted
+          const trainingPeriod = candidate.selectionDetails.trainingPeriod;
+          if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
+            phase1Duration = trainingPeriod.includes("working") 
+              ? trainingPeriod 
+              : trainingPeriod.replace(/days?/i, "working days");
+          } else {
+            // If it's just a number, format it
+            const days = parseInt(trainingPeriod);
+            if (!isNaN(days)) {
+              phase1Duration = `${days} working days`;
+            } else {
+              phase1Duration = trainingPeriod;
+            }
+          }
+        } else if (candidate?.selectionDetails?.duration) {
+          // Fallback to duration field
+          phase1Duration = candidate.selectionDetails.duration;
+        }
+      } catch (err) {
+        console.error("Error fetching candidate training duration:", err);
+        // Use default fallback
       }
     }
 
@@ -501,7 +537,7 @@ export async function POST(req: NextRequest) {
         const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" : startDay === 2 || startDay === 22 ? "nd" : startDay === 3 || startDay === 23 ? "rd" : "th";
         const startMonthName = startDateObj.toLocaleString("en-US", { month: "long" });
         const startYear = startDateObj.getFullYear();
-        formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
+        formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session ${phase1Duration})`;
       } catch (e) {
         // Keep original if parsing fails
       }

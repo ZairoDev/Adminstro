@@ -304,6 +304,7 @@ export default function TrainingAgreementPage() {
         designation: designation,
         department: department,
         startDate: formattedStartDate,
+        candidateId: candidate._id,
         // Include signature if Training Agreement is signed
         candidateSignatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
         // Include signing date for LOI

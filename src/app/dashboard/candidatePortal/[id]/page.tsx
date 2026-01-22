@@ -247,6 +247,7 @@ export default function CandidateDetailPage() {
         salary: candidate.selectionDetails?.salary?.toString() || undefined,
         designation: candidate.selectionDetails?.role || candidate.position,
         department: candidate.selectionDetails?.role || candidate.position,
+        candidateId: candidate._id,
         // No signature for unsigned PDF
       };
 

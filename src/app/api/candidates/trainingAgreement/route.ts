@@ -469,7 +469,7 @@ export async function POST(req: NextRequest) {
     // Phase 2
     drawWrappedText("Phase 2 – Paid Training & Assessment Period", leftMargin + 10, bodySize, true);
     yPosition -= lineHeight;
-    drawWrappedText("Duration: 7 working days", leftMargin + 20, bodySize);
+    drawWrappedText("Duration: 10 working days (Observational Period)", leftMargin + 20, bodySize);
     yPosition -= lineHeight;
     drawWrappedText("Nature: Paid training (Stipend/Salary as applicable)", leftMargin + 20, bodySize);
     yPosition -= lineHeight;

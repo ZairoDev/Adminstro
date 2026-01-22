@@ -74,6 +74,7 @@ export const generateUnsignedLetterOfIntent = async (candidate: Candidate) => {
       salary: candidate.selectionDetails?.salary?.toString() || undefined,
       designation: candidate.selectionDetails?.role || candidate.position,
       department: candidate.selectionDetails?.role || candidate.position,
+      candidateId: candidate._id,
     };
 
     const pdfResponse = await axios.post(

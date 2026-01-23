@@ -31,7 +31,19 @@ export async function GET(req: NextRequest) {
 
     // Get user's allowed phone IDs based on role and area
     const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
+    
+    // Normalize userAreas - handle string, array, or comma-separated string
+    // This ensures consistent behavior between local and production environments
+    let userAreas: string[] = [];
+    if (token.allotedArea) {
+      if (Array.isArray(token.allotedArea)) {
+        userAreas = token.allotedArea.map((a: any) => String(a).trim()).filter(Boolean);
+      } else if (typeof token.allotedArea === 'string') {
+        // Handle comma-separated string (e.g., "athens,thessaloniki") or single string
+        userAreas = token.allotedArea.split(',').map((a: any) => a.trim()).filter(Boolean);
+      }
+    }
+    
     const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
 
     if (allowedPhoneIds.length === 0) {
@@ -384,7 +396,19 @@ export async function POST(req: NextRequest) {
 
     // Get user's allowed phone IDs
     const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
+    
+    // Normalize userAreas - handle string, array, or comma-separated string
+    // This ensures consistent behavior between local and production environments
+    let userAreas: string[] = [];
+    if (token.allotedArea) {
+      if (Array.isArray(token.allotedArea)) {
+        userAreas = token.allotedArea.map((a: any) => String(a).trim()).filter(Boolean);
+      } else if (typeof token.allotedArea === 'string') {
+        // Handle comma-separated string (e.g., "athens,thessaloniki") or single string
+        userAreas = token.allotedArea.split(',').map((a: any) => a.trim()).filter(Boolean);
+      }
+    }
+    
     const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
 
     if (allowedPhoneIds.length === 0) {

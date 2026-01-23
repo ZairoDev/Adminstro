@@ -70,7 +70,28 @@ export async function GET(req: NextRequest) {
     }
 
     const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
+    
+    // Normalize userAreas - handle string, array, or comma-separated string
+    // This ensures consistent behavior between local and production environments
+    let userAreas: string[] = [];
+    if (token.allotedArea) {
+      if (Array.isArray(token.allotedArea)) {
+        userAreas = token.allotedArea.map((a: any) => String(a).trim()).filter(Boolean);
+      } else if (typeof token.allotedArea === 'string') {
+        // Handle comma-separated string (e.g., "athens,thessaloniki") or single string
+        userAreas = token.allotedArea.split(',').map((a: any) => a.trim()).filter(Boolean);
+      }
+    }
+
+    // Debug logging to help diagnose differences between local and production
+    console.log('[phone-configs] User areas debug:', {
+      raw: token.allotedArea,
+      rawType: typeof token.allotedArea,
+      isArray: Array.isArray(token.allotedArea),
+      normalized: userAreas,
+      role: userRole,
+      env: process.env.NODE_ENV
+    });
 
     // CRITICAL: Fetch phone numbers directly from Meta API for business account
     // Meta is the ONLY source of truth for phone number existence

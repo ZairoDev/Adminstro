@@ -285,10 +285,15 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ Send WhatsApp guest_greeting template to lead (Thessaloniki only)
+    // Only send when lead is created by test_email: abhaytripathi6969@gmail.com
     // This runs asynchronously - don't await to avoid blocking the response
-    sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
-      console.error("❌ Failed to send WhatsApp template:", err);
-    });
+    if (token.email === "abhaytripathi6969@gmail.com") {
+      sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
+        console.error("❌ Failed to send WhatsApp template:", err);
+      });
+    } else {
+      console.log(`⏭️ Skipping WhatsApp template - lead created by ${token.email} (only sent for abhaytripathi6969@gmail.com)`);
+    }
 
     // ✅ Return success
     return NextResponse.json(

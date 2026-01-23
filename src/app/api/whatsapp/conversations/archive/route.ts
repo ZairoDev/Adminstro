@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import ConversationArchiveState from "@/models/conversationArchiveState";
+import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import mongoose from "mongoose";
 
@@ -176,7 +178,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 /**
- * Get all globally archived conversations
+ * Get all globally archived conversations with unread counts
  */
 export async function GET(req: NextRequest) {
   try {
@@ -184,6 +186,8 @@ export async function GET(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const userId = token.id || token._id;
 
     // Get all globally archived conversation IDs (no userId filter - global)
     const archivedStates = await ConversationArchiveState.find({
@@ -196,12 +200,34 @@ export async function GET(req: NextRequest) {
       (state: any) => state.conversationId
     );
 
+    if (archivedConversationIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        conversations: [],
+        count: 0,
+      });
+    }
+
     // Get the actual conversations
     const conversations = await WhatsAppConversation.find({
       _id: { $in: archivedConversationIds },
     })
       .sort({ lastMessageTime: -1 })
       .lean();
+
+    // Preload per-user read state for these conversations (per-employee unread tracking)
+    const conversationIds = conversations.map((c: any) => c._id);
+    const readStates = await ConversationReadState.find({
+      conversationId: { $in: conversationIds },
+      userId: userId,
+    })
+      .select("conversationId lastReadMessageId lastReadAt")
+      .lean();
+
+    const readStateMap = new Map<string, any>();
+    for (const rs of readStates) {
+      readStateMap.set(String(rs.conversationId), rs);
+    }
 
     // Create a map of archive info
     const archiveInfoMap = new Map<string, { archivedAt: Date; archivedBy?: string }>();
@@ -212,15 +238,45 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    // Add archive info to each conversation
-    const conversationsWithArchiveInfo = conversations.map((conv: any) => {
-      const archiveInfo = archiveInfoMap.get(String(conv._id));
-      return {
-        ...conv,
-        archivedAt: archiveInfo?.archivedAt,
-        archivedBy: archiveInfo?.archivedBy,
-      };
-    });
+    // Add archive info and calculate unread counts for each conversation
+    const conversationsWithArchiveInfo = await Promise.all(
+      conversations.map(async (conv: any) => {
+        const archiveInfo = archiveInfoMap.get(String(conv._id));
+        
+        // Calculate per-employee unread count (same logic as main conversations endpoint)
+        let unreadCount = 0;
+        const readState = readStateMap.get(String(conv._id));
+
+        // Only client (incoming) messages can make a conversation unread
+        if (conv.lastMessageDirection === "incoming" && conv.lastMessageId) {
+          const lastReadMessageId = readState?.lastReadMessageId;
+
+          // If no read state exists, or the last message differs from lastReadMessageId,
+          // this conversation is unread for this employee
+          if (!lastReadMessageId || lastReadMessageId !== conv.lastMessageId) {
+            const msgQuery: any = {
+              conversationId: conv._id,
+              direction: "incoming",
+            };
+
+            // If we have a lastReadAt timestamp, only count messages after that
+            if (readState?.lastReadAt) {
+              msgQuery.timestamp = { $gt: readState.lastReadAt };
+            }
+
+            unreadCount = await WhatsAppMessage.countDocuments(msgQuery);
+          }
+        }
+
+        return {
+          ...conv,
+          unreadCount, // Add calculated unread count
+          archivedAt: archiveInfo?.archivedAt,
+          archivedBy: archiveInfo?.archivedBy,
+          isArchivedByUser: true, // All conversations in this endpoint are archived
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,

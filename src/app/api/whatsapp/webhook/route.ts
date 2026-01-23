@@ -920,18 +920,19 @@ async function processIncomingMessage(
       // CRITICAL: Global Archive State Enforcement
       // ============================================================
       // Check if conversation is globally archived
-      // Archived conversations NEVER trigger notifications for ANY user
+      // Archived conversations still receive messages and update UI, but skip browser notifications
       const archiveState = await ConversationArchiveState.findOne({
         conversationId: conversation._id,
         isArchived: true,
       }).lean() as any;
 
-      if (archiveState) {
-        console.log(`⏭️ [SKIP] Conversation ${conversation._id} is globally archived - skipping ALL notifications`);
-        return; // Skip ALL users - conversation is archived globally
+      const isArchived = !!archiveState;
+      if (isArchived) {
+        console.log(`📦 [ARCHIVED] Conversation ${conversation._id} is globally archived - will emit socket events but skip browser notifications`);
       }
 
-      // For each eligible user, check read state and emit notification if unread
+      // For each eligible user, check read state and emit socket event (UI update)
+      // Browser notifications are handled by frontend notification controller which checks archive state
       let notificationsEmitted = 0;
       for (const user of eligibleUsers) {
 
@@ -963,7 +964,8 @@ async function processIncomingMessage(
           
           console.log(`🔔 [NOTIFICATION] Emitting to user ${user.userId} (${user.role}): eventId=${eventId}, deliveryId=${deliveryId}`);
           
-          // Emit notification to this specific user only
+          // Emit socket event to update UI (even for archived conversations)
+          // Frontend notification controller will skip browser notifications for archived conversations
           emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
             deliveryId, // For acknowledgement tracking
             eventId, // Stable event ID for deduplication
@@ -975,6 +977,7 @@ async function processIncomingMessage(
             lastMessagePreview: displayText.substring(0, 100),
             lastMessageTime: timestamp,
             createdAt: firstMessageTime, // FREEZE: Use first message time for stable identity
+            isArchived, // Flag to indicate conversation is archived (frontend can use this to skip browser notifications)
             // Include reply context if this is a reply (for notification preview)
             isReply: !!replyToMessageId,
             replyToPreview: replyContext?.content?.text?.substring(0, 50) || replyContext?.content?.caption?.substring(0, 50),

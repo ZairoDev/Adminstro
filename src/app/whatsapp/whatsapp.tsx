@@ -579,6 +579,34 @@ export default function WhatsAppChat() {
         );
       });
 
+      // Also update archived conversations if the message is for an archived conversation
+      // This ensures unread counts are updated in real-time even for archived conversations
+      setArchivedConversations((prev) => {
+        const updated = prev.map((conv) => {
+          if (conv._id === conversationId) {
+            // If it's an incoming message and not the current conversation, increment unread count
+            const newUnreadCount = isIncomingMessage && !isCurrentConversation
+              ? (conv.unreadCount || 0) + 1
+              : conv.unreadCount || 0;
+            
+            return {
+              ...conv,
+              lastMessageContent: displayText,
+              lastMessageTime: message.timestamp,
+              lastMessageDirection: message.direction,
+              unreadCount: newUnreadCount,
+            };
+          }
+          return conv;
+        });
+        
+        return updated.sort(
+          (a, b) =>
+            new Date(b.lastMessageTime || 0).getTime() -
+            new Date(a.lastMessageTime || 0).getTime()
+        );
+      });
+
       // If this is the open conversation, update timestamp instantly
       if (currentConversation?._id === conversationId) {
         // Update selected conversation timestamp instantly
@@ -840,7 +868,7 @@ export default function WhatsAppChat() {
       }
 
       // If this read event is for the current logged-in user, clear unread
-      // state for that conversation across all tabs/devices.
+      // state for that conversation across all tabs/devices (both main and archived).
       const currentUserId = token?.id || (token as any)?._id;
       if (currentUserId && String(userId) === String(currentUserId)) {
         setConversations((prev) => {
@@ -853,6 +881,13 @@ export default function WhatsAppChat() {
           setTotalUnreadCount(newTotalUnread);
           
           return updated;
+        });
+
+        // Also clear unread count for archived conversations
+        setArchivedConversations((prev) => {
+          return prev.map((conv) =>
+            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          );
         });
       }
     });

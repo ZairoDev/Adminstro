@@ -104,8 +104,14 @@ export async function GET(req: NextRequest) {
       }
       query._id = { $in: archivedConversationIds };
     } else if (!includeArchived && archivedConversationIds.length > 0) {
-      // Exclude archived conversations from main inbox (default behavior)
-      query._id = { $nin: archivedConversationIds };
+      // CRITICAL: When searching, include archived conversations so they can be found
+      // Search is universal - it should search across all conversations (archived and non-archived)
+      // Only exclude archived conversations when NOT searching (normal inbox view)
+      if (!search) {
+        // Exclude archived conversations from main inbox (default behavior when not searching)
+        query._id = { $nin: archivedConversationIds };
+      }
+      // If search is present, don't exclude archived conversations - let them appear in search results
     }
 
     // Filter by conversation type if provided
@@ -116,6 +122,7 @@ export async function GET(req: NextRequest) {
     // CRITICAL: Search must ALWAYS query the database directly
     // No client-side filtering - database is the source of truth for conversations
     // Search by customer name and customer phone number
+    // Search is universal - includes both archived and non-archived conversations
     if (search) {
       query.$or = [
         { participantPhone: { $regex: search, $options: "i" } },

@@ -341,6 +341,62 @@ export async function POST(req: NextRequest) {
      * @param justify - Justify text (except last line)
      * @returns Total height consumed by this text block
      */
+    /**
+     * Sanitizes text to remove characters that WinAnsi encoding cannot handle.
+     * This prevents PDF generation errors when user data contains special characters.
+     * 
+     * WinAnsi encoding (Windows-1252) can only handle characters in the range 0x00-0xFF,
+     * and some control characters are not supported. This function:
+     * 1. Replaces newlines/carriage returns with spaces
+     * 2. Removes unsupported control characters
+     * 3. Attempts to normalize Unicode characters to their closest ASCII equivalents
+     * 4. Removes any remaining problematic characters
+     * 
+     * @param text - The text to sanitize
+     * @returns Sanitized text with problematic characters replaced or removed
+     */
+    const sanitizeTextForPdf = (text: string): string => {
+      if (!text) return text;
+      
+      return text
+        // Replace newlines and carriage returns with spaces (preserve word boundaries)
+        .replace(/[\r\n]+/g, " ")
+        // Replace tab characters with spaces
+        .replace(/\t/g, " ")
+        // Remove other control characters (0x00-0x1F except space, tab, newline which we already handled)
+        .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, "")
+        // Normalize common Unicode characters to ASCII equivalents
+        .normalize("NFD") // Decompose characters (e.g., é -> e + ́)
+        .replace(/[\u0300-\u036f]/g, "") // Remove combining diacritical marks
+        // Replace common Unicode quotes and dashes with ASCII equivalents
+        .replace(/[""]/g, '"') // Replace curly quotes with straight quotes
+        .replace(/['']/g, "'") // Replace curly apostrophes with straight apostrophes
+        .replace(/[–—]/g, "-") // Replace en-dash and em-dash with hyphen
+        .replace(/…/g, "...") // Replace ellipsis with three dots
+        // Remove any remaining non-ASCII characters that might cause issues
+        // Keep only printable ASCII (0x20-0x7E) and common extended ASCII (0x80-0xFF)
+        .split("")
+        .map(char => {
+          const code = char.charCodeAt(0);
+          // Allow printable ASCII (32-126) and extended ASCII (128-255) for WinAnsi
+          // But exclude some problematic extended ASCII characters
+          if (code >= 32 && code <= 126) return char; // Printable ASCII
+          if (code >= 128 && code <= 255) {
+            // Extended ASCII - check if it's a problematic character
+            // Some extended ASCII characters in WinAnsi might still cause issues
+            // For safety, we'll keep most but be cautious
+            return char;
+          }
+          // Replace any other characters (Unicode beyond 255) with a space
+          return " ";
+        })
+        .join("")
+        // Replace multiple consecutive spaces with a single space
+        .replace(/\s+/g, " ")
+        // Trim leading and trailing whitespace
+        .trim();
+    };
+
     const drawWrappedText = (
       text: string,
       x: number,
@@ -349,6 +405,10 @@ export async function POST(req: NextRequest) {
       indent: number = 0,
       justify: boolean = true
     ): number => {
+      // CRITICAL: Sanitize input text to prevent WinAnsi encoding errors
+      // This handles user data that may contain newlines, special characters, etc.
+      text = sanitizeTextForPdf(text);
+      
       // Calculate available width for text wrapping
       const xOffset = Math.max(0, x - leftMargin);
       const maxWidth = Math.max(contentWidth - xOffset - indent, 0);
@@ -356,13 +416,27 @@ export async function POST(req: NextRequest) {
       const selectedFont = boldFont ? fontBold : font;
       
       // STEP 1: MEASURE - Calculate wrapped lines and total height
-      const words = text.split(" ");
+      // Split by spaces, but also sanitize each word to handle edge cases
+      const words = text.split(" ").map(word => sanitizeTextForPdf(word)).filter(word => word.length > 0);
       const lines: string[] = [];
       let currentLine = "";
       
       for (const word of words) {
         const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const testWidth = selectedFont.widthOfTextAtSize(testLine, fontSize);
+        let testWidth: number;
+        try {
+          testWidth = selectedFont.widthOfTextAtSize(testLine, fontSize);
+        } catch (error) {
+          // If width measurement fails due to encoding issues, sanitize and retry
+          const sanitizedTestLine = sanitizeTextForPdf(testLine);
+          try {
+            testWidth = selectedFont.widthOfTextAtSize(sanitizedTestLine, fontSize);
+          } catch (retryError) {
+            // Last resort: use a rough estimate based on character count
+            console.warn(`Warning: Could not measure width for text, using fallback estimate`);
+            testWidth = sanitizedTestLine.length * fontSize * 0.5;
+          }
+        }
         
         if (testWidth > maxWidth && currentLine) {
           lines.push(currentLine);
@@ -401,9 +475,19 @@ export async function POST(req: NextRequest) {
         
         // Render with optional justification
         if (justify && !isLastLine && line.includes(" ")) {
-          const wordsInLine = line.split(" ");
+          // Sanitize words when splitting for justification (extra safety)
+          const wordsInLine = line.split(" ").map(word => sanitizeTextForPdf(word)).filter(word => word.length > 0);
           const totalWordWidth = wordsInLine.reduce(
-            (acc, word) => acc + selectedFont.widthOfTextAtSize(word, fontSize),
+            (acc, word) => {
+              // Additional safety: try-catch for width measurement
+              try {
+                return acc + selectedFont.widthOfTextAtSize(word, fontSize);
+              } catch (error) {
+                // If width measurement fails, use a fallback width estimate
+                console.warn(`Warning: Could not measure width for word "${word}", using fallback`);
+                return acc + (word.length * fontSize * 0.5); // Rough estimate
+              }
+            },
             0
           );
           const totalSpaceWidth = maxWidth - totalWordWidth;
@@ -413,24 +497,41 @@ export async function POST(req: NextRequest) {
           
           let currentX = renderX;
           for (let j = 0; j < wordsInLine.length; j++) {
-            currentPage.drawText(wordsInLine[j], {
-              x: currentX,
+            const wordToDraw = sanitizeTextForPdf(wordsInLine[j]);
+            try {
+              currentPage.drawText(wordToDraw, {
+                x: currentX,
+                y: renderY,
+                size: fontSize,
+                font: selectedFont,
+                color: textColor,
+              });
+              currentX += selectedFont.widthOfTextAtSize(wordToDraw, fontSize) + 
+                (j < wordsInLine.length - 1 ? spaceWidth : 0);
+            } catch (error) {
+              // If drawing fails, log and skip this word (shouldn't happen after sanitization)
+              console.error(`Error drawing word "${wordToDraw}":`, error);
+              // Still advance position to prevent overlap
+              currentX += (wordToDraw.length * fontSize * 0.5) + 
+                (j < wordsInLine.length - 1 ? spaceWidth : 0);
+            }
+          }
+        } else {
+          // Sanitize line before drawing (extra safety)
+          const lineToDraw = sanitizeTextForPdf(line);
+          try {
+            currentPage.drawText(lineToDraw, {
+              x: renderX,
               y: renderY,
               size: fontSize,
               font: selectedFont,
               color: textColor,
             });
-            currentX += selectedFont.widthOfTextAtSize(wordsInLine[j], fontSize) + 
-              (j < wordsInLine.length - 1 ? spaceWidth : 0);
+          } catch (error) {
+            // If drawing fails, log error (shouldn't happen after sanitization)
+            console.error(`Error drawing line "${lineToDraw}":`, error);
+            // Continue execution - don't break the entire PDF generation
           }
-        } else {
-          currentPage.drawText(line, {
-            x: renderX,
-            y: renderY,
-            size: fontSize,
-            font: selectedFont,
-            color: textColor,
-          });
         }
         
         // STEP 4: UPDATE CURSOR - Move down by line height
@@ -652,7 +753,9 @@ export async function POST(req: NextRequest) {
     const infoLineGap = 12;
 
     companyInfoLines.forEach((line) => {
-      currentPage.drawText(line, {
+      // Sanitize line before drawing (defensive programming)
+      const sanitizedLine = sanitizeTextForPdf(line);
+      currentPage.drawText(sanitizedLine, {
         x: leftMargin,
         y: yPosition,
         size: infoFontSize,
@@ -1898,9 +2001,10 @@ export async function POST(req: NextRequest) {
       });
       yPos -= smallFontSize + 2;
 
-      // Draw name text
+      // Draw name text - CRITICAL: Sanitize user data to prevent encoding errors
       const nameText = `By the above named  ${data.employeeName || "_____________"}`;
-      page.drawText(nameText, {
+      const sanitizedNameText = sanitizeTextForPdf(nameText);
+      page.drawText(sanitizedNameText, {
         x: sigStartX,
         y: yPos,
         size: smallFontSize,

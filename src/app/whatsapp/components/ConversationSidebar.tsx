@@ -71,6 +71,9 @@ interface SidebarProps {
   onToggleArchiveView?: () => void;
   onArchiveConversation?: (conversationId: string) => void;
   onUnarchiveConversation?: (conversationId: string) => void;
+  // User info for access control
+  userRole?: string;
+  userAreas?: string | string[];
 }
 
 // Memoized conversation item to prevent unnecessary re-renders
@@ -277,6 +280,9 @@ export function ConversationSidebar({
   onToggleArchiveView,
   onArchiveConversation,
   onUnarchiveConversation,
+  // User info for access control
+  userRole,
+  userAreas,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -396,13 +402,30 @@ export function ConversationSidebar({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Only show phone selector if there are multiple REAL (non-internal) phone numbers */}
+              {/* Show phone selector if:
+                  1. User is SuperAdmin (full access), OR
+                  2. User has multiple phone numbers available, OR
+                  3. User has multiple locations assigned (similar to SuperAdmin)
+              */}
               {(() => {
                 // Filter out internal phone numbers (like "You") and testing numbers from selection
                 const realPhoneConfigs = allowedPhoneConfigs.filter(
                   (config: any) => !config.isInternal
                 );
-                return realPhoneConfigs.length > 1 && (
+                
+                // Check if user has multiple locations assigned
+                const normalizedUserAreas = userAreas
+                  ? (Array.isArray(userAreas) ? userAreas : [userAreas])
+                      .map((a: string) => a.toLowerCase().trim())
+                      .filter(Boolean)
+                  : [];
+                const hasMultipleLocations = normalizedUserAreas.length > 1;
+                const isSuperAdmin = userRole === "SuperAdmin";
+                
+                // Show filter if: SuperAdmin, multiple phones, or multiple locations
+                const shouldShowFilter = isSuperAdmin || realPhoneConfigs.length > 1 || hasMultipleLocations;
+                
+                return shouldShowFilter && realPhoneConfigs.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

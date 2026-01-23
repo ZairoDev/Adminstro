@@ -7,6 +7,9 @@ import {
 } from "@/lib/whatsapp/config";
 import { fetchPhoneNumbersFromMeta, mapMetaPhonesToConfigs } from "@/lib/whatsapp/phoneMetadataSync";
 
+// Force dynamic rendering since we use request.cookies for authentication
+export const dynamic = 'force-dynamic';
+
 /**
  * Filter phone configs by user role and allotted areas
  * Same logic as getAllowedPhoneConfigs but works with Meta-fetched configs

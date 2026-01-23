@@ -2880,6 +2880,9 @@ export default function WhatsAppChat() {
               onToggleArchiveView={toggleArchiveView}
               onArchiveConversation={archiveConversation}
               onUnarchiveConversation={unarchiveConversation}
+              // User info for access control
+              userRole={token?.role}
+              userAreas={token?.allotedArea}
             />
 
             {/* Chat Panel */}

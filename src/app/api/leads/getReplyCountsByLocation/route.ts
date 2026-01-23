@@ -6,6 +6,9 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
+// Force dynamic rendering since we use request.cookies for authentication
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const token = await getDataFromToken(req);

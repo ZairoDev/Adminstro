@@ -154,7 +154,7 @@ function CandidatesPageContent() {
   });
   // Load page from URL search params, default to 1
   const [page, setPage] = useState<number>(() => {
-    const pageParam = searchParams.get("page");
+    const pageParam = searchParams?.get("page");
     return pageParam ? parseInt(pageParam, 10) || 1 : 1;
   });
   const [pagination, setPagination] = useState<PaginationData | null>(null);
@@ -639,7 +639,7 @@ function CandidatesPageContent() {
 
   // Get stable page value from URL
   const urlPage = useMemo(() => {
-    const pageParam = searchParams.get("page");
+    const pageParam = searchParams?.get("page");
     return pageParam ? parseInt(pageParam, 10) || 1 : 1;
   }, [searchParams]);
 
@@ -670,7 +670,7 @@ function CandidatesPageContent() {
     lastUrlPage.current = page;
     
     // Update URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || "");
     if (page === 1) {
       params.delete("page");
     } else {

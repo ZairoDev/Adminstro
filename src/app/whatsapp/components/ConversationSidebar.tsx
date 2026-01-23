@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
+import { formatPhoneDisplayWithLocation } from "@/lib/whatsapp/config";
 import {
   Tooltip,
   TooltipContent,
@@ -286,14 +287,13 @@ export function ConversationSidebar({
     setIsMounted(true);
   }, []);
 
-  // Filter conversations by tab and search query
+  // CRITICAL: No client-side filtering - database is source of truth
+  // Search and phone filtering happen at API/database level
+  // Only filter by conversation type (tab) client-side as this is a UI-only filter
   const filteredConversations = conversations.filter((conv) => {
     if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
     if (conversationTab === "guests" && conv.conversationType !== "guest") return false;
-    return (
-      conv.participantName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.participantPhone.includes(searchQuery)
-    );
+    return true; // No search filtering - handled by backend
   });
 
   // Counts
@@ -422,7 +422,8 @@ export function ConversationSidebar({
                             selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent"
                           )}
                         >
-                          {config.displayName}
+                          {/* Display format: "Display Name (+phone) [Location]" */}
+                          {formatPhoneDisplayWithLocation(config)}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>

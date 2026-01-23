@@ -59,6 +59,10 @@ interface MessageComposerProps {
   onCancelReply?: () => void;
   // "You" conversation flag - templates not needed, always active
   isYouConversation?: boolean;
+  // For pasted image sending with caption
+  selectedConversation?: { _id: string; participantPhone: string } | null;
+  selectedPhoneConfig?: { phoneNumberId?: string } | null;
+  onSendPastedImagesWithCaption?: (files: File[], caption: string) => Promise<void>;
 }
 
 export const MessageComposer = memo(function MessageComposer({
@@ -87,13 +91,19 @@ export const MessageComposer = memo(function MessageComposer({
   replyToMessage,
   onCancelReply,
   isYouConversation = false,
+  selectedConversation,
+  selectedPhoneConfig,
+  onSendPastedImagesWithCaption,
 }: MessageComposerProps) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [pastedImages, setPastedImages] = useState<Array<{ id: string; file: File; previewUrl: string }>>([]);
+  const [imageCaption, setImageCaption] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const captionInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -104,6 +114,15 @@ export const MessageComposer = memo(function MessageComposer({
     const newHeight = Math.min(textarea.scrollHeight, 150); // Max 6 lines approximately
     textarea.style.height = `${newHeight}px`;
   }, [newMessage]);
+
+  // Cleanup preview URLs on unmount or when preview changes
+  useEffect(() => {
+    return () => {
+      pastedImages.forEach((img) => {
+        URL.revokeObjectURL(img.previewUrl);
+      });
+    };
+  }, [pastedImages]);
 
   // Determine media type from file
   const getMediaType = useCallback((file: File): MediaKind | null => {
@@ -207,6 +226,122 @@ export const MessageComposer = memo(function MessageComposer({
     }
   }, [onSendMessage]);
 
+  // Handle paste event for image support
+  // Shows preview first, only sends when user clicks send button
+  // Supports multiple images in a single paste
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // Check if clipboard contains image
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const newImages: Array<{ id: string; file: File; previewUrl: string }> = [];
+
+    // Find all image items in clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // If clipboard contains an image (any image/* MIME type)
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault(); // Prevent default text paste for images
+        
+        try {
+          // Extract image as File
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          // Validate file size (200MB limit)
+          const maxSize = 200 * 1024 * 1024;
+          if (file.size > maxSize) {
+            console.error("Pasted image too large");
+            continue;
+          }
+
+          // Create preview URL and add to array
+          const previewUrl = URL.createObjectURL(file);
+          newImages.push({
+            id: `pasted-${Date.now()}-${i}`,
+            file,
+            previewUrl,
+          });
+        } catch (error) {
+          console.error("Error handling pasted image:", error);
+        }
+      }
+    }
+
+    // If images were found, add them to the preview
+    if (newImages.length > 0) {
+      setPastedImages((prev) => [...prev, ...newImages]);
+      // Autofocus caption input when preview appears
+      setTimeout(() => {
+        captionInputRef.current?.focus();
+      }, 100);
+    }
+    // If no image found, let default text paste behavior continue unchanged
+  }, []);
+
+  // Remove a single image from preview
+  const handleRemovePastedImage = useCallback((id: string) => {
+    setPastedImages((prev) => {
+      const image = prev.find((img) => img.id === id);
+      if (image) {
+        URL.revokeObjectURL(image.previewUrl);
+      }
+      return prev.filter((img) => img.id !== id);
+    });
+  }, []);
+
+  // Handle sending all pasted images with optional caption
+  const handleSendPastedImages = useCallback(async () => {
+    if (pastedImages.length === 0) return;
+
+    // If custom handler provided (for caption support), use it
+    if (onSendPastedImagesWithCaption) {
+      const files = pastedImages.map((img) => img.file);
+      await onSendPastedImagesWithCaption(files, imageCaption);
+      
+      // Clear preview and caption
+      pastedImages.forEach((img) => {
+        URL.revokeObjectURL(img.previewUrl);
+      });
+      setPastedImages([]);
+      setImageCaption("");
+      return;
+    }
+
+    // Fallback: Use existing file upload handler (no caption support)
+    const dataTransfer = new DataTransfer();
+    pastedImages.forEach((img) => {
+      dataTransfer.items.add(img.file);
+    });
+    
+    const syntheticEvent = {
+      target: {
+        files: dataTransfer.files,
+        value: "",
+      },
+    } as React.ChangeEvent<HTMLInputElement>;
+
+    // Use existing file upload handler
+    onHandleFileUpload(syntheticEvent, "image");
+    
+    // Clear preview and caption
+    pastedImages.forEach((img) => {
+      URL.revokeObjectURL(img.previewUrl);
+    });
+    setPastedImages([]);
+    setImageCaption("");
+  }, [pastedImages, imageCaption, onHandleFileUpload, onSendPastedImagesWithCaption]);
+
+  // Handle canceling all pasted images
+  const handleCancelPastedImages = useCallback(() => {
+    pastedImages.forEach((img) => {
+      URL.revokeObjectURL(img.previewUrl);
+    });
+    setPastedImages([]);
+    setImageCaption("");
+  }, [pastedImages]);
+
   const handleEmojiSelect = useCallback((emoji: any) => {
     onMessageChange(newMessage + emoji.native);
     setShowEmojiPicker(false);
@@ -237,6 +372,92 @@ export const MessageComposer = memo(function MessageComposer({
             <p className="text-[14px] text-[#667781] dark:text-[#8696a0]">
               to send them
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pasted image preview - WhatsApp Web style */}
+      {pastedImages.length > 0 && (
+        <div className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#1f2c33] border-b border-[#e9edef] dark:border-[#222d34] transition-all duration-200 ease-in-out">
+          <div className="bg-white dark:bg-[#202c33] rounded-lg p-3">
+            {/* Image preview strip - horizontal scrollable */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]">
+              {pastedImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="relative flex-shrink-0 group"
+                >
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-[#f0f2f5] dark:bg-[#374045]">
+                    <img
+                      src={img.previewUrl}
+                      alt="Pasted image"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {/* Remove button - appears on hover */}
+                  <button
+                    onClick={() => handleRemovePastedImage(img.id)}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    <X className="h-3 w-3 text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Caption input */}
+            <div className="mb-3">
+              <textarea
+                ref={captionInputRef}
+                placeholder="Add a caption..."
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+                onKeyDown={(e) => {
+                  // Prevent Enter from sending if Shift is not held
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    // Don't send on Enter - user must click Send button
+                  }
+                }}
+                rows={2}
+                className={cn(
+                  "w-full bg-[#f0f2f5] dark:bg-[#2a3942] rounded-lg px-3 py-2",
+                  "text-[14px] text-[#111b21] dark:text-[#e9edef]",
+                  "placeholder:text-[#8696a0] resize-none",
+                  "border-0 outline-none focus-visible:ring-2 focus-visible:ring-[#25d366] focus-visible:ring-offset-0",
+                  "min-h-[60px] max-h-[120px]",
+                  "scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+                )}
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={handleCancelPastedImages}
+                className="h-9 px-4 rounded-full text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#374045]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendPastedImages}
+                disabled={uploadingMedia}
+                className="h-9 px-6 rounded-full bg-[#25d366] hover:bg-[#1da851] text-white font-medium"
+              >
+                {uploadingMedia ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -373,6 +594,7 @@ export const MessageComposer = memo(function MessageComposer({
           ref={imageInputRef}
           className="hidden"
           accept="image/*"
+          multiple
           onChange={(e) => onHandleFileUpload(e, "image")}
         />
         <input
@@ -515,6 +737,7 @@ export const MessageComposer = memo(function MessageComposer({
             value={newMessage}
             onChange={(e) => onMessageChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             disabled={!canSendFreeForm}
             rows={1}
             className={cn(

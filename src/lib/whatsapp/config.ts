@@ -248,3 +248,26 @@ export function getMetaOnlyPhoneConfigs(
     (config) => !config.isInternal
   );
 }
+
+/**
+ * Format phone number display with location label
+ * Format: "Display Name (+phone) [Location]"
+ * Example: "VacationSaga Athens (+91 28 0000 0003) [Athens]"
+ * 
+ * Meta is source of truth for displayName and displayNumber
+ * config.ts is source of truth for area/location
+ */
+export function formatPhoneDisplayWithLocation(
+  config: WhatsAppPhoneConfig
+): string {
+  const displayName = config.displayName || "Unknown";
+  const displayNumber = config.displayNumber || "";
+  const area = Array.isArray(config.area) 
+    ? config.area.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(", ")
+    : config.area.charAt(0).toUpperCase() + config.area.slice(1);
+  
+  if (displayNumber) {
+    return `${displayName} (${displayNumber}) [${area}]`;
+  }
+  return `${displayName} [${area}]`;
+}

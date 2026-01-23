@@ -39,6 +39,49 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
+// ReadMoreText component for messages longer than 30 words
+const ReadMoreText = memo(function ReadMoreText({
+  text,
+  maxWords = 30,
+}: {
+  text: string;
+  maxWords?: number;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Count words in text
+  const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const shouldTruncate = wordCount > maxWords;
+  
+  // Get truncated text (first maxWords words)
+  const getTruncatedText = () => {
+    if (!shouldTruncate) return text;
+    const words = text.trim().split(/\s+/);
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
+  
+  const displayText = isExpanded || !shouldTruncate ? text : getTruncatedText();
+  
+  return (
+    <div>
+      <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words">
+        {displayText}
+      </p>
+      {shouldTruncate && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          className="text-[12px] text-[#008069] dark:text-[#00a884] hover:underline mt-1 font-medium"
+        >
+          {isExpanded ? "Read less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+});
+
 interface MessageListProps {
   messages: Message[];
   messagesLoading: boolean;
@@ -610,20 +653,16 @@ const MessageBubble = memo(function MessageBubble({
           if (isMediaType && message.mediaUrl) {
             if (hasCaption && typeof message.content === "object" && message.content?.caption) {
               return (
-                <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words px-1 pt-1">
-                  {message.content.caption}
-                </p>
+                <div className="px-1 pt-1">
+                  <ReadMoreText text={message.content.caption} />
+                </div>
               );
             }
             return null;
           }
 
           if (displayText && !displayText.startsWith("📷") && !displayText.startsWith("🎬")) {
-            return (
-              <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words">
-                {displayText}
-              </p>
-            );
+            return <ReadMoreText text={displayText} />;
           }
           return null;
         })()}

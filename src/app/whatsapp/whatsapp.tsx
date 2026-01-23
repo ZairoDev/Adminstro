@@ -42,6 +42,7 @@ export default function WhatsAppChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
   const [selectedPhoneConfig, setSelectedPhoneConfig] = useState<WhatsAppPhoneConfig | null>(null);
+  const isInitialLoadRef = useRef(true); // Track if this is the first load
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +68,9 @@ export default function WhatsAppChat() {
   const [archivedCount, setArchivedCount] = useState(0);
   const [showingArchived, setShowingArchived] = useState(false);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
+  
+  // Total unread messages count (socket-based, real-time)
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   
   // Add Guest Modal state
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
@@ -425,11 +429,50 @@ export default function WhatsAppChat() {
     checkCallPermissions();
   }, []);
 
-  // Fetch conversations and templates on mount
+  // CRITICAL: Load phone configs independently (before conversations)
+  // Phone configs are the source of truth, conversations consume them
+  const fetchPhoneConfigs = async () => {
+    try {
+      const response = await axios.get("/api/whatsapp/phone-configs");
+      if (response.data.success) {
+        const phoneConfigs = response.data.phoneConfigs || [];
+        setAllowedPhoneConfigs(phoneConfigs);
+        
+        // Set default phone config (first real phone number, excluding internal "You")
+        const realPhoneConfigs = phoneConfigs.filter((c: any) => !c.isInternal);
+        if (realPhoneConfigs.length > 0 && !selectedPhoneConfig) {
+          setSelectedPhoneConfig(realPhoneConfigs[0]);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching phone configs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load phone numbers",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Fetch templates and phone configs on mount
   useEffect(() => {
-    fetchConversations();
     fetchTemplates();
+    fetchPhoneConfigs();
   }, []);
+
+  // CRITICAL: Refetch conversations when phone filter or search changes
+  // Database is source of truth - always query backend, never filter client-side
+  useEffect(() => {
+    if (token && selectedPhoneConfig?.phoneNumberId) {
+      // Only fetch if we have a phone config selected (skip initial null state)
+      // Debounce search to avoid excessive API calls
+      const timeoutId = setTimeout(() => {
+        fetchConversations(true); // Reset pagination when filter/search changes
+      }, searchQuery.trim() ? 300 : 0); // 300ms debounce for search, immediate for phone filter
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedPhoneConfig?.phoneNumberId, searchQuery, token]);
 
   // Socket.io event listeners
   // CRITICAL: This is the SINGLE canonical place where whatsapp-new-message listener is registered.
@@ -502,22 +545,33 @@ export default function WhatsAppChat() {
 
       // Update conversations list
       // CRITICAL: Frontend must trust backend APIs for unread counts
-      // Do NOT increment unreadCount based on socket events
-      // Frontend should refetch or rely on backend state updates
+      // BUT: Update total unread count in real-time for archive box (socket-based)
+      const isCurrentConversation = currentConversation?._id === conversationId;
+      const isIncomingMessage = message.direction === "incoming";
+      
       setConversations((prev) => {
         const updated = prev.map((conv) => {
           if (conv._id === conversationId) {
+            // If it's an incoming message and not the current conversation, increment unread count
+            const newUnreadCount = isIncomingMessage && !isCurrentConversation
+              ? (conv.unreadCount || 0) + 1
+              : conv.unreadCount || 0;
+            
             return {
               ...conv,
               lastMessageContent: displayText,
               lastMessageTime: message.timestamp,
               lastMessageDirection: message.direction,
-              // Unread count is backend-authoritative - do not modify here
-              // Frontend should refetch conversations to get accurate counts
+              unreadCount: newUnreadCount,
             };
           }
           return conv;
         });
+        
+        // Update total unread count in real-time (socket-based)
+        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+        setTotalUnreadCount(newTotalUnread);
+        
         return updated.sort(
           (a, b) =>
             new Date(b.lastMessageTime || 0).getTime() -
@@ -623,17 +677,21 @@ export default function WhatsAppChat() {
       setConversations((prev) => {
         const exists = prev.find((c) => c._id === conversation.id);
         if (exists) return prev;
-        return [
-          {
-            _id: conversation.id,
-            participantPhone: conversation.participantPhone,
-            participantName: conversation.participantName,
-            unreadCount: conversation.unreadCount,
-            lastMessageTime: conversation.lastMessageTime,
-            status: "active",
-          },
-          ...prev,
-        ];
+        const newConversation = {
+          _id: conversation.id,
+          participantPhone: conversation.participantPhone,
+          participantName: conversation.participantName,
+          unreadCount: conversation.unreadCount || 0,
+          lastMessageTime: conversation.lastMessageTime,
+          status: "active",
+        };
+        const updated = [newConversation, ...prev];
+        
+        // Update total unread count in real-time (socket-based)
+        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+        setTotalUnreadCount(newTotalUnread);
+        
+        return updated;
       });
       toast({
         title: "New conversation",
@@ -785,11 +843,17 @@ export default function WhatsAppChat() {
       // state for that conversation across all tabs/devices.
       const currentUserId = token?.id || (token as any)?._id;
       if (currentUserId && String(userId) === String(currentUserId)) {
-        setConversations((prev) =>
-          prev.map((conv) =>
+        setConversations((prev) => {
+          const updated = prev.map((conv) =>
             conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
-          )
-        );
+          );
+          
+          // Update total unread count in real-time (socket-based)
+          const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+          setTotalUnreadCount(newTotalUnread);
+          
+          return updated;
+        });
       }
     });
 
@@ -874,7 +938,16 @@ export default function WhatsAppChat() {
 
       const params = new URLSearchParams();
       params.append("limit", "25");
-      if (conversationsCursor && !reset) {
+      // CRITICAL: Pass phoneId filter to backend - filtering happens at database level, not client-side
+      if (selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal) {
+        params.append("phoneId", selectedPhoneConfig.phoneNumberId);
+      }
+      // CRITICAL: Pass search query to backend - database is source of truth, no client-side filtering
+      if (searchQuery.trim()) {
+        params.append("search", searchQuery.trim());
+        // When searching, don't use cursor (search results start fresh)
+      } else if (conversationsCursor && !reset) {
+        // Only use cursor when not searching (pagination)
         params.append("cursor", conversationsCursor);
       }
 
@@ -893,6 +966,10 @@ export default function WhatsAppChat() {
             new Map(newConversations.map((c: Conversation) => [c._id, c])).values()
           ) as Conversation[];
           setConversations(uniqueConversations);
+          
+          // Calculate total unread count from fetched conversations (socket-based)
+          const totalUnread = uniqueConversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+          setTotalUnreadCount(totalUnread);
         } else {
           // Filter out duplicates by _id when appending
           setConversations((prev) => {
@@ -900,31 +977,19 @@ export default function WhatsAppChat() {
             const uniqueNewConversations = newConversations.filter(
               (c: Conversation) => !existingIds.has(c._id)
             );
-            return [...prev, ...uniqueNewConversations];
+            const updated = [...prev, ...uniqueNewConversations];
+            
+            // Calculate total unread count from all conversations (socket-based)
+            const totalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+            setTotalUnreadCount(totalUnread);
+            
+            return updated;
           });
         }
 
-        // CRITICAL: Always use fresh phone configs from API (synced with Meta)
-        // No local caching - Meta is source of truth
-        const syncedPhoneConfigs = response.data.allowedPhoneConfigs || [];
-        setAllowedPhoneConfigs(syncedPhoneConfigs);
-        
-        // If user has access to multiple numbers, default to first; else set only option
-        // Update selected config to use synced values (Meta metadata)
-        if (syncedPhoneConfigs.length > 0) {
-          setSelectedPhoneConfig((prev: WhatsAppPhoneConfig | null) => {
-            // Find the synced version of the previously selected config
-            if (prev) {
-              const syncedVersion = syncedPhoneConfigs.find((c: any) => c.phoneNumberId === prev.phoneNumberId);
-              if (syncedVersion) {
-                // Return synced version (Meta metadata overwrites local)
-                return syncedVersion;
-              }
-            }
-            // Default to first synced config
-            return syncedPhoneConfigs[0];
-          });
-        }
+        // NOTE: Phone configs are now loaded independently via /api/whatsapp/phone-configs
+        // We no longer update phone configs from conversation responses
+        // This ensures clean separation: phone configs are source of truth, conversations consume them
 
         // Update cursor and hasMore
         setHasMoreConversations(response.data.pagination?.hasMore || false);
@@ -1175,11 +1240,17 @@ export default function WhatsAppChat() {
     }
     
     // Reset unread count locally
-    setConversations((prev) =>
-      prev.map((c) =>
+    setConversations((prev) => {
+      const updated = prev.map((c) =>
         c._id === conversation._id ? { ...c, unreadCount: 0 } : c
-      )
-    );
+      );
+      
+      // Update total unread count in real-time (socket-based)
+      const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+      setTotalUnreadCount(newTotalUnread);
+      
+      return updated;
+    });
   };
 
   const handleGuestAdded = async (conversationId: string, conversation?: Conversation) => {
@@ -2148,15 +2219,20 @@ export default function WhatsAppChat() {
     event: React.ChangeEvent<HTMLInputElement>,
     mediaType: "image" | "document" | "audio" | "video"
   ) => {
-    const file = event.target.files?.[0];
-    if (!file || !selectedConversation) return;
+    const files = event.target.files;
+    if (!files || files.length === 0 || !selectedConversation) return;
 
-    // Validate file size before upload
-    const maxSize = mediaType === "document" ? 100 * 1024 * 1024 : 16 * 1024 * 1024; // 100MB for documents, 16MB for media
-    if (file.size > maxSize) {
+    // For images, support multiple files; for others, use first file only
+    const filesToProcess = mediaType === "image" ? Array.from(files) : [files[0]];
+
+    // Validate all files before upload
+    const maxSize = mediaType === "document" ? 100 * 1024 * 1024 : 200 * 1024 * 1024; // 100MB for documents, 200MB for media (including WebP)
+    const invalidFiles = filesToProcess.filter(file => file.size > maxSize);
+    
+    if (invalidFiles.length > 0) {
       toast({
         title: "File Too Large",
-        description: `File size exceeds maximum allowed size (${maxSize / 1024 / 1024}MB)`,
+        description: `${invalidFiles.length} file(s) exceed maximum allowed size (${maxSize / 1024 / 1024}MB)`,
         variant: "destructive",
       });
       event.target.value = "";
@@ -2173,6 +2249,30 @@ export default function WhatsAppChat() {
     }
 
     setUploadingMedia(true);
+
+    // Process multiple images in parallel, or single file for other types
+    if (mediaType === "image" && filesToProcess.length > 1) {
+      // Handle multiple images
+      await handleMultipleImageUpload(filesToProcess);
+    } else {
+      // Handle single file (original logic)
+      await handleSingleFileUpload(filesToProcess[0], mediaType);
+    }
+
+    // Reset file inputs
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (videoInputRef.current) videoInputRef.current.value = "";
+    if (audioInputRef.current) audioInputRef.current.value = "";
+    setUploadingMedia(false);
+  };
+
+  // Handle single file upload (original logic)
+  const handleSingleFileUpload = async (
+    file: File,
+    mediaType: "image" | "document" | "audio" | "video"
+  ) => {
+    if (!selectedConversation) return;
 
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
@@ -2321,14 +2421,320 @@ export default function WhatsAppChat() {
           error.response?.data?.error || error.response?.data?.details || error.message || "Failed to upload and send media",
         variant: "destructive",
       });
+    }
+  };
+
+  // Handle sending pasted images with caption
+  const handleSendPastedImagesWithCaption = async (files: File[], caption: string) => {
+    if (!selectedConversation || files.length === 0) return;
+
+    setUploadingMedia(true);
+
+    try {
+      // For multiple images, send them sequentially (WhatsApp sends them as separate messages)
+      // For single image with caption, send with caption
+      if (files.length === 1) {
+        // Single image - can send with caption
+        await handleSingleImageWithCaption(files[0], caption);
+      } else {
+        // Multiple images - send each separately (WhatsApp style)
+        // First image can have caption, others don't
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const useCaption = i === 0 ? caption : ""; // Only first image gets caption
+          await handleSingleImageWithCaption(file, useCaption);
+          // Small delay between sends to avoid rate limiting
+          if (i < files.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Error sending pasted images:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.response?.data?.error || error.message || "Failed to send images",
+        variant: "destructive",
+      });
     } finally {
       setUploadingMedia(false);
-      // Reset file inputs
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      if (imageInputRef.current) imageInputRef.current.value = "";
-      if (videoInputRef.current) videoInputRef.current.value = "";
-      if (audioInputRef.current) audioInputRef.current.value = "";
     }
+  };
+
+  // Helper to send a single image with optional caption
+  const handleSingleImageWithCaption = async (file: File, caption: string) => {
+    if (!selectedConversation) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const sendTimestamp = new Date();
+    const mediaDisplayText = caption || `📷 ${file.name}`;
+    
+    // Create local preview URL
+    const localPreviewUrl = URL.createObjectURL(file);
+
+    // Add optimistic message
+    const tempMsg: Message = {
+      _id: tempId,
+      messageId: tempId,
+      from: "me",
+      to: selectedConversation.participantPhone,
+      type: "image",
+      content: { caption: caption || file.name },
+      mediaUrl: localPreviewUrl,
+      filename: file.name,
+      timestamp: sendTimestamp,
+      status: "sending",
+      direction: "outgoing",
+    };
+    setMessages((prev) => [...prev, tempMsg]);
+
+    // Update conversation list optimistically
+    setConversations((prev) => {
+      const updated = prev.map((conv) =>
+        conv._id === selectedConversation._id
+          ? {
+              ...conv,
+              lastMessageContent: mediaDisplayText,
+              lastMessageTime: sendTimestamp,
+              lastMessageDirection: "outgoing",
+            }
+          : conv
+      );
+      return updated.sort(
+        (a, b) =>
+          new Date(b.lastMessageTime || 0).getTime() -
+          new Date(a.lastMessageTime || 0).getTime()
+      );
+    });
+
+    try {
+      // Upload to Bunny CDN
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadResponse = await axios.post(
+        "/api/whatsapp/upload-to-bunny",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg._id === tempId
+                    ? { ...msg, uploadProgress: percentCompleted }
+                    : msg
+                )
+              );
+            }
+          },
+        }
+      );
+
+      if (!uploadResponse.data.success) {
+        throw new Error("Failed to upload to CDN");
+      }
+
+      const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
+
+      // Update temp message with Bunny URL
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
+        )
+      );
+
+      // Send via WhatsApp API with caption
+      const sendResponse = await axios.post("/api/whatsapp/send-media", {
+        to: selectedConversation.participantPhone,
+        conversationId: selectedConversation._id,
+        mediaType: "image",
+        mediaUrl: bunnyUrl,
+        caption: caption || file.name, // Use provided caption or fallback to filename
+        filename: bunnyFilename || file.name,
+        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+      });
+
+      if (sendResponse.data.success) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === tempId
+              ? {
+                  ...msg,
+                  _id: sendResponse.data.savedMessageId,
+                  messageId: sendResponse.data.messageId,
+                  status: "sent",
+                }
+              : msg
+          )
+        );
+      }
+    } catch (error: any) {
+      console.error("❌ Image send error:", error);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === tempId ? { ...msg, status: "failed" } : msg
+        )
+      );
+      throw error; // Re-throw to be handled by caller
+    }
+  };
+
+  // Handle multiple image uploads
+  const handleMultipleImageUpload = async (files: File[]) => {
+    if (!selectedConversation) return;
+
+    const sendTimestamp = new Date();
+    const tempIds: string[] = [];
+    const uploadPromises: Promise<void>[] = [];
+
+    // Create optimistic messages for all images
+    files.forEach((file, index) => {
+      const tempId = `temp-${Date.now()}-${index}`;
+      tempIds.push(tempId);
+      
+      const localPreviewUrl = URL.createObjectURL(file);
+      const tempMsg: Message = {
+        _id: tempId,
+        messageId: tempId,
+        from: "me",
+        to: selectedConversation.participantPhone,
+        type: "image",
+        content: { caption: file.name },
+        mediaUrl: localPreviewUrl,
+        filename: file.name,
+        timestamp: sendTimestamp,
+        status: "sending",
+        direction: "outgoing",
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+    });
+
+    // Update conversation list optimistically
+    const mediaDisplayText = `📷 ${files.length} image${files.length > 1 ? 's' : ''}`;
+    setConversations((prev) => {
+      const updated = prev.map((conv) =>
+        conv._id === selectedConversation._id
+          ? {
+              ...conv,
+              lastMessageContent: mediaDisplayText,
+              lastMessageTime: sendTimestamp,
+              lastMessageDirection: "outgoing",
+            }
+          : conv
+      );
+      return updated.sort(
+        (a, b) =>
+          new Date(b.lastMessageTime || 0).getTime() -
+          new Date(a.lastMessageTime || 0).getTime()
+      );
+    });
+
+    // Update selected conversation timestamp
+    setSelectedConversation((prev) => {
+      if (prev && prev._id === selectedConversation._id) {
+        return {
+          ...prev,
+          lastMessageTime: sendTimestamp,
+        };
+      }
+      return prev;
+    });
+
+    // Upload and send all images in parallel
+    files.forEach((file, index) => {
+      const tempId = tempIds[index];
+      const uploadPromise = (async () => {
+        try {
+          // Upload to Bunny CDN
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const uploadResponse = await axios.post(
+            "/api/whatsapp/upload-to-bunny",
+            formData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+              onUploadProgress: (progressEvent) => {
+                if (progressEvent.total) {
+                  const percentCompleted = Math.round(
+                    (progressEvent.loaded * 100) / progressEvent.total
+                  );
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg._id === tempId
+                        ? { ...msg, uploadProgress: percentCompleted }
+                        : msg
+                    )
+                  );
+                }
+              },
+            }
+          );
+
+          if (!uploadResponse.data.success) {
+            throw new Error("Failed to upload to CDN");
+          }
+
+          const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
+
+          // Update temp message with Bunny URL
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
+            )
+          );
+
+          // Send the image via WhatsApp API
+          const sendResponse = await axios.post("/api/whatsapp/send-media", {
+            to: selectedConversation.participantPhone,
+            conversationId: selectedConversation._id,
+            mediaType: "image",
+            mediaUrl: bunnyUrl,
+            caption: file.name,
+            filename: bunnyFilename || file.name,
+            phoneNumberId: selectedPhoneConfig?.phoneNumberId,
+          });
+
+          if (sendResponse.data.success) {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg._id === tempId
+                  ? {
+                      ...msg,
+                      _id: sendResponse.data.savedMessageId,
+                      messageId: sendResponse.data.messageId,
+                      status: "sent",
+                    }
+                  : msg
+              )
+            );
+          }
+        } catch (error: any) {
+          console.error(`❌ Image ${index + 1} upload error:`, error);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === tempId ? { ...msg, status: "failed" } : msg
+            )
+          );
+        }
+      })();
+      
+      uploadPromises.push(uploadPromise);
+    });
+
+    // Wait for all uploads to complete
+    await Promise.allSettled(uploadPromises);
+
+    // Show success toast
+    const successCount = files.length;
+    toast({
+      title: "Images Sent",
+      description: `${successCount} image${successCount > 1 ? 's' : ''} sent successfully`,
+    });
   };
 
   // Handle audio call
@@ -2469,7 +2875,7 @@ export default function WhatsAppChat() {
               onLoadMoreConversations={showingArchived ? undefined : () => fetchConversations(false)}
               onAddGuest={() => setShowAddGuestModal(true)}
               // Archive functionality
-              archivedCount={archivedCount}
+              archivedCount={totalUnreadCount} // Show unread messages count instead of archived count
               showingArchived={showingArchived}
               onToggleArchiveView={toggleArchiveView}
               onArchiveConversation={archiveConversation}
@@ -2562,6 +2968,9 @@ export default function WhatsAppChat() {
                     replyToMessage={replyToMessage}
                     onCancelReply={handleCancelReply}
                     isYouConversation={isYouConversation}
+                    selectedConversation={selectedConversation}
+                    selectedPhoneConfig={selectedPhoneConfig}
+                    onSendPastedImagesWithCaption={handleSendPastedImagesWithCaption}
                   />
                 </>
               ) : (

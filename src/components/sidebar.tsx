@@ -482,6 +482,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/whatsapp",
+      openInNewTab: true,
       label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
     },

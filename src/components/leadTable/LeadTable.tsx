@@ -1025,10 +1025,10 @@ const handleSave = async (
                   {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
                   {path?.toString().trim().split("/")[2] !== "createquery" ? (
                     <Link
+                      target="_blank"
                       href={`/whatsapp?phone=${encodeURIComponent(
                         query?.phoneNo
                       )}`}
-                      target="_self"
                       rel="noopener noreferrer"
                       onClick={() => {
                         if (query.isViewed === false) {

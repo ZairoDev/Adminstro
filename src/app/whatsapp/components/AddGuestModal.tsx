@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -6,9 +6,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, UserPlus, Link2 } from "lucide-react";
+import { Loader2, AlertCircle, UserPlus, Link2, X } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -36,6 +42,18 @@ export const AddGuestModal = memo(function AddGuestModal({
     phone?: string;
     referenceLink?: string;
   }>({});
+  
+  // Mobile detection for responsive modal/drawer
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const validatePhone = (phone: string, code: string): boolean => {
     if (!code.trim() || !phone.trim()) {
@@ -178,6 +196,164 @@ export const AddGuestModal = memo(function AddGuestModal({
     }
   };
 
+  // Shared form content for both Dialog and Drawer
+  const FormContent = () => (
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+      {/* Phone Number */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
+          Phone Number <span className="text-red-500">*</span>
+        </Label>
+        <div className="flex gap-2">
+          <div className="relative w-20">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">
+              +
+            </span>
+            <Input
+              placeholder="91"
+              value={countryCode}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setCountryCode(value);
+                if (value && phoneNumber) {
+                  validatePhone(phoneNumber, value);
+                }
+              }}
+              className="h-11 md:h-10 pl-6 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg text-base"
+              maxLength={4}
+              disabled={loading}
+            />
+          </div>
+          <Input
+            placeholder="Phone number"
+            value={phoneNumber}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, "");
+              setPhoneNumber(value);
+              if (countryCode && value) {
+                validatePhone(value, countryCode);
+              }
+            }}
+            className="flex-1 h-11 md:h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg text-base"
+            disabled={loading}
+          />
+        </div>
+        {errors.phone && (
+          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-[12px] text-red-600 dark:text-red-400">{errors.phone}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Owner Name */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
+          Owner Name
+          <span className="text-[11px] font-normal ml-1">(optional)</span>
+        </Label>
+        <Input
+          placeholder="John Doe"
+          value={ownerName}
+          onChange={(e) => setOwnerName(e.target.value)}
+          className="h-11 md:h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg text-base"
+          disabled={loading}
+        />
+      </div>
+
+      {/* Reference Link */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0] flex items-center gap-1">
+          <Link2 className="h-3.5 w-3.5" />
+          Reference Link
+          <span className="text-[11px] font-normal ml-1">(optional)</span>
+        </Label>
+        <Input
+          placeholder="https://example.com/property/123"
+          type="url"
+          value={referenceLink}
+          onChange={(e) => {
+            setReferenceLink(e.target.value);
+            if (e.target.value.trim()) {
+              validateReferenceLink(e.target.value);
+            } else {
+              setErrors((prev => {
+                const newErrors = { ...prev };
+                delete newErrors.referenceLink;
+                return newErrors;
+              }));
+            }
+          }}
+          className="h-11 md:h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg text-base"
+          disabled={loading}
+        />
+        {errors.referenceLink && (
+          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-[12px] text-red-600 dark:text-red-400">{errors.referenceLink}</p>
+          </div>
+        )}
+        <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">
+          Property listing URL or any reference link
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-2 pb-safe">
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={loading}
+          className="flex-1 h-12 md:h-10 rounded-lg border-[#e9edef] dark:border-[#374045] text-[#54656f] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#374045] active:scale-[0.98] transition-transform"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={loading || !countryCode.trim() || !phoneNumber.trim()}
+          className="flex-1 h-12 md:h-10 bg-[#25d366] hover:bg-[#1da851] text-white rounded-lg active:scale-[0.98] transition-transform"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Owner"
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Mobile bottom sheet (Drawer)
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={handleClose}>
+        <DrawerContent className="bg-white dark:bg-[#111b21] border-[#e9edef] dark:border-[#222d34] max-h-[90vh]">
+          {/* Header */}
+          <DrawerHeader className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34]">
+            <DrawerTitle className="flex items-center gap-3 text-[#111b21] dark:text-[#e9edef]">
+              <div className="w-10 h-10 rounded-full bg-[#25d366] flex items-center justify-center">
+                <UserPlus className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="text-[16px] font-medium">Add New Owner</p>
+                <p className="text-[13px] font-normal text-[#667781] dark:text-[#8696a0]">
+                  Create owner conversation
+                </p>
+              </div>
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+            <FormContent />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Desktop dialog
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[450px] p-0 gap-0 bg-white dark:bg-[#111b21] border-[#e9edef] dark:border-[#222d34] overflow-hidden">
@@ -195,133 +371,7 @@ export const AddGuestModal = memo(function AddGuestModal({
             </div>
           </DialogTitle>
         </DialogHeader>
-
-        <div className="p-6 space-y-5">
-          {/* Phone Number */}
-          <div className="space-y-2">
-            <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
-              Phone Number <span className="text-red-500">*</span>
-            </Label>
-            <div className="flex gap-2">
-              <div className="relative w-20">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">
-                  +
-                </span>
-                <Input
-                  placeholder="91"
-                  value={countryCode}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-                    setCountryCode(value);
-                    if (value && phoneNumber) {
-                      validatePhone(phoneNumber, value);
-                    }
-                  }}
-                  className="h-10 pl-6 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg"
-                  maxLength={4}
-                  disabled={loading}
-                />
-              </div>
-              <Input
-                placeholder="Phone number"
-                value={phoneNumber}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "");
-                  setPhoneNumber(value);
-                  if (countryCode && value) {
-                    validatePhone(value, countryCode);
-                  }
-                }}
-                className="flex-1 h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg"
-                disabled={loading}
-              />
-            </div>
-            {errors.phone && (
-              <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-[12px] text-red-600 dark:text-red-400">{errors.phone}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Owner Name */}
-          <div className="space-y-2">
-            <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
-              Owner Name
-              <span className="text-[11px] font-normal ml-1">(optional)</span>
-            </Label>
-            <Input
-              placeholder="John Doe"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              className="h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg"
-              disabled={loading}
-            />
-          </div>
-
-          {/* Reference Link */}
-          <div className="space-y-2">
-            <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0] flex items-center gap-1">
-              <Link2 className="h-3.5 w-3.5" />
-              Reference Link
-              <span className="text-[11px] font-normal ml-1">(optional)</span>
-            </Label>
-            <Input
-              placeholder="https://example.com/property/123"
-              type="url"
-              value={referenceLink}
-              onChange={(e) => {
-                setReferenceLink(e.target.value);
-                if (e.target.value.trim()) {
-                  validateReferenceLink(e.target.value);
-                } else {
-                  setErrors((prev => {
-                    const newErrors = { ...prev };
-                    delete newErrors.referenceLink;
-                    return newErrors;
-                  }));
-                }
-              }}
-              className="h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg"
-              disabled={loading}
-            />
-            {errors.referenceLink && (
-              <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-[12px] text-red-600 dark:text-red-400">{errors.referenceLink}</p>
-              </div>
-            )}
-            <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">
-              Property listing URL or any reference link
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1 h-10 rounded-lg border-[#e9edef] dark:border-[#374045] text-[#54656f] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#374045]"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={loading || !countryCode.trim() || !phoneNumber.trim()}
-              className="flex-1 h-10 bg-[#25d366] hover:bg-[#1da851] text-white rounded-lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Owner"
-              )}
-            </Button>
-          </div>
-        </div>
+        <FormContent />
       </DialogContent>
     </Dialog>
   );

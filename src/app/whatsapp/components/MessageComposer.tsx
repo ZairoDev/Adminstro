@@ -25,6 +25,7 @@ import { TemplateDialog } from "./TemplateDialog";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import { getMessageDisplayText } from "../utils";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 type MediaKind = "image" | "document" | "audio" | "video";
 
@@ -564,8 +565,14 @@ export const MessageComposer = memo(function MessageComposer({
         </div>
       )}
 
-      {/* Main composer area */}
-      <div className="px-4 py-2 flex items-end gap-2">
+      {/* Main composer area - Responsive with safe area padding */}
+      <div className={cn(
+        "flex items-end gap-1.5",
+        // Mobile: Safe area padding at bottom, tighter horizontal padding
+        "px-2 py-2 pb-[max(8px,env(safe-area-inset-bottom))]",
+        // Desktop: More padding
+        "md:px-4 md:py-2 md:pb-2 md:gap-2"
+      )}>
         {/* Template dialog (hidden trigger) */}
         <TemplateDialog
           open={showTemplateDialog}
@@ -612,14 +619,19 @@ export const MessageComposer = memo(function MessageComposer({
           onChange={(e) => onHandleFileUpload(e, "audio")}
         />
 
-        {/* Emoji picker */}
+        {/* Emoji picker - Hidden on mobile (accessed via keyboard) */}
         <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               disabled={!canSendFreeForm}
-              className="h-10 w-10 rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0"
+              className={cn(
+                "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0",
+                // Hidden on mobile, shown on tablet+
+                "hidden md:flex",
+                "md:h-10 md:w-10"
+              )}
             >
               <Smile className="h-6 w-6" />
             </Button>
@@ -635,7 +647,7 @@ export const MessageComposer = memo(function MessageComposer({
           </PopoverContent>
         </Popover>
 
-        {/* Attachment menu */}
+        {/* Attachment menu - Mobile-optimized */}
         <Popover open={showAttachmentMenu} onOpenChange={setShowAttachmentMenu}>
           <PopoverTrigger asChild>
             <Button
@@ -643,8 +655,11 @@ export const MessageComposer = memo(function MessageComposer({
               size="icon"
               disabled={uploadingMedia || !canSendFreeForm}
               className={cn(
-                "h-10 w-10 rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0 transition-transform",
-                showAttachmentMenu && "rotate-45"
+                "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0 transition-transform",
+                showAttachmentMenu && "rotate-45",
+                // Mobile: Larger touch target
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
               )}
             >
               {uploadingMedia ? (
@@ -654,14 +669,27 @@ export const MessageComposer = memo(function MessageComposer({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" side="top" align="start">
-            <div className="grid grid-cols-3 gap-2">
+          <PopoverContent 
+            className={cn(
+              "w-auto p-2",
+              // Mobile: Bottom sheet style
+              "md:w-auto"
+            )} 
+            side="top" 
+            align="start"
+          >
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => {
                   imageInputRef.current?.click();
                   setShowAttachmentMenu(false);
                 }}
-                className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                  // Mobile: Larger touch targets
+                  "p-4 min-h-[80px]",
+                  "md:p-3 md:min-h-0"
+                )}
               >
                 <div className="w-12 h-12 rounded-full bg-[#7f66ff] flex items-center justify-center">
                   <ImageIcon className="h-6 w-6 text-white" />
@@ -674,7 +702,11 @@ export const MessageComposer = memo(function MessageComposer({
                   videoInputRef.current?.click();
                   setShowAttachmentMenu(false);
                 }}
-                className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                  "p-4 min-h-[80px]",
+                  "md:p-3 md:min-h-0"
+                )}
               >
                 <div className="w-12 h-12 rounded-full bg-[#ff2e74] flex items-center justify-center">
                   <Film className="h-6 w-6 text-white" />
@@ -687,7 +719,11 @@ export const MessageComposer = memo(function MessageComposer({
                   fileInputRef.current?.click();
                   setShowAttachmentMenu(false);
                 }}
-                className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                  "p-4 min-h-[80px]",
+                  "md:p-3 md:min-h-0"
+                )}
               >
                 <div className="w-12 h-12 rounded-full bg-[#5157ae] flex items-center justify-center">
                   <FileText className="h-6 w-6 text-white" />
@@ -700,7 +736,11 @@ export const MessageComposer = memo(function MessageComposer({
                   audioInputRef.current?.click();
                   setShowAttachmentMenu(false);
                 }}
-                className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                  "p-4 min-h-[80px]",
+                  "md:p-3 md:min-h-0"
+                )}
               >
                 <div className="w-12 h-12 rounded-full bg-[#ff5c00] flex items-center justify-center">
                   <Music className="h-6 w-6 text-white" />
@@ -715,7 +755,11 @@ export const MessageComposer = memo(function MessageComposer({
                     onTemplateDialogChange(true);
                     setShowAttachmentMenu(false);
                   }}
-                  className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors"
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                    "p-4 min-h-[80px]",
+                    "md:p-3 md:min-h-0"
+                  )}
                 >
                   <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center">
                     <LayoutTemplate className="h-6 w-6 text-white" />
@@ -727,7 +771,7 @@ export const MessageComposer = memo(function MessageComposer({
           </PopoverContent>
         </Popover>
 
-        {/* Message input */}
+        {/* Message input - Responsive */}
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
@@ -741,22 +785,30 @@ export const MessageComposer = memo(function MessageComposer({
             disabled={!canSendFreeForm}
             rows={1}
             className={cn(
-              "w-full bg-white dark:bg-[#2a3942] rounded-lg px-3 py-2.5",
-              "text-[15px] text-[#111b21] dark:text-[#e9edef]",
+              "w-full bg-white dark:bg-[#2a3942] rounded-lg",
+              "text-[#111b21] dark:text-[#e9edef]",
               "placeholder:text-[#8696a0] resize-none",
               "border-0 outline-none focus-visible:ring-0",
-              "min-h-[42px] max-h-[150px]",
-              "scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+              "scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]",
+              // Mobile: Larger text and padding for touch
+              "px-3 py-3 text-[16px] min-h-[44px] max-h-[120px]",
+              // Desktop: Slightly smaller
+              "md:px-3 md:py-2.5 md:text-[15px] md:min-h-[42px] md:max-h-[150px]"
             )}
           />
         </div>
 
-        {/* Send / Voice button */}
+        {/* Send / Voice button - Responsive touch targets */}
         {newMessage.trim() ? (
           <Button
             onClick={onSendMessage}
             disabled={!newMessage.trim() || sendingMessage || uploadingMedia || !canSendFreeForm}
-            className="h-10 w-10 rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0"
+            className={cn(
+              "rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0",
+              // Mobile: Larger touch target
+              "h-11 w-11 min-h-[44px] min-w-[44px]",
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+            )}
           >
             {sendingMessage ? (
               <Loader2 className="h-5 w-5 animate-spin text-white" />
@@ -769,7 +821,12 @@ export const MessageComposer = memo(function MessageComposer({
             variant="ghost"
             size="icon"
             disabled={!canSendFreeForm}
-            className="h-10 w-10 rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0"
+            className={cn(
+              "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0",
+              // Mobile: Larger touch target
+              "h-11 w-11 min-h-[44px] min-w-[44px]",
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+            )}
           >
             <Mic className="h-6 w-6" />
           </Button>

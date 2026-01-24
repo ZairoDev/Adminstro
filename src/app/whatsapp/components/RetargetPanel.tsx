@@ -26,6 +26,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Loader2,
   MessageSquare,
   Send,
@@ -50,9 +57,12 @@ import {
   Building,
   RefreshCw,
   Search,
+  ArrowLeft,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { Template } from "../types";
 import { getTemplateParameters, getTemplatePreviewText } from "../utils";
+import { cn } from "@/lib/utils";
 
 // =========================================================
 // TYPES
@@ -136,6 +146,8 @@ interface RetargetPanelProps {
     retargeted?: number;
     atMaxRetarget?: number;
   };
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
 // =========================================================
@@ -231,12 +243,15 @@ export function RetargetPanel({
   sentCount,
   sendingActive,
   meta,
+  isMobile = false,
+  onBack,
 }: RetargetPanelProps) {
   const [stateFilter, setStateFilter] = useState<string>("pending");
   const [showConfirm, setShowConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   // Additional filters for leads
   const [area, setArea] = useState("");
   const [zone, setZone] = useState("");
@@ -431,50 +446,45 @@ export function RetargetPanel({
     return Array.from(new Set(areas)).sort();
   }, [recipients]);
 
-  return (
-    <div className="flex h-full overflow-hidden">
-      {/* SIDEBAR - Filters */}
-      <div
-        className={`
-          flex-shrink-0 border-r bg-background transition-all duration-300
-          ${sidebarCollapsed ? "w-0 overflow-hidden" : "w-80 lg:w-96"}
-        `}
-      >
-        <div className="h-full flex flex-col">
-          {/* Sidebar Header */}
-          <div className="p-4 border-b">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Filters</h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarCollapsed(true)}
-                className="lg:hidden"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="text-sm">
-                Max {maxRetarget} per {audience === "leads" ? "lead" : "owner"}
-              </Badge>
-              <Badge variant="outline" className="text-sm">
-                {dailyRemaining}/100 left today
-              </Badge>
-              {meta?.blocked && meta.blocked > 0 && (
-                <Badge variant="destructive" className="text-sm">
-                  {meta.blocked} blocked
-                </Badge>
-              )}
-            </div>
+  // Filter sidebar content (shared between desktop sidebar and mobile sheet)
+  const FilterContent = () => (
+    <div className="h-full flex flex-col">
+      {/* Sidebar Header */}
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-lg">Filters</h2>
           </div>
+          {!isMobile && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(true)}
+              className="lg:hidden"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="text-sm">
+            Max {maxRetarget} per {audience === "leads" ? "lead" : "owner"}
+          </Badge>
+          <Badge variant="outline" className="text-sm">
+            {dailyRemaining}/100 left today
+          </Badge>
+          {meta?.blocked && meta.blocked > 0 && (
+            <Badge variant="destructive" className="text-sm">
+              {meta.blocked} blocked
+            </Badge>
+          )}
+        </div>
+      </div>
 
           {/* Sidebar Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             {/* Audience Tabs */}
             <div className="space-y-2">
               <Label className="text-base font-semibold">Audience Type</Label>
@@ -839,9 +849,12 @@ export function RetargetPanel({
 
             {/* Fetch Button */}
             <Button
-              onClick={handleFetch}
+              onClick={() => {
+                handleFetch();
+                if (isMobile) setMobileFilterOpen(false);
+              }}
               disabled={fetching}
-              className="w-full"
+              className={cn("w-full", isMobile && "h-12")}
               size="lg"
             >
               {fetching ? (
@@ -853,15 +866,74 @@ export function RetargetPanel({
             </Button>
           </div>
         </div>
-      </div>
+  );
+
+  return (
+    <div className={cn(
+      "flex h-full overflow-x-hidden min-h-0",
+      // Mobile: full screen view
+      isMobile && "flex-col"
+    )}>
+      {/* Desktop SIDEBAR - Filters (hidden on mobile) */}
+      {!isMobile && (
+        <div
+          className={cn(
+            "flex-shrink-0 border-r bg-background transition-all duration-300",
+            sidebarCollapsed ? "w-0 overflow-hidden" : "w-80 lg:w-96"
+          )}
+        >
+          <FilterContent />
+        </div>
+      )}
+
+      {/* Mobile Filter Sheet */}
+      {isMobile && (
+        <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+          <SheetContent side="left" className="w-full sm:w-96 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <FilterContent />
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* MAIN CONTENT - Recipients List */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-x-hidden min-h-0">
         {/* Header */}
-        <div className="p-4 border-b bg-background">
+        <div className={cn(
+          "border-b bg-background",
+          isMobile ? "p-3" : "p-4"
+        )}>
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              {sidebarCollapsed && (
+            <div className="flex items-center gap-2 md:gap-3">
+              {/* Mobile back button */}
+              {isMobile && onBack && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onBack}
+                  className="h-10 w-10 flex-shrink-0"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
+              
+              {/* Mobile filter toggle */}
+              {isMobile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMobileFilterOpen(true)}
+                  className="h-10"
+                >
+                  <SlidersHorizontal className="h-4 w-4 mr-2" />
+                  Filters
+                </Button>
+              )}
+              
+              {/* Desktop: show filters button when collapsed */}
+              {!isMobile && sidebarCollapsed && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -871,9 +943,18 @@ export function RetargetPanel({
                   Show Filters
                 </Button>
               )}
+              
               <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-green-500" />
-                <h1 className="font-semibold text-xl">Retargeting Campaign</h1>
+                <MessageSquare className={cn(
+                  "text-green-500",
+                  isMobile ? "h-4 w-4" : "h-5 w-5"
+                )} />
+                <h1 className={cn(
+                  "font-semibold",
+                  isMobile ? "text-base" : "text-xl"
+                )}>
+                  {isMobile ? "Retarget" : "Retargeting Campaign"}
+                </h1>
               </div>
             </div>
           </div>
@@ -883,28 +964,43 @@ export function RetargetPanel({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={`Search ${audience === "leads" ? "guests" : "owners"} by name, phone, email, location...`}
+                placeholder={isMobile 
+                  ? `Search ${audience === "leads" ? "guests" : "owners"}...` 
+                  : `Search ${audience === "leads" ? "guests" : "owners"} by name, phone, email, location...`
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className={cn("pl-9", isMobile && "h-11 text-base")}
               />
             </div>
           </div>
 
-          {/* State Tabs */}
+          {/* State Tabs - scrollable on mobile */}
           <Tabs value={stateFilter} onValueChange={setStateFilter}>
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="pending" className="gap-1">
+            <TabsList className={cn(
+              "grid grid-cols-3",
+              isMobile ? "w-full" : "w-full max-w-md"
+            )}>
+              <TabsTrigger value="pending" className={cn(
+                "gap-1",
+                isMobile && "px-2 text-xs"
+              )}>
                 <Clock className="h-3 w-3" />
-                Pending ({counts.pending})
+                {isMobile ? counts.pending : `Pending (${counts.pending})`}
               </TabsTrigger>
-              <TabsTrigger value="retargeted" className="gap-1">
+              <TabsTrigger value="retargeted" className={cn(
+                "gap-1",
+                isMobile && "px-2 text-xs"
+              )}>
                 <RotateCcw className="h-3 w-3" />
-                Retargeted ({counts.retargeted})
+                {isMobile ? counts.retargeted : `Retargeted (${counts.retargeted})`}
               </TabsTrigger>
-              <TabsTrigger value="blocked" className="gap-1">
+              <TabsTrigger value="blocked" className={cn(
+                "gap-1",
+                isMobile && "px-2 text-xs"
+              )}>
                 <Ban className="h-3 w-3" />
-                Blocked ({counts.blocked})
+                {isMobile ? counts.blocked : `Blocked (${counts.blocked})`}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -926,65 +1022,128 @@ export function RetargetPanel({
 
         {/* Action Bar */}
         {stateFilter !== "blocked" && (
-          <div className="p-4 border-b bg-muted/30">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                onClick={handleStartRetarget}
-                disabled={
-                  sending ||
-                  !selectedTemplate ||
-                  selectedRecipientIds.length === 0 ||
-                  dailyRemaining <= 0
-                }
-                className="bg-green-600 hover:bg-green-700"
-                size="lg"
-              >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                Send to {selectedRecipientIds.length} selected
-              </Button>
+          <div className={cn(
+            "border-b bg-muted/30",
+            isMobile ? "p-3" : "p-4"
+          )}>
+            <div className={cn(
+              "flex items-center gap-2",
+              isMobile ? "flex-col" : "flex-wrap gap-3"
+            )}>
+              {/* Mobile: Compact action row */}
+              {isMobile ? (
+                <>
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onToggleAll(true)}
+                        disabled={selectableRecipients.length === 0 || selectedRecipientIds.length >= 10}
+                        className="h-9 px-2"
+                      >
+                        <CheckSquare className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onToggleAll(false)}
+                        disabled={selectedRecipientIds.length === 0}
+                        className="h-9 px-2"
+                      >
+                        <Square className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Badge
+                      variant={selectedRecipientIds.length >= 10 ? "destructive" : "default"}
+                      className={cn(
+                        "h-8 px-2 text-xs",
+                        selectedRecipientIds.length < 10 && "bg-green-600"
+                      )}
+                    >
+                      {selectedRecipientIds.length}/10
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={handleStartRetarget}
+                    disabled={
+                      sending ||
+                      !selectedTemplate ||
+                      selectedRecipientIds.length === 0 ||
+                      dailyRemaining <= 0
+                    }
+                    className="bg-green-600 hover:bg-green-700 w-full h-11 active:scale-[0.98]"
+                  >
+                    {sending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send to {selectedRecipientIds.length}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* Desktop layout */}
+                  <Button
+                    onClick={handleStartRetarget}
+                    disabled={
+                      sending ||
+                      !selectedTemplate ||
+                      selectedRecipientIds.length === 0 ||
+                      dailyRemaining <= 0
+                    }
+                    className="bg-green-600 hover:bg-green-700"
+                    size="lg"
+                  >
+                    {sending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send to {selectedRecipientIds.length} selected
+                  </Button>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onToggleAll(true)}
-                  disabled={selectableRecipients.length === 0 || selectedRecipientIds.length >= 10}
-                  className="gap-1"
-                >
-                  <CheckSquare className="h-4 w-4" /> Select (max 10)
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onToggleAll(false)}
-                  disabled={selectedRecipientIds.length === 0}
-                  className="gap-1"
-                >
-                  <Square className="h-4 w-4" /> Clear
-                </Button>
-              </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onToggleAll(true)}
+                      disabled={selectableRecipients.length === 0 || selectedRecipientIds.length >= 10}
+                      className="gap-1"
+                    >
+                      <CheckSquare className="h-4 w-4" /> Select (max 10)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onToggleAll(false)}
+                      disabled={selectedRecipientIds.length === 0}
+                      className="gap-1"
+                    >
+                      <Square className="h-4 w-4" /> Clear
+                    </Button>
+                  </div>
 
-              <div className="ml-auto flex gap-2">
-                <Badge variant="outline" className="h-9 flex items-center px-3">
-                  {filteredRecipients.length} loaded
-                </Badge>
-                <Badge
-                  variant="secondary"
-                  className="h-9 flex items-center px-3"
-                >
-                  {selectableRecipients.length} eligible
-                </Badge>
-                <Badge
-                  variant={selectedRecipientIds.length >= 10 ? "destructive" : "default"}
-                  className={`h-9 flex items-center px-3 ${selectedRecipientIds.length >= 10 ? "" : "bg-green-600"}`}
-                >
-                  {selectedRecipientIds.length}/10 selected
-                </Badge>
-              </div>
+                  <div className="ml-auto flex gap-2">
+                    <Badge variant="outline" className="h-9 flex items-center px-3">
+                      {filteredRecipients.length} loaded
+                    </Badge>
+                    <Badge
+                      variant="secondary"
+                      className="h-9 flex items-center px-3"
+                    >
+                      {selectableRecipients.length} eligible
+                    </Badge>
+                    <Badge
+                      variant={selectedRecipientIds.length >= 10 ? "destructive" : "default"}
+                      className={`h-9 flex items-center px-3 ${selectedRecipientIds.length >= 10 ? "" : "bg-green-600"}`}
+                    >
+                      {selectedRecipientIds.length}/10 selected
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1013,28 +1172,46 @@ export function RetargetPanel({
         )}
 
         {/* Recipients List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className={cn(
+          "flex-1 min-h-0 overflow-y-auto",
+          isMobile ? "p-3" : "p-4"
+        )}>
           {fetching && recipients.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full">
-              <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-              <p className="text-lg font-medium text-muted-foreground">
+              <Loader2 className={cn(
+                "animate-spin text-muted-foreground mb-4",
+                isMobile ? "h-8 w-8" : "h-12 w-12"
+              )} />
+              <p className={cn(
+                "font-medium text-muted-foreground",
+                isMobile ? "text-base" : "text-lg"
+              )}>
                 Loading {audience === "leads" ? "guests" : "owners"}...
               </p>
             </div>
           ) : filteredRecipients.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <User className="h-16 w-16 mb-4 opacity-20" />
-              <p className="text-lg font-medium mb-2">
+              <User className={cn(
+                "mb-4 opacity-20",
+                isMobile ? "h-12 w-12" : "h-16 w-16"
+              )} />
+              <p className={cn(
+                "font-medium mb-2",
+                isMobile ? "text-base" : "text-lg"
+              )}>
                 No {stateFilter} {audience === "leads" ? "guests" : "owners"} found
               </p>
-              <p className="text-sm">
+              <p className="text-sm text-center px-4">
                 {searchQuery ? "Try adjusting your search query" : `Click "Refresh ${stateFilter} ${audience === "leads" ? "guests" : "owners"}" to load recipients`}
               </p>
             </div>
           ) : (
-            <div className="max-w-6xl mx-auto">
-              {/* 2-Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={cn(!isMobile && "max-w-6xl mx-auto")}>
+              {/* Responsive Grid - 1 column on mobile, 2 on tablet+ */}
+              <div className={cn(
+                "grid gap-3",
+                isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
+              )}>
                 {paginatedRecipients.map((r) => {
                   const isDisabled = !r.canRetarget || r.blocked;
                   const isSelected = selectedRecipientIds.includes(r.id);
@@ -1042,19 +1219,16 @@ export function RetargetPanel({
                   return (
                     <div
                       key={r.id}
-                      className={`
-                        flex flex-col p-4 rounded-lg border transition-all
-                        ${
-                          isDisabled
-                            ? "opacity-50 bg-muted/50 cursor-not-allowed"
-                            : "hover:border-primary hover:shadow-md cursor-pointer"
-                        }
-                        ${
-                          isSelected && !isDisabled
-                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-md"
-                            : ""
-                        }
-                      `}
+                      className={cn(
+                        "flex flex-col rounded-lg border transition-all",
+                        // Larger padding on mobile for touch targets
+                        isMobile ? "p-3" : "p-4",
+                        isDisabled
+                          ? "opacity-50 bg-muted/50 cursor-not-allowed"
+                          : "hover:border-primary hover:shadow-md cursor-pointer active:scale-[0.99]",
+                        isSelected && !isDisabled
+                          && "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-md"
+                      )}
                       onClick={() => !isDisabled && onToggleRecipient(r.id)}
                     >
                       {/* Top Row: Checkbox + Name + Source Badge */}

@@ -2,8 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-html{
-  zoom: 0.9;
+/* Desktop zoom - disabled on mobile to prevent viewport issues */
+@media (min-width: 768px) {
+  html {
+    zoom: 0.9;
+  }
+}
+
+/* Mobile: Ensure proper viewport sizing */
+@media (max-width: 767px) {
+  html {
+    zoom: 1;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
 }
 
 
@@ -611,5 +628,244 @@ html{
   50% {
     opacity: 0.8;
     transform: scale(1.1);
+  }
+}
+
+/* ==========================================================================
+   Mobile-First Responsive Utilities
+   ========================================================================== */
+
+/* iOS Safe Area Support */
+@supports (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+    --safe-area-left: env(safe-area-inset-left);
+    --safe-area-right: env(safe-area-inset-right);
+  }
+}
+
+@layer utilities {
+  /* Safe area padding utilities */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  
+  .py-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Margin safe area utilities */
+  .mt-safe {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Bottom safe positioning */
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .top-safe {
+    top: env(safe-area-inset-top, 0px);
+  }
+  
+  /* Touch interaction optimization */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .touch-none {
+    touch-action: none;
+  }
+  
+  .touch-pan-x {
+    touch-action: pan-x;
+  }
+  
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+  
+  /* Prevent text selection on touch */
+  .select-touch-none {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Mobile tap highlight */
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Smooth momentum scrolling (iOS) */
+  .scroll-momentum {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Overscroll behavior */
+  .overscroll-none {
+    overscroll-behavior: none;
+  }
+  
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+  
+  /* Hardware acceleration hints */
+  .will-change-transform {
+    will-change: transform;
+  }
+  
+  .will-change-scroll {
+    will-change: scroll-position;
+  }
+  
+  /* Touch-friendly minimum sizes */
+  .min-touch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .min-touch-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  /* Mobile text sizing */
+  .text-mobile-base {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Full viewport height (accounting for mobile browser chrome) */
+  .h-screen-mobile {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
+  }
+  
+  .min-h-screen-mobile {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  
+  /* Mobile-first animations */
+  .animate-slide-in-left {
+    animation: slideInLeft 0.25s ease-out;
+  }
+  
+  .animate-slide-out-left {
+    animation: slideOutLeft 0.25s ease-in;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-in;
+  }
+  
+  /* Mobile drawer backdrop */
+  .backdrop-blur-mobile {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+/* Mobile-specific animations */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Mobile-specific media queries */
+@media (max-width: 767px) {
+  /* Prevent zoom on input focus in iOS */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* Better touch scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
+  
+  /* Hide zoom on HTML */
+  html {
+    zoom: 1 !important;
+    -ms-text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

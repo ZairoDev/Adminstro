@@ -4,7 +4,7 @@ import WhatsAppChat from "./whatsapp";
 
 export default function WhatsAppPage() {
   return (
-    <div className="h-[110dvh] w-[110.5dvw] overflow-hidden">
+    <div className="h-screen w-screen md:h-[110dvh] md:w-[110.5dvw] overflow-hidden">
       <Suspense>
         <WhatsAppChat />
       </Suspense>

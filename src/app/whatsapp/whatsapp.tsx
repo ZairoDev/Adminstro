@@ -8,8 +8,10 @@ import axios from "axios";
 // Card components no longer needed for WhatsApp Web-style layout
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, ArrowLeft } from "lucide-react";
 import type { Message, Conversation, Template } from "./types";
+import { useMobileView, type MobileView } from "./hooks/useMobileView";
+import { cn } from "@/lib/utils";
 import {
   buildTemplateComponents,
   isMessageWindowActive,
@@ -38,6 +40,20 @@ export default function WhatsAppChat() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   // Per-tab deduplication for incoming WhatsApp events (avoid jitter / duplicate UI updates)
   const seenEventIdsRef = useRef<Set<string>>(new Set());
+  
+  // Mobile-first responsive view management
+  const {
+    mobileView,
+    setMobileView,
+    isMobile,
+    isTablet,
+    isDesktop,
+    navigateToChat,
+    navigateToConversations,
+    handleBack,
+    viewport,
+    safeAreaInsets,
+  } = useMobileView();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
@@ -1255,6 +1271,11 @@ export default function WhatsAppChat() {
     setSelectedConversation(conversation);
     setReplyToMessage(null); // Clear any pending reply when switching conversations
     fetchMessages(conversation._id, true);
+    
+    // Navigate to chat view on mobile
+    if (isMobile) {
+      navigateToChat();
+    }
     
     // CRITICAL: Mark conversation as read in ConversationReadState
     // This updates the per-user read state so notifications stop for this user
@@ -2861,34 +2882,81 @@ export default function WhatsAppChat() {
     });
   };
 
+  // Handle mobile back navigation
+  const handleMobileBack = useCallback(() => {
+    setSelectedConversation(null);
+    setMessages([]);
+    navigateToConversations();
+  }, [navigateToConversations]);
+
   return (
-    <div className="flex flex-col h-full w-full bg-[#f0f2f5] dark:bg-[#0b141a]">
-      <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-        {/* WhatsApp-style header tabs */}
-        <div className="h-[50px] bg-[#008069] dark:bg-[#202c33] flex items-center px-4 shadow-sm flex-shrink-0">
+    <div className="flex flex-col h-full w-full max-w-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-x-hidden">
+      <Tabs 
+        defaultValue="chat" 
+        className="w-full h-full flex flex-col min-h-0"
+        onValueChange={(value) => {
+          // On mobile, switch view when tab changes
+          if (isMobile && value === "retarget") {
+            setMobileView("retarget");
+          } else if (isMobile && value === "chat") {
+            setMobileView("conversations");
+          }
+        }}
+      >
+        {/* WhatsApp-style header tabs - responsive */}
+        <div className={cn(
+          "bg-[#008069] dark:bg-[#202c33] flex items-center shadow-sm flex-shrink-0",
+          "h-[50px] px-4",
+          "md:h-[50px] md:px-4",
+          // Safe area for iOS
+          "pt-[env(safe-area-inset-top,0px)]"
+        )}>
           <TabsList className="bg-transparent border-0 h-auto p-0 gap-1">
             <TabsTrigger 
               value="chat" 
-              className="text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 px-4 py-2 rounded-lg transition-all"
+              className={cn(
+                "text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all",
+                "px-3 py-2 text-sm",
+                "md:px-4 md:py-2 md:text-base"
+              )}
             >
               Chat
             </TabsTrigger>
             <TabsTrigger 
               value="retarget"
-              className="text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 px-4 py-2 rounded-lg transition-all"
+              className={cn(
+                "text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all",
+                "px-3 py-2 text-sm",
+                "md:px-4 md:py-2 md:text-base"
+              )}
             >
               Retarget
             </TabsTrigger>
           </TabsList>
           <div className="flex-1" />
-          <div className="text-white/80 text-sm">
+          {/* User info - hidden on mobile, shown on tablet+ */}
+          <div className="text-white/80 text-sm hidden md:block">
             {token?.name} • {token?.role}
           </div>
         </div>
 
-        <TabsContent value="chat" className="flex-1 m-0 overflow-hidden">
-          <div className="flex h-full">
-            <ConversationSidebar
+        <TabsContent value="chat" className="flex-1 m-0 overflow-x-hidden max-w-full min-h-0">
+          {/* Mobile-first responsive layout */}
+          <div className="flex h-full relative w-full max-w-full min-h-0">
+            {/* Conversation Sidebar - Full screen on mobile, fixed width on desktop */}
+            <div className={cn(
+              // Base: Always flex, full height
+              "flex flex-col h-full",
+              // Mobile: Full screen width, hidden when chat is open
+              "w-full max-w-full",
+              isMobile && mobileView === "chat" && "hidden",
+              // Tablet and up: Fixed sidebar width, always visible
+              "md:w-[320px] md:min-w-[280px] md:max-w-[400px]",
+              "lg:w-[400px] lg:min-w-[320px] lg:max-w-[480px]",
+              // Transition for smooth view changes
+              "transition-all duration-200 ease-out"
+            )}>
+              <ConversationSidebar
               conversations={showingArchived ? archivedConversations : conversations}
               selectedConversation={selectedConversation}
               searchQuery={searchQuery}
@@ -2918,10 +2986,24 @@ export default function WhatsAppChat() {
               // User info for access control
               userRole={token?.role}
               userAreas={token?.allotedArea}
+              // Mobile props
+              isMobile={isMobile}
             />
+            </div>
 
-            {/* Chat Panel */}
-            <div className="flex-1 flex flex-col bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden">
+            {/* Chat Panel - Full screen on mobile when chat is selected */}
+            <div className={cn(
+              // Base: Flex column layout
+              "flex flex-col bg-[#efeae2] dark:bg-[#0b141a]",
+              // Mobile: Full screen overlay when chat is open
+              isMobile ? (
+                mobileView === "chat" ? "absolute inset-0 z-10 w-full h-full max-w-full" : "hidden"
+              ) : "flex-1 relative",
+              // Desktop: Always visible, flex-1 for remaining space
+              "md:flex-1 md:relative md:z-auto",
+              // Transition for smooth view changes
+              "transition-all duration-200 ease-out"
+            )}>
               {selectedConversation ? (
                 <>
                   <ChatHeader
@@ -2952,6 +3034,8 @@ export default function WhatsAppChat() {
                     }
                     readersRefreshToken={readersRefreshToken}
                     currentUserId={token?.id || (token as any)?._id}
+                    onBack={handleMobileBack}
+                    isMobile={isMobile}
                   />
 
                   <MessageList
@@ -2967,6 +3051,7 @@ export default function WhatsAppChat() {
                     conversations={conversations}
                     onReplyMessage={handleReplyMessage}
                     onReactMessage={handleReactMessage}
+                    isMobile={isMobile}
                   />
 
                   <WindowWarningDialog
@@ -3012,11 +3097,15 @@ export default function WhatsAppChat() {
                   />
                 </>
               ) : (
-                /* Empty state - WhatsApp Web style */
-                <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#222e35]">
-                  <div className="max-w-md text-center">
-                    {/* WhatsApp illustration */}
-                    <div className="w-[320px] h-[188px] mx-auto mb-8">
+                /* Empty state - WhatsApp Web style (hidden on mobile) */
+                <div className={cn(
+                  "flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#222e35]",
+                  // Hide on mobile since we show the conversation list instead
+                  "hidden md:flex"
+                )}>
+                  <div className="max-w-md text-center px-4">
+                    {/* WhatsApp illustration - responsive */}
+                    <div className="w-[240px] h-[141px] md:w-[320px] md:h-[188px] mx-auto mb-6 md:mb-8">
                       <svg viewBox="0 0 320 188" className="w-full h-full">
                         <rect fill="#d9fdd3" x="116" y="22" width="88" height="136" rx="10" className="dark:fill-[#005c4b]"/>
                         <rect fill="#25d366" x="128" y="33" width="64" height="10" rx="5"/>
@@ -3031,15 +3120,16 @@ export default function WhatsAppChat() {
                       </svg>
                     </div>
                     
-                    <h1 className="text-[32px] font-light text-[#41525d] dark:text-[#e9edef] mb-4">
+                    <h1 className="text-2xl md:text-[32px] font-light text-[#41525d] dark:text-[#e9edef] mb-3 md:mb-4">
                       WhatsApp Business
                     </h1>
-                    <p className="text-[14px] text-[#667781] dark:text-[#8696a0] leading-relaxed mb-8">
-                      Send and receive messages without keeping your phone online.<br />
+                    <p className="text-[13px] md:text-[14px] text-[#667781] dark:text-[#8696a0] leading-relaxed mb-6 md:mb-8">
+                      Send and receive messages without keeping your phone online.<br className="hidden md:inline" />
+                      <span className="md:hidden"> </span>
                       Use WhatsApp on up to 4 linked devices and 1 phone at the same time.
                     </p>
                     
-                    <div className="flex items-center justify-center gap-2 text-[14px] text-[#667781] dark:text-[#8696a0]">
+                    <div className="flex items-center justify-center gap-2 text-[13px] md:text-[14px] text-[#667781] dark:text-[#8696a0]">
                       <svg viewBox="0 0 10 12" width="10" height="12" className="text-[#8696a0]">
                         <path fill="currentColor" d="M5.0 0.65C2.648 0.65 0.75 2.548 0.75 4.9V6.125L0.0 6.875V8.375H10.0V6.875L9.25 6.125V4.9C9.25 2.548 7.352 0.65 5.0 0.65ZM5.0 11.35C5.967 11.35 6.75 10.567 6.75 9.6H3.25C3.25 10.567 4.033 11.35 5.0 11.35Z"/>
                       </svg>
@@ -3052,7 +3142,13 @@ export default function WhatsAppChat() {
           </div>
         </TabsContent>
 
-        <TabsContent value="retarget" className="flex-1 px-4 pb-0 overflow-hidden">
+        <TabsContent value="retarget" className={cn(
+          "flex-1 overflow-x-hidden min-h-0",
+          // Mobile: Full screen with padding
+          "px-2 pb-0",
+          // Desktop: More padding
+          "md:px-4"
+        )}>
           <RetargetPanel
             audience={retargetAudience}
             onAudienceChange={setRetargetAudience}

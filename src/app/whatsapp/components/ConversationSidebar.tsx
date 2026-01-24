@@ -22,6 +22,7 @@ import {
   Archive,
   ArchiveRestore,
   MessageSquare,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
@@ -74,6 +75,8 @@ interface SidebarProps {
   // User info for access control
   userRole?: string;
   userAreas?: string | string[];
+  // Mobile responsiveness
+  isMobile?: boolean;
 }
 
 // Memoized conversation item to prevent unnecessary re-renders
@@ -85,6 +88,7 @@ const ConversationItem = memo(function ConversationItem({
   onArchive,
   onUnarchive,
   isArchived,
+  isMobile = false,
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -93,6 +97,7 @@ const ConversationItem = memo(function ConversationItem({
   onArchive?: (id: string) => void;
   onUnarchive?: (id: string) => void;
   isArchived?: boolean;
+  isMobile?: boolean;
 }) {
   const hasUnread =
     (conversation.unreadCount || 0) > 0 &&
@@ -140,16 +145,22 @@ const ConversationItem = memo(function ConversationItem({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors group border border-transparent rounded-md",
+        "flex items-center gap-3 cursor-pointer transition-colors group border border-transparent rounded-md",
+        // Mobile: Larger touch targets (min 48px height)
+        "px-3 py-3 min-h-[72px]",
+        // Desktop: Slightly smaller
+        "md:px-3 md:py-2.5 md:min-h-0",
+        // Hover states (desktop only, mobile uses active)
         "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
+        "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
         isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
         hasUnread && !isSelected && "bg-[#f0f2f5] dark:bg-[#182229]"
       )}
       onClick={onClick}
     >
-      {/* Avatar */}
+      {/* Avatar - Responsive sizing */}
       <div className="relative flex-shrink-0">
-        <Avatar className="h-12 w-12">
+        <Avatar className="h-12 w-12 md:h-12 md:w-12">
           <AvatarImage src={conversation.participantProfilePic} />
           <AvatarFallback className={cn(
             "text-sm font-medium",
@@ -283,6 +294,8 @@ export function ConversationSidebar({
   // User info for access control
   userRole,
   userAreas,
+  // Mobile responsiveness
+  isMobile = false,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -332,9 +345,21 @@ export function ConversationSidebar({
   }, [handleScroll]);
 
   return (
-    <div className="w-[400px] min-w-[300px] max-w-[500px] flex flex-col h-full bg-white dark:bg-[#111b21] border-r border-[#e9edef] dark:border-[#222d34]">
-      {/* Header */}
-      <div className="h-[60px] px-4 flex items-center justify-between bg-[#f0f2f5] dark:bg-[#202c33] flex-shrink-0">
+    <div className={cn(
+      "flex flex-col h-full bg-white dark:bg-[#111b21] min-h-0",
+      // Mobile: Full width, no border
+      "w-full",
+      // Desktop: Fixed width with border
+      "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]"
+    )}>
+      {/* Header - Responsive */}
+      <div className={cn(
+        "flex items-center justify-between bg-[#f0f2f5] dark:bg-[#202c33] flex-shrink-0",
+        // Mobile: Taller header with safe area
+        "h-[56px] px-3 pt-[env(safe-area-inset-top,0px)]",
+        // Desktop: Standard height
+        "md:h-[60px] md:px-4 md:pt-0"
+      )}>
         {showNewChat ? (
           <>
             <Button
@@ -369,12 +394,17 @@ export function ConversationSidebar({
                 </TooltipProvider>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 md:gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowNewChat(true)}
-                className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+                className={cn(
+                  "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                  // Mobile: Larger touch targets
+                  "h-11 w-11 min-h-[44px] min-w-[44px]",
+                  "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+                )}
               >
                 <UserPlus className="h-5 w-5" />
               </Button>
@@ -383,7 +413,12 @@ export function ConversationSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+                    className={cn(
+                      "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                      // Mobile: Larger touch targets
+                      "h-11 w-11 min-h-[44px] min-w-[44px]",
+                      "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+                    )}
                   >
                     <Filter className="h-5 w-5" />
                   </Button>
@@ -431,7 +466,12 @@ export function ConversationSidebar({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full"
+                        className={cn(
+                          "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                          // Mobile: Larger touch targets
+                          "h-11 w-11 min-h-[44px] min-w-[44px]",
+                          "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+                        )}
                       >
                         <Phone className="h-5 w-5" />
                       </Button>
@@ -458,10 +498,10 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* Search / New Chat Input */}
+      {/* Search / New Chat Input - Responsive */}
       <div className="px-3 py-2 bg-white dark:bg-[#111b21]">
         {showNewChat ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex gap-2">
               <div className="relative w-20">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">+</span>
@@ -469,7 +509,12 @@ export function ConversationSidebar({
                   placeholder="91"
                   value={newCountryCode}
                   onChange={(e) => onCountryCodeChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="h-9 pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]"
+                  className={cn(
+                    "pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                    // Mobile: Taller inputs for touch
+                    "h-11",
+                    "md:h-9"
+                  )}
                   maxLength={4}
                 />
               </div>
@@ -477,16 +522,25 @@ export function ConversationSidebar({
                 placeholder="Phone number"
                 value={newPhoneNumber}
                 onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, ""))}
-                className="flex-1 h-9 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]"
+                className={cn(
+                  "flex-1 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                  // Mobile: Taller inputs for touch
+                  "h-11",
+                  "md:h-9"
+                )}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") onStartConversation();
                 }}
               />
               <Button
-                size="sm"
                 onClick={onStartConversation}
                 disabled={loading || !newCountryCode.trim() || !newPhoneNumber.trim()}
-                className="bg-[#25d366] hover:bg-[#1da851] text-white"
+                className={cn(
+                  "bg-[#25d366] hover:bg-[#1da851] text-white",
+                  // Mobile: Larger button
+                  "h-11 px-4",
+                  "md:h-9 md:px-3"
+                )}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start"}
               </Button>
@@ -494,13 +548,18 @@ export function ConversationSidebar({
             {onAddGuest && (
               <Button
                 variant="ghost"
-                className="w-full justify-start text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+                className={cn(
+                  "w-full justify-start text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
+                  // Mobile: Taller button for touch
+                  "h-12 text-[15px]",
+                  "md:h-10 md:text-[14px]"
+                )}
                 onClick={() => {
                   onAddGuest();
                   setShowNewChat(false);
                 }}
               >
-                <UserPlus className="h-4 w-4 mr-3" />
+                <UserPlus className="h-5 w-5 mr-3" />
                 Add new owner with details
               </Button>
             )}
@@ -512,7 +571,12 @@ export function ConversationSidebar({
               placeholder="Search or start new chat"
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="h-[35px] pl-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[14px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0"
+              className={cn(
+                "pl-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0",
+                // Mobile: Taller search input
+                "h-11 text-[15px]",
+                "md:h-[35px] md:text-[14px]"
+              )}
             />
           </div>
         )}
@@ -538,7 +602,8 @@ export function ConversationSidebar({
       {/* Conversation List */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {loading && conversations.length === 0 ? (
           <div className="flex items-center justify-center py-20">
@@ -590,13 +655,18 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* Archive Section - WhatsApp Style (at bottom) */}
+      {/* Archive Section - WhatsApp Style (at bottom) - Responsive */}
       {onToggleArchiveView && (
         <div
           className={cn(
-            "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-t border-[#e9edef] dark:border-[#222d34]",
+            "flex items-center gap-3 cursor-pointer transition-colors border-t border-[#e9edef] dark:border-[#222d34]",
             "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
-            showingArchived && "bg-[#d9fdd3] dark:bg-[#005c4b]"
+            "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
+            showingArchived && "bg-[#d9fdd3] dark:bg-[#005c4b]",
+            // Mobile: Larger touch target, safe area padding at bottom
+            "px-4 py-4 min-h-[64px] pb-[max(16px,env(safe-area-inset-bottom))]",
+            // Desktop: Standard sizing
+            "md:py-3 md:min-h-0 md:pb-3"
           )}
           onClick={onToggleArchiveView}
         >
@@ -613,7 +683,7 @@ export function ConversationSidebar({
             </span>
           </div>
           {!showingArchived && archivedCount > 0 && (
-            <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1.5">
+            <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5">
               {archivedCount}
             </span>
           )}

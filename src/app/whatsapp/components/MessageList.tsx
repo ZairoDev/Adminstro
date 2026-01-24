@@ -18,8 +18,9 @@ import {
   Music,
   ChevronDown,
   Play,
+  ArrowDown,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef, useCallback, memo } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback, memo, TouchEvent } from "react";
 import { AlertTriangle, CheckCheck, Clock } from "lucide-react";
 import {
   Tooltip,
@@ -95,6 +96,7 @@ interface MessageListProps {
   conversations?: any[];
   onReplyMessage?: (message: Message) => void;
   onReactMessage?: (message: Message, emoji: string) => void;
+  isMobile?: boolean;
 }
 
 // Status icon component
@@ -177,7 +179,9 @@ const ImageGroup = memo(function ImageGroup({
   return (
     <div
       className={cn(
-        "flex gap-2 px-[63px] py-1 group",
+        "flex gap-2 py-1 group",
+        // Responsive padding - smaller on mobile
+        "px-3 md:px-[63px]",
         isOutgoing ? "justify-end" : "justify-start"
       )}
       onMouseEnter={() => setIsHovered(true)}
@@ -215,7 +219,9 @@ const ImageGroup = memo(function ImageGroup({
       {/* Image Grid */}
       <div
         className={cn(
-          "relative rounded-lg overflow-hidden shadow-sm max-w-[320px]",
+          "relative rounded-lg overflow-hidden shadow-sm",
+          // Responsive max-width for image grid
+          "max-w-[280px] md:max-w-[320px]",
           isOutgoing ? "bg-[#d9fdd3] dark:bg-[#005c4b]" : "bg-white dark:bg-[#202c33]"
         )}
       >
@@ -332,6 +338,7 @@ const MessageBubble = memo(function MessageBubble({
   onScrollToMessage,
   isHighlighted,
   isMounted,
+  isMobile = false,
 }: {
   message: Message;
   isFirstInGroup: boolean;
@@ -349,28 +356,109 @@ const MessageBubble = memo(function MessageBubble({
   onScrollToMessage?: (messageId: string) => void;
   isHighlighted?: boolean;
   isMounted: boolean;
+  isMobile?: boolean;
 }) {
   const isOutgoing = message.direction === "outgoing";
   const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
   const displayText = getMessageDisplayText(message);
   const [isHovered, setIsHovered] = useState(false);
+  const [isLongPressed, setIsLongPressed] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
   
   // Check if this is an internal "You" message
   const isInternal = message.source === "internal" || message.isInternal;
+  
+  // Touch handlers for mobile swipe-to-reply and long-press
+  const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || selectMode) return;
+    
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    
+    // Start long press timer for context menu
+    longPressTimerRef.current = setTimeout(() => {
+      setIsLongPressed(true);
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  }, [isMobile, selectMode]);
+  
+  const handleTouchMove = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || selectMode || !touchStartRef.current) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+    
+    // Cancel long press if moving
+    if (Math.abs(deltaX) > 10 || deltaY > 10) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+    
+    // Swipe to reply (left swipe for outgoing, right swipe for incoming)
+    if (deltaY < 30 && onReply) {
+      const swipeDirection = isOutgoing ? -1 : 1;
+      const offset = Math.max(0, Math.min(80, deltaX * swipeDirection));
+      setSwipeOffset(offset * swipeDirection);
+    }
+  }, [isMobile, selectMode, isOutgoing, onReply]);
+  
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile) return;
+    
+    // Cancel long press timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    
+    // Trigger reply if swiped far enough
+    if (Math.abs(swipeOffset) > 60 && onReply) {
+      onReply();
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+    }
+    
+    // Reset state
+    touchStartRef.current = null;
+    setSwipeOffset(0);
+    setIsLongPressed(false);
+  }, [isMobile, swipeOffset, onReply]);
 
   const hasReactions = message.reactions && message.reactions.length > 0;
 
   return (
     <div
       className={cn(
-        "flex gap-2 px-[63px] py-[1px] group",
+        "flex gap-2 py-[1px] group relative",
+        // Responsive padding - smaller on mobile
+        "px-3 md:px-[63px]",
         isOutgoing ? "justify-end" : "justify-start",
         isFirstInGroup && "pt-1",
         isLastInGroup && "pb-1",
-        hasReactions && "mb-3" // Extra margin when reactions are present
+        hasReactions && "mb-3", // Extra margin when reactions are present
+        // Touch feedback
+        isMobile && "touch-manipulation"
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        transform: swipeOffset ? `translateX(${swipeOffset}px)` : undefined,
+        transition: swipeOffset ? 'none' : 'transform 0.2s ease-out',
+      }}
+      onMouseEnter={() => !isMobile && setIsHovered(true)}
+      onMouseLeave={() => !isMobile && setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Checkbox for select mode */}
       {selectMode && (
@@ -398,11 +486,28 @@ const MessageBubble = memo(function MessageBubble({
         </TooltipProvider>
       )}
 
+      {/* Swipe reply indicator */}
+      {swipeOffset !== 0 && onReply && (
+        <div 
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 flex items-center justify-center",
+            "w-10 h-10 rounded-full bg-[#25d366] transition-opacity",
+            Math.abs(swipeOffset) > 60 ? "opacity-100" : "opacity-50",
+            isOutgoing ? "left-2" : "right-2"
+          )}
+        >
+          <Reply className="h-5 w-5 text-white" />
+        </div>
+      )}
+      
       {/* Message bubble */}
       <div
+        ref={bubbleRef}
         data-message-id={message.messageId}
         className={cn(
-          "relative max-w-[65%] rounded-lg shadow-sm transition-all duration-300",
+          "relative rounded-lg shadow-sm transition-all duration-300",
+          // Responsive max-width - wider on mobile for better readability
+          "max-w-[85%] md:max-w-[65%]",
           // Internal "You" messages have distinct styling (blue tint like sticky notes)
           isInternal
             ? "bg-[#fff3cd] dark:bg-[#4a4000] border-l-4 border-[#ffc107]"
@@ -413,7 +518,9 @@ const MessageBubble = memo(function MessageBubble({
           isFirstInGroup && !isOutgoing && "rounded-tl-none",
           isMediaType && message.mediaUrl ? "p-1" : "px-[9px] py-[6px]",
           // Highlight effect when scrolled to
-          isHighlighted && "ring-2 ring-[#25d366] ring-opacity-75 bg-[#25d366]/10 dark:bg-[#25d366]/20"
+          isHighlighted && "ring-2 ring-[#25d366] ring-opacity-75 bg-[#25d366]/10 dark:bg-[#25d366]/20",
+          // Long press visual feedback
+          isLongPressed && "scale-[0.98] brightness-95"
         )}
         onClick={selectMode ? onSelect : undefined}
       >
@@ -590,7 +697,7 @@ const MessageBubble = memo(function MessageBubble({
 
         {/* Audio */}
         {message.mediaUrl && message.type === "audio" && (
-          <div className="flex items-center gap-3 p-2 min-w-[250px]">
+          <div className="flex items-center gap-3 p-2 min-w-[200px] md:min-w-[250px]">
             <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center flex-shrink-0">
               <Music className="h-5 w-5 text-white" />
             </div>
@@ -605,7 +712,7 @@ const MessageBubble = memo(function MessageBubble({
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "flex items-center gap-3 p-2 rounded-lg min-w-[250px]",
+              "flex items-center gap-3 p-2 rounded-lg min-w-[200px] md:min-w-[250px]",
               isOutgoing
                 ? "bg-[#c7f8ca] dark:bg-[#025144] hover:bg-[#b8f0bc] dark:hover:bg-[#024c3f]"
                 : "bg-[#f5f6f6] dark:bg-[#1d282f] hover:bg-[#ebedef] dark:hover:bg-[#182229]"
@@ -723,7 +830,7 @@ const MessageBubble = memo(function MessageBubble({
           {isOutgoing && !isInternal && <StatusIcon status={message.status} />}
         </div>
 
-        {/* Hover menu - Always mounted, visibility controlled by CSS */}
+        {/* Hover menu - Always mounted, visibility controlled by CSS or long press on mobile */}
         {!selectMode && (
           <div
             className={cn(
@@ -731,15 +838,29 @@ const MessageBubble = memo(function MessageBubble({
               isOutgoing ? "-top-2 -left-3" : "-top-2 -right-3"
             )}
           >
-            <DropdownMenu modal={false}>
+            <DropdownMenu 
+              modal={false} 
+              open={isMobile ? isLongPressed : undefined}
+              onOpenChange={(open) => {
+                if (isMobile && !open) {
+                  setIsLongPressed(false);
+                }
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "h-6 w-6 rounded-full transition-opacity duration-150",
-                    // Show on hover via CSS
-                    isHovered ? "opacity-100" : "opacity-0 pointer-events-none",
+                    "rounded-full transition-opacity duration-150",
+                    // Larger touch target on mobile
+                    "h-6 w-6 md:h-6 md:w-6",
+                    // Show on hover (desktop) or hide on mobile (use long press instead)
+                    isMobile 
+                      ? "opacity-0 pointer-events-none" 
+                      : isHovered 
+                        ? "opacity-100" 
+                        : "opacity-0 pointer-events-none",
                     isOutgoing
                       ? "bg-[#d9fdd3]/80 dark:bg-[#005c4b]/80 hover:bg-[#c7f8ca] dark:hover:bg-[#025144]"
                       : "bg-white/80 dark:bg-[#202c33]/80 hover:bg-[#f5f6f6] dark:hover:bg-[#2a3942]"
@@ -754,18 +875,28 @@ const MessageBubble = memo(function MessageBubble({
                 align={isOutgoing ? "start" : "end"}
                 side="top"
                 sideOffset={6}
-                className="w-48"
+                className={cn(
+                  "w-48",
+                  // Mobile-optimized dropdown
+                  isMobile && "min-w-[200px] p-1"
+                )}
                 onCloseAutoFocus={(e) => e.preventDefault()}
               >
                 {onReply && (
-                  <DropdownMenuItem onSelect={onReply}>
+                  <DropdownMenuItem 
+                    onSelect={onReply}
+                    className={cn(isMobile && "py-3 text-base")}
+                  >
                     <Reply className="h-4 w-4 mr-2" />
                     Reply
                   </DropdownMenuItem>
                 )}
                 {onReact && (
                   <>
-                    <div className="px-2 py-1.5 flex items-center justify-center gap-1">
+                    <div className={cn(
+                      "px-2 py-1.5 flex items-center justify-center gap-1",
+                      isMobile && "py-2 gap-2"
+                    )}>
                       {commonReactions.map((emoji) => (
                         <button
                           key={emoji}
@@ -773,8 +904,13 @@ const MessageBubble = memo(function MessageBubble({
                             e.preventDefault();
                             e.stopPropagation();
                             onReact(emoji);
+                            if (isMobile) setIsLongPressed(false);
                           }}
-                          className="w-8 h-8 rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#374045] flex items-center justify-center text-lg transition-transform hover:scale-110"
+                          className={cn(
+                            "rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#374045] flex items-center justify-center transition-transform hover:scale-110",
+                            // Larger touch targets on mobile
+                            isMobile ? "w-10 h-10 text-xl" : "w-8 h-8 text-lg"
+                          )}
                         >
                           {emoji}
                         </button>
@@ -784,17 +920,26 @@ const MessageBubble = memo(function MessageBubble({
                   </>
                 )}
                 {onForward && (
-                  <DropdownMenuItem onSelect={onForward}>
+                  <DropdownMenuItem 
+                    onSelect={onForward}
+                    className={cn(isMobile && "py-3 text-base")}
+                  >
                     <Forward className="h-4 w-4 mr-2" />
                     Forward
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onSelect={onCopy}>
+                <DropdownMenuItem 
+                  onSelect={onCopy}
+                  className={cn(isMobile && "py-3 text-base")}
+                >
                   <Copy className="h-4 w-4 mr-2" />
                   Copy
                 </DropdownMenuItem>
                 {message.mediaUrl && onDownload && (
-                  <DropdownMenuItem onSelect={onDownload}>
+                  <DropdownMenuItem 
+                    onSelect={onDownload}
+                    className={cn(isMobile && "py-3 text-base")}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </DropdownMenuItem>
@@ -840,6 +985,7 @@ export function MessageList({
   conversations = [],
   onReplyMessage,
   onReactMessage,
+  isMobile = false,
 }: MessageListProps) {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
@@ -852,6 +998,8 @@ export function MessageList({
   const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [isPullingToRefresh, setIsPullingToRefresh] = useState(false);
+  const pullStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -1081,13 +1229,70 @@ export function MessageList({
     setCurrentImageIndex(idx >= 0 ? idx : 0);
   }, [imageMessages]);
 
+  // Pull to refresh handler for mobile
+  const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || !scrollContainerRef.current) return;
+    
+    // Only enable pull-to-refresh when at top of scroll
+    if (scrollContainerRef.current.scrollTop === 0 && hasMoreMessages) {
+      pullStartYRef.current = e.touches[0].clientY;
+    }
+  }, [isMobile, hasMoreMessages]);
+  
+  const handlePullTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || pullStartYRef.current === null || !scrollContainerRef.current) return;
+    
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - pullStartYRef.current;
+    
+    if (diff > 50 && scrollContainerRef.current.scrollTop === 0) {
+      setIsPullingToRefresh(true);
+    } else {
+      setIsPullingToRefresh(false);
+    }
+  }, [isMobile]);
+  
+  const handlePullTouchEnd = useCallback(() => {
+    if (!isMobile) return;
+    
+    if (isPullingToRefresh && hasMoreMessages && onLoadOlderMessages && !loadingOlderMessages) {
+      onLoadOlderMessages();
+    }
+    
+    pullStartYRef.current = null;
+    setIsPullingToRefresh(false);
+  }, [isMobile, isPullingToRefresh, hasMoreMessages, onLoadOlderMessages, loadingOlderMessages]);
+
   return (
-    <div className="relative flex-1 flex flex-col overflow-hidden bg-[#efeae2] dark:bg-[#0b141a]">
+    <div className="relative flex-1 flex flex-col overflow-x-hidden bg-[#efeae2] dark:bg-[#0b141a] min-h-0">
       {/* WhatsApp wallpaper pattern overlay */}
       <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.05] pointer-events-none bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFY0lEQVR4nO2Z2W4TURSAZ/R/rAQEE0JY0gnZJrMkM0lnMpNJMrMkEwIJYRGIRUhcwAVw7+HGG27ggqeAG97AoAC6AAAAAAAAAAAAAAD+t7iu++u+l5Cs2vLAshFCUGkbmA3Dh4APX3wBf37+Bb59+4Z+/f1v9O37d4TH59Ffv/9BHn38PfTp0y/o4/OP0O9+/gn98scfKPbbH+j3P/2Ifvr5Z/TLH/+EffH7n+jzb78HX/71F/j863dk+eUX+NP3P0T+8O13dPiPP6LPv/0e+vjFZ8j806fIx48fo88/fEKfv/5M/Pj6NeTXb7+Ab79+A719+xZ6//Ej+u7rd+jNl5+Q558+Iz+9+Rr59NNn9MOHD8iHd+/QT+/foW8+vEXvf/yE3n37Eb394TN6//0P6NuP79C3Hz8gH959RN9/+IK+/vAJff3lO+T9l6/I55++oy8/fkNvPn1CP374iv74/S/Qu6/fwb9/+B79/fv34F+++gV89+l78Pcvv0L/+OUn+M8vvoEf//qCvv/6LfLq1RvkzZs36OXLl8izZ8/Qs+cv0JuPn9Gr12/Ruy8/oJ9evEJPn75AT548QY+ePEHPX75C3738gj55/gp59PIL+uzZK/Ty5UfkzZfvkbefvqNvvvqMvn77Frn3+Bl69foz8vLFG+Thoyfo9ZsP6LN3X9CLb76gL96+R+4+eIKePn+N3n34GDl+/x68++Qp+uLDJ+TFq3fo8dNn6OrVq+jBvTvo3r078PTZSwShPwAAAAAAAAAAaB9v3rx5cPny5ftDQ0PbExMT/6alpT2lp6d7MzMznTk5Ofa8vDxXQUGBp7Cw0FVcXOwuKSlxlpWVOcvKyhwVFRX2ioqK9RUVFRaqqqqsqamp+tHR0XUjI8PWkZGRxpGRkWXD4+Prh4eHV4+MjKwaHR1dNjo6unx0dHTZ2NjYktHR0cXjY2MLxsbGFoyPjy8YHx8fHx8fnzM+Pj57fHz81Pj4+PTY2NjpkZGRGaOjo9NHR0dPGB0dnTA0NDRucHBw3NDQ0NjBwcExo6OjY4aGhsYMDg6OHhoaGjM8PDxmeHh4zMjIyJjR0dHRo6OjY4aHh8cNDQ2NGxwcHDcwMDB+YGBg/MDA4PjBwaHxAwNDE8bGxicMDAxOGBgYmjg4ODBpaGhg0tDQ4KShwcFJg4ODkwcHBycPDg1NHhoamjI0NDR1aGhw6tDQ4LTh4cHpw8MDM4aGBmYODw/MHB4enDU8PDR7eHhozsjI0Jzh4eE5o6PDc0dGhueNjAzPHx0dnj86MrJgZGRk4cjI8KLR0ZHFo6Mji0dHRpeOjIwsHR0dXTY6OrJ8dHR0xejo6MrR0dFVY2Ojq8bGRlePjo6tGRsbXTs2NrZ+bGxs/djY+IaxsfENY2Pjm8fGJjaNjU1sGh+f2DwxPrllfHxyy8TExJbJicmtExOTWycmJrdOTk5tm5yc2D41NbF9cnJyx9TU5M6pqcmdU1OTu6amJnfv2TO1Z/fuyb27d0/t3bNnas/u3VP79uye2rdn9559e3bvP7Bn94F9+/YeOLBv34GD+/cfPLh//8FD+/cfPHRg/4HDhw4cPHzwwMEjhw4cPHLowMGjhw8ePHbk4MFjRw4dOnbk0KHjhw8fOn748KETx44eOXns2JGTJ44fPXXi+JHTx48fOXPi+JHTx48fOXvq1NGzp06dOHf69Ikfzp07ceb8uZPnfzh35syF8+fPXLhw/sy/L144c/HCuTOXLp47d/nShXNXLl04d/XyhfPXrlw8f+36pfPXrl+8cOPqxfM3r128cOvq1Uu3rl25eOva1Ut3r1+7dO/G9cv3b1y7fP/mtcsP7964evnRvRtXHz68dfXxo1vXHj26ff3xo9vXnz66c/PJo9s3nz66c+vpkzu3/gO+1sPH54TYJgAAAABJRU5ErkJggg==')]" />
 
+      {/* Pull to refresh indicator for mobile */}
+      {isMobile && isPullingToRefresh && (
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-center py-3 bg-white/80 dark:bg-[#111b21]/80 backdrop-blur-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-[#25d366] mr-2" />
+          <span className="text-sm text-[#667781] dark:text-[#8696a0]">
+            Release to load earlier messages
+          </span>
+        </div>
+      )}
+
       {/* Messages container */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+      <div 
+        ref={scrollContainerRef} 
+        className={cn(
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2",
+          // Enable smooth scrolling and momentum on mobile
+          isMobile && "scroll-smooth overscroll-contain",
+          // Performance optimization for mobile
+          isMobile && "will-change-scroll"
+        )}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        onTouchStart={handlePullTouchStart}
+        onTouchMove={handlePullTouchMove}
+        onTouchEnd={handlePullTouchEnd}
+      >
         {/* Load older messages button */}
         {hasMoreMessages && onLoadOlderMessages && (
           <div className="flex justify-center py-3">
@@ -1199,6 +1404,7 @@ export function MessageList({
                   onScrollToMessage={handleScrollToMessage}
                   isHighlighted={highlightedMessageId === item.message.messageId}
                   isMounted={isMounted}
+                  isMobile={isMobile}
                 />
               </div>
             );
@@ -1208,29 +1414,45 @@ export function MessageList({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* New messages button */}
+      {/* New messages button - repositioned for mobile */}
       {showNewMessagesButton && (
-        <div className="absolute bottom-4 right-1/2 z-20 flex items-center justify-center">
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-4 right-4 bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full px-4 py-2 shadow-lg flex items-center gap-1 hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition-colors z-20"
+          className={cn(
+            "absolute z-20 bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full shadow-lg flex items-center gap-1 hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] active:scale-95 transition-all",
+            // Mobile: centered at bottom, larger touch target
+            isMobile 
+              ? "bottom-4 left-1/2 -translate-x-1/2 px-4 py-3 min-h-[44px]" 
+              : "bottom-4 right-4 px-4 py-2"
+          )}
         >
-          <ChevronDown className="h-5 w-10" />
+          <ArrowDown className="h-5 w-5" />
           <span className="text-[12px] font-medium">New messages</span>
         </button>
-        </div>
       )}
 
-      {/* Selection action bar */}
+      {/* Selection action bar - mobile optimized */}
       {selectMode && selectedMessageIds.size > 0 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-[#202c33] rounded-full shadow-lg px-4 py-2 flex items-center gap-3 z-20">
-          <span className="text-[14px] text-[#111b21] dark:text-[#e9edef]">
+        <div className={cn(
+          "absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#202c33] shadow-lg flex items-center gap-3 z-20",
+          // Mobile: full width bottom bar with larger touch targets
+          isMobile 
+            ? "bottom-0 left-0 right-0 translate-x-0 rounded-t-2xl px-4 py-4 pb-safe" 
+            : "bottom-4 rounded-full px-4 py-2"
+        )}>
+          <span className={cn(
+            "text-[#111b21] dark:text-[#e9edef]",
+            isMobile ? "text-base font-medium" : "text-[14px]"
+          )}>
             {selectedMessageIds.size} selected
           </span>
           <Button
-            size="sm"
+            size={isMobile ? "default" : "sm"}
             onClick={handleForward}
-            className="bg-[#25d366] hover:bg-[#1da851] text-white rounded-full"
+            className={cn(
+              "bg-[#25d366] hover:bg-[#1da851] text-white rounded-full active:scale-95 transition-transform",
+              isMobile && "h-11 px-6"
+            )}
           >
             <Forward className="h-4 w-4 mr-1" />
             Forward
@@ -1242,14 +1464,17 @@ export function MessageList({
               setSelectMode(false);
               setSelectedMessageIds(new Set());
             }}
-            className="h-8 w-8 rounded-full"
+            className={cn(
+              "rounded-full active:scale-95 transition-transform",
+              isMobile ? "h-11 w-11" : "h-8 w-8"
+            )}
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
       )}
 
-      {/* Image lightbox */}
+      {/* Image lightbox - mobile optimized with full screen */}
       <Dialog
         open={!!selectedImageUrl}
         onOpenChange={(open) => {
@@ -1259,29 +1484,46 @@ export function MessageList({
           }
         }}
       >
-        <DialogContent className="w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0">
+        <DialogContent className={cn(
+          "p-0 bg-black/95 border-0",
+          // Full screen on mobile
+          isMobile 
+            ? "w-screen h-screen max-w-none max-h-none rounded-none" 
+            : "w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh]"
+        )}>
           <DialogTitle className="sr-only">Image viewer</DialogTitle>
           {selectedImageUrl && (
             <div className="relative w-full h-full flex items-center justify-center">
-              {/* Toolbar for image actions */}
+              {/* Toolbar for image actions - repositioned for mobile */}
               {imageMessages.length > 0 && (
-                <div className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5">
+                <div className={cn(
+                  "absolute z-30 flex items-center gap-2 bg-black/40 rounded-full",
+                  isMobile 
+                    ? "bottom-safe bottom-20 left-1/2 -translate-x-1/2 px-4 py-2" 
+                    : "top-4 left-4 px-3 py-1.5"
+                )}>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-black/60 rounded-full"
+                    className={cn(
+                      "text-white hover:bg-black/60 rounded-full active:scale-95",
+                      isMobile ? "h-11 w-11" : "h-8 w-8"
+                    )}
                     onClick={() => {
                       const msg = imageMessages[currentImageIndex];
                       handleDownload(msg);
                     }}
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
                   </Button>
                   {onForwardMessages && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-white hover:bg-black/60 rounded-full"
+                      className={cn(
+                        "text-white hover:bg-black/60 rounded-full active:scale-95",
+                        isMobile ? "h-11 w-11" : "h-8 w-8"
+                      )}
                       onClick={() => {
                         const msg = imageMessages[currentImageIndex];
                         const id = msg._id || msg.messageId;
@@ -1290,7 +1532,7 @@ export function MessageList({
                         }
                       }}
                     >
-                      <Forward className="h-4 w-4" />
+                      <Forward className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
                     </Button>
                   )}
                   {onReactMessage && (
@@ -1298,7 +1540,10 @@ export function MessageList({
                       {commonReactions.slice(0, 3).map((emoji) => (
                         <button
                           key={emoji}
-                          className="w-7 h-7 rounded-full bg-black/30 hover:bg-black/60 flex items-center justify-center text-lg"
+                          className={cn(
+                            "rounded-full bg-black/30 hover:bg-black/60 flex items-center justify-center active:scale-95",
+                            isMobile ? "w-10 h-10 text-xl" : "w-7 h-7 text-lg"
+                          )}
                           onClick={() => {
                             const msg = imageMessages[currentImageIndex];
                             onReactMessage(msg, emoji);
@@ -1312,7 +1557,8 @@ export function MessageList({
                 </div>
               )}
 
-              {imageMessages.length > 1 && currentImageIndex > 0 && (
+              {/* Navigation arrows - hidden on mobile (use swipe) */}
+              {!isMobile && imageMessages.length > 1 && currentImageIndex > 0 && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1327,9 +1573,19 @@ export function MessageList({
                 </Button>
               )}
 
-              <img src={selectedImageUrl} alt="Full size" className="max-w-full max-h-full object-contain" />
+              {/* Image with touch support for mobile */}
+              <img 
+                src={selectedImageUrl} 
+                alt="Full size" 
+                className={cn(
+                  "max-w-full max-h-full object-contain",
+                  // Enable touch manipulation for pinch-to-zoom
+                  isMobile && "touch-manipulation"
+                )}
+                style={isMobile ? { touchAction: 'manipulation' } : undefined}
+              />
 
-              {imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
+              {!isMobile && imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1345,7 +1601,10 @@ export function MessageList({
               )}
 
               {imageMessages.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-1.5 rounded-full text-sm">
+                <div className={cn(
+                  "absolute left-1/2 -translate-x-1/2 bg-black/60 text-white rounded-full text-sm",
+                  isMobile ? "top-safe top-4 px-4 py-2" : "bottom-4 px-4 py-1.5"
+                )}>
                   {currentImageIndex + 1} / {imageMessages.length}
                 </div>
               )}
@@ -1353,20 +1612,23 @@ export function MessageList({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-4 right-4 z-20 h-10 w-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                className={cn(
+                  "absolute z-20 bg-black/50 hover:bg-black/70 text-white rounded-full active:scale-95",
+                  isMobile ? "top-safe top-4 right-4 h-11 w-11" : "top-4 right-4 h-10 w-10"
+                )}
                 onClick={() => {
                   setSelectedImageUrl(null);
                   setCurrentImageIndex(0);
                 }}
               >
-                <X className="h-5 w-5" />
+                <X className={cn(isMobile ? "h-6 w-6" : "h-5 w-5")} />
               </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Video lightbox */}
+      {/* Video lightbox - mobile optimized */}
       <Dialog
         open={!!selectedVideoUrl}
         onOpenChange={(open) => {
@@ -1375,7 +1637,12 @@ export function MessageList({
           }
         }}
       >
-        <DialogContent className="w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0 [&>button]:hidden">
+        <DialogContent className={cn(
+          "p-0 bg-black/95 border-0 [&>button]:hidden",
+          isMobile 
+            ? "w-screen h-screen max-w-none max-h-none rounded-none" 
+            : "w-[95vw] h-[95vh] max-w-[95vw] max-h-[95vh]"
+        )}>
           <DialogTitle className="sr-only">Video player</DialogTitle>
           {selectedVideoUrl && (
             <div className="relative w-full h-full flex items-center justify-center">
@@ -1390,10 +1657,13 @@ export function MessageList({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-4 right-4 z-20 h-10 w-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                className={cn(
+                  "absolute z-20 bg-black/50 hover:bg-black/70 text-white rounded-full active:scale-95",
+                  isMobile ? "top-safe top-4 right-4 h-11 w-11" : "top-4 right-4 h-10 w-10"
+                )}
                 onClick={() => setSelectedVideoUrl(null)}
               >
-                <X className="h-5 w-5" />
+                <X className={cn(isMobile ? "h-6 w-6" : "h-5 w-5")} />
               </Button>
             </div>
           )}

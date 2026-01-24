@@ -44,9 +44,11 @@ import { useToast } from "@/hooks/use-toast";
 const ReadMoreText = memo(function ReadMoreText({
   text,
   maxWords = 30,
+  searchQuery,
 }: {
   text: string;
   maxWords?: number;
+  searchQuery?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -63,10 +65,32 @@ const ReadMoreText = memo(function ReadMoreText({
   
   const displayText = isExpanded || !shouldTruncate ? text : getTruncatedText();
   
+  // Highlight search query in text
+  const highlightText = (text: string) => {
+    if (!searchQuery || !text) return text;
+    
+    const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === searchQuery.toLowerCase()) {
+        return (
+          <mark
+            key={index}
+            className="bg-[#fff3cd] dark:bg-[#4a4000] text-[#111b21] dark:text-[#e9edef] px-0.5 rounded"
+          >
+            {part}
+          </mark>
+        );
+      }
+      return part;
+    });
+  };
+  
   return (
     <div>
       <p className="text-[14.2px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap break-words">
-        {displayText}
+        {highlightText(displayText)}
       </p>
       {shouldTruncate && (
         <button
@@ -97,6 +121,8 @@ interface MessageListProps {
   onReplyMessage?: (message: Message) => void;
   onReactMessage?: (message: Message, emoji: string) => void;
   isMobile?: boolean;
+  pendingScrollToMessageId?: string | null;
+  onScrolledToMessage?: () => void;
 }
 
 // Status icon component
@@ -339,6 +365,7 @@ const MessageBubble = memo(function MessageBubble({
   isHighlighted,
   isMounted,
   isMobile = false,
+  searchQuery = "",
 }: {
   message: Message;
   isFirstInGroup: boolean;
@@ -357,6 +384,7 @@ const MessageBubble = memo(function MessageBubble({
   isHighlighted?: boolean;
   isMounted: boolean;
   isMobile?: boolean;
+  searchQuery?: string;
 }) {
   const isOutgoing = message.direction === "outgoing";
   const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
@@ -761,7 +789,7 @@ const MessageBubble = memo(function MessageBubble({
             if (hasCaption && typeof message.content === "object" && message.content?.caption) {
               return (
                 <div className="px-1 pt-1">
-                  <ReadMoreText text={message.content.caption} />
+                  <ReadMoreText text={message.content.caption} searchQuery={searchQuery} />
                 </div>
               );
             }
@@ -769,7 +797,7 @@ const MessageBubble = memo(function MessageBubble({
           }
 
           if (displayText && !displayText.startsWith("📷") && !displayText.startsWith("🎬")) {
-            return <ReadMoreText text={displayText} />;
+            return <ReadMoreText text={displayText} searchQuery={searchQuery} />;
           }
           return null;
         })()}
@@ -986,6 +1014,8 @@ export function MessageList({
   onReplyMessage,
   onReactMessage,
   isMobile = false,
+  pendingScrollToMessageId,
+  onScrolledToMessage,
 }: MessageListProps) {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
@@ -1033,6 +1063,20 @@ export function MessageList({
     }
   }, [toast]);
 
+  // Handle pending scroll to message from search results
+  useEffect(() => {
+    if (pendingScrollToMessageId && messages.length > 0 && !messagesLoading) {
+      // Wait a bit for the DOM to render
+      const timer = setTimeout(() => {
+        handleScrollToMessage(pendingScrollToMessageId);
+        if (onScrolledToMessage) {
+          onScrolledToMessage();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingScrollToMessageId, messages.length, messagesLoading, handleScrollToMessage, onScrolledToMessage]);
+
   // Get all images from messages for gallery navigation
   const imageMessages = useMemo(() => {
     return messages.filter((m) => (m.type === "image" || m.type === "sticker") && m.mediaUrl);
@@ -1062,10 +1106,45 @@ export function MessageList({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
+  // Track previous message count and initial load
+  const prevMessageCountRef = useRef(messages.length);
+  const hasScrolledInitiallyRef = useRef(false);
+  
+  // Initial scroll to bottom when messages first load
   useEffect(() => {
-    if (isNearBottom) {
+    if (messages.length > 0 && !hasScrolledInitiallyRef.current && !messagesLoading) {
+      // First time messages loaded - scroll to bottom instantly
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        hasScrolledInitiallyRef.current = true;
+      }, 50);
+    }
+  }, [messages.length, messagesLoading, messagesEndRef]);
+  
+  // Reset scroll flag when conversation changes (messages become empty)
+  useEffect(() => {
+    if (messages.length === 0) {
+      hasScrolledInitiallyRef.current = false;
+    }
+  }, [messages.length]);
+  
+  // Handle new messages arriving (after initial load)
+  useEffect(() => {
+    const hasNewMessages = messages.length > prevMessageCountRef.current;
+    const isPrependingOld = messages.length > prevMessageCountRef.current && 
+                            prevMessageCountRef.current > 0 &&
+                            !isNearBottom;
+    
+    prevMessageCountRef.current = messages.length;
+    
+    // Only auto-scroll if:
+    // 1. There are new messages (not prepending old messages)
+    // 2. User is already near bottom
+    // 3. Initial scroll has already happened
+    if (hasNewMessages && isNearBottom && hasScrolledInitiallyRef.current && !isPrependingOld) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    } else if (messages.length > 0) {
+    } else if (hasNewMessages && !isNearBottom && hasScrolledInitiallyRef.current && !isPrependingOld) {
+      // Show "new messages" button if user scrolled up
       setShowNewMessagesButton(true);
     }
   }, [messages.length, isNearBottom, messagesEndRef]);
@@ -1405,6 +1484,7 @@ export function MessageList({
                   isHighlighted={highlightedMessageId === item.message.messageId}
                   isMounted={isMounted}
                   isMobile={isMobile}
+                  searchQuery={messageSearchQuery}
                 />
               </div>
             );

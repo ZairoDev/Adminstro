@@ -40,6 +40,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
+import { UnifiedSearchResults } from "./UnifiedSearchResults";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -77,6 +79,8 @@ interface SidebarProps {
   userAreas?: string | string[];
   // Mobile responsiveness
   isMobile?: boolean;
+  // Jump to message from search results
+  onJumpToMessage?: (conversationId: string, messageId: string) => void;
 }
 
 // Memoized conversation item to prevent unnecessary re-renders
@@ -296,15 +300,38 @@ export function ConversationSidebar({
   userAreas,
   // Mobile responsiveness
   isMobile = false,
+  // Jump to message
+  onJumpToMessage,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [showNewChat, setShowNewChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Unified conversation-centric search hook
+  const {
+    query: unifiedSearchQuery,
+    results: unifiedSearchResults,
+    loading: searchLoading,
+    error: searchError,
+    isSearchMode,
+    search: executeSearch,
+    clearSearch,
+  } = useUnifiedWhatsAppSearch({
+    debounceMs: 300,
+    includeArchived: showingArchived,
+    limit: 50,
+  });
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Handler to clear search completely
+  const handleClearSearch = useCallback(() => {
+    onSearchQueryChange("");
+    clearSearch();
+  }, [onSearchQueryChange, clearSearch]);
 
   // CRITICAL: No client-side filtering - database is source of truth
   // Search and phone filtering happen at API/database level
@@ -570,7 +597,16 @@ export function ConversationSidebar({
             <Input
               placeholder="Search or start new chat"
               value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                onSearchQueryChange(value);
+                // Trigger unified search
+                if (value.trim()) {
+                  executeSearch(value);
+                } else {
+                  clearSearch();
+                }
+              }}
               className={cn(
                 "pl-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0",
                 // Mobile: Taller search input
@@ -578,6 +614,19 @@ export function ConversationSidebar({
                 "md:h-[35px] md:text-[14px]"
               )}
             />
+            {searchQuery && !searchLoading && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-[#e9edef] transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {searchLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-[#25d366]" />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -599,13 +648,126 @@ export function ConversationSidebar({
         </div>
       )}
 
-      {/* Conversation List */}
+      {/* Conversation List or Search Results */}
       <div 
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {loading && conversations.length === 0 ? (
+        {isSearchMode ? (
+          <UnifiedSearchResults
+            results={unifiedSearchResults}
+            query={searchQuery}
+            loading={searchLoading}
+            onSelectConversation={async (conversationId) => {
+              // Clear search first to show all chats
+              handleClearSearch();
+              
+              // Try to find conversation in local array first
+              let conv = conversations.find(c => c._id === conversationId);
+              
+              // If not found locally, construct from search results
+              if (!conv && unifiedSearchResults) {
+                const searchResult = unifiedSearchResults.conversations.find(
+                  c => c.conversationId === conversationId
+                );
+                
+                if (searchResult) {
+                  // Map search result to Conversation type
+                  conv = {
+                    _id: searchResult.conversationId,
+                    participantPhone: searchResult.participantPhone,
+                    participantName: searchResult.participantName,
+                    participantProfilePic: searchResult.participantProfilePic,
+                    lastMessageContent: searchResult.lastMessageContent,
+                    lastMessageTime: searchResult.lastMessageTime,
+                    unreadCount: searchResult.unreadCount,
+                    conversationType: searchResult.conversationType,
+                    status: searchResult.status || 'active',
+                  };
+                }
+              }
+              
+              // If still not found, fetch from API as last resort
+              if (!conv) {
+                try {
+                  const response = await fetch(`/api/whatsapp/conversations/${conversationId}`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.conversation) {
+                      conv = data.conversation;
+                    }
+                  }
+                } catch (error) {
+                  console.error('Failed to fetch conversation:', error);
+                }
+              }
+              
+              if (conv) {
+                onSelectConversation(conv);
+              } else {
+                console.error('Conversation not found:', conversationId);
+              }
+            }}
+            onStartNewChat={(phone) => {
+              // Clear search first
+              handleClearSearch();
+              // Set phone number and switch to new chat mode
+              const normalized = phone.replace(/\D/g, "");
+              if (normalized.length > 10) {
+                // Has country code
+                const countryCode = normalized.slice(0, -10);
+                const phoneNumber = normalized.slice(-10);
+                onCountryCodeChange(countryCode);
+                onPhoneNumberChange(phoneNumber);
+              } else {
+                onCountryCodeChange("91"); // Default to India
+                onPhoneNumberChange(normalized);
+              }
+              setShowNewChat(true);
+            }}
+            onJumpToMessage={async (conversationId, messageId) => {
+              // Don't clear search yet - we need it for highlighting
+              
+              // Ensure conversation is available
+              let conv = conversations.find(c => c._id === conversationId);
+              
+              if (!conv && unifiedSearchResults) {
+                const searchResult = unifiedSearchResults.conversations.find(
+                  c => c.conversationId === conversationId
+                );
+                
+                if (searchResult) {
+                  // Map search result to Conversation type
+                  conv = {
+                    _id: searchResult.conversationId,
+                    participantPhone: searchResult.participantPhone,
+                    participantName: searchResult.participantName,
+                    participantProfilePic: searchResult.participantProfilePic,
+                    lastMessageContent: searchResult.lastMessageContent,
+                    lastMessageTime: searchResult.lastMessageTime,
+                    unreadCount: searchResult.unreadCount,
+                    conversationType: searchResult.conversationType,
+                    status: searchResult.status || 'active',
+                  };
+                  
+                  // Select conversation first
+                  onSelectConversation(conv);
+                }
+              }
+              
+              // Call the parent handler to scroll to message
+              if (onJumpToMessage) {
+                onJumpToMessage(conversationId, messageId);
+              }
+              
+              // Clear search after a delay to allow scroll to complete
+              setTimeout(() => {
+                handleClearSearch();
+              }, 500);
+            }}
+          />
+        ) : loading && conversations.length === 0 ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
           </div>

@@ -100,6 +100,7 @@ export default function WhatsAppChat() {
   const [newCountryCode, setNewCountryCode] = useState("91"); // Default to India
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingScrollToMessageId, setPendingScrollToMessageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -1072,6 +1073,8 @@ export default function WhatsAppChat() {
         setMessagesLoading(true);
         setMessagesCursor(null);
         setHasMoreMessages(false);
+        // Clear messages immediately to prevent flash of old messages
+        setMessages([]);
       } else {
         setLoadingOlderMessages(true);
       }
@@ -1090,10 +1093,8 @@ export default function WhatsAppChat() {
         
         if (reset) {
           setMessages(newMessages);
-          // Scroll to bottom after initial load
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 100);
+          // Let MessageList handle scrolling via its useEffect
+          // Remove the manual scroll here to prevent double-scroll
         } else {
           // Prepend older messages (don't scroll, preserve position)
           setMessages((prev) => [...newMessages, ...prev]);
@@ -2988,6 +2989,20 @@ export default function WhatsAppChat() {
               userAreas={token?.allotedArea}
               // Mobile props
               isMobile={isMobile}
+              // Jump to message from search results
+              onJumpToMessage={(conversationId, messageId) => {
+                // Find and select the conversation
+                const conv = (showingArchived ? archivedConversations : conversations).find(
+                  (c) => c._id === conversationId
+                );
+                if (conv) {
+                  selectConversation(conv);
+                  // Set pending message ID to scroll to after messages load
+                  setPendingScrollToMessageId(messageId);
+                  // Set message search query for highlighting
+                  setMessageSearchQuery(searchQuery);
+                }
+              }}
             />
             </div>
 
@@ -3052,6 +3067,8 @@ export default function WhatsAppChat() {
                     onReplyMessage={handleReplyMessage}
                     onReactMessage={handleReactMessage}
                     isMobile={isMobile}
+                    pendingScrollToMessageId={pendingScrollToMessageId}
+                    onScrolledToMessage={() => setPendingScrollToMessageId(null)}
                   />
 
                   <WindowWarningDialog

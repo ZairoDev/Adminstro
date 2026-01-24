@@ -62,6 +62,14 @@ export interface Message {
    * Flag for internal messages (convenience flag)
    */
   isInternal?: boolean;
+  /**
+   * Failure reason for failed messages
+   */
+  failureReason?: {
+    code?: string;
+    message?: string;
+    raw?: any;
+  };
 }
 
 export interface Conversation {

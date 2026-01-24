@@ -74,6 +74,7 @@ import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
 import { Textarea } from "../ui/textarea";
 import CustomTooltip from "../CustomToolTip";
+import { getWhatsAppErrorInfo, getActionMessage, getFullErrorMessage } from "@/lib/whatsapp/errorHandler";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
@@ -965,14 +966,47 @@ const handleSave = async (
                 </DropdownMenu>
               </TableCell>
               {/*)}*/}
-              {/* Reply Status Cell - based on WhatsApp message status */}
+              {/* Reply Status Cell - based on dynamically computed WhatsApp reply status */}
               <TableCell>
-                {(query as any)?.whatsappLastErrorCode ? (
-                  <span className="text-red-600 font-semibold">Not Delivered</span>
-                ) : query.firstReply ? (
-                  <span className="text-green-600 font-semibold">Replied</span>
+                {(query as any)?.whatsappLastErrorCode ? (() => {
+                  const errorCode = (query as any).whatsappLastErrorCode;
+                  const errorInfo = getWhatsAppErrorInfo(errorCode);
+                  const actionMessage = getActionMessage(errorInfo);
+                  const fullMessage = getFullErrorMessage(errorCode);
+                  
+                  return (
+                    <CustomTooltip
+                      icon={<span className="text-red-600 font-semibold">Not Delivered</span>}
+                      desc={`${errorInfo.userMessage} ${actionMessage}\n\nError Code: ${errorCode}\nSeverity: ${errorInfo.severity.toUpperCase()}\n\n${errorInfo.description}`}
+                    />
+                  );
+                })() : query.whatsappReplyStatus === "NR1" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR1</span>}
+                    desc="Not Replying - 1 successful message sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NR2" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR2</span>}
+                    desc="Not Replying - 2 successful messages sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NR3" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR3</span>}
+                    desc="Not Replying - 3+ successful messages sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NTR" ? (
+                  <CustomTooltip
+                    icon={<span className="text-orange-600 font-semibold">NTR</span>}
+                    desc="Needs To Reply - Customer replied but agent hasn't responded yet"
+                  />
+                ) : query.whatsappReplyStatus === "WFR" ? (
+                  <CustomTooltip
+                    icon={<span className="text-green-600 font-semibold">WFR</span>}
+                    desc="Waiting For Reply - Agent replied after customer message, waiting for customer response"
+                  />
                 ) : (
-                  <span className="text-gray-400">Not Replied</span>
+                  <span className="text-gray-400">-</span>
                 )}
               </TableCell>
 
@@ -989,8 +1023,7 @@ const handleSave = async (
                     }}
                   />
                   {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
-                  {path?.toString().trim().split("/")[2] !== "createquery" &&
-                  query.firstReply ? (
+                  {path?.toString().trim().split("/")[2] !== "createquery" ? (
                     <Link
                       href={`/whatsapp?phone=${encodeURIComponent(
                         query?.phoneNo
@@ -1008,7 +1041,7 @@ const handleSave = async (
                         size={22}
                       />
                     </Link>
-                  ) : null}
+                  ): null}
                 </div>
               </TableCell>
               <TableCell>

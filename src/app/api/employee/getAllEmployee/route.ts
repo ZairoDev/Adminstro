@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { excludeGhostEmail, excludeGhostEmailFromCount } from "@/util/employeeConstants";
 
 connectDb();
 
@@ -75,19 +76,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   let allEmployees: Employee[] = [];
   try {
+    // Exclude ghost email from all queries
+    const queryWithExclusion = excludeGhostEmail(query);
+    
     // LeadGen-TeamLead can only see LeadGen employees
     if (userRole === "LeadGen-TeamLead") {
-      allEmployees = await Employees.find({ ...query, role: "LeadGen" }).sort({
+      allEmployees = await Employees.find({ ...queryWithExclusion, role: "LeadGen" }).sort({
         _id: -1,
       });
     }
     // HR and Admin roles can see all employees (with optional role filter from query params)
     else if (["HR", "Admin", "SuperAdmin", "Developer"].includes(userRole as string)) {
-      allEmployees = await Employees.find(query).sort({ _id: -1 });
+      allEmployees = await Employees.find(queryWithExclusion).sort({ _id: -1 });
     }
     // Sales-TeamLead can see Sales employees
     else if (userRole === "Sales-TeamLead") {
-      allEmployees = await Employees.find({ ...query, role: "Sales" }).sort({
+      allEmployees = await Employees.find({ ...queryWithExclusion, role: "Sales" }).sort({
         _id: -1,
       });
     }
@@ -96,7 +100,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       allEmployees = [];
     }
 
-    const totalEmployee: number = await Employees.countDocuments(query);
+    const totalEmployee: number = await Employees.countDocuments(excludeGhostEmailFromCount(query));
 
     return NextResponse.json({ allEmployees, totalEmployee });
   } catch (error) {

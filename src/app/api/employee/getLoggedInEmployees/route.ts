@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
+import { excludeGhostEmail } from "@/util/employeeConstants";
 
 // Force dynamic rendering - disable caching for this route
 export const dynamic = "force-dynamic";
@@ -11,8 +12,10 @@ export async function GET(request: NextRequest) {
   try {
     await connectDb();
     
+    // Exclude ghost email from logged in employees
+    const loggedInQuery = excludeGhostEmail({ isLoggedIn: true });
     const loggedInEmployees = await Employees.find(
-      { isLoggedIn: true },
+      loggedInQuery,
       {
         name: 1,
         email: 1,

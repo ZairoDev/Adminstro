@@ -375,6 +375,8 @@ export interface IQuery {
   leadStatus?: string;
   BoostID?: string;
   firstReply?: boolean; // true if customer sent their first reply via WhatsApp
+  whatsappReplyStatus?: string | null; // Dynamically computed: "NR1" | "NR2" | "NR3" | "NTR" | "WFR" | null
+  whatsappLastErrorCode?: number | null; // Last WhatsApp API error code
   note?: NotesInterface[];
   reminder: Date;
   roomDetails: {

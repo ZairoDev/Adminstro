@@ -9,7 +9,7 @@ import { ReactNode } from "react";
 interface CustomToolTipProps{
   icon?: ReactNode;
   content?: number|undefined;
-  text?: string;
+  text?: string | ReactNode;
   desc?: string;
   className?: string;
   

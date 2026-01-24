@@ -14,6 +14,21 @@ export async function POST(request: NextRequest) {
 
     const savedUser = await Employees.find({ email: email });
 
+    if (!savedUser || savedUser.length === 0) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if employee is active
+    if (savedUser[0].isActive === false) {
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact the administrator to reactivate your account." },
+        { status: 403 }
+      );
+    }
+
     if (savedUser[0].otpTokenExpiry < Date.now()) {
       return NextResponse.json(
         { error: "Your OTP has expired" },

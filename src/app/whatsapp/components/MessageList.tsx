@@ -125,22 +125,70 @@ interface MessageListProps {
   onScrolledToMessage?: () => void;
 }
 
-// Status icon component
-const StatusIcon = memo(function StatusIcon({ status }: { status: Message["status"] }) {
-  switch (status) {
-    case "sending":
-      return <Clock className="h-3 w-3 text-[#8696a0]" />;
-    case "sent":
-      return <Check className="h-3 w-3 text-[#8696a0]" />;
-    case "delivered":
-      return <CheckCheck className="h-3 w-3 text-[#8696a0]" />;
-    case "read":
-      return <CheckCheck className="h-3 w-3 text-[#53bdeb]" />;
-    case "failed":
-      return <AlertTriangle className="h-3 w-3 text-red-500" />;
-    default:
-      return null;
+// Status icon component with error tooltip support
+const StatusIcon = memo(function StatusIcon({ 
+  status, 
+  failureReason,
+  errorCode 
+}: { 
+  status: Message["status"];
+  failureReason?: { code?: string; message?: string };
+  errorCode?: number | string | null;
+}) {
+  const errorCodeToUse = errorCode || failureReason?.code;
+  
+  // Import error handler dynamically to avoid circular dependencies
+  const getErrorTooltip = () => {
+    if (status !== "failed" || !errorCodeToUse) return null;
+    
+    try {
+      const { getWhatsAppErrorInfo, getActionMessage } = require("@/lib/whatsapp/errorHandler");
+      const errorInfo = getWhatsAppErrorInfo(errorCodeToUse);
+      const actionMessage = getActionMessage(errorInfo);
+      return `${errorInfo.userMessage} ${actionMessage}\n\nError Code: ${errorCodeToUse}\nSeverity: ${errorInfo.severity.toUpperCase()}\n\n${errorInfo.description}`;
+    } catch (e) {
+      return failureReason?.message || `Message failed to send. Error code: ${errorCodeToUse}`;
+    }
+  };
+
+  const tooltipText = getErrorTooltip();
+
+  const icon = (() => {
+    switch (status) {
+      case "sending":
+        return <Clock className="h-3 w-3 text-[#8696a0]" />;
+      case "sent":
+        return <Check className="h-3 w-3 text-[#8696a0]" />;
+      case "delivered":
+        return <CheckCheck className="h-3 w-3 text-[#8696a0]" />;
+      case "read":
+        return <CheckCheck className="h-3 w-3 text-[#53bdeb]" />;
+      case "failed":
+        return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      default:
+        return null;
+    }
+  })();
+
+  if (!icon) return null;
+
+  // Wrap failed status with tooltip
+  if (status === "failed" && tooltipText) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{icon}</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p className="whitespace-pre-line text-sm">{tooltipText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   }
+
+  return icon;
 });
 
 // Format date for separator
@@ -288,7 +336,13 @@ const ImageGroup = memo(function ImageGroup({
                 })
               : "--:--"}
           </span>
-          {isOutgoing && <StatusIcon status={images[images.length - 1].status} />}
+          {isOutgoing && (
+            <StatusIcon 
+              status={images[images.length - 1].status} 
+              failureReason={images[images.length - 1].failureReason}
+              errorCode={images[images.length - 1].failureReason?.code}
+            />
+          )}
         </div>
 
         {/* Hover menu */}
@@ -855,7 +909,13 @@ const MessageBubble = memo(function MessageBubble({
               : "--:--"}
           </span>
           {/* No status icons for internal messages (no delivery tracking) */}
-          {isOutgoing && !isInternal && <StatusIcon status={message.status} />}
+          {isOutgoing && !isInternal && (
+            <StatusIcon 
+              status={message.status} 
+              failureReason={message.failureReason}
+              errorCode={message.failureReason?.code}
+            />
+          )}
         </div>
 
         {/* Hover menu - Always mounted, visibility controlled by CSS or long press on mobile */}

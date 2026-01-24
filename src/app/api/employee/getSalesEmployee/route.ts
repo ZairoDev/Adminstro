@@ -1,9 +1,11 @@
 import Employees from "@/models/employee";
 import { NextResponse } from "next/server";
+import { excludeGhostEmail } from "@/util/employeeConstants";
 
 export async function GET(req: Request) {
   try{
-    const emp =await Employees.find({ role: "Sales" ,isActive: true}).exec();
+    const query = excludeGhostEmail({ role: "Sales", isActive: true });
+    const emp = await Employees.find(query).exec();
     // console.log(emp);
     return NextResponse.json({emp},{status: 200});
   }

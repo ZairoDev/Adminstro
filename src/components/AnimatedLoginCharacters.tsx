@@ -188,7 +188,9 @@ export const AnimatedLoginCharacters: React.FC<AnimatedLoginCharactersProps> = (
   const [isNodding, setIsNodding] = useState(false);
   const [nodCycle, setNodCycle] = useState(0);
   const [purpleShakeDirection, setPurpleShakeDirection] = useState(0);
-  const [isShrinking, setIsShrinking] = useState(false);
+  const [isOrangeShrinking, setIsOrangeShrinking] = useState(false);
+  const [isNoddingNo, setIsNoddingNo] = useState(false);
+  const [nodNoCycle, setNodNoCycle] = useState(0);
   const purpleRef = useRef<HTMLDivElement>(null);
   const blackRef = useRef<HTMLDivElement>(null);
   const yellowRef = useRef<HTMLDivElement>(null);
@@ -300,17 +302,26 @@ export const AnimatedLoginCharacters: React.FC<AnimatedLoginCharactersProps> = (
     }
   }, [isTyping, isTypingPassword]);
 
-  // Nodding animation when typing password
+  // Nodding animation when typing password - smooth continuous animation
   useEffect(() => {
     if (isTypingPassword && emotion !== 'wrong' && emotion !== 'sad') {
       setIsNodding(true);
       
-      const nodInterval = setInterval(() => {
-        setNodCycle((prev) => (prev + 1) % 4);
-      }, 400);
+      // Use requestAnimationFrame for smooth continuous animation
+      let animationFrame: number;
+      let startTime = Date.now();
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const cycle = (elapsed / 400) % 1; // 400ms per cycle
+        setNodCycle(cycle * 4); // Convert to 0-4 range
+        animationFrame = requestAnimationFrame(animate);
+      };
+      
+      animationFrame = requestAnimationFrame(animate);
 
       return () => {
-        clearInterval(nodInterval);
+        cancelAnimationFrame(animationFrame);
         setIsNodding(false);
         setNodCycle(0);
       };
@@ -320,14 +331,45 @@ export const AnimatedLoginCharacters: React.FC<AnimatedLoginCharactersProps> = (
     }
   }, [isTypingPassword, emotion]);
 
-  // Shrinking animation when password is wrong or sad
+  // Orange shrinking animation when password is wrong or sad
   useEffect(() => {
     if (emotion === 'wrong' || emotion === 'sad') {
-      setIsShrinking(true);
+      setIsOrangeShrinking(true);
       const timer = setTimeout(() => {
-        setIsShrinking(false);
+        setIsOrangeShrinking(false);
       }, 600);
       return () => clearTimeout(timer);
+    } else {
+      setIsOrangeShrinking(false);
+    }
+  }, [emotion]);
+
+  // Head nodding "no" animation for purple, black, yellow when wrong password - smooth continuous
+  useEffect(() => {
+    if (emotion === 'wrong' || emotion === 'sad') {
+      setIsNoddingNo(true);
+      
+      // Use requestAnimationFrame for smooth continuous animation
+      let animationFrame: number;
+      let startTime = Date.now();
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const cycle = (elapsed / 200) % 1; // 200ms per cycle for faster "no"
+        setNodNoCycle(cycle * 4); // Convert to 0-4 range
+        animationFrame = requestAnimationFrame(animate);
+      };
+      
+      animationFrame = requestAnimationFrame(animate);
+
+      return () => {
+        cancelAnimationFrame(animationFrame);
+        setIsNoddingNo(false);
+        setNodNoCycle(0);
+      };
+    } else {
+      setIsNoddingNo(false);
+      setNodNoCycle(0);
     }
   }, [emotion]);
 
@@ -395,25 +437,37 @@ export const AnimatedLoginCharacters: React.FC<AnimatedLoginCharactersProps> = (
   const yellowPos = calculatePosition(yellowRef);
   const orangePos = calculatePosition(orangeRef);
 
-  // Calculate nod offset (vertical movement)
+  // Calculate nod offset (vertical movement) - smooth continuous
   const getNodOffset = () => {
     if (!isNodding) return 0;
     
+    // nodCycle is now a continuous value from 0-4, so divide by 4 to get 0-1 phase
     const phase = nodCycle / 4;
     return Math.sin(phase * Math.PI * 2) * 8;
   };
 
   const nodOffset = getNodOffset();
 
-  // Get scale for shrinking animation
-  const getShrinkScale = () => {
-    if (isShrinking) {
+  // Get scale for orange shrinking animation
+  const getOrangeShrinkScale = () => {
+    if (isOrangeShrinking) {
       return 0.85;
     }
     return 1;
   };
 
-  const shrinkScale = getShrinkScale();
+  const orangeShrinkScale = getOrangeShrinkScale();
+
+  // Calculate "no" nod offset (side to side movement for saying no) - smooth continuous
+  const getNodNoOffset = () => {
+    if (!isNoddingNo) return 0;
+    
+    // nodNoCycle is now a continuous value from 0-4, so divide by 4 to get 0-1 phase
+    const phase = nodNoCycle / 4;
+    return Math.sin(phase * Math.PI * 2) * 12; // Side to side movement
+  };
+
+  const nodNoOffset = getNodNoOffset();
 
   // Mouth shape helpers
   const getPurpleMouthStyle = () => {
@@ -448,28 +502,28 @@ export const AnimatedLoginCharacters: React.FC<AnimatedLoginCharactersProps> = (
 const getOrangeMouthStyle = () => {
   const baseStyle = {
     position: "absolute" as const,
-    width: "30px",          // wider = cuter
-    height: "14px",         // flatter oval
-    backgroundColor: "transparent",
+    backgroundColor: "#1a1a1a",               // filled with black
     transition: "all 240ms cubic-bezier(0.4, 0, 0.2, 1)",
   };
 
-  // Sad / wrong → soft oval frown
+  // Sad / wrong → reversed semi-circle (upside down) and thinner
   if (emotion === "wrong" || emotion === "sad") {
     return {
       ...baseStyle,
-      borderTop: "5px solid #1a1a1a",          // thicker = softer
-      borderRadius: "18px 18px 8px 8px",        // oval, not sharp
-      transform: "scaleX(0.95) scaleY(0.9)",
+      width: "26px",
+      height: "13px",                          // half width for perfect semi-circle
+      borderRadius: "13px 13px 0 0",           // upside down filled semi-circle
+      transform: "scaleX(0.85) scaleY(0.8)",   // make it thinner and smaller
     };
   }
 
-  // Happy / neutral → cute oval smile
+  // Happy / neutral → filled semi-circle (cute happy face)
   return {
     ...baseStyle,
-    borderBottom: "5px solid #1a1a1a",
-    borderRadius: "15px 15px 30px 18px",          // oval smile
-    transform: "scaleX(1.08) scaleY(1)",
+    width: "36px",
+    height: "18px",                            // half width for perfect semi-circle
+    borderRadius: "0 0 18px 18px",            // filled semi-circle at bottom (cute happy face)
+    transform: "scaleX(1) scaleY(1)",
   };
 };
 
@@ -589,10 +643,12 @@ const getOrangeMouthStyle = () => {
             borderRadius: '10px 10px 0 0',
             zIndex: 1,
             transform: (password.length > 0 && showPassword)
-              ? `skewX(0deg) scale(${shrinkScale})`
+              ? `skewX(0deg) translateX(${nodNoOffset}px)`
               : (isTyping || (password.length > 0 && !showPassword))
-                ? `skewX(${(purplePos.bodySkew || 0) - 12}deg) translateX(40px) scale(${shrinkScale})` 
-                : `skewX(${purplePos.bodySkew || 0}deg) rotate(${purpleShakeDirection * 15}deg) scale(${shrinkScale})`,
+                ? `skewX(${(purplePos.bodySkew || 0) - 12}deg) translateX(40px)` 
+                : (emotion === 'wrong' || emotion === 'sad')
+                  ? `skewX(${purplePos.bodySkew || 0}deg) translateX(${nodNoOffset}px)` // Side-to-side "no" motion
+                  : `skewX(${purplePos.bodySkew || 0}deg) rotate(${purpleShakeDirection * 15}deg)`,
             transformOrigin: 'bottom center',
           }}
         >
@@ -648,12 +704,12 @@ const getOrangeMouthStyle = () => {
             borderRadius: '8px 8px 0 0',
             zIndex: 2,
             transform: (password.length > 0 && showPassword)
-              ? `skewX(0deg) scale(${shrinkScale})`
+              ? `skewX(0deg) translateX(${nodNoOffset}px)`
               : isLookingAtEachOther
-                ? `skewX(${(blackPos.bodySkew || 0) * 1.5 + 10}deg) translateX(20px) scale(${shrinkScale})`
+                ? `skewX(${(blackPos.bodySkew || 0) * 1.5 + 10}deg) translateX(20px)`
                 : (isTyping || (password.length > 0 && !showPassword))
-                  ? `skewX(${(blackPos.bodySkew || 0) * 1.5}deg) scale(${shrinkScale})` 
-                  : `skewX(${blackPos.bodySkew || 0}deg) scale(${shrinkScale})`,
+                  ? `skewX(${(blackPos.bodySkew || 0) * 1.5}deg)` 
+                  : `skewX(${blackPos.bodySkew || 0}deg) translateX(${nodNoOffset}px)`,
             transformOrigin: 'bottom center',
           }}
         >
@@ -708,11 +764,11 @@ const getOrangeMouthStyle = () => {
             zIndex: 3,
             backgroundColor: '#FF6F00',
             borderRadius: '120px 120px 0 0',
-            transform: (password.length > 0 && showPassword) ? `skewX(0deg) scale(${shrinkScale})` : `skewX(${orangePos.bodySkew || 0}deg) scale(${shrinkScale})`,
+            transform: (password.length > 0 && showPassword) ? `skewX(0deg) scale(${orangeShrinkScale})` : `skewX(${orangePos.bodySkew || 0}deg) scale(${orangeShrinkScale})`,
             transformOrigin: 'bottom center',
           }}
         >
-          {/* Eyes */}
+          {/* Eyes - Orange character actively follows cursor */}
           <div 
             className="absolute flex gap-8 transition-all duration-200 ease-out"
             style={{
@@ -720,23 +776,17 @@ const getOrangeMouthStyle = () => {
               top: (password.length > 0 && showPassword) ? `${85}px` : `${90 + (orangePos.faceY || 0) + nodOffset}px`,
             }}
           >
-            <EyeBall 
+            <Pupil 
               size={12} 
-              pupilSize={5} 
-              maxDistance={4} 
-              eyeColor="#1a1a1a" 
+              maxDistance={6} 
               pupilColor="#1a1a1a" 
-              isBlinking={isOrangeBlinking}
               forceLookX={(password.length > 0 && showPassword) ? -5 : undefined} 
               forceLookY={(password.length > 0 && showPassword) ? -4 : undefined} 
             />
-            <EyeBall 
+            <Pupil 
               size={12} 
-              pupilSize={5} 
-              maxDistance={4} 
-              eyeColor="#1a1a1a" 
+              maxDistance={6} 
               pupilColor="#1a1a1a" 
-              isBlinking={isOrangeBlinking}
               forceLookX={(password.length > 0 && showPassword) ? -5 : undefined} 
               forceLookY={(password.length > 0 && showPassword) ? -4 : undefined} 
             />
@@ -763,7 +813,7 @@ const getOrangeMouthStyle = () => {
             backgroundColor: '#FFD600',
             borderRadius: '70px 70px 0 0',
             zIndex: 4,
-            transform: (password.length > 0 && showPassword) ? `skewX(0deg) scale(${shrinkScale})` : `skewX(${yellowPos.bodySkew || 0}deg) scale(${shrinkScale})`,
+            transform: (password.length > 0 && showPassword) ? `skewX(0deg) translateX(${nodNoOffset}px)` : `skewX(${yellowPos.bodySkew || 0}deg) translateX(${nodNoOffset}px)`,
             transformOrigin: 'bottom center',
           }}
         >

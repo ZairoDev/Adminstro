@@ -27,7 +27,7 @@ export default function RootLayout({
   return (
     <ViewTransitions>
       <html lang="en">
-        <body className={poppins.className}>
+        <body className={poppins.className } >
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

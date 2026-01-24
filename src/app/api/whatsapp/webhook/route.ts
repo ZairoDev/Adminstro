@@ -8,6 +8,7 @@ import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 
 // Ensure database connection
 connectDb();
@@ -1174,15 +1175,8 @@ async function processStatusUpdate(status: any) {
 /**
  * STEP 3: Error Code Driven Blocking (CRITICAL)
  * =============================================
- * Handle WhatsApp error codes with specific block reasons.
+ * Handle WhatsApp error codes using centralized error mapping.
  * All updates are IDEMPOTENT - never flip whatsappBlocked back to false.
- * 
- * ERROR CODES:
- * - 131049: ecosystem_protection → PERMANENT BLOCK
- * - 131021: number_not_on_whatsapp → PERMANENT BLOCK
- * - 131215: groups_not_eligible → PERMANENT BLOCK
- * - 131026: rate_limited → Log only, allow manual retry after 24-48h
- * - 131042: billing_issue → System alert, no retry
  */
 async function handleWhatsAppErrorCode(
   errorCode: number,
@@ -1190,6 +1184,9 @@ async function handleWhatsAppErrorCode(
   messageId: string
 ) {
   try {
+    // Get error information from centralized mapping
+    const errorInfo = getWhatsAppErrorInfo(errorCode);
+    
     const QueryModel = (await import("@/models/query")).default;
     const normalizedPhone = (recipientPhone || "").replace(/\D/g, "");
 
@@ -1219,51 +1216,31 @@ async function handleWhatsAppErrorCode(
     };
 
     // =========================================================
-    // ERROR CODE HANDLING (CRITICAL - determines blocking)
+    // ERROR CODE HANDLING (CRITICAL - uses centralized mapping)
     // =========================================================
     
-    switch (errorCode) {
-      case 131049:
-        // ECOSYSTEM PROTECTION: User blocked us or Meta detected spam
-        // Action: PERMANENT BLOCK - never message again
-        updateFields.whatsappBlocked = true;
-        updateFields.whatsappBlockReason = "ecosystem_protection";
-        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: ecosystem_protection (131049)`);
-        break;
+    // Determine block reason based on error info
+    if (errorInfo.shouldBlock) {
+      updateFields.whatsappBlocked = true;
+      
+      // Map error code to block reason
+      let blockReason = "unknown";
+      if (errorCode === 131049) blockReason = "ecosystem_protection";
+      else if (errorCode === 131021) blockReason = "number_not_on_whatsapp";
+      else if (errorCode === 131215) blockReason = "groups_not_eligible";
+      else if (errorCode === 131026) blockReason = "rate_limited";
+      else blockReason = `error_${errorCode}`;
+      
+      updateFields.whatsappBlockReason = blockReason;
+      console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: ${blockReason} (${errorCode}) - ${errorInfo.description}`);
+    } else {
+      console.log(`⚠️ [AUDIT] Lead ${lead._id} error ${errorCode} - ${errorInfo.description} (not blocking)`);
+    }
 
-      case 131021:
-        // NUMBER NOT ON WHATSAPP: Phone number doesn't have WhatsApp
-        // Action: PERMANENT BLOCK - no point retrying
-        updateFields.whatsappBlocked = true;
-        updateFields.whatsappBlockReason = "number_not_on_whatsapp";
-        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: number_not_on_whatsapp (131021)`);
-        break;
-
-      case 131215:
-        // GROUPS NOT ELIGIBLE: Cannot message groups
-        // Action: PERMANENT BLOCK - system limitation
-        updateFields.whatsappBlocked = true;
-        updateFields.whatsappBlockReason = "groups_not_eligible";
-        console.log(`🚫 [AUDIT] Lead ${lead._id} BLOCKED: groups_not_eligible (131215)`);
-        break;
-
-      case 131026:
-        // RATE LIMITED or temporarily unavailable
-        // Action: DO NOT permanently block, allow manual retry after 24-48h
-        console.log(`⏳ [AUDIT] Lead ${lead._id} rate limited (131026) - manual retry allowed after 24h`);
-        // Only update error code, don't block
-        break;
-
-      case 131042:
-        // BILLING ISSUE: Account billing problem
-        // Action: System-level alert, no retry until resolved
-        console.log(`💳 [AUDIT] BILLING ISSUE detected (131042) - requires admin attention`);
-        // Log billing issue for admin review (could integrate with Slack/email)
-        // Note: Not emitting socket event as this is a system-level issue
-        break;
-
-      default:
-        console.log(`⚠️ [AUDIT] Lead ${lead._id} unknown error ${errorCode}`);
+    // Log critical errors for admin attention
+    if (errorInfo.severity === "critical" && errorInfo.systemAction === "no_action") {
+      console.log(`🔴 [CRITICAL] ${errorInfo.description} - Requires admin attention`);
+      // Could integrate with Slack/email notification here
     }
 
     // Idempotent update with condition (don't update if already blocked)

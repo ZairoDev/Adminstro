@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import Employee from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 connectDb();
 export const dynamic = "force-dynamic";
 
@@ -142,11 +143,21 @@ else{
       },
     ]);  
 
+    // Compute WhatsApp reply status for all leads dynamically from message history
+    const phoneNumbers = allquery.map((q: any) => String(q.phoneNo || "")).filter(Boolean);
+    const statusMap = await batchComputeWhatsAppReplyStatus(phoneNumbers);
+
+    // Add whatsappReplyStatus to each query
+    const queriesWithStatus = allquery.map((q: any) => ({
+      ...q,
+      whatsappReplyStatus: statusMap.get(String(q.phoneNo || "")) || null,
+    }));
+
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / limit);
 
     return NextResponse.json({
-      data: allquery,
+      data: queriesWithStatus,
       page,
       totalPages,
       totalQueries,

@@ -126,7 +126,6 @@ const ConversationItem = memo(function ConversationItem({
   };
 
   const displayName = (() => {
-    // Check if this is the "You" conversation (internal)
     if (conversation.isInternal || conversation.source === "internal") {
       return "You";
     }
@@ -136,15 +135,17 @@ const ConversationItem = memo(function ConversationItem({
       (conversation as any).whatsappName ||
       (conversation as any).waName ||
       (conversation as any).waDisplayName;
-    const phone = conversation.participantPhone;
 
     if (savedName && whatsappName && whatsappName !== savedName) {
       return `${savedName} (${whatsappName})`;
     }
     if (savedName) return savedName;
     if (whatsappName) return whatsappName;
-    return phone;
+    return null;
   })();
+
+  const phone = conversation.participantPhone;
+  const role = conversation.participantRole || conversation.conversationType;
 
   return (
     <div
@@ -169,12 +170,12 @@ const ConversationItem = memo(function ConversationItem({
           <AvatarFallback className={cn(
             "text-sm font-medium",
             conversation.isInternal || conversation.source === "internal"
-              ? "bg-[#25d366] text-white" // Green background for "You" conversation
+              ? "bg-[#25d366] text-white"
               : "bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
           )}>
             {conversation.isInternal || conversation.source === "internal" 
               ? "You" 
-              : displayName?.slice(0, 2).toUpperCase() || "??"}
+              : (displayName || phone)?.slice(0, 2).toUpperCase() || "??"}
           </AvatarFallback>
         </Avatar>
         {/* Green dot: online OR has unread incoming messages */}
@@ -186,14 +187,31 @@ const ConversationItem = memo(function ConversationItem({
       {/* Content */}
       <div className="flex-1 min-w-0 border-b border-[#e9edef] dark:border-[#222d34] py-1">
         <div className="flex items-center justify-between mb-0.5">
-          <span
-            className={cn(
-              "text-[15px] truncate",
-              hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-normal text-[#111b21] dark:text-[#e9edef]"
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {role && (
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-medium uppercase tracking-wide",
+                role === "owner" 
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" 
+                  : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+              )}>
+                {role === "owner" ? "O" : "G"}
+              </span>
             )}
-          >
-            {displayName}
-          </span>
+            <span
+              className={cn(
+                "text-[15px] truncate",
+                hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-normal text-[#111b21] dark:text-[#e9edef]"
+              )}
+            >
+              {displayName || phone}
+            </span>
+            {displayName && phone && (
+              <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0">
+                {phone.replace(/^\+?91/, "")}
+              </span>
+            )}
+          </div>
           <span
             className={cn(
               "text-xs flex-shrink-0 ml-2",

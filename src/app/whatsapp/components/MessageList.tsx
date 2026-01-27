@@ -832,18 +832,18 @@ const MessageBubble = memo(function MessageBubble({
           </a>
         )}
 
-        {/* Text content */}
+        {/* Text content (including captions for media) */}
         {(() => {
-          const hasCaption =
-            typeof message.content === "object" &&
-            message.content?.caption &&
-            message.content.caption !== message.content.caption?.split("/").pop();
+          const caption =
+            typeof message.content === "object" && message.content?.caption
+              ? message.content.caption
+              : "";
 
           if (isMediaType && message.mediaUrl) {
-            if (hasCaption && typeof message.content === "object" && message.content?.caption) {
+            if (caption) {
               return (
                 <div className="px-1 pt-1">
-                  <ReadMoreText text={message.content.caption} searchQuery={searchQuery} />
+                  <ReadMoreText text={caption} searchQuery={searchQuery} />
                 </div>
               );
             }

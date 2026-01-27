@@ -2324,16 +2324,17 @@ export default function WhatsAppChat() {
     setUploadingMedia(false);
   };
 
-  // Handle single file upload (original logic)
   const handleSingleFileUpload = async (
     file: File,
-    mediaType: "image" | "document" | "audio" | "video"
+    mediaType: "image" | "document" | "audio" | "video",
+    customCaption?: string
   ) => {
     if (!selectedConversation) return;
 
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
-    const mediaDisplayText = `📎 ${file.name}`;
+    const captionText = customCaption || file.name;
+    const mediaDisplayText = `📎 ${captionText}`;
     
     // Create a local preview URL for images/videos
     const localPreviewUrl = (mediaType === "image" || mediaType === "video") 
@@ -2347,9 +2348,9 @@ export default function WhatsAppChat() {
       from: "me",
       to: selectedConversation.participantPhone,
       type: mediaType,
-      content: { caption: file.name },
+      content: { caption: captionText },
       mediaUrl: localPreviewUrl || (mediaType === "audio" ? URL.createObjectURL(file) : undefined), // Show local preview immediately (for audio, create URL for player)
-      filename: file.name, // Include filename for audio display
+      filename: file.name,
       timestamp: sendTimestamp,
       status: "sending",
       direction: "outgoing",
@@ -2427,13 +2428,12 @@ export default function WhatsAppChat() {
         )
       );
 
-      // Now send the message using Bunny URL via send-media API
       const sendResponse = await axios.post("/api/whatsapp/send-media", {
         to: selectedConversation.participantPhone,
         conversationId: selectedConversation._id,
         mediaType: mediaType,
-        mediaUrl: bunnyUrl, // Use Bunny CDN URL directly
-        caption: file.name,
+        mediaUrl: bunnyUrl,
+        caption: captionText,
         filename: bunnyFilename || file.name,
         phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
@@ -2481,36 +2481,39 @@ export default function WhatsAppChat() {
     }
   };
 
-  // Handle sending pasted images with caption
-  const handleSendPastedImagesWithCaption = async (files: File[], caption: string) => {
+  // Handle sending media with individual captions
+  const handleSendMediaWithCaptions = async (files: Array<{ file: File; caption: string }>) => {
     if (!selectedConversation || files.length === 0) return;
 
     setUploadingMedia(true);
 
     try {
-      // For multiple images, send them sequentially (WhatsApp sends them as separate messages)
-      // For single image with caption, send with caption
-      if (files.length === 1) {
-        // Single image - can send with caption
-        await handleSingleImageWithCaption(files[0], caption);
-      } else {
-        // Multiple images - send each separately (WhatsApp style)
-        // First image can have caption, others don't
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const useCaption = i === 0 ? caption : ""; // Only first image gets caption
-          await handleSingleImageWithCaption(file, useCaption);
-          // Small delay between sends to avoid rate limiting
-          if (i < files.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
+      for (let i = 0; i < files.length; i++) {
+        const { file, caption } = files[i];
+        const mediaType = file.type.startsWith("image/") ? "image" 
+          : file.type.startsWith("video/") ? "video"
+          : file.type.startsWith("audio/") ? "audio" 
+          : "document";
+
+        if (mediaType === "image") {
+          await handleSingleImageWithCaption(file, caption);
+        } else {
+          await handleSingleFileUpload(
+            file,
+            mediaType as "video" | "audio" | "document",
+            caption
+          );
+        }
+
+        if (i < files.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
     } catch (error: any) {
-      console.error("Error sending pasted images:", error);
+      console.error("Error sending media:", error);
       toast({
         title: "Upload Failed",
-        description: error.response?.data?.error || error.message || "Failed to send images",
+        description: error.response?.data?.error || error.message || "Failed to send media",
         variant: "destructive",
       });
     } finally {
@@ -3110,7 +3113,7 @@ export default function WhatsAppChat() {
                     isYouConversation={isYouConversation}
                     selectedConversation={selectedConversation}
                     selectedPhoneConfig={selectedPhoneConfig}
-                    onSendPastedImagesWithCaption={handleSendPastedImagesWithCaption}
+                    onSendMediaWithCaptions={handleSendMediaWithCaptions}
                   />
                 </>
               ) : (

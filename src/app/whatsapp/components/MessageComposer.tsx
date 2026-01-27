@@ -26,6 +26,13 @@ import { cn } from "@/lib/utils";
 import axios from "axios";
 import { getMessageDisplayText } from "../utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  MediaSendPreview,
+  MediaFile,
+  createMediaFile,
+  revokeMediaFileUrls,
+  usePasteMedia,
+} from "./MediaSendPreview";
 
 type MediaKind = "image" | "document" | "audio" | "video";
 
@@ -60,10 +67,10 @@ interface MessageComposerProps {
   onCancelReply?: () => void;
   // "You" conversation flag - templates not needed, always active
   isYouConversation?: boolean;
-  // For pasted image sending with caption
+  // For media sending with individual captions
   selectedConversation?: { _id: string; participantPhone: string } | null;
   selectedPhoneConfig?: { phoneNumberId?: string } | null;
-  onSendPastedImagesWithCaption?: (files: File[], caption: string) => Promise<void>;
+  onSendMediaWithCaptions?: (files: Array<{ file: File; caption: string }>) => Promise<void>;
 }
 
 export const MessageComposer = memo(function MessageComposer({
@@ -94,17 +101,17 @@ export const MessageComposer = memo(function MessageComposer({
   isYouConversation = false,
   selectedConversation,
   selectedPhoneConfig,
-  onSendPastedImagesWithCaption,
+  onSendMediaWithCaptions,
 }: MessageComposerProps) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [pastedImages, setPastedImages] = useState<Array<{ id: string; file: File; previewUrl: string }>>([]);
-  const [imageCaption, setImageCaption] = useState("");
+  // Media preview state - uses MediaFile with individual captions
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const captionInputRef = useRef<HTMLTextAreaElement>(null);
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -116,14 +123,12 @@ export const MessageComposer = memo(function MessageComposer({
     textarea.style.height = `${newHeight}px`;
   }, [newMessage]);
 
-  // Cleanup preview URLs on unmount or when preview changes
+  // Cleanup preview URLs on unmount
   useEffect(() => {
     return () => {
-      pastedImages.forEach((img) => {
-        URL.revokeObjectURL(img.previewUrl);
-      });
+      revokeMediaFileUrls(mediaFiles);
     };
-  }, [pastedImages]);
+  }, []);
 
   // Determine media type from file
   const getMediaType = useCallback((file: File): MediaKind | null => {
@@ -231,11 +236,13 @@ export const MessageComposer = memo(function MessageComposer({
   // Shows preview first, only sends when user clicks send button
   // Supports multiple images in a single paste
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!canSendFreeForm || uploadingMedia) return;
+
     // Check if clipboard contains image
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    const newImages: Array<{ id: string; file: File; previewUrl: string }> = [];
+    const newMediaFiles: MediaFile[] = [];
 
     // Find all image items in clipboard
     for (let i = 0; i < items.length; i++) {
@@ -257,13 +264,11 @@ export const MessageComposer = memo(function MessageComposer({
             continue;
           }
 
-          // Create preview URL and add to array
-          const previewUrl = URL.createObjectURL(file);
-          newImages.push({
-            id: `pasted-${Date.now()}-${i}`,
-            file,
-            previewUrl,
-          });
+          // Create MediaFile using the new helper
+          const mediaFile = createMediaFile(file, newMediaFiles.length);
+          if (mediaFile) {
+            newMediaFiles.push(mediaFile);
+          }
         } catch (error) {
           console.error("Error handling pasted image:", error);
         }
@@ -271,49 +276,33 @@ export const MessageComposer = memo(function MessageComposer({
     }
 
     // If images were found, add them to the preview
-    if (newImages.length > 0) {
-      setPastedImages((prev) => [...prev, ...newImages]);
-      // Autofocus caption input when preview appears
-      setTimeout(() => {
-        captionInputRef.current?.focus();
-      }, 100);
+    if (newMediaFiles.length > 0) {
+      setMediaFiles((prev) => [...prev, ...newMediaFiles]);
     }
     // If no image found, let default text paste behavior continue unchanged
-  }, []);
+  }, [canSendFreeForm, uploadingMedia]);
 
-  // Remove a single image from preview
-  const handleRemovePastedImage = useCallback((id: string) => {
-    setPastedImages((prev) => {
-      const image = prev.find((img) => img.id === id);
-      if (image) {
-        URL.revokeObjectURL(image.previewUrl);
-      }
-      return prev.filter((img) => img.id !== id);
-    });
-  }, []);
+  // Handle sending media with individual captions via MediaSendPreview
+  const handleSendMediaFiles = useCallback(async (files: MediaFile[]) => {
+    if (files.length === 0) return;
 
-  // Handle sending all pasted images with optional caption
-  const handleSendPastedImages = useCallback(async () => {
-    if (pastedImages.length === 0) return;
-
-    // If custom handler provided (for caption support), use it
-    if (onSendPastedImagesWithCaption) {
-      const files = pastedImages.map((img) => img.file);
-      await onSendPastedImagesWithCaption(files, imageCaption);
+    // Use the new handler with individual captions
+    if (onSendMediaWithCaptions) {
+      const filesWithCaptions = files.map((f) => ({
+        file: f.file,
+        caption: f.caption,
+      }));
+      await onSendMediaWithCaptions(filesWithCaptions);
       
-      // Clear preview and caption
-      pastedImages.forEach((img) => {
-        URL.revokeObjectURL(img.previewUrl);
-      });
-      setPastedImages([]);
-      setImageCaption("");
+      revokeMediaFileUrls(files);
+      setMediaFiles([]);
       return;
     }
 
-    // Fallback: Use existing file upload handler (no caption support)
+    // Fallback: Use existing file upload handler (sends files without captions)
     const dataTransfer = new DataTransfer();
-    pastedImages.forEach((img) => {
-      dataTransfer.items.add(img.file);
+    files.forEach((f) => {
+      dataTransfer.items.add(f.file);
     });
     
     const syntheticEvent = {
@@ -323,25 +312,43 @@ export const MessageComposer = memo(function MessageComposer({
       },
     } as React.ChangeEvent<HTMLInputElement>;
 
-    // Use existing file upload handler
-    onHandleFileUpload(syntheticEvent, "image");
+    const mediaType = files[0].type;
+    onHandleFileUpload(syntheticEvent, mediaType);
     
-    // Clear preview and caption
-    pastedImages.forEach((img) => {
-      URL.revokeObjectURL(img.previewUrl);
-    });
-    setPastedImages([]);
-    setImageCaption("");
-  }, [pastedImages, imageCaption, onHandleFileUpload, onSendPastedImagesWithCaption]);
+    revokeMediaFileUrls(files);
+    setMediaFiles([]);
+  }, [onHandleFileUpload, onSendMediaWithCaptions]);
 
-  // Handle canceling all pasted images
-  const handleCancelPastedImages = useCallback(() => {
-    pastedImages.forEach((img) => {
-      URL.revokeObjectURL(img.previewUrl);
-    });
-    setPastedImages([]);
-    setImageCaption("");
-  }, [pastedImages]);
+  // Handle canceling media preview
+  const handleCancelMediaPreview = useCallback(() => {
+    revokeMediaFileUrls(mediaFiles);
+    setMediaFiles([]);
+  }, [mediaFiles]);
+
+  // Handle adding more files to preview
+  const handleAddMoreFiles = useCallback(() => {
+    addMoreInputRef.current?.click();
+  }, []);
+
+  // Handle file selection - shows preview instead of sending directly
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newMediaFiles: MediaFile[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const mediaFile = createMediaFile(files[i], mediaFiles.length + i);
+      if (mediaFile) {
+        newMediaFiles.push(mediaFile);
+      }
+    }
+
+    if (newMediaFiles.length > 0) {
+      setMediaFiles((prev) => [...prev, ...newMediaFiles]);
+    }
+
+    e.target.value = "";
+  }, [mediaFiles.length]);
 
   const handleEmojiSelect = useCallback((emoji: any) => {
     onMessageChange(newMessage + emoji.native);
@@ -377,91 +384,26 @@ export const MessageComposer = memo(function MessageComposer({
         </div>
       )}
 
-      {/* Pasted image preview - WhatsApp Web style */}
-      {pastedImages.length > 0 && (
-        <div className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#1f2c33] border-b border-[#e9edef] dark:border-[#222d34] transition-all duration-200 ease-in-out">
-          <div className="bg-white dark:bg-[#202c33] rounded-lg p-3">
-            {/* Image preview strip - horizontal scrollable */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]">
-              {pastedImages.map((img) => (
-                <div
-                  key={img.id}
-                  className="relative flex-shrink-0 group"
-                >
-                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-[#f0f2f5] dark:bg-[#374045]">
-                    <img
-                      src={img.previewUrl}
-                      alt="Pasted image"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  {/* Remove button - appears on hover */}
-                  <button
-                    onClick={() => handleRemovePastedImage(img.id)}
-                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  >
-                    <X className="h-3 w-3 text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
+      {/* Media preview - using reusable MediaSendPreview component */}
+      <MediaSendPreview
+        files={mediaFiles}
+        onFilesChange={setMediaFiles}
+        onSend={handleSendMediaFiles}
+        onCancel={handleCancelMediaPreview}
+        isSending={uploadingMedia}
+        showAddMore={mediaFiles.every((f) => f.type === "image")}
+        onAddMore={handleAddMoreFiles}
+      />
 
-            {/* Caption input */}
-            <div className="mb-3">
-              <textarea
-                ref={captionInputRef}
-                placeholder="Add a caption..."
-                value={imageCaption}
-                onChange={(e) => setImageCaption(e.target.value)}
-                onKeyDown={(e) => {
-                  // Prevent Enter from sending if Shift is not held
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    // Don't send on Enter - user must click Send button
-                  }
-                }}
-                rows={2}
-                className={cn(
-                  "w-full bg-[#f0f2f5] dark:bg-[#2a3942] rounded-lg px-3 py-2",
-                  "text-[14px] text-[#111b21] dark:text-[#e9edef]",
-                  "placeholder:text-[#8696a0] resize-none",
-                  "border-0 outline-none focus-visible:ring-2 focus-visible:ring-[#25d366] focus-visible:ring-offset-0",
-                  "min-h-[60px] max-h-[120px]",
-                  "scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
-                )}
-              />
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={handleCancelPastedImages}
-                className="h-9 px-4 rounded-full text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#374045]"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSendPastedImages}
-                disabled={uploadingMedia}
-                className="h-9 px-6 rounded-full bg-[#25d366] hover:bg-[#1da851] text-white font-medium"
-              >
-                {uploadingMedia ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Hidden input for adding more files */}
+      <input
+        type="file"
+        ref={addMoreInputRef}
+        className="hidden"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+      />
 
       {/* Reply preview bar - WhatsApp style */}
       {replyToMessage && (
@@ -588,13 +530,13 @@ export const MessageComposer = memo(function MessageComposer({
           context={templateContext}
         />
 
-        {/* Hidden file inputs */}
+        {/* Hidden file inputs - shows preview before sending */}
         <input
           type="file"
           ref={fileInputRef}
           className="hidden"
           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-          onChange={(e) => onHandleFileUpload(e, "document")}
+          onChange={handleFileSelect}
         />
         <input
           type="file"
@@ -602,21 +544,21 @@ export const MessageComposer = memo(function MessageComposer({
           className="hidden"
           accept="image/*"
           multiple
-          onChange={(e) => onHandleFileUpload(e, "image")}
+          onChange={handleFileSelect}
         />
         <input
           type="file"
           ref={videoInputRef}
           className="hidden"
           accept="video/*"
-          onChange={(e) => onHandleFileUpload(e, "video")}
+          onChange={handleFileSelect}
         />
         <input
           type="file"
           ref={audioInputRef}
           className="hidden"
           accept="audio/*"
-          onChange={(e) => onHandleFileUpload(e, "audio")}
+          onChange={handleFileSelect}
         />
 
         {/* Emoji picker - Hidden on mobile (accessed via keyboard) */}

@@ -57,10 +57,14 @@ app.prepare().then(() => {
     });
 
     // ========== WhatsApp Events ==========
-    // Join WhatsApp room for real-time updates
-    socket.on("join-whatsapp-room", () => {
+    socket.on("join-whatsapp-room", (userId?: string) => {
       socket.join("whatsapp-room");
-      console.log(`📱 ${socket.id} joined WhatsApp room`);
+      if (userId) {
+        socket.join(`user-${userId}`);
+        console.log(`📱 ${socket.id} joined WhatsApp room + user-${userId}`);
+      } else {
+        console.log(`📱 ${socket.id} joined WhatsApp room`);
+      }
     });
 
     // Leave WhatsApp room

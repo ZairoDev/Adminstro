@@ -71,12 +71,13 @@ export function WhatsAppNotifications() {
 
   const fetchNotifications = useCallback(async () => {
     if (!hasAccess) {
-      console.log("⏭️ [WHATSAPP NOTIFICATIONS] No access, skipping fetch");
+      console.log("⏭️ [NAVBAR WA] No access, skipping fetch");
       return;
     }
 
     try {
       setLoading(true);
+      console.log("🔄 [NAVBAR WA] Fetching notifications from API...");
       const response = await axios.get("/api/whatsapp/notifications/summary");
       if (response.data.success) {
         const summaryData = response.data.summary || {
@@ -85,10 +86,18 @@ export function WhatsAppNotifications() {
           topItems: [],
         };
         setSummary(summaryData);
-        console.log(`✅ [WHATSAPP NOTIFICATIONS] Fetched: ${summaryData.unreadCount} unread, ${summaryData.expiringCount} expiring`);
+        console.log(`✅ [NAVBAR WA] Fetched successfully:`, {
+          unreadCount: summaryData.unreadCount,
+          expiringCount: summaryData.expiringCount,
+          totalItems: summaryData.topItems.length,
+          unreadItems: summaryData.topItems.filter((i: any) => i.type === "unread").length,
+          expiringItems: summaryData.topItems.filter((i: any) => i.type === "expiring").length
+        });
+      } else {
+        console.error("❌ [NAVBAR WA] API returned success=false");
       }
     } catch (err: any) {
-      console.error("❌ [WHATSAPP NOTIFICATIONS] Error fetching:", err);
+      console.error("❌ [NAVBAR WA] Error fetching:", err.message || err);
       setSummary({
         expiringCount: 0,
         unreadCount: 0,
@@ -101,51 +110,119 @@ export function WhatsAppNotifications() {
 
   useEffect(() => {
     if (!isMounted || !hasAccess) return;
-    
     fetchNotifications();
-    // Refresh every 15 minutes (background job handles more frequent checks)
-    const interval = setInterval(fetchNotifications, 15 * 60 * 1000);
-    return () => clearInterval(interval);
   }, [isMounted, hasAccess, fetchNotifications]);
 
-  // Listen for real-time updates via Socket.IO
   useEffect(() => {
     if (!socket || !hasAccess) {
-      console.log("⏭️ [WHATSAPP NOTIFICATIONS] Socket or access not available");
       return;
     }
 
-    console.log("🔌 [WHATSAPP NOTIFICATIONS] Setting up socket listeners");
-    socket.emit("join-whatsapp-room");
+    const currentUserId = token?.id || (token as any)?._id;
+    socket.emit("join-whatsapp-room", currentUserId?.toString());
 
-    // Listen for new messages and conversation updates
-    // Debounce to prevent too many refetches
-    let fetchTimeout: NodeJS.Timeout | null = null;
-    const handleNewMessage = () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(() => {
-        console.log("📨 [WHATSAPP NOTIFICATIONS] New message received, refetching...");
-        fetchNotifications();
-      }, 500); // 500ms debounce
+    const handleNewMessage = (data: any) => {
+      const currentUserId = token?.id || (token as any)?._id;
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
+      if (data.message?.direction === "incoming") {
+        const isOnWhatsAppPage = typeof window !== "undefined" && window.location.pathname.startsWith("/whatsapp");
+        let activeConvId = null;
+        if (isOnWhatsAppPage && typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("whatsapp_active_conversation");
+            const parsed = raw ? JSON.parse(raw) : null;
+            activeConvId = parsed?.conversationId || null;
+          } catch {}
+        }
+        
+        if (activeConvId && activeConvId === data.conversationId && isOnWhatsAppPage) {
+          console.log("📨 [NAVBAR WA] Message for active conversation, skipping");
+          return;
+        }
+
+        console.log("📨 [NAVBAR WA] Incoming message for conversation:", data.conversationId);
+        setSummary(prev => {
+          const existingIndex = prev.topItems.findIndex(item => item._id === data.conversationId);
+          
+          if (existingIndex >= 0) {
+            const existing = prev.topItems[existingIndex];
+            if (existing.type === "unread") {
+              const newItems = [...prev.topItems];
+              newItems[existingIndex] = {
+                ...existing,
+                unreadCount: (existing.unreadCount || 0) + 1,
+                lastMessageContent: data.lastMessagePreview || existing.lastMessageContent,
+                lastMessageTime: data.lastMessageTime
+              };
+              console.log("📊 [NAVBAR WA] Updated unread conversation, new count:", newItems[existingIndex].unreadCount);
+              return {
+                ...prev,
+                unreadCount: prev.unreadCount + 1,
+                topItems: newItems
+              };
+            } else {
+              const newItems = [...prev.topItems];
+              newItems[existingIndex] = {
+                ...existing,
+                type: "unread" as const,
+                unreadCount: 1,
+                lastMessageContent: data.lastMessagePreview || existing.lastMessageContent,
+                lastMessageTime: data.lastMessageTime
+              };
+              console.log("📊 [NAVBAR WA] Converted expiring to unread");
+              return {
+                ...prev,
+                unreadCount: prev.unreadCount + 1,
+                topItems: newItems
+              };
+            }
+          } else {
+            const newItem = {
+              _id: data.conversationId,
+              type: "unread" as const,
+              participantPhone: data.message?.from || "",
+              participantName: data.participantName || "",
+              lastMessageContent: data.lastMessagePreview || "",
+              lastMessageTime: data.lastMessageTime,
+              unreadCount: 1,
+              businessPhoneId: data.businessPhoneId || "",
+              assignedAgent: data.assignedAgent
+            };
+            console.log("📊 [NAVBAR WA] Added new unread conversation");
+            return {
+              ...prev,
+              unreadCount: prev.unreadCount + 1,
+              topItems: [...prev.topItems, newItem]
+            };
+          }
+        });
+      }
     };
 
     const handleConversationUpdate = () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(() => {
-        console.log("🔄 [WHATSAPP NOTIFICATIONS] Conversation updated, refetching...");
-        fetchNotifications();
-      }, 500); // 500ms debounce
+      fetchNotifications();
     };
 
-    // NOTE: whatsapp-new-message listener is registered ONCE in whatsapp.tsx
-    // to avoid duplicate processing. This component only listens for conversation updates.
+    const handleMessageRead = (data: {conversationId: string}) => {
+      setSummary(prev => ({
+        ...prev,
+        unreadCount: Math.max(0, prev.unreadCount - (prev.topItems.find(i => i._id === data.conversationId)?.unreadCount || 0)),
+        topItems: prev.topItems.filter(item => item._id !== data.conversationId)
+      }));
+    };
+
+    socket.on("whatsapp-new-message", handleNewMessage);
     socket.on("whatsapp-conversation-update", handleConversationUpdate);
+    socket.on("whatsapp-messages-read", handleMessageRead);
 
     return () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
+      socket.off("whatsapp-new-message", handleNewMessage);
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
+      socket.off("whatsapp-messages-read", handleMessageRead);
     };
-  }, [socket, hasAccess, fetchNotifications]);
+  }, [socket, hasAccess, fetchNotifications, token]);
 
   const totalCount = summary.expiringCount + summary.unreadCount;
 

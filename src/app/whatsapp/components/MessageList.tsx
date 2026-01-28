@@ -20,7 +20,7 @@ import {
   Play,
   ArrowDown,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef, useCallback, memo, TouchEvent } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback, memo, TouchEvent, forwardRef, useImperativeHandle } from "react";
 import { AlertTriangle, CheckCheck, Clock } from "lucide-react";
 import {
   Tooltip,
@@ -316,6 +316,16 @@ const ImageGroup = memo(function ImageGroup({
                 className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                 loading="lazy"
               />
+              {/* Individual status icon for each image */}
+              {isOutgoing && (
+                <div className="absolute bottom-1 right-1">
+                  <StatusIcon 
+                    status={img.status} 
+                    failureReason={img.failureReason}
+                    errorCode={img.failureReason?.code}
+                  />
+                </div>
+              )}
               {/* Remaining count overlay on last image */}
               {remainingCount > 0 && idx === 3 && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -326,24 +336,19 @@ const ImageGroup = memo(function ImageGroup({
           ))}
         </div>
 
-        {/* Timestamp */}
-        <div className="absolute bottom-1 right-2 flex items-center gap-1">
-          <span className="text-[11px] text-white/90 drop-shadow-md">
-            {isMounted
-              ? new Date(images[0].timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "--:--"}
-          </span>
-          {isOutgoing && (
-            <StatusIcon 
-              status={images[images.length - 1].status} 
-              failureReason={images[images.length - 1].failureReason}
-              errorCode={images[images.length - 1].failureReason?.code}
-            />
-          )}
-        </div>
+        {/* Timestamp - only show if no individual status icons */}
+        {!isOutgoing && (
+          <div className="absolute bottom-1 right-2">
+            <span className="text-[11px] text-white/90 drop-shadow-md">
+              {isMounted
+                ? new Date(images[0].timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--:--"}
+            </span>
+          </div>
+        )}
 
         {/* Hover menu */}
         {!selectMode && (
@@ -446,6 +451,7 @@ const MessageBubble = memo(function MessageBubble({
   const [isHovered, setIsHovered] = useState(false);
   const [isLongPressed, setIsLongPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -730,18 +736,32 @@ const MessageBubble = memo(function MessageBubble({
 
         {/* Image/Sticker - Single image (not in group) */}
         {message.mediaUrl && (message.type === "image" || message.type === "sticker") && (
-          <div className="relative cursor-pointer" onClick={onImageClick}>
-            {message.status === "sending" && (
-              <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center z-10">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
-              </div>
-            )}
-            <img
-              src={message.mediaUrl}
-              alt={displayText || "Image"}
-              className="max-w-full rounded-lg max-h-[330px] object-contain"
-              loading="lazy"
-            />
+          <div className="relative">
+            <div
+              className="relative cursor-pointer flex items-center justify-center bg-black/5 dark:bg-black/20 rounded-lg overflow-hidden"
+              style={{ minHeight: 220 }}
+              onClick={onImageClick}
+            >
+              {!imageLoaded && (
+                <Loader2 className="h-6 w-6 animate-spin text-[#8696a0]" />
+              )}
+              {message.status === "sending" && (
+                <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center z-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+              <img
+                src={message.mediaUrl}
+                alt={displayText || "Image"}
+                className={cn(
+                  "max-w-full rounded-lg max-h-[330px] object-contain transition-opacity",
+                  imageLoaded ? "opacity-100" : "opacity-0"
+                )}
+                loading="lazy"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageLoaded(true)}
+              />
+            </div>
           </div>
         )}
 
@@ -1060,7 +1080,7 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
-export function MessageList({
+export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => void }, MessageListProps>(({
   messages,
   messagesLoading,
   messageSearchQuery,
@@ -1076,7 +1096,7 @@ export function MessageList({
   isMobile = false,
   pendingScrollToMessageId,
   onScrolledToMessage,
-}: MessageListProps) {
+}, ref) => {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -1095,33 +1115,20 @@ export function MessageList({
     setIsMounted(true);
   }, []);
 
-  // Scroll to a specific message and highlight it (WhatsApp-style)
-  const handleScrollToMessage = useCallback((messageId: string) => {
+  const scrollToMessage = useCallback((messageId: string) => {
     const container = scrollContainerRef.current;
     if (!container) return;
-
-    // Find the message element
-    const messageElement = container.querySelector(`[data-message-id="${messageId}"]`);
-    if (messageElement) {
-      // Scroll the message into view
-      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      
-      // Highlight the message briefly
+    const el = container.querySelector(`[data-message-id="${messageId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
       setHighlightedMessageId(messageId);
-      
-      // Remove highlight after animation
-      setTimeout(() => {
-        setHighlightedMessageId(null);
-      }, 2000);
-    } else {
-      // Message not found - might need to load older messages
-      toast({
-        title: "Message not found",
-        description: "The original message may have been deleted or is not loaded yet.",
-        variant: "default",
-      });
+      setTimeout(() => setHighlightedMessageId(null), 2000);
     }
-  }, [toast]);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ scrollToMessage }), [scrollToMessage]);
+
+  const handleScrollToMessage = scrollToMessage;
 
   // Handle pending scroll to message from search results
   useEffect(() => {
@@ -1268,10 +1275,12 @@ export function MessageList({
       }
 
       const isImage = (message.type === "image" || message.type === "sticker") && message.mediaUrl;
+      const hasCaption = isImage && typeof message.content === "object" && message.content?.caption && message.content.caption.trim();
 
       // Check if we should continue current image group
       const shouldContinueGroup =
         isImage &&
+        !hasCaption &&
         currentImageGroup.length > 0 &&
         message.direction === imageGroupDirection &&
         message.from === imageGroupFrom &&
@@ -1280,15 +1289,38 @@ export function MessageList({
 
       if (shouldContinueGroup) {
         currentImageGroup.push(message);
-      } else {
-        // Flush current group
-        flushImageGroup(showDate ? lastDate : undefined);
+        } else {
+          // Flush current group
+          flushImageGroup(showDate ? lastDate : undefined);
 
-        if (isImage) {
-          // Start new image group
+        if (isImage && !hasCaption) {
+          // Start new image group (only for images without captions)
           currentImageGroup = [message];
           imageGroupDirection = message.direction;
           imageGroupFrom = message.from;
+        } else if (isImage && hasCaption) {
+          // Image with caption - render as regular message
+          const isFirstInGroup =
+            !prevMessage ||
+            prevMessage.direction !== message.direction ||
+            prevMessage.from !== message.from ||
+            Math.abs(new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime()) > 60000 ||
+            showDate;
+
+          const isLastInGroup =
+            !nextMessage ||
+            nextMessage.direction !== message.direction ||
+            nextMessage.from !== message.from ||
+            Math.abs(new Date(nextMessage.timestamp).getTime() - new Date(message.timestamp).getTime()) > 60000 ||
+            (nextMessage && !isSameDay(new Date(nextMessage.timestamp), messageDate));
+
+          result.push({
+            type: "message",
+            date: showDate ? lastDate : undefined,
+            message,
+            isFirstInGroup,
+            isLastInGroup,
+          });
         } else {
           // Regular message
           const isFirstInGroup =
@@ -1367,6 +1399,13 @@ export function MessageList({
     const idx = imageMessages.findIndex((m) => m.mediaUrl === url);
     setCurrentImageIndex(idx >= 0 ? idx : 0);
   }, [imageMessages]);
+
+  const getCurrentImageMessage = useCallback(() => {
+    if (selectedImageUrl && imageMessages.length > 0) {
+      return imageMessages[currentImageIndex] || imageMessages.find(m => m.mediaUrl === selectedImageUrl);
+    }
+    return null;
+  }, [selectedImageUrl, currentImageIndex, imageMessages]);
 
   // Pull to refresh handler for mobile
   const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
@@ -1714,16 +1753,47 @@ export function MessageList({
               )}
 
               {/* Image with touch support for mobile */}
-              <img 
-                src={selectedImageUrl} 
-                alt="Full size" 
-                className={cn(
-                  "max-w-full max-h-full object-contain",
-                  // Enable touch manipulation for pinch-to-zoom
-                  isMobile && "touch-manipulation"
-                )}
-                style={isMobile ? { touchAction: 'manipulation' } : undefined}
-              />
+              <div className="flex flex-col items-center justify-center w-full h-full p-4">
+                <img 
+                  src={selectedImageUrl} 
+                  alt="Full size" 
+                  className={cn(
+                    "max-w-full max-h-[calc(100vh-200px)] object-contain",
+                    // Enable touch manipulation for pinch-to-zoom
+                    isMobile && "touch-manipulation"
+                  )}
+                  style={isMobile ? { touchAction: 'manipulation' } : undefined}
+                />
+                {/* Caption and status below image */}
+                {(() => {
+                  const currentMsg = getCurrentImageMessage();
+                  if (!currentMsg) return null;
+                  const caption = typeof currentMsg.content === "object" && currentMsg.content?.caption ? currentMsg.content.caption : null;
+                  const hasCaption = caption && caption.trim();
+                  
+                  return (hasCaption || currentMsg.direction === "outgoing") ? (
+                    <div className={cn(
+                      "mt-4 max-w-2xl w-full flex items-center justify-between gap-4",
+                      isMobile ? "px-4" : "px-8"
+                    )}>
+                      {hasCaption && (
+                        <p className="text-white text-sm flex-1 text-center">
+                          {caption}
+                        </p>
+                      )}
+                      {currentMsg.direction === "outgoing" && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <StatusIcon 
+                            status={currentMsg.status} 
+                            failureReason={currentMsg.failureReason}
+                            errorCode={currentMsg.failureReason?.code}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
 
               {!isMobile && imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
                 <Button
@@ -1811,4 +1881,6 @@ export function MessageList({
       </Dialog>
     </div>
   );
-}
+});
+
+MessageList.displayName = "MessageList";

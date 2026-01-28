@@ -126,20 +126,10 @@ export async function GET(req: NextRequest) {
       .filter((conv): conv is NonNullable<typeof conv> => conv !== null)
       .sort((a, b) => a.totalMinutes - b.totalMinutes); // Most urgent first
 
-    // =========================================================
-    // CRITICAL: Per-User Unread Count Calculation
-    // =========================================================
-    // Do NOT use global unreadCount field
-    // Calculate unread state using ConversationReadState per user
-    // Count messages with timestamp > lastReadAt
     const candidateConversationsQuery: any = {
       status: "active",
       businessPhoneId: { $in: allowedPhoneIds },
-      // Only incoming messages create unread count
-      lastMessageDirection: "incoming",
-      // Exclude internal conversations (they never notify)
       source: { $ne: "internal" },
-      // Exclude archived conversations for this user
       ...(archivedConversationIds.length > 0 && {
         _id: { $nin: archivedConversationIds },
       }),
@@ -153,40 +143,22 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Get all candidate conversations
     const candidateConversations = await WhatsAppConversation.find(candidateConversationsQuery)
-      .select("_id participantPhone participantName lastMessageContent lastMessageId lastMessageTime businessPhoneId assignedAgent")
+      .select("_id participantPhone participantName lastMessageContent lastMessageId lastMessageTime lastMessageDirection businessPhoneId assignedAgent")
       .lean();
 
-    // Calculate per-user unread counts for each conversation
     const unreadConversationsWithCounts = await Promise.all(
       candidateConversations.map(async (conv: any) => {
-        // Get user's read state for this conversation
         const readState = await ConversationReadState.findOne({
           conversationId: conv._id,
           userId: new mongoose.Types.ObjectId(userId),
         }).lean() as any;
 
-        // Only incoming messages can be unread
-        if (conv.lastMessageDirection !== "incoming" || !conv.lastMessageId) {
-          return null;
-        }
-
-        // Check if conversation is unread for this user
-        const isUnread = !readState || !readState.lastReadAt || 
-          (conv.lastMessageTime && new Date(conv.lastMessageTime) > new Date(readState.lastReadAt));
-
-        if (!isUnread) {
-          return null;
-        }
-
-        // Count unread messages: messages with timestamp > lastReadAt
         const msgQuery: any = {
           conversationId: conv._id,
           direction: "incoming",
         };
 
-        // If we have a lastReadAt timestamp, only count messages after that
         if (readState?.lastReadAt) {
           msgQuery.timestamp = { $gt: readState.lastReadAt };
         }
@@ -210,17 +182,21 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    // Filter out nulls and sort by lastMessageTime
     const unreadItems = unreadConversationsWithCounts
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime())
-      .slice(0, 5); // Limit to top 5
+      .slice(0, 5);
 
-    // Combine and sort by severity (critical expiring first, then urgent, then unread)
     const topItems = [
       ...expiringWithTime.slice(0, 5).map((item) => ({ ...item, type: "expiring" as const })),
       ...unreadItems.slice(0, 5).map((item) => ({ ...item, type: "unread" as const })),
-    ].slice(0, 7); // Max 7 items total
+    ].slice(0, 7);
+
+    console.log(`📊 [NOTIFICATION SUMMARY] User ${userId}:`, {
+      expiringCount: expiringWithTime.length,
+      unreadCount: unreadItems.length,
+      totalItems: topItems.length
+    });
 
     return NextResponse.json({
       success: true,

@@ -502,8 +502,8 @@ export default function WhatsAppChat() {
       console.count("[WHATSAPP] Registering whatsapp-new-message handler");
     }
 
-    // Join WhatsApp room
-    socket.emit("join-whatsapp-room");
+    const currentUserId = token?.id || (token as any)?._id;
+    socket.emit("join-whatsapp-room", currentUserId?.toString());
 
     // Stable handler function - prevents re-attachment on re-render
     const handleWhatsAppMessage = (data: any) => {
@@ -697,6 +697,15 @@ export default function WhatsAppChat() {
 
         if (message.direction === "incoming") {
           playNotificationSound();
+          setConversations((prev) => prev.map((conv) => 
+            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          ));
+          setArchivedConversations((prev) => prev.map((conv) => 
+            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          ));
+          axios.post("/api/whatsapp/conversations/read", {
+            conversationId: conversationId,
+          }).catch((err) => console.error("Failed to mark as read:", err));
         }
       }
       // Note: In-app toast notifications are handled by the notification controller
@@ -2177,7 +2186,7 @@ export default function WhatsAppChat() {
         from: "me",
         to: selectedConversation.participantPhone,
         type: mediaType,
-        content: { caption: file.name },
+        content: {},
         mediaUrl: bunnyUrl,
         filename: filename || file.name, // Include filename for audio/video display
         timestamp: sendTimestamp,
@@ -2223,7 +2232,6 @@ export default function WhatsAppChat() {
           conversationId: selectedConversation._id,
           mediaType: mediaType,
           mediaUrl: bunnyUrl, // Use Bunny CDN URL directly
-          caption: file.name,
           filename: filename || file.name,
           phoneNumberId: selectedPhoneConfig?.phoneNumberId,
         });
@@ -2333,8 +2341,8 @@ export default function WhatsAppChat() {
 
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
-    const captionText = customCaption || file.name;
-    const mediaDisplayText = `📎 ${captionText}`;
+    const captionText = customCaption?.trim() || "";
+    const mediaDisplayText = captionText ? `📎 ${captionText}` : `📎 ${file.name}`;
     
     // Create a local preview URL for images/videos
     const localPreviewUrl = (mediaType === "image" || mediaType === "video") 
@@ -2348,7 +2356,7 @@ export default function WhatsAppChat() {
       from: "me",
       to: selectedConversation.participantPhone,
       type: mediaType,
-      content: { caption: captionText },
+      content: captionText ? { caption: captionText } : {},
       mediaUrl: localPreviewUrl || (mediaType === "audio" ? URL.createObjectURL(file) : undefined), // Show local preview immediately (for audio, create URL for player)
       filename: file.name,
       timestamp: sendTimestamp,
@@ -2433,7 +2441,7 @@ export default function WhatsAppChat() {
         conversationId: selectedConversation._id,
         mediaType: mediaType,
         mediaUrl: bunnyUrl,
-        caption: captionText,
+        ...(captionText ? { caption: captionText } : {}),
         filename: bunnyFilename || file.name,
         phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
@@ -2539,7 +2547,7 @@ export default function WhatsAppChat() {
       from: "me",
       to: selectedConversation.participantPhone,
       type: "image",
-      content: { caption: caption || file.name },
+      content: caption?.trim() ? { caption: caption.trim() } : {},
       mediaUrl: localPreviewUrl,
       filename: file.name,
       timestamp: sendTimestamp,
@@ -2613,7 +2621,7 @@ export default function WhatsAppChat() {
         conversationId: selectedConversation._id,
         mediaType: "image",
         mediaUrl: bunnyUrl,
-        caption: caption || file.name, // Use provided caption or fallback to filename
+        ...(caption?.trim() ? { caption: caption.trim() } : {}),
         filename: bunnyFilename || file.name,
         phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
@@ -2663,7 +2671,7 @@ export default function WhatsAppChat() {
         from: "me",
         to: selectedConversation.participantPhone,
         type: "image",
-        content: { caption: file.name },
+        content: {},
         mediaUrl: localPreviewUrl,
         filename: file.name,
         timestamp: sendTimestamp,
@@ -2754,7 +2762,6 @@ export default function WhatsAppChat() {
             conversationId: selectedConversation._id,
             mediaType: "image",
             mediaUrl: bunnyUrl,
-            caption: file.name,
             filename: bunnyFilename || file.name,
             phoneNumberId: selectedPhoneConfig?.phoneNumberId,
           });

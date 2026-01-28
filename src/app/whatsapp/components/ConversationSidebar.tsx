@@ -326,30 +326,54 @@ export function ConversationSidebar({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Unified conversation-centric search hook
   const {
-    query: unifiedSearchQuery,
     results: unifiedSearchResults,
     loading: searchLoading,
-    error: searchError,
-    isSearchMode,
     search: executeSearch,
     clearSearch,
   } = useUnifiedWhatsAppSearch({
     debounceMs: 300,
     includeArchived: showingArchived,
     limit: 50,
+    phoneId: selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : undefined,
   });
+
+  const isSearchMode = searchQuery.trim().length > 0;
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handler to clear search completely
   const handleClearSearch = useCallback(() => {
     onSearchQueryChange("");
     clearSearch();
   }, [onSearchQueryChange, clearSearch]);
+
+  const handleJumpToMessage = useCallback(async (conversationId: string, messageId: string) => {
+    let conv = conversations.find(c => c._id === conversationId);
+    if (!conv && unifiedSearchResults) {
+      const r = unifiedSearchResults.conversations.find(c => c.conversationId === conversationId);
+      if (r) {
+        conv = {
+          _id: r.conversationId,
+          participantPhone: r.participantPhone,
+          participantName: r.participantName,
+          participantProfilePic: r.participantProfilePic,
+          lastMessageContent: r.lastMessageContent,
+          lastMessageTime: r.lastMessageTime,
+          unreadCount: r.unreadCount || 0,
+          conversationType: r.conversationType,
+          status: r.status || 'active',
+        } as any;
+      }
+    }
+    if (conv) {
+      onSelectConversation(conv);
+      if (onJumpToMessage) {
+        onJumpToMessage(conversationId, messageId);
+      }
+    }
+  }, [conversations, unifiedSearchResults, onSelectConversation, onJumpToMessage]);
 
   // CRITICAL: No client-side filtering - database is source of truth
   // Search and phone filtering happen at API/database level
@@ -727,63 +751,7 @@ export function ConversationSidebar({
                 console.error('Conversation not found:', conversationId);
               }
             }}
-            onStartNewChat={(phone) => {
-              // Clear search first
-              handleClearSearch();
-              // Set phone number and switch to new chat mode
-              const normalized = phone.replace(/\D/g, "");
-              if (normalized.length > 10) {
-                // Has country code
-                const countryCode = normalized.slice(0, -10);
-                const phoneNumber = normalized.slice(-10);
-                onCountryCodeChange(countryCode);
-                onPhoneNumberChange(phoneNumber);
-              } else {
-                onCountryCodeChange("91"); // Default to India
-                onPhoneNumberChange(normalized);
-              }
-              setShowNewChat(true);
-            }}
-            onJumpToMessage={async (conversationId, messageId) => {
-              // Don't clear search yet - we need it for highlighting
-              
-              // Ensure conversation is available
-              let conv = conversations.find(c => c._id === conversationId);
-              
-              if (!conv && unifiedSearchResults) {
-                const searchResult = unifiedSearchResults.conversations.find(
-                  c => c.conversationId === conversationId
-                );
-                
-                if (searchResult) {
-                  // Map search result to Conversation type
-                  conv = {
-                    _id: searchResult.conversationId,
-                    participantPhone: searchResult.participantPhone,
-                    participantName: searchResult.participantName,
-                    participantProfilePic: searchResult.participantProfilePic,
-                    lastMessageContent: searchResult.lastMessageContent,
-                    lastMessageTime: searchResult.lastMessageTime,
-                    unreadCount: searchResult.unreadCount,
-                    conversationType: searchResult.conversationType,
-                    status: searchResult.status || 'active',
-                  };
-                  
-                  // Select conversation first
-                  onSelectConversation(conv);
-                }
-              }
-              
-              // Call the parent handler to scroll to message
-              if (onJumpToMessage) {
-                onJumpToMessage(conversationId, messageId);
-              }
-              
-              // Clear search after a delay to allow scroll to complete
-              setTimeout(() => {
-                handleClearSearch();
-              }, 500);
-            }}
+            onJumpToMessage={handleJumpToMessage}
           />
         ) : loading && conversations.length === 0 ? (
           <div className="flex items-center justify-center py-20">

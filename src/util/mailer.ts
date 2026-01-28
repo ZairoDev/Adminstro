@@ -65,7 +65,7 @@ export const sendEmail = async ({
     let transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "zairo.domain@gmail.com",
+        user: "admistro.in@gmail.com",
         pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
@@ -104,7 +104,7 @@ export const sendEmail = async ({
         throw new Error("Invalid email type");
     }
     const mailOptions = {
-      from: "No Reply <zairo.domain@gmail.com>",
+      from: "No Reply <admistro.in@gmail.com>",
       to: email,
       subject,
       html: templateContent,

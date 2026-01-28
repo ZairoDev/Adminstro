@@ -274,7 +274,7 @@ function createTransporter() {
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "zairo.domain@gmail.com",
+      user: "admistro.in@gmail.com",
       pass: process.env.GMAIL_APP_PASSWORD,
     },
   });
@@ -375,7 +375,7 @@ export async function POST(req: Request) {
             guests: [guest],
           });
           await transporter.sendMail({
-            from: '"Vacation Saga" <zairo.domain@gmail.com>',
+            from: '"Vacation Saga" <admistro.in@gmail.com>',
             to: guest.email,
             subject: `Payment Request - ${bookingId}`.trim(),
             html: `
@@ -542,7 +542,7 @@ export async function POST(req: Request) {
         guests,
       });
       await transporter.sendMail({
-        from: '"Vacation Saga" <zairo.domain@gmail.com>',
+        from: '"Vacation Saga" <admistro.in@gmail.com>',
         to: mainGuest.email,
         subject: `Payment Request - ${bookingId}`.trim(),
         html: `

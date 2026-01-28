@@ -5,7 +5,7 @@ export const createTransporter = () => {
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "zairo.domain@gmail.com",
+      user: "admistro.in@gmail.com",
       pass: process.env.GMAIL_APP_PASSWORD,
     },
   });
@@ -21,7 +21,7 @@ export const createTransporterHR = () => {
   });
 };
 
-export const DEFAULT_FROM_EMAIL = "zairo.domain@gmail.com";
+export const DEFAULT_FROM_EMAIL = "admistro.in@gmail.com";
 export const DEFAULT_COMPANY_NAME = "Zairo International";
 
 

@@ -273,7 +273,7 @@ export async function POST(req: Request) {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-          user: "zairo.domain@gmail.com",
+          user: "admistro.in@gmail.com",
           pass: process.env.GMAIL_APP_PASSWORD,
         },
       });
@@ -347,7 +347,7 @@ export async function POST(req: Request) {
         await Invoice.create(invoiceData);
 
         await transporter.sendMail({
-          from: `"Vacation Saga" <zairo.domain@gmail.com>`,
+          from: `"Vacation Saga" <admistro.in@gmail.com>`,
           to: customerEmail,
           subject: "Your Vacation Saga Invoice",
           html: `
@@ -399,7 +399,7 @@ export async function POST(req: Request) {
         const remaining = guestAmountDue - guestAmountPaid;
 
         await transporter.sendMail({
-          from: `"Vacation Saga" <zairo.domain@gmail.com>`,
+          from: `"Vacation Saga" <admistro.in@gmail.com>`,
           to: customerEmail,
           subject: "Partial Payment Received - Vacation Saga",
           html: `

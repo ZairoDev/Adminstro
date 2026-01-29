@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { excludeGhostEmail, excludeGhostEmailFromCount } from "@/util/employeeConstants";
+import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
 
 connectDb();
 
@@ -76,8 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   let allEmployees: Employee[] = [];
   try {
-    // Exclude ghost email from all queries
-    const queryWithExclusion = excludeGhostEmail(query);
+    const queryWithExclusion = excludeTestAccountFromQuery(query);
     
     // LeadGen-TeamLead can only see LeadGen employees
     if (userRole === "LeadGen-TeamLead") {
@@ -100,7 +99,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       allEmployees = [];
     }
 
-    const totalEmployee: number = await Employees.countDocuments(excludeGhostEmailFromCount(query));
+    const totalEmployee: number = await Employees.countDocuments(excludeTestAccountFromCount(query));
 
     return NextResponse.json({ allEmployees, totalEmployee });
   } catch (error) {

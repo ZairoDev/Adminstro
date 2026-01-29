@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { excludeGhostEmail, excludeGhostEmailFromCount } from "@/util/employeeConstants";
+import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
 
 connectDb();
 
@@ -11,8 +11,7 @@ export async function POST(request: NextRequest) {
   const filters = await request.json();
 
   try {
-    // Exclude ghost email from active employees query
-    const filtersWithExclusion = excludeGhostEmail(filters);
+    const filtersWithExclusion = excludeTestAccountFromQuery(filters);
     const tempActiveEmployees = await Employees.find(filtersWithExclusion).lean();
 
 
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
       activeEmployees.push({ ...employee, leads: leadCount });
     }
 
-    const totalEmployee: number = await Employees.countDocuments(excludeGhostEmailFromCount({ isActive: true }));
+    const totalEmployee: number = await Employees.countDocuments(excludeTestAccountFromCount({ isActive: true }));
 
     return NextResponse.json({ activeEmployees, totalEmployee });
   } catch (error) {

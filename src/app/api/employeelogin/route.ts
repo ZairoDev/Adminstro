@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
-import { GHOST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
+import { TEST_SUPERADMIN_EMAIL, TEST_SUPERADMIN_PASSWORD } from "@/util/employeeConstants";
 
 connectDb();
 
@@ -24,10 +24,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
     const { email, password } = reqBody;
-    // console.log("email: ", email);
+    const trimmedPassword = password?.trim() ?? "";
+
+    // Test SuperAdmin: credentials-only login for QA, no DB record
+    if (email === TEST_SUPERADMIN_EMAIL && trimmedPassword === TEST_SUPERADMIN_PASSWORD) {
+      const testAccountTokenData = {
+        id: "test-superadmin",
+        name: "Test SuperAdmin",
+        email: TEST_SUPERADMIN_EMAIL,
+        role: "SuperAdmin",
+        allotedArea: [] as string[],
+      };
+      const token = jwt.sign(
+        testAccountTokenData,
+        process.env.TOKEN_SECRET as string,
+        { expiresIn: "2d" }
+      );
+      return NextResponse.json(
+        {
+          message: "Login successful",
+          otpRequired: false,
+          token,
+          tokenData: testAccountTokenData,
+        },
+        { status: 200 }
+      );
+    }
 
     const Employee = await Employees.find({ email });
-    // console.log("Employee: ", Employee);
     if (!Employee || Employee.length === 0) {
       return NextResponse.json(
         { error: "Please enter a valid email or password" },
@@ -77,16 +101,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (temp.role === "SuperAdmin") {
-      // Ghost SuperAdmin and ankitanigam1993@gmail.com bypass OTP
-      if (temp.email === "ankitanigam1993@gmail.com" || temp.email === GHOST_SUPERADMIN_EMAIL) {
-        // Track login for SuperAdmin
+      // SuperAdmin OTP bypass for specific accounts
+      if (temp.email === "ankitanigam1993@gmail.com" || temp.email === TEST_SUPERADMIN_EMAIL) {
         await Employees.updateOne(
           { _id: temp._id },
           { $set: { isLoggedIn: true, lastLogin: new Date() } }
         );
 
-        // Emit socket event for real-time tracking (but exclude ghost email from appearing in lists)
-        if ((global as any).io && temp.email !== GHOST_SUPERADMIN_EMAIL) {
+        // Emit socket for real-time tracking (exclude test account from lists)
+        if ((global as any).io && temp.email !== TEST_SUPERADMIN_EMAIL) {
           (global as any).io.emit("employee-login", {
             _id: temp._id,
             name: temp.name,

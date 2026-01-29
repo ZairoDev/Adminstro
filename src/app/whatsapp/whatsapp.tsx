@@ -104,6 +104,7 @@ export default function WhatsAppChat() {
 
   // Archive functionality (WhatsApp-style per-user archive)
   const [archivedCount, setArchivedCount] = useState(0);
+  const [archivedUnreadCount, setArchivedUnreadCount] = useState(0);
   const [showingArchived, setShowingArchived] = useState(false);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   
@@ -625,7 +626,9 @@ export default function WhatsAppChat() {
               const newUnreadCount = isIncomingMessage && !isCurrentConversation
                 ? (conv.unreadCount || 0) + 1
                 : conv.unreadCount || 0;
-              
+              if (isIncomingMessage && !isCurrentConversation) {
+                setArchivedUnreadCount((c) => c + 1);
+              }
               return {
                 ...conv,
                 lastMessageContent: displayText,
@@ -901,10 +904,14 @@ export default function WhatsAppChat() {
           return updated;
         });
 
-        // Also clear unread count for archived conversations
+        // Also clear unread count for archived conversations and update archived-unread badge
         setArchivedConversations((prev) => {
-          return prev.map((conv) =>
-            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          const conv = prev.find((c) => c._id === conversationId);
+          if (conv && (conv.unreadCount || 0) > 0) {
+            setArchivedUnreadCount((c) => Math.max(0, c - (conv.unreadCount || 0)));
+          }
+          return prev.map((c) =>
+            c._id === conversationId ? { ...c, unreadCount: 0 } : c
           );
         });
       }
@@ -1132,6 +1139,7 @@ export default function WhatsAppChat() {
       if (response.data.success) {
         setArchivedConversations(response.data.conversations || []);
         setArchivedCount(response.data.count || 0);
+        setArchivedUnreadCount(response.data.archivedUnreadCount ?? 0);
         const ids =
           (response.data.conversations || []).map((c: any) => c._id) || [];
         syncArchivedStorage(ids.filter(Boolean));
@@ -1214,6 +1222,8 @@ export default function WhatsAppChat() {
         
         // Refresh main conversations to include the unarchived one
         await fetchConversations(true);
+        // Refresh archived list so sidebar shows correct archived-unread count
+        fetchArchivedConversations({ silent: true });
         
         toast({
           title: "Chat unarchived",
@@ -2978,12 +2988,7 @@ export default function WhatsAppChat() {
               onAddGuest={() => setShowAddGuestModal(true)}
               // Archive functionality
               archivedCount={archivedCount}
-              archivedUnreadCount={archivedConversations.reduce(
-                (sum, c) =>
-                  sum +
-                  ((c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming" ? c.unreadCount || 0 : 0),
-                0
-              )}
+              archivedUnreadCount={archivedUnreadCount}
               showingArchived={showingArchived}
               onToggleArchiveView={toggleArchiveView}
               onArchiveConversation={archiveConversation}

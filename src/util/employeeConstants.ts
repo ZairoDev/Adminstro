@@ -4,7 +4,7 @@
  */
 
 // Test SuperAdmin account - used for QA, not shown in employee lists
-export const TEST_SUPERADMIN_EMAIL = "aniabh@gmail.com";
+export const TEST_SUPERADMIN_EMAIL = "testingmail@gmail.com";
 export const TEST_SUPERADMIN_PASSWORD = "125412";
 
 /**

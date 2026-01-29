@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Loader2, Search, CheckCheck } from "lucide-react";
+import { User, Loader2, Search, CheckCheck, MessageSquare } from "lucide-react";
 import { formatTime } from "../utils";
 
 interface UnifiedSearchResultsProps {
@@ -24,7 +24,7 @@ export function UnifiedSearchResults({
       </div>
     );
   }
-  
+
   if (!results || results.conversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -35,21 +35,58 @@ export function UnifiedSearchResults({
           No results found
         </p>
         <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
-          Try searching for a phone number
+          Try searching by name, phone number, or message
         </p>
       </div>
     );
   }
-  
+
+  const conversations = results.conversations;
+  const people = conversations.filter(
+    (c: any) =>
+      (c.matches?.matchedInPhone || c.matches?.matchedInName) ?? false
+  );
+  const chats = conversations.filter(
+    (c: any) =>
+      c.matches?.matchedMessages && c.matches.matchedMessages.length > 0
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto">
-        {results.conversations.map((conv) => (
-          <div key={conv.conversationId}>
-            {conv.matchedMessages && conv.matchedMessages.length > 0 ? (
-              conv.matchedMessages.map((msg: any) => (
+      <div className="flex-1 overflow-y-auto pb-4">
+        {/* People section - contacts matched by name or phone */}
+        {people.length > 0 && (
+          <div className="flex-shrink-0">
+            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#2a3942]">
+              <User className="h-4 w-4 text-[#667781] dark:text-[#8696a0]" />
+              <span className="text-xs font-medium uppercase tracking-wider text-[#667781] dark:text-[#8696a0]">
+                People
+              </span>
+            </div>
+            {people.map((conv: any) => (
+              <ContactResultItem
+                key={conv.conversationId}
+                conversation={conv}
+                query={query}
+                onSelect={() => onSelectConversation(conv.conversationId)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Chats section - messages containing search term */}
+        {chats.length > 0 && (
+          <div className="flex-shrink-0 mt-2">
+            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#2a3942]">
+              <MessageSquare className="h-4 w-4 text-[#667781] dark:text-[#8696a0]" />
+              <span className="text-xs font-medium uppercase tracking-wider text-[#667781] dark:text-[#8696a0]">
+                Chats
+              </span>
+            </div>
+            {chats.map((conv: any) =>
+              (conv.matches?.matchedMessages || []).map((msg: any) => (
                 <MessageResultItem
-                  key={msg.messageId}
+                  key={`${conv.conversationId}-${msg.messageId}`}
                   conversation={conv}
                   message={msg}
                   query={query}
@@ -60,22 +97,16 @@ export function UnifiedSearchResults({
                   }}
                 />
               ))
-            ) : (
-              <ContactResultItem
-                conversation={conv}
-                query={query}
-                onSelect={() => onSelectConversation(conv.conversationId)}
-              />
             )}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// CONTACT/PHONE RESULT ITEM (for conversations matched by name/phone)
+// CONTACT RESULT ITEM (People - matched by name or phone)
 // ============================================================================
 
 interface ContactResultItemProps {
@@ -85,6 +116,12 @@ interface ContactResultItemProps {
 }
 
 function ContactResultItem({ conversation, query, onSelect }: ContactResultItemProps) {
+  const matches = conversation.matches;
+  const displayName =
+    matches?.nameMatchedText ?? conversation.participantName ?? conversation.participantPhone;
+  const nameWithHighlight =
+    typeof displayName === "string" && displayName.includes("<mark>");
+
   return (
     <div
       onClick={onSelect}
@@ -98,9 +135,16 @@ function ContactResultItem({ conversation, query, onSelect }: ContactResultItemP
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
-          <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
-            {conversation.participantName}
-          </h3>
+          {nameWithHighlight ? (
+            <h3
+              className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate [&_mark]:bg-[#d9fdd3] dark:[&_mark]:bg-[#025144] [&_mark]:rounded [&_mark]:px-0.5"
+              dangerouslySetInnerHTML={{ __html: displayName }}
+            />
+          ) : (
+            <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
+              {displayName ?? ""}
+            </h3>
+          )}
           {conversation.lastMessageTime && (
             <span className="text-xs text-[#667781] dark:text-[#8696a0] flex-shrink-0 ml-2">
               {formatTime(new Date(conversation.lastMessageTime))}
@@ -118,7 +162,7 @@ function ContactResultItem({ conversation, query, onSelect }: ContactResultItemP
 }
 
 // ============================================================================
-// MESSAGE RESULT ITEM (for messages containing search term)
+// MESSAGE RESULT ITEM (Chats - message containing search term)
 // ============================================================================
 
 interface MessageResultItemProps {
@@ -129,6 +173,8 @@ interface MessageResultItemProps {
 }
 
 function MessageResultItem({ conversation, message, query, onSelect }: MessageResultItemProps) {
+  const snippetHtml = message.snippet ?? "";
+
   return (
     <div
       onClick={onSelect}
@@ -143,19 +189,26 @@ function MessageResultItem({ conversation, message, query, onSelect }: MessageRe
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
-            {conversation.participantName}
+            {conversation.participantName ?? conversation.participantPhone}
           </h3>
           <span className="text-xs text-[#667781] dark:text-[#8696a0] flex-shrink-0 ml-2">
             {formatTime(new Date(message.timestamp))}
           </span>
         </div>
         <div className="flex items-start gap-1.5">
-          {message.direction === 'outgoing' && (
+          {message.direction === "outgoing" && (
             <CheckCheck className="h-4 w-4 text-[#53bdeb] flex-shrink-0 mt-0.5" />
           )}
-          <p className="text-[14px] text-[#667781] dark:text-[#8696a0] line-clamp-2">
-            {message.snippet}
-          </p>
+          {snippetHtml && typeof snippetHtml === "string" && snippetHtml.includes("<mark>") ? (
+            <p
+              className="text-[14px] text-[#667781] dark:text-[#8696a0] line-clamp-2 [&_mark]:bg-[#d9fdd3] dark:[&_mark]:bg-[#025144] [&_mark]:rounded [&_mark]:px-0.5"
+              dangerouslySetInnerHTML={{ __html: snippetHtml }}
+            />
+          ) : (
+            <p className="text-[14px] text-[#667781] dark:text-[#8696a0] line-clamp-2">
+              {message.snippet ?? ""}
+            </p>
+          )}
         </div>
       </div>
     </div>

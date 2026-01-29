@@ -205,6 +205,7 @@ export async function GET(req: NextRequest) {
         success: true,
         conversations: [],
         count: 0,
+        archivedUnreadCount: 0,
       });
     }
 
@@ -278,10 +279,17 @@ export async function GET(req: NextRequest) {
       })
     );
 
+    // Total unread count across archived chats only (for sidebar badge)
+    const archivedUnreadCount = conversationsWithArchiveInfo.reduce(
+      (sum, c) => sum + (c.unreadCount || 0),
+      0
+    );
+
     return NextResponse.json({
       success: true,
       conversations: conversationsWithArchiveInfo,
       count: conversations.length,
+      archivedUnreadCount,
     });
   } catch (error: any) {
     console.error("Get archived conversations error:", error);

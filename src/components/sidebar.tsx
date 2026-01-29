@@ -1141,6 +1141,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       path: `/whatsapp?phoneId=${encodeURIComponent(p.id)}`,
       label: `WhatsApp ${p.label}`,
       Icon: <FaWhatsapp size={18} />,
+      openInNewTab: true,
     }));
 
     return (
@@ -1162,7 +1163,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
             defaultOpen={defaultOpen}
             onNavigate={onNavigate}
           />
-        )}
+        )}  
         <SidebarSection
           title="Owner Management"
           routes={ownerManagementRoute}

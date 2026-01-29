@@ -7,8 +7,16 @@ interface UseUnifiedSearchOptions {
   phoneId?: string;
 }
 
+interface UnifiedSearchResultsShape {
+  conversations: any[];
+  totalResults?: number;
+  searchTime?: number;
+  hasStartNewChat?: boolean;
+  startNewChatPhone?: string;
+}
+
 interface UseUnifiedSearchReturn {
-  results: { conversations: any[] } | null;
+  results: UnifiedSearchResultsShape | null;
   loading: boolean;
   search: (query: string) => void;
   clearSearch: () => void;
@@ -45,7 +53,7 @@ export function useUnifiedWhatsAppSearch(
       if (phoneId) {
         params.append("phoneId", phoneId);
       }
-      const response = await fetch(`/api/whatsapp/search?${params}`, {
+      const response = await fetch(`/api/whatsapp/search/unified?${params}`, {
         signal: abortController.signal,
       });
       
@@ -55,8 +63,8 @@ export function useUnifiedWhatsAppSearch(
       
       const data = await response.json();
       
-      if (data.success) {
-        setResults({ conversations: data.conversations });
+      if (data.success && data.results) {
+        setResults(data.results);
       } else {
         setResults(null);
       }

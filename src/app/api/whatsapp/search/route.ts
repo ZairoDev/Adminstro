@@ -44,10 +44,23 @@ export async function GET(req: NextRequest) {
     }
 
     let conversations: any[] = [];
-    if (phoneDigits) {
+    const hasPhoneSearch = phoneDigits.length > 0;
+    const hasTextSearch = textQuery.length > 0;
+
+    if (hasPhoneSearch || hasTextSearch) {
+      const searchConditions: any[] = [];
+      if (hasPhoneSearch) {
+        searchConditions.push({ participantPhone: { $regex: phoneDigits, $options: "i" } });
+      }
+      if (hasTextSearch) {
+        searchConditions.push(
+          { participantName: { $regex: textQuery, $options: "i" } },
+          { notes: { $regex: textQuery, $options: "i" } }
+        );
+      }
       conversations = await WhatsAppConversation.find({
         ...permissionFilter,
-        participantPhone: { $regex: phoneDigits, $options: "i" },
+        $or: searchConditions,
       })
         .select("_id participantPhone participantName participantProfilePic lastMessageTime lastMessageContent")
         .lean()
@@ -122,7 +135,10 @@ export async function GET(req: NextRequest) {
         lastMessageContent: conv.lastMessageContent,
         matchedMessages: messageMap.get(conv._id.toString()) || [],
       }))
-      .filter((c: any) => c.matchedMessages.length || phoneDigits);
+      .filter(
+        (c: any) =>
+          c.matchedMessages.length > 0 || hasPhoneSearch || hasTextSearch
+      );
 
     return NextResponse.json({ success: true, conversations: results });
   } catch (error: any) {

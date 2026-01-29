@@ -322,6 +322,7 @@ export function ConversationSidebar({
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
   const [showNewChat, setShowNewChat] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -485,8 +486,15 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* Search - pill shaped, "Search or start a new chat" */}
-      <div className="px-3 py-2 bg-white dark:bg-[#111b21] flex-shrink-0">
+      {/* Search - pill shaped, WhatsApp-style highlighted area when active */}
+      <div
+        className={cn(
+          "px-3 py-2 flex-shrink-0 transition-colors duration-200 rounded-t-lg",
+          (searchFocused || (searchQuery && searchQuery.trim().length > 0))
+            ? "bg-[#e9edef] dark:bg-[#2a3942]"
+            : "bg-white dark:bg-[#111b21]"
+        )}
+      >
         {showNewChat ? (
           <div className="space-y-3">
             <div className="flex gap-2">
@@ -555,12 +563,13 @@ export function ConversationSidebar({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
             <Input
-              placeholder="Search or start a new chat"
+              placeholder="Search by name, phone or message"
               value={searchQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onChange={(e) => {
                 const value = e.target.value;
                 onSearchQueryChange(value);
-                // Trigger unified search
                 if (value.trim()) {
                   executeSearch(value);
                 } else {
@@ -568,7 +577,10 @@ export function ConversationSidebar({
                 }
               }}
               className={cn(
-                "pl-10 pr-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10",
+                "pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
+                (searchFocused || searchQuery?.trim())
+                  ? "bg-white dark:bg-[#111b21] shadow-sm"
+                  : "bg-[#f0f2f5] dark:bg-[#202c33]",
                 "md:h-9 md:text-[14px]"
               )}
             />

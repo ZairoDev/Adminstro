@@ -528,6 +528,13 @@ export default function WhatsAppChat() {
     }
   }, [selectedPhoneConfig?.phoneNumberId, searchQuery, token]);
 
+  // Prefetch archived conversations so the "Archived" row can show unread count without opening archive
+  useEffect(() => {
+    if (token) {
+      fetchArchivedConversations({ silent: true });
+    }
+  }, [token]);
+
   // Socket.io event listeners
   // CRITICAL: This is the SINGLE canonical place where whatsapp-new-message listener is registered.
   // All other components should NOT register their own listeners to avoid duplicate processing.
@@ -1114,11 +1121,13 @@ export default function WhatsAppChat() {
   // =========================================================
   
   /**
-   * Fetch archived conversations for the current user
+   * Fetch archived conversations for the current user.
+   * @param opts.silent - If true, do not set loading state (used for prefetching badge count).
    */
-  const fetchArchivedConversations = async () => {
+  const fetchArchivedConversations = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await axios.get("/api/whatsapp/conversations/archive");
       if (response.data.success) {
         setArchivedConversations(response.data.conversations || []);
@@ -1129,13 +1138,15 @@ export default function WhatsAppChat() {
       }
     } catch (error: any) {
       console.error("Error fetching archived conversations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch archived conversations",
-        variant: "destructive",
-      });
+      if (!silent) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch archived conversations",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -1168,6 +1179,8 @@ export default function WhatsAppChat() {
           title: "Chat archived",
           description: "This chat has been archived. You can find it in the Archived section.",
         });
+        // Refresh archived list so sidebar badge shows updated unread count
+        fetchArchivedConversations({ silent: true });
       }
     } catch (error: any) {
       console.error("Error archiving conversation:", error);
@@ -2964,7 +2977,13 @@ export default function WhatsAppChat() {
               onLoadMoreConversations={showingArchived ? undefined : () => fetchConversations(false)}
               onAddGuest={() => setShowAddGuestModal(true)}
               // Archive functionality
-              archivedCount={totalUnreadCount} // Show unread messages count instead of archived count
+              archivedCount={archivedCount}
+              archivedUnreadCount={archivedConversations.reduce(
+                (sum, c) =>
+                  sum +
+                  ((c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming" ? c.unreadCount || 0 : 0),
+                0
+              )}
               showingArchived={showingArchived}
               onToggleArchiveView={toggleArchiveView}
               onArchiveConversation={archiveConversation}

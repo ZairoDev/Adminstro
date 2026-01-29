@@ -23,6 +23,8 @@ import {
   ArchiveRestore,
   MessageSquare,
   X,
+  SquarePlus,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
@@ -71,6 +73,8 @@ interface SidebarProps {
   onAddGuest?: () => void;
   // Archive functionality (WhatsApp-style)
   archivedCount?: number;
+  /** Unread message count inside archived chats only; shown next to "Archived" */
+  archivedUnreadCount?: number;
   showingArchived?: boolean;
   onToggleArchiveView?: () => void;
   onArchiveConversation?: (conversationId: string) => void;
@@ -150,12 +154,8 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 cursor-pointer transition-colors group border border-transparent rounded-md",
-        // Mobile: Larger touch targets (min 48px height)
-        "px-3 py-3 min-h-[72px]",
-        // Desktop: Slightly smaller
-        "md:px-3 md:py-2.5 md:min-h-0",
-        // Hover states (desktop only, mobile uses active)
+        "relative flex items-center gap-3 cursor-pointer transition-colors group border-b border-[#f0f2f5] dark:border-[#222d34] last:border-b-0",
+        "px-4 py-3 min-h-[72px] md:py-2.5 md:min-h-[56px]",
         "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
         "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
         isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
@@ -163,33 +163,29 @@ function ConversationItem({
       )}
       onClick={onClick}
     >
-      {/* Avatar - Responsive sizing */}
+      {/* Avatar - WhatsApp style circular */}
       <div className="relative flex-shrink-0">
-        <Avatar className="h-12 w-12 md:h-12 md:w-12">
+        <Avatar className="h-12 w-12 md:h-12 md:w-12 rounded-full">
           <AvatarImage src={conversation.participantProfilePic} />
           <AvatarFallback className={cn(
-            "text-sm font-medium",
+            "text-sm font-medium rounded-full",
             conversation.isInternal || conversation.source === "internal"
               ? "bg-[#25d366] text-white"
-              : "bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
+              : "bg-[#e0e0e0] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
           )}>
-            {conversation.isInternal || conversation.source === "internal" 
-              ? "You" 
+            {conversation.isInternal || conversation.source === "internal"
+              ? "You"
               : (displayName || phone)?.slice(0, 2).toUpperCase() || "??"}
           </AvatarFallback>
         </Avatar>
-        {/* Green dot: online OR has unread incoming messages */}
         {(conversation.isOnline || hasUnread) && (
           <span className="absolute bottom-0 right-0 h-3 w-3 bg-[#25d366] rounded-full border-2 border-white dark:border-[#111b21]" />
         )}
       </div>
 
-      {/* Content - aligned with notification style (name + badge, then message preview) */}
-      <div className={cn(
-        "flex-1 min-w-0 py-1 pl-2",
-        hasUnread && "rounded-lg border border-blue-200/60 dark:border-blue-800/40 bg-blue-50/70 dark:bg-blue-950/25"
-      )}>
-        <div className="flex items-center justify-between gap-2 mb-0.5">
+      {/* Content - bringing together both notification style and streamlined user info layout */}
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden py-1 pl-2">
+        <div className="flex items-center justify-between gap-2 min-h-5">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {role && (
               <span className={cn(
@@ -203,84 +199,85 @@ function ConversationItem({
             )}
             <span
               className={cn(
-                "text-[15px] truncate",
-                hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-normal text-[#111b21] dark:text-[#e9edef]"
+                "text-[16px] truncate flex-1 min-w-0",
+                hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-medium text-[#111b21] dark:text-[#e9edef]"
               )}
             >
               {displayName || phone}
             </span>
-            {hasUnread && (
+            {/* {hasUnread && (
               <Badge className="flex-shrink-0 bg-blue-500 text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full px-1">
                 {conversation.unreadCount}
               </Badge>
-            )}
+            )} */}
             {displayName && phone && !hasUnread && (
               <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0">
                 {phone.replace(/^\+?91/, "")}
               </span>
             )}
           </div>
-          <span
-            className={cn(
-              "text-xs flex-shrink-0",
-              hasUnread ? "text-blue-600 dark:text-blue-400 font-medium" : "text-[#667781] dark:text-[#8696a0]"
-            )}
-          >
-            {isMounted ? formatTime(conversation.lastMessageTime) : ""}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 min-w-0 flex-1">
-            {conversation.lastMessageDirection === "outgoing" && (
-              <span className="flex-shrink-0">
-                {getStatusIcon(conversation.lastMessageStatus)}
+          {/* Message meta: time and unread badge, right aligned */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[12px] text-[#667781] dark:text-[#8696a0] whitespace-nowrap">
+              {isMounted ? formatTime(conversation.lastMessageTime) : ""}
+            </span>
+            {hasUnread && (
+              <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5 flex-shrink-0">
+                {conversation.unreadCount}
               </span>
             )}
-            <span
-              className={cn(
-                "text-[13px] truncate block",
-                hasUnread
-                  ? "text-[#111b21] dark:text-[#d1d7db] font-medium"
-                  : "text-[#667781] dark:text-[#8696a0]"
-              )}
-            >
-              {conversation.lastMessageContent || conversation.participantPhone}
-            </span>
           </div>
-          {(onArchive || onUnarchive) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="ml-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#e9edef] dark:hover:bg-[#374045] transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4 text-[#54656f] dark:text-[#aebac1]" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {isArchived ? (
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onUnarchive?.(conversation._id);
-                  }}>
-                    <ArchiveRestore className="h-4 w-4 mr-2" />
-                    Unarchive
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onArchive?.(conversation._id);
-                  }}>
-                    <Archive className="h-4 w-4 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        </div>
+        {/* Message preview row: last message content, status icon, etc. */}
+        <div className="flex items-center gap-1.5 min-w-0 pr-0">
+          {conversation.lastMessageDirection === "outgoing" && (
+            <span className="flex-shrink-0 mt-0.5">{getStatusIcon(conversation.lastMessageStatus)}</span>
           )}
+          <span
+            className={cn(
+              "text-[14px] truncate min-w-0",
+              hasUnread ? "text-[#111b21] dark:text-[#d1d7db] font-medium" : "text-[#667781] dark:text-[#8696a0]"
+            )}
+          >
+            {conversation.lastMessageContent || conversation.participantPhone || " "}
+          </span>
         </div>
       </div>
+
+      {/* Chevron: only on hover, absolute so it doesn't take layout space or create gap */}
+      {(onArchive || onUnarchive) && (
+        <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1 rounded hover:bg-[#e9edef] dark:hover:bg-[#374045] transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ChevronDown className="h-5 w-5 text-[#54656f] dark:text-[#aebac1]" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isArchived ? (
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  onUnarchive?.(conversation._id);
+                }}>
+                  <ArchiveRestore className="h-4 w-4 mr-2" />
+                  Unarchive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive?.(conversation._id);
+                }}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archive
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 }
@@ -309,6 +306,7 @@ export function ConversationSidebar({
   onAddGuest,
   // Archive props
   archivedCount = 0,
+  archivedUnreadCount = 0,
   showingArchived = false,
   onToggleArchiveView,
   onArchiveConversation,
@@ -322,6 +320,7 @@ export function ConversationSidebar({
   onJumpToMessage,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
+  const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
   const [showNewChat, setShowNewChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -375,13 +374,15 @@ export function ConversationSidebar({
     }
   }, [conversations, unifiedSearchResults, onSelectConversation, onJumpToMessage]);
 
-  // CRITICAL: No client-side filtering - database is source of truth
-  // Search and phone filtering happen at API/database level
-  // Only filter by conversation type (tab) client-side as this is a UI-only filter
+  // Only filter by conversation type (tab) and unread client-side
   const filteredConversations = conversations.filter((conv) => {
     if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
     if (conversationTab === "guests" && conv.conversationType !== "guest") return false;
-    return true; // No search filtering - handled by backend
+    if (filterPill === "unread") {
+      const hasUnread = (conv.unreadCount || 0) > 0 && conv.lastMessageDirection === "incoming";
+      if (!hasUnread) return false;
+    }
+    return true;
   });
 
   // Counts
@@ -413,30 +414,25 @@ export function ConversationSidebar({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  const realPhoneConfigs = allowedPhoneConfigs.filter((c: any) => !c.isInternal);
+  const showPhoneMenu = (userRole === "SuperAdmin" || realPhoneConfigs.length > 1 ||
+    (userAreas ? (Array.isArray(userAreas) ? userAreas : [userAreas]).map((a: string) => String(a).toLowerCase().trim()).filter(Boolean).length > 1 : false)) &&
+    realPhoneConfigs.length > 0;
+
   return (
     <div className={cn(
-      "flex flex-col h-full bg-white dark:bg-[#111b21] min-h-0",
-      // Mobile: Full width, no border
-      "w-full",
-      // Desktop: Fixed width with border
+      "flex flex-col h-full bg-white dark:bg-[#111b21] min-h-0 w-full",
       "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]"
     )}>
-      {/* Header - Responsive */}
+      {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
       <div className={cn(
-        "flex items-center justify-between bg-[#f0f2f5] dark:bg-[#202c33] flex-shrink-0",
-        // Mobile: Taller header with safe area
-        "h-[56px] px-3 pt-[env(safe-area-inset-top,0px)]",
-        // Desktop: Standard height
-        "md:h-[60px] md:px-4 md:pt-0"
+        "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0",
+        "h-[60px] px-4 pt-[env(safe-area-inset-top,0px)] md:pt-0",
+        "border-b border-[#f0f2f5] dark:border-[#222d34]"
       )}>
         {showNewChat ? (
           <>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowNewChat(false)}
-              className="text-[#54656f] dark:text-[#aebac1] hover:bg-transparent"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setShowNewChat(false)} className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] rounded-full">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <span className="text-[17px] font-medium text-[#111b21] dark:text-[#e9edef]">New chat</span>
@@ -444,123 +440,53 @@ export function ConversationSidebar({
           </>
         ) : (
           <>
-            <div className="flex items-center gap-3">
-              <span className="text-[20px] font-semibold text-[#111b21] dark:text-[#e9edef]">Chats</span>
+            <span className="text-[20px] font-bold text-[#111b21] dark:text-[#e9edef]">WhatsApp</span>
+            <div className="flex items-center gap-0.5">
               {isMounted && (
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger>
-                      {isConnected ? (
-                        <Wifi className="h-4 w-4 text-[#25d366]" />
-                      ) : (
-                        <WifiOff className="h-4 w-4 text-red-500" />
-                      )}
+                    <TooltipTrigger asChild>
+                      <span className="p-2 rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] inline-flex">
+                        {isConnected ? <Wifi className="h-5 w-5 text-[#25d366]" /> : <WifiOff className="h-5 w-5 text-red-500" />}
+                      </span>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      {isConnected ? "Connected" : "Disconnected"}
-                    </TooltipContent>
+                    <TooltipContent>{isConnected ? "Connected" : "Disconnected"}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
-            </div>
-            <div className="flex items-center gap-0.5 md:gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowNewChat(true)}
-                className={cn(
-                  "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
-                  // Mobile: Larger touch targets
-                  "h-11 w-11 min-h-[44px] min-w-[44px]",
-                  "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
-                )}
-              >
-                <UserPlus className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={() => setShowNewChat(true)} className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9">
+                <SquarePlus className="h-5 w-5" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
-                      // Mobile: Larger touch targets
-                      "h-11 w-11 min-h-[44px] min-w-[44px]",
-                      "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
-                    )}
-                  >
-                    <Filter className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9">
+                    <MoreVertical className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setConversationTab("all")}>
-                    All ({totalCount})
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setConversationTab("owners")}>
-                    <User className="h-4 w-4 mr-2" />
-                    Owners ({ownerCount})
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setConversationTab("guests")}>
-                    <Users className="h-4 w-4 mr-2" />
-                    Guests ({guestCount})
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {(() => {
-                const realPhoneConfigs = allowedPhoneConfigs.filter(
-                  (config: any) => !config.isInternal
-                );
-                
-                const normalizedUserAreas = userAreas
-                  ? (Array.isArray(userAreas) ? userAreas : [userAreas])
-                      .map((a: string) => a.toLowerCase().trim())
-                      .filter(Boolean)
-                  : [];
-                const hasMultipleLocations = normalizedUserAreas.length > 1;
-                const isSuperAdmin = userRole === "SuperAdmin";
-                
-                const shouldShowFilter = false;
-                
-                return shouldShowFilter && realPhoneConfigs.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
-                          // Mobile: Larger touch targets
-                          "h-11 w-11 min-h-[44px] min-w-[44px]",
-                          "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
-                        )}
-                      >
-                        <Phone className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem onClick={() => setConversationTab("all")}>All ({totalCount})</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setConversationTab("owners")}><User className="h-4 w-4 mr-2" />Owners ({ownerCount})</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setConversationTab("guests")}><Users className="h-4 w-4 mr-2" />Guests ({guestCount})</DropdownMenuItem>
+                  {/* {showPhoneMenu && (
+                    <>
+                      <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
                       {realPhoneConfigs.map((config: any) => (
-                        <DropdownMenuItem
-                          key={config.phoneNumberId}
-                          onClick={() => onPhoneConfigChange(config)}
-                          className={cn(
-                            selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent"
-                          )}
-                        >
-                          {/* Display format: "Display Name (+phone) [Location]" */}
+                        <DropdownMenuItem key={config.phoneNumberId} onClick={() => onPhoneConfigChange(config)} className={cn(selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent")}>
+                          <Phone className="h-4 w-4 mr-2" />
                           {formatPhoneDisplayWithLocation(config)}
                         </DropdownMenuItem>
                       ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
-              })()}
+                    </>
+                  )} */}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </>
         )}
       </div>
 
-      {/* Search / New Chat Input - Responsive */}
-      <div className="px-3 py-2 bg-white dark:bg-[#111b21]">
+      {/* Search - pill shaped, "Search or start a new chat" */}
+      <div className="px-3 py-2 bg-white dark:bg-[#111b21] flex-shrink-0">
         {showNewChat ? (
           <div className="space-y-3">
             <div className="flex gap-2">
@@ -629,7 +555,7 @@ export function ConversationSidebar({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
             <Input
-              placeholder="Search or start new chat"
+              placeholder="Search or start a new chat"
               value={searchQuery}
               onChange={(e) => {
                 const value = e.target.value;
@@ -642,10 +568,8 @@ export function ConversationSidebar({
                 }
               }}
               className={cn(
-                "pl-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0",
-                // Mobile: Taller search input
-                "h-11 text-[15px]",
-                "md:h-[35px] md:text-[14px]"
+                "pl-10 pr-10 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10",
+                "md:h-9 md:text-[14px]"
               )}
             />
             {searchQuery && !searchLoading && (
@@ -665,28 +589,63 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* Filter tabs indicator */}
-      {conversationTab !== "all" && (
-        <div className="px-3 py-1.5 bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-between">
-          <span className="text-xs text-[#54656f] dark:text-[#8696a0]">
-            Showing: {conversationTab === "owners" ? "Owners" : "Guests"}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setConversationTab("all")}
-            className="h-6 text-xs text-[#008069] dark:text-[#00a884] hover:bg-transparent"
+      {/* Filter pills - All | Unread | Favourites | Groups | Labels (WhatsApp style) */}
+      {!showNewChat && (
+        <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
+          <button
+            onClick={() => { setFilterPill("all"); setConversationTab("all"); }}
+            className={cn(
+              "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+              filterPill === "all" && conversationTab === "all"
+                ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+            )}
           >
-            Clear
-          </Button>
+            All
+          </button>
+          <button
+            onClick={() => setFilterPill("unread")}
+            className={cn(
+              "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+              filterPill === "unread"
+                ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+            )}
+          >
+            Unread
+          </button>
+          <button className="shrink-0 px-4 py-2 rounded-full text-[14px] font-medium text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] transition-colors">
+            Favourites
+          </button>
+         
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+                  conversationTab !== "all"
+                    ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                    : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+                )}
+              >
+                Labels
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => { setConversationTab("all"); setFilterPill("all"); }}>All</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setConversationTab("owners"); setFilterPill("all"); }}><User className="h-4 w-4 mr-2" />Owners</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setConversationTab("guests"); setFilterPill("all"); }}><Users className="h-4 w-4 mr-2" />Guests</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
       {/* Conversation List or Search Results */}
-      <div 
+      <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+        style={{ WebkitOverflowScrolling: "touch" }}
       >
         {isSearchMode ? (
           <UnifiedSearchResults
@@ -761,6 +720,37 @@ export function ConversationSidebar({
           </div>
         ) : (
           <>
+            {/* Archived - reference style: box-with-arrow icon, "Archived" label, unread count only */}
+            {onToggleArchiveView && !showingArchived && (
+              <div
+                onClick={onToggleArchiveView}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-white dark:bg-[#111b21]",
+                  "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] active:bg-[#e9edef] dark:active:bg-[#1d282f]",
+                  "border-b border-[#f0f2f5] dark:border-[#222d34]"
+                )}
+              >
+                <Archive className="h-5 w-5 flex-shrink-0 text-[#54656f] dark:text-[#8696a0]" strokeWidth={1.5} />
+                <span className="flex-1 text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">Archived</span>
+                {archivedUnreadCount > 0 && (
+                  <span className="text-[14px] text-[#667781] dark:text-[#8696a0] tabular-nums">{archivedUnreadCount}</span>
+                )}
+              </div>
+            )}
+            {onToggleArchiveView && showingArchived && (
+              <div
+                onClick={onToggleArchiveView}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-[#f0f2f5] dark:bg-[#202c33]",
+                  "hover:bg-[#e9edef] dark:hover:bg-[#2a3942] border-b border-[#e9edef] dark:border-[#222d34]"
+                )}
+              >
+                <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center flex-shrink-0">
+                  <ArrowLeft className="h-5 w-5 text-white" />
+                </div>
+                <span className="flex-1 text-[16px] font-medium text-[#111b21] dark:text-[#e9edef]">Back to all chats</span>
+              </div>
+            )}
             {filteredConversations.map((conversation) => (
               <ConversationItem
                 key={`${conversation._id}-${conversation.lastMessageTime}-${conversation.unreadCount}`}
@@ -796,40 +786,6 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* Archive Section - WhatsApp Style (at bottom) - Responsive */}
-      {onToggleArchiveView && (
-        <div
-          className={cn(
-            "flex items-center gap-3 cursor-pointer transition-colors border-t border-[#e9edef] dark:border-[#222d34]",
-            "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
-            "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
-            showingArchived && "bg-[#d9fdd3] dark:bg-[#005c4b]",
-            // Mobile: Larger touch target, safe area padding at bottom
-            "px-4 py-4 min-h-[64px] pb-[max(16px,env(safe-area-inset-bottom))]",
-            // Desktop: Standard sizing
-            "md:py-3 md:min-h-0 md:pb-3"
-          )}
-          onClick={onToggleArchiveView}
-        >
-          <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center flex-shrink-0">
-            {showingArchived ? (
-              <ArrowLeft className="h-5 w-5 text-white" />
-            ) : (
-              <Archive className="h-5 w-5 text-white" />
-            )}
-          </div>
-          <div className="flex-1">
-            <span className="text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">
-              {showingArchived ? "Back to all chats" : "Archived"}
-            </span>
-          </div>
-          {!showingArchived && archivedCount > 0 && (
-            <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5">
-              {archivedCount}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }

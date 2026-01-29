@@ -1736,12 +1736,15 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
                 </div>
               )}
 
-              {/* Navigation arrows - hidden on mobile (use swipe) */}
-              {!isMobile && imageMessages.length > 1 && currentImageIndex > 0 && (
+              {/* Navigation arrows */}
+              {imageMessages.length > 1 && currentImageIndex > 0 && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-2 z-20 h-12 w-12 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  className={cn(
+                    "absolute left-2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full",
+                    isMobile ? "h-10 w-10" : "h-12 w-12"
+                  )}
                   onClick={() => {
                     const prev = currentImageIndex - 1;
                     setCurrentImageIndex(prev);
@@ -1795,11 +1798,14 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
                 })()}
               </div>
 
-              {!isMobile && imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
+              {imageMessages.length > 1 && currentImageIndex < imageMessages.length - 1 && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 z-20 h-12 w-12 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  className={cn(
+                    "absolute right-2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full",
+                    isMobile ? "h-10 w-10" : "h-12 w-12"
+                  )}
                   onClick={() => {
                     const next = currentImageIndex + 1;
                     setCurrentImageIndex(next);

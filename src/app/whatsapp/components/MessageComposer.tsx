@@ -107,11 +107,22 @@ export const MessageComposer = memo(function MessageComposer({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  // Media preview state - uses MediaFile with individual captions
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const addMoreInputRef = useRef<HTMLInputElement>(null);
+  const newMessageCacheRef = useRef(newMessage);
+  const cursorPositionRef = useRef<number>(0);
+
+  useEffect(() => {
+    newMessageCacheRef.current = newMessage;
+  }, [newMessage]);
+
+  useEffect(() => {
+    if (textareaRef.current && document.activeElement === textareaRef.current) {
+      cursorPositionRef.current = textareaRef.current.selectionStart || 0;
+    }
+  }, [newMessage]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -351,9 +362,11 @@ export const MessageComposer = memo(function MessageComposer({
   }, [mediaFiles.length]);
 
   const handleEmojiSelect = useCallback((emoji: any) => {
-    onMessageChange(newMessage + emoji.native);
+    const current = newMessageCacheRef.current;
+    onMessageChange(current + emoji.native);
     setShowEmojiPicker(false);
-  }, [newMessage, onMessageChange]);
+    textareaRef.current?.focus();
+  }, [onMessageChange]);
 
   return (
     <div

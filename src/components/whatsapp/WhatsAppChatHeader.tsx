@@ -183,41 +183,8 @@ export default function WhatsAppChatHeader({
         </div>
       </div>
 
-      {/* Center: Phone Number Selector (if multiple phones available) */}
-      {allowedPhoneConfigs.length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Sending from:</span>
-          <Select value={selectedPhoneId} onValueChange={onPhoneIdChange}>
-            <SelectTrigger className="w-[200px] h-8 text-xs">
-              <SelectValue>
-                {currentPhoneConfig?.displayName || "Select phone"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {allowedPhoneConfigs.map((config) => (
-                <SelectItem
-                  key={config.phoneNumberId}
-                  value={config.phoneNumberId}
-                  className="text-xs"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{config.displayName}</span>
-                    <span className="text-muted-foreground">
-                      {config.displayNumber}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Badge variant="outline" className="text-[10px] capitalize">
-            {currentPhoneConfig?.area}
-          </Badge>
-        </div>
-      )}
-
-      {/* Single phone display */}
-      {allowedPhoneConfigs.length === 1 && currentPhoneConfig && (
+      {/* Current phone display (read-only, no selector) */}
+      {currentPhoneConfig && (
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {currentPhoneConfig.displayName}

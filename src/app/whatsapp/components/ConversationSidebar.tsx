@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
 import { formatPhoneDisplayWithLocation } from "@/lib/whatsapp/config";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -83,8 +84,7 @@ interface SidebarProps {
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
 }
 
-// Memoized conversation item to prevent unnecessary re-renders
-const ConversationItem = memo(function ConversationItem({
+function ConversationItem({
   conversation,
   isSelected,
   onClick,
@@ -184,15 +184,18 @@ const ConversationItem = memo(function ConversationItem({
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 border-b border-[#e9edef] dark:border-[#222d34] py-1">
-        <div className="flex items-center justify-between mb-0.5">
+      {/* Content - aligned with notification style (name + badge, then message preview) */}
+      <div className={cn(
+        "flex-1 min-w-0 py-1 pl-2",
+        hasUnread && "rounded-lg border border-blue-200/60 dark:border-blue-800/40 bg-blue-50/70 dark:bg-blue-950/25"
+      )}>
+        <div className="flex items-center justify-between gap-2 mb-0.5">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {role && (
               <span className={cn(
                 "text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-medium uppercase tracking-wide",
-                role === "owner" 
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" 
+                role === "owner"
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
               )}>
                 {role === "owner" ? "O" : "G"}
@@ -206,7 +209,12 @@ const ConversationItem = memo(function ConversationItem({
             >
               {displayName || phone}
             </span>
-            {displayName && phone && (
+            {hasUnread && (
+              <Badge className="flex-shrink-0 bg-blue-500 text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full px-1">
+                {conversation.unreadCount}
+              </Badge>
+            )}
+            {displayName && phone && !hasUnread && (
               <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0">
                 {phone.replace(/^\+?91/, "")}
               </span>
@@ -214,16 +222,16 @@ const ConversationItem = memo(function ConversationItem({
           </div>
           <span
             className={cn(
-              "text-xs flex-shrink-0 ml-2",
-              hasUnread ? "text-[#25d366] font-medium" : "text-[#667781] dark:text-[#8696a0]"
+              "text-xs flex-shrink-0",
+              hasUnread ? "text-blue-600 dark:text-blue-400 font-medium" : "text-[#667781] dark:text-[#8696a0]"
             )}
           >
             {isMounted ? formatTime(conversation.lastMessageTime) : ""}
           </span>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
             {conversation.lastMessageDirection === "outgoing" && (
               <span className="flex-shrink-0">
                 {getStatusIcon(conversation.lastMessageStatus)}
@@ -231,7 +239,7 @@ const ConversationItem = memo(function ConversationItem({
             )}
             <span
               className={cn(
-                "text-[13px] truncate",
+                "text-[13px] truncate block",
                 hasUnread
                   ? "text-[#111b21] dark:text-[#d1d7db] font-medium"
                   : "text-[#667781] dark:text-[#8696a0]"
@@ -240,15 +248,6 @@ const ConversationItem = memo(function ConversationItem({
               {conversation.lastMessageContent || conversation.participantPhone}
             </span>
           </div>
-
-          {/* Unread badge */}
-          {hasUnread && (
-            <span className="ml-2 flex-shrink-0 bg-[#25d366] text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-              {conversation.unreadCount}
-            </span>
-          )}
-          
-          {/* Archive/Unarchive button on hover */}
           {(onArchive || onUnarchive) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -284,7 +283,8 @@ const ConversationItem = memo(function ConversationItem({
       </div>
     </div>
   );
-});
+}
+
 
 export function ConversationSidebar({
   conversations,
@@ -506,18 +506,11 @@ export function ConversationSidebar({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Show phone selector if:
-                  1. User is SuperAdmin (full access), OR
-                  2. User has multiple phone numbers available, OR
-                  3. User has multiple locations assigned (similar to SuperAdmin)
-              */}
               {(() => {
-                // Filter out internal phone numbers (like "You") and testing numbers from selection
                 const realPhoneConfigs = allowedPhoneConfigs.filter(
                   (config: any) => !config.isInternal
                 );
                 
-                // Check if user has multiple locations assigned
                 const normalizedUserAreas = userAreas
                   ? (Array.isArray(userAreas) ? userAreas : [userAreas])
                       .map((a: string) => a.toLowerCase().trim())
@@ -526,8 +519,7 @@ export function ConversationSidebar({
                 const hasMultipleLocations = normalizedUserAreas.length > 1;
                 const isSuperAdmin = userRole === "SuperAdmin";
                 
-                // Show filter if: SuperAdmin, multiple phones, or multiple locations
-                const shouldShowFilter = isSuperAdmin || realPhoneConfigs.length > 1 || hasMultipleLocations;
+                const shouldShowFilter = false;
                 
                 return shouldShowFilter && realPhoneConfigs.length > 0 && (
                   <DropdownMenu>
@@ -771,7 +763,7 @@ export function ConversationSidebar({
           <>
             {filteredConversations.map((conversation) => (
               <ConversationItem
-                key={conversation._id}
+                key={`${conversation._id}-${conversation.lastMessageTime}-${conversation.unreadCount}`}
                 conversation={conversation}
                 isSelected={selectedConversation?._id === conversation._id}
                 onClick={() => onSelectConversation(conversation)}
@@ -779,6 +771,7 @@ export function ConversationSidebar({
                 onArchive={showingArchived ? undefined : onArchiveConversation}
                 onUnarchive={showingArchived ? onUnarchiveConversation : undefined}
                 isArchived={showingArchived || conversation.isArchivedByUser}
+                isMobile={isMobile}
               />
             ))}
             

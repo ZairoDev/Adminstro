@@ -60,6 +60,7 @@ import SidebarSection from "./sidebarSection";
 import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
 import { FaWhatsapp } from "react-icons/fa6";
+import axios from "axios";
 
 // Simple active matcher (keep strict equality)
 const isActive = (currentPath: string, path: string): boolean =>
@@ -794,12 +795,6 @@ const dashboardManagementRoutes = [
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
   },
-  {
-    path: "/whatsapp",
-    label: "WhatsApp",
-    Icon: <FaWhatsapp size={18} />,
-  }
-
 ];
 const leadManagementRoutes = [
   {
@@ -1054,6 +1049,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   // const [collapsed, setCollapsed] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
+  const [whatsappPhones, setWhatsappPhones] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -1074,6 +1070,32 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const loadWhatsappPhones = async () => {
+      if (!role) return;
+      const routesForRole = roleRoutes[role as keyof typeof roleRoutes];
+      if (!routesForRole || !routesForRole.some((r) => r.path === "/whatsapp")) return;
+      try {
+        const res = await axios.get("/api/whatsapp/phone-configs");
+        if (res.data?.success) {
+          const configs = (res.data.phoneConfigs || []).filter((c: any) => !c.isInternal && c.phoneNumberId);
+          const phones = configs.map((c: any) => {
+            const areaLabel = c.area ? String(c.area).trim() : "";
+            const baseLabel = areaLabel || c.displayName || c.displayNumber || "Number";
+            return {
+              id: c.phoneNumberId as string,
+              label: baseLabel,
+            };
+          });
+          setWhatsappPhones(phones);
+        }
+      } catch {
+        setWhatsappPhones([]);
+      }
+    };
+    loadWhatsappPhones();
+  }, [role]);
 
   const renderRoutes = (
     showText: boolean,
@@ -1113,6 +1135,13 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
     const otherSettingsRoute = inGroup(otherSettingsRoutes);
+    const hasWhatsAppPermission = routesForRole.some((r) => r.path === "/whatsapp");
+
+    const whatsappRoutes: Route[] = whatsappPhones.map((p) => ({
+      path: `/whatsapp?phoneId=${encodeURIComponent(p.id)}`,
+      label: `WhatsApp ${p.label}`,
+      Icon: <FaWhatsapp size={18} />,
+    }));
 
     return (
       <>
@@ -1124,6 +1153,16 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
           defaultOpen={defaultOpen}
           onNavigate={onNavigate}
         />
+        {hasWhatsAppPermission && whatsappRoutes.length > 0 && (
+          <SidebarSection
+            title="WhatsApp"
+            routes={whatsappRoutes}
+            showText={showText}
+            currentPath={pathname}
+            defaultOpen={defaultOpen}
+            onNavigate={onNavigate}
+          />
+        )}
         <SidebarSection
           title="Owner Management"
           routes={ownerManagementRoute}

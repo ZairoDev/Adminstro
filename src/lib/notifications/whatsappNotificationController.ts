@@ -169,19 +169,7 @@ class WhatsAppNotificationController {
   }
 
   process(raw: RawWhatsAppMessage) {
-    console.log("🎯 CONTROLLER PROCESS CALLED:", {
-      timestamp: new Date().toISOString(),
-      conversationId: raw.conversationId,
-      eventId: raw.eventId,
-      messageDirection: raw.message?.direction,
-      hasOptions: !!this.options,
-      isLeader: this.isLeader(),
-    });
-
-    if (!this.options) {
-      console.log("❌ CONTROLLER: No options, exiting");
-      return;
-    }
+    if (!this.options) return;
     const {
       hasWhatsAppAccess,
       getArchived,
@@ -230,91 +218,36 @@ class WhatsAppNotificationController {
 
     const isLeader = this.isLeader();
     const permission = typeof Notification !== "undefined" ? Notification.permission : "default";
+    
+    // Show browser notification when:
+    // 1. This tab is the leader (prevents duplicates across tabs)
+    // 2. Browser notification permission is granted
+    // 3. Not viewing the same conversation
+    // 4. Either: tab not visible, OR on WhatsApp but viewing different conversation
     const shouldShowBrowser =
       isLeader &&
       permission === "granted" &&
-      !viewingSameConversation &&
-      (!tabVisible || !onWhatsApp);
+      !viewingSameConversation;
 
-    const gates = {
-      hasWhatsAppAccess,
-      isArchived: getArchived().has(conversationId),
-      isMuted: getMuted().has(conversationId),
-      isInternal: isInternalMessage,
-      isRead: !!(lastRead && ts <= lastRead),
-      isViewingSame: viewingSameConversation,
-      tabVisible,
-      onWhatsApp,
-      isLeader,
-      hasPermission: permission === "granted",
-    };
 
-    const passedGates = Object.entries(gates)
-      .filter(([key, value]) => {
-        if (
-          key === "hasWhatsAppAccess" ||
-          key === "tabVisible" ||
-          key === "onWhatsApp" ||
-          key === "isLeader" ||
-          key === "hasPermission"
-        ) {
-          return value === true;
-        }
-        return value === false;
-      })
-      .map(([key]) => key);
-
-    const failedGates = Object.entries(gates)
-      .filter(([key, value]) => {
-        if (
-          key === "hasWhatsAppAccess" ||
-          key === "tabVisible" ||
-          key === "onWhatsApp" ||
-          key === "isLeader" ||
-          key === "hasPermission"
-        ) {
-          return value !== true;
-        }
-        return value !== false;
-      })
-      .map(([key]) => key);
-
-    console.log("🚦 GATE CHECK:", {
-      ...gates,
-      passedGates,
-      failedGates,
-      decision: shouldShowBrowser
-        ? "SHOW_BROWSER"
-        : viewingSameConversation
-        ? "SKIP_VIEWING"
-        : tabVisible
-        ? "SHOW_IN_APP_OR_SKIP"
-        : "SKIP",
-    });
-
-    // 🔥 CRITICAL: Filter by current user - skip notifications meant for other users
+    // Filter by current user - skip notifications meant for other users
     const targetUserId = (raw as any).userId;
     const currentUserId = this.options.userId;
 
     if (targetUserId && currentUserId && targetUserId !== currentUserId.toString()) {
-      console.log("⏭️ CONTROLLER: Notification for different user", {
-        targetUserId,
-        currentUserId: currentUserId.toString(),
-        eventId: raw.eventId,
-      });
-      return; // Skip notifications meant for other users
-    }
-
-    console.log("✅ CONTROLLER: User ID matches, proceeding", {
-      userId: currentUserId?.toString(),
-      eventId: raw.eventId,
-    });
-
-    if (shouldShowBrowser) {
-      onBrowser(raw);
       return;
     }
 
+    if (shouldShowBrowser) {
+      onBrowser(raw);
+      // Also trigger in-app handling for sidebar updates etc (but skip sound since browser notif handles it)
+      if (tabVisible && onWhatsApp) {
+        onInApp(raw);
+      }
+      return;
+    }
+
+    // Fallback: in-app only when browser notification not available
     const shouldShowInApp = tabVisible && !viewingSameConversation;
     if (shouldShowInApp) {
       onInApp(raw);

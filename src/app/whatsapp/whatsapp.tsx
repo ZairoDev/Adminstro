@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, startTransition } from "react";
+import { flushSync } from "react-dom";
 import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
@@ -17,6 +18,7 @@ import {
   isMessageWindowActive,
   getTemplatePreviewText,
   getConversationTemplateContext,
+
 } from "./utils";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
@@ -38,8 +40,28 @@ export default function WhatsAppChat() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
-  // Per-tab deduplication for incoming WhatsApp events (avoid jitter / duplicate UI updates)
   const seenEventIdsRef = useRef<Set<string>>(new Set());
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
+  const lastSoundPlayedRef = useRef<number>(0);
+  
+  const addToLRUSet = (set: Set<string>, value: string, maxSize = 500) => {
+    if (set.size >= maxSize) {
+      const first = set.values().next().value;
+      if (first) set.delete(first);
+    }
+    set.add(value);
+  };
+
+  const playNotificationSound = useCallback(() => {
+    const now = Date.now();
+    if (now - lastSoundPlayedRef.current < 1000) return;
+    lastSoundPlayedRef.current = now;
+    try {
+      const audio = new Audio("/notification.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }, []);
   
   // Mobile-first responsive view management
   const {
@@ -223,6 +245,13 @@ export default function WhatsAppChat() {
 
   // Ref to track selected conversation for socket events (avoids stale closure)
   const selectedConversationRef = useRef<Conversation | null>(null);
+  const selectedPhoneIdRef = useRef<string | null>(null);
+  selectedPhoneIdRef.current = selectedPhoneConfig?.phoneNumberId ?? null;
+
+  const archivedConversationIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    archivedConversationIdsRef.current = new Set(archivedConversations.map((c) => c._id));
+  }, [archivedConversations]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -356,11 +385,6 @@ export default function WhatsAppChat() {
         // This callback is kept minimal to avoid duplicate processing
       },
       onBrowser: (raw) => {
-        console.log("🔔 CONTROLLER: Showing browser notification", {
-          conversationId: raw.conversationId,
-          eventId: raw.eventId,
-        });
-
         if (
           typeof window === "undefined" ||
           !("Notification" in window) ||
@@ -397,9 +421,16 @@ export default function WhatsAppChat() {
         setTimeout(() => notif.close(), 5000);
       },
     });
-
-    console.log("✅ Notification controller initialized");
   }, [token, router]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
 
   useEffect(() => {
   const GetLocations = async () => {
@@ -409,7 +440,7 @@ export default function WhatsAppChat() {
       const cities = response.data.locations.map(
         (location: any) => location.city
       );
-      console.log("cities: ", response.data)
+      // console.log("cities: ", response.data)
 
       setLocations(cities);
       // console.log("locations (new):", cities);
@@ -446,8 +477,8 @@ export default function WhatsAppChat() {
     checkCallPermissions();
   }, []);
 
-  // CRITICAL: Load phone configs independently (before conversations)
-  // Phone configs are the source of truth, conversations consume them
+  const searchParams = useSearchParams();
+
   const fetchPhoneConfigs = async () => {
     try {
       const response = await axios.get("/api/whatsapp/phone-configs");
@@ -455,10 +486,17 @@ export default function WhatsAppChat() {
         const phoneConfigs = response.data.phoneConfigs || [];
         setAllowedPhoneConfigs(phoneConfigs);
         
-        // Set default phone config (first real phone number, excluding internal "You")
         const realPhoneConfigs = phoneConfigs.filter((c: any) => !c.isInternal);
-        if (realPhoneConfigs.length > 0 && !selectedPhoneConfig) {
-          setSelectedPhoneConfig(realPhoneConfigs[0]);
+        if (realPhoneConfigs.length > 0) {
+          const phoneIdParam = searchParams?.get("phoneId");
+          if (phoneIdParam) {
+            const byId = realPhoneConfigs.find(
+              (c: any) => c.phoneNumberId === phoneIdParam
+            );
+            setSelectedPhoneConfig(byId || realPhoneConfigs[0]);
+          } else {
+            setSelectedPhoneConfig(realPhoneConfigs[0]);
+          }
         }
       }
     } catch (error: any) {
@@ -471,11 +509,10 @@ export default function WhatsAppChat() {
     }
   };
 
-  // Fetch templates and phone configs on mount
   useEffect(() => {
     fetchTemplates();
     fetchPhoneConfigs();
-  }, []);
+  }, [searchParams]);
 
   // CRITICAL: Refetch conversations when phone filter or search changes
   // Database is source of truth - always query backend, never filter client-side
@@ -513,141 +550,114 @@ export default function WhatsAppChat() {
       // This protects the chat UI from any backend retries or duplicate socket emits.
       if (data.eventId) {
         if (seenEventIdsRef.current.has(data.eventId)) {
-          if (process.env.NODE_ENV === "development") {
-            console.log("⏭️ [WHATSAPP SOCKET] Duplicate eventId, skipping UI update", {
-              eventId: data.eventId,
-            });
-          }
           return;
         }
-        seenEventIdsRef.current.add(data.eventId);
+        addToLRUSet(seenEventIdsRef.current, data.eventId);
       }
 
-      // Filter at the socket layer: only process events for the logged-in user.
-      // Backend sends one event per user; this tab only cares about its own userId.
       if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        if (process.env.NODE_ENV === "development") {
-          console.log("⏭️ [WHATSAPP SOCKET] Skipping event for different user", {
-            eventId: data.eventId,
-            targetUserId: data.userId,
-            currentUserId,
-          });
-        }
         return;
       }
 
-      // Dev-only: Log once per event (now only for the matching user)
-      if (process.env.NODE_ENV === "development") {
-        console.log("🔥 RAW SOCKET EVENT (current user):", {
-          conversationId: data.conversationId,
-          eventId: data.eventId,
-          userId: data.userId,
-          currentUserId,
-        });
+      const currentPhoneId = selectedPhoneIdRef.current;
+      if (data.businessPhoneId && currentPhoneId && data.businessPhoneId !== currentPhoneId) {
+        return;
       }
       
-      // Send to notification controller (handles browser + in-app notifications)
       const notificationController = getWhatsAppNotificationController();
       notificationController.process(data);
-      
-      // Update UI state (conversations list, messages, etc.)
-      // This is separate from notifications - it's for the chat UI
+
       const { conversationId, message } = data;
+      
+      if (!conversationId || !message) {
+        return;
+      }
       const currentConversation = selectedConversationRef.current;
 
-      // Extract display text from content object
-      const displayText = typeof message.content === "string" 
-        ? message.content 
-        : message.content?.text || message.content?.caption || `${message.type} message`;
+      const displayText = (data.lastMessagePreview != null && data.lastMessagePreview !== "")
+        ? data.lastMessagePreview
+        : (typeof message.content === "string" 
+            ? message.content 
+            : message.content?.text || message.content?.caption || `${message.type} message`);
 
-      // Update conversations list
-      // CRITICAL: Frontend must trust backend APIs for unread counts
-      // BUT: Update total unread count in real-time for archive box (socket-based)
       const isCurrentConversation = currentConversation?._id === conversationId;
       const isIncomingMessage = message.direction === "incoming";
-      
-      setConversations((prev) => {
-        const updated = prev.map((conv) => {
-          if (conv._id === conversationId) {
-            // If it's an incoming message and not the current conversation, increment unread count
-            const newUnreadCount = isIncomingMessage && !isCurrentConversation
-              ? (conv.unreadCount || 0) + 1
-              : conv.unreadCount || 0;
-            
-            return {
-              ...conv,
-              lastMessageContent: displayText,
-              lastMessageTime: message.timestamp,
-              lastMessageDirection: message.direction,
-              unreadCount: newUnreadCount,
-            };
-          }
-          return conv;
+
+      requestAnimationFrame(() => {
+        setConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv._id === conversationId) {
+              const newUnreadCount = isIncomingMessage && !isCurrentConversation
+                ? (conv.unreadCount || 0) + 1
+                : conv.unreadCount || 0;
+              
+              return {
+                ...conv,
+                lastMessageContent: displayText,
+                lastMessageTime: message.timestamp,
+                lastMessageDirection: message.direction,
+                unreadCount: newUnreadCount,
+              };
+            }
+            return conv;
+          });
+          
+          const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+          setTotalUnreadCount(newTotalUnread);
+          
+          return updated.sort(
+            (a, b) =>
+              new Date(b.lastMessageTime || 0).getTime() -
+              new Date(a.lastMessageTime || 0).getTime()
+          );
         });
+
+        setArchivedConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv._id === conversationId) {
+              const newUnreadCount = isIncomingMessage && !isCurrentConversation
+                ? (conv.unreadCount || 0) + 1
+                : conv.unreadCount || 0;
+              
+              return {
+                ...conv,
+                lastMessageContent: displayText,
+                lastMessageTime: message.timestamp,
+                lastMessageDirection: message.direction,
+                unreadCount: newUnreadCount,
+              };
+            }
+            return conv;
+          });
+          
+          return updated.sort(
+            (a, b) =>
+              new Date(b.lastMessageTime || 0).getTime() -
+              new Date(a.lastMessageTime || 0).getTime()
+          );
+        });
+
+        if (isCurrentConversation) {
+          setSelectedConversation((prev) => prev ? { ...prev, lastMessageTime: message.timestamp } : prev);
+        }
         
-        // Update total unread count in real-time (socket-based)
-        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-        setTotalUnreadCount(newTotalUnread);
-        
-        return updated.sort(
-          (a, b) =>
-            new Date(b.lastMessageTime || 0).getTime() -
-            new Date(a.lastMessageTime || 0).getTime()
-        );
+        if (isIncomingMessage && !isCurrentConversation) {
+          setTotalUnreadCount((prev) => prev + 1);
+        }
       });
 
-      // Also update archived conversations if the message is for an archived conversation
-      // This ensures unread counts are updated in real-time even for archived conversations
-      setArchivedConversations((prev) => {
-        const updated = prev.map((conv) => {
-          if (conv._id === conversationId) {
-            // If it's an incoming message and not the current conversation, increment unread count
-            const newUnreadCount = isIncomingMessage && !isCurrentConversation
-              ? (conv.unreadCount || 0) + 1
-              : conv.unreadCount || 0;
-            
-            return {
-              ...conv,
-              lastMessageContent: displayText,
-              lastMessageTime: message.timestamp,
-              lastMessageDirection: message.direction,
-              unreadCount: newUnreadCount,
-            };
-          }
-          return conv;
-        });
-        
-        return updated.sort(
-          (a, b) =>
-            new Date(b.lastMessageTime || 0).getTime() -
-            new Date(a.lastMessageTime || 0).getTime()
-        );
-      });
+      if (isCurrentConversation) {
+        if (seenMessageIdsRef.current.has(message.messageId)) {
+          return;
+        }
+        addToLRUSet(seenMessageIdsRef.current, message.messageId);
 
-      // If this is the open conversation, update timestamp instantly
-      if (currentConversation?._id === conversationId) {
-        // Update selected conversation timestamp instantly
-        setSelectedConversation((prev) => {
-          if (prev && prev._id === conversationId) {
-            return {
-              ...prev,
-              lastMessageTime: message.timestamp,
-            };
-          }
-          return prev;
-        });
-      }
-
-      // Add message to current conversation if selected
-      if (currentConversation?._id === conversationId) {
         setMessages((prev) => {
-          // If this is a reaction message, update the original message with the reaction
           if (message.type === "reaction" && message.reactedToMessageId) {
             return prev.map((msg) => {
               if (msg.messageId === message.reactedToMessageId) {
                 const existingReactions = msg.reactions || [];
                 const reactionEmoji = message.reactionEmoji || message.content?.text?.replace("Reacted: ", "") || "👍";
-                // Check if this reaction already exists
                 const hasReaction = existingReactions.some(
                   (r) => r.emoji === reactionEmoji && r.direction === message.direction
                 );
@@ -662,21 +672,9 @@ export default function WhatsAppChat() {
             });
           }
 
-          // Check if message already exists to avoid duplicates
-          // Check messageId, _id, and also check if there's a temp message that was updated to this ID
-          const exists = prev.find(
-            (m) => m.messageId === message.messageId || 
-                   m._id === message.id || 
-                   m._id === message._id ||
-                   // Also check if this is an outgoing message we already added optimistically
-                   (message.direction === "outgoing" && m._id?.startsWith?.("temp-") && 
-                    m.to === message.to && m.type === message.type &&
-                    Math.abs(new Date(m.timestamp).getTime() - new Date(message.timestamp).getTime()) < 5000)
-          );
-          if (exists) {
-            console.log("⚠️ Duplicate message detected, skipping:", message.messageId);
-            return prev;
-          }
+          const exists = prev.find((m) => m.messageId === message.messageId);
+          if (exists) return prev;
+
           return [
             ...prev,
             {
@@ -691,35 +689,30 @@ export default function WhatsAppChat() {
               status: message.status,
               direction: message.direction,
               reactions: message.reactions || [],
+              replyToMessageId: message.replyToMessageId,
+              replyContext: message.replyContext,
             },
           ];
         });
 
         if (message.direction === "incoming") {
-          playNotificationSound();
-          setConversations((prev) => prev.map((conv) => 
-            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
-          ));
-          setArchivedConversations((prev) => prev.map((conv) => 
-            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
-          ));
           axios.post("/api/whatsapp/conversations/read", {
             conversationId: conversationId,
-          }).catch((err) => console.error("Failed to mark as read:", err));
+          }).catch(() => {});
         }
+      } else if (message.direction === "incoming") {
+        playNotificationSound();
       }
       // Note: In-app toast notifications are handled by the notification controller
       // via SystemNotificationToast component - no need for duplicate toast here
     };
 
-    // Register the listener
     socket.on("whatsapp-new-message", handleWhatsAppMessage);
 
-    // Cleanup: Remove listener on unmount or socket change
     return () => {
       socket.off("whatsapp-new-message", handleWhatsAppMessage);
     };
-  }, [socket, token]); // Dependencies: socket and token (for userId check in handler)
+  }, [socket, token, playNotificationSound]);
 
   // Socket.io event listeners - other events (new conversations, status updates, etc.)
   useEffect(() => {
@@ -740,11 +733,8 @@ export default function WhatsAppChat() {
           status: "active",
         };
         const updated = [newConversation, ...prev];
-        
-        // Update total unread count in real-time (socket-based)
         const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
         setTotalUnreadCount(newTotalUnread);
-        
         return updated;
       });
       toast({
@@ -758,34 +748,35 @@ export default function WhatsAppChat() {
       const { conversationId, messageId, status } = data;
       const currentConversation = selectedConversationRef.current;
       if (currentConversation?._id === conversationId) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageId === messageId ? { ...msg, status } : msg
-          )
-        );
+        setMessages((prev) => {
+          const idx = prev.findIndex((msg) => msg.messageId === messageId);
+          if (idx === -1 || prev[idx].status === status) return prev;
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], status };
+          return updated;
+        });
       }
       
-      // Update conversation lastMessageStatus if this is the last message
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv._id === conversationId && conv.lastMessageId === messageId) {
-            return { ...conv, lastMessageStatus: status };
-          }
-          return conv;
-        })
-      );
+      setConversations((prev) => {
+        const idx = prev.findIndex((conv) => conv._id === conversationId && conv.lastMessageId === messageId);
+        if (idx === -1 || prev[idx].lastMessageStatus === status) return prev;
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], lastMessageStatus: status };
+        return updated;
+      });
     };
 
     const handleMessageEcho = (data: any) => {
       const { conversationId, message } = data;
       const currentConversation = selectedConversationRef.current;
 
-      // Extract display text from content object
+      if (seenMessageIdsRef.current.has(message.messageId)) return;
+      addToLRUSet(seenMessageIdsRef.current, message.messageId);
+
       const displayText = typeof message.content === "string" 
         ? message.content 
         : message.content?.text || message.content?.caption || `${message.type} message`;
 
-      // Update conversations list
       setConversations((prev) => {
         const updated = prev.map((conv) => {
           if (conv._id === conversationId) {
@@ -805,15 +796,9 @@ export default function WhatsAppChat() {
         );
       });
 
-      // Add message to current conversation if selected
       if (currentConversation?._id === conversationId) {
         setMessages((prev) => {
-          // Check if message already exists to avoid duplicates (check both _id and messageId)
-          const exists = prev.find(
-            (m) => m.messageId === message.messageId || 
-                   m._id === message.id || 
-                   m._id === message._id
-          );
+          const exists = prev.find((m) => m.messageId === message.messageId);
           if (exists) return prev;
           return [
             ...prev,
@@ -943,8 +928,7 @@ export default function WhatsAppChat() {
           setMessages([]);
         }
 
-        // Refetch conversations to get updated archive count
-        fetchConversations();
+        fetchConversations().catch(() => {});
       }
     });
 
@@ -961,15 +945,8 @@ export default function WhatsAppChat() {
       socket.off("whatsapp-conversation-read");
       socket.off("whatsapp-conversation-update");
     };
-  }, [socket, toast, token]);
+  }, [socket, toast, token, playNotificationSound]);
 
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio("/notification.mp3");
-      audio.volume = 0.5;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  };
 
   // Fetch conversation counts from database
   const fetchConversationCounts = async () => {
@@ -1173,7 +1150,7 @@ export default function WhatsAppChat() {
       });
       
       if (response.data.success) {
-        // Remove from main conversations list
+        archivedConversationIdsRef.current.add(conversationId);
         setConversations((prev) => prev.filter((c) => c._id !== conversationId));
         setArchivedCount((prev) => prev + 1);
         syncArchivedStorage([
@@ -1213,7 +1190,7 @@ export default function WhatsAppChat() {
       );
       
       if (response.data.success) {
-        // Remove from archived list
+        archivedConversationIdsRef.current.delete(conversationId);
         setArchivedConversations((prev) => prev.filter((c) => c._id !== conversationId));
         setArchivedCount((prev) => Math.max(0, prev - 1));
         syncArchivedStorage(
@@ -1394,8 +1371,6 @@ export default function WhatsAppChat() {
     }
   };
 
-  // Auto-open a conversation when the page is loaded with a `phone` query param
-  const searchParams = useSearchParams();
   const openedByPhoneRef = useRef<string | null>(null);
 
   useEffect(() => {

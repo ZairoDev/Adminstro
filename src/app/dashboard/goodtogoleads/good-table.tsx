@@ -76,6 +76,8 @@ import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { options } from "@fullcalendar/core/preact.js";
+import { FaWhatsapp } from "react-icons/fa6";
+import { getWhatsAppErrorInfo, getActionMessage } from "@/lib/whatsapp/errorHandler";
 
 interface Timers {
   current: { [key: string]: NodeJS.Timeout };
@@ -90,6 +92,11 @@ interface TargetType {
   _id: string;
   city: string;
   areas: AreaType[];
+}
+interface PhoneConfig {
+  phoneNumberId: string;
+  area: string | string[];
+  isInternal?: boolean;
 }
 
 export default function GoodTable({
@@ -129,8 +136,28 @@ export default function GoodTable({
     }))
   );
   const [targets, setTargets] = useState<TargetType[]>([]);
+  const [phoneConfigs, setPhoneConfigs] = useState<PhoneConfig[]>([]);
 
-  //   const timers:Timers = useRef({});
+  useEffect(() => {
+    axios.get("/api/whatsapp/phone-configs").then((res) => {
+      if (res.data?.phoneConfigs) {
+        setPhoneConfigs(res.data.phoneConfigs.filter((c: PhoneConfig) => !c.isInternal));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const getPhoneIdForLocation = (location: string | undefined): string => {
+    if (!phoneConfigs.length) return "";
+    if (location?.trim()) {
+      const normalized = location.trim().toLowerCase();
+      const config = phoneConfigs.find((c) => {
+        const areas = Array.isArray(c.area) ? c.area : [c.area];
+        return areas.some((a) => a.toLowerCase() === normalized);
+      });
+      if (config?.phoneNumberId) return config.phoneNumberId;
+    }
+    return phoneConfigs[0]?.phoneNumberId || "";
+  };
 
   useEffect(() => {
     if (searchParams?.get("page")) {
@@ -511,6 +538,7 @@ export default function GoodTable({
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin") && <TableHead>Response</TableHead>}
+            <TableHead>Reply</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Budget</TableHead>
@@ -631,6 +659,48 @@ export default function GoodTable({
                   )}
                 </TableCell>
               )}
+
+              {/* Reply Status Cell - same as fresh leads */}
+              <TableCell>
+                {(query as any)?.whatsappLastErrorCode ? (() => {
+                  const errorCode = (query as any).whatsappLastErrorCode;
+                  const errorInfo = getWhatsAppErrorInfo(errorCode);
+                  const actionMessage = getActionMessage(errorInfo);
+                  return (
+                    <CustomTooltip
+                      icon={<span className="text-red-600 font-semibold">Not Delivered</span>}
+                      desc={`${errorInfo.userMessage} ${actionMessage}\n\nError Code: ${errorCode}\nSeverity: ${errorInfo.severity.toUpperCase()}\n\n${errorInfo.description}`}
+                    />
+                  );
+                })() : query.whatsappReplyStatus === "NR1" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR1</span>}
+                    desc="Not Replying - 1 successful message sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NR2" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR2</span>}
+                    desc="Not Replying - 2 successful messages sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NR3" ? (
+                  <CustomTooltip
+                    icon={<span className="text-yellow-600 font-semibold">NR3</span>}
+                    desc="Not Replying - 3+ successful messages sent, no customer reply yet"
+                  />
+                ) : query.whatsappReplyStatus === "NTR" ? (
+                  <CustomTooltip
+                    icon={<span className="text-orange-600 font-semibold">NTR</span>}
+                    desc="Needs To Reply - Customer replied but agent hasn't responded yet"
+                  />
+                ) : query.whatsappReplyStatus === "WFR" ? (
+                  <CustomTooltip
+                    icon={<span className="text-green-600 font-semibold">WFR</span>}
+                    desc="Waiting For Reply - Agent replied after customer message, waiting for customer response"
+                  />
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </TableCell>
 
               <TableCell className="flex gap-x-1">
                 <Badge
@@ -876,32 +946,34 @@ export default function GoodTable({
               </TableCell>
               {/*)}*/}
               <TableCell>
-                {/* <Link
-                  href={`https://wa.me/${
-                    query?.phoneNo
-                  }?text=${encodeURIComponent(
-                    `Hello, ${query?.name}, how are you doing?`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    src="https://vacationsaga.b-cdn.net/assets/wsp.png"
-                    alt="icon image"
-                    className="h-8 w-8"
-                  />
-                </Link> */}
-                <p
-                  className=" p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${query?.phoneNo}`);
-                    if (query.isViewed === false) {
-                      IsView(query?._id, index);
-                    }
-                  }}
-                >
-                  Details
-                </p>
+                <div className="flex gap-x-1 items-center">
+                  <p
+                    className="p-1 border border-neutral-600 rounded-md bg-neutral-700/40 cursor-pointer flex justify-center"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${query?.phoneNo}`);
+                      if (query.isViewed === false) {
+                        IsView(query?._id, index);
+                      }
+                    }}
+                  >
+                    Details
+                  </p>
+                  <Link
+                    target="_blank"
+                    href={`/whatsapp?phone=${encodeURIComponent(query?.phoneNo ?? "")}${query?.name ? `&name=${encodeURIComponent(query.name)}` : ""}${(query as any)?.profilePicture ? `&profilePic=${encodeURIComponent((query as any).profilePicture)}` : ""}${(() => {
+                      const phoneId = getPhoneIdForLocation(query?.location);
+                      return phoneId ? `&phoneId=${encodeURIComponent(phoneId)}` : "";
+                    })()}`}
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (query.isViewed === false) {
+                        IsView(query?._id, index);
+                      }
+                    }}
+                  >
+                    <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
+                  </Link>
+                </div>
               </TableCell>
               <TableCell>
                 <DropdownMenu>

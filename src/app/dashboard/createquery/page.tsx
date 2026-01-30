@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
 import { useToast } from "@/hooks/use-toast";
 import PhoneInput from "react-phone-number-input";
-import { CheckCheckIcon, SlidersHorizontal } from "lucide-react";
+import { CheckCheckIcon, SlidersHorizontal, Plus } from "lucide-react";
 import React, {
   Suspense,
   useCallback,
@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { DatePicker } from "@/components/DatePicker";
 import LeadTable from "@/components/leadTable/LeadTable";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { validateAndSetDuration } from "@/util/durationValidation";
 import {
   Dialog,
@@ -70,6 +69,7 @@ import { metroLines } from "../target/components/editArea";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useSocket } from "@/hooks/useSocket";
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 interface ApiResponse {
   data: IQuery[];
@@ -131,6 +131,9 @@ const SalesDashboard = () => {
   // ✅ CHANGE 2: Added ref to track if we should fetch queries after submission
   const shouldRefetchRef = useRef(false);
 
+  const { uploadFiles } = useBunnyUpload();
+  const profilePictureInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
     duration: "",
@@ -159,6 +162,7 @@ const SalesDashboard = () => {
     },
     messageStatus: "None",
     BoostID: "",
+    profilePicture: "",
   });
 
   const [location, setLocation] = useState([]);
@@ -269,11 +273,36 @@ const SalesDashboard = () => {
       messageStatus: "None",
       BoostID: "",
       leadQualityByCreator: "",
+      profilePicture: "",
     });
     setPhone("");
     setNumberStatus("");
     setSelectedLocation("");
     setNormalInput(false);
+  };
+
+  const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const file = files[0];
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", description: "Please select an image file (JPEG, PNG, or WebP)." });
+      return;
+    }
+    toast({ title: "Uploading...", description: "Client profile picture is being uploaded." });
+    try {
+      const { imageUrls, error } = await uploadFiles(file, "ProfilePictures");
+      if (error) {
+        toast({ variant: "destructive", description: error });
+        return;
+      }
+      const url = imageUrls?.[0] || "";
+      setFormData((prev) => ({ ...prev, profilePicture: url }));
+      toast({ description: "Profile picture uploaded." });
+    } catch (err) {
+      toast({ variant: "destructive", description: "Failed to upload image." });
+    }
+    e.target.value = "";
   };
 
   const handleSubmit = async () => {
@@ -310,7 +339,8 @@ const SalesDashboard = () => {
           key !== "area" &&
           key !== "zone" &&
           key !== "metroZone" &&
-          key !== "BoostID"
+          key !== "BoostID" &&
+          key !== "profilePicture"
         ) {
           const fieldName = key
             .replace(/([A-Z])/g, " $1")
@@ -563,9 +593,16 @@ const SalesDashboard = () => {
     return () => { socket.off("whatsapp-conversation-update", handler); };
   }, [socket]);
 
+  // When location changes, load areas for that location (case-insensitive match)
   useEffect(() => {
-    const target = targets.find((t) => t.city === selectedLocation);
-    if (target) {
+    if (!selectedLocation?.trim()) {
+      setAreas1([]);
+      return;
+    }
+    const target = targets.find(
+      (t) => t.city?.toLowerCase().trim() === selectedLocation?.toLowerCase().trim()
+    );
+    if (target?.areas?.length) {
       setAreas1(target.areas);
     } else {
       setAreas1([]);
@@ -607,78 +644,128 @@ const SalesDashboard = () => {
             <DialogTrigger asChild>
               {token?.role !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
-            <DialogContent className="p-4 w-[500px] md:min-w-[650px]">
-              <DialogHeader>
-                <DialogTitle>Create Lead</DialogTitle>
+            <DialogContent className="p-0 w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+              <DialogHeader className="px-6 pt-6 pb-2 border-b shrink-0">
+                <DialogTitle className="text-xl">Create Lead</DialogTitle>
                 <DialogDescription>
                   Please provide accurate and complete information.
                 </DialogDescription>
               </DialogHeader>
-              <div>
-                <ScrollArea className="h-[400px] p-4">
-                  {/* Section 1 : Personal Details */}
-                  <div className="">
-                    <h3 className="text-lg font-semibold border-b pb-1 mt-4 ">
-                      Personal Details
-                    </h3>
 
-                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                      {/* Name */}
-                      <div className="ml-1">
-                        <Label>Name</Label>
+              {/* Client photo - top center */}
+              <div className="flex flex-col items-center justify-center py-4 px-6 border-b bg-muted/30 shrink-0">
+                <Label className="text-xs font-medium text-muted-foreground mb-2">
+                  Client Photo (Optional)
+                </Label>
+                <div
+                  className="relative w-24 h-24 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all bg-background overflow-hidden"
+                  onClick={() => profilePictureInputRef.current?.click()}
+                >
+                  {formData.profilePicture ? (
+                    <img
+                      src={formData.profilePicture}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Plus className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <Input
+                  type="file"
+                  ref={profilePictureInputRef}
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleProfilePictureChange}
+                />
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+                <div className="px-6 py-4 pb-6">
+                  <div className="space-y-6 pr-2">
+                    {/* Section 1: Personal Details */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
+                        Personal Details
+                      </h3>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Name</Label>
                         <Input
                           name="name"
                           value={formData.name}
                           onChange={handleInputChange}
                           placeholder="Enter full name"
+                          className="w-full"
                         />
                       </div>
 
-                      {/* Phone Number */}
-                      <div className="flex justify-between ">
-                        <div className="w-full">
-                          <Label htmlFor="phone">Phone Number</Label>
-                          <PhoneInput
-                            {...register("phone")}
-                            className="phone-input border-red-500"
-                            placeholder="Enter phone number"
-                            type="text"
-                            value={phone}
-                            international
-                            countryCallingCodeEditable={false}
-                            error={"Phone number required"}
-                            onChange={(value) => setPhone(value || "")}
-                          />
-                          {numberStatus && (
-                            <div className="mt-2 text-sm">{numberStatus}</div>
-                          )}
-                        </div>
-                        <div className="mt-6 ml-1">
-                          <Button
-                            type="button"
-                            onClick={handleNumberSearch}
-                            disabled={!phone || checking}
-                          >
-                            <CheckCheckIcon size={18} />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Email */}
-                      <div className="ml-1">
-                        <Label>Email</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Email</Label>
                         <Input
                           type="email"
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
                           placeholder="Enter email"
+                          className="w-full"
                         />
                       </div>
+                    </div>
 
-                      {/* Location */}
-                      <div className="w-full ml-1 mb-2">
-                        <Label>Location</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Phone Number
+                        </Label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 min-w-0">
+                            <PhoneInput
+                              {...register("phone")}
+                              className="phone-input w-full"
+                              placeholder="Enter phone number"
+                              type="text"
+                              value={phone}
+                              international
+                              countryCallingCodeEditable={false}
+                              error={"Phone number required"}
+                              onChange={(value) => setPhone(value || "")}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleNumberSearch}
+                            disabled={!phone || checking}
+                            className="shrink-0"
+                          >
+                            <CheckCheckIcon size={18} />
+                          </Button>
+                        </div>
+                        {numberStatus && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {numberStatus}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">ID Name</Label>
+                        <Input
+                          name="idName"
+                          value={formData.idName}
+                          onChange={handleInputChange}
+                          placeholder="Enter the ID Name"
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Location</Label>
                         <Select
                           onValueChange={(value) => {
                             setFormData((prev) => ({
@@ -686,71 +773,75 @@ const SalesDashboard = () => {
                               location: value,
                             }));
                             setSelectedLocation(value);
+                            setFormData((prev) => ({ ...prev, area: "" }));
                           }}
-                          value={selectedLocation}
+                          value={selectedLocation || formData.location || ""}
                         >
-                          <SelectTrigger className=" w-44 border border-neutral-700">
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select location" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
                               <SelectLabel>Locations</SelectLabel>
                               {targets.map((loc: any) => (
-                                <SelectItem key={loc.city} value={loc.city}>
-                                  <div className="flex justify-between items-center w-full">
-                                    <span>{loc.city}</span>
-                                  </div>
+                                <SelectItem
+                                  key={loc.city}
+                                  value={String(loc.city)}
+                                >
+                                  {loc.city}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
                       </div>
-                    </div>
-                    <div className="w-full ml-1 mb-2">
-                      <Label>Area</Label>
-                      <SearchableAreaSelect
-                        areas={areas1}
-                        onSelect={(area) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            area: area.name,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Id Name</Label>
-                      <Input
-                        name="idName"
-                        value={formData.idName}
-                        onChange={handleInputChange}
-                        placeholder="Enter the Id Name"
-                      />
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Area</Label>
+                        <SearchableAreaSelect
+                          areas={areas1}
+                          onSelect={(area) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              area: area.name,
+                            }))
+                          }
+                        />
+                        {selectedLocation && areas1.length === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            No areas for this location. Select another or add
+                            areas in settings.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Section 2: Booking Details */}
-                  <div className="">
-                    <h3 className="text-lg font-semibold border-b mb-1 mt-4">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
                       Booking Details
                     </h3>
-                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                      {/*Start Date */}
-                      <div>
-                        <Label>Start Date</Label>
+                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-4">
+                      {/* Start Date */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Start Date
+                        </Label>
                         <DatePicker date={startDate} setDate={setStartDate} />
                       </div>
 
                       {/* End Date */}
-                      <div>
-                        <Label>End Date</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">End Date</Label>
                         <DatePicker date={endDate} setDate={setEndDate} />
                       </div>
 
                       {/* Booking Term */}
-                      <div className="ml-1">
-                        <Label>Booking Term*</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Booking Term*
+                        </Label>
                         <Select
                           value={formData.bookingTerm}
                           onValueChange={handleBookingTermChange}
@@ -769,137 +860,132 @@ const SalesDashboard = () => {
                       </div>
 
                       {/* Duration */}
-                      <div className="flex  items-center gap-x-1 w-full">
-                        <div className="w-full">
-                          <Label className="flex gap-3 m-1">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-sm font-medium">
                             Duration*
-                            <p className="text-xs">
-                              Tick this to fill in Number
-                            </p>
+                          </Label>
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                             <input
-                              className="rounded-full"
+                              className="rounded"
                               type="checkbox"
                               checked={normalInput}
                               onChange={handleCheckboxChange}
                             />
-                          </Label>
+                            <span>Manual entry</span>
+                          </label>
                         </div>
-                        <div className="w-full">
-                          <Label className="flex gap-4">
-                            Duration*{" "}
-                            {formData.bookingTerm ? (
-                              formData.bookingTerm === "Short Term" ? (
-                                <div className="text-xs ">
-                                  {" "}
-                                  Fill in days from 1-28
-                                </div>
-                              ) : formData.bookingTerm === "Mid Term" ? (
-                                <div className="text-xs ">
-                                  {" "}
-                                  Fill in months from 1-3
-                                </div>
-                              ) : formData.bookingTerm === "Long Term" ? (
-                                <div className="text-xs ">
-                                  {" "}
-                                  Fill in months from 4-12
-                                </div>
-                              ) : null
-                            ) : null}
-                          </Label>
-                          <Input
-                            name="duration"
-                            className="w-full"
-                            value={formData.duration}
-                            onChange={handleDurationChange}
-                            placeholder={
-                              formData.bookingTerm === "Short Term"
-                                ? "Fill in days from 1-28"
-                                : formData.bookingTerm === "Mid Term"
-                                ? "Fill in months from 1-3"
+                        <Input
+                          name="duration"
+                          className="w-full"
+                          value={formData.duration}
+                          onChange={handleDurationChange}
+                          placeholder={
+                            formData.bookingTerm === "Short Term"
+                              ? "Days (1-28)"
+                              : formData.bookingTerm === "Mid Term"
+                                ? "Months (1-3)"
                                 : formData.bookingTerm === "Long Term"
-                                ? "Fill in months from 4-12"
-                                : "Enter duration based on term"
-                            }
-                          />
-                        </div>
+                                  ? "Months (4-12)"
+                                  : "Select booking term first"
+                          }
+                        />
+                        {formData.bookingTerm && (
+                          <p className="text-xs text-muted-foreground">
+                            {formData.bookingTerm === "Short Term" &&
+                              "Enter days from 1-28"}
+                            {formData.bookingTerm === "Mid Term" &&
+                              "Enter months from 1-3"}
+                            {formData.bookingTerm === "Long Term" &&
+                              "Enter months from 4-12"}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Section 3: Budget Details */}
-                  <div className="mt-2 ml-1">
-                    <h3 className="text-lg font-semibold border-b  mt-4 mb-1">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
                       Budget Details
                     </h3>
 
-                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
+                    <div className="grid lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-4">
                       {/* Budget From */}
-                      <div>
-                        <Label>Budget (From)</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Budget (From)
+                        </Label>
                         <Input
                           name="minBudget"
                           type="number"
                           min={0}
                           value={formData.minBudget || ""}
                           onChange={handleInputChange}
-                          placeholder="Enter minimum budget"
+                          placeholder="Minimum budget"
                         />
                       </div>
 
                       {/* Budget To */}
-                      <div>
-                        <Label>Budget (To)</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Budget (To)
+                        </Label>
                         <Input
                           name="maxBudget"
                           type="number"
                           min={0}
                           value={formData.maxBudget || ""}
                           onChange={handleInputChange}
-                          placeholder="Enter maximum budget"
+                          placeholder="Maximum budget"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Section 4: Guest Details */}
-                  <div className="ml-1">
-                    <h3 className="text-lg font-semibold border-b  mb-1 mt-4">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
                       Guest Details
                     </h3>
 
-                    <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
                       {/* Guest */}
-                      <div>
-                        <Label>Guest</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Guests</Label>
                         <Input
                           type="number"
                           name="guest"
                           min={1}
                           value={formData?.guest}
                           onChange={handleInputChange}
-                          placeholder="Enter name"
+                          placeholder="Number of guests"
                         />
                       </div>
 
                       {/* No Of Beds */}
-                      <div>
-                        <Label>No Of Beds</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Number of Beds
+                        </Label>
                         <Input
                           type="number"
                           name="noOfBeds"
                           min={1}
                           value={formData?.noOfBeds}
                           onChange={handleInputChange}
-                          placeholder="Enter name"
+                          placeholder="Number of beds"
                         />
                       </div>
                     </div>
 
                     {/* Bill Status & Priority */}
-                    <div className="grid  md:grid-cols-2 grid-cols1 gap-x-4 gap-y-4">
+                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
                       {/* Bill Status */}
-                      <div className="ml-1">
-                        <Label>Bill Status</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Bill Status
+                        </Label>
                         <Select
                           value={formData.billStatus}
                           onValueChange={(value) =>
@@ -909,13 +995,11 @@ const SalesDashboard = () => {
                             }))
                           }
                         >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Status" />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="With Bill">
-                              With Bill*
-                            </SelectItem>
+                            <SelectItem value="With Bill">With Bill</SelectItem>
                             <SelectItem value="Without Bill">
                               Without Bill
                             </SelectItem>
@@ -924,8 +1008,8 @@ const SalesDashboard = () => {
                       </div>
 
                       {/* Priority */}
-                      <div>
-                        <Label>Priority</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Priority</Label>
                         <Select
                           value={formData.priority}
                           onValueChange={(value) =>
@@ -935,14 +1019,14 @@ const SalesDashboard = () => {
                             }))
                           }
                         >
-                          <SelectTrigger className="">
-                            <SelectValue placeholder="Select Priority" />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="ASAP">ASAP</SelectItem>
                             <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
                             <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -950,167 +1034,191 @@ const SalesDashboard = () => {
                   </div>
 
                   {/* Section 5: Property Details */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
+                      Property Details
+                    </h3>
 
-                  <h3 className="text-lg font-semibold border-b pb-1 pt-4">
-                    Property Details
-                  </h3>
+                    {/* Type of Property & Lead Quality */}
+                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
+                      {/* Type of Property */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Type of Property
+                        </Label>
+                        <Select
+                          value={formData.typeOfProperty}
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              typeOfProperty: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {apartmentTypes.map((propertyType, index) => (
+                              <SelectItem
+                                key={index}
+                                value={propertyType.value}
+                              >
+                                {propertyType.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  {/* Type of Property & Lead Quality */}
-                  <div className="grid  md:grid-cols-2 grid-cols-1 gap-x-4 gap-y-4">
-                    {/* Type of Property */}
-                    <div className="ml-1">
-                      <Label>Type of Property</Label>
-                      <Select
-                        value={formData.typeOfProperty}
-                        onValueChange={(value) =>
-                          setFormData((prevData) => ({
-                            ...prevData,
-                            typeOfProperty: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {apartmentTypes.map((propertyType, index) => (
-                            <SelectItem key={index} value={propertyType.value}>
-                              {propertyType.label}
+                      {/* Lead Quality */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Lead Quality
+                        </Label>
+                        <Select
+                          value={formData.leadQualityByCreator}
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              leadQualityByCreator: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select quality" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Very Good">Very Good</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Average">Average</SelectItem>
+                            <SelectItem value="Below Average">
+                              Below Average
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Property Type */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Property Type
+                        </Label>
+                        <Select
+                          value={formData.propertyType}
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              propertyType: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Furnished">Furnished</SelectItem>
+                            <SelectItem value="Semi-furnished">
+                              Semi-furnished
+                            </SelectItem>
+                            <SelectItem value="Unfurnished">
+                              Unfurnished
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Zone */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Zone</Label>
+                        <Select
+                          value={formData.zone}
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              zone: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select zone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Anywhere">Anywhere</SelectItem>
+                            <SelectItem value="Center">Center</SelectItem>
+                            <SelectItem value="North">North</SelectItem>
+                            <SelectItem value="South">South</SelectItem>
+                            <SelectItem value="East">East</SelectItem>
+                            <SelectItem value="West">West</SelectItem>
+                            <SelectItem value="North-East">
+                              North-East
+                            </SelectItem>
+                            <SelectItem value="North-West">
+                              North-West
+                            </SelectItem>
+                            <SelectItem value="South-East">
+                              South-East
+                            </SelectItem>
+                            <SelectItem value="South-West">
+                              South-West
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    {/* Lead Quality */}
-                    <div>
-                      <Label>Lead Quality</Label>
-                      <Select
-                        value={formData.leadQualityByCreator}
-                        onValueChange={(value) =>
-                          setFormData((prevData) => ({
-                            ...prevData,
-                            leadQualityByCreator: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Very Good">Very Good</SelectItem>
-                          <SelectItem value="Average">Average</SelectItem>
-                          <SelectItem value="Below Average">
-                            Below Average
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Metro Zone & BoostID */}
+                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Metro Zone
+                        </Label>
+                        <Select
+                          value={formData.metroZone}
+                          onValueChange={(value) =>
+                            setFormData((prevData) => ({
+                              ...prevData,
+                              metroZone: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select metro line" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {metroLines.map((line) => (
+                              <SelectItem key={line.value} value={line.label}>
+                                {line.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    {/* Property Type */}
-                    <div className="ml-1">
-                      <Label>Property Type</Label>
-                      <Select
-                        value={formData.propertyType}
-                        onValueChange={(value) =>
-                          setFormData((prevData) => ({
-                            ...prevData,
-                            propertyType: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Furnished">Furnished</SelectItem>
-                          <SelectItem value="Unfurnished">
-                            Unfurnished
-                          </SelectItem>
-                          <SelectItem value="Semi-furnished">
-                            Semi-furnished
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Zone */}
-                    <div>
-                      <Label>Zone</Label>
-                      <Select
-                        value={formData.zone}
-                        onValueChange={(value) =>
-                          setFormData((prevData) => ({
-                            ...prevData,
-                            zone: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select zone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="East">East</SelectItem>
-                          <SelectItem value="West">West</SelectItem>
-                          <SelectItem value="North">North</SelectItem>
-                          <SelectItem value="South">South</SelectItem>
-                          <SelectItem value="Center">Center</SelectItem>
-                          <SelectItem value="North-East">North-East</SelectItem>
-                          <SelectItem value="North-West">North-West</SelectItem>
-                          <SelectItem value="South-East">South-East</SelectItem>
-                          <SelectItem value="South-West">South-West</SelectItem>
-                          <SelectItem value="Anywhere">Anywhere</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Boost ID</Label>
+                        <Input
+                          name="BoostID"
+                          value={formData?.BoostID}
+                          placeholder="Enter Boost ID"
+                          onChange={handleInputChange}
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  {/* Metro Zone */}
-                  <div>
-                    <Label>Metro Zone</Label>
-                    <Select
-                      value={formData.metroZone}
-                      onValueChange={(value) =>
-                        setFormData((prevData) => ({
-                          ...prevData,
-                          metroZone: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Metro Line" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {metroLines.map((line) => (
-                          <SelectItem key={line.value} value={line.label}>
-                            {line.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="w-full mt-2 ml-1 mb-2">
-                      <Label>BoostID</Label>
-                      <Input
-                        name="BoostID"
-                        value={formData?.BoostID}
-                        placeholder="Enter BoostID"
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                </ScrollArea>
-                <div>
-                  <DialogFooter>
-                    <Button
-                      className="mt-4"
-                      disabled={submitQuery}
-                      onClick={handleSubmit}
-                    >
-                      {submitQuery ? "Submitting..." : "Submit Query"}
-                    </Button>
-                  </DialogFooter>
                 </div>
+              </div>
+              </div>
+              <div className="px-6 pb-6 pt-4 border-t bg-muted/10 shrink-0">
+                <DialogFooter>
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={submitQuery}
+                    onClick={handleSubmit}
+                  >
+                    {submitQuery ? "Submitting..." : "Submit Lead"}
+                  </Button>
+                </DialogFooter>
               </div>
             </DialogContent>
           </Dialog>

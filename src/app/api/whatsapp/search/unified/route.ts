@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("query");
+    const phoneIdFilter = searchParams.get("phoneId") || "";
     const limit = Math.min(
       parseInt(searchParams.get("limit") || String(MAX_RESULTS_PER_QUERY)),
       MAX_RESULTS_PER_QUERY
@@ -90,17 +91,19 @@ export async function GET(request: NextRequest) {
     const permissionMatch: any = {};
     
     if (userRole === "Sales") {
-      // Sales agents see only their assigned conversations
       permissionMatch.assignedAgent = user.email;
     } else if (userRole === "Sales-TeamLead" && userAreas) {
-      // Team leads see conversations in their areas
       const areas = Array.isArray(userAreas) ? userAreas : [userAreas];
       permissionMatch.$or = [
         { assignedAgent: user.email },
         { location: { $in: areas } },
       ];
     }
-    // SuperAdmin sees everything (no additional filters)
+    
+    // Filter by businessPhoneId if provided
+    if (phoneIdFilter) {
+      permissionMatch.businessPhoneId = phoneIdFilter;
+    }
     
     // Status filter
     permissionMatch.status = { $in: ["active", "pending"] };

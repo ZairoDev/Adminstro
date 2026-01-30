@@ -21,7 +21,8 @@ connectDb();
 async function sendGuestGreetingTemplate( 
   phoneNo: string,
   leadName: string,
-  location: string
+  location: string,
+  profilePicture?: string
 ) {
   try {
     // Only send for thessaloniki or milan location (same phone number)
@@ -112,6 +113,7 @@ async function sendGuestGreetingTemplate(
         participantName: leadName || formattedPhone,
         participantLocation: location, // Capture location at conversation creation
         participantRole: "guest", // Lead auto-message creates guest conversations
+        participantProfilePic: profilePicture,
         snapshotSource: "trusted",
       }) as any; // Cast to any to access Mongoose document properties like _id
 
@@ -214,6 +216,7 @@ export async function POST(req: NextRequest) {
       BoostID,
       idName,
       leadQualityByCreator,
+      profilePicture,
     } = await req.json();
 
     // ✅ Check for duplicates (within same area, less than 30 days old)
@@ -258,6 +261,7 @@ export async function POST(req: NextRequest) {
       BoostID,
       leadQualityByCreator,
       idName,
+      profilePicture: profilePicture || "",
       createdBy: token.email,
       leadStatus: "fresh",
     });
@@ -288,7 +292,7 @@ export async function POST(req: NextRequest) {
     // Only send when lead is created by test_email: abhaytripathi6969@gmail.com
     // This runs asynchronously - don't await to avoid blocking the response
     if (token.email === "abhaytripathi6969@gmail.com") {
-      sendGuestGreetingTemplate(phoneNo, name, location).catch((err) => {
+      sendGuestGreetingTemplate(phoneNo, name, location, profilePicture).catch((err) => {
         console.error("❌ Failed to send WhatsApp template:", err);
       });
     } else {

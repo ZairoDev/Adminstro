@@ -264,7 +264,11 @@ const querySchema = new Schema(
     idName:{
       type: String,
       default: "",
-    }
+    },
+    profilePicture: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

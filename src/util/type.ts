@@ -388,6 +388,7 @@ export interface IQuery {
   updatedAt?: Date;
   idName?: string;
   reason?: string;
+  profilePicture?: string; // Client profile picture URL (e.g. from Bunny CDN)
 }
 
 export interface VisitInterface {

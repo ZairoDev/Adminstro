@@ -92,6 +92,11 @@ interface TargetType {
   city: string;
   areas: AreaType[];
 }
+interface PhoneConfig {
+  phoneNumberId: string;
+  area: string | string[];
+  isInternal?: boolean;
+}
 
 export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
   const router = useRouter();
@@ -115,6 +120,28 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
+  const [phoneConfigs, setPhoneConfigs] = useState<PhoneConfig[]>([]);
+
+  useEffect(() => {
+    axios.get("/api/whatsapp/phone-configs").then((res) => {
+      if (res.data?.phoneConfigs) {
+        setPhoneConfigs(res.data.phoneConfigs.filter((c: PhoneConfig) => !c.isInternal));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const getPhoneIdForLocation = (location: string | undefined): string => {
+    if (!phoneConfigs.length) return "";
+    if (location?.trim()) {
+      const normalized = location.trim().toLowerCase();
+      const config = phoneConfigs.find((c) => {
+        const areas = Array.isArray(c.area) ? c.area : [c.area];
+        return areas.some((a) => a.toLowerCase() === normalized);
+      });
+      if (config?.phoneNumberId) return config.phoneNumberId;
+    }
+    return phoneConfigs[0]?.phoneNumberId || "";
+  };
 
   // Check if user can edit location - only for LeadGen-TeamLead, SuperAdmin, and Sales-TeamLead
   const canEditLocation = 
@@ -1022,13 +1049,13 @@ const handleSave = async (
                       }
                     }}
                   />
-                  {/* Show WhatsApp chat icon only on the fresh leads page AFTER first reply */}
                   {path?.toString().trim().split("/")[2] !== "createquery" ? (
                     <Link
                       target="_blank"
-                      href={`/whatsapp?phone=${encodeURIComponent(
-                        query?.phoneNo
-                      )}`}
+                      href={`/whatsapp?phone=${encodeURIComponent(query?.phoneNo)}${query?.name ? `&name=${encodeURIComponent(query.name)}` : ""}${(query as any)?.profilePicture ? `&profilePic=${encodeURIComponent((query as any).profilePicture)}` : ""}${(() => {
+                        const phoneId = getPhoneIdForLocation(query?.location);
+                        return phoneId ? `&phoneId=${encodeURIComponent(phoneId)}` : "";
+                      })()}`}
                       rel="noopener noreferrer"
                       onClick={() => {
                         if (query.isViewed === false) {
@@ -1036,10 +1063,7 @@ const handleSave = async (
                         }
                       }}
                     >
-                      <FaWhatsapp
-                        className=" cursor-pointer  text-green-500"
-                        size={22}
-                      />
+                      <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
                     </Link>
                   ): null}
                 </div>

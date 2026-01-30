@@ -10,6 +10,7 @@ interface ConversationSnapshotInput {
   participantName?: string;
   participantLocation?: string;
   participantRole?: "owner" | "guest";
+  participantProfilePic?: string; // Lead/client profile picture URL
   referenceLink?: string;
   // Source of this data:
   // - 'trusted'  = lead creation / manual add guest
@@ -37,6 +38,7 @@ export async function findOrCreateConversationWithSnapshot(
     participantName,
     participantLocation,
     participantRole,
+    participantProfilePic,
     referenceLink,
     snapshotSource = "untrusted",
   } = input;
@@ -53,6 +55,7 @@ export async function findOrCreateConversationWithSnapshot(
       participantName: participantName || `+${participantPhone}`,
       participantLocation: participantLocation || "",
       participantRole: participantRole,
+      participantProfilePic: participantProfilePic || undefined,
       businessPhoneId,
       status: "active",
       unreadCount: 0,
@@ -80,6 +83,12 @@ export async function findOrCreateConversationWithSnapshot(
     if (!conversation.referenceLink && referenceLink) {
       updates.referenceLink = referenceLink;
     }
+
+    if (participantProfilePic) {
+      updates.participantProfilePic = participantProfilePic;
+    }
+  } else if (participantProfilePic) {
+    updates.participantProfilePic = participantProfilePic;
   }
 
   if (Object.keys(updates).length > 0) {

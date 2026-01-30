@@ -14,10 +14,13 @@ export async function GET() {
 
     
     const result = targets.map((target) => {
-      const matchingAreas = areas.filter((a) => a.city === target.city);
+      const targetCity = (target.city || "").toString().trim().toLowerCase();
+      const matchingAreas = areas.filter(
+        (a) => (a.city || "").toString().trim().toLowerCase() === targetCity
+      );
       return {
         ...target,
-        areas: matchingAreas, 
+        areas: matchingAreas,
       };
     });
     

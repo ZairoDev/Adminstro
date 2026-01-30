@@ -80,6 +80,16 @@ export default function WhatsAppChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
   const [selectedPhoneConfig, setSelectedPhoneConfig] = useState<WhatsAppPhoneConfig | null>(null);
+
+  const sortConversations = (convs: Conversation[]) => {
+    return convs.sort((a, b) => {
+      const aIsInternal = a.isInternal || a.source === "internal";
+      const bIsInternal = b.isInternal || b.source === "internal";
+      if (aIsInternal && !bIsInternal) return -1;
+      if (!aIsInternal && bIsInternal) return 1;
+      return new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime();
+    });
+  };
   const isInitialLoadRef = useRef(true); // Track if this is the first load
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
@@ -490,14 +500,11 @@ export default function WhatsAppChat() {
         const realPhoneConfigs = phoneConfigs.filter((c: any) => !c.isInternal);
         if (realPhoneConfigs.length > 0) {
           const phoneIdParam = searchParams?.get("phoneId");
+          let selected: any = null;
           if (phoneIdParam) {
-            const byId = realPhoneConfigs.find(
-              (c: any) => c.phoneNumberId === phoneIdParam
-            );
-            setSelectedPhoneConfig(byId || realPhoneConfigs[0]);
-          } else {
-            setSelectedPhoneConfig(realPhoneConfigs[0]);
+            selected = realPhoneConfigs.find((c: any) => c.phoneNumberId === phoneIdParam);
           }
+          setSelectedPhoneConfig(selected || realPhoneConfigs[0]);
         }
       }
     } catch (error: any) {
@@ -613,11 +620,7 @@ export default function WhatsAppChat() {
           const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
           setTotalUnreadCount(newTotalUnread);
           
-          return updated.sort(
-            (a, b) =>
-              new Date(b.lastMessageTime || 0).getTime() -
-              new Date(a.lastMessageTime || 0).getTime()
-          );
+          return sortConversations(updated);
         });
 
         setArchivedConversations((prev) => {
@@ -643,11 +646,7 @@ export default function WhatsAppChat() {
             return conv;
           });
           
-          return updated.sort(
-            (a, b) =>
-              new Date(b.lastMessageTime || 0).getTime() -
-              new Date(a.lastMessageTime || 0).getTime()
-          );
+          return sortConversations(updated);
         });
 
         if (isCurrentConversation) {
@@ -802,11 +801,7 @@ export default function WhatsAppChat() {
           }
           return conv;
         });
-        return updated.sort(
-          (a, b) =>
-            new Date(b.lastMessageTime || 0).getTime() -
-            new Date(a.lastMessageTime || 0).getTime()
-        );
+        return sortConversations(updated);
       });
 
       if (currentConversation?._id === conversationId) {
@@ -907,7 +902,7 @@ export default function WhatsAppChat() {
           return updated;
         });
 
-        // Also clear unread count for archived conversations and update archived-unread badge
+        // Also clear unread count for archived conversations
         setArchivedConversations((prev) => {
           const conv = prev.find((c) => c._id === conversationId);
           // Decrement unread chat count by 1 if this conversation had unread messages
@@ -1231,8 +1226,6 @@ export default function WhatsAppChat() {
         
         // Refresh main conversations to include the unarchived one
         await fetchConversations(true);
-        // Refresh archived list so sidebar shows correct archived-unread count
-        fetchArchivedConversations({ silent: true });
         
         toast({
           title: "Chat unarchived",
@@ -1408,31 +1401,44 @@ export default function WhatsAppChat() {
   useEffect(() => {
     const phoneParam = searchParams?.get("phone");
     if (!phoneParam) return;
-    if (openedByPhoneRef.current === phoneParam) return;
-    openedByPhoneRef.current = phoneParam;
+    if (!selectedPhoneConfig?.phoneNumberId) return;
+    
+    const cacheKey = `${phoneParam}_${selectedPhoneConfig.phoneNumberId}`;
+    if (openedByPhoneRef.current === cacheKey) return;
+    openedByPhoneRef.current = cacheKey;
 
     const normalized = phoneParam.replace(/\D/g, "");
+    const nameParam = searchParams?.get("name") || undefined;
+    const profilePicParam = searchParams?.get("profilePic") || undefined;
 
     (async () => {
       try {
-        // Fetch latest conversations and attempt to match by phone
         const convs = await fetchConversations();
         const found = convs.find((c: any) =>
           (c.participantPhone || "").replace(/\D/g, "").endsWith(normalized)
         );
 
         if (found) {
+          setConversations((prev) => {
+            const exists = prev.find((c: any) => c._id === found._id);
+            if (exists) return prev;
+            return sortConversations([found, ...prev]);
+          });
           selectConversation(found);
         } else {
-          // If not found, create a new conversation and select it
           const createRes = await axios.post("/api/whatsapp/conversations", {
             participantPhone: normalized,
-            participantName: phoneParam,
+            participantName: nameParam || phoneParam,
+            phoneNumberId: selectedPhoneConfig.phoneNumberId,
+            ...(profilePicParam ? { participantProfilePic: profilePicParam } : {}),
           });
-
           if (createRes.data.success) {
             const conversation = createRes.data.conversation;
-            setConversations((prev) => [conversation, ...prev]);
+            setConversations((prev) => {
+              const exists = prev.find((c: any) => c._id === conversation._id);
+              if (exists) return sortConversations(prev.map((c: any) => (c._id === conversation._id ? conversation : c)));
+              return sortConversations([conversation, ...prev]);
+            });
             selectConversation(conversation);
           }
         }
@@ -1445,7 +1451,7 @@ export default function WhatsAppChat() {
         });
       }
     })();
-  }, [searchParams]);
+  }, [searchParams, selectedPhoneConfig?.phoneNumberId]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
@@ -1505,21 +1511,28 @@ export default function WhatsAppChat() {
 
     // Immediately update conversation list optimistically
     setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === selectedConversation._id
-          ? {
-              ...conv,
-              lastMessageContent: messageContent,
-              lastMessageTime: sendTimestamp,
-              lastMessageDirection: "outgoing",
-            }
-          : conv
-      );
-      return updated.sort(
-        (a, b) =>
-          new Date(b.lastMessageTime || 0).getTime() -
-          new Date(a.lastMessageTime || 0).getTime()
-      );
+      const exists = prev.find((c) => c._id === selectedConversation._id);
+      if (exists) {
+        const updated = prev.map((conv) =>
+          conv._id === selectedConversation._id
+            ? {
+                ...conv,
+                lastMessageContent: messageContent,
+                lastMessageTime: sendTimestamp,
+                lastMessageDirection: "outgoing",
+              }
+            : conv
+        );
+        return sortConversations(updated);
+      } else {
+        const newConv = {
+          ...selectedConversation,
+          lastMessageContent: messageContent,
+          lastMessageTime: sendTimestamp,
+          lastMessageDirection: "outgoing",
+        };
+        return sortConversations([newConv, ...prev]);
+      }
     });
 
     // Update selected conversation timestamp instantly
@@ -1613,22 +1626,30 @@ export default function WhatsAppChat() {
     setMessages((prev) => [...prev, tempMsg]);
 
     // Update conversation list optimistically
+    const templatePreview = templateDisplayText.substring(0, 50) + (templateDisplayText.length > 50 ? "..." : "");
     setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === selectedConversation._id
-          ? {
-              ...conv,
-              lastMessageContent: templateDisplayText.substring(0, 50) + (templateDisplayText.length > 50 ? "..." : ""),
-              lastMessageTime: sendTimestamp,
-              lastMessageDirection: "outgoing",
-            }
-          : conv
-      );
-      return updated.sort(
-        (a, b) =>
-          new Date(b.lastMessageTime || 0).getTime() -
-          new Date(a.lastMessageTime || 0).getTime()
-      );
+      const exists = prev.find((c) => c._id === selectedConversation._id);
+      if (exists) {
+        const updated = prev.map((conv) =>
+          conv._id === selectedConversation._id
+            ? {
+                ...conv,
+                lastMessageContent: templatePreview,
+                lastMessageTime: sendTimestamp,
+                lastMessageDirection: "outgoing",
+              }
+            : conv
+        );
+        return sortConversations(updated);
+      } else {
+        const newConv = {
+          ...selectedConversation,
+          lastMessageContent: templatePreview,
+          lastMessageTime: sendTimestamp,
+          lastMessageDirection: "outgoing",
+        };
+        return sortConversations([newConv, ...prev]);
+      }
     });
 
     // Update selected conversation timestamp instantly
@@ -2214,11 +2235,7 @@ export default function WhatsAppChat() {
               }
             : conv
         );
-        return updated.sort(
-          (a, b) =>
-            new Date(b.lastMessageTime || 0).getTime() -
-            new Date(a.lastMessageTime || 0).getTime()
-        );
+        return sortConversations(updated);
       });
 
       // Update selected conversation timestamp instantly
@@ -2384,11 +2401,7 @@ export default function WhatsAppChat() {
             }
           : conv
       );
-      return updated.sort(
-        (a, b) =>
-          new Date(b.lastMessageTime || 0).getTime() -
-          new Date(a.lastMessageTime || 0).getTime()
-      );
+      return sortConversations(updated);
     });
 
     // Update selected conversation timestamp instantly
@@ -2575,11 +2588,7 @@ export default function WhatsAppChat() {
             }
           : conv
       );
-      return updated.sort(
-        (a, b) =>
-          new Date(b.lastMessageTime || 0).getTime() -
-          new Date(a.lastMessageTime || 0).getTime()
-      );
+      return sortConversations(updated);
     });
 
     try {
@@ -2701,11 +2710,7 @@ export default function WhatsAppChat() {
             }
           : conv
       );
-      return updated.sort(
-        (a, b) =>
-          new Date(b.lastMessageTime || 0).getTime() -
-          new Date(a.lastMessageTime || 0).getTime()
-      );
+      return sortConversations(updated);
     });
 
     // Update selected conversation timestamp
@@ -2997,7 +3002,12 @@ export default function WhatsAppChat() {
               onAddGuest={() => setShowAddGuestModal(true)}
               // Archive functionality
               archivedCount={archivedCount}
-              archivedUnreadCount={archivedUnreadCount}
+              archivedUnreadCount={archivedConversations.reduce(
+                (sum, c) =>
+                  sum +
+                  ((c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming" ? c.unreadCount || 0 : 0),
+                0
+              )}
               showingArchived={showingArchived}
               onToggleArchiveView={toggleArchiveView}
               onArchiveConversation={archiveConversation}

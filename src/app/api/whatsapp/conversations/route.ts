@@ -6,11 +6,13 @@ import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
+import Query from "@/models/query";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { 
   getAllowedPhoneIds, 
   canAccessPhoneId,
   getDefaultPhoneId,
+  getPhoneIdForLocation,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import mongoose from "mongoose";
@@ -260,6 +262,34 @@ export async function GET(req: NextRequest) {
       })
     );
 
+    // Enrich participantProfilePic from leads (Query) when available (non-fatal)
+    try {
+      const participantPhones = [...new Set(conversationsWithStatus
+        .filter((c: any) => c.participantPhone && c.source !== "internal")
+        .map((c: any) => c.participantPhone.replace(/\D/g, "")))];
+      if (participantPhones.length > 0) {
+        const leads = await Query.find({
+          phoneNo: { $in: participantPhones },
+          profilePicture: { $exists: true, $ne: "" },
+        })
+          .select("phoneNo profilePicture")
+          .lean();
+        const phoneToProfilePic = new Map<string, string>();
+        for (const lead of leads as any[]) {
+          const normalized = String(lead.phoneNo || "").replace(/\D/g, "");
+          if (normalized && lead.profilePicture) phoneToProfilePic.set(normalized, lead.profilePicture);
+        }
+        for (const conv of conversationsWithStatus as any[]) {
+          if (conv.source === "internal") continue;
+          const normalized = (conv.participantPhone || "").replace(/\D/g, "");
+          const pic = phoneToProfilePic.get(normalized);
+          if (pic) conv.participantProfilePic = pic;
+        }
+      }
+    } catch (enrichErr) {
+      console.warn("Lead profile picture enrichment failed:", enrichErr);
+    }
+
     // =========================================================
     // Get or create "You" conversation (WhatsApp-style Message Yourself)
     // =========================================================
@@ -384,6 +414,8 @@ export async function POST(req: NextRequest) {
       referenceLink,
       conversationType,
       participantLocation,
+      participantProfilePic,
+      location: leadLocation, // Lead's location – conversation will use the phone number assigned to this location
     } = await req.json();
 
     if (!participantPhone) {
@@ -425,10 +457,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use provided phoneNumberId or default to first allowed
-    const selectedPhoneId = phoneNumberId && allowedPhoneIds.includes(phoneNumberId)
-      ? phoneNumberId
-      : getDefaultPhoneId(userRole, userAreas);
+    // Use: explicit phoneNumberId > phone for lead's location > default
+    let selectedPhoneId: string | null = null;
+    if (phoneNumberId && allowedPhoneIds.includes(phoneNumberId)) {
+      selectedPhoneId = phoneNumberId;
+    } else if (leadLocation?.trim()) {
+      // Use the phone number configured for this lead's location
+      const phoneIdForLocation = getPhoneIdForLocation(leadLocation);
+      if (phoneIdForLocation && allowedPhoneIds.includes(phoneIdForLocation)) {
+        selectedPhoneId = phoneIdForLocation;
+      }
+    }
+    // Fallback to default if no location match
+    if (!selectedPhoneId) {
+      selectedPhoneId = getDefaultPhoneId(userRole, userAreas);
+    }
 
     if (!selectedPhoneId) {
       return NextResponse.json(
@@ -453,6 +496,7 @@ export async function POST(req: NextRequest) {
       businessPhoneId: selectedPhoneId,
       participantName,
       participantLocation,
+      participantProfilePic: participantProfilePic || undefined,
       participantRole: conversationType === "owner" || conversationType === "guest"
         ? conversationType
         : undefined,

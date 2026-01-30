@@ -14,6 +14,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { leadStatuses } from "@/app/dashboard/sales-offer/sales-offer-utils";
 import { isArray } from "@apollo/client/utilities";
 import { Regex } from "lucide-react";
+import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -369,9 +370,22 @@ export async function POST(req: NextRequest) {
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / LIMIT);
 
+    // Compute WhatsApp reply status for Reply column (same as fresh leads, non-fatal)
+    let statusMap = new Map<string, string | null>();
+    try {
+      const phoneNumbers = allquery.map((q: any) => String(q.phoneNo || "")).filter(Boolean);
+      statusMap = await batchComputeWhatsAppReplyStatus(phoneNumbers);
+    } catch (replyErr) {
+      console.warn("WhatsApp reply status computation failed, returning leads without it:", replyErr);
+    }
+    const queriesWithReplyStatus = allquery.map((q: any) => ({
+      ...q,
+      whatsappReplyStatus: statusMap.get(String(q.phoneNo || "")) || null,
+    }));
+
     // console.log("words count: ", wordsCount);
     return NextResponse.json({
-      data: allquery,
+      data: queriesWithReplyStatus,
       PAGE,
       totalPages,
       totalQueries,

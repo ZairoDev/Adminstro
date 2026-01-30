@@ -29,6 +29,7 @@ export function useUnifiedWhatsAppSearch(
   
   const [results, setResults] = useState<{ conversations: any[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const lastQueryRef = useRef<string>("");
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,8 +37,11 @@ export function useUnifiedWhatsAppSearch(
   const executeSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults(null);
+      lastQueryRef.current = "";
       return;
     }
+    
+    lastQueryRef.current = searchQuery;
     
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -79,6 +83,13 @@ export function useUnifiedWhatsAppSearch(
       }
     }
   }, [phoneId]);
+  
+  // Re-search when phoneId changes and there's an active query
+  useEffect(() => {
+    if (lastQueryRef.current && phoneId) {
+      executeSearch(lastQueryRef.current);
+    }
+  }, [phoneId, executeSearch]);
   
   const search = useCallback((searchQuery: string) => {
     if (debounceTimerRef.current) {

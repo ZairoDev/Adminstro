@@ -182,6 +182,22 @@ export function getPhoneConfigById(phoneNumberId: string): WhatsAppPhoneConfig |
 }
 
 /**
+ * Get the phone number ID assigned to a location (e.g. lead's location).
+ * Used when opening WhatsApp from a lead so the conversation uses the correct business number.
+ * Location is matched case-insensitively (e.g. "Thessaloniki" -> thessaloniki config).
+ */
+export function getPhoneIdForLocation(location: string | undefined): string | null {
+  if (!location?.trim()) return null;
+  const normalized = location.trim().toLowerCase();
+  const config = WHATSAPP_PHONE_CONFIGS.find((c) => {
+    if (!c.phoneNumberId) return false;
+    const areas = Array.isArray(c.area) ? c.area : [c.area];
+    return areas.some((a) => a.toLowerCase() === normalized);
+  });
+  return config?.phoneNumberId || null;
+}
+
+/**
  * Get the default phone ID for a user (first allowed phone)
  */
 export function getDefaultPhoneId(

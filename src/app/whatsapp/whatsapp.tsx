@@ -623,10 +623,13 @@ export default function WhatsAppChat() {
         setArchivedConversations((prev) => {
           const updated = prev.map((conv) => {
             if (conv._id === conversationId) {
+              const prevUnreadCount = conv.unreadCount || 0;
               const newUnreadCount = isIncomingMessage && !isCurrentConversation
-                ? (conv.unreadCount || 0) + 1
-                : conv.unreadCount || 0;
-              if (isIncomingMessage && !isCurrentConversation) {
+                ? prevUnreadCount + 1
+                : prevUnreadCount;
+              // Only increment unread chat count if this conversation previously had 0 unread messages
+              // (i.e., it's becoming an unread chat for the first time)
+              if (isIncomingMessage && !isCurrentConversation && prevUnreadCount === 0) {
                 setArchivedUnreadCount((c) => c + 1);
               }
               return {
@@ -907,8 +910,10 @@ export default function WhatsAppChat() {
         // Also clear unread count for archived conversations and update archived-unread badge
         setArchivedConversations((prev) => {
           const conv = prev.find((c) => c._id === conversationId);
+          // Decrement unread chat count by 1 if this conversation had unread messages
+          // (it's no longer an unread chat)
           if (conv && (conv.unreadCount || 0) > 0) {
-            setArchivedUnreadCount((c) => Math.max(0, c - (conv.unreadCount || 0)));
+            setArchivedUnreadCount((c) => Math.max(0, c - 1));
           }
           return prev.map((c) =>
             c._id === conversationId ? { ...c, unreadCount: 0 } : c
@@ -1137,11 +1142,15 @@ export default function WhatsAppChat() {
       if (!silent) setLoading(true);
       const response = await axios.get("/api/whatsapp/conversations/archive");
       if (response.data.success) {
-        setArchivedConversations(response.data.conversations || []);
+        const conversations = response.data.conversations || [];
+        setArchivedConversations(conversations);
         setArchivedCount(response.data.count || 0);
-        setArchivedUnreadCount(response.data.archivedUnreadCount ?? 0);
-        const ids =
-          (response.data.conversations || []).map((c: any) => c._id) || [];
+        // Count unread chats (conversations with unread messages) instead of total unread messages
+        const unreadChatCount = conversations.filter(
+          (c: Conversation) => (c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming"
+        ).length;
+        setArchivedUnreadCount(unreadChatCount);
+        const ids = conversations.map((c: any) => c._id) || [];
         syncArchivedStorage(ids.filter(Boolean));
       }
     } catch (error: any) {
@@ -2951,17 +2960,17 @@ export default function WhatsAppChat() {
 
         <TabsContent value="chat" className="flex-1 m-0 overflow-x-hidden max-w-full min-h-0">
           {/* Mobile-first responsive layout */}
-          <div className="flex h-full relative w-full max-w-full min-h-0">
+          <div className="flex h-full relative w-full max-w-full min-h-0 overflow-hidden">
             {/* Conversation Sidebar - Full screen on mobile, fixed width on desktop */}
             <div className={cn(
-              // Base: Always flex, full height
-              "flex flex-col h-full",
+              // Base: Always flex, full height; min-w-0 so content fits without overflow
+              "flex flex-col h-full min-w-0 flex-shrink-0",
               // Mobile: Full screen width, hidden when chat is open
               "w-full max-w-full",
               isMobile && mobileView === "chat" && "hidden",
-              // Tablet and up: Fixed sidebar width, always visible
-              "md:w-[320px] md:min-w-[280px] md:max-w-[400px]",
-              "lg:w-[400px] lg:min-w-[320px] lg:max-w-[480px]",
+              // Tablet and up: Fixed sidebar width (nav strip 70px + main content ~330px)
+              "md:w-[400px] md:min-w-[320px] md:max-w-[400px]",
+              "lg:w-[700px] lg:min-w-[400px] lg:max-w-[700px]",
               // Transition for smooth view changes
               "transition-all duration-200 ease-out"
             )}>
@@ -2996,6 +3005,9 @@ export default function WhatsAppChat() {
               // User info for access control
               userRole={token?.role}
               userAreas={token?.allotedArea}
+              // User profile for nav strip
+              userName={token?.name}
+              userProfilePic={(token as any)?.profilePic || (token as any)?.avatar}
               // Mobile props
               isMobile={isMobile}
               // Jump to message from search results
@@ -3016,18 +3028,26 @@ export default function WhatsAppChat() {
             </div>
 
             {/* Chat Panel - Full screen on mobile when chat is selected */}
-            <div className={cn(
-              // Base: Flex column layout
-              "flex flex-col bg-[#efeae2] dark:bg-[#0b141a]",
-              // Mobile: Full screen overlay when chat is open
-              isMobile ? (
-                mobileView === "chat" ? "absolute inset-0 z-10 w-full h-full max-w-full" : "hidden"
-              ) : "flex-1 relative",
-              // Desktop: Always visible, flex-1 for remaining space
-              "md:flex-1 md:relative md:z-auto",
-              // Transition for smooth view changes
-              "transition-all duration-200 ease-out"
-            )}>
+            <div
+              className={cn(
+                // Base: Flex column layout
+                "flex flex-col bg-[#efeae2] dark:bg-[#0b141a]",
+                // Mobile: Full screen overlay when chat is open
+                isMobile ? (
+                  mobileView === "chat" ? "absolute inset-0 z-10 w-full h-full max-w-full" : "hidden"
+                ) : "flex-1 relative min-w-0",
+                // Desktop: Always visible, flex-1 for remaining space
+                "md:flex-1 md:relative md:z-auto md:min-w-0",
+                // Transition for smooth view changes
+                "transition-all duration-200 ease-out"
+              )}
+              style={{
+                backgroundImage: "url(/whatsapp-background.png)",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "repeat",
+              }}
+            >
               {selectedConversation ? (
                 <>
                   <ChatHeader
@@ -3125,7 +3145,7 @@ export default function WhatsAppChat() {
               ) : (
                 /* Empty state - WhatsApp Web style (hidden on mobile) */
                 <div className={cn(
-                  "flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#222e35]",
+                  "flex-1 flex flex-col items-center justify-center bg-[#f7f5f3] dark:bg-[#222e35]",
                   // Hide on mobile since we show the conversation list instead
                   "hidden md:flex"
                 )}>

@@ -1,7 +1,12 @@
+"use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LuMessageSquareText } from "react-icons/lu";
+import { RiInboxArchiveLine } from "react-icons/ri";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2,
@@ -25,6 +30,14 @@ import {
   X,
   SquarePlus,
   ChevronDown,
+  MessageSquarePlus,
+  CircleDot,
+  Building2,
+  Megaphone,
+  Images,
+  MessageCircle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
@@ -73,7 +86,7 @@ interface SidebarProps {
   onAddGuest?: () => void;
   // Archive functionality (WhatsApp-style)
   archivedCount?: number;
-  /** Unread message count inside archived chats only; shown next to "Archived" */
+  /** Number of archived chats with unread messages; shown next to "Archived" */
   archivedUnreadCount?: number;
   showingArchived?: boolean;
   onToggleArchiveView?: () => void;
@@ -82,10 +95,49 @@ interface SidebarProps {
   // User info for access control
   userRole?: string;
   userAreas?: string | string[];
+  // User profile for nav strip
+  userName?: string;
+  userProfilePic?: string;
   // Mobile responsiveness
   isMobile?: boolean;
   // Jump to message from search results
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
+}
+
+/** Theme toggle button for the nav strip: toggles between light and dark mode */
+function ThemeToggleButton() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const toggleTheme = () => {
+    setTheme(isDark ? "light" : "dark");
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors"
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {mounted && isDark ? (
+              <Sun className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+            ) : (
+              <Moon className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {mounted && isDark ? "Light mode" : "Dark mode"}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function ConversationItem({
@@ -154,12 +206,12 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "relative flex items-center gap-3 cursor-pointer transition-colors group border-b border-[#f0f2f5] dark:border-[#222d34] last:border-b-0",
-        "px-4 py-3 min-h-[72px] md:py-2.5 md:min-h-[56px]",
-        "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]",
+        "relative flex items-center gap-3 cursor-pointer transition-colors group",
+        "mx-2 mb-0.5 rounded-xl px-3 py-3 min-h-[72px] md:py-2.5 md:min-h-[56px]",
+        // Rounded light grey highlight only when active or hover
+        "hover:bg-[#f0f0f0] dark:hover:bg-[#2a3942]",
         "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
-        isSelected && "bg-[#f0f2f5] dark:bg-[#2a3942]",
-        hasUnread && !isSelected && "bg-[#f0f2f5] dark:bg-[#182229]"
+        isSelected && "bg-[#f0f0f0] dark:bg-[#2a3942]"
       )}
       onClick={onClick}
     >
@@ -314,6 +366,9 @@ export function ConversationSidebar({
   // User info for access control
   userRole,
   userAreas,
+  // User profile
+  userName,
+  userProfilePic,
   // Mobile responsiveness
   isMobile = false,
   // Jump to message
@@ -420,15 +475,149 @@ export function ConversationSidebar({
     (userAreas ? (Array.isArray(userAreas) ? userAreas : [userAreas]).map((a: string) => String(a).toLowerCase().trim()).filter(Boolean).length > 1 : false)) &&
     realPhoneConfigs.length > 0;
 
+  // Calculate unread count for notification badge
+  const totalUnreadCount = conversations.reduce(
+    (sum, conv) => sum + ((conv.unreadCount || 0) > 0 && conv.lastMessageDirection === "incoming" ? 1 : 0),
+    0
+  );
+
   return (
     <div className={cn(
-      "flex flex-col h-full bg-white dark:bg-[#111b21] min-h-0 w-full",
+      "flex h-full bg-white dark:bg-[#111b21] min-h-0 min-w-0 w-full overflow-hidden",
       "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]"
     )}>
+      {/* Vertical Navigation Strip - Hidden on mobile, visible on desktop */}
+      <div className={cn(
+        "hidden md:flex flex-col items-center bg-[#f7f5f3] dark:bg-[#202c33] border-r border-[#e9edef] dark:border-[#222d34]",
+        "w-[70px] flex-shrink-0 py-2 gap-1"
+      )}>
+        {/* Chats Icon - Active, with unread count badge */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="relative w-12 h-12 rounded-full bg-[#e9edef] dark:bg-[#2a3942] flex items-center justify-center hover:bg-[#d1d7db] dark:hover:bg-[#374045] transition-colors">
+                <LuMessageSquareText className="h-6 w-6 text-[#111b21] dark:text-[#e9edef]" />
+                {totalUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 flex items-center justify-center bg-[#25d366] text-white text-[11px] font-semibold rounded-full border-2 border-white dark:border-[#202c33] leading-none">
+                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                  </span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Chats{totalUnreadCount > 0 ? ` (${totalUnreadCount} unread)` : ""}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Status Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="relative w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <CircleDot className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-[#25d366] rounded-full border border-white dark:border-[#202c33]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Status</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Communities Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <Users className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Communities</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Groups Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <Users className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Groups</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Separator */}
+        <div className="h-px w-8 bg-[#d1d7db] dark:bg-[#374045] my-1" />
+
+        {/* Business Tools Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <Building2 className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Business Tools</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Broadcast Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <Megaphone className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Broadcast</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Spacer to push bottom items down */}
+        <div className="flex-1" />
+
+        {/* Media Icon */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+                <Images className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Media</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Theme Toggle (Light / Dark) */}
+        <ThemeToggleButton />
+
+        {/* User Profile Picture */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="w-12 h-12 rounded-full overflow-hidden hover:opacity-90 transition-opacity mt-2">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={userProfilePic} />
+                  <AvatarFallback className="bg-[#25d366] text-white text-sm font-medium">
+                    {userName ? userName.slice(0, 2).toUpperCase() : "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{userName || "Profile"}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      {/* Main Sidebar Content - min-w-0 so it shrinks and doesn't overflow */}
+      <div className={cn(
+        "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111b21]"
+      )}>
       {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
       <div className={cn(
-        "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0",
-        "h-[60px] px-4 pt-[env(safe-area-inset-top,0px)] md:pt-0",
+        "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0 min-w-0",
+        "h-[60px] px-3 pt-[env(safe-area-inset-top,0px)] md:pt-0 md:px-3",
         "border-b border-[#f0f2f5] dark:border-[#222d34]"
       )}>
         {showNewChat ? (
@@ -441,8 +630,8 @@ export function ConversationSidebar({
           </>
         ) : (
           <>
-            <span className="text-[20px] font-bold text-[#111b21] dark:text-[#e9edef]">WhatsApp</span>
-            <div className="flex items-center gap-0.5">
+            <span className="text-[18px] font-bold text-[#111b21] dark:text-[#e9edef] truncate min-w-0">WhatsApp</span>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
               {isMounted && (
                 <TooltipProvider>
                   <Tooltip>
@@ -456,7 +645,7 @@ export function ConversationSidebar({
                 </TooltipProvider>
               )}
               <Button variant="ghost" size="icon" onClick={() => setShowNewChat(true)} className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9">
-                <SquarePlus className="h-5 w-5" />
+                <MessageSquarePlus className="h-5 w-5" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -489,16 +678,16 @@ export function ConversationSidebar({
       {/* Search - pill shaped, WhatsApp-style highlighted area when active */}
       <div
         className={cn(
-          "px-3 py-2 flex-shrink-0 transition-colors duration-200 rounded-t-lg",
+          "px-3 py-2 flex-shrink-0 min-w-0 overflow-hidden transition-colors duration-200 rounded-t-lg",
           (searchFocused || (searchQuery && searchQuery.trim().length > 0))
             ? "bg-[#e9edef] dark:bg-[#2a3942]"
             : "bg-white dark:bg-[#111b21]"
         )}
       >
         {showNewChat ? (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <div className="relative w-20">
+          <div className="space-y-3 min-w-0">
+            <div className="flex gap-2 min-w-0">
+              <div className="relative w-20 flex-shrink-0">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">+</span>
                 <Input
                   placeholder="91"
@@ -518,7 +707,7 @@ export function ConversationSidebar({
                 value={newPhoneNumber}
                 onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, ""))}
                 className={cn(
-                  "flex-1 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                  "flex-1 min-w-0 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
                   // Mobile: Taller inputs for touch
                   "h-11",
                   "md:h-9"
@@ -531,7 +720,7 @@ export function ConversationSidebar({
                 onClick={onStartConversation}
                 disabled={loading || !newCountryCode.trim() || !newPhoneNumber.trim()}
                 className={cn(
-                  "bg-[#25d366] hover:bg-[#1da851] text-white",
+                  "bg-[#25d366] hover:bg-[#1da851] text-white flex-shrink-0",
                   // Mobile: Larger button
                   "h-11 px-4",
                   "md:h-9 md:px-3"
@@ -560,7 +749,7 @@ export function ConversationSidebar({
             )}
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
             <Input
               placeholder="Search by name, phone or message"
@@ -577,7 +766,7 @@ export function ConversationSidebar({
                 }
               }}
               className={cn(
-                "pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
+                "w-full min-w-0 pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
                 (searchFocused || searchQuery?.trim())
                   ? "bg-white dark:bg-[#111b21] shadow-sm"
                   : "bg-[#f0f2f5] dark:bg-[#202c33]",
@@ -603,7 +792,7 @@ export function ConversationSidebar({
 
       {/* Filter pills - All | Unread | Favourites | Groups | Labels (WhatsApp style) */}
       {!showNewChat && (
-        <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
+        <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto overflow-y-hidden min-w-0 bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
           <button
             onClick={() => { setFilterPill("all"); setConversationTab("all"); }}
             className={cn(
@@ -656,7 +845,7 @@ export function ConversationSidebar({
       {/* Conversation List or Search Results */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+        className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {isSearchMode ? (
@@ -742,7 +931,7 @@ export function ConversationSidebar({
                   "border-b border-[#f0f2f5] dark:border-[#222d34]"
                 )}
               >
-                <Archive className="h-5 w-5 flex-shrink-0 text-[#54656f] dark:text-[#8696a0]" strokeWidth={1.5} />
+                <RiInboxArchiveLine className="h-10 w-5 flex-shrink-0 text-[#54656f] dark:text-[#8696a0]" strokeWidth={0.3} />
                 <span className="flex-1 text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">Archived</span>
                 {archivedUnreadCount > 0 && (
                   <span className="text-[14px] text-[#667781] dark:text-[#8696a0] tabular-nums">{archivedUnreadCount}</span>
@@ -797,7 +986,7 @@ export function ConversationSidebar({
           </>
         )}
       </div>
-
+      </div>
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { MessageComposer } from "./components/MessageComposer";
 import { RetargetPanel } from "./components/RetargetPanel";
 import { AddGuestModal } from "./components/AddGuestModal";
 import { ForwardDialog } from "./components/ForwardDialog";
+import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
 
 export default function WhatsAppChat() {
@@ -128,6 +129,10 @@ export default function WhatsAppChat() {
   const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [messagesToForward, setMessagesToForward] = useState<string[]>([]);
   const [forwardingMessages, setForwardingMessages] = useState(false);
+  
+  // Lead Transfer Dialog state
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [transferringLead, setTransferringLead] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [newCountryCode, setNewCountryCode] = useState("91"); // Default to India
@@ -139,9 +144,7 @@ export default function WhatsAppChat() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
-    null
-  );
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [locations, setLocations] = useState<string[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -1279,19 +1282,19 @@ export default function WhatsAppChat() {
     }
   };
 
-  const selectConversation = (conversation: Conversation) => {
+  const selectConversation = (conversation: Conversation | null) => {
     setSelectedConversation(conversation);
     setReplyToMessage(null); // Clear any pending reply when switching conversations
-    fetchMessages(conversation._id, true);
     
-    // Navigate to chat view on mobile
-    if (isMobile) {
-      navigateToChat();
-    }
-    
-    // CRITICAL: Mark conversation as read in ConversationReadState
-    // This updates the per-user read state so notifications stop for this user
-    if (conversation._id) {
+    if (conversation) {
+      fetchMessages(conversation._id, true);
+      
+      // Navigate to chat view on mobile
+      if (isMobile) {
+        navigateToChat();
+      }
+      // CRITICAL: Mark conversation as read in ConversationReadState
+      // This updates the per-user read state so notifications stop for this user
       axios.post("/api/whatsapp/conversations/read", {
         conversationId: conversation._id,
       })
@@ -1305,20 +1308,31 @@ export default function WhatsAppChat() {
         }
       });
       updateLocalLastReadAt(conversation._id);
+      
+      // Reset unread count locally
+      setConversations((prev) => {
+        const updated = prev.map((c) =>
+          c._id === conversation._id ? { ...c, unreadCount: 0 } : c
+        );
+        
+        // Update total unread count in real-time (socket-based)
+        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+        setTotalUnreadCount(newTotalUnread);
+        
+        return updated;
+      });
+      
+      // Update URL with conversation ID for deep linking
+      router.push(`/whatsapp?conversation=${conversation._id}`, { scroll: false });
+    } else {
+      // Navigate back to sidebar on mobile when clearing selection
+      if (isMobile) {
+        setMobileView("conversations");
+      }
+      
+      // Clear URL when no conversation selected
+      router.push("/whatsapp", { scroll: false });
     }
-    
-    // Reset unread count locally
-    setConversations((prev) => {
-      const updated = prev.map((c) =>
-        c._id === conversation._id ? { ...c, unreadCount: 0 } : c
-      );
-      
-      // Update total unread count in real-time (socket-based)
-      const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-      setTotalUnreadCount(newTotalUnread);
-      
-      return updated;
-    });
   };
 
   const handleGuestAdded = async (conversationId: string, conversation?: Conversation) => {
@@ -2186,6 +2200,57 @@ export default function WhatsAppChat() {
     }
   };
 
+  const handleTransferLead = async (targetPhoneId: string) => {
+    if (!selectedConversation) return;
+
+    setTransferringLead(true);
+    const transferredConversationId = selectedConversation._id;
+    
+    try {
+      const response = await axios.post("/api/whatsapp/conversations/transfer", {
+        conversationId: selectedConversation._id,
+        targetPhoneId,
+      });
+
+      if (response.data.success) {
+        toast({
+          title: "Lead Transferred",
+          description: `Conversation transferred successfully. ${response.data.messagesTransferred} message(s) moved.`,
+        });
+        
+        // Refresh conversations to reflect the transfer
+        await fetchConversations(true);
+        
+        // Find and select the transferred/merged conversation
+        const finalConversationId = response.data.conversationId;
+        const finalConv = conversations.find(
+          (c) => c._id === finalConversationId
+        );
+        
+        if (finalConv) {
+          selectConversation(finalConv);
+          // Also refresh messages for the new conversation
+          await fetchMessages(finalConv._id);
+        } else {
+          // If conversation not found in current list, it might be in a different phone's list
+          // Clear selection and let user navigate manually
+          selectConversation(null);
+        }
+      } else {
+        throw new Error(response.data.error || "Failed to transfer conversation");
+      }
+    } catch (error: any) {
+      console.error("Transfer error:", error);
+      toast({
+        title: "Transfer Failed",
+        description: error.response?.data?.error || "Failed to transfer conversation",
+        variant: "destructive",
+      });
+    } finally {
+      setTransferringLead(false);
+    }
+  };
+
   // Handle drag & drop file upload
   useEffect(() => {
     const handleFileDropped = async (event: Event) => {
@@ -3042,6 +3107,8 @@ export default function WhatsAppChat() {
               className={cn(
                 // Base: Flex column layout
                 "flex flex-col bg-[#efeae2] dark:bg-[#0b141a]",
+                // Background: light and dark mode images
+                "bg-[url(/whatsapp-background.png)] dark:bg-[url(/whatsapp-background-dark.png)] bg-contain bg-center bg-repeat",
                 // Mobile: Full screen overlay when chat is open
                 isMobile ? (
                   mobileView === "chat" ? "absolute inset-0 z-10 w-full h-full max-w-full" : "hidden"
@@ -3051,12 +3118,6 @@ export default function WhatsAppChat() {
                 // Transition for smooth view changes
                 "transition-all duration-200 ease-out"
               )}
-              style={{
-                backgroundImage: "url(/whatsapp-background.png)",
-                backgroundSize: "contain",
-                backgroundPosition: "center",
-                backgroundRepeat: "repeat",
-              }}
             >
               {selectedConversation ? (
                 <>
@@ -3090,6 +3151,9 @@ export default function WhatsAppChat() {
                     currentUserId={token?.id || (token as any)?._id}
                     onBack={handleMobileBack}
                     isMobile={isMobile}
+                    availablePhoneConfigs={allowedPhoneConfigs}
+                    currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
+                    onTransferLead={() => setShowTransferDialog(true)}
                   />
 
                   <MessageList
@@ -3167,7 +3231,7 @@ export default function WhatsAppChat() {
                         <rect fill="#25d366" x="128" y="33" width="64" height="10" rx="5"/>
                         <rect fill="#fff" x="128" y="54" width="54" height="8" rx="4" className="dark:fill-[#e9edef]"/>
                         <rect fill="#fff" x="128" y="68" width="40" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <rect fill="#fff" x="128" y="86" width="60" height="8" rx="4" className="dark:fill-[#e9edef]"/>
+                        <rect fill="#fff" x="128" y="86" width="60" height="8" rx="4" className="dark:fill-[#e9edef]"/> 
                         <rect fill="#fff" x="128" y="100" width="45" height="8" rx="4" className="dark:fill-[#e9edef]"/>
                         <rect fill="#fff" x="128" y="118" width="55" height="8" rx="4" className="dark:fill-[#e9edef]"/>
                         <rect fill="#fff" x="128" y="132" width="35" height="8" rx="4" className="dark:fill-[#e9edef]"/>
@@ -3296,6 +3360,16 @@ export default function WhatsAppChat() {
         selectedMessageCount={messagesToForward.length}
         conversations={conversations}
         loading={forwardingMessages}
+      />
+
+      <LeadTransferDialog
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        conversation={selectedConversation}
+        currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
+        availablePhoneConfigs={allowedPhoneConfigs}
+        onTransfer={handleTransferLead}
+        loading={transferringLead}
       />
     </div>
   );

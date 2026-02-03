@@ -17,6 +17,7 @@ import {
   X,
   ExternalLink,
   ArrowLeft,
+  Radio,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Conversation } from "../types";
+import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { getRemainingHours } from "../utils";
 import { cn } from "@/lib/utils";
 import axios from "axios";
@@ -58,6 +60,10 @@ interface ChatHeaderProps {
   currentUserId?: string | null;
   onBack?: () => void;
   isMobile?: boolean;
+  // Lead transfer props
+  availablePhoneConfigs?: WhatsAppPhoneConfig[];
+  currentPhoneId?: string | null;
+  onTransferLead?: () => void;
 }
 
 interface Reader {
@@ -89,6 +95,9 @@ export const ChatHeader = memo(function ChatHeader({
   currentUserId,
   onBack,
   isMobile = false,
+  availablePhoneConfigs = [],
+  currentPhoneId,
+  onTransferLead,
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [readers, setReaders] = useState<Reader[]>([]);
@@ -295,6 +304,23 @@ export const ChatHeader = memo(function ChatHeader({
 
         {/* Actions - Responsive touch targets */}
         <div className="flex items-center gap-0 md:gap-1 flex-shrink-0">
+          {/* Lead Transfer (Antenna) icon - Hidden on mobile to save space */}
+          {onTransferLead && availablePhoneConfigs.length > 1 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onTransferLead}
+              className={cn(
+                "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                // Hide on mobile, show on tablet+
+                "hidden md:flex",
+                "md:h-10 md:w-10"
+              )}
+            >
+              <Radio className="h-5 w-5" />
+            </Button>
+          )}
+
           {/* Video/Audio call buttons - Hidden on mobile to save space */}
           {callPermissions.canMakeVideoCalls && (
             <Button

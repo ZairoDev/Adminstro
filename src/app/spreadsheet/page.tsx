@@ -97,7 +97,7 @@ const Spreadsheet = () => {
 
   const handleAvailabilityChange = () => {
     getData(selectedTab, page, undefined, limit);
-    getCounts();
+    getCounts(filters as FiltersInterfaces);
   };
 
   const prevFiltersRef = useRef<string>("");

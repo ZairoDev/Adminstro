@@ -178,7 +178,7 @@ export const MediaSendPreview = memo(function MediaSendPreview({
         className
       )}
     >
-      <div className="px-4 py-3">
+      <div className="px-2 py-2 ">
         <div className="bg-white dark:bg-[#202c33] rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-[#111b21] dark:text-[#e9edef]">
@@ -199,7 +199,7 @@ export const MediaSendPreview = memo(function MediaSendPreview({
             </button>
           </div>
 
-          <div className="flex items-center justify-center mb-3">
+          <div className="flex items-center justify-center mb-3 ">
             <div className="w-full max-w-[420px] max-h-[50vh] flex items-center justify-center">
               {currentFile.type === "image" && (
                 <img
@@ -239,14 +239,14 @@ export const MediaSendPreview = memo(function MediaSendPreview({
           </div>
 
           {files.length > 1 && (
-            <div className="mb-3">
-              <div className="flex gap-2 overflow-x-auto pb-2 justify-center scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]">
+            <div className="mb-3 pb-2 ">
+              <div className="flex gap-2 overflow-x-auto h-20 p-2  justify-center scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]">
                 {files.map((media, index) => (
                   <button
                     key={media.id}
                     onClick={() => setSelectedIndex(index)}
                     className={cn(
-                      "relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden transition-all",
+                      "relative flex-shrink-0 w-16 h-full rounded-lg overflow-hidden transition-all",
                       index === selectedIndex
                         ? "ring-2 ring-[#25d366] ring-offset-2 ring-offset-white dark:ring-offset-[#202c33]"
                         : "opacity-60 hover:opacity-100"
@@ -282,9 +282,9 @@ export const MediaSendPreview = memo(function MediaSendPreview({
                         e.stopPropagation();
                         handleRemoveFile(media.id);
                       }}
-                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
+                      className="absolute top-0 right-0 w-5 h-5 z-20 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-2 border-white dark:border-[#202c33] hover:bg-red-600 transition-colors p-0"
                     >
-                      <X className="h-2.5 w-2.5 text-white" />
+                      <X className="h-3 w-3 text-white m-0" />
                     </button>
                   </button>
                 ))}

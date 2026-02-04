@@ -8,6 +8,8 @@ import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
 
+export const dynamic = "force-dynamic";
+
 // Valid agreement types that can be re-signed
 const AGREEMENT_TYPES = ["training", "onboarding"] as const;
 

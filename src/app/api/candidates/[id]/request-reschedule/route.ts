@@ -3,6 +3,8 @@ import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 // Candidate submits a reschedule request
 export async function POST(
   request: NextRequest,

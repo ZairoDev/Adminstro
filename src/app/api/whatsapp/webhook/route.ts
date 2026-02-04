@@ -11,7 +11,8 @@ import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversatio
 import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 import crypto from "crypto";
 
-// Ensure database connection
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 // Per-conversation emit debounce (prevents burst-spam)

@@ -363,62 +363,46 @@ export function SystemNotificationToast({
   const updateVisibleNotificationsInternal = useCallback(() => {
     const now = Date.now();
 
-    console.log("🔄 UPDATE_VISIBLE_NOTIFICATIONS CALLED:", {
-      timestamp: new Date().toISOString(),
-      queueSize: (queueEngineRef.current as any).queue?.length || 0,
-      currentVisibleCount: visibleNotifications.length,
-      dismissedCount: dismissed.size,
-      mutedCount: muted.size,
-    });
-
-    // Auto-dismiss notifications that have been inactive for 6 seconds
+    // Auto-dismiss notifications that have been inactive (only side effect before comparing)
     const currentVisible = queueEngineRef.current.getVisible();
     currentVisible.forEach((notification) => {
       const notificationId = notification.id;
       const lastInteraction = lastInteractionRef.current.get(notificationId) || notification.timestamp.getTime();
       const inactiveTime = now - lastInteraction;
-      
-      // If inactive for 20+ seconds and not critical, auto-dismiss
       if (inactiveTime >= INACTIVITY_DISMISS_MS && !notification.isCritical) {
-        console.log(`⏰ [AUTO-DISMISS] Notification ${notificationId} inactive for ${Math.round(inactiveTime / 1000)}s, auto-dismissing`);
         handleDismiss(notificationId);
       }
     });
-    
-    // Update visible notifications from queue
+
     const visible = queueEngineRef.current.updateVisible(dismissed, muted);
 
-    console.log("👀 VISIBLE NOTIFICATIONS COMPUTED:", {
-      count: visible.length,
-      ids: visible.map((n) => n.id),
-      willUpdate:
-        visible.length !== visibleNotifications.length ||
-        visible.some((n, i) => n.id !== visibleNotifications[i]?.id),
-    });
-    
+    // Skip re-processing and state update when nothing changed
+    const same =
+      visible.length === visibleNotifications.length &&
+      visible.every((n, i) => n.id === visibleNotifications[i]?.id);
+    if (same) return;
+
     // Initialize interaction time for new notifications
     visible.forEach((n) => {
       if (!lastInteractionRef.current.has(n.id)) {
         lastInteractionRef.current.set(n.id, n.timestamp.getTime());
       }
     });
-    
-    // Check for updated notifications (grouped WhatsApp messages with incremented count)
+
     const updated = new Set<string>();
     visible.forEach((n) => {
       const existing = visibleNotifications.find(
         (existing) => existing.id === n.id || existing.groupKey === n.groupKey
       );
       if (existing) {
-        const existingCount = existing.metadata?.messageCount || 
-                             existing.metadata?.groupedMessages?.length || 
+        const existingCount = existing.metadata?.messageCount ||
+                             existing.metadata?.groupedMessages?.length ||
                              1;
-        const newCount = n.metadata?.groupedMessages?.length || n.metadata?.messageCount || 
-                        n.metadata?.groupedMessages?.length || 
+        const newCount = n.metadata?.groupedMessages?.length || n.metadata?.messageCount ||
+                        n.metadata?.groupedMessages?.length ||
                         1;
         if (newCount > existingCount) {
           updated.add(n.id);
-          // Clear the pulse animation after 2 seconds
           setTimeout(() => {
             setUpdatedNotifications((prev) => {
               const next = new Set(prev);
@@ -430,7 +414,6 @@ export function SystemNotificationToast({
       }
     });
 
-    // FIX 4: Batch state updates (prevents multiple renders)
     unstable_batchedUpdates(() => {
       setUpdatedNotifications((prev) => {
         const combined = new Set(prev);
@@ -440,12 +423,9 @@ export function SystemNotificationToast({
       setVisibleNotifications(visible);
     });
 
-    // Log rendered notifications
     visible.forEach((n) => {
       loggerRef.current.log(n.id, n.source, "rendered");
     });
-
-    console.log("✨ STATE UPDATED, visible count:", visible.length);
   }, [dismissed, muted, visibleNotifications]);
 
   const clearConversationNotifications = useCallback(
@@ -1496,10 +1476,6 @@ export function SystemNotificationToast({
   );
 
   if (visibleNotifications.length === 0) {
-    console.log("🚫 NO NOTIFICATIONS TO SHOW", {
-      dismissedCount: dismissed.size,
-      mutedCount: muted.size,
-    });
     return null;
   }
 

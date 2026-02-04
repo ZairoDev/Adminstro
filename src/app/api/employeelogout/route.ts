@@ -4,6 +4,8 @@ import type { NextRequest, NextResponse as ResponseType } from "next/server";
 import jwt from "jsonwebtoken";
 import Employees from "@/models/employee";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 export async function GET(request: NextRequest): Promise<ResponseType> {

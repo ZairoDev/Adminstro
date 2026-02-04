@@ -8,6 +8,8 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 /**

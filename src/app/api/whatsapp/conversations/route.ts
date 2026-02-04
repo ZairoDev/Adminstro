@@ -17,6 +17,8 @@ import {
 } from "@/lib/whatsapp/config";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 

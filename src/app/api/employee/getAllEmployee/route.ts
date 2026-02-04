@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
+
+export const dynamic = "force-dynamic";
 
 connectDb();
 

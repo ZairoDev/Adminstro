@@ -6,6 +6,8 @@ import { WarningType } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
 
+export const dynamic = "force-dynamic";
+
 // Send warning email and store in database
 export async function POST(request: NextRequest) {
   try {

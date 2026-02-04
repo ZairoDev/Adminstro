@@ -39,7 +39,10 @@ import {
   AtSign,
   Calendar,
   Languages,
+  MapPin,
+  Pencil,
 } from "lucide-react";
+import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogTitle,
@@ -1050,11 +1053,17 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         </div>
       ) : (
         <div className="m-auto">
-          <div className="mb-1">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
             <Heading
               heading="Employee Details"
               subheading="You can generate a new password for the employee"
             />
+            <Link href={`/dashboard/editemployeedetails/${userId}`}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Pencil className="h-4 w-4" />
+                Edit profile
+              </Button>
+            </Link>
           </div>
           <Card className=" bg-background ">
             <CardHeader className="flex flex-row items-center gap-4">
@@ -1176,6 +1185,36 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   label="Verified"
                   value={user?.isVerified ? "Yes" : "No"}
                 />
+                {user?.allotedArea != null &&
+                  (Array.isArray(user.allotedArea)
+                    ? user.allotedArea.length > 0
+                    : String(user.allotedArea).trim() !== "") && (
+                  <div className="flex items-start gap-3 rounded-lg border p-4 md:col-span-2">
+                    <div className="h-8 w-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 min-w-0">
+                      <p className="text-sm text-muted-foreground">Alloted areas</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(
+                          Array.isArray(user.allotedArea)
+                            ? user.allotedArea
+                            : [user.allotedArea]
+                        )
+                          .filter(Boolean)
+                          .map((area: string) => (
+                            <Badge
+                              key={area}
+                              variant="secondary"
+                              className="font-normal"
+                            >
+                              {area}
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

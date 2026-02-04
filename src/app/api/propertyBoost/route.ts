@@ -4,6 +4,8 @@ import { Boosters } from "@/models/propertyBooster";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 
+export const dynamic = "force-dynamic";
+
 // POST: Create a new property
 export async function POST(req: Request) {
   try {

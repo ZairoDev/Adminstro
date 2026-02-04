@@ -4,6 +4,8 @@ import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const token = await getDataFromToken(req) as any;

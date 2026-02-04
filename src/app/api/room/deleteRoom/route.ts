@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import Rooms from "@/models/room";
+
+export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest) {
   const roomId = await req.nextUrl.searchParams.get("roomId");

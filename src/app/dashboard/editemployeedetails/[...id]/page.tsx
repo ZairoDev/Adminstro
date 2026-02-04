@@ -13,12 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChipMultiSelect } from "@/components/ui/chip-multi-select";
 import PhoneInput from "react-phone-number-input";
 
 import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
-import { set } from "mongoose";
 
 interface PageProps {
   params: {
@@ -85,7 +85,14 @@ const AccountPage = ({ params }: PageProps) => {
         setCountry(response.data.data.country || " ");
         setAlias(response.data.data.alias || " ");
         setAssignedTo(response.data.data.assignedCountry || " ");
-        setAllotedArea(response.data.data.allotedArea || " ");
+        const raw = response.data.data.allotedArea;
+        setAllotedArea(
+          Array.isArray(raw)
+            ? raw.filter((a: string) => a != null && String(a).trim() !== "")
+            : raw
+            ? [String(raw)]
+            : []
+        );
         setSalary(response.data.data.salary || " ");
         setEmpType(response.data.data.empType || " ");
         setDuration(response.data.data.duration || " ");
@@ -389,23 +396,13 @@ const AccountPage = ({ params }: PageProps) => {
           </div>
 
           <div className="w-full">
-            <Label>Alloted Area</Label>
-            <Select
-              onValueChange={(value) =>
-                setAllotedArea((prev) => [...prev, value])
-              }
-            >
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Select employment type" />
-              </SelectTrigger>
-              <SelectContent>
-                {city.map((country: string) => (
-                  <SelectItem key={country} value={country}>
-                    {country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ChipMultiSelect
+              label="Alloted Area"
+              options={city}
+              value={allotedArea.map(String)}
+              onChange={(vals) => setAllotedArea(vals)}
+              placeholder="Add location..."
+            />
           </div>
         </div>
 

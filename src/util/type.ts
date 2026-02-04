@@ -86,6 +86,7 @@ export interface EmployeeInterface {
   lastLogin?: string;
   lastLogout?: string;
   role: [string];
+  allotedArea?: string | string[];
   createdAt: string;
   updatedAt: string;
   warnings?: WarningRecord[];

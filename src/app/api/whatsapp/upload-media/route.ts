@@ -9,6 +9,8 @@ import {
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 /**

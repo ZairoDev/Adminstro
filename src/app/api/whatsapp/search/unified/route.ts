@@ -5,9 +5,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
+
+export const dynamic = "force-dynamic";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { normalizePhoneNumber, isPhoneQuery } from "@/lib/whatsapp/searchUtils";
 import {

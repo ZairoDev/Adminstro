@@ -2,6 +2,8 @@ import Users from "@/models/user";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 const PAGE_SIZE = 20;

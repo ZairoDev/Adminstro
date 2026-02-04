@@ -5,6 +5,8 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 /**

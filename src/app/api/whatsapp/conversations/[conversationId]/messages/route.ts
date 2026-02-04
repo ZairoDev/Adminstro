@@ -4,6 +4,8 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 
+export const dynamic = "force-dynamic";
+
 connectDb();
 
 // Helper to extract display text from content object

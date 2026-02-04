@@ -1,33 +1,24 @@
 "use client";
-import React, { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { CiViewColumn } from "react-icons/ci";
-import { Input } from "@/components/ui/input";
-import { useTransitionRouter } from "next-view-transitions";
+import React, { useEffect, useRef, useMemo } from "react";
+import Link from "next/link";
 import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+  ColumnDef,
+  flexRender,
+  SortingState,
+  VisibilityState,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { Plus, Search, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ColumnDef,
-  flexRender,
-  SortingState,
-  ColumnFiltersState,
-  VisibilityState,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -36,8 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
-import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
@@ -45,199 +34,126 @@ import Heading from "@/components/Heading";
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
   data: UserInterface[];
-  setPage: React.Dispatch<React.SetStateAction<number>>;
-  setSearch: React.Dispatch<React.SetStateAction<string>>;
-  setQueryType: React.Dispatch<React.SetStateAction<string>>;
   search: string;
-  queryType: string;
+  setSearch: (value: string) => void;
   currentPage: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
   totalPages: number;
-  totalUser: number;
+  totalUsers: number;
   loading: boolean;
 }
+
+const PAGE_SIZE = 20;
 
 export function DataTable({
   columns,
   data,
-  setPage,
-  setSearch,
-  setQueryType,
   search,
-  queryType,
+  setSearch,
   currentPage,
+  setPage,
   totalPages,
-  totalUser,
-  loading, // Destructure loading prop
+  totalUsers,
+  loading,
 }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const serialNumberColumn: ColumnDef<UserInterface, any> = {
+  const serialCol: ColumnDef<UserInterface, any> = useMemo(() => ({
+    id: "serial",
     header: "S.No.",
-    cell: ({ row }) => {
-      const serialNumber =
-        (currentPage - 1) * table.getState().pagination.pageSize +
-        row.index +
-        1;
-      return serialNumber;
-    },
-  };
+    cell: ({ row }) => (currentPage - 1) * PAGE_SIZE + row.index + 1,
+  }), [currentPage]);
 
-  const router = useTransitionRouter();
   const table = useReactTable({
     data,
-    columns: [serialNumberColumn, ...columns],
+    columns: [serialCol, ...columns],
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
+    state: { sorting, columnVisibility },
   });
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === "j") {
-        event.preventDefault();
-        searchInputRef.current?.focus();
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
       }
     };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const startItem = totalUsers === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * PAGE_SIZE, totalUsers);
+
   return (
-    <>
-      <Heading
-        heading="All users"
-        subheading="You will get the list of all users here"
-      />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-x-2 mb-2">
-          <div>
-            <Select
-              value={queryType}
-              onValueChange={(value) => setQueryType(value)}
-            >
-              <SelectTrigger>
-                <span>{queryType}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-full items-center ">
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-              }}
-              className="max-w-xl"
-              ref={searchInputRef}
-            />
-          </div>
-          <div>
-            <Link
-              className="flex items-center justify-center gap-x-2"
-              href="/dashboard/createnewuser"
-            >
-              <Button className="w-full sm:flex items-center gap-x-1 hidden">
-                Add user <Plus size={16} />
-              </Button>
-            </Link>
-            <Link
-              className="flex items-center justify-center gap-x-2"
-              href="/dashboard/createnewuser"
-            >
-              <Button
-                onClick={() => {
-                  router.push("/dashboard/createnewuser");
-                }}
-                className="sm:hidden"
-              >
-                Add User
-                <Plus size={18} />
-              </Button>
-            </Link>
-          </div>
+    <div className="space-y-4">
+      <Heading heading="All Users" subheading="Manage and view all registered users" />
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            placeholder="Search by name, email or phone... (Ctrl+K)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4"
+          />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="ml-auto hidden sm:block"
-              >
-                Column
+
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Columns3 className="h-4 w-4 mr-2" /> Columns
               </Button>
-              <Button variant="secondary" className="ml-auto mb-2 sm:hidden">
-                <CiViewColumn size={18} />
-              </Button>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {table.getAllColumns().filter((c) => c.getCanHide()).map((column) => (
                 <DropdownMenuCheckboxItem
                   key={column.id}
-                  className="capitalize"
                   checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                  onCheckedChange={(v) => column.toggleVisibility(!!v)}
+                  className="capitalize"
                 >
                   {column.id}
                 </DropdownMenuCheckboxItem>
               ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Link href="/dashboard/createnewuser">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Add User
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border bg-card">
         {loading ? (
-          <div className="text-center py-4 h-screen flex  justify-center">
+          <div className="flex items-center justify-center h-96">
             <Loader />
           </div>
         ) : data.length === 0 ? (
-          <div className="text-center py-4 h-screen flex items-center justify-center">
-            No results.
+          <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
+            <Search className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-lg font-medium">No users found</p>
+            <p className="text-sm">Try adjusting your search</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((h) => (
+                    <TableHead key={h.id}>
+                      {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -245,16 +161,10 @@ export function DataTable({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} className="hover:bg-muted/50">
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -263,35 +173,36 @@ export function DataTable({
           </Table>
         )}
       </div>
-      <div className="flex items-center justify-between">
-        <div className="ml-1 text-xs">
-          <p>
-            Page {currentPage} out of {totalPages}
-          </p>
-          <p>
-            Total user <span className="text-primary">{totalUser}</span>{" "}
-          </p>
-        </div>
-        <div className="flex items-center justify-end space-x-2 py-4">
+
+      <div className="flex items-center justify-between text-sm">
+        <p className="text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{startItem}-{endItem}</span> of{" "}
+          <span className="font-medium text-foreground">{totalUsers}</span> users
+        </p>
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
           >
-            Previous
+            <ChevronLeft className="h-4 w-4" />
           </Button>
+          <span className="px-3 text-muted-foreground">
+            {currentPage} / {totalPages}
+          </span>
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => setPage((prev) => prev + 1)}
-            disabled={!table.getCanNextPage()}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={currentPage >= totalPages}
           >
-            Next
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
-  

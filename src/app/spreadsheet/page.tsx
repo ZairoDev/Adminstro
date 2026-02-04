@@ -100,50 +100,40 @@ const Spreadsheet = () => {
     getCounts();
   };
 
-  useEffect(() => {
-    setPage(1);
-    getData(selectedTab, 1, filters, limit);
-  }, [selectedTab, limit, filters]);
+  const prevFiltersRef = useRef<string>("");
+  const isMountedRef = useRef(false);
 
-  useEffect(() => {
-    if (page > 1 || page === 1) {
-      getData(selectedTab, page, undefined, limit);
-    }
-  }, [page]);
-
-  const getCounts = async () => {
+  const getCounts = async (appliedFilters: FiltersInterfaces) => {
     try {
-      let effectiveFilters = { ...filters };
+      let effectiveFilters = { ...appliedFilters };
       if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-        effectiveFilters = {
-          ...effectiveFilters,
-          place: parsedAllocations,
-        };
+        effectiveFilters.place = parsedAllocations;
       }
-
-      const [availRes, notAvailRes] = await Promise.all([
-        axios.post("/api/unregisteredOwners/getAvailableList", {
-          filters: effectiveFilters,
-          page: 1,
-          limit: 1, // only need total
-        }),
-        axios.post("/api/unregisteredOwners/getNotAvailableList", {
-          filters: effectiveFilters,
-          page: 1,
-          limit: 1,
-        }),
-      ]);
-
-      setAvailableCount(availRes.data.total || 0);
-      setNotAvailableCount(notAvailRes.data.total || 0);
+      const response = await axios.post("/api/unregisteredOwners/getCounts", {
+        filters: effectiveFilters,
+      });
+      setAvailableCount(response.data.availableCount || 0);
+      setNotAvailableCount(response.data.notAvailableCount || 0);
     } catch (error) {
       console.error("Failed to fetch counts:", error);
     }
   };
 
   useEffect(() => {
-    getCounts();
-  }, [filters, parsedAllocations]);
+    const filtersKey = JSON.stringify({ selectedTab, limit, filters });
+    if (prevFiltersRef.current === filtersKey && isMountedRef.current) return;
+    prevFiltersRef.current = filtersKey;
+    isMountedRef.current = true;
+    setPage(1);
+    getData(selectedTab, 1, filters, limit);
+    getCounts(filters);
+  }, [selectedTab, limit, filters]);
+
+  useEffect(() => {
+    if (page > 1) {
+      getData(selectedTab, page, filters, limit);
+    }
+  }, [page]);
 
   const serialOffset = (page - 1) * limit;
 

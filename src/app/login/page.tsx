@@ -47,10 +47,6 @@ const PageLogin: React.FC = () => {
     }
   }, [router]);
 
-  useEffect(() => {
-    router.refresh();
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoggingIn(true);

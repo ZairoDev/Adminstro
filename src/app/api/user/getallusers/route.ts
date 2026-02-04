@@ -4,74 +4,71 @@ import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
 
-interface UserQuery {
-  [key: string]: RegExp;
-}
+const PAGE_SIZE = 20;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const currentPage =
-    Number(request.nextUrl.searchParams.get("currentPage")) || 1;
-  const queryType = request.nextUrl.searchParams.get("queryType");
-  let userInput = request.nextUrl.searchParams.get("userInput");
-
-  if (userInput) {
-    userInput = userInput.trim();
-  }
-
-  const query: UserQuery = {};
-  const validQueryTypes = ["name", "email", "phone"];
-
-  if (queryType && validQueryTypes.includes(queryType)) {
-    if (userInput) {
-      const regex = new RegExp(userInput, "i");
-      query[queryType] = regex;
-    }
-  }
-
-  const skip = (currentPage - 1) * 20;
-
   try {
-    const allUsers = await Users.aggregate([
-      { $match: query },
+    const searchParams = request.nextUrl.searchParams;
+    const page = Math.max(1, Number(searchParams.get("page")) || 1);
+    const search = (searchParams.get("search") || "").trim();
+    const skip = (page - 1) * PAGE_SIZE;
 
-      // Lookup from properties (first source)
-      {
-        $lookup: {
-          from: "properties",
-          let: { userIdStr: { $toString: "$_id" } },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$userId", "$$userIdStr"] } } },
-            { $project: { _id: 1, VSID: 1 } }, // keep both
-          ],
-          as: "vsids",
+    const query: any = {};
+
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+      query.$or = [
+        { name: regex },
+        { email: regex },
+        { phone: regex },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      Users.aggregate([
+        { $match: query },
+        { $sort: { _id: -1 } },
+        { $skip: skip },
+        { $limit: PAGE_SIZE },
+        {
+          $lookup: {
+            from: "properties",
+            let: { uid: { $toString: "$_id" } },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+              { $project: { VSID: 1 } },
+            ],
+            as: "vsids",
+          },
         },
-      },
-
-      // Lookup from listings (old vsid)
-      {
-        $lookup: {
-          from: "listings",
-          let: { userIdStr: { $toString: "$_id" } },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$userId", "$$userIdStr"] } } },
-            { $project: { _id: 1, VSID: 1 } },
-          ],
-          as: "vsids2",
+        {
+          $lookup: {
+            from: "listings",
+            let: { uid: { $toString: "$_id" } },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+              { $project: { VSID: 1 } },
+            ],
+            as: "vsids2",
+          },
         },
-      },
-
-      { $sort: { _id: -1 } },
-      { $skip: skip },
-      { $limit: 20 },
+      ]),
+      Users.countDocuments(query),
     ]);
-    // console.log("Fetched users with VSIDs:", allUsers);
-    const totalUsers = await Users.countDocuments(query);
 
-    return NextResponse.json({ allUsers, totalUsers });
+    return NextResponse.json({
+      success: true,
+      users,
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+      totalPages: Math.ceil(total / PAGE_SIZE) || 1,
+    });
   } catch (error) {
-    console.error("Error fetching users with VSIDs:", error);
+    console.error("getallusers error:", error);
     return NextResponse.json(
-      { message: "Failed to fetch users" },
+      { success: false, error: "Failed to fetch users" },
       { status: 500 }
     );
   }

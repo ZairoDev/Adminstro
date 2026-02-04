@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
+import { MediaPopup } from "./MediaPopup";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -378,6 +379,7 @@ export function ConversationSidebar({
   const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -581,7 +583,10 @@ export function ConversationSidebar({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
+              <button
+                onClick={() => setShowMediaPopup(true)}
+                className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors"
+              >
                 <Images className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
               </button>
             </TooltipTrigger>
@@ -987,6 +992,14 @@ export function ConversationSidebar({
         )}
       </div>
       </div>
+
+      {/* Media Popup */}
+      <MediaPopup
+        open={showMediaPopup}
+        onClose={() => setShowMediaPopup(false)}
+        conversation={selectedConversation}
+        phoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : undefined}
+      />
     </div>
   );
 }

@@ -284,10 +284,10 @@ export const MediaSendPreview = memo(function MediaSendPreview({
                       }}
                       className="absolute top-0 right-0 w-5 h-5 z-20 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-2 border-white dark:border-[#202c33] hover:bg-red-600 transition-colors p-0"
                     >
-                      <X className="h-3 w-3 text-white m-0" />
+        <X className="h-3 w-3 text-white m-0" />
                     </button>
                   </button>
-                ))}
+                ))} 
                 {canAddMore && !isSending && (
                   <button
                     onClick={onAddMore}

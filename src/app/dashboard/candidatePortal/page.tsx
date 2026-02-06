@@ -130,6 +130,7 @@ const ROLE_OPTIONS = [
   "Sales",
   "Marketing",
   "HR",
+  "Product Data Executive",
 ];
 
 interface PaginationData {

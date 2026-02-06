@@ -4,6 +4,7 @@ export const ROLE_OPTIONS = [
   "Sales",
   "Marketing",
   "HR",
+  "Product Data Executive",
 ] as const;
 
 export const getStatusColor = (status: string) => {

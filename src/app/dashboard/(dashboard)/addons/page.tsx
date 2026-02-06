@@ -17,8 +17,10 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/hooks/use-confirm";
 import { InfinityLoader } from "@/components/Loaders";
+import { Switch } from "@/components/ui/switch";
 import AgentModal from "@/app/dashboard/agents/agent-modal";
 import BrokerModal from "@/app/dashboard/brokers/broker-modal";
+import RoleModal from "@/app/dashboard/roles/role-modal";
 import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
 import { AreaModel } from "../../target/area-model";
@@ -37,6 +39,13 @@ interface BrokerInterface {
   email?: string;
   phone: string;
 }
+
+interface RoleInterface {
+  _id: string;
+  roleName: string;
+  isActive: boolean;
+}
+
 type Area = { name: string; metrolane?: string; zone?: string };
 
 interface TargetInterface {
@@ -57,6 +66,10 @@ const Addons = () => {
   const [brokers, setBrokers] = useState<BrokerInterface[]>([]);
   const [isBrokerLoading, setIsBrokerLoading] = useState(false);
   const [brokerModal, setBrokerModal] = useState(false);
+  const [roles, setRoles] = useState<RoleInterface[]>([]);
+  const [isRoleLoading, setIsRoleLoading] = useState(false);
+  const [roleModal, setRoleModal] = useState(false);
+  const [editRole, setEditRole] = useState<RoleInterface | null>(null);
   const [targetModal, setTargetModal] = useState(false);
   const [targets, setTargets] = useState<TargetInterface[]>([]);
   const [editTarget, setEditTarget] = useState<TargetInterface | null>(null);
@@ -88,6 +101,12 @@ const Addons = () => {
     "destructive"
   );
 
+  const [DeleteRoleDialog, confirmDeleteRole] = useConfirm(
+    "Delete Role",
+    "This action can not be undone",
+    "destructive"
+  );
+
   const getAllAgents = async () => {
     try {
       setIsLoading(true);
@@ -115,6 +134,21 @@ const Addons = () => {
       });
     } finally {
       setIsBrokerLoading(false);
+    }
+  };
+
+  const getAllRoles = async () => {
+    try {
+      setIsRoleLoading(true);
+      const response = await axios.get("/api/addons/roles/getAllRoles");
+      setRoles(response.data.data);
+    } catch (err) {
+      toast({
+        title: "Unable to fetch roles",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRoleLoading(false);
     }
   };
 
@@ -170,6 +204,53 @@ const Addons = () => {
       });
     }
   };
+
+  const deleteRole = async (id: string) => {
+    const ok = await confirmDeleteRole();
+    if (!ok) return;
+    try {
+      await axios.delete("/api/addons/roles/deleteRoleById", {
+        data: { roleId: id },
+      });
+      toast({
+        title: "Role deleted successfully",
+      });
+      setRoles((prev) => prev.filter((role) => role._id !== id));
+    } catch (err) {
+      toast({
+        title: "Unable to delete role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditRole = (role: RoleInterface) => {
+    setEditRole(role);
+    setRoleModal(true);
+  };
+
+  const handleToggleRoleStatus = async (role: RoleInterface) => {
+    try {
+      await axios.patch("/api/addons/roles/updateRoleById", {
+        roleId: role._id,
+        isActive: !role.isActive,
+      });
+      toast({
+        title: `Role ${!role.isActive ? "activated" : "deactivated"} successfully`,
+      });
+      setRoles((prev) =>
+        prev.map((r) =>
+          r._id === role._id ? { ...r, isActive: !r.isActive } : r
+        )
+      );
+    } catch (err: any) {
+      toast({
+        title: "Unable to update role status",
+        variant: "destructive",
+        description: err.response?.data?.error || "An error occurred",
+      });
+    }
+  };
   const deleteTarget = async (id: string) => {
     const ok = await confirmDelete();
     if (!ok) return;
@@ -203,6 +284,7 @@ const Addons = () => {
   useEffect(() => {
     getAllAgents();
     getAllBrokers();
+    getAllRoles();
     getTargets();
   }, []);
 
@@ -222,6 +304,7 @@ const Addons = () => {
     <div className=" px-4">
       <DeleteDialog />
       <DeleteBrokerDialog />
+      <DeleteRoleDialog />
       <h1 className=" text-2xl font-semibold">Add Ons</h1>
 
       {/*Add Agents and Brokers*/}
@@ -310,6 +393,73 @@ const Addons = () => {
               />
             </section>
           </>
+        )}
+
+        {mounted && (token?.role === "SuperAdmin" || token?.role === "HR") && (
+          <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
+            {isRoleLoading ? (
+              <InfinityLoader className=" w-16 h-12" />
+            ) : (
+                <div className=" w-full flex flex-col gap-y-2">
+                  {roles?.map((role, index) => (
+                    <div
+                      key={index}
+                      className=" flex justify-between items-center w-full p-2 border rounded-md gap-2"
+                    >
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <p className="truncate">{role.roleName}</p>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={role.isActive}
+                            onCheckedChange={() => handleToggleRoleStatus(role)}
+                            className="h-4 w-8"
+                          />
+                          <span className={`text-xs ${role.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                            {role.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <EllipsisVertical size={22} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Role Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleEditRole(role)}
+                          >
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => deleteRole(role._id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+            )}
+            <Button className=" w-full" onClick={() => {
+              setEditRole(null);
+              setRoleModal(true);
+            }}>
+              <span className=" font-semibold text-base ">Add Role</span>
+            </Button>
+            <RoleModal 
+              open={roleModal} 
+              onOpenChange={(open) => {
+                setRoleModal(open);
+                if (!open) {
+                  setEditRole(null);
+                }
+              }}
+              getAllRoles={getAllRoles}
+              editRole={editRole}
+            />
+          </section>
         )}
 
 

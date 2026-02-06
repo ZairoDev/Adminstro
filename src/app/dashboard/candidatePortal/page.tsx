@@ -124,14 +124,7 @@ interface Candidate {
   };
 }
 
-const ROLE_OPTIONS = [
-  "Developer",
-  "LeadGen",
-  "Sales",
-  "Marketing",
-  "HR",
-  "Product Data Executive",
-];
+// Roles are now fetched from the database
 
 interface PaginationData {
   total: number;
@@ -201,7 +194,7 @@ function CandidatesPageContent() {
     }
     return "all";
   });
-  const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
   const [unmaskedPhoneId, setUnmaskedPhoneId] = useState<string | null>(null);
   const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] = useState(false);
@@ -294,13 +287,32 @@ function CandidatesPageContent() {
   };
 
   useEffect(() => {
-    // Fetch available roles from API
+    // Fetch available roles from Roles collection (only active roles)
     const fetchRoles = async () => {
       try {
-        const response = await fetch("/api/candidates/positions");
+        const response = await fetch("/api/addons/roles/getAllRoles");
+        if (!response.ok) {
+          console.error("Failed to fetch roles:", response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Error details:", errorData);
+          return;
+        }
         const result = await response.json();
-        if (result.success && result.data.length > 0) {
-          setAvailableRoles(result.data);
+        console.log("Roles API response:", result);
+        
+        // Handle both response formats: { success: true, data: [...] } or { data: [...] }
+        const rolesData = result.success ? result.data : result.data;
+        
+        if (rolesData && Array.isArray(rolesData) && rolesData.length > 0) {
+          // Filter only active roles and extract role names
+          const activeRoles = rolesData
+            .filter((role: { isActive: boolean; roleName: string }) => role.isActive)
+            .map((role: { roleName: string }) => role.roleName)
+            .sort();
+          console.log("Active roles:", activeRoles);
+          setAvailableRoles(activeRoles);
+        } else {
+          console.warn("No roles found or invalid response format:", result);
         }
       } catch (error) {
         console.error("Error fetching roles:", error);
@@ -1805,14 +1817,14 @@ function CandidatesPageContent() {
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                {/* Include current role if not in options */}
+                {/* Include current role if not in available roles */}
                 {selectedCandidate?.position &&
-                  !ROLE_OPTIONS.includes(selectedCandidate.position) && (
+                  !availableRoles.includes(selectedCandidate.position) && (
                     <SelectItem value={selectedCandidate.position}>
                       {selectedCandidate.position} (Current)
                     </SelectItem>
                   )}
-                {ROLE_OPTIONS.map((role) => (
+                {availableRoles.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
                   </SelectItem>

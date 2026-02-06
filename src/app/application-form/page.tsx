@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type React from "react";
 import {
   Briefcase,
@@ -24,7 +24,7 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 
-const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
+// Roles are now fetched from the database
 const colleges = [
   "Select College",
   "Indian Institute of Technology Kanpur (IIT Kanpur)",
@@ -74,6 +74,7 @@ export default function JobApplicationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resume, setResume] = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -85,13 +86,56 @@ export default function JobApplicationForm() {
     country: "",
     college: colleges[0],
     otherCollege: "",
-    position: positions[0],
+    position: "",
     resume: "",
     photo: "",
     coverLetter: "",
     linkedin: "",
     portfolio: "",
   });
+
+  // Fetch available roles from Roles collection (only active roles)
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch("/api/addons/roles/getAllRoles");
+        if (!response.ok) {
+          console.error("Failed to fetch roles:", response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Error details:", errorData);
+          return;
+        }
+        const result = await response.json();
+        console.log("Roles API response:", result);
+        
+        // Handle both response formats: { success: true, data: [...] } or { data: [...] }
+        const rolesData = result.success ? result.data : result.data;
+        
+        if (rolesData && Array.isArray(rolesData) && rolesData.length > 0) {
+          // Filter only active roles and extract role names
+          const activeRoles = rolesData
+            .filter((role: { isActive: boolean; roleName: string }) => role.isActive)
+            .map((role: { roleName: string }) => role.roleName)
+            .sort();
+          console.log("Active roles:", activeRoles);
+          setAvailableRoles(activeRoles);
+        } else {
+          console.warn("No roles found or invalid response format:", result);
+        }
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+      }
+    };
+    
+    fetchRoles();
+  }, []);
+
+  // Set default position when roles are loaded
+  useEffect(() => {
+    if (availableRoles.length > 0 && !formData.position) {
+      setFormData(prev => ({ ...prev, position: availableRoles[0] }));
+    }
+  }, [availableRoles, formData.position]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -431,7 +475,7 @@ export default function JobApplicationForm() {
           country: "",
           college: colleges[0],
           otherCollege: "",
-          position: positions[0],
+          position: availableRoles.length > 0 ? availableRoles[0] : "",
           resume: "",
           photo: "",
           coverLetter: "",
@@ -899,12 +943,17 @@ export default function JobApplicationForm() {
                     value={formData.position}
                     onChange={handleChange}
                     className="w-full bg-input border border-transparent rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    disabled={availableRoles.length === 0}
                   >
-                    {positions.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
-                    ))}
+                    {availableRoles.length === 0 ? (
+                      <option value="">Loading roles...</option>
+                    ) : (
+                      availableRoles.map((pos: string) => (
+                        <option key={pos} value={pos}>
+                          {pos}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

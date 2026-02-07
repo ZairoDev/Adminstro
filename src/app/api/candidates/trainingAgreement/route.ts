@@ -142,20 +142,37 @@ export async function POST(req: NextRequest) {
     const footerSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    // Parse and validate date
+    // Parse and validate date (avoid MM/DD vs DD/MM confusion from en-IN locale)
     let agreementDate: Date;
     try {
-      agreementDate = new Date(data.date);
-      // Check if date is valid
-      if (isNaN(agreementDate.getTime())) {
-        // If invalid, use current date
+      const dateStr = String(data.date || "").trim();
+      if (!dateStr) {
         agreementDate = new Date();
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        // ISO format (YYYY-MM-DD or full ISO) – parse as-is
+        agreementDate = new Date(dateStr);
+        if (isNaN(agreementDate.getTime())) agreementDate = new Date();
+      } else if (/\//.test(dateStr)) {
+        // DD/MM/YYYY (e.g. en-IN toLocaleDateString) – parse explicitly to avoid MM/DD interpretation
+        const parts = dateStr.split("/").map((p) => parseInt(p, 10));
+        if (parts.length >= 3 && parts.every((n) => !isNaN(n))) {
+          const day = Math.min(31, Math.max(1, parts[0]));
+          const month = Math.min(11, Math.max(0, parts[1] - 1));
+          const year = parts[2]! > 99 ? parts[2]! : 2000 + (parts[2] ?? 0);
+          agreementDate = new Date(year, month, day);
+          if (isNaN(agreementDate.getTime())) agreementDate = new Date();
+        } else {
+          agreementDate = new Date(dateStr);
+          if (isNaN(agreementDate.getTime())) agreementDate = new Date();
+        }
+      } else {
+        agreementDate = new Date(dateStr);
+        if (isNaN(agreementDate.getTime())) agreementDate = new Date();
       }
     } catch (error) {
-      // If parsing fails, use current date
       agreementDate = new Date();
     }
-    
+
     const day = agreementDate.getDate();
     const monthName = agreementDate.toLocaleString("en-US", { month: "long" });
     const year = agreementDate.getFullYear();

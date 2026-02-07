@@ -26,6 +26,7 @@ interface Candidate {
     trainingPeriod: string;
     role: string;
     salary?: string | number;
+    trainingDate?: string; // YYYY-MM-DD from Select for Training dialog
   };
   trainingAgreementDetails?: {
     signingLink: string;
@@ -45,6 +46,16 @@ interface Candidate {
 interface UploadedFile {
   url: string;
   name: string;
+}
+
+/** Return agreement date as ISO (YYYY-MM-DD). Use HR-selected training date when available. */
+function getAgreementDateIso(candidate: Candidate | null): string {
+  const raw = candidate?.selectionDetails?.trainingDate;
+  if (raw && /^\d{4}-\d{2}-\d{2}/.test(String(raw).trim())) {
+    const d = new Date(String(raw).trim());
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  return new Date().toISOString().slice(0, 10);
 }
 
 function base64ToFile(base64: string, filename: string): File {
@@ -174,7 +185,7 @@ export default function TrainingAgreementPage() {
     
     setGeneratingPdf(true);
     try {
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const agreementDate = getAgreementDateIso(candidate);
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,
@@ -511,8 +522,8 @@ export default function TrainingAgreementPage() {
         throw new Error("Candidate information not available");
       }
 
-      // Generate PDF with signature
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      // Generate PDF with signature (use HR-selected training date when available)
+      const agreementDate = getAgreementDateIso(candidate);
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,

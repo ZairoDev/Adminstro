@@ -79,6 +79,7 @@ const CandidateSchema = new Schema(
       },
       duration: { type: String, default: null },
       trainingPeriod: { type: String, default: null },
+      trainingDate: { type: String, default: null }, // YYYY-MM-DD from Select for Training dialog
       role: { type: String, default: null },
       salary: { type: String, default: null },
     },

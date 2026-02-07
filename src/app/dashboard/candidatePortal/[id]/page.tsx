@@ -167,13 +167,19 @@ export default function CandidateDetailPage() {
     
     setGeneratingUnsignedPdf(true);
     try {
-      // Use ISO date string format for proper parsing
-      const agreementDate = new Date().toISOString();
+      const raw = (candidate.selectionDetails as { trainingDate?: string } | undefined)?.trainingDate;
+      const agreementDate =
+        raw && /^\d{4}-\d{2}-\d{2}/.test(String(raw).trim())
+          ? (() => {
+              const d = new Date(String(raw).trim());
+              return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+            })()
+          : new Date().toISOString().slice(0, 10);
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
-          candidateId: candidate._id,
+        candidateId: candidate._id,
         // No signature for unsigned PDF
       };
 
@@ -1938,16 +1944,16 @@ export default function CandidateDetailPage() {
               <Dialog open={showSignedOnboardingPdfDialog} onOpenChange={setShowSignedOnboardingPdfDialog}>
                 <DialogContent className="max-w-6xl max-h-[95vh] bg-white dark:bg-gray-800 flex flex-col">
                   <DialogHeader>
-                    <DialogTitle className="text-foreground">Signed Onboarding Agreement</DialogTitle>
+                                                                                                                                                      <DialogTitle className="text-foreground">Signed ZIPL Service Agreement</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      View and download the signed onboarding agreement document
+                      View and download the signed ZIPL Service Agreement document
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
                     <iframe
                       src={`${candidate.onboardingDetails.signedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
-                      title="Signed Onboarding Agreement"
+                      title="Signed ZIPL Service Agreement"
                       style={{ minHeight: '75vh' }}
                     />
                   </div>
@@ -1963,7 +1969,7 @@ export default function CandidateDetailPage() {
                       onClick={() => {
                         const a = document.createElement("a");
                         a.href = candidate.onboardingDetails!.signedPdfUrl!;
-                        a.download = `Onboarding-Agreement-${candidate._id}-Signed.pdf`;
+                        a.download = `ZIPL-Service-Agreement-${candidate._id}-Signed.pdf`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -1983,16 +1989,16 @@ export default function CandidateDetailPage() {
               <Dialog open={showUnsignedOnboardingPdfDialog} onOpenChange={setShowUnsignedOnboardingPdfDialog}>
                 <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
                   <DialogHeader>
-                    <DialogTitle className="text-foreground">Unsigned Onboarding Agreement Preview</DialogTitle>
+                    <DialogTitle className="text-foreground">Unsigned ZIPL Service Agreement Preview</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      Preview of the unsigned onboarding agreement document
+                      Preview of the unsigned ZIPL Service Agreement document
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
                     <iframe
                       src={unsignedOnboardingAgreementUrl}
                       className="w-full h-[70vh] border-0"
-                      title="Unsigned Onboarding Agreement Preview"
+                                      title="Unsigned ZIPL Service Agreement Preview"
                     />
                   </div>
                   <DialogFooter>

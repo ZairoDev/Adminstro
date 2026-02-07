@@ -730,6 +730,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Onboarded Candidates",
       Icon: <CheckCheck size={18} />,
     },
+    {
+      path: "/dashboard/addons",
+      label: "Add Ons",
+      Icon: <Swords size={18} />,
+    },
   ],
   Agent: [
     {

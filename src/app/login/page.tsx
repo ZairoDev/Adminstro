@@ -1,6 +1,5 @@
 "use client";
 
-import Cookies from "js-cookie";
 import { parseCookies } from "nookies";
 import { CgSpinner } from "react-icons/cg";
 import { useRouter } from "next/navigation";
@@ -67,8 +66,9 @@ const PageLogin: React.FC = () => {
       // Direct login
       if (response.data.otpRequired === false && response.data.token) {
         setToken(response.data.tokenData);
-        Cookies.set("token", response.data.token, { expires: 1 });
-        setEmotion("happy"); // Show happy mascots on success
+        // DO NOT set token in cookies - server already set httpOnly cookie
+        // The server response already contains the httpOnly cookie
+        setEmotion("happy");
 
         toast({
           description: "You have successfully logged in",
@@ -84,8 +84,8 @@ const PageLogin: React.FC = () => {
       // Normal login
       if (response.status === 200 && response.data.token) {
         setToken(response.data.tokenData);
-        Cookies.set("token", response.data.token, { expires: 1 });
-        setEmotion("happy"); // Show happy mascots on success
+        // DO NOT set token in cookies - server already set httpOnly cookie
+        setEmotion("happy");
         
         // Keep happy emotion visible before redirect
         setTimeout(() => {

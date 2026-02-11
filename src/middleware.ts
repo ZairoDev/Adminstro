@@ -9,6 +9,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/admin",
     "/superadmin",
     "/whatsapp",
+    "/whatsapp/retarget",
     "/application-form",
     "/spreadsheet",
     "/dashboard",
@@ -33,7 +34,9 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Advert: [
     "/",
     "/admin",
-    "/dashboard", // Dashboard access for Advert
+    "/dashboard",
+    "/whatsapp", // WhatsApp chat access for Advert (retarget conversations only, filtered client-side)
+    "/whatsapp/retarget",
     "/dashboard/addons",
     "/dashboard/createquery",
     "/spreadsheet",
@@ -97,6 +100,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Sales
     "/spreadsheet",
     "/whatsapp",
+    "/whatsapp/retarget",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
     /^\/dashboard\/room\/.*$/,
@@ -286,6 +290,8 @@ export async function middleware(request: NextRequest) {
           );
         }
       }
+      // NOTE: Per Next.js guidelines, middleware MUST NOT perform DB writes.
+      // Session heartbeat / lastActivity updates should be performed in API routes or client pings.
     } catch (error: any) {
       if (error.message === "Token Expired") {
         const response = NextResponse.redirect(new URL("/login", request.url));

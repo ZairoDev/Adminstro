@@ -51,8 +51,22 @@ export interface IWhatsAppConversation extends Document {
   notes?: string;
 
   conversationType?: "owner" | "guest"; // Determined by first template message
-
   referenceLink?: string; // Property listing URL or reference link
+
+  // Retarget lifecycle fields
+  isRetarget?: boolean;
+  retargetStage?: 
+    | "initiated"
+    | "awaiting_reply"
+    | "engaged"
+    | "handed_to_sales"
+    | "converted"
+    | "dropped";
+  ownerRole?: "Advert" | "Sales" | null;
+  ownerUserId?: mongoose.Types.ObjectId | null;
+  handoverCompletedAt?: Date | null;
+  retargetTemplateName?: string;
+  retargetAgentId?: mongoose.Types.ObjectId | null;
 
   metadata?: Map<string, any>;
 }
@@ -197,6 +211,44 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     referenceLink: {
       type: String,
+    },
+
+    // Retarget lifecycle fields
+    isRetarget: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    retargetStage: {
+      type: String,
+      enum: ["initiated", "awaiting_reply", "engaged", "handed_to_sales", "converted", "dropped"],
+      default: undefined,
+      index: true,
+    },
+    ownerRole: {
+      type: String,
+      enum: ["Advert", "Sales"],
+      default: undefined,
+      index: true,
+    },
+    ownerUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: undefined,
+      index: true,
+    },
+    handoverCompletedAt: {
+      type: Date,
+      default: null,
+    },
+    retargetTemplateName: {
+      type: String,
+      default: "",
+    },
+    retargetAgentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: undefined,
     },
 
     metadata: {

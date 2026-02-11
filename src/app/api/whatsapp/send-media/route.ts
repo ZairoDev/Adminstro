@@ -8,12 +8,14 @@ import {
   canAccessPhoneId,
   getAllowedPhoneIds,
   getDefaultPhoneId,
+  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import crypto from "crypto";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -69,6 +71,25 @@ export async function POST(req: NextRequest) {
     let conversation;
     if (conversationId) {
       conversation = await WhatsAppConversation.findById(conversationId);
+    }
+
+    // Enforce conversation-level access rules if conversation exists
+    if (conversation) {
+      const convLean = conversation.toObject ? conversation.toObject() : conversation;
+      const allowed = await canAccessConversation(token, convLean);
+      if (!allowed) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      // Block Advert after handover
+      if ((token.role || "") === "Advert" && convLean.isRetarget && convLean.retargetStage === "handed_to_sales") {
+        return NextResponse.json({ error: "Advert cannot send after handover" }, { status: 403 });
+      }
+
+      // Block Sales before handover
+      if ((token.role || "") === "Sales" && convLean.isRetarget && convLean.retargetStage !== "handed_to_sales") {
+        return NextResponse.json({ error: "Sales cannot send to retarget conversation before handover" }, { status: 403 });
+      }
     }
 
     // Check if this is a "You" conversation BEFORE any WhatsApp API setup
@@ -168,7 +189,15 @@ export async function POST(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow sending media on retarget conversations
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(

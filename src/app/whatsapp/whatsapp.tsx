@@ -7,7 +7,6 @@ import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
 import axios from "axios";
 // Card components no longer needed for WhatsApp Web-style layout
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import type { Message, Conversation, Template } from "./types";
@@ -25,7 +24,6 @@ import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
 import { WindowWarningDialog } from "./components/WindowWarningDialog";
 import { MessageComposer } from "./components/MessageComposer";
-import { RetargetPanel } from "./components/RetargetPanel";
 import { AddGuestModal } from "./components/AddGuestModal";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
@@ -145,11 +143,8 @@ export default function WhatsAppChat() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [locations, setLocations] = useState<string[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
-  const [retargetTemplateParams, setRetargetTemplateParams] = useState<Record<string, string>>({});
 
   // 24-hour window warning state
   const [showWindowWarning, setShowWindowWarning] = useState(false);
@@ -169,13 +164,6 @@ export default function WhatsAppChat() {
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [messageSearchQuery, setMessageSearchQuery] = useState("");
 
-  // Retargeting state
-  const [retargetAudience, setRetargetAudience] = useState<"leads" | "owners">("leads");
-  const [retargetPriceFrom, setRetargetPriceFrom] = useState("");
-  const [retargetPriceTo, setRetargetPriceTo] = useState("");
-  const [retargetFromDate, setRetargetFromDate] = useState("");
-  const [retargetToDate, setRetargetToDate] = useState("");
-  const [retargetLocation, setRetargetLocation] = useState("");
   
   // Cross-tab helpers for notification filtering
   const syncArchivedStorage = useCallback((ids: string[]) => {
@@ -220,39 +208,6 @@ export default function WhatsAppChat() {
     []
   );
 
-  // Enhanced recipient type with retarget tracking
-  type RetargetRecipient = {
-    id: string;
-    name: string;
-    phone: string;
-    source: "lead" | "owner";
-    status?: "pending" | "sending" | "sent" | "failed";
-    error?: string;
-    // Retarget tracking fields
-    state: "pending" | "retargeted" | "blocked";
-    retargetCount: number;
-    lastRetargetAt: string | null;
-    blocked: boolean;
-    blockReason: string | null;
-    lastErrorCode: number | null;
-    canRetarget: boolean;
-    hasEngagement: boolean;
-  };
-  
-  const [retargetRecipients, setRetargetRecipients] = useState<RetargetRecipient[]>([]);
-  const [retargetSelectedIds, setRetargetSelectedIds] = useState<string[]>([]);
-  const [retargetFetching, setRetargetFetching] = useState(false);
-  const [retargetSending, setRetargetSending] = useState(false);
-  const [retargetDailyCount, setRetargetDailyCount] = useState(0);
-  const [retargetMeta, setRetargetMeta] = useState<{
-    maxRetargetAllowed?: number;
-    cooldownHours?: number;
-    blocked?: number;
-    pending?: number;
-    retargeted?: number;
-    atMaxRetarget?: number;
-  }>({});
-  const [retargetSentCount, setRetargetSentCount] = useState(0);
 
   // Readers refresh token (bumps when we receive a real-time read event)
   const [readersRefreshToken, setReadersRefreshToken] = useState(0);
@@ -276,29 +231,6 @@ export default function WhatsAppChat() {
     };
   }, [selectedConversation, persistActiveConversation]);
 
-  // Track daily retarget count (local, reset per day)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("retarget_daily");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const today = new Date().toISOString().slice(0, 10);
-        if (parsed?.date === today && typeof parsed?.count === "number") {
-          setRetargetDailyCount(parsed.count);
-        } else {
-          localStorage.setItem("retarget_daily", JSON.stringify({ date: today, count: 0 }));
-          setRetargetDailyCount(0);
-        }
-      } catch (e) {
-        setRetargetDailyCount(0);
-      }
-    } else {
-      const today = new Date().toISOString().slice(0, 10);
-      localStorage.setItem("retarget_daily", JSON.stringify({ date: today, count: 0 }));
-      setRetargetDailyCount(0);
-    }
-  }, []);
 
   // Initialize cross-tab WhatsApp notification controller
   useEffect(() => {
@@ -446,32 +378,8 @@ export default function WhatsAppChat() {
     }
   }, []);
 
-  useEffect(() => {
-  const GetLocations = async () => {
-    const response = await axios.get("/api/monthlyTargets/getLocations");
-
-    if (response) {
-      const cities = response.data.locations.map(
-        (location: any) => location.city
-      );
-      // console.log("cities: ", response.data)
-
-      setLocations(cities);
-      // console.log("locations (new):", cities);
-    }
-  };
-
-  GetLocations();
-}, []);
 
 
-  const persistRetargetDailyCount = (count: number) => {
-    const today = new Date().toISOString().slice(0, 10);
-    setRetargetDailyCount(count);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("retarget_daily", JSON.stringify({ date: today, count }));
-    }
-  };
 
   // Check call permissions on mount
   useEffect(() => {
@@ -492,6 +400,9 @@ export default function WhatsAppChat() {
   }, []);
 
   const searchParams = useSearchParams();
+  const isRetargetOnly = searchParams?.get("retargetOnly") === "1";
+  const retargetOnlyRef = useRef(isRetargetOnly);
+  retargetOnlyRef.current = isRetargetOnly;
 
   const fetchPhoneConfigs = async () => {
     try {
@@ -579,6 +490,11 @@ export default function WhatsAppChat() {
 
       const currentPhoneId = selectedPhoneIdRef.current;
       if (data.businessPhoneId && currentPhoneId && data.businessPhoneId !== currentPhoneId) {
+        return;
+      }
+
+      // In retargetOnly mode, ignore messages from non-retarget conversations
+      if (retargetOnlyRef.current && !data.isRetarget) {
         return;
       }
       
@@ -968,7 +884,11 @@ export default function WhatsAppChat() {
   // Fetch conversation counts from database
   const fetchConversationCounts = async () => {
     try {
-      const response = await axios.get("/api/whatsapp/conversations/counts");
+      const countsParams = new URLSearchParams();
+      if (retargetOnlyRef.current) {
+        countsParams.append("retargetOnly", "1");
+      }
+      const response = await axios.get(`/api/whatsapp/conversations/counts?${countsParams.toString()}`);
       if (response.data.success) {
         setConversationCounts({
           totalCount: response.data.totalCount || 0,
@@ -1004,6 +924,10 @@ export default function WhatsAppChat() {
       } else if (conversationsCursor && !reset) {
         // Only use cursor when not searching (pagination)
         params.append("cursor", conversationsCursor);
+      }
+      // Retarget-only mode: only fetch retarget conversations (for Advert role)
+      if (retargetOnlyRef.current) {
+        params.append("retargetOnly", "1");
       }
 
       const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);
@@ -1725,279 +1649,6 @@ export default function WhatsAppChat() {
     } finally {
       setSendingMessage(false);
     }
-  };
-
-  // Retargeting: fetch recipients with state filter
-  const fetchRetargetRecipients = async (stateFilter: string = "pending", additionalFilters?: Record<string, any>) => {
-    try {
-      setRetargetFetching(true);
-      setRetargetSentCount(0);
-      
-      const requestBody: Record<string, any> = {
-        audience: retargetAudience,
-        priceFrom: retargetPriceFrom ? Number(retargetPriceFrom) : undefined,
-        priceTo: retargetPriceTo ? Number(retargetPriceTo) : undefined,
-        fromDate: retargetFromDate || undefined,
-        toDate: retargetToDate || undefined,
-        location: selectedLocation || undefined,
-        stateFilter, // Pass the tab filter to API
-        limit: 10000, // Removed practical limit
-      };
-      
-      // Merge additional filters if provided
-      if (additionalFilters && typeof additionalFilters === "object") {
-        Object.assign(requestBody, additionalFilters);
-      }
-      
-      const response = await axios.post("/api/whatsapp/retarget", requestBody);
-      const recs = response.data?.recipients || [];
-      const meta = response.data?.meta || {};
-      
-      // Store meta with counts
-      setRetargetMeta(meta);
-      
-      // Map recipients with enhanced retarget fields
-      setRetargetRecipients(
-        recs.map((r: any) => ({
-          ...r,
-          status: "pending", // Send status for current batch
-        }))
-      );
-      
-      // Only select recipients that can be retargeted (max 10)
-      const allSelectableIds = recs
-        .filter((r: any) => r.canRetarget !== false)
-        .map((r: any) => r.id);
-      const selectableIds = allSelectableIds.slice(0, 10); // Limit to 10
-      setRetargetSelectedIds(selectableIds);
-      
-      // Store meta for UI
-      setRetargetMeta(meta);
-      
-      const limitNote = allSelectableIds.length > 10 
-        ? ` (first 10 auto-selected)` 
-        : "";
-      toast({
-        title: "Recipients loaded",
-        description: `${recs.length} loaded, ${allSelectableIds.length} eligible${limitNote}`,
-      });
-    } catch (error: any) {
-      console.error("Retarget fetch error", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to load recipients",
-        variant: "destructive",
-      });
-    } finally {
-      setRetargetFetching(false);
-    }
-  };
-
-    // Retargeting: Meta-Safe Pattern Implementation
-  // =================================================
-  // - Batch size: 1 user at a time (queue system)
-  // - Gap: 60-150 seconds (randomized, never repeating exact gaps)
-  // - Hourly cap: 12-15 messages/hour (randomized)
-  // - Daily cap: 50-70 messages/day (randomized)
-  // - No cron-like timing, no uniform delays, no repeating intervals
-  const sendRetargetBatch = async () => {
-    if (!selectedTemplate) {
-      toast({ title: "Select a template", variant: "destructive" });
-      return;
-    }
-    if (retargetRecipients.length === 0) {
-      toast({ title: "No recipients", description: "Fetch recipients first.", variant: "destructive" });
-      return;
-    }
-
-    // Meta-safe limits (randomized to avoid patterns)
-    const DAILY_CAP_MIN = 50;
-    const DAILY_CAP_MAX = 70;
-    const HOURLY_CAP_MIN = 12;
-    const HOURLY_CAP_MAX = 15;
-    const DELAY_MIN_MS = 60 * 1000; // 60 seconds
-    const DELAY_MAX_MS = 150 * 1000; // 150 seconds
-    const BATCH_SIZE = 1; // Process 1 at a time (safest)
-
-    // Get hourly count from localStorage (resets each hour)
-    const getHourlyCount = () => {
-      const now = new Date();
-      const hourKey = `retarget_hourly_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}_${now.getHours()}`;
-      const stored = localStorage.getItem(hourKey);
-      return stored ? parseInt(stored, 10) : 0;
-    };
-
-    const setHourlyCount = (count: number) => {
-      const now = new Date();
-      const hourKey = `retarget_hourly_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}_${now.getHours()}`;
-      localStorage.setItem(hourKey, count.toString());
-    };
-
-    // Calculate randomized daily cap (50-70)
-    const dailyCap = Math.floor(Math.random() * (DAILY_CAP_MAX - DAILY_CAP_MIN + 1)) + DAILY_CAP_MIN;
-    const dailyRemaining = Math.max(0, dailyCap - retargetDailyCount);
-    
-    // Check hourly cap (12-15)
-    const hourlyCount = getHourlyCount();
-    const hourlyCap = Math.floor(Math.random() * (HOURLY_CAP_MAX - HOURLY_CAP_MIN + 1)) + HOURLY_CAP_MIN;
-    const hourlyRemaining = Math.max(0, hourlyCap - hourlyCount);
-
-    const selected = retargetRecipients.filter((r) => retargetSelectedIds.includes(r.id));
-    const sendable = Math.min(dailyRemaining, hourlyRemaining, selected.length);
-    
-    if (sendable <= 0) {
-      if (dailyRemaining <= 0) {
-        toast({
-          title: "Daily limit reached",
-          description: `You have reached the daily cap (${dailyCap} messages/day) for retargeting.`,
-          variant: "destructive",
-        });
-      } else if (hourlyRemaining <= 0) {
-        toast({
-          title: "Hourly limit reached",
-          description: `You have reached the hourly cap (${hourlyCap} messages/hour). Please wait.`,
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    setRetargetSending(true);
-    setRetargetSentCount(0);
-
-    const templateText = getTemplatePreviewText(selectedTemplate, retargetTemplateParams);
-    const components = buildTemplateComponents(selectedTemplate, retargetTemplateParams);
-
-    let sentCount = 0;
-    let failedCount = 0;
-    let blockedCount = 0;
-    let aborted = false;
-    const usedDelays = new Set<number>(); // Track used delays to avoid exact repetition
-
-    // Generate random delay that hasn't been used recently (avoids cron-like patterns)
-    const getRandomDelay = (): number => {
-      let delay: number;
-      let attempts = 0;
-      do {
-        // Random delay between 60-150 seconds
-        delay = Math.floor(Math.random() * (DELAY_MAX_MS - DELAY_MIN_MS + 1)) + DELAY_MIN_MS;
-        attempts++;
-        // Round to nearest 5 seconds to avoid exact repetition while still being random
-        delay = Math.round(delay / 5000) * 5000;
-      } while (usedDelays.has(delay) && attempts < 20);
-      
-      usedDelays.add(delay);
-      // Keep only last 10 delays to allow reuse after a while (prevents infinite growth)
-      if (usedDelays.size > 10) {
-        const first = Array.from(usedDelays)[0];
-        usedDelays.delete(first);
-      }
-      
-      return delay;
-    };
-
-    // Process queue: 1 message at a time with randomized delays
-    for (let i = 0; i < sendable; i++) {
-      // Safety abort checks
-      if (failedCount >= 5) {
-        console.log(`🚨 [AUDIT] Retargeting aborted: ${failedCount} failures reached`);
-        toast({
-          title: "Retargeting Stopped",
-          description: `Stopped after ${failedCount} failures. Check your template or try later.`,
-          variant: "destructive",
-        });
-        aborted = true;
-        break;
-      }
-
-      if (blockedCount >= 2) {
-        console.log(`🚨 [AUDIT] Retargeting aborted: ${blockedCount} blocked users detected`);
-        toast({
-          title: "Retargeting Stopped",
-          description: "Multiple users have blocked this number. Review your contact list.",
-          variant: "destructive",
-        });
-        aborted = true;
-        break;
-      }
-
-      // Check hourly limit before each send
-      const currentHourlyCount = getHourlyCount();
-      if (currentHourlyCount >= hourlyCap) {
-        console.log(`⏰ [AUDIT] Hourly cap reached: ${currentHourlyCount}/${hourlyCap}`);
-        toast({
-          title: "Hourly limit reached",
-          description: `Reached hourly cap of ${hourlyCap} messages. Resuming after next hour.`,
-          variant: "default",
-        });
-        break;
-      }
-
-      const recipient = selected[i];
-      setRetargetRecipients((prev) =>
-        prev.map((r) =>
-          r.id === recipient.id ? { ...r, status: "sending", error: undefined } : r
-        )
-      );
-
-      try {
-        // Send message (1 at a time - queue system)
-        await axios.post("/api/whatsapp/send-template", {
-          to: recipient.phone,
-          templateName: selectedTemplate.name,
-          languageCode: selectedTemplate.language,
-          components: components.length > 0 ? components : undefined,
-          templateText,
-          isRetarget: true,
-        });
-        
-        sentCount += 1;
-        setRetargetSentCount(sentCount);
-        persistRetargetDailyCount(retargetDailyCount + sentCount);
-        setHourlyCount(currentHourlyCount + 1);
-        
-        setRetargetRecipients((prev) =>
-          prev.map((r) =>
-            r.id === recipient.id ? { ...r, status: "sent" } : r
-          )
-        );
-        
-        console.log(`✅ [AUDIT] Sent to ${recipient.phone} (${sentCount}/${sendable}, hourly: ${currentHourlyCount + 1}/${hourlyCap})`);
-      } catch (error: any) {
-        failedCount += 1;
-        const errorMsg = error.response?.data?.error || "Send failed";
-        
-        // Detect 131049 (blocked) errors
-        if (errorMsg.includes("131049") || errorMsg.includes("blocked")) {
-          blockedCount += 1;
-          console.log(`🚫 [AUDIT] User blocked detected for ${recipient.phone}`);
-        }
-        
-        setRetargetRecipients((prev) =>
-          prev.map((r) =>
-            r.id === recipient.id ? { ...r, status: "failed", error: errorMsg } : r
-          )
-        );
-      }
-
-      // Randomized delay between messages (60-150 seconds, never repeating exact gap)
-      if (i < sendable - 1 && !aborted) {
-        const delay = getRandomDelay();
-        const delaySeconds = Math.round(delay / 1000);
-        console.log(`⏳ [AUDIT] Waiting ${delaySeconds}s before next message (randomized, non-repeating delay)`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    setRetargetSending(false);
-
-    if (!aborted && sentCount > 0) {
-      toast({
-        title: "Retargeting completed",
-        description: `Successfully sent ${sentCount} messages. Daily: ${retargetDailyCount + sentCount}/${dailyCap}, Hourly: ${getHourlyCount()}/${hourlyCap}`,
-      });
-    }
-    console.log(`📊 [AUDIT] Retarget batch complete: sent=${sentCount}, failed=${failedCount}, blocked=${blockedCount}, aborted=${aborted}, daily=${retargetDailyCount + sentCount}/${dailyCap}, hourly=${getHourlyCount()}/${hourlyCap}`);
   };
 
   const startNewConversation = async () => {
@@ -2979,19 +2630,7 @@ export default function WhatsAppChat() {
 
   return (
     <div className="flex flex-col h-full w-full max-w-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-x-hidden">
-      <Tabs 
-        defaultValue="chat" 
-        className="w-full h-full flex flex-col min-h-0"
-        onValueChange={(value) => {
-          // On mobile, switch view when tab changes
-          if (isMobile && value === "retarget") {
-            setMobileView("retarget");
-          } else if (isMobile && value === "chat") {
-            setMobileView("conversations");
-          }
-        }}
-      >
-        {/* WhatsApp-style header tabs - responsive */}
+        {/* WhatsApp-style header - responsive */}
         <div className={cn(
           "bg-[#008069] dark:bg-[#202c33] flex items-center shadow-sm flex-shrink-0",
           "h-[50px] px-4",
@@ -2999,36 +2638,15 @@ export default function WhatsAppChat() {
           // Safe area for iOS
           "pt-[env(safe-area-inset-top,0px)]"
         )}>
-          <TabsList className="bg-transparent border-0 h-auto p-0 gap-1">
-            <TabsTrigger 
-              value="chat" 
-              className={cn(
-                "text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all",
-                "px-3 py-2 text-sm",
-                "md:px-4 md:py-2 md:text-base"
-              )}
-            >
-              Chat
-            </TabsTrigger>
-            <TabsTrigger 
-              value="retarget"
-              className={cn(
-                "text-white/80 hover:text-white data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all",
-                "px-3 py-2 text-sm",
-                "md:px-4 md:py-2 md:text-base"
-              )}
-            >
-              Retarget
-            </TabsTrigger>
-          </TabsList>
+          <h1 className="text-white font-semibold text-base md:text-lg">Chat</h1>
           <div className="flex-1" />
           {/* User info - hidden on mobile, shown on tablet+ */}
           <div className="text-white/80 text-sm hidden md:block">
-            {token?.name} • {token?.role}
+            {token?.name} &bull; {token?.role}
           </div>
         </div>
 
-        <TabsContent value="chat" className="flex-1 m-0 overflow-x-hidden max-w-full min-h-0">
+        <div className="flex-1 overflow-x-hidden max-w-full min-h-0">
           {/* Mobile-first responsive layout */}
           <div className="flex h-full relative w-full max-w-full min-h-0 overflow-hidden">
             {/* Conversation Sidebar - Full screen on mobile, fixed width on desktop */}
@@ -3260,89 +2878,7 @@ export default function WhatsAppChat() {
               )}
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="retarget" className={cn(
-          "flex-1 overflow-x-hidden min-h-0",
-          // Mobile: Full screen with padding
-          "px-2 pb-0",
-          // Desktop: More padding
-          "md:px-4"
-        )}>
-          <RetargetPanel
-            audience={retargetAudience}
-            onAudienceChange={setRetargetAudience}
-            priceFrom={retargetPriceFrom}
-            priceTo={retargetPriceTo}
-            fromDate={retargetFromDate}
-            toDate={retargetToDate}
-            location={locations}
-            onLocationChange={setLocations}
-            selectedLocation={selectedLocation}
-            onSelectedLocationChange={setSelectedLocation}
-            onPriceFromChange={setRetargetPriceFrom}
-            onPriceToChange={setRetargetPriceTo}
-            onFromDateChange={setRetargetFromDate}
-            onToDateChange={setRetargetToDate}
-            onFetchRecipients={fetchRetargetRecipients}
-            fetching={retargetFetching}
-            recipients={retargetRecipients}
-            sending={retargetSending}
-            onSend={sendRetargetBatch}
-            dailyRemaining={Math.max(0, 70 - retargetDailyCount)} // Meta-safe: 50-70/day (using max for display)
-            selectedTemplate={selectedTemplate}
-            onSelectTemplate={setSelectedTemplate}
-            templates={templates}
-            templateParams={retargetTemplateParams}
-            onTemplateParamsChange={setRetargetTemplateParams}
-            totalToSend={Math.min(retargetSelectedIds.length, Math.max(0, 70 - retargetDailyCount))} // Meta-safe: 50-70/day (using max for display)
-            sentCount={retargetSentCount}
-            sendingActive={retargetSending}
-            selectedRecipientIds={retargetSelectedIds}
-            onToggleRecipient={(id) => {
-              // Only allow toggling if recipient can be retargeted and not blocked
-              const recipient = retargetRecipients.find((r) => r.id === id);
-              if (recipient?.canRetarget && !recipient?.blocked) {
-                setRetargetSelectedIds((prev) => {
-                  // If removing, always allow
-                  if (prev.includes(id)) {
-                    return prev.filter((x) => x !== id);
-                  }
-                  // If adding, check 10 limit
-                  if (prev.length >= 10) {
-                    toast({
-                      title: "Selection limit reached",
-                      description: "Maximum 10 recipients can be selected at once",
-                      variant: "destructive",
-                    });
-                    return prev;
-                  }
-                  return [...prev, id];
-                });
-              }
-            }}
-            onToggleAll={(checked) => {
-              // Only select recipients that can be retargeted and not blocked (max 100)
-              if (checked) {
-                const eligibleIds = retargetRecipients
-                  .filter((r) => r.canRetarget && !r.blocked)
-                  .map((r) => r.id)
-                  .slice(0, 10); // Limit to 10
-                setRetargetSelectedIds(eligibleIds);
-                if (retargetRecipients.filter((r) => r.canRetarget && !r.blocked).length > 10) {
-                  toast({
-                    title: "Selection limited to 100",
-                    description: "Only the first 10 eligible recipients were selected",
-                  });
-                }
-              } else {
-                setRetargetSelectedIds([]);
-              }
-            }}
-            meta={retargetMeta}
-          />
-        </TabsContent>
-      </Tabs>
+        </div>
       
       {/* Add Guest Modal */}
       <AddGuestModal

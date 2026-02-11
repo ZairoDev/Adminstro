@@ -38,6 +38,8 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   SlidersHorizontal,
+
+  Target,
   Hotel,
   Sprout,
   CornerLeftUp,
@@ -46,6 +48,7 @@ import {
   MessageSquare,
   Ticket,
   Globe,
+  Activity,
 } from "lucide-react";
 
 import {
@@ -277,6 +280,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/employee/employeeList",
       label: "All Employees",
       Icon: <IdCardIcon size={18} />,
+    },
+    {
+      path: "/dashboard/employee-activity",
+      label: "Activity Tracking",
+      Icon: <Activity size={18} />,
     },
     {
       path: "/dashboard/user",
@@ -929,6 +937,11 @@ const candidateRoutes = [
     Icon: <User2Icon size={18} />,
   },
   {
+    path: "/dashboard/employee-activity",
+    label: "Activity Tracking",
+    Icon: <Activity size={18} />,
+  },
+  {
     path: "/dashboard/employee/employeeList",
     label: "All Employees",
     Icon: <IdCardIcon size={18} />,
@@ -1075,7 +1088,10 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const loadWhatsappPhones = async () => {
       if (!role) return;
       const routesForRole = roleRoutes[role as keyof typeof roleRoutes];
-      if (!routesForRole || !routesForRole.some((r) => r.path === "/whatsapp")) return;
+      const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
+      const hasWhatsApp = routesForRole?.some((r) => r.path === "/whatsapp");
+      const hasRetargetAccess = retargetAllowedRoles.includes(role);
+      if (!routesForRole || (!hasWhatsApp && !hasRetargetAccess)) return;
       try {
         const res = await axios.get("/api/whatsapp/phone-configs");
         if (res.data?.success) {
@@ -1135,14 +1151,40 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
     const otherSettingsRoute = inGroup(otherSettingsRoutes);
-    const hasWhatsAppPermission = routesForRole.some((r) => r.path === "/whatsapp");
+    const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
+    const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");
+    const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
+    const hasWhatsAppPermission = hasChatAccess || hasRetargetAccess;
 
-    const whatsappRoutes: Route[] = whatsappPhones.map((p) => ({
-      path: `/whatsapp?phoneId=${encodeURIComponent(p.id)}`,
-      label: `WhatsApp ${p.label}`,
-      Icon: <FaWhatsapp size={18} />,
-      openInNewTab: true,
-    }));
+    // Only show WhatsApp phone routes for roles with /whatsapp (chat) access
+    const whatsappRoutes: Route[] = hasChatAccess
+      ? whatsappPhones.map((p) => ({
+          path: `/whatsapp?phoneId=${encodeURIComponent(p.id)}`,
+          label: `WhatsApp ${p.label}`,
+          Icon: <FaWhatsapp size={18} />,
+          openInNewTab: true,
+        }))
+      : [];
+
+    // Add a separate Retarget page entry for roles that are allowed to run retargeting
+    if (hasRetargetAccess) {
+      whatsappRoutes.unshift({
+        path: "/whatsapp/retarget",
+        label: "Retarget",
+        Icon: <Target size={18} />,
+        openInNewTab: false,
+      });
+    }
+    
+    // Add a quick link for Advert role to open WhatsApp inbox showing only retargeted chats
+    if (role === "Advert") {
+      whatsappRoutes.push({
+        path: "/whatsapp?retargetOnly=1",
+        label: "Retarget WhatsApp",
+        Icon: <FaWhatsapp size={18} />,
+        openInNewTab: true,
+      });
+    }
 
     return (
       <>

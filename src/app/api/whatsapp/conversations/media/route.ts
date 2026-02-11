@@ -3,7 +3,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
+import { getAllowedPhoneIds, getRetargetPhoneId } from "@/lib/whatsapp/config";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,15 @@ export async function GET(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow access to retarget phone media
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(

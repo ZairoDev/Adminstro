@@ -1,20 +1,19 @@
 import { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { redirect } from "next/navigation";
 
 export const getDataFromToken = async (request: NextRequest) => {
   try {
-    const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
-    // console.log("secret: ", secret);
+    const secret = new TextEncoder().encode(process.env.TOKEN_SECRET || "");
     const token = request.cookies.get("token")?.value || "";
-    // console.log("token: ", token);
+
+    if (!token) {
+      throw new Error("Token Expired");
+    }
+
     const { payload } = await jwtVerify(token, secret);
     return payload;
   } catch (error: any) {
-    console.log("errrrrror: ", error);
-    // if (error instanceof Error) {
-    //   if (error.name === "JWTExpired") redirect("/norole");
-    // }
+    console.log("Token verification error: ", error?.message);
     throw new Error("Token Expired");
   }
 };

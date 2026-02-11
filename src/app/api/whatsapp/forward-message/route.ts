@@ -8,10 +8,12 @@ import {
   canAccessPhoneId,
   getAllowedPhoneIds,
   getDefaultPhoneId,
+  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
 import mongoose from "mongoose";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -58,7 +60,15 @@ export async function POST(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow forwarding in retarget conversations
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -123,6 +133,34 @@ export async function POST(req: NextRequest) {
       
       for (const targetConversation of targetConversations) {
         try {
+          // Enforce conversation-level access for each target
+          const allowed = await canAccessConversation(token, targetConversation);
+          if (!allowed) {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "Forbidden: cannot forward to this conversation",
+            });
+            continue;
+          }
+
+          // Block Advert after handover and Sales before handover
+          if ((token.role || "") === "Advert" && targetConversation.isRetarget && targetConversation.retargetStage === "handed_to_sales") {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "Advert cannot forward after handover",
+            });
+            continue;
+          }
+          if ((token.role || "") === "Sales" && targetConversation.isRetarget && targetConversation.retargetStage !== "handed_to_sales") {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "Sales cannot forward to retarget conversation before handover",
+            });
+            continue;
+          }
           const formattedPhone = targetConversation.participantPhone.replace(/[\s\-\+]/g, "");
           
           // Build message payload based on type

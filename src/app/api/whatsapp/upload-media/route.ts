@@ -5,6 +5,7 @@ import {
   canAccessPhoneId,
   getAllowedPhoneIds,
   getDefaultPhoneId,
+  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
@@ -44,7 +45,15 @@ export async function POST(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow uploading media for retarget conversations
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(

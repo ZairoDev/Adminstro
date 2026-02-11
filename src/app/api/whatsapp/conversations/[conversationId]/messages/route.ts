@@ -3,6 +3,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,17 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "20");
     const beforeMessageId = searchParams.get("beforeMessageId"); // For cursor-based pagination
     const beforeTimestamp = searchParams.get("beforeTimestamp"); // Alternative: timestamp-based
+
+    // Load conversation and enforce access
+    const conversationDoc = await WhatsAppConversation.findById(conversationId).lean();
+    if (!conversationDoc) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    const allowed = await canAccessConversation(token, conversationDoc);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Build query
     const query: any = { conversationId };

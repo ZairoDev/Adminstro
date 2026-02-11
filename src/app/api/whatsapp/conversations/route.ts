@@ -13,6 +13,7 @@ import {
   canAccessPhoneId,
   getDefaultPhoneId,
   getPhoneIdForLocation,
+  getRetargetPhoneId,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import mongoose from "mongoose";
@@ -48,7 +49,18 @@ export async function GET(req: NextRequest) {
       }
     }
     
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    const searchParams = req.nextUrl.searchParams;
+    const retargetOnly = searchParams.get("retargetOnly") === "1" || searchParams.get("retargetOnly") === "true";
+
+    // Advert role: only allowed when retargetOnly=1, grant access to the retarget phone
+    if (allowedPhoneIds.length === 0 && retargetOnly) {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -57,7 +69,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "25");
     const status = searchParams.get("status") || "active";
     const search = searchParams.get("search") || "";
@@ -121,6 +132,23 @@ export async function GET(req: NextRequest) {
     // Filter by conversation type if provided
     if (conversationType && (conversationType === "owner" || conversationType === "guest")) {
       query.conversationType = conversationType;
+    }
+
+    // If retargetOnly, restrict to conversations flagged as retarget
+    if (retargetOnly) {
+      query.isRetarget = true;
+    }
+
+    // Sales visibility rules: Sales must never see retarget conversations before handover
+    if (userRole === "Sales") {
+      // Ensure Sales only see non-retarget OR retarget conversations that have been handed to sales
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { isRetarget: false },
+          { isRetarget: true, retargetStage: "handed_to_sales" },
+        ],
+      });
     }
 
     // CRITICAL: Search must ALWAYS query the database directly
@@ -457,6 +485,15 @@ export async function POST(req: NextRequest) {
         { error: "No WhatsApp access for your role/area" },
         { status: 403 }
       );
+    }
+
+    // Prevent Sales from opening existing retarget conversations via direct create
+    const existingConv = await WhatsAppConversation.findOne({
+      participantPhone: normalizedPhone,
+      businessPhoneId: { $in: allowedPhoneIds },
+    }).lean() as any;
+    if (existingConv && existingConv.isRetarget && (userRole === "Sales") && existingConv.retargetStage !== "handed_to_sales") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Use: explicit phoneNumberId > phone for lead's location > default

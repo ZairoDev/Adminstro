@@ -4,6 +4,7 @@ import {
   WHATSAPP_PHONE_CONFIGS,
   FULL_ACCESS_ROLES,
   WHATSAPP_ACCESS_ROLES,
+  getRetargetPhoneId,
 } from "@/lib/whatsapp/config";
 import { fetchPhoneNumbersFromMeta, mapMetaPhonesToConfigs } from "@/lib/whatsapp/phoneMetadataSync";
 
@@ -118,7 +119,20 @@ export async function GET(req: NextRequest) {
     );
     
     // Filter by user role and areas
-    const allowedPhoneConfigs = filterPhoneConfigsByRole(metaAndConfigConfigs, userRole, userAreas);
+    let allowedPhoneConfigs = filterPhoneConfigsByRole(metaAndConfigConfigs, userRole, userAreas);
+
+    // Advert role: grant access to retarget phone only (for retarget WhatsApp inbox)
+    if (allowedPhoneConfigs.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        const retargetConfig = metaAndConfigConfigs.find(
+          (c: any) => c.phoneNumberId === retargetPhoneId
+        );
+        if (retargetConfig) {
+          allowedPhoneConfigs = [retargetConfig];
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

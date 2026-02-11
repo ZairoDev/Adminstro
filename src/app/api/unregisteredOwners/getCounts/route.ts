@@ -22,7 +22,18 @@ export async function POST(req: NextRequest) {
         : undefined
       : undefined;
 
-    const { filters } = await req.json();
+    let body: any = {};
+    const contentLength = req.headers.get("content-length");
+    
+    if (contentLength && parseInt(contentLength) > 0) {
+      try {
+        body = await req.json();
+      } catch (e) {
+        body = {};
+      }
+    }
+    
+    const { filters } = body;
     const baseQuery: Record<string, any> = {};
 
     if (filters?.searchType && filters?.searchValue) {

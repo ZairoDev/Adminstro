@@ -1,9 +1,11 @@
 import jwt from "jsonwebtoken";
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
+import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { TEST_SUPERADMIN_EMAIL, TEST_SUPERADMIN_PASSWORD } from "@/util/employeeConstants";
 
 connectDb();
@@ -22,6 +24,7 @@ interface Employee {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    let sessionIdVar: string | null = null;
     const reqBody = await request.json();
     const { email, password } = reqBody;
     const trimmedPassword = password?.trim() ?? "";
@@ -40,7 +43,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         process.env.TOKEN_SECRET as string,
         { expiresIn: "2d" }
       );
-      return NextResponse.json(
+      
+      const response = NextResponse.json(
         {
           message: "Login successful",
           otpRequired: false,
@@ -49,6 +53,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
         { status: 200 }
       );
+      
+      // Set httpOnly cookie for test account
+      response.cookies.set("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+      // set sessionId cookie for this test session (no activity logged for test)
+      try {
+        const testSessionId = (globalThis as any)?.crypto?.randomUUID
+          ? (globalThis as any).crypto.randomUUID()
+          : randomUUID();
+        response.cookies.set("sessionId", testSessionId, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+      } catch (e) {}
+      
+      return response;
     }
 
     const Employee = await Employees.find({ email });
@@ -102,7 +128,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (temp.role === "SuperAdmin") {
       // SuperAdmin OTP bypass for specific accounts
-      if (temp.email === "ankitanigam1993@gmail.com" || temp.email === TEST_SUPERADMIN_EMAIL) {
+      if ( temp.email === TEST_SUPERADMIN_EMAIL) {
         await Employees.updateOne(
           { _id: temp._id },
           { $set: { isLoggedIn: true, lastLogin: new Date() } }
@@ -131,7 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { expiresIn: "2d" }
         );
 
-        return NextResponse.json(
+        const response = NextResponse.json(
           {
             message: "Login successful",
             otpRequired: false,
@@ -146,6 +172,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
           { status: 200 }
         );
+        
+        // Set httpOnly cookie
+        response.cookies.set("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+        
+        // set sessionId cookie for this session
+        try {
+          const saSessionId = (globalThis as any)?.crypto?.randomUUID
+            ? (globalThis as any).crypto.randomUUID()
+            : randomUUID();
+          response.cookies.set("sessionId", saSessionId, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+          });
+        } catch (e) {}
+        
+        return response;
       }
       await sendEmail({
         email,
@@ -200,6 +249,40 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       expiresIn: "2d",
     });
 
+    // Log login activity
+    try {
+      const ipAddress = extractIPFromRequest(request);
+      const userAgent = request.headers.get("user-agent") || "";
+      // generate a session id for this device/session
+      const sessionId = (globalThis as any)?.crypto?.randomUUID
+        ? (globalThis as any).crypto.randomUUID()
+        : randomUUID();
+      sessionIdVar = sessionId;
+
+      const activityLog = new EmployeeActivityLog({
+        employeeId: temp._id.toString(),
+        employeeName: temp.name,
+        employeeEmail: temp.email,
+        role: temp.role,
+        activityType: "login",
+        loginTime: new Date(),
+        sessionId,
+        status: "active",
+        lastActivityAt: new Date(),
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+        notes: "Login through employee portal",
+      });
+      
+      await activityLog.save().catch((err: Error) => {
+        console.warn("Failed to log activity:", err.message);
+        // Don't throw error - activity logging should not break login
+      });
+    } catch (activityError) {
+      console.warn("Activity logging failed (non-critical):", activityError);
+      // Don't throw error - activity logging should not break login
+    }
+
     const response = NextResponse.json({
       message: "Login successful",
       success: true,
@@ -207,9 +290,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tokenData: tokenData,
     });
 
+    // set sessionId cookie (HttpOnly) for future session-specific logout/activity updates
+    try {
+      if (sessionIdVar) {
+        response.cookies.set("sessionId", sessionIdVar, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+      }
+    } catch (e) {
+      // ignore cookie set errors
+    }
+
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
     });
 
     return response;
@@ -217,4 +316,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+function extractIPFromRequest(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const real = request.headers.get("x-real-ip");
+  return (forwarded ? forwarded.split(",")[0] : real) || "Unknown";
 }

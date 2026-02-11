@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
+import { getAllowedPhoneIds, getRetargetPhoneId } from "@/lib/whatsapp/config";
 
 connectDb();
 
@@ -23,7 +23,15 @@ export async function GET(req: NextRequest) {
     // Get user's allowed phone IDs based on role and area
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: grant access to retarget phone for counts
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -34,12 +42,18 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const status = searchParams.get("status") || "active";
+    const retargetOnly = searchParams.get("retargetOnly") === "1" || searchParams.get("retargetOnly") === "true";
 
     // Build base query - filter by allowed phone IDs
     const baseQuery: any = {
       status,
       businessPhoneId: { $in: allowedPhoneIds },
     };
+
+    // Retarget-only mode: filter to retarget conversations only
+    if (retargetOnly) {
+      baseQuery.isRetarget = true;
+    }
 
     // Get total count
     const totalCount = await WhatsAppConversation.countDocuments(baseQuery);

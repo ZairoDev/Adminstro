@@ -30,31 +30,210 @@ export function getMessageDisplayText(message: Message): string {
 
 export function getTemplateParameters(
   template: Template
-): { type: string; index: number; text: string }[] {
-  const params: { type: string; index: number; text: string }[] = [];
+): { type: string; index: number; text: string; example: string; contextSnippet: string }[] {
+  const params: { type: string; index: number; text: string; example: string; contextSnippet: string }[] = [];
 
   template.components?.forEach((component: any) => {
     if (component.type === "BODY" && component.text) {
+      const bodyExamples: string[] = component.example?.body_text?.[0] || [];
       const matches = component.text.match(/\{\{(\d+)\}\}/g);
       if (matches) {
         matches.forEach((match: string) => {
           const index = parseInt(match.replace(/[{}]/g, ""));
-          params.push({ type: "body", index, text: `Body Parameter ${index}` });
+          const example = bodyExamples[index - 1] || "";
+          // Extract surrounding context for the placeholder
+          const pos = component.text.indexOf(match);
+          const before = component.text.substring(Math.max(0, pos - 25), pos).trim();
+          const after = component.text.substring(pos + match.length, pos + match.length + 25).trim();
+          const contextSnippet = `${before ? "..." + before + " " : ""}[{{${index}}}]${after ? " " + after + "..." : ""}`;
+          params.push({ type: "body", index, text: `Body {{${index}}}`, example, contextSnippet });
         });
       }
     }
     if (component.type === "HEADER" && component.format === "TEXT" && component.text) {
+      const headerExamples: string[] = component.example?.header_text || [];
       const matches = component.text.match(/\{\{(\d+)\}\}/g);
       if (matches) {
         matches.forEach((match: string) => {
           const index = parseInt(match.replace(/[{}]/g, ""));
-          params.push({ type: "header", index, text: `Header Parameter ${index}` });
+          const example = headerExamples[index - 1] || "";
+          const pos = component.text.indexOf(match);
+          const before = component.text.substring(Math.max(0, pos - 25), pos).trim();
+          const after = component.text.substring(pos + match.length, pos + match.length + 25).trim();
+          const contextSnippet = `${before ? "..." + before + " " : ""}[{{${index}}}]${after ? " " + after + "..." : ""}`;
+          params.push({ type: "header", index, text: `Header {{${index}}}`, example, contextSnippet });
         });
       }
     }
   });
 
   return params;
+}
+
+/**
+ * Extract default/example parameter values from a template.
+ * Returns a Record keyed by `type_index` (e.g. "body_1") with example values.
+ */
+export function getTemplateExampleParams(template: Template): Record<string, string> {
+  const defaults: Record<string, string> = {};
+
+  template.components?.forEach((component: any) => {
+    if (component.type === "BODY" && component.text) {
+      const bodyExamples: string[] = component.example?.body_text?.[0] || [];
+      const matches = component.text.match(/\{\{(\d+)\}\}/g);
+      if (matches) {
+        matches.forEach((match: string) => {
+          const index = parseInt(match.replace(/[{}]/g, ""));
+          if (bodyExamples[index - 1]) {
+            defaults[`body_${index}`] = bodyExamples[index - 1];
+          }
+        });
+      }
+    }
+    if (component.type === "HEADER" && component.format === "TEXT" && component.text) {
+      const headerExamples: string[] = component.example?.header_text || [];
+      const matches = component.text.match(/\{\{(\d+)\}\}/g);
+      if (matches) {
+        matches.forEach((match: string) => {
+          const index = parseInt(match.replace(/[{}]/g, ""));
+          if (headerExamples[index - 1]) {
+            defaults[`header_${index}`] = headerExamples[index - 1];
+          }
+        });
+      }
+    }
+  });
+
+  return defaults;
+}
+
+/**
+ * Detects the likely intent of a template parameter from surrounding text.
+ * Returns: "recipientName" | "senderName" | "location" | "custom"
+ */
+export type ParamIntent = "recipientName" | "senderName" | "location" | "custom";
+
+export function detectParamIntent(
+  template: Template,
+  paramType: string,
+  paramIndex: number
+): ParamIntent {
+  const comp = template.components?.find(
+    (c: any) => c.type === (paramType === "header" ? "HEADER" : "BODY")
+  );
+  if (!comp?.text) return "custom";
+
+  const text = comp.text as string;
+  const placeholder = `{{${paramIndex}}}`;
+  const pos = text.indexOf(placeholder);
+  if (pos === -1) return "custom";
+
+  // Get surrounding text window (50 chars each side, lowered)
+  const before = text.substring(Math.max(0, pos - 50), pos).toLowerCase();
+  const after = text.substring(pos + placeholder.length, pos + placeholder.length + 50).toLowerCase();
+
+  // Recipient name: greeting patterns
+  const recipientNamePatterns = [
+    /\b(hi|hello|hey|dear|hola|namaste|welcome)\s*,?\s*$/,
+    /\bname\s*[:=]?\s*$/,
+    /\bclient\s*$/,
+    /\bguest\s*$/,
+  ];
+  for (const pat of recipientNamePatterns) {
+    if (pat.test(before)) return "recipientName";
+  }
+  // If it's the very first param right after a greeting word
+  if (paramIndex === 1 && /\b(hi|hello|hey|dear)\b/.test(before)) return "recipientName";
+
+  // Sender name: closing/attribution patterns
+  const senderNamePatterns = [
+    /\b(from|regards|by|team|agent|sent by|contact|representative|sincerely)\s*[-:,]?\s*$/,
+    /[-–]\s*$/,
+  ];
+  const senderAfterPatterns = [
+    /^\s*(from|team|here|at)\b/,
+  ];
+  for (const pat of senderNamePatterns) {
+    if (pat.test(before)) return "senderName";
+  }
+  for (const pat of senderAfterPatterns) {
+    if (pat.test(after)) return "senderName";
+  }
+
+  // Location: place patterns
+  const locationPatterns = [
+    /\b(in|at|near|around|location|area|city|place|locality|region)\s*[-:,]?\s*$/,
+    /\blocation\b/,
+  ];
+  const locationAfterPatterns = [
+    /^\s*(area|location|city|region)\b/,
+  ];
+  for (const pat of locationPatterns) {
+    if (pat.test(before)) return "location";
+  }
+  for (const pat of locationAfterPatterns) {
+    if (pat.test(after)) return "location";
+  }
+
+  return "custom";
+}
+
+/**
+ * For a template, returns a map of param key -> detected intent for all params.
+ */
+export function getTemplateParamIntents(template: Template): Record<string, ParamIntent> {
+  const params = getTemplateParameters(template);
+  const intents: Record<string, ParamIntent> = {};
+  for (const p of params) {
+    intents[`${p.type}_${p.index}`] = detectParamIntent(template, p.type, p.index);
+  }
+  return intents;
+}
+
+/**
+ * Build auto-filled params for a template given context.
+ * senderName: from token, recipientName/location: placeholder markers for per-send substitution
+ */
+export function buildAutoFilledParams(
+  template: Template,
+  senderName: string
+): Record<string, string> {
+  const intents = getTemplateParamIntents(template);
+  const examples = getTemplateExampleParams(template);
+  const filled: Record<string, string> = {};
+
+  for (const [key, intent] of Object.entries(intents)) {
+    switch (intent) {
+      case "senderName":
+        filled[key] = senderName || examples[key] || "";
+        break;
+      case "recipientName":
+        // Leave empty - will be filled per-recipient at send time
+        filled[key] = "";
+        break;
+      case "location":
+        // Leave empty - will be filled per-recipient at send time
+        filled[key] = "";
+        break;
+      default:
+        filled[key] = examples[key] || "";
+        break;
+    }
+  }
+
+  return filled;
+}
+
+/**
+ * Get a short text summary of a template (first ~80 chars of body text).
+ */
+export function getTemplateBodySnippet(template: Template): string {
+  const bodyComp = template.components?.find((c: any) => c.type === "BODY");
+  if (bodyComp?.text) {
+    const clean = bodyComp.text.replace(/\{\{\d+\}\}/g, "___");
+    return clean.length > 80 ? clean.substring(0, 80) + "..." : clean;
+  }
+  return "";
 }
 
 export function buildTemplateComponents(

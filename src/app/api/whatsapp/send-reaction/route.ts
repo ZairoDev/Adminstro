@@ -8,9 +8,11 @@ import {
   canAccessPhoneId,
   getAllowedPhoneIds,
   getDefaultPhoneId,
+  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -56,7 +58,15 @@ export async function POST(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow reacting in retarget conversations
+    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -73,6 +83,21 @@ export async function POST(req: NextRequest) {
       const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
       if (conv) {
         phoneNumberId = conv.businessPhoneId;
+      }
+    }
+
+    // If conversationId provided, enforce conversation access rules
+    if (conversationId) {
+      const convDoc = await WhatsAppConversation.findById(conversationId).lean() as any;
+      if (!convDoc) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      const allowed = await canAccessConversation(token, convDoc);
+      if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+      if ((token.role || "") === "Advert" && convDoc.isRetarget && convDoc.retargetStage === "handed_to_sales") {
+        return NextResponse.json({ error: "Advert cannot react after handover" }, { status: 403 });
+      }
+      if ((token.role || "") === "Sales" && convDoc.isRetarget && convDoc.retargetStage !== "handed_to_sales") {
+        return NextResponse.json({ error: "Sales cannot react to retarget conversation before handover" }, { status: 403 });
       }
     }
 

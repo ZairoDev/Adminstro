@@ -426,13 +426,17 @@ async function getEligibleUsersForNotification(
   const normalizedPhoneAreas = phoneAreas.map(a => a.toLowerCase().trim());
   
   // Get all employees with WhatsApp access roles
+  // Also include Advert role so they receive notifications for retarget conversations
+  const whatsAppRoles = [...WHATSAPP_ACCESS_ROLES, "Advert"];
   const employees = await Employee.find({
-    role: { $in: WHATSAPP_ACCESS_ROLES },
+    role: { $in: whatsAppRoles },
     $or: [
       { isActive: { $exists: false } }, // If field doesn't exist, include
       { isActive: true }, // If field exists, must be true
     ],
   }).select("_id role allotedArea").lean();
+
+  const isRetargetConversation = !!(conversation as any).isRetarget;
   
   for (const employee of employees) {
     const employeeId = (employee._id as any)?.toString() || employee._id?.toString() || "";
@@ -457,6 +461,10 @@ async function getEligibleUsersForNotification(
     
     // Sales: Check if user has access to any of this phone's areas (area-based assignment, not conversation-based)
     if (employeeRole === "Sales") {
+      // Skip Sales for retarget conversations unless they've been handed to sales
+      if ((conversation as any).isRetarget && (conversation as any).retargetStage !== "handed_to_sales") {
+        continue;
+      }
       // Normalize areas for comparison (case-insensitive)
       const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
       
@@ -496,6 +504,16 @@ async function getEligibleUsersForNotification(
           allotedArea: employeeAreas,
         });
       }
+      continue;
+    }
+
+    // Advert: Only eligible for retarget conversations
+    if (employeeRole === "Advert" && isRetargetConversation) {
+      eligibleUsers.push({
+        userId: employeeId,
+        role: employeeRole,
+        allotedArea: employeeAreas,
+      });
     }
   }
   
@@ -812,6 +830,9 @@ async function processIncomingMessage(
           eventId,
           conversationId: conversation._id.toString(),
           businessPhoneId: phoneNumberId,
+          isRetarget: !!(conversation as any).isRetarget,
+          retargetStage: (conversation as any).retargetStage,
+          ownerRole: (conversation as any).ownerRole,
           userId: user.userId,
           participantName: senderName,
           lastMessagePreview: displayText.substring(0, 100),
@@ -993,6 +1014,9 @@ async function processIncomingMessage(
         lastMessageTime: timestamp,
         createdAt: firstMessageTime,
         isArchived,
+        isRetarget: !!(conversation as any).isRetarget,
+        retargetStage: (conversation as any).retargetStage,
+        ownerRole: (conversation as any).ownerRole,
         isReply: !!replyToMessageId,
         replyToPreview: replyContext?.content?.text?.substring(0, 50) || replyContext?.content?.caption?.substring(0, 50),
         message: {

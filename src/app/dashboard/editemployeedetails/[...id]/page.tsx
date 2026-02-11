@@ -389,7 +389,7 @@ const AccountPage = ({ params }: PageProps) => {
               </SelectTrigger>
               <SelectContent>
                 {selectCountry.map((country: String,index) => (
-                  <SelectItem key={index} value={country.toString()}>{country}</SelectItem>
+                  <SelectItem key={index} value={country.toString().toLowerCase()}>{country}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

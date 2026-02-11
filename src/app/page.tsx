@@ -10,6 +10,7 @@ import DashboardCard from "@/components/DashBoardCard";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
+import { useRouter } from "next/navigation";
 // import CrashErrorPage from "./dashboard/cr%%5E$ghzdkkxjuhgy789/page";
 
 export default function HomePage() {
@@ -41,6 +42,16 @@ export default function HomePage() {
   ];
 
   const { token } = useAuthStore();
+  const router = useRouter();
+
+  const handleDashboard = () => {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    router.push(defaultRoutes[token.role || "Default"]);
+  };
 
 
   return (
@@ -53,10 +64,11 @@ export default function HomePage() {
       </FadeInBlur>
       <FadeInBlur>
         <p className="max-w-3xl m-auto p-2 md:text-base text-center text-sm">
-          Oh, you think you belong here? If you&apos;re one of us here at Zairo, congrats!
-          Otherwise, feel free to close this window...or try to get in if you dare. If
-          you&apos;re actually an employee, tap the button below, enter your credentials,
-          and we&apos;ll route you to your designated workspace.
+          Oh, you think you belong here? If you&apos;re one of us here at Zairo,
+          congrats! Otherwise, feel free to close this window...or try to get in
+          if you dare. If you&apos;re actually an employee, tap the button
+          below, enter your credentials, and we&apos;ll route you to your
+          designated workspace.
         </p>
       </FadeInBlur>
       <FadeInBlur>
@@ -117,20 +129,14 @@ export default function HomePage() {
 
         <>
           {token ? (
-            <Link href={`${defaultRoutes[token?.role || "Default"]}`}>
-              <RainbowButton className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Dashboard
-              </RainbowButton>
-            </Link>
-            // <CrashErrorPage />
+            <RainbowButton onClick={handleDashboard}>Dashboard</RainbowButton>
           ) : (
             <Link href="/login">
               <RainbowButton>Login</RainbowButton>
             </Link>
           )}
         </>
-
-      </div >
+      </div>
 
       <div className="max-w-5xl m-auto mt-4 p-2">
         {/* <div className=" relative flex  w-full flex-col items-center justify-center overflow-hidden rounded-lg  border-[10px]  md:shadow-xl">
@@ -143,14 +149,12 @@ export default function HomePage() {
           </FadeInBlur>
           <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background to-transparent"></div>
         </div> */}
-      </div >
+      </div>
       <div className="max-w-7xl m-auto p-2">
         <DashboardCard />
       </div>
       <ScrollToTopButton />
     </>
-
-   
   );
 }
 

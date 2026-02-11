@@ -5,6 +5,7 @@ import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent } from "@/lib/pusher";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -52,6 +53,12 @@ export async function POST(req: NextRequest) {
         { error: "Conversation not found" },
         { status: 404 }
       );
+    }
+
+    // Enforce access rules
+    const allowed = await canAccessConversation(token, conversation.toObject ? conversation.toObject() : conversation);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get the latest message in this conversation to mark as read

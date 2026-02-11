@@ -13,6 +13,7 @@ import {
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -47,7 +48,15 @@ export async function POST(req: NextRequest) {
     // Get user's allowed phone IDs
     const userRole = token.role || "";
     const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+
+    // Advert role: allow sending retarget templates via the retarget phone
+    if (allowedPhoneIds.length === 0 && isRetarget && userRole === "Advert") {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+      }
+    }
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -180,6 +189,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Enforce access rules on the conversation (if exists)
+    if (conversation) {
+      const convLean = conversation.toObject ? conversation.toObject() : conversation;
+
+      // If conversation is already retargeted, ensure user has access
+      if (convLean.isRetarget) {
+        const allowed = await canAccessConversation(token, convLean);
+        if (!allowed) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Block Advert from sending after handover
+        if ((token.role || "") === "Advert" && convLean.retargetStage === "handed_to_sales") {
+          return NextResponse.json({ error: "Advert cannot send after handover" }, { status: 403 });
+        }
+
+        // Block Sales from sending before handover
+        if ((token.role || "") === "Sales" && convLean.retargetStage !== "handed_to_sales") {
+          return NextResponse.json({ error: "Sales cannot send to retarget conversation before handover" }, { status: 403 });
+        }
+      }
+    }
+
     // Use provided template text or fallback
     const displayText = templateText || `Template: ${templateName}`;
     const contentObj = { text: displayText };
@@ -213,7 +245,7 @@ export async function POST(req: NextRequest) {
       : "guest";
 
     // Update conversation last message and conversation type
-    await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+    const conversationUpdate: any = {
       lastMessageId: whatsappMessageId,
       lastMessageContent: displayText.substring(0, 100),
       lastMessageTime: timestamp,
@@ -221,12 +253,25 @@ export async function POST(req: NextRequest) {
       lastMessageStatus: "sending",
       lastOutgoingMessageTime: timestamp,
       conversationType, // Set conversation type when template is sent
-    });
+    };
+
+    // Flag the conversation as retarget if this is a retarget message
+    if (isRetarget) {
+      conversationUpdate.isRetarget = true;
+      conversationUpdate.retargetStage = "initiated";
+      conversationUpdate.ownerRole = "Advert";
+      conversationUpdate.ownerUserId = token.id || token._id;
+      conversationUpdate.retargetAgentId = token.id || token._id;
+      conversationUpdate.retargetTemplateName = templateName;
+    }
+
+    await WhatsAppConversation.findByIdAndUpdate(conversation._id, conversationUpdate);
 
     // Emit socket event for real-time updates
     emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
       conversationId: conversation._id.toString(),
       businessPhoneId: phoneNumberId,
+      isRetarget: !!isRetarget,
       message: {
         id: savedMessage._id.toString(),
         messageId: whatsappMessageId,

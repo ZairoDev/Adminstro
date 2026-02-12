@@ -31,20 +31,24 @@ export async function POST(
     if (status === "rejected" && rejectionDetails)
       updateData.rejectionDetails = rejectionDetails;
 
-    // If selected for training, set training agreement signing link
+    // If selected for training, set training agreement signing link and date
     let trainingAgreementLink: string | undefined;
     if (status === "selected") {
       trainingAgreementLink = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/training-agreement`;
       updateData["trainingAgreementDetails.signingLink"] = trainingAgreementLink;
+      // Set the date when candidate was selected for training (only if not already set)
+      updateData.selectedForTrainingAt = new Date();
     }
 
-    // If onboarding step, set onboarding link in candidate onboardingDetails
+    // If onboarding step, set onboarding link in candidate onboardingDetails and date
     if (status === "onboarding") {
       // If frontend provided a link use it, otherwise generate one
       const link = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/onboarding`;
       updateData["onboardingDetails.onboardingLink"] = link;
       // Also mark status as onboarding
       updateData.status = "onboarding";
+      // Set the date when onboarding started (only if not already set)
+      updateData.onboardingStartedAt = new Date();
     }
 
     const candidate = await Candidate.findByIdAndUpdate(id, updateData, {

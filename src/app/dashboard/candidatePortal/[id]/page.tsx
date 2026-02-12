@@ -26,6 +26,7 @@ import {
   Pencil,
   Copy,
   IndianRupee,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -78,6 +79,34 @@ import { convertTo24Hour, formatSalary } from "./utils/time-utils";
 import { CandidateHeader } from "./components/CandidateHeader";
 
 // Candidate interface is now imported from types.ts - removed duplicate definition
+
+/**
+ * Helper function to check if 10 days have passed since candidate status changed to onboarding
+ * @param updatedAt - The updatedAt timestamp from candidate
+ * @returns Object with isEnabled flag and daysRemaining count
+ */
+function checkOfferLetterAvailability(updatedAt: string | undefined): {
+  isEnabled: boolean;
+  daysRemaining: number | null;
+} {
+  if (!updatedAt) {
+    return { isEnabled: false, daysRemaining: null };
+  }
+  
+  const statusChangedDate = new Date(updatedAt);
+  const tenDaysLater = new Date(statusChangedDate);
+  tenDaysLater.setDate(tenDaysLater.getDate() + 10);
+  const now = new Date();
+  
+  if (now < tenDaysLater) {
+    const daysRemaining = Math.ceil(
+      (tenDaysLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return { isEnabled: false, daysRemaining };
+  }
+  
+  return { isEnabled: true, daysRemaining: 0 };
+}
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -160,6 +189,16 @@ export default function CandidateDetailPage() {
   const [resignatureReason, setResignatureReason] = useState("");
   const [requestingResignature, setRequestingResignature] = useState(false);
   const [resignatureLink, setResignatureLink] = useState<string | null>(null);
+  
+  // Send Offer Letter state
+  const [sendingOfferLetter, setSendingOfferLetter] = useState(false);
+  
+  // Offer Letter PDF states
+  const [offerLetterExpanded, setOfferLetterExpanded] = useState(true);
+  const [unsignedOfferLetterUrl, setUnsignedOfferLetterUrl] = useState<string | null>(null);
+  const [generatingUnsignedOfferLetterPdf, setGeneratingUnsignedOfferLetterPdf] = useState(false);
+  const [showSignedOfferLetterPdfDialog, setShowSignedOfferLetterPdfDialog] = useState(false);
+  const [showUnsignedOfferLetterPdfDialog, setShowUnsignedOfferLetterPdfDialog] = useState(false);
 
   const generateUnsignedTrainingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
@@ -292,6 +331,43 @@ export default function CandidateDetailPage() {
       fetchUser();
   }, []);
 
+  const generateUnsignedOfferLetter = async () => {
+    if (!candidate || !candidate.name || !candidate.position) return;
+    
+    setGeneratingUnsignedOfferLetterPdf(true);
+    try {
+      // Use ISO date string format for proper parsing
+      const agreementDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const offerLetterPayload = {
+        candidateName: candidate.name,
+        position: candidate.position,
+        date: agreementDate,
+        candidateId: candidate._id,
+        // No signature for unsigned PDF
+      };
+
+      const pdfResponse = await axios.post(
+        "/api/candidates/offerLetter",
+        offerLetterPayload,
+        {
+          responseType: "arraybuffer",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const pdfBlob = new Blob([pdfResponse.data], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(pdfBlob);
+      setUnsignedOfferLetterUrl(url);
+    } catch (error: any) {
+      console.error("Error generating unsigned offer letter PDF:", error);
+      toast.error("Failed to generate offer letter PDF");
+    } finally {
+      setGeneratingUnsignedOfferLetterPdf(false);
+    }
+  };
+
   const generateUnsignedOnboardingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) {
       console.log("Cannot generate unsigned onboarding PDF: missing candidate data");
@@ -301,19 +377,20 @@ export default function CandidateDetailPage() {
     setGeneratingUnsignedOnboardingPdf(true);
     try {
       const agreementPayload = {
-        agreementDate: new Date().toLocaleDateString("en-IN"),
+        agreementDate: new Date().toISOString(),
         agreementCity: candidate.city ?? "Kanpur",
         employeeName: candidate.name,
         fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
         employeeAddress: candidate.address || "",
         designation: candidate.position,
-        effectiveFrom: new Date().toLocaleDateString("en-IN"),
+        effectiveFrom: new Date().toISOString(),
         postingLocation: candidate.city || "Kanpur",
         salaryINR: candidate.selectionDetails?.salary 
           ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
           : "As per employment terms",
         witness1: "____________________",
         witness2: "____________________",
+        candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
         // No signature for unsigned PDF - this is the key difference
       };
 
@@ -1172,6 +1249,77 @@ export default function CandidateDetailPage() {
                     <TooltipContent><p>{getButtonTooltip("onboarding")}</p></TooltipContent>
                   </Tooltip>
 
+                  {/* Send Offer Letter Button - Only visible when onboarding */}
+                  {candidate.status === "onboarding" && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            onClick={async () => {
+                              if (!candidate) return;
+                              setSendingOfferLetter(true);
+                              try {
+                                const response = await axios.post(
+                                  `/api/candidates/${candidateId}/send-offer-letter`
+                                );
+                                if (response.data.success) {
+                                  toast.success("Offer letter sent successfully");
+                                  refreshCandidate();
+                                } else {
+                                  throw new Error(response.data.error || "Failed to send offer letter");
+                                }
+                              } catch (error: any) {
+                                console.error("Error sending offer letter:", error);
+                                toast.error(
+                                  error.response?.data?.error ||
+                                  error.message ||
+                                  "Failed to send offer letter"
+                                );
+                              } finally {
+                                setSendingOfferLetter(false);
+                              }
+                            }}
+                            disabled={
+                              sendingOfferLetter ||
+                              !checkOfferLetterAvailability((candidate as any).updatedAt).isEnabled
+                            }
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start h-8 text-xs"
+                          >
+                            {sendingOfferLetter ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="mr-2 h-4 w-4" />
+                                Send Offer Letter
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {(() => {
+                            const { isEnabled, daysRemaining } = checkOfferLetterAvailability(
+                              (candidate as any).updatedAt
+                            );
+                            if (!isEnabled) {
+                              if (daysRemaining === null) {
+                                return "Offer letter can be sent 10 days after onboarding status";
+                              }
+                              return `Offer letter will be enabled in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""}`;
+                            }
+                            return "Send offer letter to candidate via email";
+                          })()}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
                   {/* Discontinue Training Button */}
                   {candidate.status === "selected" && (
                     <Tooltip>
@@ -1810,6 +1958,100 @@ export default function CandidateDetailPage() {
               </Card>
             )}
 
+            {/* Offer Letter */}
+            {candidate.status === "onboarding" && (
+              <Card className="p-4">
+                <button
+                  onClick={() => setOfferLetterExpanded(!offerLetterExpanded)}
+                  className="w-full flex items-center justify-between mb-2"
+                >
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                    Offer Letter
+                  </h3>
+                  {offerLetterExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {offerLetterExpanded && (
+                  <div className="flex items-start gap-3 mt-3">
+                    {/* Signed PDF Preview */}
+                    {candidate.selectionDetails?.signedOfferLetterPdfUrl && (
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs font-medium text-foreground">Signed</p>
+                        <div 
+                          onClick={() => setShowSignedOfferLetterPdfDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const a = document.createElement("a");
+                            a.href = candidate.selectionDetails!.signedOfferLetterPdfUrl!;
+                            a.download = `Offer-Letter-${candidate._id}-Signed.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                          className="w-full gap-1.5 h-7 text-xs"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Unsigned PDF Preview */}
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      {generatingUnsignedOfferLetterPdf ? (
+                        <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                          </div>
+                        </div>
+                      ) : unsignedOfferLetterUrl ? (
+                        <div 
+                          onClick={() => setShowUnsignedOfferLetterPdfDialog(true)}
+                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={generateUnsignedOfferLetter}
+                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        >
+                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!offerLetterExpanded && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>
+                      {candidate.selectionDetails?.signedOfferLetterPdfUrl 
+                        ? "Signed Offer Letter available - Click to view" 
+                        : "Click to preview Offer Letter documents"}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            )}
+
             {/* Onboarding Details */}
             {(candidate.status === "onboarding" || candidate.onboardingDetails?.onboardingComplete) && (
               <OnboardingDetailsView
@@ -2106,7 +2348,7 @@ export default function CandidateDetailPage() {
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
                     <iframe
-                      src={unsignedLetterOfIntentUrl}
+                      src={unsignedLetterOfIntentUrl || undefined}
                       className="w-full h-[70vh] border-0"
                       title="Unsigned Letter of Intent Preview"
                     />
@@ -2124,6 +2366,80 @@ export default function CandidateDetailPage() {
               </Dialog>
             )}
 
+            {/* Signed Offer Letter PDF Dialog */}
+            {candidate.selectionDetails?.signedOfferLetterPdfUrl && (
+              <Dialog open={showSignedOfferLetterPdfDialog} onOpenChange={setShowSignedOfferLetterPdfDialog}>
+                <DialogContent className="max-w-6xl max-h-[95vh] bg-white dark:bg-gray-800 flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Signed Offer Letter</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      View and download the signed offer letter document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
+                    <iframe
+                      src={`${candidate.selectionDetails.signedOfferLetterPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                      className="w-full h-full min-h-[75vh] border-0"
+                      title="Signed Offer Letter"
+                      style={{ minHeight: '75vh' }}
+                    />
+                  </div>
+                  <DialogFooter className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowSignedOfferLetterPdfDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = candidate.selectionDetails!.signedOfferLetterPdfUrl!;
+                        a.download = `Offer-Letter-${candidate._id}-Signed.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download PDF
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Unsigned Offer Letter PDF Dialog */}
+            {unsignedOfferLetterUrl && (
+              <Dialog open={showUnsignedOfferLetterPdfDialog} onOpenChange={setShowUnsignedOfferLetterPdfDialog}>
+                <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">Unsigned Offer Letter Preview</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Preview of the unsigned offer letter document
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                    <iframe
+                      src={unsignedOfferLetterUrl || undefined}
+                      className="w-full h-[70vh] border-0"
+                      title="Unsigned Offer Letter Preview"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowUnsignedOfferLetterPdfDialog(false)}
+                      className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
 
             {/* Cover Letter */}
             {candidate.coverLetter && (

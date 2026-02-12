@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       address: data.address,
       city: data.city,
       country: data.country,
+      gender: data.gender || null,
       college: data.college,
       position: data.position,
       coverLetter: data.coverLetter,

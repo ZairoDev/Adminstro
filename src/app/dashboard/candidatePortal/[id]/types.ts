@@ -73,6 +73,10 @@ export interface Candidate {
     trainingPeriod: string;
     role: string;
     salary?: number;
+    offerLetterSent?: boolean;
+    offerLetterSentAt?: string;
+    offerLetterSigningLink?: string;
+    signedOfferLetterPdfUrl?: string;
   };
   shortlistDetails?: {
     suitableRoles: string[];

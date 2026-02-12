@@ -1052,13 +1052,13 @@ export default function OnboardingPage() {
       try {
         // Generate signed PDF with signature
         const agreementPayload = {
-          agreementDate: new Date().toLocaleDateString("en-IN"),
+          agreementDate: new Date().toISOString(),
           agreementCity: candidate.city ?? "Kanpur",
           employeeName: candidate.name,
           fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || personalDetails.fatherName || "",
           employeeAddress: candidate.address,
           designation: candidate.position,
-          effectiveFrom: new Date().toLocaleDateString("en-IN"),
+          effectiveFrom: new Date().toISOString(),
           postingLocation: candidate.city || "Kanpur",
           salaryINR: candidate.selectionDetails?.salary 
             ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
@@ -1066,6 +1066,7 @@ export default function OnboardingPage() {
           witness1: "____________________",
           witness2: "____________________",
           signatureBase64: signature.url,
+          candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
         };
 
         const pdfResponse = await axios.post(
@@ -1169,7 +1170,7 @@ export default function OnboardingPage() {
       // If this is missing or invalid, an unsigned PDF will be generated (which is incorrect)
       // This payload MUST include the signature URL to generate a properly signed document
       const agreementPayload = {
-        agreementDate: new Date().toLocaleDateString("en-IN"),
+        agreementDate: new Date().toISOString(),
         agreementCity: candidate.city ?? "Kanpur",
 
         employeeName: candidate.name,
@@ -1177,7 +1178,7 @@ export default function OnboardingPage() {
         employeeAddress: candidate.address,
 
         designation: candidate.position,
-        effectiveFrom: new Date().toLocaleDateString("en-IN"),
+        effectiveFrom: new Date().toISOString(),
         postingLocation: candidate.city,
         salaryINR: candidate.selectionDetails?.salary 
           ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
@@ -1190,6 +1191,7 @@ export default function OnboardingPage() {
         // The API will fetch this image and embed it into the PDF at the signature location
         // Without this, the PDF will be unsigned (preview only)
         signatureBase64: signature.url,
+        candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
       };
 
       // DEFENSIVE CHECK: Ensure signature is present before PDF generation
@@ -1454,19 +1456,20 @@ export default function OnboardingPage() {
         : (personalDetails.fatherName || candidate.fatherName || "");
       
       const agreementPayload = {
-        agreementDate: new Date().toLocaleDateString("en-IN"),
+        agreementDate: new Date().toISOString(),
         agreementCity: candidate.city ?? "Kanpur",
         employeeName: candidate.name,
         fatherName: fatherName,
         employeeAddress: candidate.address,
         designation: candidate.position,
-        effectiveFrom: new Date().toLocaleDateString("en-IN"),
+        effectiveFrom: new Date().toISOString(),
         postingLocation: candidate.city,
         salaryINR: candidate.selectionDetails?.salary 
           ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
           : "As per employment terms",
         witness1: "____________________",
         witness2: "____________________",
+        candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
         // No signature for unsigned PDF
       };
 

@@ -3,12 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import Candidate from "@/models/candidate";
+import { connectDb } from "@/util/db";
 
 type Payload = {
   candidateName: string;
   position: string;
   date: string;
   signatureBase64?: string;
+  candidateId?: string;
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -106,16 +109,37 @@ export async function POST(req: NextRequest) {
     const footerSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    // Parse and validate date
+    // Fetch candidate selected date if candidateId is provided
+    let candidateSelectedDate: Date | null = null;
+    if (data.candidateId) {
+      try {
+        await connectDb();
+        const candidate = await Candidate.findById(data.candidateId).lean();
+        if (candidate?.selectedForTrainingAt) {
+          candidateSelectedDate = new Date(candidate.selectedForTrainingAt);
+        }
+      } catch (err) {
+        console.error("Error fetching candidate selected date:", err);
+        // Continue with provided date
+      }
+    }
+
+    // Parse and validate date - prioritize stored selectedForTrainingAt date
     let agreementDate: Date;
-    try {
-      agreementDate = new Date(data.date);
-      if (isNaN(agreementDate.getTime())) {
-        // If invalid, use current date
+    if (candidateSelectedDate && !isNaN(candidateSelectedDate.getTime())) {
+      // Use the stored date when candidate was selected for training
+      agreementDate = candidateSelectedDate;
+    } else {
+      // Fallback to provided date or current date
+      try {
+        agreementDate = new Date(data.date);
+        if (isNaN(agreementDate.getTime())) {
+          // If invalid, use current date
+          agreementDate = new Date();
+        }
+      } catch {
         agreementDate = new Date();
       }
-    } catch {
-      agreementDate = new Date();
     }
     
     const day = agreementDate.getDate();

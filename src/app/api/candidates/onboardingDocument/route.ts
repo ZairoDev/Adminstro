@@ -37,6 +37,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import Candidate from "@/models/candidate";
+import { connectDb } from "@/util/db";
 
 type Payload = {
   // Party info
@@ -68,6 +70,7 @@ type Payload = {
 
   // Signature image URL (optional)
   signatureBase64?: string;
+  candidateId?: string;
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -158,6 +161,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fetch candidate onboarding date if candidateId is provided
+    let candidateOnboardingDate: Date | null = null;
+    if (data.candidateId) {
+      try {
+        await connectDb();
+        const candidate = await Candidate.findById(data.candidateId).lean();
+        if (candidate?.onboardingStartedAt) {
+          candidateOnboardingDate = new Date(candidate.onboardingStartedAt);
+        }
+      } catch (err) {
+        console.error("Error fetching candidate onboarding date:", err);
+        // Continue with provided dates
+      }
+    }
+
     // Defaults matching the original document
     const companyName = data.companyName ?? "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = data.companyCIN ?? "U93090UP2017PTC089137";
@@ -212,6 +230,7 @@ export async function POST(req: NextRequest) {
 
     // =============================================================================
     // DATE VALIDATION - Prevent "NaN of Invalid Date" errors
+    // Use stored onboardingStartedAt date if available, otherwise use provided date
     // =============================================================================
     const parseAndValidateDate = (dateString: string | undefined): { day: number; monthName: string; year: number } | null => {
       if (!dateString) return null;
@@ -224,10 +243,24 @@ export async function POST(req: NextRequest) {
       };
     };
     
-    const parsedDate = parseAndValidateDate(data.agreementDate);
+    // Prioritize stored onboardingStartedAt date for agreementDate
+    const agreementDateToUse = candidateOnboardingDate && !isNaN(candidateOnboardingDate.getTime())
+      ? candidateOnboardingDate.toISOString()
+      : data.agreementDate;
+    
+    const parsedDate = parseAndValidateDate(agreementDateToUse);
     const day = parsedDate?.day ?? "";
     const monthName = parsedDate?.monthName ?? "___________";
     const year = parsedDate?.year ?? "____";
+    
+    // Format effectiveFrom date - use stored onboardingStartedAt if available
+    const effectiveFromDateToUse = candidateOnboardingDate && !isNaN(candidateOnboardingDate.getTime())
+      ? candidateOnboardingDate.toISOString()
+      : data.effectiveFrom;
+    const parsedEffectiveFrom = parseAndValidateDate(effectiveFromDateToUse);
+    const formattedEffectiveFrom = parsedEffectiveFrom
+      ? `${parsedEffectiveFrom.day}${parsedEffectiveFrom.day === 1 || parsedEffectiveFrom.day === 21 || parsedEffectiveFrom.day === 31 ? "st" : parsedEffectiveFrom.day === 2 || parsedEffectiveFrom.day === 22 ? "nd" : parsedEffectiveFrom.day === 3 || parsedEffectiveFrom.day === 23 ? "rd" : "th"} ${parsedEffectiveFrom.monthName} ${parsedEffectiveFrom.year}`
+      : (data.effectiveFrom || "___________");
 
     const titleTextLeft = "Zairo ";
     const titleTextMid = "International ";
@@ -849,7 +882,7 @@ export async function POST(req: NextRequest) {
       `1. You are being appointed as ${
         data.designation || "___________"
       } with effect from ${
-        data.effectiveFrom || "___________"
+        formattedEffectiveFrom
       } and shall be considered an 'Employee' of the Company.`,
       leftMargin + 5,
       bodySize

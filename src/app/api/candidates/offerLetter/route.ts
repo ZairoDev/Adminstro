@@ -7,17 +7,20 @@ import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 
 type Payload = {
-  candidateName: string;
-  position: string;
-  date: string;
-  signatureBase64?: string;
-  salary?: string; // e.g., "₹2.16 LPA"
-  designation?: string; // e.g., "Human Resource Executive (HR Executive)"
-  department?: string; // e.g., "Human Resources"
-  startDate?: string; // e.g., "13th Jan 2026"
+  letterDate: string; // ISO date string
+  employeeName: string; // First name for "Mr./Ms." line
+  employeeFullName: string; // Full name for "Dear [Full Name]" line
+  designation: string; // e.g., "Business Development Executive"
+  dateOfJoining: string; // ISO date string
+  postingLocation: string; // e.g., "117/N/70 3rd Floor Kakadeo, Kanpur 208025"
+  annualCTC: string; // e.g., "₹2,52,000" or "₹2.52 LPA"
+  workingHoursStart?: string; // e.g., "11:30 AM"
+  workingHoursEnd?: string; // e.g., "8:30 PM"
+  salaryPaymentCycle?: string; // e.g., "15th to 18th"
+  probationPeriod?: string; // e.g., "six (6) months"
   candidateSignatureBase64?: string; // Candidate's signature
   ankitaSignatureBase64?: string; // Ankita mam's signature
-  signingDate?: string; // ISO string of when candidate signed (for Date of Signing field)
+  signingDate?: string; // ISO string of when candidate signed
   candidateId?: string;
 };
 
@@ -74,58 +77,37 @@ export async function POST(req: NextRequest) {
   try {
     const data = (await req.json()) as Payload;
 
-    // Convert signature image URL → Base64 if provided
-    let signatureBase64: string | undefined;
-    if (data.signatureBase64) {
-      try {
-        const sigRes = await axios.get(data.signatureBase64, {
-          responseType: "arraybuffer",
-        });
-        signatureBase64 = Buffer.from(sigRes.data).toString("base64");
-      } catch (err) {
-        console.error("Error fetching signature:", err);
-        signatureBase64 = undefined;
-      }
-    }
+    // Note: signatureBase64 removed - using ankitaSignatureBase64 and candidateSignatureBase64 instead
 
-    // Fetch candidate training duration and date if candidateId is provided
+    // Fetch candidate training duration if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
-    let candidateSelectedDate: Date | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
         const candidate = await Candidate.findById(data.candidateId).lean();
-        if (candidate) {
-          // Get the date when candidate was selected for training
-          if (candidate.selectedForTrainingAt) {
-            candidateSelectedDate = new Date(candidate.selectedForTrainingAt);
-          }
-          
-          // Get training duration
-          if (candidate?.selectionDetails?.trainingPeriod) {
-            // Use trainingPeriod from selectionDetails
-            // Format: "5 days" -> "5 working days" or keep as is if already formatted
-            const trainingPeriod = candidate.selectionDetails.trainingPeriod;
-            if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
-              phase1Duration = trainingPeriod.includes("working") 
-                ? trainingPeriod 
-                : trainingPeriod.replace(/days?/i, "working days");
+        if (candidate?.selectionDetails?.trainingPeriod) {
+          // Use trainingPeriod from selectionDetails
+          // Format: "5 days" -> "5 working days" or keep as is if already formatted
+          const trainingPeriod = candidate.selectionDetails.trainingPeriod;
+          if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
+            phase1Duration = trainingPeriod.includes("working") 
+              ? trainingPeriod 
+              : trainingPeriod.replace(/days?/i, "working days");
+          } else {
+            // If it's just a number, format it
+            const days = parseInt(trainingPeriod);
+            if (!isNaN(days)) {
+              phase1Duration = `${days} working days`;
             } else {
-              // If it's just a number, format it
-              const days = parseInt(trainingPeriod);
-              if (!isNaN(days)) {
-                phase1Duration = `${days} working days`;
-              } else {
-                phase1Duration = trainingPeriod;
-              }
+              phase1Duration = trainingPeriod;
             }
-          } else if (candidate?.selectionDetails?.duration) {
-            // Fallback to duration field
-            phase1Duration = candidate.selectionDetails.duration;
           }
+        } else if (candidate?.selectionDetails?.duration) {
+          // Fallback to duration field
+          phase1Duration = candidate.selectionDetails.duration;
         }
       } catch (err) {
-        console.error("Error fetching candidate data:", err);
+        console.error("Error fetching candidate training duration:", err);
         // Use default fallback
       }
     }
@@ -238,13 +220,14 @@ export async function POST(req: NextRequest) {
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
     let yPosition = pageHeight - topMargin;
     let pageNumber = 1;
-    const totalPages = 2; // Training agreement is typically 2 pages
+    let totalPages = 5; // Appointment letter with annexures is typically 5+ pages (will be updated dynamically)
 
     // Helper function to add a new page
     const addNewPage = () => {
       pageNumber++;
       currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
       yPosition = pageHeight - topMargin;
+      totalPages = pdfDoc.getPageCount(); // Update total pages dynamically
       addPageHeader();
     };
 
@@ -471,24 +454,22 @@ export async function POST(req: NextRequest) {
     // Add spacing before main content
     yPosition -= 15;
 
-    // Format date with validation - prioritize stored selectedForTrainingAt date
+    // Title: APPOINTMENT LETTER
+    drawWrappedText("APPOINTMENT LETTER", leftMargin, titleSize, true);
+    yPosition -= paragraphSpacing * 2;
+
+    // Format date with validation
     let letterDate: Date;
-    if (candidateSelectedDate && !isNaN(candidateSelectedDate.getTime())) {
-      // Use the stored date when candidate was selected for training
-      letterDate = candidateSelectedDate;
-    } else {
-      // Fallback to provided date or current date
-      try {
-        letterDate = new Date(data.date);
-        // Check if date is valid
-        if (isNaN(letterDate.getTime())) {
-          // If invalid, use current date
-          letterDate = new Date();
-        }
-      } catch (error) {
-        // If parsing fails, use current date
+    try {
+      letterDate = new Date(data.letterDate);
+      // Check if date is valid
+      if (isNaN(letterDate.getTime())) {
+        // If invalid, use current date
         letterDate = new Date();
       }
+    } catch (error) {
+      // If parsing fails, use current date
+      letterDate = new Date();
     }
     
     const day = letterDate.getDate();
@@ -500,133 +481,448 @@ export async function POST(req: NextRequest) {
     // Date line
     const dateLine = `Date: ${formattedDate}`;
     drawWrappedText(dateLine, leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    // Employee name (first name only for "Mr./Ms." line)
+    const employeeFirstName = data.employeeName || "______________";
+    drawWrappedText(`Mr. ${employeeFirstName}`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
     // Subject line
-    const subjectLine = `Subject: Letter of Intent – ${data.department || data.position || "Human Resources"}`;
-    drawWrappedText(subjectLine, leftMargin, bodySize);
+    drawWrappedText("Subject: Appointment Letter", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Dear candidate line (with Ms./Mr. prefix - assuming Ms. for now, can be made dynamic)
-    const candidateName = data.candidateName || "______________";
-    const dearLine = `Dear Ms. ${candidateName},`;
+    // Dear candidate line (with full name)
+    const employeeFullName = data.employeeFullName || data.employeeName || "______________";
+    const dearLine = `Dear ${employeeFullName}`;
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // First paragraph
-    const firstParagraph = `We are pleased to inform you that Zairo International Private Limited, having its registered office at ${companyAddress}, intends to offer you the position of ${data.position || "Human Resources (HR)"} with our organization.`;
-    drawWrappedText(firstParagraph, leftMargin, bodySize);
+    // Opening paragraph
+    const openingParagraph = `With reference to your application and the subsequent interview held with us, we are pleased to appoint you as ${data.designation || "______________"} with Zairo International Private Limited, on the following terms and conditions:`;
+    drawWrappedText(openingParagraph, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Second paragraph
-    const secondParagraph = `This Letter of Intent is issued to confirm our interest in appointing you to the above-mentioned role, subject to the successful completion of the following conditions:`;
-    drawWrappedText(secondParagraph, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Conditions list
-    const conditions = [
-      "Verification of your educational qualifications, experience, and background.",
-      "Submission of all required documents as requested by the company.",
-      "Mutual agreement on final employment terms and conditions.",
-      "Issuance and acceptance of a formal Offer Letter / Appointment Letter.",
-      "After clearing the training period (As Mentioned in PRE-EMPLOYMENT TRAINING AGREEMENT)"
-    ];
-
-    conditions.forEach((condition, index) => {
-      drawWrappedText(`${index + 1}. ${condition}`, leftMargin, bodySize);
-    yPosition -= lineHeight;
-    });
-
-    yPosition -= paragraphSpacing * 2;
-
-    // Proposed Details section
-    drawWrappedText("Proposed Details (Indicative & Non-Binding):", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-
-    // Format start date if provided
-    let formattedStartDate = data.startDate || "______________";
-    if (data.startDate && !data.startDate.includes("th") && !data.startDate.includes("st") && !data.startDate.includes("nd") && !data.startDate.includes("rd")) {
-      try {
-        const startDateObj = new Date(data.startDate);
-        const startDay = startDateObj.getDate();
-        const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" : startDay === 2 || startDay === 22 ? "nd" : startDay === 3 || startDay === 23 ? "rd" : "th";
-        const startMonthName = startDateObj.toLocaleString("en-US", { month: "long" });
-        const startYear = startDateObj.getFullYear();
-        formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session ${phase1Duration})`;
-      } catch (e) {
-        // Keep original if parsing fails
+    // Format date of joining
+    let formattedJoiningDate = "______________";
+    try {
+      const joiningDate = new Date(data.dateOfJoining);
+      if (!isNaN(joiningDate.getTime())) {
+        const joinDay = joiningDate.getDate();
+        const joinDaySuffix = joinDay === 1 || joinDay === 21 || joinDay === 31 ? "st" : joinDay === 2 || joinDay === 22 ? "nd" : joinDay === 3 || joinDay === 23 ? "rd" : "th";
+        const joinMonthName = joiningDate.toLocaleString("en-US", { month: "long" });
+        const joinYear = joiningDate.getFullYear();
+        formattedJoiningDate = `${joinDay}${joinDaySuffix} ${joinMonthName} ${joinYear}`;
       }
+    } catch (e) {
+      // Keep placeholder if parsing fails
     }
 
-    // Format salary - convert monthly salary to LPA format
-    let formattedSalary = "______________";
-    if (data.salary) {
-      try {
-        const salaryStr = String(data.salary).trim();
-        
-        // Check if salary already contains "LPA" - if so, use as-is (just normalize currency symbol)
-        if (salaryStr.toLowerCase().includes("lpa")) {
-          formattedSalary = salaryStr.replace(/₹/g, "Rs. ");
-        } else {
-          // Remove any currency symbols, commas, spaces and extract numeric value
-          const numericStr = salaryStr.replace(/[₹Rs.,\s]/g, "").trim();
-          const monthlySalary = parseFloat(numericStr);
-          
-          if (!isNaN(monthlySalary) && monthlySalary > 0) {
-            // Convert monthly to annual, then to LPA
-            const annualSalary = monthlySalary * 12;
-            const lpa = annualSalary / 100000;
-            formattedSalary = `Rs. ${lpa.toFixed(2)} LPA`;
+    // Format annual CTC
+    let formattedCTC = "______________";
+    if (data.annualCTC) {
+      const ctcStr = String(data.annualCTC).trim();
+      // Check if it contains "LPA" or is already formatted
+      if (ctcStr.toLowerCase().includes("lpa") || ctcStr.includes("Lakh") || ctcStr.includes("Thousand")) {
+        formattedCTC = ctcStr.replace(/₹/g, "₹").replace(/Rs\./g, "₹");
+      } else {
+        // Try to format as currency
+        const numericStr = ctcStr.replace(/[₹Rs.,\s]/g, "").trim();
+        const ctcValue = parseFloat(numericStr);
+        if (!isNaN(ctcValue) && ctcValue > 0) {
+          // Format with Indian number system
+          if (ctcValue >= 100000) {
+            const lakhs = ctcValue / 100000;
+            const thousands = Math.floor((ctcValue % 100000) / 1000);
+            if (thousands > 0) {
+              formattedCTC = `₹${lakhs.toFixed(0)},${thousands.toString().padStart(2, '0')},000`;
+            } else {
+              formattedCTC = `₹${lakhs.toFixed(0)},00,000`;
+            }
           } else {
-            // If parsing fails, use as-is but replace ₹ with Rs.
-            formattedSalary = salaryStr.replace(/₹/g, "Rs. ");
+            formattedCTC = `₹${ctcValue.toLocaleString('en-IN')}`;
           }
+        } else {
+          formattedCTC = ctcStr.replace(/Rs\./g, "₹");
         }
-      } catch (error) {
-        // Fallback: just replace ₹ with Rs. if conversion fails
-        formattedSalary = String(data.salary).replace(/₹/g, "Rs. ");
       }
     }
 
-    // Proposed details items
-    const proposedDetails = [
-      `- Designation: ${data.designation || data.position + " Executive" || "Human Resource Executive (HR Executive)"}`,
-      `- Department: ${data.department || data.position || "Human Resources"}`,
-      `- Work Location: Kakadeo, Kanpur`,
-      `- Proposed Start Date: ${formattedStartDate}`,
-      `- Remuneration: ${formattedSalary}`
-    ];
+    // Format CTC in words (simplified)
+    let ctcInWords = "______________";
+    if (data.annualCTC) {
+      const numericStr = String(data.annualCTC).replace(/[₹Rs.,\s]/g, "").trim();
+      const ctcValue = parseFloat(numericStr);
+      if (!isNaN(ctcValue) && ctcValue > 0) {
+        // Simple conversion to words (can be enhanced)
+        const lakhs = Math.floor(ctcValue / 100000);
+        const thousands = Math.floor((ctcValue % 100000) / 1000);
+        if (lakhs > 0 && thousands > 0) {
+          ctcInWords = `Rupees ${lakhs === 1 ? "One" : lakhs === 2 ? "Two" : lakhs === 3 ? "Three" : lakhs === 4 ? "Four" : lakhs === 5 ? "Five" : lakhs.toString()} Lakh ${thousands === 50 ? "Fifty" : thousands === 52 ? "Fifty-Two" : thousands.toString()} Thousand Only`;
+        } else if (lakhs > 0) {
+          ctcInWords = `Rupees ${lakhs === 2 ? "Two" : lakhs === 3 ? "Three" : lakhs.toString()} Lakh ${thousands === 50 ? "Fifty" : thousands === 52 ? "Fifty-Two" : thousands.toString()} Thousand Only`;
+        }
+      }
+    }
 
-    proposedDetails.forEach((detail) => {
-      drawWrappedText(detail, leftMargin, bodySize);
-      yPosition -= lineHeight;
-    });
-
+    // Section 1: Date of Joining
+    drawWrappedText("1. Date of Joining", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText(`Your date of joining shall be ${formattedJoiningDate}. This appointment letter is issued post joining and confirms your employment with the Company.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Note paragraph
-    const noteParagraph = `Please note that this Letter of Intent does not constitute a legally binding employment contract. The final terms of employment will be governed by the Offer Letter and Appointment, we look forward to the possibility of you joining our team and contributing to the growth of Zairo International Private Limited, kindly acknowledge`;
-    drawWrappedText(noteParagraph, leftMargin, bodySize);
+    // Section 2: Place of Posting / Transfer
+    drawWrappedText("2. Place of Posting / Transfer", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const postingLocation = data.postingLocation || companyAddress;
+    drawWrappedText(`Your present place of work shall be ${postingLocation}. However, during the course of employment, you may be transferred or assigned to any location, project, or establishment of the Company in India or abroad at the sole discretion of the Management.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Warm regards
-    drawWrappedText("Warm regards,", leftMargin, bodySize);
+    // Section 3: Working Hours
+    drawWrappedText("3. Working Hours", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const workingHoursStart = data.workingHoursStart || "11:30 AM";
+    const workingHoursEnd = data.workingHoursEnd || "8:30 PM";
+    drawWrappedText(`Your normal working hours shall be from ${workingHoursStart} to ${workingHoursEnd}, or as required based on business needs and Company policy.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
+
+    // Section 4: Compensation
+    drawWrappedText("4. Compensation", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText(`Your Annual Total Employment Cost to the Company shall be ${formattedCTC} (${ctcInWords}).`, leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Detailed compensation terms are provided in Annexure – A.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 5: Salary Payment Cycle
+    drawWrappedText("5. Salary Payment Cycle", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const paymentCycle = data.salaryPaymentCycle || "15th to 18th";
+    drawWrappedText(`Salary shall be processed monthly and credited on or before the ${paymentCycle} of every month, subject to attendance, performance, and policy compliance.`, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 6: Probation & Confirmation
+    drawWrappedText("6. Probation & Confirmation", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const probationPeriod = data.probationPeriod || "six (6) months";
+    drawWrappedText(`You shall be on probation for ${probationPeriod} from your date of joining. Terms relating to probation and confirmation are detailed in Annexure – E.`, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 7: Leave Policy
+    drawWrappedText("7. Leave Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Leave entitlement shall be governed strictly by the Company's HR Policy as detailed in Annexure – D.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 8: Confidentiality & Conduct
+    drawWrappedText("8. Confidentiality & Conduct", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("You shall adhere to confidentiality, code of conduct, IT usage, and disciplinary policies as detailed in Annexure – B, C, and F.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 9: Termination & Exit
+    drawWrappedText("9. Termination & Exit", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Exit formalities, notice period obligations, and full-and-final settlement shall be governed by Annexure – I.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Closing statement
+    drawWrappedText("This Appointment Letter along with Annexures A to I constitutes the complete and binding terms of employment.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 3;
 
     // For Zairo International
     drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
+    yPosition -= paragraphSpacing * 2;
 
     // Authorized Signatory
     drawWrappedText("Authorized Signatory", leftMargin, bodySize);
     yPosition -= paragraphSpacing;
 
+       // Add Ankita mam's signature (automatically loaded from public folder if not provided)
+       if (ankitaSignatureBytes) {
+        try {
+          let ankitaSigImg;
+          try {
+            ankitaSigImg = await pdfDoc.embedPng(ankitaSignatureBytes);
+          } catch {
+            try {
+              ankitaSigImg = await pdfDoc.embedJpg(ankitaSignatureBytes);
+            } catch (embedErr) {
+              console.error("Error embedding Ankita mam's signature (both PNG and JPG failed):", embedErr);
+              throw embedErr;
+            }
+          }
+          const sigW = 150;
+          const sigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
+  
+          if (yPosition - sigH < bottomMargin) {
+            addNewPage();
+          }
+  
+          currentPage.drawImage(ankitaSigImg, {
+            x: leftMargin,
+            y: yPosition - sigH,
+            width: sigW,
+            height: sigH,
+          });
+          yPosition -= sigH + paragraphSpacing * 2;
+        } catch (err) {
+          console.error("Error embedding Ankita mam's signature:", err);
+          // Draw signature line instead
+          currentPage.drawLine({
+            start: { x: leftMargin, y: yPosition },
+            end: { x: leftMargin + 200, y: yPosition },
+            thickness: 0.5,
+            color: textColor,
+          });
+          yPosition -= paragraphSpacing * 2;
+        }
+      } else {
+        // Draw signature line if signature couldn't be loaded
+        currentPage.drawLine({
+          start: { x: leftMargin, y: yPosition },
+          end: { x: leftMargin + 200, y: yPosition },
+          thickness: 0.5,
+          color: textColor,
+        });
+        yPosition -= paragraphSpacing * 2;
+      }
+
     // Name and Designation
     drawWrappedText("Name: Ankita Nigam", leftMargin, bodySize);
     yPosition -= lineHeight;
-    drawWrappedText("Designation: C.O.O", leftMargin, bodySize);
+    drawWrappedText("Designation: COO", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
+ 
+
+    yPosition -= paragraphSpacing * 3;
+
+    // ACKNOWLEDGEMENT & ACCEPTANCE section
+    drawWrappedText("ACKNOWLEDGEMENT & ACCEPTANCE", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing * 2;
+
+    const acknowledgmentText = `I have read, understood, and accepted the terms of employment and all annexures attached.`;
+    drawWrappedText(acknowledgmentText, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Name line
+    drawWrappedText(`Name: ${employeeFullName}`, leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    // Signature label
+    drawWrappedText("Signature: ____________________", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    
+    // Add candidate signature if provided (BEFORE the date)
+    if (candidateSignatureBase64) {
+      try {
+        console.log("🔍 Processing candidate signature for Offer Letter...");
+        const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
+        let candidateSigImg;
+        try {
+          candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
+          console.log("✅ Candidate signature embedded as PNG");
+        } catch {
+          try {
+            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
+            console.log("✅ Candidate signature embedded as JPG");
+          } catch (embedErr) {
+            console.error("❌ Failed to embed candidate signature as PNG or JPG:", embedErr);
+            throw embedErr;
+          }
+        }
+        const sigW = 150;
+        const sigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
+
+        if (yPosition - sigH < bottomMargin) {
+          addNewPage();
+        }
+
+        currentPage.drawImage(candidateSigImg, {
+          x: leftMargin,
+          y: yPosition - sigH,
+          width: sigW,
+          height: sigH,
+        });
+        yPosition -= sigH + paragraphSpacing;
+        console.log("✅ Candidate signature drawn in Offer Letter PDF");
+      } catch (err) {
+        console.error("❌ Error embedding candidate signature:", err);
+        // Continue without signature if embedding fails
+      }
+    }
+    
+    // Date of Signing - use signingDate if provided, otherwise show placeholder
+    let signingDateText = "Date:";
+    if (data.signingDate) {
+      try {
+        const signingDate = new Date(data.signingDate);
+        const signDay = signingDate.getDate();
+        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
+          : signDay === 2 || signDay === 22 ? "nd" 
+          : signDay === 3 || signDay === 23 ? "rd" 
+          : "th";
+        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
+        const signYear = signingDate.getFullYear();
+        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
+        signingDateText = `Date: ${formattedSigningDate}`;
+      } catch (err) {
+        console.error("Error formatting signing date:", err);
+        signingDateText = "Date:";
+      }
+    }
+    drawWrappedText(signingDateText, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 3;
+
+    // Add new page for annexures
+    addNewPage();
+    yPosition -= paragraphSpacing;
+
+    // ANNEXURE – A: Compensation & Salary Terms
+    drawWrappedText("ANNEXURE – A", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Compensation & Salary Terms", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing * 2;
+    drawWrappedText(`Same as finalized earlier — ${formattedCTC} CTC, salary credit by ${paymentCycle} of every month, no deductions, revision discretionary,`, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 3;
+
+    // ANNEXURE – B: Confidentiality & Non-Disclosure Agreement
+    drawWrappedText("ANNEXURE – B", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Confidentiality & Non-Disclosure Agreement", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing * 2;
+    drawWrappedText("Confidential data protection during & after employment, return of company data, breach consequences", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 3;
+
+    // ANNEXURE – C: Code of Conduct & Discipline Policy
+    drawWrappedText("ANNEXURE – C", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Code of Conduct & Discipline Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const conductItems = [
+      "1. Professional behaviour",
+      "2. Harassment policy",
+      "3. Substance abuse",
+      "4. Misuse of resources",
+      "5. Disciplinary action"
+    ];
+    conductItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – D: Leave & Attendance Policy
+    drawWrappedText("ANNEXURE – D", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Leave & Attendance Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const leaveItems = [
+      "1. Attendance compliance",
+      "2. HR policy leave rules",
+      "3. Probation leave restriction,",
+      "4. Abandonment after 3 days"
+    ];
+    leaveItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – E: Probation & Confirmation Policy
+    drawWrappedText("ANNEXURE – E", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Probation & Confirmation Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const probationItems = [
+      "1. The probation period shall be six (6) months from date of joining.",
+      "2. Performance, conduct, attendance, and policy compliance shall be evaluated.",
+      "3. Probation may be extended at Management discretion.",
+      "4. Confirmation shall be communicated in writing.",
+      "5. Salary and leave during probation are governed by HR policy."
+    ];
+    probationItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – F: IT, Data & Asset Usage Policy
+    drawWrappedText("ANNEXURE – F", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("IT, Data & Asset Usage Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const itItems = [
+      "1. Company IT systems, email, data, and software are for official use only.",
+      "2. Unauthorized access, sharing, or misuse of data is prohibited.",
+      "3. All company assets must be returned upon separation.",
+      "4. Violation may result in disciplinary and legal action."
+    ];
+    itItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – G: Non-Solicitation & Limited Non-Compete
+    drawWrappedText("ANNEXURE – G", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Non-Solicitation & Limited Non-Compete", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const nonSolicitItems = [
+      "1. Employees shall not solicit Company clients, vendors, or employees for personal or third-party benefit during employment and for a reasonable period post exit.",
+      "2. This clause shall be interpreted in accordance with applicable Indian laws."
+    ];
+    nonSolicitItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – H: Performance Targets / KRA Policy
+    drawWrappedText("ANNEXURE – H", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Performance Targets / KRA Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const performanceItems = [
+      "1. Performance targets shall be assigned periodically.",
+      "2. Evaluation shall be based on defined KRAs.",
+      "3. Incentives, if any, shall be performance-linked and discretionary.",
+      "4. Failure to meet targets may impact confirmation or continuation."
+    ];
+    performanceItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 2;
+
+    // ANNEXURE – I: Exit & Full-and-Final Settlement Policy
+    drawWrappedText("ANNEXURE – I", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("Exit & Full-and-Final Settlement Policy", leftMargin, bodySize, true);
+    yPosition -= paragraphSpacing;
+    const exitItems = [
+      "1. Employees must serve an applicable notice period or salary in lieu.",
+      "2. Handover and clearance are mandatory.",
+      "3. Final settlement shall be processed as per payroll cycle post clearance.",
+      "4. The company reserves the right to recover dues or assets.",
+      "5. Performance deduction may occur in case of low performance i.e. 30 percent"
+    ];
+    exitItems.forEach((item) => {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    });
+    yPosition -= paragraphSpacing * 3;
+
+    // Signature section for annexures
+    drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Company signatory section
+    drawWrappedText("Authorized Signatory", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    
     // Add Ankita mam's signature (automatically loaded from public folder if not provided)
     if (ankitaSignatureBytes) {
       try {
@@ -676,119 +972,19 @@ export async function POST(req: NextRequest) {
       });
       yPosition -= paragraphSpacing * 2;
     }
-
-    yPosition -= paragraphSpacing * 2;
-
-    // Acknowledgment by Candidate section
-    drawWrappedText("Acknowledgment by Candidate", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-
-    const acknowledgmentText = `I, Ms. ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`;
-    drawWrappedText(acknowledgmentText, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Signature label
-
     
-    // Add candidate signature if provided (BEFORE the date)
-    if (candidateSignatureBase64) {
-      try {
-        console.log("🔍 Processing candidate signature for LOI...");
-        const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
-        let candidateSigImg;
-        try {
-          candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
-          console.log("✅ Candidate signature embedded as PNG");
-        } catch {
-          try {
-            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
-            console.log("✅ Candidate signature embedded as JPG");
-          } catch (embedErr) {
-            console.error("❌ Failed to embed candidate signature as PNG or JPG:", embedErr);
-            throw embedErr;
-          }
-        }
-        const sigW = 150;
-        const sigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
+    drawWrappedText("Name: Ankita Nigam", leftMargin, bodySize);
+    yPosition -= lineHeight;
+    drawWrappedText("Designation: Chief Operating Officer (COO)", leftMargin, bodySize);
+    yPosition -= lineHeight;
+    drawWrappedText("Date:", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 3;
 
-        if (yPosition - sigH < bottomMargin) {
-          addNewPage();
-        }
-
-        currentPage.drawImage(candidateSigImg, {
-          x: leftMargin,
-          y: yPosition - sigH,
-          width: sigW,
-          height: sigH,
-        });
-        yPosition -= sigH + paragraphSpacing;
-        console.log("✅ Candidate signature drawn in LOI PDF");
-      } catch (err) {
-        console.error("❌ Error embedding candidate signature:", err);
-        // Continue without signature if embedding fails
-      }
-    }
-    
-    // Date of Signing - use signingDate if provided, otherwise show placeholder
-    let signingDateText = "Date: ___________________";
-    if (data.signingDate) {
-      try {
-        const signingDate = new Date(data.signingDate);
-        const signDay = signingDate.getDate();
-        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
-          : signDay === 2 || signDay === 22 ? "nd" 
-          : signDay === 3 || signDay === 23 ? "rd" 
-          : "th";
-        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
-        const signYear = signingDate.getFullYear();
-        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
-        signingDateText = `Date: ${formattedSigningDate}`;
-      } catch (err) {
-        console.error("Error formatting signing date:", err);
-        signingDateText = "Date: ___________________";
-      }
-    }
-    drawWrappedText(signingDateText, leftMargin, bodySize);
+    // Employee signature section (below company signature)
+    drawWrappedText(`Name: ${employeeFullName}`, leftMargin, bodySize);
+    yPosition -= lineHeight;
+    drawWrappedText("Date:", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
-
-    yPosition -= lineHeight * 3;
-
-    // Company logo at bottom (instead of text)
-    if (companyLogoBase64 && companyLogoBase64.trim() !== "") {
-      try {
-        const logoBytes = Buffer.from(companyLogoBase64, "base64");
-        let logoImg;
-        try {
-          logoImg = await pdfDoc.embedPng(logoBytes);
-        } catch {
-          logoImg = await pdfDoc.embedJpg(logoBytes);
-        }
-
-        const logoWidth = 100;
-        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-
-        if (yPosition - logoHeight < bottomMargin) {
-          addNewPage();
-        }
-
-        currentPage.drawImage(logoImg, {
-          x: leftMargin,
-          y: yPosition - logoHeight,
-          width: logoWidth,
-          height: logoHeight,
-        });
-        yPosition -= logoHeight + paragraphSpacing;
-      } catch (err) {
-        console.error("Error drawing company logo at bottom:", err);
-        // Fallback to text if logo fails
-        drawWrappedText("Zairo International Pvt. Ltd.", leftMargin, bodySize);
-        yPosition -= paragraphSpacing;
-      }
-    } else {
-      // Fallback to text if no logo
-      drawWrappedText("Zairo International Pvt. Ltd.", leftMargin, bodySize);
-      yPosition -= paragraphSpacing;
-    }
 
     // ---- Add footer logo to all pages ----
     if (footerLogo) {
@@ -831,8 +1027,8 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Letter-Of-Intent-${
-          data.candidateName?.replace(/\s+/g, "_") || "Candidate"
+        "Content-Disposition": `attachment; filename="Appointment-Letter-${
+          data.employeeFullName?.replace(/\s+/g, "_") || data.employeeName?.replace(/\s+/g, "_") || "Candidate"
         }.pdf"`,
         "Cache-Control": "no-store",
       },
@@ -841,7 +1037,7 @@ export async function POST(req: NextRequest) {
     console.error("PDF Generation Error:", err);
     return NextResponse.json(
       {
-        error: "Failed to generate training agreement",
+        error: "Failed to generate appointment letter",
         details: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }

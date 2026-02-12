@@ -81,35 +81,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate training duration if candidateId is provided
+    // Fetch candidate training duration and date if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
+    let candidateSelectedDate: Date | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
         const candidate = await Candidate.findById(data.candidateId).lean();
-        if (candidate?.selectionDetails?.trainingPeriod) {
-          // Use trainingPeriod from selectionDetails
-          // Format: "5 days" -> "5 working days" or keep as is if already formatted
-          const trainingPeriod = candidate.selectionDetails.trainingPeriod;
-          if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
-            phase1Duration = trainingPeriod.includes("working") 
-              ? trainingPeriod 
-              : trainingPeriod.replace(/days?/i, "working days");
-          } else {
-            // If it's just a number, format it
-            const days = parseInt(trainingPeriod);
-            if (!isNaN(days)) {
-              phase1Duration = `${days} working days`;
-            } else {
-              phase1Duration = trainingPeriod;
-            }
+        if (candidate) {
+          // Get the date when candidate was selected for training
+          if (candidate.selectedForTrainingAt) {
+            candidateSelectedDate = new Date(candidate.selectedForTrainingAt);
           }
-        } else if (candidate?.selectionDetails?.duration) {
-          // Fallback to duration field
-          phase1Duration = candidate.selectionDetails.duration;
+          
+          // Get training duration
+          if (candidate?.selectionDetails?.trainingPeriod) {
+            // Use trainingPeriod from selectionDetails
+            // Format: "5 days" -> "5 working days" or keep as is if already formatted
+            const trainingPeriod = candidate.selectionDetails.trainingPeriod;
+            if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
+              phase1Duration = trainingPeriod.includes("working") 
+                ? trainingPeriod 
+                : trainingPeriod.replace(/days?/i, "working days");
+            } else {
+              // If it's just a number, format it
+              const days = parseInt(trainingPeriod);
+              if (!isNaN(days)) {
+                phase1Duration = `${days} working days`;
+              } else {
+                phase1Duration = trainingPeriod;
+              }
+            }
+          } else if (candidate?.selectionDetails?.duration) {
+            // Fallback to duration field
+            phase1Duration = candidate.selectionDetails.duration;
+          }
         }
       } catch (err) {
-        console.error("Error fetching candidate training duration:", err);
+        console.error("Error fetching candidate data:", err);
         // Use default fallback
       }
     }
@@ -142,18 +151,24 @@ export async function POST(req: NextRequest) {
     const footerSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    // Parse and validate date
+    // Parse and validate date - prioritize stored selectedForTrainingAt date
     let agreementDate: Date;
-    try {
-      agreementDate = new Date(data.date);
-      // Check if date is valid
-      if (isNaN(agreementDate.getTime())) {
-        // If invalid, use current date
+    if (candidateSelectedDate && !isNaN(candidateSelectedDate.getTime())) {
+      // Use the stored date when candidate was selected for training
+      agreementDate = candidateSelectedDate;
+    } else {
+      // Fallback to provided date or current date
+      try {
+        agreementDate = new Date(data.date);
+        // Check if date is valid
+        if (isNaN(agreementDate.getTime())) {
+          // If invalid, use current date
+          agreementDate = new Date();
+        }
+      } catch (error) {
+        // If parsing fails, use current date
         agreementDate = new Date();
       }
-    } catch (error) {
-      // If parsing fails, use current date
-      agreementDate = new Date();
     }
     
     const day = agreementDate.getDate();

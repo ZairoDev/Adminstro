@@ -174,7 +174,7 @@ export default function TrainingAgreementPage() {
     
     setGeneratingPdf(true);
     try {
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const agreementDate = new Date().toISOString();
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,
@@ -221,11 +221,12 @@ export default function TrainingAgreementPage() {
         return;
       }
 
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const agreementDate = new Date().toISOString();
       const hrPoliciesPayload = {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
+        candidateId: candidate._id, // Pass candidateId so API can fetch stored date
         // Include signature if Training Agreement is signed
         signatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
       };
@@ -512,7 +513,7 @@ export default function TrainingAgreementPage() {
       }
 
       // Generate PDF with signature
-      const agreementDate = new Date().toLocaleDateString("en-IN");
+      const agreementDate = new Date().toISOString();
       const agreementPayload = {
         candidateName: candidate.name,
         position: candidate.position,
@@ -600,7 +601,7 @@ export default function TrainingAgreementPage() {
           const hrPoliciesPayload = {
             candidateName: updatedCandidate.name,
             position: updatedCandidate.position,
-            date: new Date().toLocaleDateString("en-IN"),
+            date: new Date().toISOString(),
             signatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
           };
 

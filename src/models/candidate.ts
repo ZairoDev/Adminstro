@@ -8,7 +8,7 @@ const CandidateSchema = new Schema(
     experience: { type: Number, required: true },
     address: { type: String, required: true },
     city: { type: String, required: true },
-
+    gender: { type: String, enum: ["Male", "Female", "Other", "Prefer not to say"], default: null },
     country: { type: String, required: true },
     college: { type: String, required: true },
     position: { type: String, required: true },
@@ -22,6 +22,9 @@ const CandidateSchema = new Schema(
       enum: ["pending", "interview", "shortlisted", "selected", "rejected", "onboarding"],
       default: "pending",
     },
+    // Date tracking for different stages
+    selectedForTrainingAt: { type: Date, default: null }, // When candidate was selected for training
+    onboardingStartedAt: { type: Date, default: null }, // When onboarding process started
     interviewDetails: {
       scheduledDate: { type: Date, default: null },
       scheduledTime: { type: String, default: null },
@@ -81,6 +84,10 @@ const CandidateSchema = new Schema(
       trainingPeriod: { type: String, default: null },
       role: { type: String, default: null },
       salary: { type: String, default: null },
+      offerLetterSent: { type: Boolean, default: false },
+      offerLetterSentAt: { type: Date, default: null },
+      offerLetterSigningLink: { type: String, default: null },
+      signedOfferLetterPdfUrl: { type: String, default: null },
     },
     shortlistDetails: {
       suitableRoles: [{ type: String }],

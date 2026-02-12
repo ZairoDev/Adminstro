@@ -83,6 +83,7 @@ export default function JobApplicationForm() {
     address: "",
     city: "",
     country: "",
+    gender: "",
     college: colleges[0],
     otherCollege: "",
     position: positions[0],
@@ -266,6 +267,7 @@ export default function JobApplicationForm() {
       phone: "Phone Number",
       city: "City",
       country: "Country",
+      gender: "Gender",
       address: "Complete Address",
       college: "College/University",
       otherCollege: "College Name",
@@ -307,6 +309,11 @@ export default function JobApplicationForm() {
     if (!formData.country.trim()) {
       newErrors.country = "Country is required";
       if (!firstMissingField) firstMissingField = fieldLabels.country;
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Gender is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.gender;
     }
 
     if (!formData.address.trim()) {
@@ -390,6 +397,7 @@ export default function JobApplicationForm() {
       submitData.append("address", formData.address);
       submitData.append("city", formData.city);
       submitData.append("country", formData.country);
+      submitData.append("gender", formData.gender);
       submitData.append("college", formData.college === "Other" ? formData.otherCollege : formData.college);
       submitData.append("position", formData.position);
       submitData.append("coverLetter", formData.coverLetter);
@@ -429,6 +437,7 @@ export default function JobApplicationForm() {
           address: "",
           city: "",
           country: "",
+          gender: "",
           college: colleges[0],
           otherCollege: "",
           position: positions[0],
@@ -751,6 +760,35 @@ export default function JobApplicationForm() {
                     <p className="text-destructive text-xs flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       {errors.country}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    Gender <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className={`w-full bg-input border ${
+                      errors.gender
+                        ? "border-destructive/50"
+                        : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                  {errors.gender && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.gender}
                     </p>
                   )}
                 </div>

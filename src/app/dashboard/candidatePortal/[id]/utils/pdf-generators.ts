@@ -104,19 +104,20 @@ export const generateUnsignedOnboardingAgreement = async (candidate: Candidate) 
   
   try {
     const agreementPayload = {
-      agreementDate: new Date().toLocaleDateString("en-IN"),
+      agreementDate: new Date().toISOString(),
       agreementCity: candidate.city ?? "Kanpur",
       employeeName: candidate.name,
       fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
       employeeAddress: candidate.address || "",
       designation: candidate.position,
-      effectiveFrom: new Date().toLocaleDateString("en-IN"),
+      effectiveFrom: new Date().toISOString(),
       postingLocation: candidate.city || "Kanpur",
       salaryINR: candidate.selectionDetails?.salary 
         ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
         : "As per employment terms",
       witness1: "____________________",
       witness2: "____________________",
+      candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
     };
 
     const pdfResponse = await axios.post(

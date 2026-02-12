@@ -16,6 +16,7 @@ export const employeeRoles = [
   "Content",
   "Developer",
   "Subscription-Sales",
+  "HAdmin",
 ] as const;
 
 const employeeSchema = new Schema<IEmployee>(
@@ -125,6 +126,7 @@ const employeeSchema = new Schema<IEmployee>(
         "Developer",
         "Guest",
         "Subscription-Sales",
+        "HAdmin",
       ],
       default: "Advert",
     },
@@ -143,6 +145,10 @@ const employeeSchema = new Schema<IEmployee>(
     inactiveDate: {
       type: Date,
       default: null,
+    },
+    isLocked:{
+      type: Boolean,
+      default: false,
     },
     isfeatured: {
       type: Boolean,

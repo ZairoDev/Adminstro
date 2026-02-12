@@ -1,75 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
 connectDb();
 
 export async function GET(request: NextRequest) {
-  // try {
-  //   const url = new URL(request.url);
-  //   const page = Number(url.searchParams.get("page")) || 1;
-  //   const limit = Number(url.searchParams.get("limit")) || 12;
-  //   const skip = (page - 1) * limit;
-  //   const totalCount = await Properties.distinct("commonId").exec();
-  //   const totalProperties = totalCount.length;
-  //   const totalPages = Math.ceil(totalProperties / limit);
-  //   const properties = await Properties.aggregate([
-  //     {
-  //       $group: {
-  //         _id: "$commonId",
-  //         commonProperties: { $push: "$$ROOT" },
-  //       },
-  //     },
-  //     {
-  //       $sort: {
-  //         _id: -1,
-  //       },
-  //     },
-  //     {
-  //       $project: {
-  //         commonId: "$_id",
-  //         commonProperties: {
-  //           $map: {
-  //             input: "$commonProperties",
-  //             as: "property",
-  //             in: {
-  //               VSID: "$$property.VSID",
-  //               commonId: "$$property.commonId",
-  //               propertyCoverFileUrl: "$$property.propertyCoverFileUrl",
-  //               userId: "$$property.userId",
-  //               hostedFrom: "$$property.hostedFrom",
-  //               hostedBy: "$$property.hostedBy",
-  //               basePrice: "$$property.basePrice",
-  //             },
-  //           },
-  //         },
-  //       },
-  //     },
-  //     { $skip: skip },
-  //     { $limit: limit },
-  //   ]);
-  //   if (!properties || properties.length === 0) {
-  //     return NextResponse.json(
-  //       { error: "No Properties found" },
-  //       { status: 404 }
-  //     );
-  //   }
-  //   return NextResponse.json(
-  //     {
-  //       properties,
-  //       totalProperties,
-  //       totalPages,
-  //       currentPage: page,
-  //     },
-  //     { status: 200 }
-  //   );
-  // } catch (err: any) {
-  //   console.log("error in fetching properties: ", err);
-  //   return NextResponse.json({ error: err.message }, { status: 500 });
-  // }
-
   try {
     const url = request.nextUrl;
     const page = Number(url.searchParams.get("page")) || 1;
@@ -84,40 +22,66 @@ export async function GET(request: NextRequest) {
       query[searchType] = regex;
     }
 
+    // HAdmin filter: only Short Term OR hostedFrom = "holidaysera"
+    let isHAdmin = false;
+    try {
+      const payload: any = await getDataFromToken(request).catch(() => null);
+      if (payload?.role === "HAdmin") {
+        isHAdmin = true;
+      }
+    } catch (e) {
+      // ignore token errors
+    }
+
+    if (isHAdmin) {
+      const hadminFilter = {
+        $or: [
+          { rentalType: "Short Term" },
+          { hostedFrom: { $regex: /holidaysera/i } },
+        ],
+      };
+      if (Object.keys(query).length > 0) {
+        query = { $and: [query, hadminFilter] };
+      } else {
+        query = hadminFilter;
+      }
+    }
+
     const projection = {
       isLive: 1,
       hostedFrom: 1,
       hostedBy: 1,
-      rentalType:1,
+      rentalType: 1,
       propertyCoverFileUrl: 1,
       VSID: 1,
       propertyName: 1,
-      city:1,
-      bedrooms:1,
-      bathrooms:1,
+      city: 1,
+      bedrooms: 1,
+      bathrooms: 1,
       basePrice: 1,
-      basePriceLongTerm:1,
+      basePriceLongTerm: 1,
       commonId: 1,
       _id: 1,
     };
+
     let allProperties;
-    if (!searchTerm) {
+    if (!searchTerm && !isHAdmin) {
       allProperties = await Properties.find({}, projection)
         .skip(skip)
         .limit(limit)
         .sort({ _id: -1 });
     } else {
-      allProperties = await Properties.find(query, projection).sort({
-        _id: -1,
-      });
+      allProperties = await Properties.find(query, projection)
+        .skip(skip)
+        .limit(limit)
+        .sort({ _id: -1 });
     }
 
-    if (allProperties.length === 0) {
-      const totalCount = await Properties.countDocuments();
-    }
-    // console.log("Total properties in database:", allProperties);
-    const totalProperties = await Properties.countDocuments(query);
+    const totalProperties = await Properties.countDocuments(
+      !searchTerm && !isHAdmin ? {} : query
+    );
     const totalPages = Math.ceil(totalProperties / limit);
+
     return NextResponse.json({
       data: allProperties,
       page,

@@ -106,6 +106,7 @@ const propertyValidationSchema = z.object({
   lastUpdates: z.array(z.array(z.string())).optional(),
   isLive: z.boolean().default(true),
   availability: z.string().default("Available"),
+  origin: z.string().optional(),
 });
 
 export type PropertySchema = z.infer<typeof propertyValidationSchema>;

@@ -185,6 +185,15 @@ export interface UserInterface {
   email: string;
   gender: string;
   isVerified: boolean;
+  isLocked: boolean;
+  isFeatured: boolean;
+  passwordExpiresAt: Date;
+  forgotPasswordToken: string;
+  forgotPasswordTokenExpiry: Date;
+  verifyToken: string;
+  verifyTokenExpiry: Date;
+  otpToken: number;
+  otpTokenExpiry: Date;
   myRequests: any[];
   myUpcommingRequests: any[];
   name: string;

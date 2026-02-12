@@ -1,6 +1,7 @@
 import Users from "@/models/user";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const skip = (page - 1) * PAGE_SIZE;
 
     const query: any = {};
+
+    // If HAdmin, only show users with origin: "holidaysera"
+    try {
+      const payload: any = await getDataFromToken(request).catch(() => null);
+      if (payload?.role === "HAdmin") {
+        query.origin = "holidaysera";
+      }
+    } catch (e) {
+      // ignore token errors
+      console.error("getallusers error:", e);
+    }
 
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

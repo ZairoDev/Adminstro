@@ -9,6 +9,8 @@ export async function POST(req: NextRequest) {
   const newBody = {
     ...body,
     createdBy: token.email,
+    // Auto-tag origin when created by HAdmin
+    ...(token.role === "HAdmin" ? { origin: "holidaysera" } : {}),
   };
 
   try {

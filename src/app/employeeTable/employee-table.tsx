@@ -31,6 +31,7 @@ import { UserInterface } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
+import { ToggleButton } from "@/components/toggle_button";
 
 /**
  * Utility function to check if HR user is viewing SuperAdmin account
@@ -84,6 +85,25 @@ export default function EmployeeTable({
       return error;
     } finally {
       setLoadingIndex("-1");
+    }
+  };
+
+  const updateEmployee = async(employeeId: string, data: any) => {
+    try {
+      const response = await axios.put("/api/employee/editEmployee", {
+        _id: employeeId,
+        ...data,
+      });
+      // if (response.status === 200) {
+      //   toast({
+      //     title: "Employee updated successfully",
+      //     description: "Employee has been updated successfully",
+      //   });
+      // }
+      return response.data;
+    } catch (error: any) {
+      console.log(error, "Error updating employee");
+      return error;
     }
   };
 
@@ -196,6 +216,7 @@ export default function EmployeeTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Passwords</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
@@ -209,7 +230,9 @@ export default function EmployeeTable({
             return (
               <TableRow key={employee?._id}>
                 <TableCell>{index + 1}</TableCell>
-                <TableCell className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}>
+                <TableCell
+                  className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}
+                >
                   {employee.name}
                 </TableCell>
                 <TableCell>
@@ -233,6 +256,26 @@ export default function EmployeeTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                <TableCell>
+                  <ToggleButton
+                    value={employee.isLocked}
+                      onChange={async (value) => {
+                        // Optimistically update UI
+                        setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
+                        setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
+                        
+                        // Send update to server
+                        try {
+                          await updateEmployee(employee._id, { isLocked: value });
+                        } catch (error) {
+                          // Revert on error
+                          setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));
+                          setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));
+                          console.error("Failed to update isLocked status", error);
+                        }
+                      }}
+                  />
+                </TableCell>
                 <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
                   {isRestricted ? (
                     <div className="flex items-center gap-2 text-muted-foreground">

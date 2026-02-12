@@ -505,6 +505,16 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Onboarded Candidates",
       Icon: <CheckCheck size={18} />,
     },
+    {
+      path: "/holidaysera/properties",
+      label: "Properties",
+      Icon: <Warehouse size={18} />,
+    },
+    {
+      path: "/holidaysera/guests",
+      label: "Guests",
+      Icon: <PersonStanding size={18} />,
+    },
   ],
   Sales: [
     {
@@ -755,6 +765,18 @@ const roleRoutes: Record<string, Route[]> = {
     {
       path: "/dashboard/owners",
       label: "Owners",
+      Icon: <PersonStanding size={18} />,
+    },
+  ],
+  HAdmin: [
+    {
+      path: "/holidaysera/properties",
+      label: "Properties",
+      Icon: <Warehouse size={18} />,
+    },
+    {
+      path: "/holidaysera/guests",
+      label: "Guests",
       Icon: <PersonStanding size={18} />,
     },
   ],
@@ -1023,6 +1045,20 @@ const propertyBoostRoutes = [
   },
 ]
 
+const holidaySeraRoutes = [
+
+  {
+    path: "/holidaysera/properties",
+    label: "Properties",
+    Icon: <Warehouse size={18} />,
+  },
+  {
+    path: "/holidaysera/guests",
+    label: "Guests",
+    Icon: <PersonStanding size={18} />,
+  },
+];
+
 const otherSettingsRoutes = [
   {
     path: "/dashboard/addons",
@@ -1151,6 +1187,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
     const otherSettingsRoute = inGroup(otherSettingsRoutes);
+    const holidaySeraRoute = inGroup(holidaySeraRoutes);
     const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
     const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");
     const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
@@ -1297,6 +1334,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="Other Settings"
           routes={otherSettingsRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="HolidaySera"
+          routes={holidaySeraRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

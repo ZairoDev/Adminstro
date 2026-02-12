@@ -29,6 +29,8 @@ interface RequestBody {
   salary?: number;
   empType?: string;
   duration?: string;
+  isLocked?: boolean;
+  password?: string;
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -86,6 +88,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.salary) updateData.salary = updateFields.salary;
     if (updateFields.empType) updateData.empType = updateFields.empType;
     if (updateFields.duration) updateData.duration = updateFields.duration;
+    if (Object.keys(updateFields).includes("isLocked")) {
+      updateData.isLocked = updateFields.isLocked;
+    }
 
     const user = await Employees.findOneAndUpdate(
       { _id },

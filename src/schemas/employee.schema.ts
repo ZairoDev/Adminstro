@@ -31,6 +31,7 @@ export const employeeSchema = z.object({
     "HR",
     "Guest",
     "Developer",
+    "HAdmin",
   ]),
   assignedCountry: z.string().optional().default(""),
   empType: z.string().optional().default(""),
@@ -42,6 +43,7 @@ export const employeeSchema = z.object({
   isActive: z.boolean().optional().default(true),
   inactiveReason: z.enum(["terminated", "suspended", "abscond"]).nullable().optional().default(null),
   inactiveDate: z.date().nullable().optional().default(null),
+  isLocked: z.boolean().optional().default(false),
   isfeatured: z.boolean().optional().default(false),
   passwordExpiresAt: z.date().optional(),
   extras: z

@@ -14,6 +14,7 @@ export const userSchema = z.object({
   myUpcommingRequests: z.array(z.string()).optional(),
   declinedRequests: z.array(z.string()).optional(),
   country: z.string().optional(),
+
   address: z.string().min(1, "Address is required"),
   password: z.string().optional(),
   isVerified: z.boolean().optional().default(false),
@@ -24,6 +25,7 @@ export const userSchema = z.object({
   verifyTokenExpiry: z.date().optional(),
   otpToken: z.number().optional(),
   otpTokenExpiry: z.date().optional(),
+  origin: z.string().optional(),
 });
 
 export type UserSchema = z.infer<typeof userSchema>;

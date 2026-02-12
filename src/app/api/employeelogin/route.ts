@@ -19,6 +19,7 @@ interface Employee {
   isActive?: boolean;
   allotedArea: [string];
   role: string;
+  isLocked: boolean;
   passwordExpiresAt: Date;
 }
 
@@ -94,7 +95,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 403 }
       );
     }
-    
+
+    if (temp.isLocked) {
+      return NextResponse.json(
+        { error: "Your account has been locked. Please contact the administrator to unlock your account." },
+        { status: 403 }
+      );
+    }
     // const validPassword: boolean = await bcryptjs.compare(
     //   password,
     //   temp.password
@@ -107,6 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (
       temp.role !== ("SuperAdmin" as Employee["role"]) &&
       temp.role !== ("HR" as Employee["role"]) &&
+      temp.role !== ("HAdmin" as Employee["role"]) &&
       temp.email !== "aishakhatoon03@gmail.com"
     ) {
       const currentDate = new Date();

@@ -72,6 +72,9 @@ const userSchema = new Schema<IUser>(
     verifyTokenExpiry: Date,
     otpToken: Number,
     otpTokenExpiry: Date,
+    origin: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

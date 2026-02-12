@@ -13,6 +13,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/application-form",
     "/spreadsheet",
     "/dashboard",
+    "/holidaysera",
+    /^\/holidaysera(\/.*)?$/,
     "/dashboard/website-leads",
     /^\/dashboard\/recommendations\/.*$/,
     /^\/dashboard\/.*$/,
@@ -204,6 +206,15 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Sales(New)
     "/dashboard/lowBudget",
   ],
+  HAdmin: [
+    "/",
+    "/holidaysera",
+    /^\/holidaysera(\/.*)?$/,
+    // Allow HAdmin to create new users and manage specific newproperty pages
+    "/dashboard/createnewuser",
+    /^\/dashboard\/createnewuser(\/.*)?$/,
+    /^\/dashboard\/newproperty\/.*$/,
+  ],
 };
 
 export const defaultRoutes: { [key: string]: string } = {
@@ -222,6 +233,7 @@ export const defaultRoutes: { [key: string]: string } = {
   Intern: "/dashboard",
   "Subscription-Sales": "/dashboard/sales-offer",
   "Sales(New)": "/dashboard/lowBudget",
+  HAdmin: "/holidaysera",
   Default: "/dashboard",
 };
 

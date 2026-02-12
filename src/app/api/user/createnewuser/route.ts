@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDb } from "@/util/db";
 connectDb();
@@ -7,14 +7,24 @@ import bcryptjs from "bcryptjs";
 import { sendEmail } from "@/util/mailer";
 import { userSchema } from "@/schemas/user.schema";
 import crypto from "crypto";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 const generateRandomPassword = (length: number): string => {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
 };
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const reqBody = await request.json();
     const parsedBody = userSchema.parse(reqBody);
+
+    // Detect if creator is HAdmin
+    let creatorRole: string | null = null;
+    try {
+      const payload: any = await getDataFromToken(request).catch(() => null);
+      creatorRole = payload?.role || null;
+    } catch (e) {
+      // ignore
+    }
 
     const {
       name,
@@ -63,6 +73,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       bankDetails,
       address,
       profilePic,
+      // Auto-set origin when created by HAdmin
+      ...(creatorRole === "HAdmin" ? { origin: "holidaysera" } : {}),
     });
     const savedUser = await newUser.save();
 

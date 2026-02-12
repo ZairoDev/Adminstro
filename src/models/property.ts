@@ -154,6 +154,9 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
       type: String,
       default: "Available",
     },
+    origin: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

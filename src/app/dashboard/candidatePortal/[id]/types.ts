@@ -18,6 +18,13 @@ export interface Candidate {
   createdAt: string;
   isImportant?: boolean;
   interviewAttendance?: "appeared" | "not_appeared" | null;
+  // Additional documents uploaded by HR/admin
+  additionalDocuments?: Array<{
+    name: string;
+    url: string;
+    uploadedAt: string | Date;
+    uploadedBy?: string | null;
+  }>;
   interviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;

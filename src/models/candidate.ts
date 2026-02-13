@@ -103,6 +103,15 @@ const CandidateSchema = new Schema(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
+    // Additional documents uploaded by HR/admin
+    additionalDocuments: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now },
+        uploadedBy: { type: String, default: null },
+      },
+    ],
     trainingAgreementDetails: {
       signingLink: { type: String, default: null },
       eSign: {

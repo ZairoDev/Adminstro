@@ -268,9 +268,13 @@ export default function CompareTable({
 
   // CRITICAL: Update date fetch when selectedDate changes (but NOT when employee filter changes)
   // Employee filter changes are handled directly in the onClick handler
+  // NOTE: We still keep this useEffect for programmatic date changes, but onClick handler
+  // now immediately fetches to avoid debounce delay issues
   useEffect(() => {
     // Only fetch for date if no employee filter is active
+    // Skip if this is the initial mount (handled by the other useEffect)
     if (selectedDate && !selectedEmployeeEmail) {
+      // Use debounced version for programmatic changes to avoid rapid API calls
       debouncedFetchForDate(selectedDate, null);
     }
     // Cleanup debounce on unmount
@@ -627,7 +631,9 @@ export default function CompareTable({
                   setIsFilteringByEmployee(false);
                 }
                 setSelectedDate(day);
-                // The useEffect will handle fetching
+                // CRITICAL FIX: Immediately fetch for the selected date to avoid debounce delay issues
+                // This ensures the correct date is fetched right away, especially for edge cases like Sunday
+                fetchForDate(day, null);
               }}
               className={`py-2 px-1 text-xs border rounded transition-all ${
                 isSelected

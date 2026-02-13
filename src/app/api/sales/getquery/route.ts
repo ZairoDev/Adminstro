@@ -52,6 +52,7 @@ function getISTStartOfDay(dateInput: Date | string): Date {
 /**
  * Gets IST end of day (start of next day) in UTC
  * This returns the exclusive upper bound for the date range query
+ * FIXED: Properly calculate next day without timezone conversion issues
  */
 function getISTEndOfDay(dateInput: Date | string): Date {
   let year: number, month: number, day: number;
@@ -59,7 +60,7 @@ function getISTEndOfDay(dateInput: Date | string): Date {
   if (typeof dateInput === 'string') {
     const parts = dateInput.split('-').map(Number);
     year = parts[0];
-    month = parts[1] - 1;
+    month = parts[1] - 1; // JavaScript months are 0-indexed
     day = parts[2];
   } else {
     year = dateInput.getFullYear();
@@ -67,14 +68,18 @@ function getISTEndOfDay(dateInput: Date | string): Date {
     day = dateInput.getDate();
   }
   
-  // Get next day's IST start (which is the exclusive end of current day)
-  // Use UTC to calculate next day to avoid timezone issues
-  const nextDayUTC = Date.UTC(year, month, day + 1, 0, 0, 0, 0);
-  const nextDayDate = new Date(nextDayUTC);
-  const nextYear = nextDayDate.getUTCFullYear();
-  const nextMonth = nextDayDate.getUTCMonth() + 1;
-  const nextDay = nextDayDate.getUTCDate();
+  // CRITICAL FIX: Calculate next day properly by creating a date object
+  // and adding one day, then extracting the date components
+  // This handles month/year boundaries correctly
+  const currentDate = new Date(year, month, day);
+  const nextDate = new Date(currentDate);
+  nextDate.setDate(nextDate.getDate() + 1);
   
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = nextDate.getMonth() + 1; // Convert back to 1-indexed
+  const nextDay = nextDate.getDate();
+  
+  // Now get IST start of the next day (which is the exclusive end of current day)
   return getISTStartOfDay(`${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`);
 }
 
@@ -139,6 +144,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       console.log(`[getquery] IST Start (UTC): ${istStartDate.toISOString()}`);
       console.log(`[getquery] IST End (UTC): ${istEndDate.toISOString()}`);
       console.log(`[getquery] Query: createdAt >= ${istStartDate.toISOString()} AND < ${istEndDate.toISOString()}`);
+      
+      // Validate date range - ensure end is after start
+      if (istEndDate <= istStartDate) {
+        console.error(`[getquery] ERROR: Invalid date range! End date (${istEndDate.toISOString()}) is not after start date (${istStartDate.toISOString()})`);
+      }
+      
+      // Log the date range in IST for clarity
+      const istStartLocal = new Date(istStartDate.getTime() + (5.5 * 60 * 60 * 1000));
+      const istEndLocal = new Date(istEndDate.getTime() + (5.5 * 60 * 60 * 1000));
+      console.log(`[getquery] Date range in IST: ${istStartLocal.toISOString().split('T')[0]} 00:00:00 IST to ${istEndLocal.toISOString().split('T')[0]} 00:00:00 IST (exclusive)`);
       console.log(`[getquery] ============================`);
     } else {
       // Handle dateFilter parameter (for backward compatibility)

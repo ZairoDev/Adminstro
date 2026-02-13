@@ -1010,7 +1010,7 @@ export default function GoodTable({
                               }
                             }}
                           >
-                            <AlertDialogContent>
+                            <AlertDialogContent className="max-h-[80vh] overflow-auto">
                               <VisitModal
                                 leadId={query._id!}
                                 onOpenChange={() => {
@@ -1130,7 +1130,7 @@ export default function GoodTable({
                               }
                             }}
                           >
-                            <AlertDialogContent>
+                            <AlertDialogContent className="max-h-[80vh] overflow-auto">
                               <VisitModal
                                 leadId={query._id!}
                                 onOpenChange={() => {
@@ -1160,7 +1160,7 @@ export default function GoodTable({
                             }
                           }}
                         >
-                          <AlertDialogContent>
+                          <AlertDialogContent className="max-h-[80vh] overflow-auto">
                             <VisitModal
                               leadId={query._id!}
                               // loading={loading}

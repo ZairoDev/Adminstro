@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
         name: c.name,
         phone: c.phoneNumber,
         country: c.country,
+        countryCode: c.countryCode,
         batchId: c.batchId,
         sourceFileName: c.sourceFileName,
         uploadedBy: c.uploadedBy,

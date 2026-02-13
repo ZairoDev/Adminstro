@@ -15,7 +15,7 @@ export const WHATSAPP_EVENTS = {
   // Conversation events
   NEW_CONVERSATION: "whatsapp-new-conversation",
   CONVERSATION_UPDATE: "whatsapp-conversation-update",
-  
+     
   // Typing indicator
   TYPING_START: "whatsapp-typing-start",
   TYPING_STOP: "whatsapp-typing-stop",
@@ -49,8 +49,13 @@ export const emitWhatsAppEvent = (event: string, data: any) => {
       // Log number of connected clients
       const connectedSockets = io.sockets?.sockets?.size || 0;
       console.log(`🔌 Connected clients: ${connectedSockets}`);
-      io.emit(event, data);
-      console.log(`Socket event emitted: ${event}`);
+      try {
+        // console.log(`🔁 Emitting event ${event} to all with payload:`, data);
+        io.emit(event, data);
+        console.log(`Socket event emitted: ${event}`);
+      } catch (emitErr) {
+        console.error(`Error during io.emit for event ${event}:`, emitErr);
+      }
     } else {
       console.log(`Socket.io not available, skipping event: ${event}`);
     }
@@ -64,7 +69,12 @@ export const emitToRoom = (room: string, event: string, data: any) => {
   try {
     const io = getIO();
     if (io) {
-      io.to(room).emit(event, data);
+      try {
+        // console.log(`🔁 Emitting event ${event} to room ${room} with payload:`, data);
+        io.to(room).emit(event, data);
+      } catch (emitErr) {
+        console.error(`Error during io.to(${room}).emit for event ${event}:`, emitErr);
+      }
     }
   } catch (error) {
     console.error("Error emitting to room:", error);

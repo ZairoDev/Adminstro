@@ -106,12 +106,27 @@ const VisitModal = ({
   const [fetchingAgents, setFetchingAgents] = useState(false);
 
   const handleSubmit = async () => {
+    // Ensure an agent is selected: if none chosen but agents list exists, auto-fill with first agent
+    const formCopy = { ...visitFormValues };
+    if (
+      (!formCopy.agentPhone || formCopy.agentPhone.trim() === "") &&
+      agents &&
+      agents.length > 0
+    ) {
+      formCopy.agentPhone = agents[0].agentPhone || "";
+      formCopy.agentName = agents[0].agentName || "";
+      // persist to state so UI reflects the auto-selection
+      setVisitFormValues(formCopy);
+      toast({
+        title: "Agent auto-selected",
+        description: `Assigned to ${formCopy.agentName}`,
+      });
+    }
+
     const missing: string[] = [];
-    const vsid = visitFormValues.VSID?.trim();
+    const vsid = formCopy.VSID?.trim();
     const phoneDigits =
-      (visitFormValues.ownerPhone &&
-        visitFormValues.ownerPhone.replace(/\D/g, "")) ||
-      "";
+      (formCopy.ownerPhone && formCopy.ownerPhone.replace(/\D/g, "")) || "";
 
     if (!vsid && !phoneDigits) missing.push("VSID or Phone Number");
 
@@ -152,7 +167,7 @@ const VisitModal = ({
 
     setIsLoading(true);
     try {
-      await axios.post("/api/visits/addVisit", visitFormValues);
+      await axios.post("/api/visits/addVisit", formCopy);
       toast({
         title: "Success",
         description: "Visit scheduled successfully",
@@ -185,14 +200,27 @@ const VisitModal = ({
       const response = await axios.post("/api/visits/getPropertiesForVisit", {
         userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
       });
-      setProperties(response.data || []);
+      const props = response.data || [];
+      setProperties(props);
 
-      if (!response.data || response.data.length === 0) {
+      if (!props || props.length === 0) {
         toast({
           title: "No Properties Found",
           description: "No properties exist for this phone number",
           variant: "destructive",
         });
+      } else if (props.length === 1) {
+        // Auto-select single property and fill VSID + owner info
+        const only = props[0];
+        setProperty(only as any);
+        setVisitFormValues((prev) => ({
+          ...prev,
+          propertyId: only.propertyId || "",
+          VSID: only.VSID || "",
+          ownerName: only.ownerName || prev.ownerName,
+          ownerEmail: only.ownerEmail || prev.ownerEmail,
+          address: only.address || prev.address,
+        }));
       }
     } catch (err: unknown) {
       console.error("Error fetching properties:", err);
@@ -254,8 +282,15 @@ const VisitModal = ({
   const fetchAgents = async () => {
     try {
       setFetchingAgents(true);
-      const allAgents = await axios.get("/api/addons/agents/getAllAgents");
-      setAgents(allAgents.data?.data || []);
+      const res = await axios.get("/api/addons/agents/getAllAgents");
+      // Support multiple response shapes and defensive logging
+      console.log("fetchAgents response:", res?.status, res?.data);
+      const agentsList =
+        res?.data?.data ||
+        res?.data?.agents ||
+        (Array.isArray(res?.data) ? res.data : undefined) ||
+        [];
+      setAgents(agentsList || []);
     } catch (err) {
       console.error("Unable to fetch agents:", err);
       setAgents([]);
@@ -289,7 +324,8 @@ const VisitModal = ({
   ]);
 
   return (
-    <div className="flex flex-col gap-y-4 p-4">
+    <ScrollArea className="max-h-[80vh] rounded-md border">
+      <div className="flex flex-col gap-y-4 p-4">
       {/* Header */}
       <div className="flex justify-between items-center pb-2 border-b">
         <h2 className="font-semibold text-xl">Schedule Visit</h2>
@@ -401,50 +437,70 @@ const VisitModal = ({
             <div className="flex w-max space-x-4 p-4">
               {properties.map((property) => {
                 const isSelected = visitFormValues.VSID === property.VSID;
-                return (
-                  <div
-                    key={property.propertyId}
-                    className={`shrink-0 cursor-pointer rounded-md border-2 transition-all ${
-                      isSelected
-                        ? "border-primary ring-2 ring-primary/20"
-                        : "border-transparent hover:border-primary/50"
-                    }`}
-                    onClick={() =>
-                      setVisitFormValues({
-                        ...visitFormValues,
-                        propertyId: property.propertyId,
-                        VSID: property.VSID,
-                        ownerName: property.ownerName,
-                        ownerEmail: property.ownerEmail,
-                        address: property.address,
-                      })
-                    }
-                  >
-                    <div className="overflow-hidden rounded-md relative">
-                      <Link
-                        href={
-                          property.isQuickListing
-                            ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
-                            : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`
+              return (
+                <div
+                  key={property.propertyId}
+                  className={`shrink-0 cursor-pointer rounded-md border-2 transition-all ${
+                    isSelected
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-transparent hover:border-primary/50"
+                  }`}
+                  onClick={() =>
+                    setVisitFormValues({
+                      ...visitFormValues,
+                      propertyId: property.propertyId,
+                      VSID: property.VSID,
+                      ownerName: property.ownerName,
+                      ownerEmail: property.ownerEmail,
+                      address: property.address,
+                    })
+                  }
+                >
+                  <div className="overflow-hidden rounded-md relative">
+                    <Link
+                      href={
+                        property.isQuickListing
+                          ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
+                          : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <img
+                        src={
+                          property?.propertyImages?.[0] || "/placeholder.svg"
                         }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <img
-                          src={
-                            property?.propertyImages?.[0] || "/placeholder.svg"
-                          }
-                          alt="Property"
-                          className="w-28 h-28 object-cover"
-                        />
-                      </Link>
-                      {isSelected && (
-                        <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
-                          <Search className="h-3 w-3" />
-                        </div>
-                      )}
-                    </div>
+                        alt="Property"
+                        className="w-28 h-28 object-cover"
+                      />
+                    </Link>
+
+                    {/* Open listing button (top-right) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = property.isQuickListing
+                          ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
+                          : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`;
+                        try {
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        } catch {
+                          window.location.href = url;
+                        }
+                      }}
+                      className="absolute top-1 right-1 bg-white/80 text-xs rounded px-2 py-1 hover:bg-white"
+                    >
+                      Open
+                    </button>
+
+                    {isSelected && (
+                      <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                        <Search className="h-3 w-3" />
+                      </div>
+                    )}
+                  </div>
                   </div>
                 );
               })}
@@ -571,7 +627,7 @@ const VisitModal = ({
                   agents.map((agent, index) => (
                     <SelectItem
                       key={index}
-                      value={`${agent.agentName}|||${agent.agentPhone}`}
+                      value={`${agent.agentName}`}
                     >
                       {agent.agentName} - {agent.agentPhone}
                     </SelectItem>
@@ -687,6 +743,7 @@ const VisitModal = ({
         )}
       </Button>
     </div>
+    </ScrollArea>
   );
 };
 

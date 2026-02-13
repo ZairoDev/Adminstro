@@ -88,9 +88,25 @@ export async function POST(req: NextRequest) {
       return null;
     };
 
-    const nameCol = findCol(["name", "contact name", "full name", "fullname"]);
-    const phoneCol = findCol(["phone", "phonenumber", "phone number", "mobile", "whatsapp", "number", "phone_number"]);
-    const countryCol = findCol(["country", "country code", "countrycode", "country_code"]);
+    // Enforce strict expected headers: Country, Name, Phone No.
+    const exactMatch = (pattern: RegExp) => {
+      for (const key of sampleKeys) {
+        if (pattern.test(key.trim())) return key;
+      }
+      return null;
+    };
+
+    const nameCol = exactMatch(/^name$/i) || findCol(["name", "contact name", "full name", "fullname"]);
+    const phoneCol = exactMatch(/^(phone\s*no\.?|phone\s*number|phone)$/i) || findCol(["phone", "phonenumber", "phone number", "mobile", "whatsapp", "number", "phone_number"]);
+    const countryCol = exactMatch(/^country$/i) || findCol(["country", "country code", "countrycode", "country_code"]);
+
+    // If strict headers not present, reject with clear error so frontend can toast
+    if (!nameCol || !phoneCol || !countryCol) {
+      return NextResponse.json(
+        { error: "Invalid file format. Expected headers: Country, Name, Phone No." },
+        { status: 400 }
+      );
+    }
 
     if (!phoneCol) {
       return NextResponse.json(
@@ -115,12 +131,22 @@ export async function POST(req: NextRequest) {
       const rawName = nameCol ? String(row[nameCol] || "").trim() : "";
       const rawCountry = countryCol ? String(row[countryCol] || "").trim() : "";
 
+      // If phone is in format "+48 952563214", extract country code before the space
+      let extractedCountryCode: string | null = null;
+      let phoneToNormalize = rawPhone;
+      const plusMatch = rawPhone.match(/^\+(\d+)\s+(.+)$/);
+      if (plusMatch) {
+        extractedCountryCode = plusMatch[1]; // e.g. "48"
+        phoneToNormalize = plusMatch[2]; // rest of the number
+      }
+
       if (!rawPhone) {
         errors.push(`Row ${rowNum}: Missing phone number`);
         continue;
       }
 
-      const phone = normalizePhone(rawPhone);
+      const localDigits = normalizePhone(phoneToNormalize);
+      const phone = extractedCountryCode ? `${extractedCountryCode}${localDigits}` : normalizePhone(rawPhone);
 
       // Basic validation: at least 7 digits, max 15
       if (phone.length < 7 || phone.length > 15) {
@@ -138,7 +164,8 @@ export async function POST(req: NextRequest) {
       validContacts.push({
         name: rawName || "Contact",
         phoneNumber: phone,
-        country: rawCountry || "Unknown",
+        country: rawCountry || (extractedCountryCode ? `+${extractedCountryCode}` : "Unknown"),
+        countryCode: extractedCountryCode ? extractedCountryCode : undefined,
         uploadedBy,
         uploadedAt,
         sourceFileName: fileName,

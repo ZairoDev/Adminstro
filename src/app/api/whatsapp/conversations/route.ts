@@ -14,8 +14,11 @@ import {
   getDefaultPhoneId,
   getPhoneIdForLocation,
   getRetargetPhoneId,
+  getPhoneConfigById,
+  FULL_ACCESS_ROLES,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
+import { canAccessConversation } from "@/lib/whatsapp/access";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -49,10 +52,41 @@ export async function GET(req: NextRequest) {
       }
     }
     
+    // Determine allowed phone IDs (not used to block access; area-based allocation is used)
     let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    // Debug: log role, areas, and initial allowed phone IDs
+    console.log(`[DEBUG][conversations][GET] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIdsInitial=${JSON.stringify(allowedPhoneIds)}`);
 
     const searchParams = req.nextUrl.searchParams;
     const retargetOnly = searchParams.get("retargetOnly") === "1" || searchParams.get("retargetOnly") === "true";
+
+    // If client requested a specific conversation by id, return that conversation only (with access check)
+    const convIdParam = searchParams.get("conversation") || searchParams.get("conversationId");
+    if (convIdParam) {
+      try {
+        const convDoc = await WhatsAppConversation.findById(convIdParam).lean() as any;
+        if (!convDoc) {
+          return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        }
+
+        const allowed = await canAccessConversation(token, convDoc);
+        if (!allowed) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Wrap in same response shape as list endpoint and return the phone context
+        return NextResponse.json({
+          success: true,
+          conversations: [convDoc],
+          contextPhoneId: convDoc.businessPhoneId || null,
+          archivedCount: 0,
+          pagination: { limit: 1, hasMore: false, nextCursor: null },
+        });
+      } catch (err: any) {
+        console.error("Error fetching conversation by id:", err);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+    }
 
     // Advert role: only allowed when retargetOnly=1, grant access to the retarget phone
     if (allowedPhoneIds.length === 0 && retargetOnly) {
@@ -62,12 +96,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (allowedPhoneIds.length === 0) {
-      return NextResponse.json(
-        { error: "No WhatsApp access for your role/area" },
-        { status: 403 }
-      );
+    // If a specific phoneId is requested and it matches the retarget phone id,
+    // allow Advert to access it even when retargetOnly flag wasn't provided.
+    const requestedPhoneIdParam = searchParams.get("phoneId") || "";
+    if (allowedPhoneIds.length === 0 && requestedPhoneIdParam) {
+      const retargetPhoneId = getRetargetPhoneId();
+      if (retargetPhoneId && requestedPhoneIdParam === retargetPhoneId) {
+        allowedPhoneIds = [retargetPhoneId];
+        console.log(`[DEBUG][conversations][GET] granted retargetPhoneId access via phoneId param=${requestedPhoneIdParam}`);
+      }
     }
+
+    // Debug: log retargetOnly and final allowed phone ids after fallback
+    console.log(`[DEBUG][conversations][GET] retargetOnly=${retargetOnly} allowedPhoneIdsFinal=${JSON.stringify(allowedPhoneIds)}`);
 
     const limit = parseInt(searchParams.get("limit") || "25");
     const status = searchParams.get("status") || "active";
@@ -98,12 +139,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Build query - filter by allowed phone IDs
-    const query: any = { 
-      status,
-      businessPhoneId: phoneIdFilter && allowedPhoneIds.includes(phoneIdFilter)
-        ? phoneIdFilter
-        : { $in: allowedPhoneIds }
-    };
+    const query: any = { status };
+    // If client requested a specific phoneId, filter by it (no global blocking)
+    if (phoneIdFilter) {
+      query.businessPhoneId = phoneIdFilter;
+    }
 
     // Handle archive filtering (global archive)
     if (archivedOnly) {
@@ -139,6 +179,12 @@ export async function GET(req: NextRequest) {
       query.isRetarget = true;
     }
 
+    // Advert should only see retarget conversations (server-enforced)
+    if (userRole === "Advert") {
+      query.isRetarget = true;
+      console.log(`[DEBUG][conversations][GET] Advert user - restricting to retarget conversations`);
+    }
+
     // Sales visibility rules: Sales must never see retarget conversations before handover
     if (userRole === "Sales") {
       // Ensure Sales only see non-retarget OR retarget conversations that have been handed to sales
@@ -150,11 +196,6 @@ export async function GET(req: NextRequest) {
         ],
       });
     }
-
-    // CRITICAL: Search must ALWAYS query the database directly
-    // No client-side filtering - database is the source of truth for conversations
-    // Search by customer name and customer phone number
-    // Search is universal - includes both archived and non-archived conversations
     if (search) {
       query.$or = [
         { participantPhone: { $regex: search, $options: "i" } },
@@ -479,18 +520,13 @@ export async function POST(req: NextRequest) {
     }
     
     const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
-
-    if (allowedPhoneIds.length === 0) {
-      return NextResponse.json(
-        { error: "No WhatsApp access for your role/area" },
-        { status: 403 }
-      );
-    }
+    // Debug: log role, areas, and allowed phone IDs for POST requests
+    console.log(`[DEBUG][conversations][POST] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIds=${JSON.stringify(allowedPhoneIds)}`);
 
     // Prevent Sales from opening existing retarget conversations via direct create
     const existingConv = await WhatsAppConversation.findOne({
       participantPhone: normalizedPhone,
-      businessPhoneId: { $in: allowedPhoneIds },
+      isRetarget: true,
     }).lean() as any;
     if (existingConv && existingConv.isRetarget && (userRole === "Sales") && existingConv.retargetStage !== "handed_to_sales") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -498,12 +534,12 @@ export async function POST(req: NextRequest) {
 
     // Use: explicit phoneNumberId > phone for lead's location > default
     let selectedPhoneId: string | null = null;
-    if (phoneNumberId && allowedPhoneIds.includes(phoneNumberId)) {
+    if (phoneNumberId) {
       selectedPhoneId = phoneNumberId;
     } else if (leadLocation?.trim()) {
       // Use the phone number configured for this lead's location
       const phoneIdForLocation = getPhoneIdForLocation(leadLocation);
-      if (phoneIdForLocation && allowedPhoneIds.includes(phoneIdForLocation)) {
+      if (phoneIdForLocation) {
         selectedPhoneId = phoneIdForLocation;
       }
     }
@@ -519,10 +555,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify user can access this phone ID
-    if (!canAccessPhoneId(selectedPhoneId, userRole, userAreas)) {
+    // Verify user can access this phone ID based on area mapping or full-access role
+    const phoneConfig = getPhoneConfigById(selectedPhoneId);
+    const normalizedUserAreas = userAreas.map(a => a.toLowerCase());
+    let phoneAllowed = false;
+    if (!phoneConfig) {
+      phoneAllowed = false;
+    } else if ((FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+      phoneAllowed = true;
+    } else {
+      const cfgAreas = Array.isArray(phoneConfig.area) ? phoneConfig.area : [phoneConfig.area];
+      const normalizedCfgAreas = cfgAreas.map((a: any) => String(a).toLowerCase());
+      phoneAllowed = normalizedCfgAreas.some((a: string) => normalizedUserAreas.includes(a));
+    }
+
+    if (!phoneAllowed) {
       return NextResponse.json(
-        { error: "You don't have permission to use this WhatsApp number" },
+        { error: "You don't have permission to use this WhatsApp number (area mismatch)" },
         { status: 403 }
       );
     }

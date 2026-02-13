@@ -4,6 +4,7 @@ export interface IRetargetContact extends Document {
   name: string;
   phoneNumber: string;
   country: string;
+  countryCode?: string;
   uploadedBy: string;
   uploadedAt: Date;
   sourceFileName: string;
@@ -26,6 +27,11 @@ const retargetContactSchema = new Schema<IRetargetContact>(
     country: {
       type: String,
       required: [true, "Country is required"],
+    },
+    countryCode: {
+      type: String,
+      required: false,
+      default: undefined,
     },
     uploadedBy: {
       type: String,
@@ -54,6 +60,7 @@ const retargetContactSchema = new Schema<IRetargetContact>(
 retargetContactSchema.index({ phoneNumber: 1 });
 retargetContactSchema.index({ batchId: 1 });
 retargetContactSchema.index({ uploadedBy: 1, isActive: 1 });
+retargetContactSchema.index({ countryCode: 1 });
 
 const RetargetContact =
   mongoose.models?.RetargetContact ||

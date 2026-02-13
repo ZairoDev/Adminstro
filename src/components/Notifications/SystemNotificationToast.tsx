@@ -826,14 +826,6 @@ export function SystemNotificationToast({
         },
       });
 
-      const timeout = window.setTimeout(() => {
-        try {
-          notif.close();
-        } catch {
-          /* no-op */
-        }
-      }, 5000);
-
       notif.onclick = () => {
         try {
           notif.close();
@@ -858,7 +850,6 @@ export function SystemNotificationToast({
         } else {
           router.push("/whatsapp");
         }
-        window.clearTimeout(timeout);
       };
     },
     [notificationPermission, persistLastReadAt, router]

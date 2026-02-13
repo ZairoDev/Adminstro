@@ -29,6 +29,7 @@ type RetargetRecipient = {
   canRetarget: boolean;
   hasEngagement: boolean;
   country?: string;
+  countryCode?: string;
   batchId?: string;
   sourceFileName?: string;
 };
@@ -223,6 +224,9 @@ export default function RetargetPage() {
           canRetarget: true,
           hasEngagement: false,
           country: c.country,
+          // countryCode returned from API when available (numeric string without +)
+          // used to construct full E.164 number when sending
+          countryCode: (c as any).countryCode,
           batchId: c.batchId,
           sourceFileName: c.sourceFileName,
         }));
@@ -472,8 +476,24 @@ export default function RetargetPage() {
           sendTemplateText = getTemplatePreviewText(selectedTemplate, recipientParams);
         }
 
+        // Build destination number avoiding duplicate country codes.
+        // Use digits-only representation for WhatsApp API.
+        const rawDigits = String(recipient.phone || "").replace(/\D/g, "");
+        let toNumber: string;
+        if (recipient.countryCode) {
+          const cc = String(recipient.countryCode);
+          // If phone already starts with the country code, use as-is.
+          if (rawDigits.startsWith(cc)) {
+            toNumber = rawDigits;
+          } else {
+            toNumber = `${cc}${rawDigits}`;
+          }
+        } else {
+          toNumber = rawDigits;
+        }
+
         await axios.post("/api/whatsapp/send-template", {
-          to: recipient.phone,
+          to: toNumber,
           templateName: selectedTemplate.name,
           languageCode: selectedTemplate.language,
           components: sendComponents.length > 0 ? sendComponents : undefined,

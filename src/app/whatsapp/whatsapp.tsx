@@ -325,46 +325,86 @@ export default function WhatsAppChat() {
         return window.location.pathname.startsWith("/whatsapp");
       },
       onInApp: (raw) => {
-        // In-app notifications are handled by SystemNotificationToast component
-        // The controller's onInApp callback in SystemNotificationToast will trigger
-        // the toast rendering via handleWhatsAppMessage
-        // This callback is kept minimal to avoid duplicate processing
+        try {
+          console.log("🔔 [NOTIF] onInApp called with:", raw);
+          // Trigger in-app toast handler (SystemNotificationToast handles rendering)
+          // Provide the raw payload so the toast can display contextual info
+          // Use handleWhatsAppMessage to update UI state as well
+          handleWhatsAppMessage(raw);
+        } catch (err) {
+          console.error("❌ [NOTIF] onInApp error:", err);
+        }
       },
       onBrowser: (raw) => {
-        if (
-          typeof window === "undefined" ||
-          !("Notification" in window) ||
-          Notification.permission !== "granted"
-        ) {
-          return;
+        try {
+          console.log("🔔 [NOTIF] onBrowser called with:", raw);
+          // DEBUG: force a browser notification for testing
+          const DEBUG_FORCE_NOTIF = true;
+          if (DEBUG_FORCE_NOTIF) {
+            try {
+              const displayText =
+                typeof raw.message?.content === "string"
+                  ? raw.message.content
+                  : raw.message?.content?.text ||
+                    raw.message?.content?.caption ||
+                    "New message (debug)";
+
+              const notif = new Notification(
+                raw.participantName || raw.message?.from || "WhatsApp (debug)",
+                {
+                  body: displayText.substring(0, 100),
+                  icon: "/favicon.ico",
+                  badge: "/favicon.ico",
+                  tag: raw.conversationId,
+                }
+              );
+              console.log("🔔 [NOTIF] Debug notification created:", notif);
+            } catch (e) {
+              console.error("🔔 [NOTIF] Debug notification failed:", e);
+            }
+            return;
+          }
+
+          const displayText =
+            typeof raw.message?.content === "string"
+              ? raw.message.content
+              : raw.message?.content?.text ||
+                raw.message?.content?.caption ||
+                "New message";
+
+          let notif: Notification | null = null;
+          try {
+            notif = new Notification(
+              raw.participantName || raw.message?.from || "WhatsApp",
+              {
+                body: displayText.substring(0, 100),
+                icon: "/favicon.ico",
+                badge: "/favicon.ico",
+                tag: raw.conversationId,
+              }
+            );
+          } catch (createErr) {
+            console.error("❌ [NOTIF] Failed to create browser notification:", createErr);
+            return;
+          }
+
+          notif.onclick = () => {
+            window.focus();
+            notif?.close();
+            if (raw.conversationId) {
+              const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+              if (activePhoneId) {
+                router.push(`/whatsapp?phoneId=${activePhoneId}&conversationId=${raw.conversationId}`);
+              } else {
+                router.push(`/whatsapp?conversationId=${raw.conversationId}`);
+              }
+            }
+          };
+
+          setTimeout(() => notif?.close(), 5000);
+        } catch (err) {
+          console.error("❌ [NOTIF] onBrowser error:", err);
         }
-
-        const displayText =
-          typeof raw.message?.content === "string"
-            ? raw.message.content
-            : raw.message?.content?.text ||
-              raw.message?.content?.caption ||
-              "New message";
-
-        const notif = new Notification(
-          raw.participantName || raw.message?.from || "WhatsApp",
-          {
-            body: displayText.substring(0, 100),
-            icon: "/favicon.ico",
-            badge: "/favicon.ico",
-            tag: raw.conversationId,
-          }
-        );
-
-        notif.onclick = () => {
-          window.focus();
-          notif.close();
-          if (raw.conversationId) {
-            router.push(`/whatsapp?conversationId=${raw.conversationId}`);
-          }
-        };
-
-        setTimeout(() => notif.close(), 5000);
       },
     });
   }, [token, router]);
@@ -435,6 +475,21 @@ export default function WhatsAppChat() {
     fetchTemplates();
     fetchPhoneConfigs();
   }, [searchParams]);
+
+  // Ensure phoneId is present in URL while inside WhatsApp module.
+  // If missing, redirect to default allowed phone for the user.
+  useEffect(() => {
+    const phoneIdParam = searchParams?.get("phoneId");
+    if (phoneIdParam) return;
+    // If phone configs are loaded, pick a default and redirect
+    if (allowedPhoneConfigs.length > 0) {
+      const defaultPhone = allowedPhoneConfigs.find((c: any) => !c.isInternal) || allowedPhoneConfigs[0];
+      if (defaultPhone && defaultPhone.phoneNumberId) {
+        router.replace(`/whatsapp?phoneId=${defaultPhone.phoneNumberId}`);
+      }
+    }
+    // else wait for phone configs to load
+  }, [searchParams, allowedPhoneConfigs]);
 
   // CRITICAL: Refetch conversations when phone filter or search changes
   // Database is source of truth - always query backend, never filter client-side
@@ -1012,6 +1067,10 @@ export default function WhatsAppChat() {
         params.append("beforeMessageId", messagesCursor.messageId);
       }
 
+      // Always include phoneId namespace when loading messages
+      if (selectedPhoneConfig?.phoneNumberId) {
+        params.append("phoneId", selectedPhoneConfig.phoneNumberId);
+      }
       const response = await axios.get(
         `/api/whatsapp/conversations/${conversationId}/messages?${params.toString()}`
       );
@@ -1246,16 +1305,21 @@ export default function WhatsAppChat() {
         return updated;
       });
       
-      // Update URL with conversation ID for deep linking
-      router.push(`/whatsapp?conversation=${conversation._id}`, { scroll: false });
+      // Update URL with conversation ID for deep linking (preserve phoneId namespace)
+      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+      const convUrl = activePhoneId
+        ? `/whatsapp?phoneId=${activePhoneId}&conversation=${conversation._id}`
+        : `/whatsapp?conversation=${conversation._id}`;
+      router.push(convUrl, { scroll: false });
     } else {
       // Navigate back to sidebar on mobile when clearing selection
       if (isMobile) {
         setMobileView("conversations");
       }
       
-      // Clear URL when no conversation selected
-      router.push("/whatsapp", { scroll: false });
+      // Clear selection but preserve phoneId in URL
+      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+      router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}` : "/whatsapp", { scroll: false });
     }
   };
 
@@ -1314,12 +1378,14 @@ export default function WhatsAppChat() {
           return [newConversation!, ...prev];
         });
         
-        // Select and navigate to the conversation immediately
+        // Select and navigate to the conversation immediately (preserve phoneId)
         selectConversation(newConversation);
-        router.push(`/whatsapp?conversationId=${conversationId}`);
+        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
       } else {
-        // If conversation not found, navigate directly - it will be loaded by the URL param handler
-        router.push(`/whatsapp?conversationId=${conversationId}`);
+        // If conversation not found, navigate directly - preserve phoneId if present
+        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
       }
       
       // Also refresh the full conversations list in the background to ensure consistency
@@ -1329,8 +1395,9 @@ export default function WhatsAppChat() {
       }, 500);
     } catch (error) {
       console.error("Error handling guest added:", error);
-      // Fallback: navigate directly to the conversation
-      router.push(`/whatsapp?conversationId=${conversationId}`);
+      // Fallback: navigate directly to the conversation (preserve phoneId)
+      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+      router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
     }
   };
 

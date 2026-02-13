@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
       isRetarget = false, // STEP 2: Flag to indicate this is a retarget message
     } = await req.json();
 
+    // Debug: log incoming retarget flag and template info
+    console.log(`[DEBUG][send-template] from=${token?.id || token?._id} to=${to} template=${templateName} isRetarget=${isRetarget} conversationId=${conversationId}`);
+
     if (!to || !templateName) {
       return NextResponse.json(
         { error: "Phone number and template name are required" },

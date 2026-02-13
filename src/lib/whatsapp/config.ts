@@ -98,8 +98,7 @@ export const getWhatsAppToken = (): string => {
 export const FULL_ACCESS_ROLES = [
   "SuperAdmin",
   "Admin",
-  "LeadGen",
-  "LeadGen-TeamLead",
+
   "Developer",
 ] as const;
 
@@ -107,6 +106,7 @@ export const FULL_ACCESS_ROLES = [
 export const WHATSAPP_ACCESS_ROLES = [
   "SuperAdmin",
   "Admin",
+  "Advert",
   "Sales",
   "Sales-TeamLead",
   "LeadGen",
@@ -114,9 +114,7 @@ export const WHATSAPP_ACCESS_ROLES = [
   "Developer",
 ] as const;
 
-/**
- * Get phone configs accessible by a user based on their role and area
- */
+
 export function getAllowedPhoneConfigs(
   userRole: string,
   userAreas: string[] = []

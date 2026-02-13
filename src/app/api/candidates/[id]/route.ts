@@ -54,6 +54,10 @@ export async function PATCH(
         updateData.interviewAttendance = body.interviewAttendance;
       }
     }
+    // Handle additionalDocuments array
+    if (body.additionalDocuments !== undefined) {
+      updateData.additionalDocuments = body.additionalDocuments;
+    }
     
     // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl")
     Object.keys(body).forEach((key) => {

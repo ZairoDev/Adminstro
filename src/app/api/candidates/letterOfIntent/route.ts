@@ -11,13 +11,13 @@ type Payload = {
   position: string;
   date: string;
   signatureBase64?: string;
-  salary?: string; // e.g., "₹2.16 LPA"
-  designation?: string; // e.g., "Human Resource Executive (HR Executive)"
-  department?: string; // e.g., "Human Resources"
-  startDate?: string; // e.g., "13th Jan 2026"
-  candidateSignatureBase64?: string; // Candidate's signature
-  ankitaSignatureBase64?: string; // Ankita mam's signature
-  signingDate?: string; // ISO string of when candidate signed (for Date of Signing field)
+  salary?: string; 
+  designation?: string; 
+  department?: string; 
+  startDate?: string; 
+  candidateSignatureBase64?: string;
+  ankitaSignatureBase64?: string; 
+  signingDate?: string; 
   candidateId?: string;
 };
 
@@ -88,9 +88,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate training duration and date if candidateId is provided
+    // Fetch candidate training duration, date, and gender if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
     let candidateSelectedDate: Date | null = null;
+    let candidateGender: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
@@ -99,6 +100,11 @@ export async function POST(req: NextRequest) {
           // Get the date when candidate was selected for training
           if (candidate.selectedForTrainingAt) {
             candidateSelectedDate = new Date(candidate.selectedForTrainingAt);
+          }
+          
+          // Get candidate gender
+          if (candidate.gender) {
+            candidateGender = candidate.gender;
           }
           
           // Get training duration
@@ -135,7 +141,7 @@ export async function POST(req: NextRequest) {
     const companyCIN = "U93090UP2017PTC089137";
     const companyAddress =
       "117/N/70, 3rd Floor, Kakadeo, Kanpur – 208025";
-    const officeStart = "10:00 hrs ISD";
+    const officeStart = "10:00 hrs ISD"; 
     const officeEnd = "18:30 hrs ISD";
 
     // Convert Ankita mam's signature if provided, otherwise load from public folder
@@ -507,9 +513,21 @@ export async function POST(req: NextRequest) {
     drawWrappedText(subjectLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Dear candidate line (with Ms./Mr. prefix - assuming Ms. for now, can be made dynamic)
+    // Dear candidate line (with dynamic Ms./Mr. prefix based on gender)
     const candidateName = data.candidateName || "______________";
-    const dearLine = `Dear Ms. ${candidateName},`;
+    // Determine title based on gender: Male -> Mr., Female -> Ms., Others -> use name without title
+    let titlePrefix = "";
+    if (candidateGender === "Male") {
+      titlePrefix = "Mr.";
+    } else if (candidateGender === "Female") {
+      titlePrefix = "Ms.";
+    } else {
+      // For "Other", "Prefer not to say", or null, use name without title
+      titlePrefix = "";
+    }
+    const dearLine = titlePrefix 
+      ? `Dear ${titlePrefix} ${candidateName},`
+      : `Dear ${candidateName},`;
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
@@ -683,10 +701,21 @@ export async function POST(req: NextRequest) {
     drawWrappedText("Acknowledgment by Candidate", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing;
 
-    const acknowledgmentText = `I, Ms. ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`;
+    // Determine title for acknowledgment based on gender
+    let acknowledgmentTitle = "";
+    if (candidateGender === "Male") {
+      acknowledgmentTitle = "Mr.";
+    } else if (candidateGender === "Female") {
+      acknowledgmentTitle = "Ms.";
+    } else {
+      // For "Other", "Prefer not to say", or null, use name without title
+      acknowledgmentTitle = "";
+    }
+    const acknowledgmentText = acknowledgmentTitle
+      ? `I, ${acknowledgmentTitle} ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`
+      : `I, ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`;
     drawWrappedText(acknowledgmentText, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
-
     // Signature label
 
     

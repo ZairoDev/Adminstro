@@ -27,6 +27,8 @@ import {
   Copy,
   IndianRupee,
   Send,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,8 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 import axios from "axios";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
@@ -199,6 +200,11 @@ export default function CandidateDetailPage() {
   const [generatingUnsignedOfferLetterPdf, setGeneratingUnsignedOfferLetterPdf] = useState(false);
   const [showSignedOfferLetterPdfDialog, setShowSignedOfferLetterPdfDialog] = useState(false);
   const [showUnsignedOfferLetterPdfDialog, setShowUnsignedOfferLetterPdfDialog] = useState(false);
+  
+  // Additional Documents states
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  const [additionalDocumentsExpanded, setAdditionalDocumentsExpanded] = useState(true);
+  const { uploadFiles } = useBunnyUpload();
 
   const generateUnsignedTrainingAgreement = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
@@ -2450,6 +2456,192 @@ export default function CandidateDetailPage() {
                 </div>
               </Card>
             )}
+
+            {/* Additional Documents */}
+            <Card className="p-4">
+              <button
+                onClick={() => setAdditionalDocumentsExpanded(!additionalDocumentsExpanded)}
+                className="w-full flex items-center justify-between mb-2"
+              >
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Additional Documents</h3>
+                {additionalDocumentsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {additionalDocumentsExpanded && (
+                <div className="space-y-4 mt-3">
+                  {/* Upload Button */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="additional-document-upload"
+                      className="hidden"
+                      multiple
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0 || !candidate) return;
+
+                        const fileArray = Array.from(files);
+                        e.target.value = "";
+
+                        try {
+                          setUploadingDocuments(true);
+
+                          const { imageUrls, error } = await uploadFiles(
+                            fileArray,
+                            `Documents/AdditionalDocuments/${candidate._id}`
+                          );
+
+                          if (error || !imageUrls?.length) {
+                            toast.error(error || "Failed to upload documents");
+                            return;
+                          }
+
+                          // Save documents to database
+                          const documentsToSave = fileArray.map((file, index) => ({
+                            name: file.name,
+                            url: imageUrls[index],
+                            uploadedAt: new Date().toISOString(),
+                            uploadedBy: null, // Can be enhanced to track user
+                          }));
+
+                          const response = await axios.patch(`/api/candidates/${candidateId}`, {
+                            additionalDocuments: [
+                              ...((candidate as any).additionalDocuments || []),
+                              ...documentsToSave,
+                            ],
+                          });
+
+                          if (response.data.success) {
+                            toast.success(`${fileArray.length} document(s) uploaded successfully`);
+                            refreshCandidate();
+                          } else {
+                            throw new Error(response.data.error || "Failed to save documents");
+                          }
+                        } catch (err: any) {
+                          console.error("Error uploading documents:", err);
+                          toast.error(
+                            err.response?.data?.error ||
+                            err.message ||
+                            "Failed to upload documents"
+                          );
+                        } finally {
+                          setUploadingDocuments(false);
+                        }
+                      }}
+                      disabled={uploadingDocuments}
+                    />
+                    <label
+                      htmlFor="additional-document-upload"
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                        uploadingDocuments
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:bg-accent border-border"
+                      }`}
+                    >
+                      {uploadingDocuments ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">Upload Documents</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Display Uploaded Documents */}
+                  {(candidate as any).additionalDocuments && (candidate as any).additionalDocuments.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Uploaded Documents ({(candidate as any).additionalDocuments.length})
+                      </p>
+                      <div className="space-y-2">
+                        {(candidate as any).additionalDocuments.map((doc: any, index: number) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {doc.name}
+                                </p>
+                                {doc.uploadedAt && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const a = document.createElement("a");
+                                  a.href = doc.url;
+                                  a.download = doc.name;
+                                  a.target = "_blank";
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                }}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!confirm(`Are you sure you want to delete "${doc.name}"?`)) {
+                                    return;
+                                  }
+
+                                  try {
+                                    const updatedDocs = (candidate as any).additionalDocuments.filter(
+                                      (_: any, i: number) => i !== index
+                                    );
+                                    const response = await axios.patch(`/api/candidates/${candidateId}`, {
+                                      additionalDocuments: updatedDocs,
+                                    });
+
+                                    if (response.data.success) {
+                                      toast.success("Document deleted successfully");
+                                      refreshCandidate();
+                                    } else {
+                                      throw new Error(response.data.error || "Failed to delete document");
+                                    }
+                                  } catch (err: any) {
+                                    console.error("Error deleting document:", err);
+                                    toast.error(
+                                      err.response?.data?.error ||
+                                      err.message ||
+                                      "Failed to delete document"
+                                    );
+                                  }
+                                }}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No additional documents uploaded yet
+                    </p>
+                  )}
+                </div>
+              )}
+            </Card>
 
             {/* Resume Preview */}
             <Card className="p-4">

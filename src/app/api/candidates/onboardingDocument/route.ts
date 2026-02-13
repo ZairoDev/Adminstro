@@ -161,17 +161,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate onboarding date if candidateId is provided
+    // Fetch candidate onboarding date and gender if candidateId is provided
     let candidateOnboardingDate: Date | null = null;
+    let candidateGender: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
         const candidate = await Candidate.findById(data.candidateId).lean();
-        if (candidate?.onboardingStartedAt) {
-          candidateOnboardingDate = new Date(candidate.onboardingStartedAt);
+        if (candidate) {
+          if (candidate?.onboardingStartedAt) {
+            candidateOnboardingDate = new Date(candidate.onboardingStartedAt);
+          }
+          // Get candidate gender
+          if (candidate.gender) {
+            candidateGender = candidate.gender;
+          }
         }
       } catch (err) {
-        console.error("Error fetching candidate onboarding date:", err);
+        console.error("Error fetching candidate data:", err);
         // Continue with provided dates
       }
     }
@@ -816,8 +823,11 @@ export async function POST(req: NextRequest) {
     drawWrappedText("AND", leftMargin + 190, bodySize, true);
     yPosition -= paragraphSpacing;
 
+    // Determine relationship prefix based on gender: Male -> S/o (Son of), Female -> D/o (Daughter of)
+    const relationshipPrefix = candidateGender === "Female" ? "D/o" : "S/o";
+    
     drawWrappedText(
-      ` ${data.employeeName || "______________"}, S/o ${
+      ` ${data.employeeName || "______________"}, ${relationshipPrefix} ${
         data.fatherName || "_________________"
       }, R/o ${
         data.employeeAddress || "___________________________"

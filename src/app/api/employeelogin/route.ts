@@ -42,7 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const token = jwt.sign(
         testAccountTokenData,
         process.env.TOKEN_SECRET as string,
-        { expiresIn: "2d" }
+        { expiresIn: "1d" }
       );
       
       const response = NextResponse.json(
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             allotedArea: temp.allotedArea,
           },
           process.env.TOKEN_SECRET as string,
-          { expiresIn: "2d" }
+          { expiresIn: "1d" }
         );
 
         const response = NextResponse.json(
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
-      expiresIn: "2d",
+      expiresIn: "1d",
     });
 
     // Log login activity

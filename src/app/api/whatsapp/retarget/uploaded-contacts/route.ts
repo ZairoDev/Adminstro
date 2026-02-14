@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      contacts: contacts.map((c: any) => ({
+        contacts: contacts.map((c: any) => ({
         id: String(c._id),
         name: c.name,
         phone: c.phoneNumber,
@@ -71,6 +71,11 @@ export async function GET(req: NextRequest) {
         uploadedBy: c.uploadedBy,
         uploadedAt: c.uploadedAt,
         isActive: c.isActive,
+        // Retarget tracking fields
+        state: c.state || "pending",
+        retargetCount: c.retargetCount || 0,
+        lastRetargetAt: c.lastRetargetAt || null,
+        lastErrorCode: c.lastErrorCode || null,
       })),
       batches: batches.map((b: any) => ({
         batchId: b._id,

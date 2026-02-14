@@ -147,7 +147,8 @@ export default function WhatsAppChat() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
-  // 24-hour window warning state
+  // 24-hour window warning state (removed - allow free-form sends regardless)
+  // kept for backward compatibility variable references
   const [showWindowWarning, setShowWindowWarning] = useState(false);
 
   // Media upload state
@@ -648,6 +649,14 @@ export default function WhatsAppChat() {
       });
 
       if (isCurrentConversation) {
+        // If an incoming message arrives for the open conversation, close the 24h template warning
+        if (isIncomingMessage) {
+          try {
+            setShowWindowWarning(false);
+          } catch (e) {
+            /* no-op */
+          }
+        }
         if (seenMessageIdsRef.current.has(message.messageId)) {
           return;
         }
@@ -1579,20 +1588,42 @@ export default function WhatsAppChat() {
       });
 
       if (response.data.success) {
-        // Update the temporary message with real IDs and status
-        setMessages((prev) =>
-          prev.map((msg) =>
+        const realMessageId = response.data.messageId;
+        const savedMessageId = response.data.savedMessageId;
+        const realTimestamp = new Date(response.data.timestamp || sendTimestamp);
+
+        setMessages((prev) => {
+          // If a message with the real messageId was already appended via socket,
+          // merge by removing the temp message and updating the existing one.
+          const existingIdx = prev.findIndex((m) => m.messageId === realMessageId);
+          if (existingIdx !== -1) {
+            return prev
+              .filter((m) => m._id !== tempId) // remove temp
+              .map((m, i) =>
+                m.messageId === realMessageId
+                  ? { ...m, _id: savedMessageId, status: "sent", timestamp: realTimestamp }
+                  : m
+              );
+          }
+
+          // Otherwise, replace the temp message with the real one
+          return prev.map((msg) =>
             msg._id === tempId
               ? {
                   ...msg,
-                  _id: response.data.savedMessageId,
-                  messageId: response.data.messageId,
+                  _id: savedMessageId,
+                  messageId: realMessageId,
                   status: "sent",
-                  timestamp: new Date(response.data.timestamp || sendTimestamp),
+                  timestamp: realTimestamp,
                 }
               : msg
-          )
-        );
+          );
+        });
+
+        // Mark this messageId as seen to avoid duplicate processing
+        try {
+          addToLRUSet(seenMessageIdsRef.current, response.data.messageId);
+        } catch (e) {}
       }
     } catch (error: any) {
       setMessages((prev) =>

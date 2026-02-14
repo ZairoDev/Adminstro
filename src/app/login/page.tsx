@@ -54,7 +54,8 @@ const PageLogin: React.FC = () => {
     try {
       const response: AxiosResponse<LoginResponse> = await axios.post(
         "/api/employeelogin",
-        { email, password }
+        { email, password },
+        { withCredentials: true }
       );
 
       // OTP required

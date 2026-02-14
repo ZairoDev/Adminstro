@@ -208,20 +208,20 @@ export default function RetargetPage() {
         setUploadBatches(res.data.batches || []);
         setUploadCountries(res.data.countries || []);
 
-        // Map to RetargetRecipient shape
+        // Map to RetargetRecipient shape (use persisted retarget tracking when present)
         const mapped: RetargetRecipient[] = contacts.map((c: any) => ({
           id: c.id,
           name: c.name,
           phone: c.phone,
           source: "uploaded" as const,
-          status: "pending",
-          state: "pending" as const,
-          retargetCount: 0,
-          lastRetargetAt: null,
-          blocked: false,
-          blockReason: null,
-          lastErrorCode: null,
-          canRetarget: true,
+          status: c.status || "pending",
+          state: (c.state as any) || "pending",
+          retargetCount: typeof c.retargetCount === "number" ? c.retargetCount : 0,
+          lastRetargetAt: c.lastRetargetAt || null,
+          blocked: !!c.blocked,
+          blockReason: c.blockReason || null,
+          lastErrorCode: c.lastErrorCode || null,
+          canRetarget: c.isActive !== false,
           hasEngagement: false,
           country: c.country,
           // countryCode returned from API when available (numeric string without +)
@@ -499,6 +499,7 @@ export default function RetargetPage() {
           components: sendComponents.length > 0 ? sendComponents : undefined,
           templateText: sendTemplateText,
           isRetarget: true,
+          ...(recipient.source === "uploaded" ? { uploadedContactId: recipient.id } : {}),
         });
 
         sentCount += 1;
@@ -506,9 +507,18 @@ export default function RetargetPage() {
         persistRetargetDailyCount(retargetDailyCount + sentCount);
         setHourlyCount(currentHourlyCount + 1);
 
+        const nowIso = new Date().toISOString();
         setRetargetRecipients((prev) =>
           prev.map((r) =>
-            r.id === recipient.id ? { ...r, status: "sent" } : r
+            r.id === recipient.id
+              ? {
+                  ...r,
+                  status: "sent",
+                  state: "retargeted",
+                  retargetCount: (r.retargetCount || 0) + 1,
+                  lastRetargetAt: nowIso,
+                }
+              : r
           )
         );
 

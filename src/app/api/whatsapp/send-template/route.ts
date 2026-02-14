@@ -14,6 +14,7 @@ import {
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { canAccessConversation } from "@/lib/whatsapp/access";
+import RetargetContact from "@/models/retargetContact";
 
 connectDb();
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       components = [],
       conversationId,
       phoneNumberId: requestedPhoneId,
+      uploadedContactId, // optional: ID of RetargetContact when sending uploaded contacts
       templateText, // The filled-in template text for display
       isRetarget = false, // STEP 2: Flag to indicate this is a retarget message
     } = await req.json();
@@ -288,6 +290,19 @@ export async function POST(req: NextRequest) {
         senderName: token.name || "You",
       },
     });
+
+    // If this send was for an uploaded contact, update RetargetContact record
+    try {
+      if (isRetarget && (uploadedContactId || uploadedContactId === 0)) {
+        await RetargetContact.findByIdAndUpdate(uploadedContactId, {
+          $inc: { retargetCount: 1 },
+          $set: { state: "retargeted", lastRetargetAt: new Date() },
+        });
+      }
+    } catch (err) {
+      // Log but don't fail the send
+      console.error("Failed to update retarget contact state:", err);
+    }
 
     // =========================================================
     // STEP 2 & 3: Lead/Owner Tracking & Retarget Count Logic

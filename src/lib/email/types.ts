@@ -18,6 +18,7 @@ export interface SelectionDetails {
   positionType: string;
   duration: string;
   trainingPeriod: string;
+  trainingDate?: string; // Training start date (YYYY-MM-DD format)
   role: string;
 }
 

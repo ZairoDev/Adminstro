@@ -24,6 +24,7 @@ interface Candidate {
     positionType: string;
     duration: string;
     trainingPeriod: string;
+    trainingDate?: string; // Training start date (YYYY-MM-DD format)
     role: string;
     salary?: string | number;
   };
@@ -281,17 +282,22 @@ export default function TrainingAgreementPage() {
         ? candidate.selectionDetails.salary.toString() 
         : undefined;
 
-      // Format start date - add 3 days from today
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 3);
-      const startDay = startDate.getDate();
-      const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" 
-        : startDay === 2 || startDay === 22 ? "nd" 
-        : startDay === 3 || startDay === 23 ? "rd" 
-        : "th";
-      const startMonthName = startDate.toLocaleString("en-US", { month: "long" });
-      const startYear = startDate.getFullYear();
-      const formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
+      // CRITICAL FIX: Use training start date from selectionDetails if available, otherwise fallback to 3 days from today
+      // Pass raw ISO date string to API - API will handle formatting with correct training duration
+      let startDateISO: string | undefined;
+      if (candidate.selectionDetails?.trainingDate) {
+        // Use the stored training date (format: YYYY-MM-DD from date input)
+        startDateISO = candidate.selectionDetails.trainingDate;
+      } else {
+        // Fallback: add 3 days from today
+        const fallbackDate = new Date();
+        fallbackDate.setDate(fallbackDate.getDate() + 3);
+        // Format as YYYY-MM-DD for date input compatibility
+        const year = fallbackDate.getFullYear();
+        const month = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+        const day = String(fallbackDate.getDate()).padStart(2, '0');
+        startDateISO = `${year}-${month}-${day}`;
+      }
 
       // Determine designation and department from position
       const designation = candidate.selectionDetails?.role || `${candidate.position} Executive`;
@@ -304,7 +310,7 @@ export default function TrainingAgreementPage() {
         salary: rawSalary, // Pass raw salary number, API will format it correctly
         designation: designation,
         department: department,
-        startDate: formattedStartDate,
+        startDate: startDateISO, // Pass raw ISO date string - API will format with correct training duration
         candidateId: candidate._id,
         // Include signature if Training Agreement is signed
         candidateSignatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
@@ -651,17 +657,22 @@ export default function TrainingAgreementPage() {
             ? updatedCandidate.selectionDetails.salary.toString() 
             : undefined;
 
-          // Format start date
-          const startDate = new Date();
-          startDate.setDate(startDate.getDate() + 3);
-          const startDay = startDate.getDate();
-          const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" 
-            : startDay === 2 || startDay === 22 ? "nd" 
-            : startDay === 3 || startDay === 23 ? "rd" 
-            : "th";
-          const startMonthName = startDate.toLocaleString("en-US", { month: "long" });
-          const startYear = startDate.getFullYear();
-          const formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session 3 Days)`;
+          // CRITICAL FIX: Use training start date from selectionDetails if available, otherwise fallback to 3 days from today
+          // Pass raw ISO date string to API - API will handle formatting with correct training duration
+          let startDateISO: string | undefined;
+          if (updatedCandidate.selectionDetails?.trainingDate) {
+            // Use the stored training date (format: YYYY-MM-DD from date input)
+            startDateISO = updatedCandidate.selectionDetails.trainingDate;
+          } else {
+            // Fallback: add 3 days from today
+            const fallbackDate = new Date();
+            fallbackDate.setDate(fallbackDate.getDate() + 3);
+            // Format as YYYY-MM-DD for date input compatibility
+            const year = fallbackDate.getFullYear();
+            const month = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+            const day = String(fallbackDate.getDate()).padStart(2, '0');
+            startDateISO = `${year}-${month}-${day}`;
+          }
 
           const designation = updatedCandidate.selectionDetails?.role || `${updatedCandidate.position} Executive`;
           const department = updatedCandidate.position || "Human Resources";
@@ -673,7 +684,8 @@ export default function TrainingAgreementPage() {
             salary: rawSalary, // Pass raw salary number, API will format it correctly
             designation: designation,
             department: department,
-            startDate: formattedStartDate,
+            startDate: startDateISO, // Pass raw ISO date string - API will format with correct training duration
+            candidateId: updatedCandidate._id,
             candidateSignatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
             signingDate: signingDate, // Add signing date for LOI
           };

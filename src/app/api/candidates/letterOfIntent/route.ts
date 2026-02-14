@@ -562,17 +562,58 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing;
 
     // Format start date if provided
-    let formattedStartDate = data.startDate || "______________";
-    if (data.startDate && !data.startDate.includes("th") && !data.startDate.includes("st") && !data.startDate.includes("nd") && !data.startDate.includes("rd")) {
+    // CRITICAL FIX: Properly parse date strings (ISO format or date input format)
+    let formattedStartDate = "______________";
+    if (data.startDate) {
       try {
-        const startDateObj = new Date(data.startDate);
-        const startDay = startDateObj.getDate();
-        const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" : startDay === 2 || startDay === 22 ? "nd" : startDay === 3 || startDay === 23 ? "rd" : "th";
-        const startMonthName = startDateObj.toLocaleString("en-US", { month: "long" });
-        const startYear = startDateObj.getFullYear();
-        formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session ${phase1Duration})`;
+        let startDateObj: Date;
+        
+        // Check if it's already a formatted string (contains ordinal suffixes)
+        if (data.startDate.includes("th") || data.startDate.includes("st") || data.startDate.includes("nd") || data.startDate.includes("rd")) {
+          // If already formatted, use as-is but replace training duration if present
+          formattedStartDate = data.startDate;
+          // Replace any existing training session text with the correct duration
+          formattedStartDate = formattedStartDate.replace(/\(Training Session[^)]*\)/i, `(Training Session ${phase1Duration})`);
+        } else {
+          // Parse the date string - handle both ISO format and YYYY-MM-DD format
+          // For date input fields, the format is YYYY-MM-DD (local date, no time)
+          // We need to parse it as a local date to avoid timezone issues
+          const dateStr = data.startDate.trim();
+          
+          // Check if it's ISO format (contains T or has time component)
+          if (dateStr.includes('T') || dateStr.includes('Z') || dateStr.match(/^\d{4}-\d{2}-\d{2}T/)) {
+            // ISO format - parse normally
+            startDateObj = new Date(dateStr);
+          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // YYYY-MM-DD format from date input - parse as local date to avoid timezone shift
+            const [year, month, day] = dateStr.split('-').map(Number);
+            startDateObj = new Date(year, month - 1, day); // month is 0-indexed
+          } else {
+            // Try parsing as-is
+            startDateObj = new Date(dateStr);
+          }
+          
+          // Validate the date
+          if (isNaN(startDateObj.getTime())) {
+            throw new Error("Invalid date");
+          }
+          
+          // Format the date with proper ordinal suffix
+          const startDay = startDateObj.getDate();
+          const startDaySuffix = startDay === 1 || startDay === 21 || startDay === 31 ? "st" 
+            : startDay === 2 || startDay === 22 ? "nd" 
+            : startDay === 3 || startDay === 23 ? "rd" 
+            : "th";
+          const startMonthName = startDateObj.toLocaleString("en-US", { month: "long" });
+          const startYear = startDateObj.getFullYear();
+          
+          // Use the training duration from database (phase1Duration) instead of hardcoded value
+          formattedStartDate = `${startDay}${startDaySuffix} ${startMonthName} ${startYear} (Training Session ${phase1Duration})`;
+        }
       } catch (e) {
-        // Keep original if parsing fails
+        console.error("Error parsing start date:", e, "Input:", data.startDate);
+        // If parsing fails, use the original value or default
+        formattedStartDate = data.startDate || "______________";
       }
     }
 

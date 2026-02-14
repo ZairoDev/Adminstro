@@ -78,6 +78,7 @@ export interface Candidate {
     positionType: "fulltime" | "intern";
     duration: string;
     trainingPeriod: string;
+    trainingDate?: string; // Training start date (YYYY-MM-DD format)
     role: string;
     salary?: number;
     offerLetterSent?: boolean;

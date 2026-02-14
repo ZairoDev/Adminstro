@@ -42,6 +42,7 @@ export default function WhatsAppChat() {
   const seenEventIdsRef = useRef<Set<string>>(new Set());
   const seenMessageIdsRef = useRef<Set<string>>(new Set());
   const lastSoundPlayedRef = useRef<number>(0);
+  const handleWhatsAppMessageRef = useRef<((data: any) => void) | null>(null);
   
   const addToLRUSet = (set: Set<string>, value: string, maxSize = 500) => {
     if (set.size >= maxSize) {
@@ -330,7 +331,15 @@ export default function WhatsAppChat() {
           // Trigger in-app toast handler (SystemNotificationToast handles rendering)
           // Provide the raw payload so the toast can display contextual info
           // Use handleWhatsAppMessage to update UI state as well
-          handleWhatsAppMessage(raw);
+          if (handleWhatsAppMessageRef.current) {
+            try {
+              handleWhatsAppMessageRef.current(raw);
+            } catch (e) {
+              console.error("Error calling handleWhatsAppMessageRef:", e);
+            }
+          } else {
+            console.warn("handleWhatsAppMessageRef not set yet");
+          }
         } catch (err) {
           console.error("❌ [NOTIF] onInApp error:", err);
         }
@@ -560,6 +569,12 @@ export default function WhatsAppChat() {
       
       if (!conversationId || !message) {
         return;
+      }
+      // Expose handler to external callers (notification controller) via ref
+      try {
+        handleWhatsAppMessageRef.current = handleWhatsAppMessage;
+      } catch (e) {
+        // ignore
       }
       const currentConversation = selectedConversationRef.current;
 

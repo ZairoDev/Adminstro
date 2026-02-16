@@ -51,12 +51,15 @@ export async function PUT(
       );
     }
 
+    // Explicitly treat only true as active; false, undefined, or missing → inactive
+    const isActiveBool = isActive === true;
+
     const updated = await Role.findByIdAndUpdate(
       id,
       {
         role: roleStr,
         department: departmentStr,
-        isActive: isActive !== false,
+        isActive: isActiveBool,
         origin: originStr,
       },
       { new: true }

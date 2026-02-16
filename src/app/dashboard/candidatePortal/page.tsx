@@ -293,13 +293,15 @@ function CandidatesPageContent() {
   };
 
   useEffect(() => {
-    // Fetch available roles from API
+    // Fetch available roles from Add Ons (addon_roles)
     const fetchRoles = async () => {
       try {
-        const response = await fetch("/api/candidates/positions");
+        const response = await fetch("/api/addons/roles/getAllRoles");
         const result = await response.json();
-        if (result.success && result.data.length > 0) {
-          setAvailableRoles(result.data);
+        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+          // Unique role names from addon roles (same role can exist with different origin)
+          const roleNames = [...new Set((result.data as { role: string }[]).map((r) => r.role))].sort();
+          setAvailableRoles(roleNames);
         }
       } catch (error) {
         console.error("Error fetching roles:", error);
@@ -1806,12 +1808,12 @@ function CandidatesPageContent() {
               <SelectContent>
                 {/* Include current role if not in options */}
                 {selectedCandidate?.position &&
-                  !ROLE_OPTIONS.includes(selectedCandidate.position) && (
+                  !availableRoles.includes(selectedCandidate.position) && (
                     <SelectItem value={selectedCandidate.position}>
                       {selectedCandidate.position} (Current)
                     </SelectItem>
                   )}
-                {ROLE_OPTIONS.map((role) => (
+                {availableRoles.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
                   </SelectItem>

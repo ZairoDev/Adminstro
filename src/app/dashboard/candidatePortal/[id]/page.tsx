@@ -162,6 +162,7 @@ export default function CandidateDetailPage() {
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
   const [newRole, setNewRole] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
   const [showSignedPdfDialog, setShowSignedPdfDialog] = useState(false);
@@ -335,6 +336,23 @@ export default function CandidateDetailPage() {
     };
 
       fetchUser();
+  }, []);
+
+  // Fetch available roles from Add Ons (addon_roles) for Edit Role dropdown
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch("/api/addons/roles/getAllRoles");
+        const result = await response.json();
+        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+          const roleNames = [...new Set((result.data as { role: string }[]).map((r) => r.role))].sort();
+          setAvailableRoles(roleNames);
+        }
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+      }
+    };
+    fetchRoles();
   }, []);
 
   const generateUnsignedOfferLetter = async () => {
@@ -2985,12 +3003,12 @@ export default function CandidateDetailPage() {
               <SelectContent>
                 {/* Include current role if not in options */}
                 {candidate?.position &&
-                  !ROLE_OPTIONS.includes(candidate.position as typeof ROLE_OPTIONS[number]) && (
+                  !availableRoles.includes(candidate.position) && (
                     <SelectItem value={candidate.position}>
                       {candidate.position} (Current)
                     </SelectItem>
                   )}
-                {ROLE_OPTIONS.map((role) => (
+                {availableRoles.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
                   </SelectItem>

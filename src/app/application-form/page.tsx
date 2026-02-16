@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type React from "react";
 import {
   Briefcase,
@@ -74,6 +74,7 @@ export default function JobApplicationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resume, setResume] = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<string[]>(positions);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -93,6 +94,31 @@ export default function JobApplicationForm() {
     linkedin: "",
     portfolio: "",
   });
+
+  // Fetch available roles from Add Ons (addon_roles) for position dropdown
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch("/api/addons/roles/getAllRoles");
+        const result = await response.json();
+        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+          // Filter only active roles
+          const activeRoles = (result.data as { role: string; isActive: boolean }[]).filter(
+            (r) => r.isActive === true
+          );
+          const roleNames = [...new Set(activeRoles.map((r) => r.role))].sort();
+          setAvailableRoles(roleNames);
+          setFormData((prev) => ({
+            ...prev,
+            position: roleNames.includes(prev.position) ? prev.position : roleNames[0],
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -440,7 +466,7 @@ export default function JobApplicationForm() {
           gender: "",
           college: colleges[0],
           otherCollege: "",
-          position: positions[0],
+          position: availableRoles[0] ?? positions[0],
           resume: "",
           photo: "",
           coverLetter: "",
@@ -938,7 +964,7 @@ export default function JobApplicationForm() {
                     onChange={handleChange}
                     className="w-full bg-input border border-transparent rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   >
-                    {positions.map((pos) => (
+                    {availableRoles.map((pos) => (
                       <option key={pos} value={pos}>
                         {pos}
                       </option>

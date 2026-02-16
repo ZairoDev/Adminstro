@@ -69,6 +69,7 @@ export default function RoleModal({
 
   useEffect(() => {
     if (!open) return;
+    setLoading(false); // Reset so button is not stuck after failed attempts
     if (editRole) {
       setValue("role", editRole.role);
       setValue("department", editRole.department);
@@ -89,11 +90,11 @@ export default function RoleModal({
       role: data.role.trim(),
       department: data.department.trim(),
       origin: (data.origin || "").trim(),
-      isActive: data.isActive,
+      isActive: data.isActive === true,
     };
 
+    setLoading(true);
     try {
-      setLoading(true);
       if (isEdit && editRole) {
         await axios.put(`/api/addons/roles/updateRole/${editRole._id}`, payload);
         toast({ description: "Role updated successfully" });
@@ -160,12 +161,15 @@ export default function RoleModal({
 
           <div className="w-full">
             <Label htmlFor="origin">Origin</Label>
-            <Input
+            <select
               id="origin"
               {...register("origin")}
-              className="w-full"
-              placeholder="Optional"
-            />
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Select origin</option>
+              <option value="holidaysera">holidaysera</option>
+              <option value="vacationsaga">vacationsaga</option>
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
@@ -178,7 +182,12 @@ export default function RoleModal({
           </div>
 
           <div className="flex items-end justify-start">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+              aria-busy={loading}
+            >
               {loading ? (
                 <InfinityLoader className="w-12 h-8 font-medium" />
               ) : isEdit ? (

@@ -374,13 +374,23 @@ const Addons = () => {
                       key={r._id}
                       className=" flex justify-between items-center w-full p-2 border rounded-md"
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{r.role}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {r.department}
-                          {r.origin ? ` · ${r.origin}` : ""}
-                          {!r.isActive && " · Inactive"}
-                        </p>
+                      <div className="min-w-0 flex-1 flex items-center gap-2">
+                        <span
+                          className="shrink-0 w-2 h-2 rounded-full"
+                          title={r.isActive === true ? "Active" : "Inactive"}
+                          aria-hidden
+                          style={{
+                            backgroundColor: r.isActive === true ? "var(--chart-2, #22c55e)" : "var(--destructive, #ef4444)",
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{r.role}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {r.department}
+                            {r.origin ? ` · ${r.origin}` : ""}
+                            {r.isActive !== true && " · Inactive"}
+                          </p>
+                        </div>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger>

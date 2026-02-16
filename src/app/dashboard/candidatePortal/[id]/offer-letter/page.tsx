@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Check, AlertCircle, Loader2, FileText, Eye, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -106,11 +107,16 @@ export default function OfferLetterPage() {
         if (result.success) {
           setCandidate(result.data);
           
-          // Load signed PDF if available
+          // Load signed PDF if available, otherwise load unsigned PDF
           if (result.data.selectionDetails?.signedOfferLetterPdfUrl) {
             setSignedPdfUrl(result.data.selectionDetails.signedOfferLetterPdfUrl);
             setUnsignedPdfUrl(null);
             console.log("✅ Loaded signed Offer Letter PDF from database on page load");
+          } else if (result.data.selectionDetails?.unsignedOfferLetterPdfUrl) {
+            // Load unsigned PDF if signed PDF doesn't exist
+            setUnsignedPdfUrl(result.data.selectionDetails.unsignedOfferLetterPdfUrl);
+            setSignedPdfUrl(null);
+            console.log("✅ Loaded unsigned Offer Letter PDF from database on page load");
           }
         } else {
           setError("Failed to load candidate information");
@@ -172,6 +178,7 @@ export default function OfferLetterPage() {
         salaryPaymentCycle: "15th to 18th",
         probationPeriod: "six (6) months",
         candidateId: candidate._id,
+        // No candidateSignatureBase64 for unsigned PDF - this is the key difference
       };
 
       const pdfResponse = await axios.post(
@@ -188,11 +195,46 @@ export default function OfferLetterPage() {
       });
       const url = URL.createObjectURL(pdfBlob);
       setUnsignedPdfUrl(url);
+
+      // Upload unsigned PDF to BunnyCDN and save to database
+      try {
+        const pdfFile = new File(
+          [pdfBlob],
+          `Offer-Letter-${candidateId}-Unsigned.pdf`,
+          { type: "application/pdf" }
+        );
+
+        const { imageUrls, error: uploadErr } = await uploadFiles(
+          [pdfFile],
+          "Documents/UnsignedPDFs"
+        );
+
+        if (!uploadErr && imageUrls?.length) {
+          const unsignedPdfUrl = imageUrls[0];
+          
+          // Save unsigned PDF URL to database
+          const saveResponse = await axios.patch(`/api/candidates/${candidateId}`, {
+            "selectionDetails.unsignedOfferLetterPdfUrl": unsignedPdfUrl,
+          });
+
+          if (saveResponse.data.success) {
+            console.log("✅ Unsigned Offer Letter PDF saved to database:", unsignedPdfUrl);
+          } else {
+            console.warn("⚠️ Failed to save unsigned PDF URL to database");
+          }
+        } else {
+          console.warn("⚠️ Failed to upload unsigned PDF to CDN");
+        }
+      } catch (uploadError) {
+        console.error("❌ Error uploading/saving unsigned PDF:", uploadError);
+        // Don't fail the entire process if unsigned PDF upload fails
+      }
     } catch (error: any) {
       console.error("Error generating unsigned PDF:", error);
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.details || error?.message || "Failed to generate PDF preview";
       toast({
         title: "Error",
-        description: "Failed to generate PDF preview",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -200,14 +242,18 @@ export default function OfferLetterPage() {
     }
   };
 
-  // Auto-generate unsigned PDF when component loads (if not already signed)
+  // Auto-load signed PDF or generate unsigned PDF when component loads
   useEffect(() => {
     if (!loading && candidate && !pdfGeneratedRef.current) {
+      // CRITICAL: Always prioritize signed PDF if available
       if (candidate.selectionDetails?.signedOfferLetterPdfUrl) {
         setSignedPdfUrl(candidate.selectionDetails.signedOfferLetterPdfUrl);
-        setShowPdfPreview(true);
+        setUnsignedPdfUrl(null); // Clear unsigned PDF when signed exists
+        setShowPdfPreview(true); // Open preview to show signed PDF
         pdfGeneratedRef.current = true;
+        console.log("✅ Auto-loaded signed Offer Letter PDF on page load:", candidate.selectionDetails.signedOfferLetterPdfUrl);
       } else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl && candidate.name && candidate.position) {
+        // Only generate unsigned PDF if no signed PDF exists
         pdfGeneratedRef.current = true;
         const timer = setTimeout(() => {
           generateUnsignedPdf();
@@ -372,20 +418,21 @@ export default function OfferLetterPage() {
 
       const offerLetterPayload = {
         letterDate: new Date().toISOString().slice(0, 10),
-        employeeName: candidate.name,
-        employeeFullName: candidate.name,
+        employeeName: candidate.name.split(" ")[0] || candidate.name, // First name for "Mr./Ms." line
+        employeeFullName: candidate.name, // Full name
         designation: candidate.selectionDetails?.role || candidate.position,
         dateOfJoining: candidate.selectionDetails?.trainingDate
           ? String(candidate.selectionDetails.trainingDate)
           : new Date().toISOString().slice(0, 10),
-        postingLocation: candidate.city || "Kanpur",
+        postingLocation: candidate.city || "117/N/70 3rd Floor Kakadeo, Kanpur 208025",
         annualCTC: annualCTC,
         workingHoursStart: "11:30 AM",
         workingHoursEnd: "8:30 PM",
         salaryPaymentCycle: "15th to 18th",
         probationPeriod: "six (6) months",
         candidateId: candidate._id,
-        signatureBase64: signature.url,
+        candidateSignatureBase64: signature.url, // CRITICAL: Use candidateSignatureBase64 (not signatureBase64)
+        signingDate: new Date().toISOString(), // Add signing date
       };
 
       // Request signed PDF from API
@@ -404,10 +451,11 @@ export default function OfferLetterPage() {
       });
 
       // Store signed PDF URL for preview
+      // CRITICAL: Use blob URL immediately for preview, then replace with CDN URL after upload
       const signedUrl = URL.createObjectURL(pdfBlob);
       setSignedPdfUrl(signedUrl);
-      setUnsignedPdfUrl(null);
-      setShowPdfPreview(true);
+      setUnsignedPdfUrl(null); // Clear unsigned PDF when signed PDF exists
+      setShowPdfPreview(true); // Open preview dialog to show signed PDF
 
       // Download signed PDF for user
       const a = document.createElement("a");
@@ -436,9 +484,14 @@ export default function OfferLetterPage() {
       const signedPdfUrl = imageUrls[0];
 
       // Save offer letter to backend
+      // Include unsigned PDF URL if available (it should already be saved, but include it for completeness)
       const formData = new FormData();
       formData.append("signature", signature.url);
       formData.append("signedPdfUrl", signedPdfUrl);
+      if (unsignedPdfUrl) {
+        // Extract URL from blob URL if needed, or use CDN URL if already saved
+        // For now, we'll let the backend handle it - unsigned PDF should already be saved during preview generation
+      }
       formData.append("agreementAccepted", "true");
 
       const offerLetterRes = await axios.post(
@@ -456,7 +509,17 @@ export default function OfferLetterPage() {
       const updatedCandidate = offerLetterRes.data.data;
       setCandidate(updatedCandidate);
 
-      // Refresh candidate data from database
+      // Update signed PDF URL with CDN URL from database response
+      if (updatedCandidate.selectionDetails?.signedOfferLetterPdfUrl) {
+        // Use CDN URL from database (more reliable than blob URL)
+        setSignedPdfUrl(updatedCandidate.selectionDetails.signedOfferLetterPdfUrl);
+        setUnsignedPdfUrl(null);
+        // Ensure preview dialog stays open to show signed PDF
+        setShowPdfPreview(true);
+        console.log("✅ Updated signed PDF URL from database:", updatedCandidate.selectionDetails.signedOfferLetterPdfUrl);
+      }
+
+      // Refresh candidate data from database to ensure we have latest state
       setTimeout(async () => {
         try {
           const refreshResponse = await fetch(`/api/candidates/${candidateId}?t=${Date.now()}`, {
@@ -472,13 +535,18 @@ export default function OfferLetterPage() {
             const refreshedCandidate = refreshResult.data;
             setCandidate(refreshedCandidate);
             
+            // CRITICAL: Always load signed PDF from database if available
             if (refreshedCandidate.selectionDetails?.signedOfferLetterPdfUrl) {
               setSignedPdfUrl(refreshedCandidate.selectionDetails.signedOfferLetterPdfUrl);
-              setUnsignedPdfUrl(null);
+              setUnsignedPdfUrl(null); // Clear unsigned PDF
+              // Keep preview dialog open to show signed PDF
+              setShowPdfPreview(true);
+              console.log("✅ Loaded signed Offer Letter PDF from database after refresh:", refreshedCandidate.selectionDetails.signedOfferLetterPdfUrl);
             }
           }
         } catch (refreshErr) {
           console.error("❌ Error refreshing candidate data:", refreshErr);
+          // Don't fail the entire process if refresh fails - PDFs are already stored in DB
         }
       }, 1000);
 
@@ -626,10 +694,17 @@ export default function OfferLetterPage() {
               <h2 className="text-lg font-semibold text-foreground">
                 Appointment Letter Document Preview
               </h2>
+              {signedPdfUrl && (
+                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800">
+                  Signed
+                </Badge>
+              )}
             </div>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Preview and download the unsigned appointment letter document before signing. The document contains blank signature placeholders where signatures can be made.
+                {signedPdfUrl 
+                  ? "Your signed appointment letter document. This is the final signed version with your signature embedded."
+                  : "Preview and download the unsigned appointment letter document before signing. The document contains blank signature placeholders where signatures can be made."}
               </p>
               
               {generatingPdf && (
@@ -689,11 +764,20 @@ export default function OfferLetterPage() {
               
               {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
                   <iframe
                     src={signedPdfUrl || unsignedPdfUrl || ""}
                     className="w-full h-[500px] border-0"
                     title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
                   />
+                  {signedPdfUrl && (
+                    <div className="p-2 bg-green-50 dark:bg-green-950/40 border-t border-green-200 dark:border-green-800">
+                      <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        This is the final signed document with your signature embedded.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -957,12 +1041,21 @@ export default function OfferLetterPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+              {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
               {(signedPdfUrl || unsignedPdfUrl) && (
                 <iframe
                   src={signedPdfUrl || unsignedPdfUrl || ""}
                   className="w-full h-[70vh] border-0"
                   title={signedPdfUrl ? "Signed Appointment Letter Document" : "Appointment Letter Document Preview"}
                 />
+              )}
+              {signedPdfUrl && (
+                <div className="p-2 bg-green-50 dark:bg-green-950/40 border-t border-green-200 dark:border-green-800">
+                  <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    This is the final signed document with your signature embedded.
+                  </p>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2 mt-4">

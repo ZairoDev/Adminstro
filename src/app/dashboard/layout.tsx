@@ -25,11 +25,15 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const isOnboarding = pathname?.includes("/onboarding");
   const isTrainingAgreement = pathname?.includes("/training-agreement");
+  const isOfferLetter = pathname?.includes("/offer-letter");
   
   if (isOnboarding) {
     return <main className="min-h-screen bg-background">{children}</main>;
   }
   if(isTrainingAgreement) {
+    return <main className="min-h-screen bg-background">{children}</main>;
+  }
+  if(isOfferLetter) {
     return <main className="min-h-screen bg-background">{children}</main>;
   }
   return (

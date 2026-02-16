@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
+import Role from "@/models/role";
 import { connectDb } from "@/util/db";
 
 type Payload = {
@@ -79,35 +80,79 @@ export async function POST(req: NextRequest) {
 
     // Note: signatureBase64 removed - using ankitaSignatureBase64 and candidateSignatureBase64 instead
 
-    // Fetch candidate training duration if candidateId is provided
+    // Fetch candidate training duration and role details if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
+    let roleNameFromDb: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
         const candidate = await Candidate.findById(data.candidateId).lean();
-        if (candidate?.selectionDetails?.trainingPeriod) {
-          // Use trainingPeriod from selectionDetails
-          // Format: "5 days" -> "5 working days" or keep as is if already formatted
-          const trainingPeriod = candidate.selectionDetails.trainingPeriod;
-          if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
-            phase1Duration = trainingPeriod.includes("working") 
-              ? trainingPeriod 
-              : trainingPeriod.replace(/days?/i, "working days");
-          } else {
-            // If it's just a number, format it
-            const days = parseInt(trainingPeriod);
-            if (!isNaN(days)) {
-              phase1Duration = `${days} working days`;
+        if (candidate) {
+          // Get training duration
+          if (candidate?.selectionDetails?.trainingPeriod) {
+            // Use trainingPeriod from selectionDetails
+            // Format: "5 days" -> "5 working days" or keep as is if already formatted
+            const trainingPeriod = candidate.selectionDetails.trainingPeriod;
+            if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
+              phase1Duration = trainingPeriod.includes("working") 
+                ? trainingPeriod 
+                : trainingPeriod.replace(/days?/i, "working days");
             } else {
-              phase1Duration = trainingPeriod;
+              // If it's just a number, format it
+              const days = parseInt(trainingPeriod);
+              if (!isNaN(days)) {
+                phase1Duration = `${days} working days`;
+              } else {
+                phase1Duration = trainingPeriod;
+              }
+            }
+          } else if (candidate?.selectionDetails?.duration) {
+            // Fallback to duration field
+            phase1Duration = candidate.selectionDetails.duration;
+          }
+
+          // Fetch role document to get correct role name for designation
+          let roleSearchValue: string | null = null;
+          
+          // Priority 1: Use selectionDetails.role if available
+          if (candidate?.selectionDetails?.role) {
+            roleSearchValue = candidate.selectionDetails.role;
+          }
+          // Priority 2: Fallback to candidate.position if selectionDetails.role is not available
+          else if (candidate?.position) {
+            roleSearchValue = candidate.position;
+          }
+          
+          if (roleSearchValue) {
+            try {
+              console.log(`[OfferLetter] Looking up role document for: ${roleSearchValue}`);
+              
+              // Try exact match first
+              let roleDoc = await Role.findOne({ 
+                role: roleSearchValue 
+              }).lean() as { role: string; department: string } | null;
+              
+              if (!roleDoc) {
+                // Try case-insensitive search as fallback
+                console.log(`[OfferLetter] Exact match not found, trying case-insensitive search`);
+                roleDoc = await Role.findOne({ 
+                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") }
+                }).lean() as { role: string; department: string } | null;
+              }
+              
+              if (roleDoc) {
+                roleNameFromDb = roleDoc.role;
+                console.log(`[OfferLetter] Found role document - Role: ${roleNameFromDb}`);
+              } else {
+                console.warn(`[OfferLetter] Role document not found for: ${roleSearchValue}`);
+              }
+            } catch (roleErr) {
+              console.error("[OfferLetter] Error fetching role document:", roleErr);
             }
           }
-        } else if (candidate?.selectionDetails?.duration) {
-          // Fallback to duration field
-          phase1Duration = candidate.selectionDetails.duration;
         }
       } catch (err) {
-        console.error("Error fetching candidate training duration:", err);
+        console.error("Error fetching candidate data:", err);
         // Use default fallback
       }
     }
@@ -150,33 +195,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Convert candidate signature if provided
+    // CRITICAL: Convert candidate signature image URL → Base64 if provided
+    // This is the key step that determines if we generate a signed or unsigned PDF
+    // If candidateSignatureBase64 is provided and successfully fetched, the PDF will be signed
+    // If not provided or fetch fails, the PDF will be unsigned (preview only)
     let candidateSignatureBase64: string | undefined;
     if (data.candidateSignatureBase64) {
       try {
-        // Check if it's already a base64 data URL (starts with "data:")
+        // Handle both CDN URLs and data URLs
+        let imageBuffer: Buffer;
+        
         if (data.candidateSignatureBase64.startsWith("data:")) {
-          // Extract base64 part from data URL (format: "data:image/png;base64,<base64data>")
-          const base64Match = data.candidateSignatureBase64.match(/base64,(.+)$/);
+          // Direct base64 data URL - extract the base64 part
+          const base64Match = data.candidateSignatureBase64.match(/^data:image\/\w+;base64,(.+)$/);
           if (base64Match && base64Match[1]) {
             candidateSignatureBase64 = base64Match[1];
             console.log("✅ Extracted candidate signature from data URL");
           } else {
-            // If no match, try to use the whole string (might already be pure base64)
-            candidateSignatureBase64 = data.candidateSignatureBase64;
+            throw new Error("Invalid data URL format");
           }
         } else {
-          // If it's a URL, fetch it
+          // CDN URL - fetch and convert to base64
           const candidateSigRes = await axios.get(data.candidateSignatureBase64, {
             responseType: "arraybuffer",
+            timeout: 10000, // 10 second timeout
           });
-          candidateSignatureBase64 = Buffer.from(candidateSigRes.data).toString("base64");
-          console.log("✅ Fetched candidate signature from URL");
+          imageBuffer = Buffer.from(candidateSigRes.data);
+          candidateSignatureBase64 = imageBuffer.toString("base64");
+          console.log("✅ Fetched candidate signature from URL and converted to base64");
         }
+        
+        console.log("✅ Candidate signature successfully processed for PDF embedding");
       } catch (err) {
-        console.error("Error processing candidate signature:", err);
+        console.error("❌ Error processing candidate signature for PDF:", err);
+        // If signature processing fails, we generate unsigned PDF
+        // This should not happen in production, but we handle it gracefully
         candidateSignatureBase64 = undefined;
       }
+    } else {
+      console.log("ℹ️ No candidate signature provided - generating unsigned preview PDF");
     }
 
     // Create PDF
@@ -187,16 +244,16 @@ export async function POST(req: NextRequest) {
     // Layout constants matching original
     const pageWidth = 595.28; // A4 width in points
     const pageHeight = 841.89; // A4 height in points
-    const leftMargin = 82;
-    const rightMargin = 82;
-    const topMargin = 82;
+    const leftMargin = 32;
+    const rightMargin = 52;
+    const topMargin = 52;
     const bottomMargin = 72;
-    const lineHeight = 14;
-    const paragraphSpacing = 12;
-    const titleSize = 14;
-    const bodySize = 11;
+    const lineHeight = 11;
+    const paragraphSpacing = 7;
+    const titleSize = 9;
+    const bodySize = 7;
     const sectionSize = 11;
-    const footerSize = 10;
+    const footerSize = 9;
     const textColor = rgb(0, 0, 0);
 
     // Date formatting moved to letter content section
@@ -498,8 +555,12 @@ export async function POST(req: NextRequest) {
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
+    // Use role name from role document if found, otherwise use provided designation
+    const finalDesignation = roleNameFromDb || data.designation || "______________";
+    console.log(`[OfferLetter] Using designation: ${finalDesignation} (from DB: ${roleNameFromDb || "none"}, from payload: ${data.designation || "none"})`);
+    
     // Opening paragraph
-    const openingParagraph = `With reference to your application and the subsequent interview held with us, we are pleased to appoint you as ${data.designation || "______________"} with Zairo International Private Limited, on the following terms and conditions:`;
+    const openingParagraph = `With reference to your application and the subsequent interview held with us, we are pleased to appoint you as ${finalDesignation} with Zairo International Private Limited, on the following terms and conditions:`;
     drawWrappedText(openingParagraph, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
@@ -519,34 +580,40 @@ export async function POST(req: NextRequest) {
     }
 
     // Format annual CTC
+    // IMPORTANT: Replace ₹ with "Rs." because PDF standard fonts don't support rupee symbol
     let formattedCTC = "______________";
     if (data.annualCTC) {
       const ctcStr = String(data.annualCTC).trim();
       // Check if it contains "LPA" or is already formatted
       if (ctcStr.toLowerCase().includes("lpa") || ctcStr.includes("Lakh") || ctcStr.includes("Thousand")) {
-        formattedCTC = ctcStr.replace(/₹/g, "₹").replace(/Rs\./g, "₹");
+        // Replace ₹ with Rs. for PDF compatibility
+        formattedCTC = ctcStr.replace(/₹/g, "Rs.").replace(/Rs\./g, "Rs.");
       } else {
         // Try to format as currency
         const numericStr = ctcStr.replace(/[₹Rs.,\s]/g, "").trim();
         const ctcValue = parseFloat(numericStr);
         if (!isNaN(ctcValue) && ctcValue > 0) {
-          // Format with Indian number system
+          // Format with Indian number system, using "Rs." instead of ₹
           if (ctcValue >= 100000) {
             const lakhs = ctcValue / 100000;
             const thousands = Math.floor((ctcValue % 100000) / 1000);
             if (thousands > 0) {
-              formattedCTC = `₹${lakhs.toFixed(0)},${thousands.toString().padStart(2, '0')},000`;
+              formattedCTC = `Rs. ${lakhs.toFixed(0)},${thousands.toString().padStart(2, '0')},000`;
             } else {
-              formattedCTC = `₹${lakhs.toFixed(0)},00,000`;
+              formattedCTC = `Rs. ${lakhs.toFixed(0)},00,000`;
             }
           } else {
-            formattedCTC = `₹${ctcValue.toLocaleString('en-IN')}`;
+            formattedCTC = `Rs. ${ctcValue.toLocaleString('en-IN')}`;
           }
         } else {
-          formattedCTC = ctcStr.replace(/Rs\./g, "₹");
+          // Replace ₹ with Rs. for PDF compatibility
+          formattedCTC = ctcStr.replace(/₹/g, "Rs.").replace(/Rs\./g, "Rs.");
         }
       }
     }
+    
+    // Ensure no ₹ symbols remain (double-check for PDF compatibility)
+    formattedCTC = formattedCTC.replace(/₹/g, "Rs.");
 
     // Format CTC in words (simplified)
     let ctcInWords = "______________";
@@ -711,10 +778,10 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing;
 
     // Signature label
-    drawWrappedText("Signature: ____________________", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
     
-    // Add candidate signature if provided (BEFORE the date)
+    
+    // CRITICAL: Add candidate signature if provided, otherwise draw placeholder line
+    // This determines whether the final PDF is signed or unsigned
     if (candidateSignatureBase64) {
       try {
         console.log("🔍 Processing candidate signature for Offer Letter...");
@@ -749,9 +816,29 @@ export async function POST(req: NextRequest) {
         console.log("✅ Candidate signature drawn in Offer Letter PDF");
       } catch (err) {
         console.error("❌ Error embedding candidate signature:", err);
-        // Continue without signature if embedding fails
+        // If embedding fails, draw signature line instead (fallback to unsigned)
+        currentPage.drawLine({
+          start: { x: leftMargin, y: yPosition },
+          end: { x: leftMargin + 200, y: yPosition },
+          thickness: 0.5,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= paragraphSpacing * 2;
       }
+    } else {
+      // Draw signature placeholder line for unsigned PDF (preview only)
+      currentPage.drawLine({
+        start: { x: leftMargin, y: yPosition },
+        end: { x: leftMargin + 200, y: yPosition },
+        thickness: 0.5,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= paragraphSpacing * 2;
+      console.log("ℹ️ No signature provided - drew signature placeholder line for unsigned PDF");
     }
+
+    drawWrappedText("Signature: ____________________", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
     
     // Date of Signing - use signingDate if provided, otherwise show placeholder
     let signingDateText = "Date:";
@@ -919,11 +1006,28 @@ export async function POST(req: NextRequest) {
     drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Company signatory section
-    drawWrappedText("Authorized Signatory", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
+    // CRITICAL: Save starting Y position for side-by-side signature alignment
+    const sigW = 150; // Signature width (same for both)
+    
+    // Check if we need a new page before drawing signatures
+    if (yPosition - sigW - (lineHeight * 6) < bottomMargin) {
+      addNewPage();
+      yPosition = pageHeight - topMargin;
+    }
+
+    // ========== LEFT SIDE: Company Signatory Section ==========
+    const companyLabelY = yPosition;
+    currentPage.drawText("Authorized Signatory", {
+      x: leftMargin,
+      y: companyLabelY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+    const companySigTopY = companyLabelY - paragraphSpacing;
     
     // Add Ankita mam's signature (automatically loaded from public folder if not provided)
+    let companySigH = 0;
     if (ankitaSignatureBytes) {
       try {
         let ankitaSigImg;
@@ -937,54 +1041,194 @@ export async function POST(req: NextRequest) {
             throw embedErr;
           }
         }
-        const sigW = 150;
-        const sigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
-
-        if (yPosition - sigH < bottomMargin) {
-          addNewPage();
-        }
+        companySigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
 
         currentPage.drawImage(ankitaSigImg, {
           x: leftMargin,
-          y: yPosition - sigH,
+          y: companySigTopY - companySigH,
           width: sigW,
-          height: sigH,
+          height: companySigH,
         });
-        yPosition -= sigH + paragraphSpacing * 2;
       } catch (err) {
         console.error("Error embedding Ankita mam's signature:", err);
         // Draw signature line instead
         currentPage.drawLine({
-          start: { x: leftMargin, y: yPosition },
-          end: { x: leftMargin + 200, y: yPosition },
+          start: { x: leftMargin, y: companySigTopY },
+          end: { x: leftMargin + sigW, y: companySigTopY },
           thickness: 0.5,
           color: textColor,
         });
-        yPosition -= paragraphSpacing * 2;
+        companySigH = paragraphSpacing;
       }
     } else {
       // Draw signature line if signature couldn't be loaded
       currentPage.drawLine({
-        start: { x: leftMargin, y: yPosition },
-        end: { x: leftMargin + 200, y: yPosition },
+        start: { x: leftMargin, y: companySigTopY },
+        end: { x: leftMargin + sigW, y: companySigTopY },
         thickness: 0.5,
         color: textColor,
       });
-      yPosition -= paragraphSpacing * 2;
+      companySigH = paragraphSpacing;
     }
     
-    drawWrappedText("Name: Ankita Nigam", leftMargin, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Designation: Chief Operating Officer (COO)", leftMargin, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Date:", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 3;
+    const companySigBottomY = companySigTopY - companySigH;
+    const companyNameY = companySigBottomY - paragraphSpacing;
+    
+    currentPage.drawText("Name: Ankita Nigam", {
+      x: leftMargin,
+      y: companyNameY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+    const companyDesignationY = companyNameY - lineHeight;
+    currentPage.drawText("Designation: Chief Operating Officer (COO)", {
+      x: leftMargin,
+      y: companyDesignationY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+    
+    // CRITICAL: Display formatted signing date for company signature
+    let companySigningDateText = "Date:";
+    if (data.signingDate) {
+      try {
+        const signingDate = new Date(data.signingDate);
+        const signDay = signingDate.getDate();
+        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
+          : signDay === 2 || signDay === 22 ? "nd" 
+          : signDay === 3 || signDay === 23 ? "rd" 
+          : "th";
+        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
+        const signYear = signingDate.getFullYear();
+        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
+        companySigningDateText = `Date: ${formattedSigningDate}`;
+      } catch (err) {
+        console.error("Error formatting company signing date:", err);
+        companySigningDateText = "Date:";
+      }
+    }
+    const companyDateY = companyDesignationY - lineHeight;
+    currentPage.drawText(companySigningDateText, {
+      x: leftMargin,
+      y: companyDateY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
 
-    // Employee signature section (below company signature)
-    drawWrappedText(`Name: ${employeeFullName}`, leftMargin, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Date:", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
+    // ========== RIGHT SIDE: Employee Signature Section (aligned with company signature) ==========
+    // Calculate right-aligned positions
+    const rightAlignedX = pageWidth - rightMargin - sigW;
+    
+    // Draw "Authorized Signatory" label on right side (aligned with left side label)
+    const employeeLabelText = "Candidate's Signature";
+    const employeeLabelWidth = font.widthOfTextAtSize(employeeLabelText, bodySize);
+    const employeeLabelX = pageWidth - rightMargin - employeeLabelWidth;
+    currentPage.drawText(employeeLabelText, {
+      x: employeeLabelX,
+      y: companyLabelY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+    
+    const employeeSigTopY = companySigTopY; // Same Y position as company signature
+    
+    // Draw employee signature image (aligned with company signature)
+    let employeeSigH = 0;
+    if (candidateSignatureBase64) {
+      try {
+        console.log("🔍 Drawing employee signature aligned with company signature...");
+        const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
+        let candidateSigImg;
+        try {
+          candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
+        } catch {
+          try {
+            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
+          } catch (embedErr) {
+            console.error("❌ Failed to embed candidate signature:", embedErr);
+            throw embedErr;
+          }
+        }
+        employeeSigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
+
+        // Draw signature image right-aligned, at same Y position as company signature
+        currentPage.drawImage(candidateSigImg, {
+          x: rightAlignedX,
+          y: employeeSigTopY - employeeSigH,
+          width: sigW,
+          height: employeeSigH,
+        });
+        console.log("✅ Employee signature drawn aligned with company signature");
+      } catch (err) {
+        console.error("❌ Error embedding employee signature:", err);
+        // If embedding fails, draw signature line instead (right-aligned)
+        currentPage.drawLine({
+          start: { x: rightAlignedX, y: employeeSigTopY },
+          end: { x: rightAlignedX + sigW, y: employeeSigTopY },
+          thickness: 0.5,
+          color: rgb(0, 0, 0),
+        });
+        employeeSigH = paragraphSpacing;
+      }
+    } else {
+      // Draw signature placeholder line for unsigned PDF (right-aligned)
+      currentPage.drawLine({
+        start: { x: rightAlignedX, y: employeeSigTopY },
+        end: { x: rightAlignedX + sigW, y: employeeSigTopY },
+        thickness: 0.5,
+        color: rgb(0, 0, 0),
+      });
+      employeeSigH = paragraphSpacing;
+    }
+    
+    // Draw employee name right-aligned (aligned with company name)
+    const nameText = `Name: ${employeeFullName}`;
+    const nameWidth = font.widthOfTextAtSize(nameText, bodySize);
+    const nameX = pageWidth - rightMargin - nameWidth;
+    currentPage.drawText(nameText, {
+      x: nameX,
+      y: companyNameY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+    
+    // CRITICAL: Display formatted signing date (right-aligned, aligned with company date)
+    let signingDateTextSecond = "Date:";
+    if (data.signingDate) {
+      try {
+        const signingDate = new Date(data.signingDate);
+        const signDay = signingDate.getDate();
+        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
+          : signDay === 2 || signDay === 22 ? "nd" 
+          : signDay === 3 || signDay === 23 ? "rd" 
+          : "th";
+        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
+        const signYear = signingDate.getFullYear();
+        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
+        signingDateTextSecond = `Date: ${formattedSigningDate}`;
+      } catch (err) {
+        console.error("Error formatting signing date:", err);
+        signingDateTextSecond = "Date:";
+      }
+    }
+    // Right-align the date text (aligned with company date)
+    const dateTextWidth = font.widthOfTextAtSize(signingDateTextSecond, bodySize);
+    const dateX = pageWidth - rightMargin - dateTextWidth;
+    currentPage.drawText(signingDateTextSecond, {
+      x: dateX,
+      y: companyDateY,
+      size: bodySize,
+      font,
+      color: textColor,
+    });
+
+    // Update yPosition to the bottom of signature sections
+    yPosition = companyDateY - lineHeight - paragraphSpacing * 2;
 
     // ---- Add footer logo to all pages ----
     if (footerLogo) {

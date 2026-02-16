@@ -17,6 +17,7 @@ export async function POST(
     // Parse form data
     const signature = formData.get("signature") as string;
     const signedPdfUrl = formData.get("signedPdfUrl") as string;
+    const unsignedPdfUrl = formData.get("unsignedPdfUrl") as string | null; // Optional - may already be saved
     const agreementAccepted = formData.get("agreementAccepted") === "true";
 
     if (!signature || !signedPdfUrl) {
@@ -27,15 +28,21 @@ export async function POST(
     }
 
     // Update candidate with offer letter details
+    // Save both signed and unsigned PDF URLs if provided
+    const updateData: any = {
+      "selectionDetails.signedOfferLetterPdfUrl": signedPdfUrl,
+      "selectionDetails.offerLetterSigned": true,
+      "selectionDetails.offerLetterSignedAt": new Date(),
+    };
+
+    // Only update unsigned PDF URL if provided (it might already be saved from preview generation)
+    if (unsignedPdfUrl) {
+      updateData["selectionDetails.unsignedOfferLetterPdfUrl"] = unsignedPdfUrl;
+    }
+
     const candidate = await Candidate.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          "selectionDetails.signedOfferLetterPdfUrl": signedPdfUrl,
-          "selectionDetails.offerLetterSigned": true,
-          "selectionDetails.offerLetterSignedAt": new Date(),
-        },
-      },
+      { $set: updateData },
       { new: true }
     );
 

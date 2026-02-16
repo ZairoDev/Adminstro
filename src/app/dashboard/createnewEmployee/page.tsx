@@ -31,6 +31,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { CustomDatePicker } from "@/components/CustomDatePicker";
 import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
+import { useAuthStore } from "@/AuthStore";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -44,6 +45,8 @@ const NewUser = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [phone, setPhone] = useState<string | undefined>(undefined);
+  const token = useAuthStore((s) => s.token);
+  const currentUserRole = token?.role || null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -165,6 +168,15 @@ const NewUser = () => {
     }
 
     setLoading(true);
+    // Prevent non-SuperAdmin from assigning HAdmin
+    if (data.role === "HAdmin" && currentUserRole !== "SuperAdmin") {
+      toast({
+        variant: "destructive",
+        description: "Only SuperAdmin can assign HAdmin role.",
+      });
+      setLoading(false);
+      return;
+    }
 
     const userData = {
       ...data,
@@ -447,6 +459,7 @@ const NewUser = () => {
                           "role",
                           value as
                             | "Admin"
+                            | "HAdmin"
                             | "Advert"
                             | "Sales"
                             | "Content"
@@ -460,6 +473,9 @@ const NewUser = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Admin">Admin</SelectItem>
+                        {currentUserRole === "SuperAdmin" && (
+                          <SelectItem value="HAdmin">HAdmin</SelectItem>
+                        )}
                         <SelectItem value="Advert">Advert</SelectItem>
                         <SelectItem value="LeadGen">LeadGen</SelectItem>
                         <SelectItem value="LeadGen-TeamLead">

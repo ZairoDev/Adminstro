@@ -279,9 +279,9 @@ const HolidaySeraPropertyPage: React.FC = () => {
                           <span className="text-gray-500 dark:text-gray-400 font-medium">
                             VSID: {prop.VSID}
                           </span>
-                          <span className="text-gray-400 dark:text-gray-500 truncate ml-2 max-w-[120px]">
+                          {/* <span className="text-gray-400 dark:text-gray-500 truncate ml-2 max-w-[120px]">
                             {prop.hostedBy || "N/A"}
-                          </span>
+                          </span> */}
                         </div>
                       </div>
                     </div>

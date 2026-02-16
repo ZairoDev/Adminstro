@@ -40,10 +40,13 @@ RoleSchema.index(
   { unique: true }
 );
 
-// Use collection "addon_roles" to avoid clashing with existing "roles" collection
-// (which has a unique index on "roleName" from a different schema)
-const Role =
-  mongoose.models?.Role ||
-  mongoose.model<IRole>("Role", RoleSchema, "addon_roles");
+// Use collection "roles" - this is the main roles collection
+// Delete cached model if it exists to ensure fresh model creation
+if (mongoose.models?.Role) {
+  delete mongoose.models.Role;
+}
+
+// Create/retrieve model, using "roles" collection
+const Role = mongoose.model<IRole>("Role", RoleSchema, "roles");
 
 export default Role;

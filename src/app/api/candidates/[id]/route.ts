@@ -59,12 +59,19 @@ export async function PATCH(
       updateData.additionalDocuments = body.additionalDocuments;
     }
     
-    // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl")
+    // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl", "selectionDetails.role")
     Object.keys(body).forEach((key) => {
       if (key.includes(".")) {
         updateData[key] = body[key];
       }
     });
+    
+    // Also handle selectionDetails as an object if provided
+    if (body.selectionDetails && typeof body.selectionDetails === "object") {
+      Object.keys(body.selectionDetails).forEach((key) => {
+        updateData[`selectionDetails.${key}`] = body.selectionDetails[key];
+      });
+    }
 
     const candidate = await Candidate.findByIdAndUpdate(
       id,

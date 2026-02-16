@@ -17,6 +17,7 @@ const roleSchema = z.object({
   role: z.string().min(1, "Role is required"),
   department: z.string().min(1, "Department is required"),
   origin: z.string().optional(),
+  isActive: z.boolean().default(true),
 });
 
 type RoleFormValues = z.infer<typeof roleSchema>;
@@ -46,6 +47,7 @@ export default function RoleModal({
 }: RoleModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [isActiveState, setIsActiveState] = useState(true); // Local state for isActive
   const isEdit = !!editRole;
 
   const {
@@ -55,6 +57,7 @@ export default function RoleModal({
     reset,
     setValue,
     watch,
+    getValues,
   } = useForm<RoleFormValues & { isActive: boolean }>({
     resolver: zodResolver(roleSchema),
     defaultValues: {
@@ -65,7 +68,8 @@ export default function RoleModal({
     },
   });
 
-  const isActive = watch("isActive");
+  // Use local state instead of watch to ensure we always have the current value
+  const isActive = isActiveState;
 
   useEffect(() => {
     if (!open) return;
@@ -74,24 +78,39 @@ export default function RoleModal({
       setValue("role", editRole.role);
       setValue("department", editRole.department);
       setValue("origin", editRole.origin ?? "");
-      setValue("isActive", editRole.isActive ?? true);
+      // Explicitly handle isActive: use the actual value from editRole, default to true only if undefined
+      const initialIsActive = editRole.isActive !== undefined ? editRole.isActive : true;
+      setValue("isActive", initialIsActive);
+      setIsActiveState(initialIsActive); // Sync local state
     } else {
       reset({
         role: "",
         department: "",
         origin: "",
-        isActive: true,
+        isActive: true, // Default to active for new roles
       });
+      setIsActiveState(true); // Sync local state
     }
   }, [open, editRole, setValue, reset]);
 
   const onSubmit = async (data: RoleFormValues & { isActive: boolean }) => {
+    // Use the local state variable which is always up-to-date with the Switch
+    // This ensures we capture the actual toggle state
+    // Explicitly send true/false as boolean
     const payload = {
       role: data.role.trim(),
       department: data.department.trim(),
       origin: (data.origin || "").trim(),
-      isActive: data.isActive === true,
+      isActive: isActiveState, // Use local state which tracks Switch changes - send as boolean
     };
+    
+    console.log("=== FORM SUBMISSION DEBUG ===");
+    console.log("isActiveState (local state):", isActiveState, typeof isActiveState);
+    console.log("Form data.isActive:", data.isActive);
+    console.log("getValues().isActive:", getValues("isActive"));
+    console.log("Payload being sent:", JSON.stringify(payload));
+    console.log("Payload isActive value:", payload.isActive, typeof payload.isActive);
+    console.log("=============================");
 
     setLoading(true);
     try {
@@ -175,10 +194,24 @@ export default function RoleModal({
           <div className="flex items-center gap-2">
             <Switch
               id="isActive"
-              checked={isActive}
-              onCheckedChange={(checked) => setValue("isActive", checked)}
+              checked={isActiveState}
+              onCheckedChange={(checked) => {
+                console.log("Switch toggled to:", checked);
+                // Update both local state and form state
+                setIsActiveState(checked);
+                setValue("isActive", checked, { 
+                  shouldValidate: true, 
+                  shouldDirty: true,
+                  shouldTouch: true 
+                });
+                console.log("Local state updated to:", checked);
+                console.log("Form value after setValue:", getValues("isActive"));
+              }}
             />
             <Label htmlFor="isActive">Active</Label>
+            <span className="text-xs text-muted-foreground">
+              ({isActiveState ? "Active" : "Inactive"})
+            </span>
           </div>
 
           <div className="flex items-end justify-start">

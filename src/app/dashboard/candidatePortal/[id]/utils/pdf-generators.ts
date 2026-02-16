@@ -67,13 +67,13 @@ export const generateUnsignedLetterOfIntent = async (candidate: Candidate) => {
   
   try {
     const agreementDate = new Date().toISOString();
+    // Don't pass designation/department - let API fetch from role document
+    // The API will look up the role document and get both role name and department
     const letterOfIntentPayload = {
       candidateName: candidate.name,
       position: candidate.position,
       date: agreementDate,
       salary: candidate.selectionDetails?.salary?.toString() || undefined,
-      designation: candidate.selectionDetails?.role || candidate.position,
-      department: candidate.selectionDetails?.role || candidate.position,
       candidateId: candidate._id,
     };
 

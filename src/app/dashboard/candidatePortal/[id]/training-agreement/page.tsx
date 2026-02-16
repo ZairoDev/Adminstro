@@ -299,17 +299,13 @@ export default function TrainingAgreementPage() {
         startDateISO = `${year}-${month}-${day}`;
       }
 
-      // Determine designation and department from position
-      const designation = candidate.selectionDetails?.role || `${candidate.position} Executive`;
-      const department = candidate.position || "Human Resources";
-
+      // Don't pass designation/department - let API fetch from role document
+      // The API will look up the role document and get both role name and department
       const letterOfIntentPayload = {
         candidateName: candidate.name,
         position: candidate.position,
         date: letterDate,
         salary: rawSalary, // Pass raw salary number, API will format it correctly
-        designation: designation,
-        department: department,
         startDate: startDateISO, // Pass raw ISO date string - API will format with correct training duration
         candidateId: candidate._id,
         // Include signature if Training Agreement is signed

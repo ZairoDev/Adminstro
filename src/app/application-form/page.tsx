@@ -95,7 +95,7 @@ export default function JobApplicationForm() {
     portfolio: "",
   });
 
-  // Fetch available roles from Add Ons (addon_roles) for position dropdown
+  // Fetch available roles from Add Ons (roles collection) for position dropdown
   useEffect(() => {
     const fetchRoles = async () => {
       try {

@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
+import Role from "@/models/role";
 import { connectDb } from "@/util/db";
 
 type Payload = {
@@ -88,10 +89,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate training duration, date, and gender if candidateId is provided
+    // Fetch candidate training duration, date, gender, and role details if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
     let candidateSelectedDate: Date | null = null;
     let candidateGender: string | null = null;
+    let roleDepartment: string | null = null;
+    let roleName: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
@@ -128,6 +131,53 @@ export async function POST(req: NextRequest) {
           } else if (candidate?.selectionDetails?.duration) {
             // Fallback to duration field
             phase1Duration = candidate.selectionDetails.duration;
+          }
+
+          // Fetch role document to get complete role data including department
+          // Try to find role document using either selectionDetails.role OR position
+          // The role document contains both role name and department
+          let roleSearchValue: string | null = null;
+          
+          // Priority 1: Use selectionDetails.role if available
+          if (candidate?.selectionDetails?.role) {
+            roleSearchValue = candidate.selectionDetails.role;
+          }
+          // Priority 2: Fallback to candidate.position if selectionDetails.role is not available
+          else if (candidate?.position) {
+            roleSearchValue = candidate.position;
+          }
+          
+          if (roleSearchValue) {
+            try {
+              console.log(`Looking up role document for: ${roleSearchValue}`);
+              
+              // Try exact match first
+              let roleDoc = await Role.findOne({ 
+                role: roleSearchValue 
+              }).lean() as { role: string; department: string } | null;
+              
+              if (!roleDoc) {
+                // Try case-insensitive search as fallback
+                console.log(`Exact match not found, trying case-insensitive search`);
+                roleDoc = await Role.findOne({ 
+                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") }
+                }).lean() as { role: string; department: string } | null;
+              }
+              
+              if (roleDoc) {
+                // roleDoc.role = role name from roles collection (e.g., "LeadGen", "Sales") - used for designation
+                // roleDoc.department = department name from roles collection (e.g., "Backend Developer", "Sales", "HR") - used for department
+                roleName = roleDoc.role;
+                roleDepartment = roleDoc.department;
+                console.log(`Found role document - Role: ${roleName}, Department: ${roleDepartment}`);
+              } else {
+                console.warn(`Role document not found for: ${roleSearchValue}`);
+              }
+            } catch (roleErr) {
+              console.error("Error fetching role document:", roleErr);
+            }
+          } else {
+            console.warn("No role reference found in candidate (neither selectionDetails.role nor position)");
           }
         }
       } catch (err) {
@@ -648,9 +698,29 @@ export async function POST(req: NextRequest) {
     }
 
     // Proposed details items
+    // PRIORITY: Always use role document values if found, ignore data.designation/data.department
+    // This ensures consistency - both designation and department come from the same role document
+    let designation: string;
+    let department: string;
+    
+    if (roleName && roleDepartment) {
+      // Use role document values - this is the correct source
+      designation = `${roleName} Executive`;
+      department = roleDepartment;
+      console.log(`Using role document values - Designation: ${designation}, Department: ${department}`);
+    } else {
+      // Fallback only if role document not found
+      designation = data.designation || 
+                   (data.position ? `${data.position} Executive` : "Human Resource Executive (HR Executive)");
+      department = data.department || 
+                  (data.position || "Human Resources");
+      console.log(`Using fallback values - Designation: ${designation}, Department: ${department}`);
+      console.warn(`Role document not found - using provided values as fallback`);
+    }
+    
     const proposedDetails = [
-      `- Designation: ${data.designation || data.position + " Executive" || "Human Resource Executive (HR Executive)"}`,
-      `- Department: ${data.department || data.position || "Human Resources"}`,
+      `- Designation: ${designation}`,
+      `- Department: ${department}`,
       `- Work Location: Kakadeo, Kanpur`,
       `- Proposed Start Date: ${formattedStartDate}`,
       `- Remuneration: ${formattedSalary}`

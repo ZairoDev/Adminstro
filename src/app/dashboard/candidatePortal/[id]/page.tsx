@@ -291,8 +291,7 @@ export default function CandidateDetailPage() {
         position: candidate.position,
         date: agreementDate,
         salary: candidate.selectionDetails?.salary?.toString() || undefined,
-        designation: candidate.selectionDetails?.role || candidate.position,
-        department: candidate.selectionDetails?.role || candidate.position,
+        // Don't pass designation/department - let API fetch from role document
         candidateId: candidate._id,
         // No signature for unsigned PDF
       };
@@ -338,7 +337,7 @@ export default function CandidateDetailPage() {
       fetchUser();
   }, []);
 
-  // Fetch available roles from Add Ons (addon_roles) for Edit Role dropdown
+  // Fetch available roles from Add Ons (roles collection) for Edit Role dropdown
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -514,17 +513,36 @@ export default function CandidateDetailPage() {
 
     setUpdatingRole(true);
     try {
+      // Update both position and selectionDetails.role (if candidate is selected)
+      const updatePayload: { position: string; "selectionDetails.role"?: string } = {
+        position: newRole,
+      };
+      
+      // Also update selectionDetails.role if candidate has been selected
+      if (candidate.status === "selected" || candidate.status === "onboarding") {
+        updatePayload["selectionDetails.role"] = newRole;
+      }
+
       const response = await fetch(`/api/candidates/${candidate._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ position: newRole }),
+        body: JSON.stringify(updatePayload),
       });
 
       const result = await response.json();
       if (result.success) {
-        setCandidate((prev) =>
-          prev ? { ...prev, position: newRole } : null
-        );
+        setCandidate((prev) => {
+          if (!prev) return null;
+          const updated = { ...prev, position: newRole };
+          // Also update selectionDetails.role if it exists
+          if (updated.selectionDetails) {
+            updated.selectionDetails = {
+              ...updated.selectionDetails,
+              role: newRole,
+            };
+          }
+          return updated;
+        });
         toast.success("Role updated successfully");
         setEditRoleDialogOpen(false);
       } else {

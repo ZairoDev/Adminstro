@@ -122,6 +122,18 @@ interface Candidate {
     agreementComplete?: boolean;
     completedAt?: string;
   };
+  selectionDetails?: {
+    positionType?: "fulltime" | "intern";
+    duration?: string;
+    trainingPeriod?: string;
+    trainingDate?: string;
+    role?: string;
+    salary?: string | number;
+    offerLetterSent?: boolean;
+    offerLetterSentAt?: string;
+    offerLetterSigningLink?: string;
+    signedOfferLetterPdfUrl?: string;
+  };
 }
 
 const ROLE_OPTIONS = [
@@ -293,13 +305,13 @@ function CandidatesPageContent() {
   };
 
   useEffect(() => {
-    // Fetch available roles from Add Ons (addon_roles)
+    // Fetch available roles from Add Ons (roles collection)
     const fetchRoles = async () => {
       try {
         const response = await fetch("/api/addons/roles/getAllRoles");
         const result = await response.json();
         if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-          // Unique role names from addon roles (same role can exist with different origin)
+          // Unique role names from roles collection (same role can exist with different origin)
           const roleNames = [...new Set((result.data as { role: string }[]).map((r) => r.role))].sort();
           setAvailableRoles(roleNames);
         }
@@ -1029,18 +1041,44 @@ function CandidatesPageContent() {
 
     setUpdatingRole(true);
     try {
+      // Update both position and selectionDetails.role (if candidate is selected)
+      const updatePayload: { position: string; "selectionDetails.role"?: string } = {
+        position: newRole,
+      };
+      
+      // Also update selectionDetails.role if candidate has been selected
+      if (selectedCandidate.status === "selected" || selectedCandidate.status === "onboarding") {
+        updatePayload["selectionDetails.role"] = newRole;
+      }
+
       const response = await fetch(`/api/candidates/${selectedCandidate._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ position: newRole }),
+        body: JSON.stringify(updatePayload),
       });
 
       const result = await response.json();
       if (result.success) {
         setCandidates((prev) =>
-          prev.map((c) =>
-            c._id === selectedCandidate._id ? { ...c, position: newRole } : c
-          )
+          prev.map((c) => {
+            if (c._id === selectedCandidate._id) {
+              const updated: Candidate = { ...c, position: newRole };
+              // Also update selectionDetails.role if it exists
+              if (updated.selectionDetails) {
+                updated.selectionDetails = {
+                  ...updated.selectionDetails,
+                  role: newRole,
+                };
+              } else if (c.status === "selected" || c.status === "onboarding") {
+                // Create selectionDetails if it doesn't exist but candidate is selected
+                updated.selectionDetails = {
+                  role: newRole,
+                };
+              }
+              return updated;
+            }
+            return c;
+          })
         );
         toast.success("Role updated successfully");
         setEditRoleDialogOpen(false);

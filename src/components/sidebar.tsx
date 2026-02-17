@@ -733,11 +733,11 @@ const roleRoutes: Record<string, Route[]> = {
     //   label: "Leftover Candidate",
     //   Icon: <PersonStanding size={18} />,
     // },
-    // {
-    //   path: "/dashboard/attendedCandidate",
-    //   label: "Attended Candidate",
-    //   Icon: <PersonStanding size={18} />,
-    // },
+    {
+      path: "/dashboard/addons",
+      label: "Add ons",
+      Icon: <Swords size={18} />,
+    },
     {
       path: "/dashboard/compareLeads",
       label: "Compare Leads",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useAuthStore } from "@/AuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -70,6 +71,7 @@ interface Coupon {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  origin?: string;
 }
 
 interface CouponFormData {
@@ -83,6 +85,7 @@ interface CouponFormData {
   usageLimit: number;
   applicablePlans: string;
   isActive: boolean;
+  origin?: string;
 }
 
 const initialFormData: CouponFormData = {
@@ -96,6 +99,7 @@ const initialFormData: CouponFormData = {
   usageLimit: 0,
   applicablePlans: "",
   isActive: true,
+  origin: "vacationSaga",
 };
 
 export default function CouponManagementPage() {
@@ -117,6 +121,19 @@ export default function CouponManagementPage() {
   const [couponToDelete, setCouponToDelete] = useState<string | null>(null);
 
   const { toast } = useToast();
+  const token = useAuthStore((s) => s.token);
+
+  useEffect(() => {
+    if (isDialogOpen && !isEditMode) {
+      const role = token?.role;
+      if (role === "HAdmin") {
+        setFormData((prev) => ({ ...prev, origin: "holidaysera" }));
+      } else {
+        setFormData((prev) => ({ ...prev, origin: "vacationSaga" }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDialogOpen, token?.role]);
 
   const fetchCoupons = useCallback(async () => {
     try {
@@ -242,6 +259,7 @@ export default function CouponManagementPage() {
       usageLimit: coupon.usageLimit || 0,
       applicablePlans: coupon.applicablePlans?.join(", ") || "",
       isActive: coupon.isActive,
+      origin: (coupon as any).origin || "vacationSaga",
     });
     setEditingCouponId(coupon._id);
     setIsEditMode(true);
@@ -520,6 +538,29 @@ export default function CouponManagementPage() {
                     onChange={handleInputChange}
                     placeholder="e.g., plan1, plan2, plan3"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="origin">Origin</Label>
+                  <Select
+                    value={formData.origin}
+                    onValueChange={(value: string) =>
+                      setFormData((prev) => ({ ...prev, origin: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select origin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {token?.role === "HAdmin" ? (
+                        <SelectItem value="holidaysera">HolidaySera</SelectItem>
+                      ) : (
+                        <>
+                          <SelectItem value="vacationSaga">VacationSaga</SelectItem>
+                          <SelectItem value="holidaysera">HolidaySera</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch

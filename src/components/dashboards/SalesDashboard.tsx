@@ -13,7 +13,7 @@ import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 import { RetargetCountDisplay } from "@/components/charts/RetargetCountChart";
 import { RetargetHistogram } from "@/components/charts/RetargetHistogram";
-import CityStatsCharts from "@/components/charts/DonutMessageStatus";
+// import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import BookingChartImproved from "@/components/BookingChart";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import { PhoneNumberHealth } from "@/components/whatsapp/PhoneNumberHealth";
@@ -361,7 +361,7 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
               )}
 
               <div className="flex flex-col lg:flex-row gap-6 w-full">
-                <div className="w-full lg:w-1/2">
+                <div className="w-full ">
 
                   <CityVisitsChart
                     chartData={monthlyStats}
@@ -370,12 +370,12 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
                   />
                 </div>
 
-                <div className="border-2 rounded-lg w-full lg:w-1/2">
+                {/* <div className="border-2 rounded-lg w-full lg:w-1/2">
                   <h3 className="text-lg font-semibold p-4 text-gray-800 dark:text-gray-200">
                     💬 Message Status Overview
                   </h3>
                   <CityStatsCharts data={messageStatus} />
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

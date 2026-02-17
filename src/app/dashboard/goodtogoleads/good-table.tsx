@@ -51,6 +51,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../../components/ui/alert-dialog";
 import {
@@ -1002,15 +1004,22 @@ export default function GoodTable({
                             Set Visit
                           </DropdownMenuItem>
 
-                          <AlertDialog 
+                          <AlertDialog
                             open={activeModalRow === index}
                             onOpenChange={(open) => {
                               if (!open) {
                                 setActiveModalRow(-1);
+                                ellipsisRef.current?.focus();
                               }
                             }}
                           >
-                            <AlertDialogContent className="max-h-[80vh] overflow-auto">
+                            <AlertDialogContent className="max-h-[80vh] overflow-auto" aria-describedby="set-visit-desc">
+                              <AlertDialogTitle className="sr-only">
+                                Set Visit
+                              </AlertDialogTitle>
+                              <AlertDialogDescription id="set-visit-desc" className="sr-only">
+                                Form to schedule a visit for the selected lead.
+                              </AlertDialogDescription>
                               <VisitModal
                                 leadId={query._id!}
                                 onOpenChange={() => {
@@ -1073,7 +1082,14 @@ export default function GoodTable({
                                     event.preventDefault(); // Prevent default focus-restoring behavior if needed
                                     document.body.style.pointerEvents = "";
                                   }}
+                                  aria-describedby="set-reminder-desc"
                                 >
+                                  <AlertDialogTitle className="sr-only">
+                                    Set Reminder
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription id="set-reminder-desc" className="sr-only">
+                                    Choose a date to set a reminder for this lead.
+                                  </AlertDialogDescription>
                                   <div className=" z-10">
                                     <Calendar
                                       mode="single"
@@ -1122,15 +1138,22 @@ export default function GoodTable({
                             Set Visit
                           </DropdownMenuItem>
 
-                          <AlertDialog 
+                          <AlertDialog
                             open={activeModalRow === index}
                             onOpenChange={(open) => {
                               if (!open) {
                                 setActiveModalRow(-1);
+                                ellipsisRef.current?.focus();
                               }
                             }}
                           >
-                            <AlertDialogContent className="max-h-[80vh] overflow-auto">
+                            <AlertDialogContent className="max-h-[80vh] overflow-auto" aria-describedby="set-visit-desc-2">
+                              <AlertDialogTitle className="sr-only">
+                                Set Visit
+                              </AlertDialogTitle>
+                              <AlertDialogDescription id="set-visit-desc-2" className="sr-only">
+                                Form to schedule a visit for the selected lead.
+                              </AlertDialogDescription>
                               <VisitModal
                                 leadId={query._id!}
                                 onOpenChange={() => {
@@ -1151,16 +1174,23 @@ export default function GoodTable({
                           Get Recommendation
                         </DropdownMenuItem>
 
-                        <AlertDialog 
+                        <AlertDialog
                           open={activeModalRow === index}
                           onOpenChange={(open) => {
                             if (!open) {
                               setActiveModalRow(-1);
                               setRecommendationData([]); // Clear previous data
+                              ellipsisRef.current?.focus();
                             }
                           }}
                         >
-                          <AlertDialogContent className="max-h-[80vh] overflow-auto">
+                          <AlertDialogContent className="max-h-[80vh] overflow-auto" aria-describedby="recommendations-desc">
+                            <AlertDialogTitle className="sr-only">
+                              Recommendations
+                            </AlertDialogTitle>
+                            <AlertDialogDescription id="recommendations-desc" className="sr-only">
+                              Recommended properties and actions for this lead.
+                            </AlertDialogDescription>
                             <VisitModal
                               leadId={query._id!}
                               // loading={loading}
@@ -1210,33 +1240,31 @@ export default function GoodTable({
                               <DropdownMenuSubTrigger>
                                 Decline
                               </DropdownMenuSubTrigger>
-                              <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                                  {[
-                                    "Blocked on whatsapp",
-                                    "Late Response",
-                                    "Delayed the travelling",
-                                    "Already got it",
-                                    "Didn't like the option",
-                                    "Different Area",
-                                    "Agency Fees",
-                                  ].map((declineReason, ind) => (
-                                    <DropdownMenuItem
-                                      key={ind}
-                                      onClick={() =>
-                                        handleDisposition(
-                                          query?._id,
-                                          index,
-                                          "declined",
-                                          `${declineReason}`
-                                        )
-                                      }
-                                    >
-                                      {`${declineReason}`}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuPortal>
+                              <DropdownMenuSubContent>
+                                {[
+                                  "Blocked on whatsapp",
+                                  "Late Response",
+                                  "Delayed the travelling",
+                                  "Already got it",
+                                  "Didn't like the option",
+                                  "Different Area",
+                                  "Agency Fees",
+                                ].map((declineReason, ind) => (
+                                  <DropdownMenuItem
+                                    key={ind}
+                                    onClick={() =>
+                                      handleDisposition(
+                                        query?._id,
+                                        index,
+                                        "declined",
+                                        `${declineReason}`
+                                      )
+                                    }
+                                  >
+                                    {`${declineReason}`}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
                             </DropdownMenuSub>
                             // <DropdownMenuItem
                             //   onClick={() =>
@@ -1259,36 +1287,34 @@ export default function GoodTable({
                             <DropdownMenuSubTrigger>
                               Reject
                             </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                          <DropdownMenuSubContent>
-                            {[
-                              "Not on whatsapp",
-                              "Not Replying",
-                              "Low Budget",
-                              "Blocked on whatsapp",
-                              "Late Response",
-                              "Delayed the travelling",
-                              "Off Location",
-                              "Number of people exceeded",
-                              "Already got it",
-                              "Different Area",
-                              "Agency Fees",
-                            ].map((reason, ind) => (
-                              <DropdownMenuItem
-                                key={ind}
-                                onClick={() =>
-                                  handleRejectionReason(
-                                    `${reason}`,
-                                    query?._id,
-                                    index
-                                  )
-                                }
-                              >
-                                {`${reason}`}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {[
+                            "Not on whatsapp",
+                            "Not Replying",
+                            "Low Budget",
+                            "Blocked on whatsapp",
+                            "Late Response",
+                            "Delayed the travelling",
+                            "Off Location",
+                            "Number of people exceeded",
+                            "Already got it",
+                            "Different Area",
+                            "Agency Fees",
+                          ].map((reason, ind) => (
+                            <DropdownMenuItem
+                              key={ind}
+                              onClick={() =>
+                                handleRejectionReason(
+                                  `${reason}`,
+                                  query?._id,
+                                  index
+                                )
+                              }
+                            >
+                              {`${reason}`}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
                           </DropdownMenuSub>
                         )}
                       </DropdownMenuSub>

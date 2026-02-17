@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       sessionId: sessionId || null,
       status: status || null,
       lastActivityAt: lastActivityAt || null,
-      ipAddress: ipAddress || extractIPFromRequest(request),
+      ipAddress: ipAddress || (await import("@/util/getClientIp")).getClientIpFromHeaders(request.headers) || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown",
       userAgent: userAgent || request.headers.get("user-agent") || "",
       deviceInfo: deviceInfo || "",
       location: location || "",
@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function extractIPFromRequest(request: NextRequest): string {
+// legacy kept if needed elsewhere (internal only)
+function extractIPFromRequestLegacy(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   const real = request.headers.get("x-real-ip");
   return (forwarded ? forwarded.split(",")[0] : real) || "Unknown";

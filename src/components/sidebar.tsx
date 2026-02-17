@@ -779,6 +779,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Guests",
       Icon: <PersonStanding size={18} />,
     },
+    {
+      path: "/dashboard/coupons",
+      label: "Manage Coupons",
+      Icon: <Ticket size={18} />,
+    },
   ],
   "Subscription-Sales": [
     {
@@ -1046,7 +1051,6 @@ const propertyBoostRoutes = [
 ]
 
 const holidaySeraRoutes = [
-
   {
     path: "/holidaysera/properties",
     label: "Properties",
@@ -1056,6 +1060,11 @@ const holidaySeraRoutes = [
     path: "/holidaysera/guests",
     label: "Guests",
     Icon: <PersonStanding size={18} />,
+  },
+  {
+    path: "/dashboard/coupons",
+    label: "Manage Coupons",
+    Icon: <Ticket size={18} />,
   },
 ];
 

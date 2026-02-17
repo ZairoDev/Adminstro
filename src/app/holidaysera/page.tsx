@@ -11,16 +11,33 @@ import {
   ArrowRight,
   Zap,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const HolidayPropertiesChart = dynamic(
+  () => import("@/components/charts/HolidayPropertiesChart"),
+  { ssr: false }
+);
+const HolidayGuestsChart = dynamic(
+  () => import("@/components/charts/HolidayGuestsChart"),
+  { ssr: false }
+);
 
 interface Stats {
   totalProperties: number;
   liveProperties: number;
   totalGuests: number;
 }
+interface Overview {
+  holidayProperties: number;
+  totalProperties: number;
+  holidayGuests: number;
+  totalGuests: number;
+}
 
 export default function HolidaySeraHome() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<Overview | null>(null);
 
   useEffect(() => {
     axios
@@ -30,6 +47,24 @@ export default function HolidaySeraHome() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  // Fetch overview counts for charts
+  useEffect(() => {
+    let mounted = true;
+    axios
+      .get("/api/holidaysera/overview")
+      .then((res) => {
+        if (!mounted) return;
+        if (res.data) setOverview(res.data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        /* noop */
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const statCards = [
@@ -76,42 +111,26 @@ export default function HolidaySeraHome() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {statCards.map((card) => (
-              <Link
-                key={card.label}
-                href={card.href}
-                className="group relative bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div
-                    className={`p-3 rounded-xl bg-gradient-to-br ${card.color} text-white shadow-lg`}
-                  >
-                    {card.icon}
-                  </div>
-                  <ArrowRight
-                    size={18}
-                    className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 group-hover:translate-x-1 transition-all"
-                  />
-                </div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-                  {card.value.toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {card.label}
-                </p>
-              </Link>
-            ))}
-          </div>
-        )}
 
         {/* Quick links */}
+        {/* Charts (line charts like dashboard) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/*
+            Dynamically import the chart components to match dashboard structure
+            and keep initial bundle small.
+          */}
+          <div className="w-full">
+            <section className="group relative">
+              <HolidayPropertiesChart />
+            </section>
+          </div>
+          <div className="w-full">
+            <section className="group relative">
+              <HolidayGuestsChart />
+            </section>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Link
             href="/holidaysera/properties"

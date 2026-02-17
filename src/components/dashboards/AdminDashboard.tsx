@@ -26,6 +26,7 @@ import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogr
 import BookingChartImproved from "@/components/BookingChart";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import LoggedInEmployeesList from "@/components/VS/dashboard/logged-in-employees";
+import RecentEmployeeSessions from "@/components/mini/RecentEmployeeSessions";
 import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
 import {
   Line,
@@ -230,12 +231,8 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
   return (
     <div className={className}>
       {/* Broadcast Notification Form - SuperAdmin/HR only */}
-      {(role === "SuperAdmin" || role === "HR") && (
-        <div className="my-6 flex justify-end">
-          <BroadcastNotificationForm />
-        </div>
-      )}
       
+
       {/* HR & Admin Section - Logged In Employees + Candidate Stats */}
       {(isSuperAdmin || isHR) && canAccess("loggedInEmployees") && (
         <div className="mb-8 w-full p-6 bg-gradient-to-br from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 rounded-xl border">
@@ -246,7 +243,6 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
             {/* CandidateStatsChart - Takes 3/4 width on large screens */}
             {canAccess("candidateStats") && (
               <div className="lg:col-span-3">
-
                 <CandidateStatsChart
                   data={candidateCounts}
                   summary={candidateSummary}
@@ -269,7 +265,6 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
             {/* LoggedInEmployeesList - Takes 1/4 width on large screens */}
             <div className="lg:col-span-1  overflow-y-auto">
               <div className=" h-[40vh] overflow-y-auto">
-
                 <LoggedInEmployeesList />
               </div>
               {/* Password Management Component - Below Active Employees List */}
@@ -305,10 +300,10 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                         variant="outline"
                         onClick={() => {
                           const copyPasswords = filteredEmployees?.map(
-                            (row) => `${row.email} : ${row.password}`
+                            (row) => `${row.email} : ${row.password}`,
                           );
                           navigator.clipboard.writeText(
-                            JSON.stringify(copyPasswords, null, 2)
+                            JSON.stringify(copyPasswords, null, 2),
                           );
                           toast({
                             description: "Passwords copied to clipboard",
@@ -335,7 +330,6 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                         ) : (
                           <>
                             <RefreshCcw className="h-4 w-4" />
-
                           </>
                         )}
                       </Button>
@@ -349,6 +343,11 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+            <div className="col-span-4">
+              {/* Dynamic import not necessary here — small client fetch is fine */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <RecentEmployeeSessions />
             </div>
           </div>
         </div>
@@ -403,7 +402,7 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                         <SelectItem key={index} value={country}>
                           {country}
                         </SelectItem>
-                      )
+                      ),
                     )}
                   </SelectGroup>
                 </SelectContent>
@@ -422,8 +421,8 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                         ? properties
                         : []
                       : countryWiseProperties
-                      ? countryWiseProperties
-                      : []
+                        ? countryWiseProperties
+                        : []
                   }
                 />
               </div>
@@ -485,7 +484,7 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
                           .sort(
                             (a, b) =>
                               new Date(a.date).getTime() -
-                              new Date(b.date).getTime()
+                              new Date(b.date).getTime(),
                           )}
                         margin={{ left: 0, right: 16 }}
                       >

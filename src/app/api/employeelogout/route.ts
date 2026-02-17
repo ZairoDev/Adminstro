@@ -64,7 +64,7 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
               sessionId,
               status: "ended",
               lastActivityAt: logoutTime,
-              ipAddress: extractIPFromRequest(request),
+            ipAddress: (await import("@/util/getClientIp")).getClientIpFromHeaders(request.headers) || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown",
               userAgent: request.headers.get("user-agent") || "",
               notes: "Logout from employee portal",
             });
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
               sessionId,
               status: "ended",
               lastActivityAt: logoutTime,
-                ipAddress: extractIPFromRequest(request),
+            ipAddress: (await import("@/util/getClientIp")).getClientIpFromHeaders(request.headers) || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown",
                 userAgent: request.headers.get("user-agent") || "",
                 notes: "Logout from employee portal",
               });

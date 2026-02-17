@@ -53,7 +53,7 @@ import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 import { WebsiteLeadsLineChart } from "@/components/charts/WebsiteLeadsLineChart";
 import { DonutChart } from "@/components/charts/DonutChart";
-import CityStatsCharts from "@/components/charts/DonutMessageStatus";
+// import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
 
 // Hooks
@@ -90,6 +90,7 @@ import WeeklyTargetDashboard from "@/components/BookingTable";
 
 // Types
 import { UserInterface } from "@/util/type";
+import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 interface StatusCount {
   First: number;
@@ -653,10 +654,14 @@ const Dashboard = () => {
               transform: "rotateX(0deg)",
             }}
           >
-            <div className="p-6 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-950/30 dark:to-indigo-950/30">
               <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
                 {displayQuote}
               </p>
+
+              {(role === "SuperAdmin" || role === "HR") && (
+                <BroadcastNotificationForm />
+              )}
             </div>
           </div>
 
@@ -684,7 +689,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-
       {/* Admin Dashboard (HR, SuperAdmin) */}
       {showAdminDashboard && <AdminDashboard />}
 
@@ -695,180 +699,190 @@ const Dashboard = () => {
       {showAdvertDashboard && <AdvertDashboard />}
 
       {/* Sales by Agent Section - Only for Sales team (not for LeadGen or Advert) */}
-      {showSalesDashboard && !showAdvertDashboard && canAccess("salesByAgent") && (
-        <Card className="overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              💼 Sales Performance by Agent
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Left Column - Filters and Pie Chart */}
-              <div className="space-y-4">
-                {/* Filters Row */}
-                <div className="flex flex-wrap gap-3 p-4 bg-muted/50 rounded-lg">
-                  <CustomSelect
-                    itemList={[
-                      "All",
-                      "yesterday",
-                      "last month",
-                      "this month",
-                      "10 days",
-                      "15 days",
-                      "1 month",
-                      "3 months",
-                      "Custom",
-                    ]}
-                    triggerText="Time Period"
-                    defaultValue="this month"
-                    onValueChange={(value) => {
-                      if (value === "Custom") {
-                        setLeadCountDateModal(true);
-                        return;
-                      }
-                      const newLeadFilters = { ...leadsFilters };
-                      newLeadFilters.days = value;
-                      setLeadsFilters(newLeadFilters);
-                      fetchLeadStatus(newLeadFilters);
-                      fetchRejectedLeadGroup(newLeadFilters);
-                    }}
-                    triggerClassName="w-36"
-                  />
-                  
-                  <CustomSelect
-                    itemList={
-                      hasFullLocationAccess
-                        ? ["All", "Athens", "Chania", "Milan", "Thessaloniki"]
-                        : ["All", ...accessibleLocations]
-                    }
-                    triggerText="Location"
-                    defaultValue="All"
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...leadsFilters };
-                      newLeadFilters.location = value;
-                      setLeadsFilters(newLeadFilters);
-                      fetchLeadStatus(newLeadFilters);
-                      fetchRejectedLeadGroup(newLeadFilters);
-                    }}
-                    triggerClassName="w-36"
-                  />
-                  
-                  {token?.email !== "vikas@vacationsaga.com" && (
+      {showSalesDashboard &&
+        !showAdvertDashboard &&
+        canAccess("salesByAgent") && (
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                💼 Sales Performance by Agent
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Filters and Pie Chart */}
+                <div className="space-y-4">
+                  {/* Filters Row */}
+                  <div className="flex flex-wrap gap-3 p-4 bg-muted/50 rounded-lg">
                     <CustomSelect
-                      itemList={["All", ...allEmployees]}
-                      triggerText="Agent"
-                      defaultValue="All"
+                      itemList={[
+                        "All",
+                        "yesterday",
+                        "last month",
+                        "this month",
+                        "10 days",
+                        "15 days",
+                        "1 month",
+                        "3 months",
+                        "Custom",
+                      ]}
+                      triggerText="Time Period"
+                      defaultValue="this month"
                       onValueChange={(value) => {
+                        if (value === "Custom") {
+                          setLeadCountDateModal(true);
+                          return;
+                        }
                         const newLeadFilters = { ...leadsFilters };
-                        newLeadFilters.createdBy = value;
+                        newLeadFilters.days = value;
                         setLeadsFilters(newLeadFilters);
                         fetchLeadStatus(newLeadFilters);
                         fetchRejectedLeadGroup(newLeadFilters);
                       }}
                       triggerClassName="w-36"
                     />
+
+                    <CustomSelect
+                      itemList={
+                        hasFullLocationAccess
+                          ? ["All", "Athens", "Chania", "Milan", "Thessaloniki"]
+                          : ["All", ...accessibleLocations]
+                      }
+                      triggerText="Location"
+                      defaultValue="All"
+                      onValueChange={(value) => {
+                        const newLeadFilters = { ...leadsFilters };
+                        newLeadFilters.location = value;
+                        setLeadsFilters(newLeadFilters);
+                        fetchLeadStatus(newLeadFilters);
+                        fetchRejectedLeadGroup(newLeadFilters);
+                      }}
+                      triggerClassName="w-36"
+                    />
+
+                    {token?.email !== "vikas@vacationsaga.com" && (
+                      <CustomSelect
+                        itemList={["All", ...allEmployees]}
+                        triggerText="Agent"
+                        defaultValue="All"
+                        onValueChange={(value) => {
+                          const newLeadFilters = { ...leadsFilters };
+                          newLeadFilters.createdBy = value;
+                          setLeadsFilters(newLeadFilters);
+                          fetchLeadStatus(newLeadFilters);
+                          fetchRejectedLeadGroup(newLeadFilters);
+                        }}
+                        triggerClassName="w-36"
+                      />
+                    )}
+                  </div>
+
+                  {/* Date Picker Dialog */}
+                  <Dialog
+                    open={leadCountDateModal}
+                    onOpenChange={setLeadCountDateModal}
+                  >
+                    <DialogContent className="max-w-fit">
+                      <DialogHeader>
+                        <DialogTitle>Select Date Range</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4">
+                        <Calendar
+                          mode="single"
+                          defaultMonth={leadCountDate}
+                          numberOfMonths={2}
+                          selected={date?.from}
+                          onSelect={setLeadCountDate}
+                          className="rounded-lg border shadow-sm"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Apply</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Pie Chart */}
+                  {leadsGroupCount.length > 0 ? (
+                    <LeadCountPieChart
+                      heading="📊 Leads Status Distribution"
+                      chartData={leadsGroupCount}
+                      totalAverage={averagedata}
+                      empAverage={averagedata1}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 bg-muted/30 rounded-lg">
+                      <p className="text-muted-foreground">No data available</p>
+                    </div>
                   )}
                 </div>
 
-                {/* Date Picker Dialog */}
-                <Dialog
-                  open={leadCountDateModal}
-                  onOpenChange={setLeadCountDateModal}
-                >
-                  <DialogContent className="max-w-fit">
-                    <DialogHeader>
-                      <DialogTitle>Select Date Range</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4">
-                      <Calendar
-                        mode="single"
-                        defaultMonth={leadCountDate}
-                        numberOfMonths={2}
-                        selected={date?.from}
-                        onSelect={setLeadCountDate}
-                        className="rounded-lg border shadow-sm"
-                      />
-                    </div>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <Button type="submit">Apply</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                {/* Right Column - Rejected Leads */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    ❌ Rejection Reasons Analysis
+                    {totalRejectedLeads > 0 && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ({totalRejectedLeads} total)
+                      </span>
+                    )}
+                  </h3>
 
-                {/* Pie Chart */}
-                {leadsGroupCount.length > 0 ? (
-                  <LeadCountPieChart
-                    heading="📊 Leads Status Distribution"
-                    chartData={leadsGroupCount}
-                    totalAverage={averagedata}
-                    empAverage={averagedata1}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 bg-muted/30 rounded-lg">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column - Rejected Leads */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  ❌ Rejection Reasons Analysis
-                  {totalRejectedLeads > 0 && (
-                    <span className="text-sm font-normal text-muted-foreground">
-                      ({totalRejectedLeads} total)
-                    </span>
-                  )}
-                </h3>
-                
-                {rejectedLeadGroups && rejectedLeadGroups.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {rejectedLeadGroups
-                      .sort((a, b) => b.count - a.count)
-                      .map((item, index) => {
-                        const percentage = Math.round((item.count / totalRejectedLeads) * 100);
-                        return (
-                          <div
-                            key={index}
-                            className={`p-4 rounded-lg border-2 transition-all hover:shadow-md ${
-                              percentage > 15
-                                ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
-                                : percentage > 10
-                                ? "border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30"
-                                : "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
-                            }`}
-                          >
-                            <div className={`text-2xl font-bold ${
-                              percentage > 15
-                                ? "text-red-600 dark:text-red-400"
-                                : percentage > 10
-                                ? "text-yellow-600 dark:text-yellow-400"
-                                : "text-green-600 dark:text-green-400"
-                            }`}>
-                              {item.count}
-                              <span className="text-sm font-medium ml-1">({percentage}%)</span>
+                  {rejectedLeadGroups && rejectedLeadGroups.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {rejectedLeadGroups
+                        .sort((a, b) => b.count - a.count)
+                        .map((item, index) => {
+                          const percentage = Math.round(
+                            (item.count / totalRejectedLeads) * 100,
+                          );
+                          return (
+                            <div
+                              key={index}
+                              className={`p-4 rounded-lg border-2 transition-all hover:shadow-md ${
+                                percentage > 15
+                                  ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
+                                  : percentage > 10
+                                    ? "border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30"
+                                    : "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
+                              }`}
+                            >
+                              <div
+                                className={`text-2xl font-bold ${
+                                  percentage > 15
+                                    ? "text-red-600 dark:text-red-400"
+                                    : percentage > 10
+                                      ? "text-yellow-600 dark:text-yellow-400"
+                                      : "text-green-600 dark:text-green-400"
+                                }`}
+                              >
+                                {item.count}
+                                <span className="text-sm font-medium ml-1">
+                                  ({percentage}%)
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                {item.reason}
+                              </p>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {item.reason}
-                            </p>
-                          </div>
-                        );
-                      })}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 bg-muted/30 rounded-lg">
-                    <p className="text-muted-foreground">No rejection data available</p>
-                  </div>
-                )}
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 bg-muted/30 rounded-lg">
+                      <p className="text-muted-foreground">
+                        No rejection data available
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Sales Dashboard - For Sales, Sales-TeamLead (not for Advert, they have their own) */}
       {showSalesDashboard && !showAdvertDashboard && <SalesDashboard />}
@@ -902,7 +916,7 @@ const Dashboard = () => {
               }}
               triggerClassName="w-36"
             />
-            
+
             {token?.email !== "vikas@vacationsaga.com" && (
               <CustomSelect
                 itemList={["All", ...allEmployees]}
@@ -923,32 +937,55 @@ const Dashboard = () => {
           {loadingReplyCounts ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Loading reply counts...</span>
+              <span className="ml-2 text-muted-foreground">
+                Loading reply counts...
+              </span>
             </div>
           ) : replyCountsByLocation.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 font-semibold">Location</th>
-                    <th className="text-right py-2 px-3 font-semibold">Total</th>
-                    <th className="text-right py-2 px-3 font-semibold">
-                      <span className="text-green-600 dark:text-green-400">Replied</span>
+                    <th className="text-left py-2 px-3 font-semibold">
+                      Location
                     </th>
                     <th className="text-right py-2 px-3 font-semibold">
-                      <span className="text-gray-600 dark:text-gray-400">Not Replied</span>
+                      Total
                     </th>
                     <th className="text-right py-2 px-3 font-semibold">
-                      <span className="text-red-600 dark:text-red-400">Not Delivered</span>
+                      <span className="text-green-600 dark:text-green-400">
+                        Replied
+                      </span>
                     </th>
-                    <th className="text-right py-2 px-3 font-semibold">Reply Rate</th>
+                    <th className="text-right py-2 px-3 font-semibold">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Not Replied
+                      </span>
+                    </th>
+                    <th className="text-right py-2 px-3 font-semibold">
+                      <span className="text-red-600 dark:text-red-400">
+                        Not Delivered
+                      </span>
+                    </th>
+                    <th className="text-right py-2 px-3 font-semibold">
+                      Reply Rate
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {replyCountsByLocation.map((item, index) => {
-                    const repliedPercentage = item.total > 0 ? Math.round((item.replied / item.total) * 100) : 0;
-                    const notRepliedPercentage = item.total > 0 ? Math.round((item.notReplied / item.total) * 100) : 0;
-                    const notDeliveredPercentage = item.total > 0 ? Math.round((item.notDelivered / item.total) * 100) : 0;
+                    const repliedPercentage =
+                      item.total > 0
+                        ? Math.round((item.replied / item.total) * 100)
+                        : 0;
+                    const notRepliedPercentage =
+                      item.total > 0
+                        ? Math.round((item.notReplied / item.total) * 100)
+                        : 0;
+                    const notDeliveredPercentage =
+                      item.total > 0
+                        ? Math.round((item.notDelivered / item.total) * 100)
+                        : 0;
 
                     return (
                       <tr
@@ -958,10 +995,13 @@ const Dashboard = () => {
                         <td className="py-2 px-3 font-medium">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-primary" />
-                            {item.location.charAt(0).toUpperCase() + item.location.slice(1)}
+                            {item.location.charAt(0).toUpperCase() +
+                              item.location.slice(1)}
                           </div>
                         </td>
-                        <td className="py-2 px-3 text-right font-semibold">{item.total}</td>
+                        <td className="py-2 px-3 text-right font-semibold">
+                          {item.total}
+                        </td>
                         <td className="py-2 px-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-green-600 dark:text-green-400 font-medium">
@@ -1003,8 +1043,8 @@ const Dashboard = () => {
                                 repliedPercentage >= 50
                                   ? "bg-green-200 dark:bg-green-900"
                                   : repliedPercentage >= 25
-                                  ? "bg-yellow-200 dark:bg-yellow-900"
-                                  : "bg-red-200 dark:bg-red-900"
+                                    ? "bg-yellow-200 dark:bg-yellow-900"
+                                    : "bg-red-200 dark:bg-red-900"
                               }`}
                             >
                               <div
@@ -1012,8 +1052,8 @@ const Dashboard = () => {
                                   repliedPercentage >= 50
                                     ? "bg-green-500"
                                     : repliedPercentage >= 25
-                                    ? "bg-yellow-500"
-                                    : "bg-red-500"
+                                      ? "bg-yellow-500"
+                                      : "bg-red-500"
                                 }`}
                                 style={{ width: `${repliedPercentage}%` }}
                               />
@@ -1031,22 +1071,42 @@ const Dashboard = () => {
                   <tr className="border-t-2 border-border font-semibold bg-muted/30">
                     <td className="py-2 px-3">Total</td>
                     <td className="py-2 px-3 text-right">
-                      {replyCountsByLocation.reduce((sum, item) => sum + item.total, 0)}
+                      {replyCountsByLocation.reduce(
+                        (sum, item) => sum + item.total,
+                        0,
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right text-green-600 dark:text-green-400">
-                      {replyCountsByLocation.reduce((sum, item) => sum + item.replied, 0)}
+                      {replyCountsByLocation.reduce(
+                        (sum, item) => sum + item.replied,
+                        0,
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400">
-                      {replyCountsByLocation.reduce((sum, item) => sum + item.notReplied, 0)}
+                      {replyCountsByLocation.reduce(
+                        (sum, item) => sum + item.notReplied,
+                        0,
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right text-red-600 dark:text-red-400">
-                      {replyCountsByLocation.reduce((sum, item) => sum + item.notDelivered, 0)}
+                      {replyCountsByLocation.reduce(
+                        (sum, item) => sum + item.notDelivered,
+                        0,
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right">
                       {(() => {
-                        const totalLeads = replyCountsByLocation.reduce((sum, item) => sum + item.total, 0);
-                        const totalReplied = replyCountsByLocation.reduce((sum, item) => sum + item.replied, 0);
-                        return totalLeads > 0 ? Math.round((totalReplied / totalLeads) * 100) : 0;
+                        const totalLeads = replyCountsByLocation.reduce(
+                          (sum, item) => sum + item.total,
+                          0,
+                        );
+                        const totalReplied = replyCountsByLocation.reduce(
+                          (sum, item) => sum + item.replied,
+                          0,
+                        );
+                        return totalLeads > 0
+                          ? Math.round((totalReplied / totalLeads) * 100)
+                          : 0;
                       })()}
                       %
                     </td>

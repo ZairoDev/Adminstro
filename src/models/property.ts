@@ -2,6 +2,21 @@ import mongoose, { Document, Schema } from "mongoose";
 import { customAlphabet } from "nanoid";
 import type { PropertySchema } from "@/schemas/property.schema";
 
+export interface IProperty {
+  _id: string;
+  VSID: string;
+  userId: string;
+  email?: string;
+  phone?: string;
+  hostedBy?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  propertyImages?: string[];
+  propertyCoverFileUrl?: string;
+}
+
 // VSID Generator Function
 const generateVSID = (length: number): string => {
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

@@ -14,6 +14,7 @@ export interface ICoupon {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  origin?: string;
 }
 
 const couponSchema = new mongoose.Schema<ICoupon>(
@@ -66,6 +67,10 @@ const couponSchema = new mongoose.Schema<ICoupon>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    origin: {
+      type: String,
+      default: "vacationSaga",
     },
   },
   {

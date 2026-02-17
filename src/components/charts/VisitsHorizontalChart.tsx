@@ -43,7 +43,7 @@ export function CityVisitsChart({
   chartData,
   title = "City Visit Stats",
   description = "Top cities by visit count",
-}: CityVisitsChartProps) {
+}: CityVisitsChartProps) {         
   return (
     <Card className="w-full h-full flex flex-col justify-between shadow-lg hover:shadow-xl transition-shadow duration-300">
   <CardHeader className="pb-4 space-y-2">

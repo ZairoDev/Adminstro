@@ -4,7 +4,7 @@ import axios from "axios";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { LucideLoader2, Search, X } from "lucide-react";
+import { LucideLoader2, Search, X, ArrowRight } from "lucide-react";
 
 import {
   Select,
@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/phone-input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { InfinityLoader } from "@/components/Loaders";
+import { PropertySchema } from "@/schemas/property.schema";
+import { PropertiesDataType } from "@/util/type";
+import type { IProperty } from "@/models/property";
+import type { IOwner } from "@/models/user";
 
 interface VisitFromSchema {
   lead: string;
@@ -44,28 +48,13 @@ interface VisitFromSchema {
   visitType: "physical" | "virtual";
 }
 
-interface Property {
-  _id: string;
-  email: string;
-  street: string;
-  city: string;
-  state: string;
-  country: string;
-  phone: string;
-  propertyCoverFileUrl: string;
-  propertyImages: string[];
-  ownerName: string;
+interface IPropertyWithOwner extends IProperty {
+  owner: IOwner;
+  isQuickListing?: boolean;
 }
 
-interface PropertyByPhone {
-  propertyId: string;
-  VSID: string;
-  propertyImages: string[];
-  isQuickListing: boolean;
-  ownerName: string;
-  ownerEmail: string;
-  address: string;
-}
+type Property = IPropertyWithOwner;
+type PropertyByPhone = IPropertyWithOwner;
 
 interface AgentsInterface {
   agentName: string;
@@ -100,35 +89,36 @@ const VisitModal = ({
     visitType: "physical",
   });
   const [isLoading, setIsLoading] = useState(false);
+
   const [property, setProperty] = useState<Property | null>(null);
   const [properties, setProperties] = useState<PropertyByPhone[]>([]);
+  const [selectedPropertyVSID, setSelectedPropertyVSID] = useState<string>("");
+
   const [agents, setAgents] = useState<AgentsInterface[]>([]);
   const [fetchingAgents, setFetchingAgents] = useState(false);
 
   const handleSubmit = async () => {
-    // Ensure an agent is selected: if none chosen but agents list exists, auto-fill with first agent
-    const formCopy = { ...visitFormValues };
-    if (
-      (!formCopy.agentPhone || formCopy.agentPhone.trim() === "") &&
-      agents &&
-      agents.length > 0
-    ) {
-      formCopy.agentPhone = agents[0].agentPhone || "";
-      formCopy.agentName = agents[0].agentName || "";
-      // persist to state so UI reflects the auto-selection
-      setVisitFormValues(formCopy);
-      toast({
-        title: "Agent auto-selected",
-        description: `Assigned to ${formCopy.agentName}`,
-      });
-    }
-
+    // Validate required fields
     const missing: string[] = [];
-    const vsid = formCopy.VSID?.trim();
-    const phoneDigits =
-      (formCopy.ownerPhone && formCopy.ownerPhone.replace(/\D/g, "")) || "";
+    const hasVsidOrProperty =
+      Boolean(visitFormValues.VSID && visitFormValues.VSID.trim()) ||
+      Boolean(visitFormValues.propertyId && visitFormValues.propertyId.trim());
 
-    if (!vsid && !phoneDigits) missing.push("VSID or Phone Number");
+    if (!hasVsidOrProperty) missing.push("VSID / Property");
+    if (!visitFormValues.ownerName || visitFormValues.ownerName.trim() === "")
+      missing.push("Owner Name");
+    if (!visitFormValues.ownerPhone || visitFormValues.ownerPhone.trim() === "")
+      missing.push("Owner Phone");
+    if (!visitFormValues.ownerEmail || visitFormValues.ownerEmail.trim() === "")
+      missing.push("Owner Email");
+    if (!visitFormValues.agentName || visitFormValues.agentName.trim() === "")
+      missing.push("Agent Name");
+    if (
+      !visitFormValues.schedule ||
+      visitFormValues.schedule.length === 0 ||
+      !visitFormValues.schedule[0].date
+    )
+      missing.push("Schedule Date & Time");
 
     if (missing.length > 0) {
       toast({
@@ -144,22 +134,7 @@ const VisitModal = ({
       visitFormValues.travellerCommission === 0
     ) {
       toast({
-        title: "Commission Required",
-        description: "Traveller and Owner Commission cannot both be zero",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Schedule check
-    if (
-      !visitFormValues.schedule ||
-      visitFormValues.schedule.length === 0 ||
-      !visitFormValues.schedule[0].date
-    ) {
-      toast({
-        title: "Schedule Required",
-        description: "Please select a date and time for the visit",
+        title: "Traveller and Owner Commission cannot be zero",
         variant: "destructive",
       });
       return;
@@ -167,21 +142,13 @@ const VisitModal = ({
 
     setIsLoading(true);
     try {
-      await axios.post("/api/visits/addVisit", formCopy);
-      toast({
-        title: "Success",
-        description: "Visit scheduled successfully",
-      });
-      onOpenChange();
+      await axios.post("/api/visits/addVisit", visitFormValues);
+      toast({ title: "Visit scheduled successfully" });
     } catch (err) {
-      console.error("Error scheduling visit:", err);
-      toast({
-        title: "Error",
-        description: "Unable to schedule visit. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Unable to schedule visit", variant: "destructive" });
     } finally {
       setIsLoading(false);
+      onOpenChange();
     }
   };
 
@@ -194,36 +161,39 @@ const VisitModal = ({
 
   const getPropertiesByPhoneNumber = async () => {
     if (!visitFormValues.ownerPhone) return;
-
     setIsLoading(true);
     try {
       const response = await axios.post("/api/visits/getPropertiesForVisit", {
         userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
       });
-      const props = response.data || [];
-      setProperties(props);
+      console.log("properties by phone number", response.data);
+      const fetchedProperties: IPropertyWithOwner[] = response.data || [];
+      // API guarantees owner populated; use directly
+      setProperties(fetchedProperties);
 
-      if (!props || props.length === 0) {
-        toast({
-          title: "No Properties Found",
-          description: "No properties exist for this phone number",
-          variant: "destructive",
-        });
-      } else if (props.length === 1) {
-        // Auto-select single property and fill VSID + owner info
-        const only = props[0];
-        setProperty(only as any);
+      // If only one property, auto-select it and populate owner fields from property.owner
+      if (fetchedProperties.length === 1) {
+        const singleProperty = fetchedProperties[0];
+        setSelectedPropertyVSID(singleProperty.VSID);
         setVisitFormValues((prev) => ({
           ...prev,
-          propertyId: only.propertyId || "",
-          VSID: only.VSID || "",
-          ownerName: only.ownerName || prev.ownerName,
-          ownerEmail: only.ownerEmail || prev.ownerEmail,
-          address: only.address || prev.address,
+          propertyId: singleProperty._id || singleProperty.VSID,
+          VSID: singleProperty.VSID,
+          ownerName: singleProperty.owner?.name || "",
+          ownerEmail: singleProperty.owner?.email || "",
+          ownerPhone: singleProperty.owner?.phone || "",
+          address: `${singleProperty.street || ""}${singleProperty.city ? ", " + singleProperty.city : ""}${singleProperty.state ? ", " + singleProperty.state : ""}${singleProperty.country ? ", " + singleProperty.country : ""}`,
+        }));
+      } else {
+        // Clear any previous selection when multiple properties returned
+        setSelectedPropertyVSID("");
+        setVisitFormValues((prev) => ({
+          ...prev,
+          propertyId: "",
+          VSID: "",
         }));
       }
     } catch (err: unknown) {
-      console.error("Error fetching properties:", err);
       setProperties([]);
       toast({
         title: "Error",
@@ -236,39 +206,24 @@ const VisitModal = ({
   };
 
   const getPropertyByVSID = async (VSID: string) => {
-    if (!VSID?.trim()) {
-      toast({
-        title: "Invalid VSID",
-        description: "Please enter a valid VSID",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsLoading(true);
       const response = await axios.post("/api/property/getPropertyByVSID", {
         VSID: VSID.trim(),
       });
-
-      if (response.data?.data) {
-        setProperty(response.data.data);
-        setVisitFormValues((prev) => ({
-          ...prev,
-          propertyId: response.data.data._id || "",
-          ownerName: response.data.data.ownerName || "",
-          ownerEmail: response.data.data.email || "",
-          ownerPhone: response.data.data.phone || "",
-          address:
-            `${response.data.data.street || ""}, ${response.data.data.city || ""}, ${response.data.data.state || ""}, ${response.data.data.country || ""}`.replace(
-              /^,\s*|,\s*$/g,
-              "",
-            ),
-        }));
-      }
+      const prop: IPropertyWithOwner = response.data.data;
+      setProperty(prop);
+      setSelectedPropertyVSID(VSID.trim());
+      console.log("property by vsid", prop);
+      setVisitFormValues((prev) => ({
+        ...prev,
+        propertyId: prop._id,
+        ownerName: prop.owner?.name || "",
+        ownerEmail: prop.owner?.email || "",
+        ownerPhone: prop.owner?.phone || "",
+        address: `${prop.street || ""}${prop.city ? ", " + prop.city : ""}${prop.state ? ", " + prop.state : ""}${prop.country ? ", " + prop.country : ""}`,
+      }));
     } catch (err) {
-      console.error("Error fetching property by VSID:", err);
-      setProperty(null);
       toast({
         title: "Error",
         description: "Property does not exist for this VSID",
@@ -282,18 +237,10 @@ const VisitModal = ({
   const fetchAgents = async () => {
     try {
       setFetchingAgents(true);
-      const res = await axios.get("/api/addons/agents/getAllAgents");
-      // Support multiple response shapes and defensive logging
-      console.log("fetchAgents response:", res?.status, res?.data);
-      const agentsList =
-        res?.data?.data ||
-        res?.data?.agents ||
-        (Array.isArray(res?.data) ? res.data : undefined) ||
-        [];
-      setAgents(agentsList || []);
+      const allAgents = await axios.get("/api/addons/agents/getAllAgents");
+      setAgents(allAgents.data.data);
     } catch (err) {
-      console.error("Unable to fetch agents:", err);
-      setAgents([]);
+      console.error("unable to fetch agents");
     } finally {
       setFetchingAgents(false);
     }
@@ -305,12 +252,10 @@ const VisitModal = ({
 
   useEffect(() => {
     const pitch =
-      (visitFormValues.ownerCommission || 0) +
-      (visitFormValues.travellerCommission || 0);
+      visitFormValues.ownerCommission + visitFormValues.travellerCommission;
     const final =
       pitch -
-      ((visitFormValues.agentCommission || 0) +
-        (visitFormValues.documentationCharges || 0));
+      (visitFormValues.agentCommission + visitFormValues.documentationCharges);
     setVisitFormValues((prev) => ({
       ...prev,
       pitchAmount: pitch,
@@ -324,87 +269,81 @@ const VisitModal = ({
   ]);
 
   return (
-    <ScrollArea className="max-h-[80vh] rounded-md border">
-      <div className="flex flex-col gap-y-4 p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center pb-2 border-b">
-        <h2 className="font-semibold text-xl">Schedule Visit</h2>
-        <Button variant="outline" size="icon" onClick={onOpenChange}>
-          <X className="h-4 w-4" />
+    <div className=" flex flex-col gap-y-2">
+      <div className=" flex justify-between items-center mb-2">
+        <h2 className=" font-semibold text-lg">Visit Modal</h2>
+        <Button variant={"outline"} onClick={onOpenChange}>
+          <X />
         </Button>
       </div>
 
-      {/* VSID Search */}
-      <div className="space-y-2">
-        <Label>Search by VSID</Label>
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Enter VSID..."
-            value={visitFormValues.VSID}
-            onChange={(e) =>
-              setVisitFormValues({ ...visitFormValues, VSID: e.target.value })
-            }
-          />
-          <Button
-            disabled={isLoading || !visitFormValues.VSID?.trim()}
-            onClick={() => getPropertyByVSID(visitFormValues.VSID)}
-          >
-            {isLoading ? (
-              <LucideLoader2 size={18} className="animate-spin" />
-            ) : (
-              <Search size={18} />
-            )}
-          </Button>
-        </div>
+      <div className=" flex justify-between items-center gap-x-2">
+        <Input
+          type="text"
+          placeholder="Enter VSID..."
+          value={visitFormValues.VSID}
+          onChange={(e) =>
+            setVisitFormValues({ ...visitFormValues, VSID: e.target.value })
+          }
+        />
+        <Button
+          disabled={isLoading || !visitFormValues.VSID}
+          onClick={() => getPropertyByVSID(visitFormValues.VSID)}
+        >
+          {isLoading ? (
+            <LucideLoader2 size={18} className=" animate-spin" />
+          ) : (
+            <Search size={18} />
+          )}
+        </Button>
       </div>
-
-      {/* Property Details Card */}
       {property && (
-        <div className="border rounded-lg p-4 bg-muted/30">
-          <div className="flex gap-4">
+        <div className=" text-sm flex gap-x-4">
+          {property._id ? (
             <Link
-              href={`https://www.vacationsaga.com/listing-stay-detail/${property._id}`}
+              href={`https://www.vacationsaga.com/listing-stay-detail/${property._id || property.VSID}`}
               target="_blank"
-              rel="noopener noreferrer"
             >
-              <img
-                src={property.propertyCoverFileUrl || "/placeholder.svg"}
-                alt="Property"
-                className="w-40 h-24 rounded-md object-cover"
-              />
+            <img
+              src={property.propertyCoverFileUrl || (property.propertyImages && property.propertyImages.length ? property.propertyImages[0] : "/placeholder.svg")}
+              className=" w-40 h-24 rounded-md"
+              alt="Property"
+            />
             </Link>
-            <div className="flex flex-col gap-2 flex-1">
-              <p className="text-sm font-medium">
-                {property.street}, {property.city}, {property.state},{" "}
-                {property.country}
+          ) : (
+            <div className="w-40 h-24 rounded-md bg-gray-100 flex items-center justify-center text-xs text-muted-foreground">
+              No preview
+            </div>
+          )}
+          <div className=" flex flex-col p-2 gap-y-1">
+            <p>
+              {property.street || ""}{property.city ? ", " + property.city : ""}{property.state ? ", " + property.state : ""}{property.country ? ", " + property.country : ""}
+            </p>
+            <div className=" flex flex-col">
+              <p className=" text-xs">
+                <span className=" text-sm font-semibold">Owner : </span>
+                {property.owner?.name || "-"}
               </p>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p>
-                  <span className="font-semibold text-foreground">Owner: </span>
-                  {property.ownerName}
-                </p>
-                <p>
-                  <span className="font-semibold text-foreground">Phone: </span>
-                  {property.phone}
-                </p>
-                <p>
-                  <span className="font-semibold text-foreground">Email: </span>
-                  {property.email}
-                </p>
-              </div>
+              <p className=" text-xs">
+                <span className=" text-sm font-semibold">Phone : </span>
+                {property.owner?.phone || property.phone || "-"}
+              </p>
+              <p className=" text-xs">
+                <span className=" text-sm font-semibold">Email : </span>
+                {property.owner?.email || property.email || "-"}
+              </p>
             </div>
           </div>
         </div>
       )}
 
       {/* Search Property by Phone number */}
-      <div className="space-y-2">
-        <Label>Search by Phone Number</Label>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
+      <div className=" flex flex-col justify-between items-center gap-x-2">
+        <div className=" flex justify-between items-center gap-x-2 w-full">
+          <div className="w-full py-2">
+            <Label htmlFor="phone">Phone Number</Label>
             <PhoneInput
-              className="phone-input"
+              className="phone-input border-red-500"
               placeholder="Enter phone number"
               type="text"
               value={visitFormValues.ownerPhone}
@@ -418,101 +357,105 @@ const VisitModal = ({
               }
             />
           </div>
-          <Button
-            type="button"
-            onClick={getPropertiesByPhoneNumber}
-            disabled={!visitFormValues.ownerPhone || isLoading}
-          >
-            {isLoading ? (
-              <LucideLoader2 size={18} className="animate-spin" />
-            ) : (
-              <Search size={18} />
-            )}
-          </Button>
+          <div className="mt-6 ml-1">
+            <Button
+              type="button"
+              onClick={getPropertiesByPhoneNumber}
+              disabled={!visitFormValues.ownerPhone || isLoading}
+            >
+              {isLoading ? (
+                <LucideLoader2 size={18} className=" animate-spin" />
+              ) : (
+                <Search size={18} />
+              )}
+            </Button>
+          </div>
         </div>
 
-        {/* Properties List */}
-        {properties.length > 0 && (
-          <ScrollArea className="whitespace-nowrap rounded-md border w-full">
-            <div className="flex w-max space-x-4 p-4">
-              {properties.map((property) => {
-                const isSelected = visitFormValues.VSID === property.VSID;
-              return (
-                <div
-                  key={property.propertyId}
-                  className={`shrink-0 cursor-pointer rounded-md border-2 transition-all ${
-                    isSelected
-                      ? "border-primary ring-2 ring-primary/20"
-                      : "border-transparent hover:border-primary/50"
-                  }`}
-                  onClick={() =>
-                    setVisitFormValues({
-                      ...visitFormValues,
-                      propertyId: property.propertyId,
-                      VSID: property.VSID,
-                      ownerName: property.ownerName,
-                      ownerEmail: property.ownerEmail,
-                      address: property.address,
-                    })
-                  }
-                >
-                  <div className="overflow-hidden rounded-md relative">
-                    <Link
-                      href={
-                        property.isQuickListing
-                          ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
-                          : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <img
-                        src={
-                          property?.propertyImages?.[0] || "/placeholder.svg"
-                        }
-                        alt="Property"
-                        className="w-28 h-28 object-cover"
-                      />
-                    </Link>
-
-                    {/* Open listing button (top-right) */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = property.isQuickListing
-                          ? `https://www.vacationsaga.com/roomListing/${property.propertyId}`
-                          : `https://www.vacationsaga.com/listing-stay-detail/${property.propertyId}`;
-                        try {
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        } catch {
-                          window.location.href = url;
-                        }
+        <div>
+          {properties.length > 0 && (
+            <ScrollArea className="whitespace-nowrap rounded-md border w-[470px]">
+              <div className="flex w-max space-x-4 p-4">
+                {properties.map((property: IPropertyWithOwner) => {
+                  const pid = property._id || property.VSID;
+                  const isChecked = selectedPropertyVSID === property.VSID;
+                  return (
+                    <figure
+                      key={pid || property.VSID}
+                      className={`shrink-0 w-32 rounded-md border transition-shadow ${isChecked ? "ring-2 ring-indigo-600 shadow-lg" : "hover:shadow-md cursor-pointer"}`}
+                      onClick={() => {
+                        setSelectedPropertyVSID(property.VSID);
+                        setVisitFormValues((prev) => ({
+                          ...prev,
+                          propertyId: pid,
+                          VSID: property.VSID,
+                          ownerName: property.owner?.name || "",
+                          ownerEmail: property.owner?.email || "",
+                          ownerPhone: property.owner?.phone || "",
+                          address: `${property.street || ""}${property.city ? ", " + property.city : ""}`,
+                        }));
                       }}
-                      className="absolute top-1 right-1 bg-white/80 text-xs rounded px-2 py-1 hover:bg-white"
                     >
-                      Open
-                    </button>
-
-                    {isSelected && (
-                      <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
-                        <Search className="h-3 w-3" />
+                      <div className="relative overflow-hidden rounded-md bg-gray-50">
+                        <img
+                          src={
+                            property.propertyCoverFileUrl ||
+                            (property.propertyImages && property.propertyImages.length ? property.propertyImages[0] : "/placeholder.svg")
+                          }
+                          alt={property.street || property.city || "Property image"}
+                          className="w-full h-28 object-cover"
+                        />
+                        <Link
+                          href={
+                            property.isQuickListing
+                              ? `https://www.vacationsaga.com/roomListing/${pid}`
+                              : `https://www.vacationsaga.com/listing-stay-detail/${pid}`
+                          }
+                          target="_blank"
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute top-1 right-1 p-1 rounded-md bg-white/80 hover:bg-white shadow-sm"
+                        >
+                          <ArrowRight className="w-4 h-4 text-gray-700" />
+                        </Link>
+                        {/* visually-hidden radio for accessibility */}
+                        <Input
+                          type="radio"
+                          className="sr-only"
+                          name={`property-${leadId}`}
+                          value={property.VSID}
+                          id={property.VSID}
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedPropertyVSID(property.VSID);
+                            setVisitFormValues((prev) => ({
+                              ...prev,
+                              propertyId: pid,
+                              VSID: property.VSID,
+                              ownerName: property.owner?.name || "",
+                              ownerEmail: property.owner?.email || "",
+                              ownerPhone: property.owner?.phone || "",
+                              address: property.street || "",
+                            }));
+                          }}
+                        />
+                        <div className="p-2">
+                          <div className="text-sm font-medium truncate">{property.owner?.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{property.street || property.city}</div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  </div>
-                );
-              })}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        )}
+                    </figure>
+                  );
+                })}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          )}
+        </div>
       </div>
 
       {/* Owner Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
+      <div className=" flex justify-between">
+        <div>
           <Label>Owner Name</Label>
           <Input
             type="text"
@@ -521,30 +464,29 @@ const VisitModal = ({
             onChange={(e) => handleChange("ownerName", e.target.value)}
           />
         </div>
-        <div className="space-y-2">
+        <div>
           <Label>Owner Email</Label>
           <Input
-            type="email"
+            type="text"
             value={visitFormValues.ownerEmail}
             placeholder="Enter owner email"
             onChange={(e) => handleChange("ownerEmail", e.target.value)}
           />
         </div>
       </div>
-
-      <div className="space-y-2">
+      <div>
         <Label>Property Reference URL</Label>
         <Input
-          type="url"
+          type="text"
           value={visitFormValues.propertyUrl}
           placeholder="Enter property reference URL"
           onChange={(e) => handleChange("propertyUrl", e.target.value)}
         />
       </div>
 
-      {/* Visit Date, Time, and Type */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
+      {/* Visit Date and Time */}
+      <div className=" flex justify-between items-end">
+        <div>
           <Label>Date & Time</Label>
           <Input
             type="datetime-local"
@@ -552,9 +494,11 @@ const VisitModal = ({
               const value = e.target.value;
               if (value) {
                 try {
-                  const [dateStr, timeStr] = value.split("T");
-                  const date = format(new Date(dateStr), "MM/dd/yyyy");
-                  const time = timeStr || "";
+                  const date = format(
+                    new Date(value.split("T")[0]),
+                    "MM/dd/yyyy",
+                  );
+                  const time = value.split("T")[1] || "";
                   setVisitFormValues((prev) => ({
                     ...prev,
                     schedule: [{ date, time }],
@@ -567,7 +511,7 @@ const VisitModal = ({
           />
         </div>
 
-        <div className="space-y-2">
+        <div>
           <Label>Visit Type</Label>
           <Select
             value={visitFormValues.visitType}
@@ -578,7 +522,7 @@ const VisitModal = ({
               }))
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Select Visit Type" />
             </SelectTrigger>
             <SelectContent>
@@ -592,44 +536,36 @@ const VisitModal = ({
         </div>
       </div>
 
-      {/* Agent and Commission Details */}
-      <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-        <h3 className="font-semibold text-sm">Agent & Commission Details</h3>
-
+      {/* Select Agent */}
+      <div className="grid grid-cols-4 gap-4 p-4 border rounded-lg ">
         {/* Agent Selector */}
-        <div className="space-y-2">
-          <Label>Select Agent</Label>
+        <div className="col-span-4">
+          <Label>Agent</Label>
           <Select
             onValueChange={(value) => {
-              const [agentName, agentPhone] = value.split("|||");
+              const parts = value.split("|||");
               setVisitFormValues((prev) => ({
                 ...prev,
-                agentName: agentName || "",
-                agentPhone: agentPhone || "",
+                agentName: parts[0] || "",
+                agentPhone: parts[1] || "",
               }));
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select Agent" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Agents</SelectLabel>
                 {fetchingAgents ? (
-                  <div className="flex justify-center p-4">
-                    <LucideLoader2 className="animate-spin h-4 w-4" />
-                  </div>
-                ) : agents.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center p-4">
-                    No agents available
-                  </div>
+                  <LucideLoader2 className="animate-spin mx-auto" />
                 ) : (
                   agents.map((agent, index) => (
                     <SelectItem
                       key={index}
-                      value={`${agent.agentName}`}
+                      value={`${agent.agentName}|||${agent.agentPhone}`}
                     >
-                      {agent.agentName} - {agent.agentPhone}
+                      {agent.agentName}
                     </SelectItem>
                   ))
                 )}
@@ -638,113 +574,101 @@ const VisitModal = ({
           </Select>
         </div>
 
-        {/* Commission Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="space-y-2">
-            <Label className="text-xs">Owner Comm.</Label>
-            <Input
-              type="number"
-              min={0}
-              value={visitFormValues.ownerCommission || ""}
-              placeholder="0"
-              onChange={(e) =>
-                handleChange(
-                  "ownerCommission",
-                  Number.parseInt(e.target.value) || 0,
-                )
-              }
-            />
-          </div>
+        {/* Owner Comm */}
+        <div className="col-span-2">
+          <Label>Owner Comm.</Label>
+          <Input
+            type="number"
+            min={0}
+            value={visitFormValues.ownerCommission}
+            onChange={(e) =>
+              handleChange(
+                "ownerCommission",
+                Number.parseInt(e.target.value) || 0,
+              )
+            }
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">Traveller Comm.</Label>
-            <Input
-              type="number"
-              min={0}
-              value={visitFormValues.travellerCommission || ""}
-              placeholder="0"
-              onChange={(e) =>
-                handleChange(
-                  "travellerCommission",
-                  Number.parseInt(e.target.value) || 0,
-                )
-              }
-            />
-          </div>
+        {/* Traveller Comm. */}
+        <div className="col-span-2">
+          <Label>Traveller Comm.</Label>
+          <Input
+            type="number"
+            min={0}
+            value={visitFormValues.travellerCommission}
+            onChange={(e) =>
+              handleChange(
+                "travellerCommission",
+                Number.parseInt(e.target.value) || 0,
+              )
+            }
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">Agent Commission</Label>
-            <Input
-              type="number"
-              min={0}
-              value={visitFormValues.agentCommission || ""}
-              placeholder="0"
-              onChange={(e) =>
-                handleChange(
-                  "agentCommission",
-                  Number.parseInt(e.target.value) || 0,
-                )
-              }
-            />
-          </div>
+        {/* Agent Commission */}
+        <div className="col-span-2">
+          <Label>Agent Commission</Label>
+          <Input
+            type="number"
+            min={0}
+            value={visitFormValues.agentCommission}
+            onChange={(e) =>
+              handleChange(
+                "agentCommission",
+                Number.parseInt(e.target.value) || 0,
+              )
+            }
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">Docs. Charges</Label>
-            <Input
-              type="number"
-              min={0}
-              value={visitFormValues.documentationCharges || ""}
-              placeholder="0"
-              onChange={(e) =>
-                handleChange(
-                  "documentationCharges",
-                  Number.parseInt(e.target.value) || 0,
-                )
-              }
-            />
-          </div>
+        {/* Docs Charges */}
+        <div className="col-span-2">
+          <Label>Docs. Charges</Label>
+          <Input
+            type="number"
+            min={0}
+            value={visitFormValues.documentationCharges}
+            onChange={(e) =>
+              handleChange(
+                "documentationCharges",
+                Number.parseInt(e.target.value) || 0,
+              )
+            }
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">Pitch Amount</Label>
-            <Input
-              type="number"
-              value={visitFormValues.pitchAmount}
-              disabled
-              className="cursor-not-allowed bg-muted font-semibold"
-            />
-          </div>
+        {/* Pitch Amount */}
+        <div className="col-span-2">
+          <Label>Pitch Amount</Label>
+          <Input
+            type="number"
+            value={visitFormValues.pitchAmount}
+            disabled
+            className=" cursor-not-allowed"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">V.S Final</Label>
-            <Input
-              type="number"
-              value={visitFormValues.vsFinal || 0}
-              disabled
-              className="cursor-not-allowed bg-muted font-semibold"
-            />
-          </div>
+        {/* VS Final */}
+        <div className="col-span-2">
+          <Label>V.S Final</Label>
+          <Input
+            type="number"
+            value={visitFormValues.vsFinal || 0}
+            disabled
+            className="cursor-not-allowed"
+          />
         </div>
       </div>
 
-      {/* Submit Button */}
-      <Button
-        onClick={handleSubmit}
-        disabled={isLoading}
-        className="w-full"
-        size="lg"
-      >
+      <Button onClick={handleSubmit}>
         {isLoading ? (
-          <div className="flex items-center gap-2">
-            <LucideLoader2 className="h-4 w-4 animate-spin" />
-            <span>Scheduling...</span>
-          </div>
+          <InfinityLoader className=" h-12 w-16" strokeColor="black" />
         ) : (
           "Schedule Visit"
         )}
       </Button>
     </div>
-    </ScrollArea>
   );
 };
-
 export default VisitModal;

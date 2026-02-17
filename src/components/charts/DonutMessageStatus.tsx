@@ -162,41 +162,41 @@ function DonutChart({ title, data }: DonutChartProps) {
   );
 }
 
-export default function CityStatsCharts({ data }: CityStatsChartsProps) {
-  // Handle null/undefined data
-  if (!data) {
-    return (
-      <div className="w-full p-8 bg-background">
-        <div className="text-center text-muted-foreground">Loading data...</div>
-      </div>
-    );
-  }
+// export default function CityStatsCharts({ data }: CityStatsChartsProps) {
+//   // Handle null/undefined data
+//   if (!data) {
+//     return (
+//       <div className="w-full p-8 bg-background">
+//         <div className="text-center text-muted-foreground">Loading data...</div>
+//       </div>
+//     );
+//   }
 
-  // Define the order and show all categories (even empty ones)
-  const orderedCategories: (keyof MessageStatusData)[] = [
-    "First",
-    "Second",
-    "Third",
-    "Fourth",
-    "Options",
-    "Visit",
-  ];
+//   // Define the order and show all categories (even empty ones)
+//   const orderedCategories: (keyof MessageStatusData)[] = [
+//     "First",
+//     "Second",
+//     "Third",
+//     "Fourth",
+//     "Options",
+//     "Visit",
+//   ];
 
-  const categories: [string, CityData][] = orderedCategories.map((key) => [
-    key,
-    data[key] || {},
-  ]);
+//   const categories: [string, CityData][] = orderedCategories.map((key) => [
+//     key,
+//     data[key] || {},
+//   ]);
 
-  return (
-    <div className="w-full p-8 bg-background">
-      <h1 className="text-3xl font-bold mb-8 text-center">
-        City Statistics Dashboard
-      </h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categories.map(([categoryName, cityData]) => (
-          <DonutChart key={categoryName} title={categoryName} data={cityData} />
-        ))}
-      </div>
-    </div>
-  );
-}
+//   return (
+//     <div className="w-full p-8 bg-background">
+//       <h1 className="text-3xl font-bold mb-8 text-center">
+//         City Statistics Dashboard
+//       </h1>
+//       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//         {categories.map(([categoryName, cityData]) => (
+//           <DonutChart key={categoryName} title={categoryName} data={cityData} />
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }

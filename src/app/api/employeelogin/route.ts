@@ -259,7 +259,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Log login activity
     try {
-      const ipAddress = extractIPFromRequest(request);
+    const { getClientIpFromHeaders } = await import("@/util/getClientIp");
+    const ipAddress = (() => {
+      const h = getClientIpFromHeaders(request.headers);
+      return h || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown";
+    })();
       const userAgent = request.headers.get("user-agent") || "";
       // generate a session id for this device/session
       const sessionId = (globalThis as any)?.crypto?.randomUUID
@@ -326,7 +330,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-function extractIPFromRequest(request: NextRequest): string {
+// legacy: kept for backward compatibility if other modules call it (internal only)
+function extractIPFromRequestLegacy(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   const real = request.headers.get("x-real-ip");
   return (forwarded ? forwarded.split(",")[0] : real) || "Unknown";

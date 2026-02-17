@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Coupon from "@/models/coupon";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       usageLimit,
       applicablePlans,
       isActive,
+      originValue,
     } = body;
 
     // Check if coupon code already exists
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       applicablePlans: applicablePlans || [],
       isActive: isActive !== undefined ? isActive : true,
       usedCount: 0,
+      origin: originValue,
     });
 
     await newCoupon.save();

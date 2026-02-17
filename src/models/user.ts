@@ -2,6 +2,13 @@ import mongoose, { Schema, Document } from "mongoose";
 import { UserSchema } from "@/schemas/user.schema";
 interface IUser extends Document, UserSchema {}
 
+export interface IOwner {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
 const userSchema = new Schema<IUser>(
   {
     name: {

@@ -1628,6 +1628,100 @@ export const getListingCounts = async ({ days }: { days?: string }) => {
   return output;
 };
 
+// HolidaySera overview & stats (moved from api routes)
+import { Properties } from "@/models/property";
+
+export const getHolidayseraOverview = async () => {
+  await connectDb();
+  const holidayProperties = await Properties.countDocuments({
+    $or: [{ origin: { $regex: /holidaysera/i } }, { hostedFrom: { $regex: /holidaysera/i } }],
+  });
+  const totalProperties = await Properties.countDocuments({});
+
+  const holidayGuests = await Users.countDocuments({ origin: { $regex: /holidaysera/i } });
+  const totalGuests = await Users.countDocuments({});
+
+  return { success: true, holidayProperties, totalProperties, holidayGuests, totalGuests };
+};
+
+export const getHolidayPropertiesStats = async ({ days = 30 }: { days?: number } = {}) => {
+  await connectDb();
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
+
+  const pipeline: PipelineStage[] = [
+    {
+      $match: {
+        createdAt: { $gte: start },
+        $or: [{ origin: { $regex: /holidaysera/i } }, { hostedFrom: { $regex: /holidaysera/i } }],
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ];
+
+  const results = await Properties.aggregate(pipeline);
+  const map: Record<string, number> = {};
+  results.forEach((r: any) => {
+    map[r._id] = r.count;
+  });
+
+  const data: { date: string; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    data.push({ date: key, count: map[key] || 0 });
+  }
+  return { success: true, data };
+};
+
+export const getHolidayGuestsStats = async ({ days = 30 }: { days?: number } = {}) => {
+  await connectDb();
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
+
+  const pipeline: PipelineStage[] = [
+    {
+      $match: {
+        createdAt: { $gte: start },
+        origin: { $regex: /holidaysera/i },
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ];
+
+  const results = await Users.aggregate(pipeline);
+  const map: Record<string, number> = {};
+  results.forEach((r: any) => {
+    map[r._id] = r.count;
+  });
+
+  const data: { date: string; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    data.push({ date: key, count: map[key] || 0 });
+  }
+  return { success: true, data };
+};
+
 export const getLocationWeeklyTargets = async ({
   viewMode = "weekly",
   month = new Date().getMonth(),

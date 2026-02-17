@@ -88,6 +88,7 @@ export async function PUT(
     if (applicablePlans !== undefined)
       updateData.applicablePlans = applicablePlans;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (body.origin !== undefined) updateData.origin = body.origin;
 
     const updatedCoupon = await Coupon.findByIdAndUpdate(id, updateData, {
       new: true,

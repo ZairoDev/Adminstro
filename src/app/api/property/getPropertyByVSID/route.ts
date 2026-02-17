@@ -1,5 +1,5 @@
-import { Properties } from "@/models/property";
-import Users from "@/models/user";
+import { Properties, IProperty } from "@/models/property";
+import Users, { IOwner } from "@/models/user";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -30,18 +30,26 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
-    let owner = await Users.findById(
-      new mongoose.Types.ObjectId(property.userId)
-    );
-    if (!owner) {
-      owner = await Users.findOne({ email: property.email });
+    // populate owner from Users collection (source of truth)
+    let ownerDoc = null;
+    try {
+      ownerDoc = await Users.findById(new mongoose.Types.ObjectId((property as any).userId)).select("name email phone");
+    } catch (e) {
+      ownerDoc = null;
+    }
+    if (!ownerDoc) {
+      // fallback: try to find by email stored on property (not preferred)
+      ownerDoc = await Users.findOne({ email: (property as any).email }).select("name email phone");
     }
 
-    const propertyObj = {
-      ...property.toObject(),
-      ownerName: owner.name,
-    };
+    const owner: IOwner = ownerDoc
+      ? { _id: ownerDoc._id.toString(), name: ownerDoc.name, email: ownerDoc.email, phone: ownerDoc.phone }
+      : { _id: "", name: "", email: "", phone: "" };
 
+    const propertyObj: IProperty & { owner?: IOwner | null } = {
+      ...(property as any)._doc ? (property as any)._doc : (property as any),
+      owner,
+    };
 
     return NextResponse.json({ data: propertyObj }, { status: 200 });
   } catch (err: any) {

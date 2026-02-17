@@ -55,6 +55,8 @@ export default function EmployeeTable({
 
   const [queryType, setQueryType] = useState("name");
   const [loadingIndex, setLoadingIndex] = useState("-1");
+  const [revealedContactId, setRevealedContactId] = useState<string | null>(null);
+  const [revealedEmailId, setRevealedEmailId] = useState<string | null>(null);
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
@@ -111,6 +113,25 @@ export default function EmployeeTable({
     setEmployeeList(employees);
     setFilteredEmployee(employees);
   }, [employees]);
+
+  const maskPhone = (phone?: string | number) => {
+    if (phone === undefined || phone === null) return "";
+    const phoneStr = String(phone);
+    const cleaned = phoneStr.replace(/\s+/g, "");
+    if (cleaned.length <= 4) return "****";
+    const last = cleaned.slice(-4);
+    return `****${last}`;
+  };
+
+  const maskEmail = (email?: string) => {
+    if (!email) return "";
+    const parts = email.split("@");
+    if (parts.length !== 2) return "****";
+    const name = parts[0];
+    const domain = parts[1];
+    if (name.length <= 2) return `${name[0]}****@${domain}`;
+    return `${name[0]}****${name.slice(-1)}@${domain}`;
+  };
 
   return (
     <div className=" w-full mt-2">
@@ -242,7 +263,19 @@ export default function EmployeeTable({
                       <span>Restricted</span>
                     </div>
                   ) : (
-                    employee.phone
+                    <span
+                      className="cursor-pointer text-sm text-gray-700 dark:text-gray-200"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRevealedContactId((prev) =>
+                          prev === employee._id ? null : employee._id
+                        );
+                      }}
+                    >
+                      {revealedContactId === employee._id
+                        ? employee.phone
+                        : maskPhone(employee.phone)}
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -252,7 +285,19 @@ export default function EmployeeTable({
                       <span>Restricted</span>
                     </div>
                   ) : (
-                    employee.email
+                    <span
+                      className="cursor-pointer text-sm text-gray-700 dark:text-gray-200"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRevealedEmailId((prev) =>
+                          prev === employee._id ? null : employee._id
+                        );
+                      }}
+                    >
+                      {revealedEmailId === employee._id
+                        ? employee.email
+                        : maskEmail(employee.email)}
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>

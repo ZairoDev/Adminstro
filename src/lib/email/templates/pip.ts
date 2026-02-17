@@ -17,6 +17,17 @@ export const getPIPEmailTemplate = (
     companyName = "Zairo International",
   } = payload;
 
+  // Calculate PIP duration dynamically from startDate and endDate
+  const calculatePIPDuration = (start: string, end: string): number => {
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+    const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+    return daysDiff;
+  };
+
+  const pipDurationDays = calculatePIPDuration(startDate, endDate);
+
   const templates: Record<PIPLevel, EmailTemplate> = {
 
     forTrainees: {
@@ -120,7 +131,7 @@ export const getPIPEmailTemplate = (
             <p style="font-size:15px;">
               Based on our recent performance discussions, we have identified certain areas where
               improvement is required. To support you in achieving expected performance standards,
-              you are being placed under a <strong>10-Day Performance Improvement Plan (PIP)</strong> starting
+              you are being placed under a <strong>${pipDurationDays}-Day Performance Improvement Plan (PIP)</strong> starting
               from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
             </p>
     
@@ -175,7 +186,7 @@ export const getPIPEmailTemplate = (
               Despite previous discussions, feedback, and guidance, we have observed that your
               performance continues to fall below expectations and there are repeated concerns
               regarding your overall conduct and delivery. Therefore, the management is placing you
-              under a <strong>10-Day Performance Improvement Plan (PIP)</strong>, effective from 
+              under a <strong>${pipDurationDays}-Day Performance Improvement Plan (PIP)</strong>, effective from 
               <strong>${startDate}</strong> to <strong>${endDate}</strong>, to closely monitor your progress and ensure 
               immediate and measurable improvement.
             </p>
@@ -245,7 +256,7 @@ export const getPIPEmailTemplate = (
             </p>
     
             <p style="font-size:15px;">
-              Effective <strong>${startDate}</strong>, you are placed under a <strong>Final 10-Day Performance
+              Effective <strong>${startDate}</strong>, you are placed under a <strong>Final ${pipDurationDays}-Day Performance
               Improvement Plan (PIP)</strong>. This will be your last opportunity to demonstrate the
               required improvements in performance and behaviour.
             </p>

@@ -32,6 +32,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
 import { ToggleButton } from "@/components/toggle_button";
+import { useToast } from "@/hooks/use-toast";
+
+/** Employee row may include pips from API */
+type EmployeeRow = UserInterface & {
+  pips?: { status: string; endDate: string; pipLevel?: string }[];
+};
 
 /**
  * Utility function to check if HR user is viewing SuperAdmin account
@@ -43,15 +49,26 @@ const isHRViewingSuperAdmin = (viewerRole: string, employeeRole: string): boolea
   return viewerRole === "HR" && employeeRole === "SuperAdmin";
 };
 
+/** True when employee has an active PIP whose end date has passed (duration over, not cleared) */
+function hasOverdueActivePIP(employee: EmployeeRow): boolean {
+  const pips = employee.pips || [];
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  return pips.some(
+    (p) => p.status === "active" && new Date(p.endDate) < startOfToday
+  );
+}
+
 export default function EmployeeTable({
   employees,
   role,
 }: {
-  employees: UserInterface[];
+  employees: EmployeeRow[];
   role: string;
 }) {
-  const [employeeList, setEmployeeList] = useState<UserInterface[]>();
-  const [filteredEmployee, setFilteredEmployee] = useState<UserInterface[]>([]);
+  const { toast } = useToast();
+  const [employeeList, setEmployeeList] = useState<EmployeeRow[]>();
+  const [filteredEmployee, setFilteredEmployee] = useState<EmployeeRow[]>([]);
 
   const [queryType, setQueryType] = useState("name");
   const [loadingIndex, setLoadingIndex] = useState("-1");
@@ -302,24 +319,41 @@ export default function EmployeeTable({
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
                 <TableCell>
-                  <ToggleButton
-                    value={employee.isLocked}
+                  {hasOverdueActivePIP(employee) && employee.isLocked ? (
+                    <div
+                      className="flex items-center gap-2 text-amber-600 cursor-help"
+                      title="Clear the PIP or raise second/third PIP to unlock. For Level 3: Clear PIP or Terminate employee."
+                      onClick={() => {
+                        const isLevel3 = (employee.pips || []).some((p) => p.pipLevel === "level3" && p.status === "active" && new Date(p.endDate) < new Date());
+                        toast({
+                          variant: "destructive",
+                          title: "Profile locked – PIP overdue",
+                          description: isLevel3
+                            ? "Clear the PIP or terminate the employee from the Actions page to unlock."
+                            : "Clear the PIP or raise second/third PIP from the Actions page to unlock.",
+                        });
+                      }}
+                    >
+                      <Lock size={16} />
+                      <span className="text-xs font-medium">PIP Overdue</span>
+                    </div>
+                  ) : (
+                    <ToggleButton
+                      value={employee.isLocked}
                       onChange={async (value) => {
                         // Optimistically update UI
                         setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
                         setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
-                        
-                        // Send update to server
                         try {
                           await updateEmployee(employee._id, { isLocked: value });
                         } catch (error) {
-                          // Revert on error
                           setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));
                           setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));
                           console.error("Failed to update isLocked status", error);
                         }
                       }}
-                  />
+                    />
+                  )}
                 </TableCell>
                 <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
                   {isRestricted ? (

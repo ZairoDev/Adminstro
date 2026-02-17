@@ -241,6 +241,11 @@ const CandidateSchema = new Schema(
           verifiedBy: { type: String, default: null },
           verifiedAt: { type: Date, default: null },
         },
+        sign: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
       },
       eSign: {
         signatureImage: { type: String, default: null },

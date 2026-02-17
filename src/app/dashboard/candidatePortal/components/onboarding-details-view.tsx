@@ -127,7 +127,7 @@ interface OnboardingDetailsViewProps {
   selectionDetails?: SelectionDetails;
   candidateId: string;
   canVerify: boolean;
-  onUpdate?: () => void;
+  onUpdate?: () => void | Promise<void>;
 }
 
 const DOCUMENT_LABELS: Record<string, string> = {
@@ -135,6 +135,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   aadharCardFront: "Aadhar Card - Front",
   aadharCardBack: "Aadhar Card - Back",
   panCard: "PAN Card",
+  sign: "Digital Signature",
   highSchoolMarksheet: "High School Marksheet",
   interMarksheet: "Intermediate Marksheet",
   graduationMarksheet: "Graduation Marksheet",
@@ -279,7 +280,7 @@ export function OnboardingDetailsView({
 
       const result = await response.json();
       if (result.success) {
-        if (onUpdate) onUpdate();
+        if (onUpdate) await onUpdate();
       } else {
         throw new Error(result.error || "Failed to update verification");
       }
@@ -337,72 +338,68 @@ export function OnboardingDetailsView({
     });
   };
 
+  // Digital signature only (the eSign image the candidate uploaded) - not the signed PDF
+  const hasDigitalSignature = () => !!onboardingDetails.eSign?.signatureImage;
+
   const allDocumentsVerified = () => {
-    if (!onboardingDetails.documents || !onboardingDetails.documentVerification) {
+    if (!onboardingDetails.documentVerification) {
       return false;
     }
-    
-    const docs = onboardingDetails.documents;
-    const hasOldAadhar = !!docs.aadharCard;
-    const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
-    
-    // Get only uploaded documents, handling Aadhar backward compatibility
-    const documentTypes = Object.keys(docs).filter((key) => {
-      const value = docs[key as keyof typeof docs];
-      // Only count uploaded documents
-      if (!value || (Array.isArray(value) && value.length === 0)) {
-        return false;
-      }
-      
-      // Handle Aadhar backward compatibility
-      if (hasOldAadhar && (key === "aadharCardFront" || key === "aadharCardBack")) {
-        return false;
-      }
-      if (hasNewAadhar && key === "aadharCard") {
-        return false;
-      }
-      
-      return true;
-    });
-    
-    return documentTypes.every(
-      (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
-    );
+    // All uploaded file documents must be verified
+    if (onboardingDetails.documents) {
+      const docs = onboardingDetails.documents;
+      const hasOldAadhar = !!docs.aadharCard;
+      const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
+
+      const documentTypes = Object.keys(docs).filter((key) => {
+        const value = docs[key as keyof typeof docs];
+        if (!value || (Array.isArray(value) && value.length === 0)) return false;
+        if (hasOldAadhar && (key === "aadharCardFront" || key === "aadharCardBack")) return false;
+        if (hasNewAadhar && key === "aadharCard") return false;
+        return true;
+      });
+
+      const allFileDocsVerified = documentTypes.every(
+        (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
+      );
+      if (!allFileDocsVerified) return false;
+    }
+    // Digital signature must be verified when candidate has uploaded one
+    if (hasDigitalSignature()) {
+      if (onboardingDetails.documentVerification?.sign?.verified !== true) return false;
+    }
+    return true;
   };
 
   const getVerifiedCount = () => {
-    if (!onboardingDetails.documents || !onboardingDetails.documentVerification) {
-      return { verified: 0, total: 0 };
+    let verified = 0;
+    let total = 0;
+
+    if (onboardingDetails.documents && onboardingDetails.documentVerification) {
+      const docs = onboardingDetails.documents;
+      const hasOldAadhar = !!docs.aadharCard;
+      const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
+
+      const documentTypes = Object.keys(docs).filter((key) => {
+        const value = docs[key as keyof typeof docs];
+        if (!value || (Array.isArray(value) && value.length === 0)) return false;
+        if (hasOldAadhar && (key === "aadharCardFront" || key === "aadharCardBack")) return false;
+        if (hasNewAadhar && key === "aadharCard") return false;
+        return true;
+      });
+
+      total = documentTypes.length;
+      verified = documentTypes.filter(
+        (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
+      ).length;
     }
-    
-    const docs = onboardingDetails.documents;
-    const hasOldAadhar = !!docs.aadharCard;
-    const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
-    
-    // Get only uploaded documents, handling Aadhar backward compatibility
-    const documentTypes = Object.keys(docs).filter((key) => {
-      const value = docs[key as keyof typeof docs];
-      // Only count uploaded documents
-      if (!value || (Array.isArray(value) && value.length === 0)) {
-        return false;
-      }
-      
-      // Handle Aadhar backward compatibility
-      if (hasOldAadhar && (key === "aadharCardFront" || key === "aadharCardBack")) {
-        return false;
-      }
-      if (hasNewAadhar && key === "aadharCard") {
-        return false;
-      }
-      
-      return true;
-    });
-    
-    const total = documentTypes.length;
-    const verified = documentTypes.filter(
-      (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
-    ).length;
-    
+
+    // Include digital signature in count when candidate has uploaded one
+    if (hasDigitalSignature()) {
+      total += 1;
+      if (onboardingDetails.documentVerification?.sign?.verified === true) verified += 1;
+    }
+
     return { verified, total };
   };
 
@@ -760,10 +757,10 @@ export function OnboardingDetailsView({
             </Badge>
           </div>
 
-          {onboardingDetails.documents && (() => {
+          {((onboardingDetails.documents && Object.keys(onboardingDetails.documents).length > 0) || hasDigitalSignature()) && (() => {
             // Filter documents: only show uploaded ones
             // Handle backward compatibility: if aadharCard exists, don't show front/back, and vice versa
-            const docs = onboardingDetails.documents;
+            const docs = onboardingDetails.documents || {};
             const hasOldAadhar = !!docs.aadharCard;
             const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
             
@@ -806,6 +803,20 @@ export function OnboardingDetailsView({
                     />
                   );
                 })}
+                {/* Digital signature (eSign image) must be verified before HR verification can complete */}
+                {hasDigitalSignature() && (
+                  <DocumentVerification
+                    key="sign"
+                    documentType="sign"
+                    documentUrl={onboardingDetails.eSign?.signatureImage || null}
+                    verified={onboardingDetails.documentVerification?.sign?.verified || false}
+                    verifiedBy={onboardingDetails.documentVerification?.sign?.verifiedBy || null}
+                    verifiedAt={onboardingDetails.documentVerification?.sign?.verifiedAt || null}
+                    canVerify={canVerify}
+                    onVerifyChange={handleDocumentVerify}
+                    label={DOCUMENT_LABELS.sign || "Digital Signature"}
+                  />
+                )}
               </div>
             );
           })()}

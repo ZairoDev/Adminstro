@@ -4,7 +4,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
 
-// Document types that can be verified
+// Document types that can be verified (includes "sign" for signed onboarding document)
 const DOCUMENT_TYPES = [
   "aadharCard", // Backward compatibility
   "aadharCardFront",
@@ -16,6 +16,7 @@ const DOCUMENT_TYPES = [
   "experienceLetter",
   "relievingLetter",
   "salarySlips",
+  "sign", // Digital signature (eSign image) - must be verified before HR verification completes
 ] as const;
 
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -87,10 +88,15 @@ export async function PATCH(
     }
 
     // Check if document exists
+    // Special case: "sign" = digital signature only (eSign image the candidate uploaded), not the signed PDF
+    let documentValue: unknown;
+    if (validDocumentType === "sign") {
+      documentValue = candidate.onboardingDetails?.eSign?.signatureImage;
+    } else {
+      documentValue = candidate.onboardingDetails?.documents?.[validDocumentType];
+    }
+
     // Handle backward compatibility: if checking aadharCardFront/Back but only old aadharCard exists
-    let documentValue = candidate.onboardingDetails?.documents?.[validDocumentType];
-    
-    // Backward compatibility: if requesting aadharCardFront/Back but only old aadharCard exists
     if ((validDocumentType === "aadharCardFront" || validDocumentType === "aadharCardBack") && !documentValue) {
       const oldAadharCard = candidate.onboardingDetails?.documents?.aadharCard;
       if (oldAadharCard) {

@@ -1045,6 +1045,12 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     }
   };
 
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const activeOverduePIP = pips?.find(
+    (p) => p.status === "active" && new Date(p.endDate) < startOfToday
+  );
+
   return (
     <>
       {loadinguserDetails ? (
@@ -1065,6 +1071,22 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               </Button>
             </Link>
           </div>
+
+          {activeOverduePIP && (
+            <div className="mb-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-200">
+              <p className="font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                PIP duration has ended – profile is locked
+              </p>
+              <p className="text-sm mt-1">
+                Clear this PIP or raise the next level PIP to unlock the employee profile.
+                {activeOverduePIP.pipLevel === "level3" && (
+                  <> For Level 3: Clear PIP or Terminate employee.</>
+                )}
+              </p>
+            </div>
+          )}
+
           <Card className=" bg-background ">
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-14 w-14">
@@ -1799,6 +1821,16 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                 {pip.startDate} to {pip.endDate}
                               </span>
                               <span className="flex items-center gap-1">
+                                <Target className="h-3 w-3" />
+                                {(() => {
+                                  const startDateObj = new Date(pip.startDate);
+                                  const endDateObj = new Date(pip.endDate);
+                                  const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+                                  const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+                                  return `${daysDiff} day${daysDiff !== 1 ? 's' : ''}`;
+                                })()}
+                              </span>
+                              <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 Issued: {pip.issuedAt
                                   ? format(new Date(pip.issuedAt), "MMM dd, yyyy")
@@ -1829,7 +1861,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
                             {/* Status Update Buttons */}
                             {pip.status === "active" && (
-                              <div className="flex gap-2 mt-3">
+                              <div className="flex flex-wrap gap-2 mt-3">
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1837,7 +1869,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                   onClick={() => handleUpdatePIPStatus(pip._id || "", "completed")}
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Mark Completed
+                                  Clear PIP (Completed)
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1846,8 +1878,25 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                   onClick={() => handleUpdatePIPStatus(pip._id || "", "failed")}
                                 >
                                   <XCircle className="h-3 w-3 mr-1" />
-                                  Mark Failed
+                                  Clear PIP (Failed)
                                 </Button>
+                                {pip.pipLevel === "level3" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs bg-red-700/10 text-red-700 border-red-700/30 hover:bg-red-700/20"
+                                    onClick={() => {
+                                      setSeparationType("terminated");
+                                      setSeparationReason("PIP Level 3 not cleared");
+                                      setSeparationDate(new Date().toISOString().split("T")[0]);
+                                      setSendSeparationEmail(true);
+                                      setSeparationDialogOpen(true);
+                                    }}
+                                  >
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    Terminate employee
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </div>

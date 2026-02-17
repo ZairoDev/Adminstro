@@ -163,9 +163,15 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const updateFields: Record<string, unknown> = { "pips.$.status": status };
+    // When PIP is cleared (completed or failed), unlock the employee so profile is no longer locked
+    if (status === "completed" || status === "failed") {
+      updateFields.isLocked = false;
+    }
+
     const employee = await Employees.findOneAndUpdate(
       { _id: employeeId, "pips._id": pipId },
-      { $set: { "pips.$.status": status } },
+      { $set: updateFields },
       { new: true }
     ).lean() as EmployeeInterface | null;
 

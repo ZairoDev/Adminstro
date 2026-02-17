@@ -3,19 +3,19 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
+import { EmployeeInterface } from "@/util/type";
 
 export const dynamic = "force-dynamic";
 
 connectDb();
 
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-}
-
 interface UserQuery {
   [key: string]: RegExp;
+}
+
+// Extended interface to include isLocked which exists in the database but not in EmployeeInterface
+interface EmployeeWithLock extends EmployeeInterface {
+  isLocked?: boolean;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let allEmployees: Employee[] = [];
+  let allEmployees: EmployeeWithLock[] = [];
   try {
     const queryWithExclusion = excludeTestAccountFromQuery(query);
 
@@ -85,21 +85,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // LeadGen-TeamLead can only see LeadGen employees
     if (userRole === "LeadGen-TeamLead") {
-      allEmployees = await Employees.find({ ...queryWithExclusion, role: "LeadGen" })
+      allEmployees = (await Employees.find({ ...queryWithExclusion, role: "LeadGen" })
         .sort({ _id: -1 })
-        .lean();
+        .lean() as unknown) as EmployeeWithLock[];
     }
     // HR and Admin roles can see all employees (with optional role filter from query params)
     else if (["HR", "Admin", "SuperAdmin", "Developer"].includes(userRole as string)) {
-      allEmployees = await Employees.find(queryWithExclusion)
+      allEmployees = (await Employees.find(queryWithExclusion)
         .sort({ _id: -1 })
-        .lean();
+        .lean() as unknown) as EmployeeWithLock[];
     }
     // Sales-TeamLead can see Sales employees
     else if (userRole === "Sales-TeamLead") {
-      allEmployees = await Employees.find({ ...queryWithExclusion, role: "Sales" })
+      allEmployees = (await Employees.find({ ...queryWithExclusion, role: "Sales" })
         .sort({ _id: -1 })
-        .lean();
+        .lean() as unknown) as EmployeeWithLock[];
     }
     else {
       // Default: no access
@@ -108,13 +108,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Auto-lock employee when they have an active PIP past end date (PIP duration over, not cleared)
     for (const emp of allEmployees) {
-      const pips = (emp as { pips?: { status: string; endDate: string }[] }).pips || [];
+      const employee = emp as EmployeeWithLock;
+      const pips = employee.pips || [];
       const hasOverdueActivePIP = pips.some(
         (p) => p.status === "active" && new Date(p.endDate) < startOfToday
       );
-      if (hasOverdueActivePIP && !(emp as { isLocked?: boolean }).isLocked) {
-        await Employees.findByIdAndUpdate(emp._id, { isLocked: true });
-        (emp as { isLocked?: boolean }).isLocked = true;
+      if (hasOverdueActivePIP && !employee.isLocked) {
+        await Employees.findByIdAndUpdate(employee._id, { isLocked: true });
+        employee.isLocked = true;
       }
     }
 

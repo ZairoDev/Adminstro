@@ -243,7 +243,7 @@ const VisitModal = ({
     try {
       setFetchingAgents(true);
       const allAgents = await axios.get("/api/addons/agents/getAllAgents");
-      setAgents(allAgents.data.data);
+      setAgents(allAgents.data?.data || []);
     } catch (err) {
       console.error("unable to fetch agents");
     } finally {

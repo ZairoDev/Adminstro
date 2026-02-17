@@ -17,6 +17,6 @@ export async function GET() {
 
     return response;
   } catch (err) {
-    return NextResponse.json({ status: 401, error: "Unable to fetch agents" });
+    return NextResponse.json({ data: [], error: "Unable to fetch agents" }, { status: 500 });
   }
 }

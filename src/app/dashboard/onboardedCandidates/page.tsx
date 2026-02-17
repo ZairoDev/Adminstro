@@ -14,7 +14,13 @@ import {
   Clock,
   Upload,
   CheckCircle,
+  UserPlus,
+  Ban,
 } from "lucide-react";
+import axios from "axios";
+import { CreateEmployeeDialog } from "../candidatePortal/components/createEmployee";
+import type { CandidateLite } from "../candidatePortal/components/new-user";
+import { RejectCandidateDialog, RejectionData } from "../candidatePortal/components/reject-candidate-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -96,6 +102,11 @@ export default function OnboardedCandidatesPage() {
   const [experienceFilter, setExperienceFilter] = useState<string>("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
   const [activeTab, setActiveTab] = useState<"pending" | "uploaded-not-verified" | "verified">("pending");
+  const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] = useState(false);
+  const [createEmployeeCandidate, setCreateEmployeeCandidate] = useState<CandidateLite | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectCandidateId, setRejectCandidateId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -193,6 +204,102 @@ export default function OnboardedCandidatesPage() {
   const handleAddNote = (candidate: Candidate) => {
     setNotesCandidate(candidate);
     setNotesDialogOpen(true);
+  };
+
+  const handleCreateEmployeeClick = async (candidate: Candidate) => {
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}`);
+      const result = await response.json();
+      if (!result.success || !result.data) {
+        toast.error("Failed to load candidate details");
+        return;
+      }
+      const c = result.data;
+      const candidateLite: CandidateLite = {
+        _id: c._id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        experience: c.experience,
+        address: c.address,
+        city: c.city,
+        country: c.country,
+        position: c.position,
+        resumeUrl: c.resumeUrl,
+        photoUrl: c.photoUrl,
+        college: c.college,
+        linkedin: c.linkedin,
+        portfolio: c.portfolio,
+        onboardingDetails: c.onboardingDetails
+          ? {
+              personalDetails: c.onboardingDetails.personalDetails
+                ? {
+                    dateOfBirth: c.onboardingDetails.personalDetails.dateOfBirth,
+                    gender: c.onboardingDetails.personalDetails.gender,
+                    nationality: c.onboardingDetails.personalDetails.nationality,
+                    fatherName: c.onboardingDetails.personalDetails.fatherName,
+                    aadhaarNumber: c.onboardingDetails.personalDetails.aadhaarNumber,
+                    panNumber: c.onboardingDetails.personalDetails.panNumber,
+                  }
+                : undefined,
+              bankDetails: c.onboardingDetails.bankDetails
+                ? {
+                    accountNumber: c.onboardingDetails.bankDetails.accountNumber,
+                    ifscCode: c.onboardingDetails.bankDetails.ifscCode,
+                    bankName: c.onboardingDetails.bankDetails.bankName,
+                    accountHolderName: c.onboardingDetails.bankDetails.accountHolderName,
+                  }
+                : undefined,
+              documents: c.onboardingDetails.documents
+                ? { aadharCard: c.onboardingDetails.documents.aadharCard }
+                : undefined,
+            }
+          : undefined,
+        selectionDetails: c.selectionDetails
+          ? {
+              salary: c.selectionDetails.salary,
+              role: c.selectionDetails.role,
+            }
+          : undefined,
+      };
+      setCreateEmployeeCandidate(candidateLite);
+      setCreateEmployeeDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching candidate for create employee:", error);
+      toast.error("Failed to load candidate details");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectClick = (candidate: Candidate) => {
+    setRejectCandidateId(candidate._id);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectSubmit = async (data: RejectionData) => {
+    if (!rejectCandidateId) return;
+    setActionLoading(true);
+    try {
+      const response = await axios.post(`/api/candidates/${rejectCandidateId}/action`, {
+        status: "rejected",
+        rejectionDetails: { reason: data.reason },
+      });
+      const result = response.data;
+      if (result.success) {
+        toast.success("Candidate rejected");
+        setRejectDialogOpen(false);
+        setRejectCandidateId(null);
+        fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
+      } else {
+        toast.error(result.error || "Failed to reject candidate");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to reject candidate");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const CandidateTable = () => (
@@ -309,7 +416,7 @@ export default function OnboardedCandidatesPage() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
+                        <span className="sr-only">Open menu</span>  
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -330,6 +437,26 @@ export default function OnboardedCandidatesPage() {
                         <FileText className="mr-2 h-4 w-4" />
                         Add Note
                       </DropdownMenuItem>
+                      {activeTab === "verified" && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => handleCreateEmployeeClick(candidate)}
+                            disabled={actionLoading}
+                            className="flex items-center cursor-pointer"
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Create Employee
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleRejectClick(candidate)}
+                            disabled={actionLoading}
+                            className="flex items-center cursor-pointer text-destructive focus:text-destructive"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Reject
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>
@@ -521,6 +648,35 @@ export default function OnboardedCandidatesPage() {
           candidateName={notesCandidate.name}
         />
       )}
+
+      {/* Create Employee Dialog - same as candidate portal detail page */}
+      <CreateEmployeeDialog
+        open={createEmployeeDialogOpen}
+        onClose={() => {
+          setCreateEmployeeDialogOpen(false);
+          setCreateEmployeeCandidate(null);
+        }}
+        candidate={createEmployeeCandidate}
+        onCreated={() => {
+          setCreateEmployeeDialogOpen(false);
+          setCreateEmployeeCandidate(null);
+          toast.success("Employee created successfully");
+          fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
+        }}
+      />
+
+      {/* Reject Candidate Dialog */}
+      <RejectCandidateDialog
+        open={rejectDialogOpen}
+        onClose={() => {
+          setRejectDialogOpen(false);
+          setRejectCandidateId(null);
+        }}
+        onSubmit={handleRejectSubmit}
+        loading={actionLoading}
+        title="Reject Candidate"
+        submitButtonText="Reject"
+      />
     </div>
   );
 }

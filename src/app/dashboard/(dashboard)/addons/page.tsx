@@ -278,7 +278,7 @@ const Addons = () => {
       <DeleteRoleDialog />
       <h1 className=" text-2xl font-semibold">Add Ons</h1>
 
-      {/*Add Agents and Brokers*/}
+      {/* Add Agents and Brokers — SuperAdmin only */}
       <div className=" flex items-center gap-3">
         {mounted && token?.role === "SuperAdmin" && (
           <>
@@ -363,7 +363,11 @@ const Addons = () => {
                 getAllBrokers={getAllBrokers}
               />
             </section>
+          </>
+        )}
 
+        {/* Roles section — visible to HR and SuperAdmin only */}
+        {mounted && (token?.role === "SuperAdmin" || token?.role === "HR") && (
             <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
               {isRoleLoading ? (
                 <InfinityLoader className=" w-16 h-12" />
@@ -435,7 +439,6 @@ const Addons = () => {
                 setEditRole={setEditRole}
               />
             </section>
-          </>
         )}
 
 

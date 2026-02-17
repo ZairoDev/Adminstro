@@ -51,8 +51,12 @@ export async function GET(req: NextRequest) {
 
     if (hasPhoneSearch || hasTextSearch) {
       const searchConditions: any[] = [];
-      if (hasPhoneSearch) {
-        searchConditions.push({ participantPhone: { $regex: phoneDigits, $options: "i" } });
+    if (hasPhoneSearch) {
+        // Build a permissive regex that allows non-digit separators between digits
+        // so searches like "952563214" match stored values like "+48 952563214" or "48-9525-63214".
+        const escaped = phoneDigits.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+        const permissivePattern = escaped.split("").join("\\D*");
+        searchConditions.push({ participantPhone: { $regex: permissivePattern, $options: "i" } });
       }
       if (hasTextSearch) {
         searchConditions.push(

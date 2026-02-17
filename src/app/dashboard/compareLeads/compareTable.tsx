@@ -41,7 +41,9 @@ export default function CompareTable({
   const [selectedEmployeeEmail, setSelectedEmployeeEmail] = useState<string | null>(null);
   const [isFilteringByEmployee, setIsFilteringByEmployee] = useState(false);
 
-  const token = useAuthStore();
+  const { token: authToken } = useAuthStore();
+  const userRole = authToken?.role;
+  const canUseEmployeeFilter = !!userRole && ["HR", "SuperAdmin", "Sales", "LeadGen", "LeadGen-TeamLead", "Sales-TeamLead"].includes(userRole);
 
   useEffect(() => {
     if (searchParams?.get("page")) {
@@ -718,6 +720,11 @@ export default function CompareTable({
             <div
               key={creator}
               onClick={() => {
+                if (!canUseEmployeeFilter) {
+                  // Not allowed to filter by employee
+                  alert("You do not have permission to filter by employee.");
+                  return;
+                }
                 if (creatorEmail) {
                   const newEmail = selectedEmployeeEmail === creatorEmail ? null : creatorEmail;
                   setSelectedEmployeeEmail(newEmail);

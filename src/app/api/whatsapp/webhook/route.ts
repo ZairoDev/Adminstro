@@ -371,8 +371,8 @@ async function sendGuestQuestionsTemplate(
       lastOutgoingMessageTime: timestamp,
     });
 
-    // Emit socket event for real-time frontend updates
-    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+    // Emit socket event for real-time frontend updates (global)
+    const emitPayload = {
       conversationId: conversation._id.toString(),
       businessPhoneId: phoneNumberId,
       message: {
@@ -387,7 +387,9 @@ async function sendGuestQuestionsTemplate(
         timestamp,
         senderName: "System (Auto)",
       },
-    });
+    };
+    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, emitPayload);
+    // Note: phone-specific room emission is handled centrally in lib/pusher.emitWhatsAppEvent
 
     console.log(`✅ guest_questions message saved to DB and emitted to frontend`);
   } catch (error) {

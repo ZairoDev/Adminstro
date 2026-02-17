@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
     const userAreas = user.allotedArea;
     
     // Verify WhatsApp access
-    const hasAccess = ["SuperAdmin", "Sales-TeamLead", "Sales"].includes(userRole as string);
+    // Allow SuperAdmin / Sales roles, and allow Advert only for phone-query searches.
+    const baseAccessRoles = ["SuperAdmin", "Sales-TeamLead", "Sales"];
+    const hasAccess =
+      baseAccessRoles.includes(userRole as string) ||
+      (userRole === "Advert" && isPhoneQuery(query || ""));
+
     if (!hasAccess) {
       return NextResponse.json(
         { success: false, error: "No WhatsApp access" },

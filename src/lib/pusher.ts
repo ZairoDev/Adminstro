@@ -53,6 +53,29 @@ export const emitWhatsAppEvent = (event: string, data: any) => {
         // console.log(`🔁 Emitting event ${event} to all with payload:`, data);
         io.emit(event, data);
         console.log(`Socket event emitted: ${event}`);
+        // If payload includes a businessPhoneId, also emit to the phone-specific room
+        try {
+          const businessPhoneId = data?.businessPhoneId || (data?.message?.businessPhoneId) || (data?.message?.from);
+          const retargetStage = data?.retargetStage || (data?.message && data.message.retargetStage) || null;
+          const isRetarget = !!(data?.isRetarget || (data?.message && data.message.isRetarget));
+          // Only emit to phone room if not a retarget pre-handover message
+          const allowPhoneRoomEmit = !(isRetarget && retargetStage && retargetStage !== "handed_to_sales");
+          if (businessPhoneId) {
+            if (allowPhoneRoomEmit) {
+              const room = `whatsapp-phone-${businessPhoneId}`;
+              io.to(room).emit(event, data);
+              console.log(`Socket event emitted to room ${room}: ${event}`);
+            } else {
+              // For pre-handover retarget messages, emit to retarget-only room
+              const retargetRoom = `whatsapp-retarget-${businessPhoneId}`;
+              io.to(retargetRoom).emit(event, data);
+              console.log(`Socket event emitted to retarget room ${retargetRoom}: ${event}`);
+            }
+          }
+        } catch (innerErr) {
+          // non-fatal
+          console.debug("Failed to emit to phone-specific room:", innerErr);
+        }
       } catch (emitErr) {
         console.error(`Error during io.emit for event ${event}:`, emitErr);
       }

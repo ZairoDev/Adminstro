@@ -39,6 +39,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import axios from "axios";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
@@ -103,6 +104,8 @@ interface SidebarProps {
   isMobile?: boolean;
   // Jump to message from search results
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
+  // Update conversation locally after meta changes (e.g. profile pic, name)
+  onUpdateConversation?: (conversationId: string, patch: Partial<Conversation>) => void;
 }
 
 /** Theme toggle button for the nav strip: toggles between light and dark mode */
@@ -150,6 +153,9 @@ function ConversationItem({
   onUnarchive,
   isArchived,
   isMobile = false,
+  onUpdateConversation,
+  onTriggerUpload,
+  onRenameFor,
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -159,7 +165,11 @@ function ConversationItem({
   onUnarchive?: (id: string) => void;
   isArchived?: boolean;
   isMobile?: boolean;
-}) {
+  onUpdateConversation?: (conversationId: string, patch: Partial<Conversation>) => void;
+  onTriggerUpload?: (conversationId: string) => void;
+  onRenameFor?: (conversationId: string, currentName?: string) => void;
+}): JSX.Element {
+  // Use parent-level upload/rename handlers to avoid input unmount issues
   const hasUnread =
     (conversation.unreadCount || 0) > 0 &&
     conversation.lastMessageDirection === "incoming";
@@ -310,6 +320,62 @@ function ConversationItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRenameFor?.(conversation._id, conversation.participantName); }}>
+                <MoreVertical className="h-4 w-4 mr-2" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTriggerUpload?.(conversation._id); }}>
+                <Images className="h-4 w-4 mr-2" />
+                Upload profile picture
+              </DropdownMenuItem>
+              {/* Convert role */}
+              {((conversation.participantRole || conversation.conversationType) !== "owner") ? (
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  if (!confirm("Convert this conversation to OWNER?")) return;
+                  (async () => {
+                    try {
+                      const resp = await axios.post(`/api/whatsapp/conversations/${conversation._id}/meta`, {
+                        participantRole: "owner",
+                      });
+                      if (resp.data?.success) {
+                        onUpdateConversation?.(conversation._id, { participantRole: "owner" });
+                      } else {
+                        throw new Error(resp.data?.error || "Failed");
+                      }
+                    } catch (err) {
+                      console.error("Convert to owner failed", err);
+                      alert("Failed to convert to owner");
+                    }
+                  })();
+                }}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Convert to owner
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  if (!confirm("Convert this conversation to GUEST?")) return;
+                  (async () => {
+                    try {
+                      const resp = await axios.post(`/api/whatsapp/conversations/${conversation._id}/meta`, {
+                        participantRole: "guest",
+                      });
+                      if (resp.data?.success) {
+                        onUpdateConversation?.(conversation._id, { participantRole: "guest" });
+                      } else {
+                        throw new Error(resp.data?.error || "Failed");
+                      }
+                    } catch (err) {
+                      console.error("Convert to guest failed", err);
+                      alert("Failed to convert to guest");
+                    }
+                  })();
+                }}>
+                  <User className="h-4 w-4 mr-2" />
+                  Convert to guest
+                </DropdownMenuItem>
+              )}
               {isArchived ? (
                 <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
@@ -373,6 +439,7 @@ export function ConversationSidebar({
   // Mobile responsiveness
   isMobile = false,
   // Jump to message
+  onUpdateConversation,
   onJumpToMessage,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
@@ -400,6 +467,64 @@ export function ConversationSidebar({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // File upload ref & target for per-conversation uploads
+  const perItemFileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadTargetIdRef = useRef<string | null>(null);
+
+  const handleProfilePicSelectedFor = async (e: any) => {
+    try {
+      const file = e.target.files?.[0];
+      const conversationId = uploadTargetIdRef.current;
+      if (!file || !conversationId) return;
+      const form = new FormData();
+      form.append("file", file);
+      const uploadResp = await axios.post("/api/whatsapp/upload-to-bunny", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const url = uploadResp?.data?.url;
+      if (!url) throw new Error("Upload failed");
+      // Optimistically update UI and set role to owner by default
+      if (typeof onUpdateConversation === "function") {
+        onUpdateConversation(conversationId, { participantProfilePic: url, participantRole: "owner" } as Partial<Conversation>);
+      }
+      // Persist to server (set participantRole to owner by default)
+      await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
+        participantProfilePic: url,
+        participantRole: "owner",
+      });
+      // clear target
+      uploadTargetIdRef.current = null;
+    } catch (err) {
+      console.error("Profile pic upload failed:", err);
+      alert("Failed to upload profile picture");
+    } finally {
+      if (perItemFileInputRef.current) perItemFileInputRef.current.value = "";
+    }
+  };
+
+  const triggerUploadFor = (conversationId: string) => {
+    uploadTargetIdRef.current = conversationId;
+    if (perItemFileInputRef.current) perItemFileInputRef.current.click();
+  };
+
+  const handleRenameFor = async (conversationId: string, currentName?: string) => {
+    try {
+      const newName = window.prompt("Enter new display name", currentName || "");
+      if (!newName) return;
+      await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
+        participantName: newName,
+      });
+      if (typeof onUpdateConversation === "function") {
+        onUpdateConversation(conversationId, { participantName: newName } as Partial<Conversation>);
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Rename failed:", err);
+      alert("Failed to rename conversation");
+    }
+  };
 
   const handleClearSearch = useCallback(() => {
     onSearchQueryChange("");
@@ -619,6 +744,14 @@ export function ConversationSidebar({
       <div className={cn(
         "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111b21]"
       )}>
+      {/* Hidden file input for per-item uploads (stays mounted) */}
+      <input
+        ref={perItemFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleProfilePicSelectedFor}
+      />
       {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
       <div className={cn(
         "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0 min-w-0",
@@ -968,6 +1101,9 @@ export function ConversationSidebar({
                 onUnarchive={showingArchived ? onUnarchiveConversation : undefined}
                 isArchived={showingArchived || conversation.isArchivedByUser}
                 isMobile={isMobile}
+                onUpdateConversation={onUpdateConversation}
+                onTriggerUpload={triggerUploadFor}
+                onRenameFor={handleRenameFor}
               />
             ))}
             

@@ -1,4 +1,4 @@
-import { getAllowedPhoneIds } from "./config";
+import { getAllowedPhoneIds, FULL_ACCESS_ROLES } from "./config";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import mongoose from "mongoose";
 
@@ -13,6 +13,11 @@ export async function canAccessConversation(user: any, conversation: any): Promi
   const userRole = user.role || "";
   const userAreas = Array.isArray(user.allotedArea) ? user.allotedArea : (user.allotedArea ? [user.allotedArea] : []);
   const userId = user._id || user.id;
+
+  // Full access roles (SuperAdmin/Admin/Developer) can access everything
+  if ((FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+    return true;
+  }
 
   // Internal phone conversations are always accessible
   if (conversation.source === "internal" || conversation.businessPhoneId === "internal-you") {
@@ -82,6 +87,11 @@ export function shouldEmitToUser(user: any, conversation: any): boolean {
   const userRole = user.role || "";
   const userAreas = Array.isArray(user.allotedArea) ? user.allotedArea : (user.allotedArea ? [user.allotedArea] : []);
   const userId = user._id || user.id;
+
+  // Full access roles should receive all events
+  if ((FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+    return true;
+  }
 
   // Internal phone conversations are always accessible
   if (conversation.source === "internal" || conversation.businessPhoneId === "internal-you") {

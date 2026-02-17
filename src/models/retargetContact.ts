@@ -10,6 +10,7 @@ export interface IRetargetContact extends Document {
   sourceFileName: string;
   batchId: string;
   isActive: boolean;
+  role?: "owner" | "guest";
   // Retarget tracking fields
   state: "pending" | "retargeted" | "blocked";
   retargetCount: number;
@@ -57,6 +58,13 @@ const retargetContactSchema = new Schema<IRetargetContact>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    // Role: optional field to mark owner/guest for contacts (not set by default)
+    role: {
+      type: String,
+      enum: ["owner", "guest"],
+      required: false,
+      index: true,
     },
     // Retargeting state & tracking
     state: {

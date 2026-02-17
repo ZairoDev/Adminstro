@@ -1222,8 +1222,8 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       });
     }
     
-    // Add a quick link for Advert role to open WhatsApp inbox showing only retargeted chats
-    if (role === "Advert") {
+    // Add a quick link for Advert (and SuperAdmin) role to open WhatsApp inbox showing only retargeted chats
+    if (role === "Advert" || role === "SuperAdmin") {
       whatsappRoutes.push({
         path: "/whatsapp?retargetOnly=1",
         label: "Retarget WhatsApp",

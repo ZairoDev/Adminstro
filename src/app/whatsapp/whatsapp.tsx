@@ -219,6 +219,11 @@ export default function WhatsAppChat() {
   const selectedPhoneIdRef = useRef<string | null>(null);
   selectedPhoneIdRef.current = selectedPhoneConfig?.phoneNumberId ?? null;
 
+  const handleUpdateConversation = useCallback((conversationId: string, patch: Partial<Conversation>) => {
+    setConversations((prev) => prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)));
+    setSelectedConversation((prev) => (prev && prev._id === conversationId ? { ...prev, ...patch } : prev));
+  }, []);
+
   const archivedConversationIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     archivedConversationIdsRef.current = new Set(archivedConversations.map((c) => c._id));
@@ -403,10 +408,11 @@ export default function WhatsAppChat() {
             notif?.close();
             if (raw.conversationId) {
               const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+              const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
               if (activePhoneId) {
-                router.push(`/whatsapp?phoneId=${activePhoneId}&conversationId=${raw.conversationId}`);
+                router.push(`/whatsapp?phoneId=${activePhoneId}&conversationId=${raw.conversationId}${suffix}`);
               } else {
-                router.push(`/whatsapp?conversationId=${raw.conversationId}`);
+                router.push(`/whatsapp?conversationId=${raw.conversationId}${suffix}`);
               }
             }
           };
@@ -495,7 +501,10 @@ export default function WhatsAppChat() {
     if (allowedPhoneConfigs.length > 0) {
       const defaultPhone = allowedPhoneConfigs.find((c: any) => !c.isInternal) || allowedPhoneConfigs[0];
       if (defaultPhone && defaultPhone.phoneNumberId) {
-        router.replace(`/whatsapp?phoneId=${defaultPhone.phoneNumberId}`);
+        // preserve retargetOnly flag if present
+        const retargetOnlyFlag = searchParams?.get("retargetOnly");
+        const suffix = retargetOnlyFlag ? `&retargetOnly=${retargetOnlyFlag}` : "";
+        router.replace(`/whatsapp?phoneId=${defaultPhone.phoneNumberId}${suffix}`);
       }
     }
     // else wait for phone configs to load
@@ -535,6 +544,43 @@ export default function WhatsAppChat() {
 
     const currentUserId = token?.id || (token as any)?._id;
     socket.emit("join-whatsapp-room", currentUserId?.toString());
+
+    // Also join phone-specific room for the currently selected phoneId so events scoped to that phone arrive.
+    const initialPhoneId = selectedPhoneIdRef.current;
+    if (initialPhoneId) {
+      socket.emit("join-whatsapp-phone", initialPhoneId);
+    }
+    // Track previous phoneId and update room membership when it changes
+    let previousPhoneId = initialPhoneId || null;
+    const phoneWatcher = setInterval(() => {
+      const current = selectedPhoneIdRef.current || null;
+      if (current === previousPhoneId) return;
+      if (previousPhoneId) {
+        socket.emit("leave-whatsapp-phone", previousPhoneId);
+      }
+      if (current) {
+        socket.emit("join-whatsapp-phone", current);
+      }
+      previousPhoneId = current;
+    }, 500);
+
+    // Retarget room membership for Advert / SuperAdmin
+    const role = token?.role || "";
+    let previousRetargetPhone: string | null = null;
+    const retargetWatcher = setInterval(() => {
+      const currentPhone = selectedPhoneIdRef.current || null;
+      // Only join retarget room if user is Advert or SuperAdmin
+      const shouldJoin = role === "Advert" || role === "SuperAdmin";
+      if (!shouldJoin) return;
+      if (currentPhone === previousRetargetPhone) return;
+      if (previousRetargetPhone) {
+        socket.emit("leave-whatsapp-retarget", previousRetargetPhone);
+      }
+      if (currentPhone) {
+        socket.emit("join-whatsapp-retarget", currentPhone);
+      }
+      previousRetargetPhone = currentPhone;
+    }, 500);
 
     // Stable handler function - prevents re-attachment on re-render
     const handleWhatsAppMessage = (data: any) => {
@@ -721,6 +767,8 @@ export default function WhatsAppChat() {
 
     return () => {
       socket.off("whatsapp-new-message", handleWhatsAppMessage);
+      clearInterval(phoneWatcher);
+      try { clearInterval(retargetWatcher); } catch {}
     };
   }, [socket, token, playNotificationSound]);
 
@@ -795,6 +843,7 @@ export default function WhatsAppChat() {
               lastMessageContent: displayText,
               lastMessageTime: message.timestamp,
               lastMessageDirection: message.direction,
+              lastMessageId: message.messageId || message.id,
             };
           }
           return conv;
@@ -1329,11 +1378,12 @@ export default function WhatsAppChat() {
         return updated;
       });
       
-      // Update URL with conversation ID for deep linking (preserve phoneId namespace)
+      // Update URL with conversation ID for deep linking (preserve phoneId namespace and retargetOnly)
       const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
       const convUrl = activePhoneId
-        ? `/whatsapp?phoneId=${activePhoneId}&conversation=${conversation._id}`
-        : `/whatsapp?conversation=${conversation._id}`;
+        ? `/whatsapp?phoneId=${activePhoneId}&conversation=${conversation._id}${suffix}`
+        : `/whatsapp?conversation=${conversation._id}${suffix}`;
       router.push(convUrl, { scroll: false });
     } else {
       // Navigate back to sidebar on mobile when clearing selection
@@ -1341,9 +1391,15 @@ export default function WhatsAppChat() {
         setMobileView("conversations");
       }
       
-      // Clear selection but preserve phoneId in URL
+      // Clear selection but preserve phoneId in URL (and retargetOnly if present)
       const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-      router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}` : "/whatsapp", { scroll: false });
+      const suffixClear = retargetOnlyRef.current ? `?retargetOnly=1` : "";
+      if (activePhoneId) {
+        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+        router.push(`/whatsapp?phoneId=${activePhoneId}${suffix}`, { scroll: false });
+      } else {
+        router.push(`/whatsapp${suffixClear}`, { scroll: false });
+      }
     }
   };
 
@@ -1404,12 +1460,18 @@ export default function WhatsAppChat() {
         
         // Select and navigate to the conversation immediately (preserve phoneId)
         selectConversation(newConversation);
-        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
+        {
+          const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+          const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+          router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
+        }
       } else {
         // If conversation not found, navigate directly - preserve phoneId if present
-        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
+        {
+          const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+          const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+          router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
+        }
       }
       
       // Also refresh the full conversations list in the background to ensure consistency
@@ -1420,8 +1482,11 @@ export default function WhatsAppChat() {
     } catch (error) {
       console.error("Error handling guest added:", error);
       // Fallback: navigate directly to the conversation (preserve phoneId)
-      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-      router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}` : `/whatsapp?conversationId=${conversationId}`);
+      {
+        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
+      }
     }
   };
 
@@ -2816,6 +2881,7 @@ export default function WhatsAppChat() {
               userProfilePic={(token as any)?.profilePic || (token as any)?.avatar}
               // Mobile props
               isMobile={isMobile}
+              onUpdateConversation={handleUpdateConversation}
               // Jump to message from search results
               onJumpToMessage={(conversationId, messageId) => {
                 // Find and select the conversation

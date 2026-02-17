@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const convertToOwner = (formData.get("convertToOwner") || "") === "1";
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
       }
       seenPhones.add(phone);
 
-      validContacts.push({
+      const contactObj: any = {
         name: rawName || "Contact",
         phoneNumber: phone,
         country: rawCountry || (extractedCountryCode ? `+${extractedCountryCode}` : "Unknown"),
@@ -171,7 +172,11 @@ export async function POST(req: NextRequest) {
         sourceFileName: fileName,
         batchId,
         isActive: true,
-      });
+      };
+      if (convertToOwner) {
+        contactObj.role = "owner";
+      }
+      validContacts.push(contactObj);
     }
 
     if (validContacts.length === 0) {

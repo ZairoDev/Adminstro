@@ -159,11 +159,12 @@ export default function RetargetPage() {
   }, []);
 
   // Handle file upload
-  const handleUploadFile = useCallback(async (file: File) => {
+  const handleUploadFile = useCallback(async (file: File, convertToOwner: boolean = false) => {
     try {
       setUploading(true);
       const formData = new FormData();
       formData.append("file", file);
+      if (convertToOwner) formData.append("convertToOwner", "1");
 
       const res = await axios.post("/api/whatsapp/retarget/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },

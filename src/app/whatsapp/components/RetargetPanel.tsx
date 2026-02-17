@@ -171,7 +171,7 @@ interface RetargetPanelProps {
   // Sender info for param auto-fill
   senderName?: string;
   // Upload contacts support
-  onUploadFile?: (file: File) => Promise<void>;
+  onUploadFile?: (file: File, convertToOwner?: boolean) => Promise<void>;
   uploading?: boolean;
   uploadBatches?: Array<{
     batchId: string;
@@ -291,6 +291,7 @@ export function RetargetPanel({
   selectedCountry = "",
   onCountryChange,
 }: RetargetPanelProps) {
+  const [convertToOwner, setConvertToOwner] = useState(false);
   const [stateFilter, setStateFilter] = useState<string>("pending");
   const [showConfirm, setShowConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1167,7 +1168,7 @@ export function RetargetPanel({
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            onUploadFile(file);
+                            onUploadFile(file, convertToOwner);
                             e.target.value = "";
                           }
                         }}
@@ -1199,6 +1200,18 @@ export function RetargetPanel({
                     <p className="text-xs text-muted-foreground px-1">
                       Required: name, phoneNumber, country
                     </p>
+                    <div className="flex items-center gap-2 px-1">
+                      <input
+                        id="convertToOwner"
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={convertToOwner}
+                        onChange={(e) => setConvertToOwner(e.target.checked)}
+                      />
+                      <label htmlFor="convertToOwner" className="text-xs">
+                        Mark uploaded contacts as owner on upload
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}

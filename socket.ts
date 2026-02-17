@@ -66,6 +66,36 @@ app.prepare().then(() => {
         console.log(`📱 ${socket.id} joined WhatsApp room`);
       }
     });
+    
+    // Join phone-specific whatsapp room (namespace by businessPhoneId)
+    socket.on("join-whatsapp-phone", (phoneId?: string) => {
+      if (!phoneId) return;
+      const room = `whatsapp-phone-${phoneId}`;
+      socket.join(room);
+      console.log(`📲 ${socket.id} joined phone room: ${room}`);
+    });
+
+    socket.on("leave-whatsapp-phone", (phoneId?: string) => {
+      if (!phoneId) return;
+      const room = `whatsapp-phone-${phoneId}`;
+      socket.leave(room);
+      console.log(`📲 ${socket.id} left phone room: ${room}`);
+    });
+    
+    // Join retarget-specific room (Advert/SuperAdmin will join this)
+    socket.on("join-whatsapp-retarget", (phoneId?: string) => {
+      if (!phoneId) return;
+      const room = `whatsapp-retarget-${phoneId}`;
+      socket.join(room);
+      console.log(`🎯 ${socket.id} joined retarget room: ${room}`);
+    });
+
+    socket.on("leave-whatsapp-retarget", (phoneId?: string) => {
+      if (!phoneId) return;
+      const room = `whatsapp-retarget-${phoneId}`;
+      socket.leave(room);
+      console.log(`🎯 ${socket.id} left retarget room: ${room}`);
+    });
 
     // Leave WhatsApp room
     socket.on("leave-whatsapp-room", () => {

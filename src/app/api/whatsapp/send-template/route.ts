@@ -269,11 +269,28 @@ export async function POST(req: NextRequest) {
       conversationUpdate.retargetAgentId = token.id || token._id;
       conversationUpdate.retargetTemplateName = templateName;
     }
+  
+  // If we have an uploadedContactId for retarget, try to save the contact's name into the conversation
+  if (isRetarget && (uploadedContactId || uploadedContactId === 0)) {
+    try {
+      const contact = (await RetargetContact.findById(uploadedContactId).lean()) as any;
+      if (contact && contact.name) {
+        // Only set participantName if conversation currently has no meaningful name
+        const currentName = (conversation && (conversation.participantName || "")) || "";
+        const formattedPhoneForComparison = formattedPhone;
+        if (!currentName || currentName === formattedPhoneForComparison) {
+          conversationUpdate.participantName = contact.name;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to read RetargetContact for name:", err);
+    }
+  }
 
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, conversationUpdate);
 
-    // Emit socket event for real-time updates
-    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+    // Emit socket event for real-time updates (global)
+    const emitPayload = {
       conversationId: conversation._id.toString(),
       businessPhoneId: phoneNumberId,
       isRetarget: !!isRetarget,
@@ -289,7 +306,10 @@ export async function POST(req: NextRequest) {
         timestamp,
         senderName: token.name || "You",
       },
-    });
+    };
+    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, emitPayload);
+
+    // Note: phone-specific room emission is handled centrally in lib/pusher.emitWhatsAppEvent
 
     // If this send was for an uploaded contact, update RetargetContact record
     try {
@@ -393,6 +413,20 @@ export async function POST(req: NextRequest) {
           console.log(`🎯 [AUDIT] Retarget sent to ${targetType} ${target._id} (phone: ${normalizedPhone}, count: ${newCount})`);
         } else {
           console.log(`📤 [AUDIT] Template sent to ${targetType} ${target._id} (phone: ${normalizedPhone})`);
+        }
+        
+        // If conversation has no meaningful name yet, and target has a name, set it
+        try {
+          const currentName = (conversation && (conversation.participantName || "")) || "";
+          const targetName = (target as any)?.name;
+          if (target && targetName && (!currentName || currentName === formattedPhone)) {
+            await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+              participantName: targetName,
+            });
+            console.log(`✅ [AUDIT] Updated conversation ${conversation._id} participantName => ${targetName}`);
+          }
+        } catch (err) {
+          console.error("Failed to update conversation participantName from target:", err);
         }
       }
     } catch (err) {

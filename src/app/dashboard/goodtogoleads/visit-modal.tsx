@@ -167,8 +167,13 @@ const VisitModal = ({
         userMobile: visitFormValues.ownerPhone.replace(/\D/g, ""),
       });
       console.log("properties by phone number", response.data);
-      const fetchedProperties: IPropertyWithOwner[] = response.data || [];
-      // API guarantees owner populated; use directly
+      const raw = response.data;
+      const fetchedProperties: IPropertyWithOwner[] = Array.isArray(raw)
+        ? raw
+        : raw
+        ? [raw]
+        : [];
+      // API guarantees owner populated; coerce into array for safety
       setProperties(fetchedProperties);
 
       // If only one property, auto-select it and populate owner fields from property.owner
@@ -376,7 +381,7 @@ const VisitModal = ({
           {properties.length > 0 && (
             <ScrollArea className="whitespace-nowrap rounded-md border w-[470px]">
               <div className="flex w-max space-x-4 p-4">
-                {properties.map((property: IPropertyWithOwner) => {
+                {(Array.isArray(properties) ? properties : []).map((property: IPropertyWithOwner) => {
                   const pid = property._id || property.VSID;
                   const isChecked = selectedPropertyVSID === property.VSID;
                   return (
@@ -560,7 +565,7 @@ const VisitModal = ({
                 {fetchingAgents ? (
                   <LucideLoader2 className="animate-spin mx-auto" />
                 ) : (
-                  agents.map((agent, index) => (
+                  (Array.isArray(agents) ? agents : []).map((agent, index) => (
                     <SelectItem
                       key={index}
                       value={`${agent.agentName}|||${agent.agentPhone}`}

@@ -17,6 +17,7 @@ import {
   AppreciationEmailPayload,
   EmailResponse,
   EmailTemplate,
+  PIPLevel,
 } from "./types";
 import { getActiveHREmployee } from "./getHREmployee";
 

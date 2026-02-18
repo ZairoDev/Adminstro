@@ -515,6 +515,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Guests",
       Icon: <PersonStanding size={18} />,
     },
+    {
+      path: "/dashboard/closedleads",
+      label: "Closed Leads",
+      Icon: <CheckCheck size={18} />,
+    },
   ],
   Sales: [
     {
@@ -623,6 +628,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/website-leads",
       label: "Website Leads",
       Icon: <Globe size={18} />,
+    },
+    {
+      path: "/dashboard/closedleads",
+      label: "Closed Leads",
+      Icon: <CheckCheck size={18} />,
     },
   ],
   "Sales-TeamLead": [
@@ -851,6 +861,11 @@ const leadManagementRoutes = [
     path: "/dashboard/goodtogoleads",
     label: "Good To Go",
     Icon: <ThumbsUp size={18} />,
+  },
+  {
+    path: "/dashboard/closedleads",
+    label: "Closed Leads",
+    Icon: <CheckCheck size={18} />,
   },
   {
     path: "/dashboard/declinedleads",

@@ -1,21 +1,18 @@
-"use client";
+'use client';
 
 import axios from "axios";
+import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   Sheet,
-  SheetTitle,
   SheetClose,
   SheetFooter,
-  SheetHeader,
   SheetContent,
   SheetTrigger,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; 
 import {
   Select,
   SelectItem,
@@ -37,24 +34,15 @@ import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import LeadTable from "@/components/leadTable/LeadTable";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
+import DeclinedLeadTable from "../declinedleads/declined-lead-table";
 import { InfinityLoader } from "@/components/Loaders";
 import HandLoader from "@/components/HandLoader";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
 
-interface WordsCount {
-  "1bhk": number;
-  "2bhk": number;
-  "3bhk": number;
-  "4bhk": number;
-  studio: number;
-  sharedApartment: number;
-} 
-
-export const LeadPage = () => {
+export const ClosedLeads = () => {
   const router = useRouter();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
@@ -63,10 +51,6 @@ export const LeadPage = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
-  const [activeTab, setActiveTab] = useState<"approved" | "notApproved">(
-    "approved"
-  );
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -74,7 +58,6 @@ export const LeadPage = () => {
     parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  // derive allotted area directly from token
   const allotedArea = token?.allotedArea ?? "";
   const areaList: string[] = Array.isArray(allotedArea)
     ? allotedArea
@@ -90,7 +73,6 @@ export const LeadPage = () => {
     fromDate: undefined,
     toDate: undefined,
     sortBy: "None",
-    status: "None",
     guest: "0",
     noOfBeds: "0",
     propertyType: "",
@@ -99,53 +81,23 @@ export const LeadPage = () => {
     budgetTo: "",
     leadQuality: "",
     allotedArea: "",
-    typeOfProperty: "",
-    leadQualityByTeamLead: "Approved",
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
-  // ✅ Use the reusable socket hook for real-time lead updates
+  // No realtime socket for closed leads
   useLeadSocket({
-    disposition: "fresh",
+    disposition: "closed",
     allotedArea,
     setQueries,
   });
-               
+
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    // console.log("area ::", area);
     filterLeads(newPage, { ...filters, allotedArea: area });
-
     setPage(newPage);
-  };
-
-  const handlePriorityChange = () => {
-    const priorityMap = {
-      None: 1,
-      Low: 2,
-      High: 3,
-    };
-    // const sortedQueries = { ...queries };
-
-
-    if (sortingField && sortingField !== "None") {
-      queries.sort((a, b) => {
-        const priorityA =
-          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-        const priorityB =
-          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
-
-        if (sortingField === "Asc") {
-          return priorityA - priorityB;
-        } else {
-          return priorityB - priorityA;
-        }
-      });
-    }
-    // setQueries(sortedQueries);
   };
 
   const renderPaginationItems = () => {
@@ -192,161 +144,65 @@ export const LeadPage = () => {
   const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/leads/getLeads", {
+      const response = await axios.post("/api/leads/getClosedLeads", {
         filters: filtersToUse ? filtersToUse : filters,
         page: newPage,
       });
-      console.log("response of new leads: ", response);
       setQueries(response.data.data);
       setTotalPages(response.data.totalPages);
       setTotalQueries(response.data.totalQueries);
-      setWordsCount(response.data.wordsCount);
     } catch (err: any) {
-      console.log("error in getting leads: ", err);
+      console.log("error in getting closed leads: ", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    filterLeads(1, filters);
+    filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams?.get("page") ?? "1"));
-    // allotedArea is derived from token now
-  }, [activeTab]);
-
-  // useEffect(() => {
-  //   const pusher = new Pusher("1725fd164206c8aa520b", {
-  //     cluster: "ap2",
-  //   });
-  //   const channel = pusher.subscribe("queries");
-  //   // channel.bind("new-query", (data: any) => {
-  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
-  //   // });
-  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
-  //     setQueries((prevQueries) => [data, ...prevQueries]);
-  //   });
-  //   toast({
-  //     title: "Query Created Successfully",
-  //   });
-  //   return () => {
-  //     channel.unbind(`new-query-${allotedArea}`);
-  //     pusher.unsubscribe("queries");
-  //     pusher.disconnect();
-  //   };
-  // }, [queries, allotedArea]);
+    // allotedArea derived from token
+  }, []);
 
   useEffect(() => {
-    // debounce(filterLeads, 500);
     filterLeads(1);
   }, [filters.searchTerm]);
 
+  const debouncedFilterLeads = React.useCallback(
+    debounce((page: number, filters: FilterState) => {
+      filterLeads(page, filters);
+    }, 500),
+    []
+  );
 
-   const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
-
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds?? prevFilters.noOfBeds,
-     
-    }));
-
-    filterLeads(1, {
-      ...filters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds?? filters.noOfBeds,
-      allotedArea: Array.isArray(allotedArea) ? allotedArea[0] || "" : allotedArea
-    });
-
-
+  // RBAC: only allow SuperAdmin and Sales roles to access Closed Leads
+  const allowedRoles = ["SuperAdmin", "Sales"];
+  if (!allowedRoles.includes(token?.role ?? "")) {
+    return (
+      <div className="w-full p-6">
+        <h2 className="text-xl font-semibold">Access denied</h2>
+        <p className="text-sm text-gray-600">You do not have permission to view Closed Leads.</p>
+      </div>
+    );
   }
-
 
   return (
     <div className=" w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full  flex ">
-          {/* heading component where all leads is*/}
-          <Heading heading="Fresh Leads" subheading="" />
-          <div className="w-full flex flex-wrap gap-4 justify-center ">
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
-                {wordsCount[0]?.["1bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
-                1 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "2")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
-                {wordsCount[0]?.["2bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
-                2 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "3")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
-                {wordsCount[0]?.["3bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
-                3 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "4")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
-                {wordsCount[0]?.["4bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
-                4 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Studio", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["studio"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
-                Studio
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Shared Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["sharedApartment"]}
-              </p>
-              <p className="text-white font-medium text-xs  text-center group-hover:text-pink-100">
-                Shrd Aprt
-              </p>
-            </div>
-          </div>
+        <div className="w-full">
+          <Heading
+            heading="Closed Leads"
+            subheading="Leads that have resulted in bookings"
+          />
         </div>
-
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
-          {/* top filter component */}
           <div className="flex w-full items-center gap-x-2">
-            {/* //filter by area component */}
             {(token?.role == "SuperAdmin" ||
-              token?.role === "Advert" ||
-              token?.role === "Sales-TeamLead" ||
-              token?.role === "Sales") && (
-              <div className="w-[200px] ">
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com" ||
+              token?.email === "pravleenkaur1233@gmail.com") && (
+              <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {
                     if (value === "all") {
@@ -376,7 +232,7 @@ export const LeadPage = () => {
                     ) : (
                       areaList.sort().map((area: string) => (
                         <SelectItem key={area} value={area}>
-                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                          {area.charAt(0).toUpperCase() + area.slice(1) }
                         </SelectItem>
                       ))
                     )}
@@ -384,33 +240,35 @@ export const LeadPage = () => {
                 </Select>
               </div>
             )}
-            {/* this is phone/email/name filter*/}
+
             <div className="relative w-full">
               <Input
                 placeholder="Search by name, email, or phone..."
                 value={filters.searchTerm}
                 onChange={(e) => {
                   const value = e.target.value;
-
-                  // Auto-detect search type
-                  let detectedType = "name"; // default
-
+                  let detectedType = "name";
                   if (value.includes("@")) {
                     detectedType = "email";
                   } else if (/^\d+$/.test(value)) {
                     detectedType = "phoneNo";
                   }
-
-                  setFilters((prev) => ({
-                    ...prev,
+                  const updatedFilters = {
+                    ...filters,
                     searchTerm: value,
                     searchType: detectedType,
-                  }));
+                  };
+                  setFilters(updatedFilters);
+                  debouncedFilterLeads(1, updatedFilters);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    debouncedFilterLeads.cancel();
+                    filterLeads(1, filters);
+                  }
                 }}
                 className="pr-24"
               />
-
-              {/* Show detected type as a subtle indicator */}
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
                 {filters.searchType === "phoneNo"
                   ? "Phone"
@@ -418,9 +276,7 @@ export const LeadPage = () => {
               </span>
             </div>
           </div>
-
-          {/* options filter button */}
-          <div className="flex md:w-auto w-full  justify-between  gap-x-2">
+          <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
               <Sheet>
                 <SheetTrigger asChild>
@@ -429,13 +285,9 @@ export const LeadPage = () => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent>
-                  {/* Lead Filters */}
                   <div className=" flex flex-col items-center">
-                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
                     <LeadsFilter filters={filters} setFilters={setFilters} />
-                    {/* Apply Button */}
                   </div>
-
                   <SheetFooter className=" flex flex-col">
                     <SheetClose asChild>
                       <Button
@@ -465,22 +317,6 @@ export const LeadPage = () => {
                         Clear
                       </Button>
                     </SheetClose>
-                    <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
-                      </p>
-                    </div>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
@@ -491,65 +327,42 @@ export const LeadPage = () => {
 
       {loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
-          {/* <Loader /> */}
-          {/* <InfinityLoader className=" h-20 w-28" /> */}
           <HandLoader />
         </div>
       ) : view === "Table View" ? (
         <div className="">
-          <Tabs
-            value={activeTab}
-            onValueChange={(val) => {
-              setActiveTab(val as "approved" | "notApproved");
-              setFilters({
-                ...filters,
-                leadQualityByTeamLead:
-                  val === "approved" ? "Approved" : "Not Approved",
-              });
-            }}
-          >
-            <TabsList className="mt-4">
-              <TabsTrigger value="approved">All Leads</TabsTrigger>
-              <TabsTrigger value="notApproved">Not Approved Leads</TabsTrigger>
-            </TabsList>
-
-            {/* Approved Leads Table */}
-            <TabsContent value="approved">
-              <div className="mt-2 border rounded-lg min-h-[90vh]">
-                <LeadTable queries={queries} setQueries={setQueries} />
-              </div>
-              <div className="flex items-center justify-between p-2 w-full">
-                <p className="text-xs">
+          <div>
+            <div className="mt-2 border rounded-lg min-h-[90vh]">
+              {queries.length > 0 ? (
+                <DeclinedLeadTable queries={queries} />
+              ) : (
+                <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
+                  <img
+                    src="https://vacationsaga.b-cdn.net/assets/no-data-bg.png"
+                    alt="Temporary Image"
+                    className=" w-96 h-96 opacity-30"
+                  />
+                  <h1 className=" text-gray-600 text-3xl">No Leads</h1>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between p-2 w-full">
+              <div className="">
+                <p className="text-xs ">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>
-                <Pagination>
-                  <PaginationContent>
+              </div>
+              <div>
+                <Pagination className="flex items-center">
+                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
                     {renderPaginationItems()}
                   </PaginationContent>
                 </Pagination>
               </div>
-            </TabsContent>
-
-            {/* Not Approved Leads Table */}
-            <TabsContent value="notApproved">
-              <div className="mt-2 border rounded-lg min-h-[90vh]">
-                <LeadTable queries={queries} setQueries={setQueries} />
-              </div>
-              <div className="flex items-center justify-between p-2 w-full">
-                <p className="text-xs">
-                  Page {page} of {totalPages} — {totalQuery} total results
-                </p>
-                <Pagination>
-                  <PaginationContent>
-                    {renderPaginationItems()}
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
       ) : (
-        // card view
         <div>
           <div className="min-h-screen">
             <div className="grid gap-4 mb-4 justify-center mt-2 items-center xs:grid-cols-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xxl:grid-cols-4">
@@ -567,7 +380,6 @@ export const LeadPage = () => {
                     guest={query.guest}
                     minBudget={query.minBudget}
                     maxBudget={query.maxBudget}
-                    // budget={query.budget}
                     noOfBeds={query.noOfBeds}
                     location={query.location}
                     bookingTerm={query.bookingTerm}
@@ -577,7 +389,6 @@ export const LeadPage = () => {
                     propertyType={query.propertyType}
                     priority={query.priority}
                     salesPriority={query.salesPriority}
-                    messageStatus={query.messageStatus}
                     reminder={query.reminder}
                     roomDetails={query.roomDetails}
                   />
@@ -586,8 +397,8 @@ export const LeadPage = () => {
             </div>
           </div>
           <div>
-            <div className="flex  items-center justify-between p-2 w-full">
-              <div className="border border-white">
+            <div className="flex items-center justify-between p-2 w-full">
+              <div>
                 <p className="text-xs">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>
@@ -607,3 +418,6 @@ export const LeadPage = () => {
     </div>
   );
 };
+
+export default ClosedLeads;
+

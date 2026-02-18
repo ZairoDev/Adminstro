@@ -75,8 +75,13 @@ export const GoodToGoLeads = () => {
     parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  // ✅ FIX: Changed to support both string and array
-  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
+  // derive allotted area from token
+  const allotedArea = token?.allotedArea ?? "";
+  const areaList: string[] = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea as string]
+    : [];
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -231,17 +236,7 @@ export const GoodToGoLeads = () => {
   useEffect(() => {
     filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams?.get("page") ?? "1"));
-
-    const getAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken");
-        console.log("📍 Fetched allotedArea:", response.data.area);
-        setAllotedArea(response.data.area);
-      } catch (err: any) {
-        console.log("error in getting area: ", err);
-      }
-    };
-    getAllotedArea();
+    // allotedArea derived from token
   }, []);
 
   // Fetch brokers when brokers tab is active
@@ -378,7 +373,9 @@ export const GoodToGoLeads = () => {
                 <Select
                   onValueChange={(value: string) => {
                     if (value === "all") {
-                      setArea("");
+                      setArea("all");
+                      // For Sales roles, selecting "All" should show leads for user's assigned areas.
+                      // Passing empty allotedArea lets backend fallback to token.assignedArea.
                       filterLeads(1, { ...filters, allotedArea: "" });
                     } else {
                       setArea(value);
@@ -392,13 +389,20 @@ export const GoodToGoLeads = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="chania">Chania</SelectItem>
-                    <SelectItem value="milan">Milan</SelectItem>
-                    <SelectItem value="rome">Rome</SelectItem>
-                    <SelectItem value="athens">Athens</SelectItem>
-                    <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                    <SelectItem value="corfu">Corfu</SelectItem>
-                    <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                    {token?.role === "SuperAdmin" ? (
+                      <>
+                      <SelectItem value="athens">Athens</SelectItem>
+                        <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                        <SelectItem value="chania">Chania</SelectItem>
+                        <SelectItem value="milan">Milan</SelectItem>
+                      </>
+                    ) : (
+                      areaList.sort().map((area: string) => (
+                        <SelectItem key={area} value={area}>
+                          {area.charAt(0).toUpperCase() + area.slice(1) }
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

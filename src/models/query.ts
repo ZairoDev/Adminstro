@@ -1,4 +1,4 @@
-import { Schema, models, model } from "mongoose";
+import mongoose, { Schema, models, model } from "mongoose";
 
 const querySchema = new Schema(
   {
@@ -96,6 +96,8 @@ const querySchema = new Schema(
     },
     leadStatus: {
       type: String,
+      enum: ["fresh", "active", "rejected", "declined", "reminder", "closed"],
+      default: "fresh",
     },
     propertyShown: {
       type: Number,
@@ -264,6 +266,11 @@ const querySchema = new Schema(
     idName:{
       type: String,
       default: "",
+    },
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "bookings",
+      default: null,
     },
     profilePicture: {
       type: String,

@@ -97,7 +97,12 @@ export const LeadPage = () => {
     parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState<string>("Table View");
-  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
+  const allotedArea = token?.allotedArea ?? "";
+  const areaList: string[] = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea as string]
+    : [];
   const [filters, setFilters] = useState<FilterState>({ ...DEFAULT_FILTERS });
 
   // Memoized values
@@ -122,21 +127,7 @@ export const LeadPage = () => {
 
   // Fetch allotted area on mount
   useEffect(() => {
-    const fetchAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken");
-        setAllotedArea(response.data.area);
-      } catch (err) {
-        console.error("Error fetching allotted area:", err);
-        toast({
-          title: "Error",
-          description: "Failed to fetch your allotted area",
-          variant: "destructive",
-        });
-      }
-    };
-
-    fetchAllotedArea();
+    // allotedArea derived from token
     handleFilterLeads(1, DEFAULT_FILTERS);
   }, []);
 
@@ -379,11 +370,23 @@ export const LeadPage = () => {
                     <SelectValue placeholder="Select Area" />
                   </SelectTrigger>
                   <SelectContent>
-                    {AREAS.map((area) => (
-                      <SelectItem key={area.value} value={area.value}>
-                        {area.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">All</SelectItem>
+                    {token?.role === "SuperAdmin" ? (
+                      <>
+                        <SelectItem value="athens">Athens</SelectItem>
+                        <SelectItem value="thessaloniki">
+                          Thessaloniki
+                        </SelectItem>
+                        <SelectItem value="chania">Chania</SelectItem>
+                        <SelectItem value="milan">Milan</SelectItem>
+                      </>
+                    ) : (
+                      areaList.sort().map((area: string) => (
+                        <SelectItem key={area} value={area}>
+                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

@@ -60,7 +60,12 @@ export const ReviewLeads = () => {
     parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const [allotedArea, setAllotedArea] = useState("");
+  const allotedArea = token?.allotedArea ?? "";
+  const areaList: string[] = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea as string]
+    : [];
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -181,15 +186,7 @@ export const ReviewLeads = () => {
   useEffect(() => {
     filterLeads(1, filters);
     setPage(parseInt(searchParams?.get("page") ?? "1"));
-    const getAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken");
-        setAllotedArea(response.data.area);
-      } catch (err: any) {
-        console.log("error in getting area: ", err);
-      }
-    };
-    getAllotedArea();
+    // allotedArea derived from token
   }, []);
 
   useEffect(() => {
@@ -250,13 +247,22 @@ export const ReviewLeads = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="chania">Chania</SelectItem>
-                    <SelectItem value="milan">Milan</SelectItem>
-                    <SelectItem value="rome">Rome</SelectItem>
-                    <SelectItem value="athens">Athens</SelectItem>
-                    <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                    <SelectItem value="corfu">Corfu</SelectItem>
-                    <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                    {token?.role === "SuperAdmin" ? (
+                      <>
+                        <SelectItem value="athens">Athens</SelectItem>
+                        <SelectItem value="thessaloniki">
+                          Thessaloniki
+                        </SelectItem>
+                        <SelectItem value="chania">Chania</SelectItem>
+                        <SelectItem value="milan">Milan</SelectItem>
+                      </>
+                    ) : (
+                      areaList.sort().map((area: string) => (
+                        <SelectItem key={area} value={area}>
+                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -307,7 +313,7 @@ export const ReviewLeads = () => {
                       <Button
                         onClick={() => {
                           const params = new URLSearchParams(
-                            Object.entries(filters)
+                            Object.entries(filters),
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);

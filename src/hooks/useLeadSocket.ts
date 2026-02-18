@@ -5,7 +5,7 @@ import { useSocket } from "./useSocket";
 import { useToast } from "./use-toast";
 import { IQuery } from "@/util/type";
 
-type LeadDisposition = "fresh" | "active" | "rejected" | "declined";
+type LeadDisposition = "fresh" | "active" | "rejected" | "declined" | "closed";
 
 interface UseLeadSocketOptions {
   disposition: LeadDisposition;

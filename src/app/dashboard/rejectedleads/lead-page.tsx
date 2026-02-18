@@ -58,7 +58,12 @@ export const RejectedLeads = () => {
     parseInt(searchParams?.get("page") ?? "1")
   );
   const [view, setView] = useState("Table View");
-  const [allotedArea, setAllotedArea] = useState<string | string[]>("");
+  const allotedArea = token?.allotedArea ?? "";
+  const areaList: string[] = Array.isArray(allotedArea)
+    ? allotedArea
+    : allotedArea
+    ? [allotedArea as string]
+    : [];
 
   const defaultFilters: FilterState = {
     searchType: "phoneNo",
@@ -186,15 +191,7 @@ export const RejectedLeads = () => {
   useEffect(() => {
     filterLeads(1, defaultFilters);
     setPage(parseInt(searchParams?.get("page") ?? "1"));
-    const getAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken");
-        setAllotedArea(response.data.area);
-      } catch (err: any) {
-        console.log("error in getting area: ", err);
-      }
-    };
-    getAllotedArea();
+    // allotedArea derived from token
   }, []);
 
   // useEffect(() => {
@@ -243,7 +240,9 @@ export const RejectedLeads = () => {
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div className="flex w-full items-center gap-x-2">
             {(token?.role == "SuperAdmin" ||
-               token?.email === "tyagimokshda@gmail.com" || token?.email === "shailvinaprakash007@gmail.com" || token?.email === "pravleenkaur1233@gmail.com") && (
+              token?.email === "tyagimokshda@gmail.com" ||
+              token?.email === "shailvinaprakash007@gmail.com" ||
+              token?.email === "pravleenkaur1233@gmail.com") && (
               <div className="w-[200px]">
                 <Select
                   onValueChange={(value: string) => {
@@ -262,13 +261,22 @@ export const RejectedLeads = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="chania">Chania</SelectItem>
-                    <SelectItem value="milan">Milan</SelectItem>
-                    <SelectItem value="rome">Rome</SelectItem>
-                    <SelectItem value="athens">Athens</SelectItem>
-                    <SelectItem value="chalkidiki">Chalkidiki</SelectItem>
-                    <SelectItem value="corfu">Corfu</SelectItem>
-                    <SelectItem value="thessaloniki">Thessaloniki</SelectItem>
+                    {token?.role === "SuperAdmin" ? (
+                      <>
+                        <SelectItem value="athens">Athens</SelectItem>
+                        <SelectItem value="thessaloniki">
+                          Thessaloniki
+                        </SelectItem>
+                        <SelectItem value="chania">Chania</SelectItem>
+                        <SelectItem value="milan">Milan</SelectItem>
+                      </>
+                    ) : (
+                      areaList.sort().map((area: string) => (
+                        <SelectItem key={area} value={area}>
+                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -299,49 +307,49 @@ export const RejectedLeads = () => {
             /> */}
 
             <div className="relative w-full">
-                          <Input
-                            placeholder="Search by name, email, or phone..."
-                            value={filters.searchTerm}
-                            onChange={(e) => {
-                              const value = e.target.value;
-            
-                              // Auto-detect search type
-                              let detectedType = "name"; // default
-            
-                              if (value.includes("@")) {
-                                detectedType = "email";
-                              } else if (/^\d+$/.test(value)) {
-                                detectedType = "phoneNo";
-                              }
-            
-                              const updatedFilters = {
-                                ...filters,
-                                searchTerm: value,
-                                searchType: detectedType,
-                              };
-            
-                              setFilters(updatedFilters);
-            
-                              // ✅ Trigger the search after state update
-                              debouncedFilterLeads(1, updatedFilters);
-                            }}
-                            onKeyDown={(e) => {
-                              // Allow immediate search on Enter key
-                              if (e.key === "Enter") {
-                                debouncedFilterLeads.cancel(); // Cancel any pending debounced call
-                                filterLeads(1, filters);
-                              }
-                            }}
-                            className="pr-24"
-                          />
-            
-                          {/* Show detected type as a subtle indicator */}
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
-                            {filters.searchType === "phoneNo"
-                              ? "Phone"
-                              : filters.searchType}
-                          </span>
-                        </div>
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={filters.searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  // Auto-detect search type
+                  let detectedType = "name"; // default
+
+                  if (value.includes("@")) {
+                    detectedType = "email";
+                  } else if (/^\d+$/.test(value)) {
+                    detectedType = "phoneNo";
+                  }
+
+                  const updatedFilters = {
+                    ...filters,
+                    searchTerm: value,
+                    searchType: detectedType,
+                  };
+
+                  setFilters(updatedFilters);
+
+                  // ✅ Trigger the search after state update
+                  debouncedFilterLeads(1, updatedFilters);
+                }}
+                onKeyDown={(e) => {
+                  // Allow immediate search on Enter key
+                  if (e.key === "Enter") {
+                    debouncedFilterLeads.cancel(); // Cancel any pending debounced call
+                    filterLeads(1, filters);
+                  }
+                }}
+                className="pr-24"
+              />
+
+              {/* Show detected type as a subtle indicator */}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
+                {filters.searchType === "phoneNo"
+                  ? "Phone"
+                  : filters.searchType}
+              </span>
+            </div>
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
@@ -364,7 +372,7 @@ export const RejectedLeads = () => {
                       <Button
                         onClick={() => {
                           const params = new URLSearchParams(
-                            Object.entries(filters)
+                            Object.entries(filters),
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);

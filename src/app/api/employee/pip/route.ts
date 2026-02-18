@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { sendPIPEmail, getPIPLevelDescription, sendCustomEmail } from "@/lib/email";
+import { sendPIPEmail, getPIPLevelDescription, sendCustomEmail, sendPIPCompletionEmail } from "@/lib/email";
 import { PIPLevel } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
@@ -147,7 +147,13 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await connectDb();
-    const { employeeId, pipId, status } = await request.json();
+    const { 
+      employeeId, 
+      pipId, 
+      status, 
+      customCompletionEmailSubject, 
+      customCompletionEmailHtml 
+    } = await request.json();
 
     if (!employeeId || !pipId || !status) {
       return NextResponse.json(
@@ -169,6 +175,23 @@ export async function PUT(request: NextRequest) {
       updateFields.isLocked = false;
     }
 
+    // Get the PIP being updated to access its details
+    const employeeBeforeUpdate = await Employees.findById(employeeId).lean() as EmployeeInterface | null;
+    if (!employeeBeforeUpdate) {
+      return NextResponse.json(
+        { error: "Employee not found" },
+        { status: 404 }
+      );
+    }
+
+    const pipToUpdate = employeeBeforeUpdate.pips?.find((p) => p._id?.toString() === pipId);
+    if (!pipToUpdate) {
+      return NextResponse.json(
+        { error: "PIP not found" },
+        { status: 404 }
+      );
+    }
+
     const employee = await Employees.findOneAndUpdate(
       { _id: employeeId, "pips._id": pipId },
       { $set: updateFields },
@@ -182,10 +205,41 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Send completion email if PIP was successfully completed
+    let emailSent = false;
+    if (status === "completed" && employee.email) {
+      try {
+        if (customCompletionEmailSubject && customCompletionEmailHtml) {
+          // Use custom email content
+          const emailResult = await sendCustomEmail(
+            employee.email,
+            { subject: customCompletionEmailSubject, html: customCompletionEmailHtml },
+            DEFAULT_COMPANY_NAME
+          );
+          emailSent = emailResult.success;
+        } else {
+          // Use default template
+          await sendPIPCompletionEmail(
+            employee.email,
+            employee.name,
+            pipToUpdate.pipLevel as PIPLevel,
+            pipToUpdate.startDate,
+            pipToUpdate.endDate,
+            DEFAULT_COMPANY_NAME
+          );
+          emailSent = true;
+        }
+      } catch (error: any) {
+        console.error("Failed to send PIP completion email:", error);
+        // Don't fail the request if email fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: "PIP status updated successfully",
       pips: employee?.pips || [],
+      emailSent,
     });
   } catch (error: any) {
     return NextResponse.json(

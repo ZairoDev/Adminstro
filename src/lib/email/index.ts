@@ -7,7 +7,7 @@ import {
 } from "./transporter";
 import { getCandidateEmailTemplate } from "./templates/candidate";
 import { getWarningEmailTemplate, getWarningReasonText } from "./templates/warning";
-import { getPIPEmailTemplate, getPIPLevelDescription } from "./templates/pip";
+import { getPIPEmailTemplate, getPIPLevelDescription, getPIPCompletionEmailTemplate } from "./templates/pip";
 import { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templates/appreciation";
 import { getSeparationEmailTemplate, getSeparationReasonText, SeparationEmailPayload, SeparationType } from "./templates/separation";
 import {
@@ -26,7 +26,7 @@ export * from "./types";
 // Re-export template functions
 export { getCandidateEmailTemplate } from "./templates/candidate";
 export { getWarningEmailTemplate, getWarningReasonText } from "./templates/warning";
-export { getPIPEmailTemplate, getPIPLevelDescription } from "./templates/pip";
+export { getPIPEmailTemplate, getPIPLevelDescription, getPIPCompletionEmailTemplate } from "./templates/pip";
 export { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templates/appreciation";
 export { getSeparationEmailTemplate, getSeparationReasonText, SEPARATION_TYPE_LABELS } from "./templates/separation";
 export type { SeparationEmailPayload, SeparationType, SeparationEmailTemplate } from "./templates/separation";
@@ -128,6 +128,49 @@ export async function sendPIPEmail(
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ PIP email sending error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Send PIP Completion Email (when PIP is successfully completed)
+export async function sendPIPCompletionEmail(
+  to: string,
+  employeeName: string,
+  pipLevel: PIPLevel,
+  startDate: string,
+  endDate: string,
+  companyName?: string
+): Promise<EmailResponse> {
+  try {
+    // Fetch active HR employee for signature
+    const hrEmployee = await getActiveHREmployee();
+    const { subject, html } = getPIPCompletionEmailTemplate(
+      employeeName,
+      pipLevel,
+      startDate,
+      endDate,
+      companyName || DEFAULT_COMPANY_NAME,
+      hrEmployee
+    );
+    const transporter = createTransporterHR();
+
+    const mailOptions = {
+      from: `${companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      to,
+      subject,
+      html,
+    };
+
+    const mailResponse = await transporter.sendMail(mailOptions);
+
+    if (mailResponse.rejected.length > 0) {
+      throw new Error("Email address was rejected or invalid");
+    }
+
+    console.log("✅ PIP completion email sent successfully to:", to);
+    return { success: true, messageId: mailResponse.messageId };
+  } catch (error: any) {
+    console.error("❌ PIP completion email sending error:", error);
     return { success: false, error: error.message };
   }
 }

@@ -246,8 +246,15 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
   const [emailPreviewSubject, setEmailPreviewSubject] = useState("");
   const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
-  const [emailPreviewType, setEmailPreviewType] = useState<"warning" | "pip" | "appreciation" | "separation" | null>(null);
+  const [emailPreviewType, setEmailPreviewType] = useState<"warning" | "pip" | "appreciation" | "separation" | "pipCompletion" | null>(null);
   const [emailPreviewPayload, setEmailPreviewPayload] = useState<any>(null);
+  
+  // State for PIP completion/failure actions
+  const [pendingPIPAction, setPendingPIPAction] = useState<{
+    pipId: string;
+    action: "completed" | "failed" | "nextLevel";
+    pip: PIPRecord;
+  } | null>(null);
 
   // Separation (Termination/Suspension/Abscond) State
   const [separationDialogOpen, setSeparationDialogOpen] = useState(false);
@@ -697,6 +704,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       notes: "",
       sendEmail: true,
     });
+    // Clear pending action when form is reset
+    setPendingPIPAction(null);
   };
 
   const addConcern = () => {
@@ -734,6 +743,20 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       return;
     }
 
+    // If this is a next level PIP, mark the previous PIP as failed first
+    if (pendingPIPAction?.action === "nextLevel" && pendingPIPAction.pipId) {
+      try {
+        await axios.put("/api/employee/pip", {
+          employeeId: userId,
+          pipId: pendingPIPAction.pipId,
+          status: "failed",
+        });
+      } catch (error: any) {
+        console.error("Failed to mark previous PIP as failed:", error);
+        // Continue anyway
+      }
+    }
+
     if (!newPIP.sendEmail || !user?.email) {
       // If email is not to be sent, directly save without preview
       try {
@@ -753,10 +776,23 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           await getUserDetails();
           resetPIPForm();
           setPipDialogOpen(false);
-          toast({
-            title: "PIP recorded",
-            description: "PIP has been recorded without sending email.",
-          });
+          
+          // Clear pending action if it was next level PIP
+          if (pendingPIPAction?.action === "nextLevel") {
+            const levelLabel = pendingPIPAction.pip.pipLevel === "level1" || pendingPIPAction.pip.pipLevel === "forTrainees" 
+              ? "Level 2" 
+              : "Level 3";
+            toast({
+              title: "Next level PIP recorded",
+              description: `${levelLabel} PIP has been recorded. Previous PIP has been marked as failed.`,
+            });
+            setPendingPIPAction(null);
+          } else {
+            toast({
+              title: "PIP recorded",
+              description: "PIP has been recorded without sending email.",
+            });
+          }
         }
       } catch (error: any) {
         toast({
@@ -801,6 +837,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           issuedBy: "Admin",
           notes: newPIP.notes,
           sendEmail: true,
+          // Store current PIP ID if this is next level PIP
+          currentPipId: pendingPIPAction?.action === "nextLevel" ? pendingPIPAction.pipId : undefined,
         });
         setPipDialogOpen(false);
         setEmailPreviewOpen(true);
@@ -819,6 +857,24 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   const handleSendPIPWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingPIP(true);
+      
+      // If this is a next level PIP, mark current PIP as failed first (if not already done)
+      if (emailPreviewPayload?.currentPipId || pendingPIPAction?.action === "nextLevel") {
+        const pipIdToFail = emailPreviewPayload?.currentPipId || pendingPIPAction?.pipId;
+        if (pipIdToFail) {
+          try {
+            await axios.put("/api/employee/pip", {
+              employeeId: userId,
+              pipId: pipIdToFail,
+              status: "failed",
+            });
+          } catch (error: any) {
+            console.error("Failed to mark current PIP as failed:", error);
+            // Continue anyway
+          }
+        }
+      }
+
       const response = await axios.post("/api/employee/pip", {
         ...emailPreviewPayload,
         customEmailSubject: subject,
@@ -829,12 +885,30 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         await getUserDetails();
         resetPIPForm();
         setEmailPreviewOpen(false);
-        toast({
-          title: response?.data?.emailSent ? "PIP sent successfully" : "PIP recorded",
-          description: response?.data?.emailSent
-            ? `PIP email has been sent to ${user?.email}`
-            : "PIP has been recorded without sending email.",
-        });
+        
+        // Clear pending action if it was a next level PIP
+        if (pendingPIPAction?.action === "nextLevel" || emailPreviewPayload?.currentPipId) {
+          const nextLevel = pendingPIPAction?.pip?.pipLevel === "level1" || pendingPIPAction?.pip?.pipLevel === "forTrainees" 
+            ? "Level 2" 
+            : "Level 3";
+          toast({
+            title: response?.data?.emailSent ? "Next level PIP sent successfully" : "PIP recorded",
+            description: response?.data?.emailSent
+              ? `${nextLevel} PIP email has been sent to ${user?.email}. Previous PIP has been marked as failed.`
+              : "PIP has been recorded without sending email.",
+          });
+          setPendingPIPAction(null);
+        } else {
+          toast({
+            title: response?.data?.emailSent ? "PIP sent successfully" : "PIP recorded",
+            description: response?.data?.emailSent
+              ? `PIP email has been sent to ${user?.email}`
+              : "PIP has been recorded without sending email.",
+          });
+        }
+        
+        setEmailPreviewPayload(null);
+        setEmailPreviewType(null);
       }
     } catch (error: any) {
       toast({
@@ -847,7 +921,89 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     }
   };
 
+  // Show email preview for PIP completion
+  const handlePIPCompletionPreview = async (pip: PIPRecord) => {
+    try {
+      setSendingPIP(true);
+      const templateResponse = await axios.post("/api/email/generateTemplate", {
+        type: "pipCompletion",
+        payload: {
+          employeeName: user?.name,
+          pipLevel: pip.pipLevel,
+          startDate: pip.startDate,
+          endDate: pip.endDate,
+          companyName: "Zairo International",
+        },
+      });
+
+      if (templateResponse?.data?.success) {
+        setEmailPreviewSubject(templateResponse.data.subject);
+        setEmailPreviewHtml(templateResponse.data.html);
+        setEmailPreviewType("pipCompletion");
+        setEmailPreviewPayload({
+          employeeId: userId,
+          pipId: pip._id,
+          status: "completed",
+        });
+        setEmailPreviewOpen(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to generate completion email template",
+      });
+    } finally {
+      setSendingPIP(false);
+    }
+  };
+
+  // Handle sending PIP completion email with custom content
+  const handleSendPIPCompletionWithCustomEmail = async (subject: string, html: string) => {
+    try {
+      setSendingPIP(true);
+      const response = await axios.put("/api/employee/pip", {
+        employeeId: userId,
+        pipId: emailPreviewPayload.pipId,
+        status: "completed",
+        customCompletionEmailSubject: subject,
+        customCompletionEmailHtml: html,
+      });
+
+      if (response?.data?.success) {
+        await getUserDetails();
+        setEmailPreviewOpen(false);
+        setEmailPreviewPayload(null);
+        setEmailPreviewType(null);
+        toast({
+          title: "PIP completed",
+          description: response?.data?.emailSent
+            ? `PIP has been marked as completed and completion email has been sent to ${user?.email}`
+            : "PIP has been marked as completed.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.response?.data?.error || "Failed to complete PIP",
+      });
+    } finally {
+      setSendingPIP(false);
+    }
+  };
+
   const handleUpdatePIPStatus = async (pipId: string, status: "active" | "completed" | "failed") => {
+    // For completed status, show email preview first
+    if (status === "completed") {
+      const pip = pips.find((p) => p._id === pipId);
+      if (pip) {
+        await handlePIPCompletionPreview(pip);
+        return;
+      }
+    }
+
+    // For failed status, proceed directly (will trigger next level PIP flow)
     try {
       const response = await axios.put("/api/employee/pip", {
         employeeId: userId,
@@ -869,6 +1025,63 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         description: error?.response?.data?.error || "Failed to update PIP status.",
       });
     }
+  };
+
+  // Handle sending next level PIP when current PIP fails - opens PIP dialog with pre-filled data
+  const handleSendNextLevelPIP = (currentPip: PIPRecord) => {
+    // Determine next level
+    let nextLevel: PIPLevel;
+    if (currentPip.pipLevel === "level1" || currentPip.pipLevel === "forTrainees") {
+      nextLevel = "level2";
+    } else if (currentPip.pipLevel === "level2") {
+      nextLevel = "level3";
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Cannot send next level PIP. Maximum level reached.",
+      });
+      return;
+    }
+
+    // Store pending action to mark current PIP as failed after new PIP is sent
+    setPendingPIPAction({
+      pipId: currentPip._id || "",
+      action: "nextLevel",
+      pip: currentPip,
+    });
+
+    // Calculate dates for next PIP (default: 10 days from today)
+    const today = new Date();
+    const startDate = today.toISOString().split("T")[0];
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 10);
+    const endDateStr = endDate.toISOString().split("T")[0];
+
+    // Use the same concerns/issues from current PIP
+    const concerns = currentPip.concerns || [];
+    if (concerns.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Cannot send next level PIP. No concerns found in current PIP.",
+      });
+      setPendingPIPAction(null);
+      return;
+    }
+
+    // Pre-fill the PIP form with next level data
+    setNewPIP({
+      pipLevel: nextLevel,
+      startDate,
+      endDate: endDateStr,
+      concerns: concerns,
+      notes: `Automatically issued after ${currentPip.pipLevel} PIP was not cleared.`,
+      sendEmail: true,
+    });
+
+    // Open the PIP dialog so admin can review/edit before sending
+    setPipDialogOpen(true);
   };
 
   const handleDeletePIP = async (pipId: string) => {
@@ -1871,15 +2084,34 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Clear PIP (Completed)
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20"
-                                  onClick={() => handleUpdatePIPStatus(pip._id || "", "failed")}
-                                >
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Clear PIP (Failed)
-                                </Button>
+                                
+                                {/* Level 1 or For Trainees: Show "Send PIP Level 2" instead of "Failed" */}
+                                {(pip.pipLevel === "level1" || pip.pipLevel === "forTrainees") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
+                                    onClick={() => handleSendNextLevelPIP(pip)}
+                                  >
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                    Send PIP Level 2
+                                  </Button>
+                                )}
+
+                                {/* Level 2: Show "Send PIP Level 3" instead of "Failed" */}
+                                {pip.pipLevel === "level2" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"
+                                    onClick={() => handleSendNextLevelPIP(pip)}
+                                  >
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                    Send PIP Level 3
+                                  </Button>
+                                )}
+
+                                {/* Level 3: Show "Terminate employee" instead of "Failed" */}
                                 {pip.pipLevel === "level3" && (
                                   <Button
                                     size="sm"
@@ -2410,6 +2642,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             await handleSendPIPWithCustomEmail(subject, html);
           } else if (emailPreviewType === "appreciation") {
             await handleSendAppreciationWithCustomEmail(subject, html);
+          } else if (emailPreviewType === "pipCompletion") {
+            await handleSendPIPCompletionWithCustomEmail(subject, html);
           }
         }}
         sending={sendingWarning || sendingPIP || sendingAppreciation}

@@ -327,4 +327,77 @@ export const getPIPLevelDescription = (pipLevel: PIPLevel): string => {
   return descriptions[pipLevel];
 };
 
+// PIP Completion Email Template (sent when PIP is successfully completed)
+export const getPIPCompletionEmailTemplate = (
+  employeeName: string,
+  pipLevel: PIPLevel,
+  startDate: string,
+  endDate: string,
+  companyName: string = "Zairo International",
+  hrEmployee?: EmailSignatureConfig
+): EmailTemplate => {
+  const levelLabels: Record<PIPLevel, string> = {
+    forTrainees: "For Trainees",
+    level1: "Level 1 - Supportive Guidance",
+    level2: "Level 2 - Strict Monitoring",
+    level3: "Level 3 - Final Warning",
+  };
+
+  return {
+    subject: `Performance Improvement Plan Completed Successfully – ${employeeName}`,
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
+        
+        <div style="background: linear-gradient(135deg,#10b981,#059669); padding:40px 30px; text-align:center; border-radius:8px 8px 0 0;">
+          <h1 style="color:#ffffff; margin:0; font-size:26px; font-weight:600;">PIP Completed Successfully</h1>
+          <p style="color:#d1fae5; font-size:14px; margin-top:5px;">Congratulations on Your Improvement</p>
+        </div>
+  
+        <div style="padding:35px 30px; color:#333; line-height:1.7;">
+          
+          <p style="font-size:17px;">Dear <strong>${employeeName}</strong>,</p>
+  
+          <p style="font-size:15px;">
+            We are pleased to inform you that you have successfully completed your Performance Improvement Plan (PIP) 
+            <strong>${levelLabels[pipLevel]}</strong> which was in effect from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
+          </p>
+  
+          <div style="background:#ecfdf5; border-left:4px solid #10b981; padding:18px; margin:25px 0; border-radius:4px;">
+            <p style="font-size:15px; margin:0;"><strong>Your Achievement:</strong></p>
+            <p style="font-size:15px; margin:8px 0 0 0;">
+              During the PIP period, you demonstrated significant improvement in the areas that were identified for enhancement. 
+              Your commitment to addressing the concerns raised and your consistent effort to meet the performance expectations 
+              have been noted and appreciated.
+            </p>
+          </div>
+  
+          <p style="font-size:15px;">
+            <strong>Moving Forward:</strong><br/>
+            We encourage you to maintain this positive trajectory and continue demonstrating the improvements you have shown 
+            during the PIP period. Your continued success is important to both your professional growth and the team's success.
+          </p>
+  
+          <p style="font-size:15px;">
+            We believe in your potential and are confident that you will continue to excel in your role. Should you need any 
+            support or guidance, please do not hesitate to reach out to your manager or the HR team.
+          </p>
+  
+          <p style="font-size:15px;">
+            Once again, congratulations on successfully completing your Performance Improvement Plan. We look forward to 
+            your continued contributions to the team.
+          </p>
+  
+          ${getEmailSignature(hrEmployee)}
+        </div>
+        
+        <div style="background:#f9fafb; padding:20px 30px; text-align:center; border-radius:0 0 8px 8px; border-top:1px solid #e5e7eb;">
+          <p style="font-size:12px; color:#6b7280; margin:0;">
+            © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `,
+  };
+};
+
 

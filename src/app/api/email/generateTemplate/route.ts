@@ -4,6 +4,7 @@ import {
   getPIPEmailTemplate,
   getAppreciationEmailTemplate,
   getActiveHREmployee,
+  getPIPCompletionEmailTemplate,
 } from "@/lib/email";
 import { WarningType, PIPLevel, AppreciationType } from "@/lib/email/types";
 
@@ -65,6 +66,17 @@ export async function POST(request: NextRequest) {
             appreciationType: payload.appreciationType as AppreciationType,
             companyName: payload.companyName,
           },
+          hrEmployee
+        );
+        break;
+
+      case "pipCompletion":
+        template = getPIPCompletionEmailTemplate(
+          payload.employeeName,
+          payload.pipLevel as PIPLevel,
+          payload.startDate,
+          payload.endDate,
+          payload.companyName,
           hrEmployee
         );
         break;

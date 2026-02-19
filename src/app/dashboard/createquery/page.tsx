@@ -69,6 +69,7 @@ import { metroLines } from "../target/components/editArea";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useSocket } from "@/hooks/useSocket";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 interface ApiResponse {
@@ -104,6 +105,7 @@ const SalesDashboard = () => {
   const [totalQuery, setTotalQueries] = useState<number>(0);
   const [phone, setPhone] = useState<string>("");
   const { socket, isConnected } = useSocket();
+  const { emitNewLead } = useLeadSocketEmit();
   const [totalPages, setTotalPages] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("all");
@@ -371,10 +373,12 @@ const SalesDashboard = () => {
         formDataToSubmit
       );
 
-      // ✅ CHANGE 4: Add the newly created lead to the top of the list immediately
+      // Add the newly created lead to the top of the local list
       if (response.data.success && response.data.data) {
         setQueries((prev) => [response.data.data, ...prev]);
         setTotalQueries((prev) => prev + 1);
+        // Emit via socket so other clients see it in real-time
+        emitNewLead(response.data.data);
       }
 
       toast({
@@ -1329,7 +1333,7 @@ const SalesDashboard = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               <Suspense fallback={<div>Loading...</div>}>
-                <LeadTable queries={queries} setQueries={setQueries} />
+                <LeadTable queries={queries} setQueries={setQueries} page={page} />
               </Suspense>
             </div>
             <div className="flex items-center justify-between p-2 w-full">

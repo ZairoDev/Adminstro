@@ -266,27 +266,8 @@ export async function POST(req: NextRequest) {
       leadStatus: "fresh",
     });
 
-    // ✅ SOCKET.IO REAL-TIME EMIT
-    const io = (global as any).io;
-    if (io) {
-      const areaSlug =
-        newQuery.location?.trim().toLowerCase().replace(/\s+/g, "-") || "all";
-      const disposition =
-        newQuery.leadStatus?.trim().toLowerCase().replace(/\s+/g, "-") ||
-        "fresh";
-
-      const areaRoom = `area-${areaSlug}|disposition-${disposition}`;
-      const globalRoom = `area-all|disposition-${disposition}`;
-      const event = `lead-${disposition}`;
-
-      // 🎯 Emit to both area-specific and global listeners
-      io.to(areaRoom).emit(event, newQuery);
-      io.to(globalRoom).emit(event, newQuery);
-
-      console.log(`✅ Emitted ${event} → ${areaRoom} & ${globalRoom}`);
-    } else {
-      console.warn("⚠️ Socket.IO instance not found!");
-    }
+    // Socket emit is now handled client-side via "new-lead-created" event
+    // (the client emits through its socket connection after receiving this response)
 
     // ✅ Send WhatsApp guest_greeting template to lead (Thessaloniki only)
     // Only send when lead is created by test_email: abhaytripathi6969@gmail.com

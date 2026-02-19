@@ -14,8 +14,8 @@ import {
 import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
 
 import {
   Table,
@@ -62,12 +62,13 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import CustomTooltip from "@/components/CustomToolTip";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 
-export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
+export default function DeclinedLeadTable({ queries, page = 1 }: { queries: IQuery[]; page?: number }) {
   const router = useRouter();
   const { toast } = useToast();
   const { token } = useAuthStore();
-  const searchParams = useSearchParams();
+  const { emitDispositionChange } = useLeadSocketEmit();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
 
@@ -82,13 +83,6 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
   );
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
-  const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    if (searchParams?.get("page")) {
-      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
-    }
-  }, []);
 
   const handleQualityChange = async (
     leadQualityByReviewer: string,
@@ -139,7 +133,8 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
       return;
     }
     try {
-      axios.post("/api/leads/disposition", {
+      const oldStatus = queries[index].leadStatus || "declined";
+      const response = await axios.post("/api/leads/disposition", {
         id,
         disposition: "active",
       });
@@ -147,6 +142,9 @@ export default function DeclinedLeadTable({ queries }: { queries: IQuery[] }) {
         description: "Disposition updated succefully",
       });
       queries[index].leadStatus = "active";
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, "active");
+      }
       setLoading(false);
     } catch (error: any) {
       setLoading(false);

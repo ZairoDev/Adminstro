@@ -105,11 +105,13 @@ export const GoodToGoLeads = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
-  // ✅ Use the reusable socket hook for real-time lead updates
   useLeadSocket({
     disposition: "active",
     allotedArea,
     setQueries,
+    page,
+    setTotalQueries,
+    setTotalPages,
   });
 
   const handlePageChange = (newPage: number) => {
@@ -556,7 +558,7 @@ export const GoodToGoLeads = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               {queries.length > 0 ? (
-                <GoodTable queries={queries} setQueries={setQueries} isBroker={false} />
+                <GoodTable queries={queries} setQueries={setQueries} isBroker={false} page={page} />
               ) : (
                 <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                   <img
@@ -651,7 +653,7 @@ export const GoodToGoLeads = () => {
               <div>
                 <div className="mt-2 border rounded-lg min-h-[90vh]">
                   {brokers.length > 0 ? (
-                    <GoodTable queries={brokers} setQueries={setBrokers} isBroker={true} />
+                    <GoodTable queries={brokers} setQueries={setBrokers} isBroker={true} page={page} />
                   ) : (
                     <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                       <img

@@ -35,6 +35,7 @@ import DatePicker from "@/components/DatePicker";
 import { Toaster } from "@/components/ui/toaster";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import { metroLines } from "@/app/dashboard/target/components/editArea";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 
 interface PageProps {
   params: {
@@ -56,6 +57,7 @@ interface PropertyBooster {
 const QueryDetails = ({ params }: PageProps) => {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { token } = useAuthStore();
+  const { emitDispositionChange } = useLeadSocketEmit();
 
   const [apiData, setApiData] = useState<IQuery>();
   const [leadsOfSameCustomer, setLeadsOfSameCustomer] = useState<IQuery[]>([]);
@@ -182,8 +184,11 @@ const QueryDetails = ({ params }: PageProps) => {
     if (!leadId) return;
     setRetrieveLeadLoading(true);
     try {
+      const oldStatus = apiData?.leadStatus || "rejected";
       const response = await axios.post("/api/sales/retrieveLead", { leadId });
-      // console.log("response: ", response);
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, "fresh");
+      }
     } catch (err: any) {
       console.log("err: ", err);
     } finally {

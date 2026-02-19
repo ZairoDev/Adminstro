@@ -488,7 +488,7 @@ export const LeadPage = () => {
       ) : view === "Table View" ? (
         <div>
           <div className="mt-2 border rounded-lg min-h-[90vh]">
-            <LeadTable queries={queries} setQueries={setQueries} />
+            <LeadTable queries={queries} setQueries={setQueries} page={page} />
           </div>
 
           {/* Pagination */}

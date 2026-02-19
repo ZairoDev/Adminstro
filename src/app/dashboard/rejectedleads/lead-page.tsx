@@ -87,11 +87,13 @@ export const RejectedLeads = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
-  // ✅ Use the reusable socket hook for real-time lead updates
   useLeadSocket({
     disposition: "rejected",
     allotedArea,
     setQueries,
+    page,
+    setTotalQueries,
+    setTotalPages,
   });
 
   const handlePageChange = (newPage: number) => {
@@ -428,7 +430,7 @@ export const RejectedLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} setQueries={setQueries} />
+              <LeadTable queries={queries} setQueries={setQueries} page={page} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

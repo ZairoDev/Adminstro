@@ -104,6 +104,8 @@ export const LeadPage = () => {
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+  const [isDedicatedLeadsMode, setIsDedicatedLeadsMode] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   useLeadSocket({
     disposition: "fresh",
@@ -210,11 +212,44 @@ export const LeadPage = () => {
     }
   };
 
+  // Initialize filters based on role on mount
   useEffect(() => {
-    filterLeads(1, filters);
-    setPage(parseInt(searchParams?.get("page") ?? "1"));
-    // allotedArea is derived from token now
+    if (!filtersInitialized && token?.role) {
+      if (token.role === "Sales") {
+        const salesFilters = { ...defaultFilters, budgetFrom: "0", budgetTo: "599" };
+        setFilters(salesFilters);
+        filterLeads(1, salesFilters);
+      } else {
+        filterLeads(1, defaultFilters);
+      }
+      setFiltersInitialized(true);
+      setPage(parseInt(searchParams?.get("page") ?? "1"));
+    }
+  }, [token?.role, filtersInitialized]);
+
+  useEffect(() => {
+    if (filtersInitialized) {
+      filterLeads(1, filters);
+      setPage(parseInt(searchParams?.get("page") ?? "1"));
+    }
   }, [activeTab]);
+
+  // Handle dedicated leads button for SuperAdmin
+  const handleDedicatedLeads = () => {
+    if (isDedicatedLeadsMode) {
+      // Reset to no budget filter
+      const resetFilters = { ...filters, budgetFrom: "", budgetTo: "" };
+      setFilters(resetFilters);
+      setIsDedicatedLeadsMode(false);
+      filterLeads(1, resetFilters);
+    } else {
+      // Filter for budget > 599
+      const dedicatedFilters = { ...filters, budgetFrom: "600", budgetTo: "" };
+      setFilters(dedicatedFilters);
+      setIsDedicatedLeadsMode(true);
+      filterLeads(1, dedicatedFilters);
+    }
+  };
 
   // useEffect(() => {
   //   const pusher = new Pusher("1725fd164206c8aa520b", {
@@ -238,9 +273,11 @@ export const LeadPage = () => {
   // }, [queries, allotedArea]);
 
   useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1);
-  }, [filters.searchTerm]);
+    if (filtersInitialized) {
+      // debounce(filterLeads, 500);
+      filterLeads(1, filters);
+    }
+  }, [filters.searchTerm, filtersInitialized]);
 
 
    const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
@@ -423,6 +460,16 @@ export const LeadPage = () => {
 
           {/* options filter button */}
           <div className="flex md:w-auto w-full  justify-between  gap-x-2">
+            {/* Dedicated Leads button for SuperAdmin */}
+            {token?.role === "SuperAdmin" && (
+              <Button
+                variant={isDedicatedLeadsMode ? "default" : "outline"}
+                onClick={handleDedicatedLeads}
+                className={isDedicatedLeadsMode ? "bg-primary text-primary-foreground" : ""}
+              >
+                {isDedicatedLeadsMode ? "All Leads" : "Dedicated Leads"}
+              </Button>
+            )}
             <div className="">
               <Sheet>
                 <SheetTrigger asChild>
@@ -458,9 +505,13 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          setFilters({ ...defaultFilters });
+                          // Preserve Sales role default budget filter when clearing
+                          const clearedFilters = token?.role === "Sales" 
+                            ? { ...defaultFilters, budgetFrom: "0", budgetTo: "599" }
+                            : { ...defaultFilters };
+                          setFilters(clearedFilters);
                           setPage(1);
-                          filterLeads(1, defaultFilters);
+                          filterLeads(1, clearedFilters);
                         }}
                         className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                       >

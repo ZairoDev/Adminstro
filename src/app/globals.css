@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+} 
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out;
+}
+
 /* Desktop zoom - disabled on mobile to prevent viewport issues */
 @media (min-width: 768px) {
   html {

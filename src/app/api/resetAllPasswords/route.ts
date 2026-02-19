@@ -16,7 +16,7 @@ function generatePassword() {
 
 export const GET = async (req: NextRequest) => {
   try {
-    const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content"];
+    const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content", "HAdmin"];
     const excludedEmails = ["khanshahid5880@gmail.com"];
 
     const employees = await Employees.find({

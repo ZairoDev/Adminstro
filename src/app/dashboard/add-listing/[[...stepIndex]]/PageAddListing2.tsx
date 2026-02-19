@@ -720,16 +720,38 @@ const PageAddListing2: FC = () => {
           </FormItem>
           <div className="ml-3">
             <h1>Coordinates</h1>
-            <div className="flex gap-32 w-full mt-2">
-              <div className="flex gap-2">
-                <h4 className=" text-sm">Latitude: </h4>
-                <h4 className=" text-sm">{center.lat}</h4>
+              <div className="flex gap-6 w-full mt-2 items-center">
+                <div className="flex gap-2 items-center">
+                  <h4 className=" text-sm">Latitude: </h4>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={String(center.lat)}
+                    onChange={(e) =>
+                      setCenter((prev) => ({
+                        ...prev,
+                        lat: e.target.value === "" ? 0 : parseFloat(e.target.value),
+                      }))
+                    }
+                    className="w-36"
+                  />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <h4 className="text-sm">Longitude: </h4>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={String(center.lng)}
+                    onChange={(e) =>
+                      setCenter((prev) => ({
+                        ...prev,
+                        lng: e.target.value === "" ? 0 : parseFloat(e.target.value),
+                      }))
+                    }
+                    className="w-36"
+                  />
+                </div>
               </div>
-              <div className="flex gap-2">
-                <h4 className="text-sm">Longitude: </h4>
-                <h4 className="text-sm">{center.lng}</h4>
-              </div>
-            </div>
           </div>
         </div>
 

@@ -86,6 +86,7 @@
     "jszip": "^3.10.1",
     "libphonenumber-js": "^1.12.18",
     "lodash.debounce": "^4.0.8",
+    "lottie-react": "^2.4.1",
     "lowlight": "^3.1.0",
     "lucide-react": "^0.438.0",
     "mini-svg-data-uri": "^1.4.4",

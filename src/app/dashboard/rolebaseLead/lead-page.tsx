@@ -104,16 +104,12 @@ export const LeadPage = () => {
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
-  const [isDedicatedLeadsMode, setIsDedicatedLeadsMode] = useState(false);
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
+  // ✅ Use the reusable socket hook for real-time lead updates
   useLeadSocket({
     disposition: "fresh",
     allotedArea,
     setQueries,
-    page,
-    setTotalQueries,
-    setTotalPages,
   });
                
   const handlePageChange = (newPage: number) => {
@@ -212,44 +208,11 @@ export const LeadPage = () => {
     }
   };
 
-  // Initialize filters based on role on mount
   useEffect(() => {
-    if (!filtersInitialized && token?.role) {
-      if (token.role === "Sales") {
-        const salesFilters = { ...defaultFilters, budgetFrom: "0", budgetTo: "599" };
-        setFilters(salesFilters);
-        filterLeads(1, salesFilters);
-      } else {
-        filterLeads(1, defaultFilters);
-      }
-      setFiltersInitialized(true);
-      setPage(parseInt(searchParams?.get("page") ?? "1"));
-    }
-  }, [token?.role, filtersInitialized]);
-
-  useEffect(() => {
-    if (filtersInitialized) {
-      filterLeads(1, filters);
-      setPage(parseInt(searchParams?.get("page") ?? "1"));
-    }
+    filterLeads(1, filters);
+    setPage(parseInt(searchParams?.get("page") ?? "1"));
+    // allotedArea is derived from token now
   }, [activeTab]);
-
-  // Handle dedicated leads button for SuperAdmin
-  const handleDedicatedLeads = () => {
-    if (isDedicatedLeadsMode) {
-      // Reset to no budget filter
-      const resetFilters = { ...filters, budgetFrom: "", budgetTo: "" };
-      setFilters(resetFilters);
-      setIsDedicatedLeadsMode(false);
-      filterLeads(1, resetFilters);
-    } else {
-      // Filter for budget > 599
-      const dedicatedFilters = { ...filters, budgetFrom: "600", budgetTo: "" };
-      setFilters(dedicatedFilters);
-      setIsDedicatedLeadsMode(true);
-      filterLeads(1, dedicatedFilters);
-    }
-  };
 
   // useEffect(() => {
   //   const pusher = new Pusher("1725fd164206c8aa520b", {
@@ -273,11 +236,9 @@ export const LeadPage = () => {
   // }, [queries, allotedArea]);
 
   useEffect(() => {
-    if (filtersInitialized) {
-      // debounce(filterLeads, 500);
-      filterLeads(1, filters);
-    }
-  }, [filters.searchTerm, filtersInitialized]);
+    // debounce(filterLeads, 500);
+    filterLeads(1);
+  }, [filters.searchTerm]);
 
 
    const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
@@ -460,16 +421,6 @@ export const LeadPage = () => {
 
           {/* options filter button */}
           <div className="flex md:w-auto w-full  justify-between  gap-x-2">
-            {/* Dedicated Leads button for SuperAdmin */}
-            {token?.role === "SuperAdmin" && (
-              <Button
-                variant={isDedicatedLeadsMode ? "default" : "outline"}
-                onClick={handleDedicatedLeads}
-                className={isDedicatedLeadsMode ? "bg-primary text-primary-foreground" : ""}
-              >
-                {isDedicatedLeadsMode ? "All Leads" : "Dedicated Leads"}
-              </Button>
-            )}
             <div className="">
               <Sheet>
                 <SheetTrigger asChild>
@@ -505,13 +456,9 @@ export const LeadPage = () => {
                       <Button
                         onClick={() => {
                           router.push(`?page=1`);
-                          // Preserve Sales role default budget filter when clearing
-                          const clearedFilters = token?.role === "Sales" 
-                            ? { ...defaultFilters, budgetFrom: "0", budgetTo: "599" }
-                            : { ...defaultFilters };
-                          setFilters(clearedFilters);
+                          setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, clearedFilters);
+                          filterLeads(1, defaultFilters);
                         }}
                         className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
                       >
@@ -569,7 +516,7 @@ export const LeadPage = () => {
             {/* Approved Leads Table */}
             <TabsContent value="approved">
               <div className="mt-2 border rounded-lg min-h-[90vh]">
-                <LeadTable queries={queries} setQueries={setQueries} page={page} />
+                <LeadTable queries={queries} setQueries={setQueries} />
               </div>
               <div className="flex items-center justify-between p-2 w-full">
                 <p className="text-xs">
@@ -586,7 +533,7 @@ export const LeadPage = () => {
             {/* Not Approved Leads Table */}
             <TabsContent value="notApproved">
               <div className="mt-2 border rounded-lg min-h-[90vh]">
-                <LeadTable queries={queries} setQueries={setQueries} page={page} />
+                <LeadTable queries={queries} setQueries={setQueries} />
               </div>
               <div className="flex items-center justify-between p-2 w-full">
                 <p className="text-xs">

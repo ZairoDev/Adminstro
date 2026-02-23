@@ -64,6 +64,7 @@ import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
 import { FaWhatsapp } from "react-icons/fa6";
 import axios from "axios";
+import { AiFillDashboard } from "react-icons/ai";
 
 // Simple active matcher (keep strict equality)
 const isActive = (currentPath: string, path: string): boolean =>
@@ -790,10 +791,10 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PersonStanding size={18} />,
     },
     {
-      path: "/dashboard/coupons",
-      label: "Manage Coupons",
-      Icon: <Ticket size={18} />,
-    },
+      path: "/holidaysera",
+      label: "HolidaySera",
+      Icon: <AiFillDashboard size={18} />,
+    }
   ],
   "Subscription-Sales": [
     {

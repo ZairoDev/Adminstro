@@ -35,11 +35,11 @@ export default function HolidayGuestsChart() {
   return (
     <div>
       <ReusableLineChart
-        title="Guests registered (30 days)"
-        description="Guests with origin set to HolidaySera"
+        title="Owners registered (30 days)"
+        description="Owners with origin set to HolidaySera"
         data={data.map((d) => ({ date: d.date, owners: d.count }))}
         dataKey="owners"
-        label="Guests"
+        label="Owners"
         color="hsl(var(--chart-4))"
       />
     </div>

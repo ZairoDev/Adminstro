@@ -83,7 +83,7 @@ export default function HolidaySeraHome() {
       href: "/holidaysera/properties",
     },
     {
-      label: "Total Guests",
+      label: "Total Owners",
       value: stats?.totalGuests ?? 0,
       icon: <Users size={22} />,
       color: "from-violet-500 to-violet-600",
@@ -162,10 +162,10 @@ export default function HolidaySeraHome() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                Manage Guests
+                Manage Owners
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                View and search HolidaySera guests (users with origin: holidaysera)
+                View and search HolidaySera Owners (users with origin: holidaysera)
               </p>
             </div>
             <ArrowRight

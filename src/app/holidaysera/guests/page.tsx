@@ -63,7 +63,7 @@ const HolidaySeraGuests = () => {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
-              HolidaySera Guests
+              HolidaySera Owners
             </h1>
             <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
               <UsersIcon size={16} />
@@ -109,17 +109,17 @@ const HolidaySeraGuests = () => {
           <div className="flex flex-col items-center justify-center min-h-[60vh] py-8">
             <UsersIcon className="mx-auto h-14 w-14 text-gray-300 dark:text-gray-600 mb-4" />
             <p className="text-gray-500 dark:text-gray-400 text-lg mb-1">
-              No HolidaySera guests found
+              No HolidaySera Owners found
             </p>
             <p className="text-gray-400 dark:text-gray-500 text-sm mb-6">
-              Users with origin &quot;holidaysera&quot; will appear here
+              Owners with origin &quot;holidaysera&quot; will appear here
             </p>
             {/* <Link
               href="/dashboard/createnewuser"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:opacity-95"
             >
               <UserPlus size={18} />
-              Add Guest
+              Add Owner
             </Link> */}
           </div>
         ) : (

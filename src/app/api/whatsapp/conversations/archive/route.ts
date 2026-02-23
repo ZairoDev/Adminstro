@@ -196,6 +196,7 @@ export async function GET(req: NextRequest) {
       isArchived: true,
     })
       .select("conversationId archivedAt archivedBy")
+
       .lean();
 
     const archivedConversationIds = archivedStates.map(

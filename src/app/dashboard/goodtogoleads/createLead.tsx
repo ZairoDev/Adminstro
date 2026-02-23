@@ -34,6 +34,7 @@ import DatePicker from "@/components/DatePicker";
 
 import { validateAndSetDuration } from "@/util/durationValidation";
 import { useForm } from "react-hook-form";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import { metroLines } from "../target/components/editArea";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import SearchableAreaSelect from "../createquery/SearchAndSelect";
@@ -51,6 +52,7 @@ export default function CreateLeadDialog({
 }) {
   const { toast } = useToast();
   const { register } = useForm();
+  const { emitNewLead } = useLeadSocketEmit();
 
   // 🟢 Form State (self-contained)
   const [submitQuery, setSubmitQuery] = useState(false);
@@ -174,12 +176,16 @@ export default function CreateLeadDialog({
 
     try {
       setSubmitQuery(true);
-      await axios.post("/api/sales/createquery", {
+      const response = await axios.post("/api/sales/createquery", {
         ...formData,
-        startDate, // ✅ pass actual Date object
-        endDate, // ✅ pass actual Date object
+        startDate,
+        endDate,
         phoneNo: phone.replace(/\D/g, ""),
       });
+
+      if (response.data.success && response.data.data) {
+        emitNewLead(response.data.data);
+      }
 
       toast({ description: "Query Created Successfully" });
 

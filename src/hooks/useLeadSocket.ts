@@ -7,66 +7,134 @@ import { IQuery } from "@/util/type";
 
 type LeadDisposition = "fresh" | "active" | "rejected" | "declined" | "closed";
 
+const DEFAULT_PAGE_SIZE = 50;
+
 interface UseLeadSocketOptions {
   disposition: LeadDisposition;
   allotedArea: string | string[];
   setQueries: React.Dispatch<React.SetStateAction<IQuery[]>>;
+  page?: number;
+  setTotalQueries?: React.Dispatch<React.SetStateAction<number>>;
+  setTotalPages?: React.Dispatch<React.SetStateAction<number>>;
+  pageSize?: number;
   enabled?: boolean;
 }
 
-// Helper to format area consistently (same as server-side)
 const formatArea = (area: string) =>
   area?.trim().toLowerCase().replace(/\s+/g, "-") || "all";
 
 /**
- * A reusable hook for handling lead socket events across all lead pages.
- * - Adds new leads when they match the current disposition
- * - Removes leads when they move to a different disposition
- * - Prevents duplicate listeners and entries
- * - Handles proper cleanup
+ * Hook for handling real-time lead socket events.
+ *
+ * Architecture: The socket server (socket.ts) broadcasts lead events to rooms.
+ * This hook joins rooms and listens for events matching the disposition.
+ * Lead creation/disposition-change emits are handled client-side via
+ * useLeadSocketEmit, which sends events through the client's own socket
+ * connection (bypassing the broken global.io in API routes).
  */
 export const useLeadSocket = ({
   disposition,
   allotedArea,
   setQueries,
+  page,
+  setTotalQueries,
+  setTotalPages,
+  pageSize = DEFAULT_PAGE_SIZE,
   enabled = true,
 }: UseLeadSocketOptions) => {
   const { socket, isConnected } = useSocket();
   const { toast } = useToast();
-  
-  // Refs to store stable references
+
   const setQueriesRef = useRef(setQueries);
   const toastRef = useRef(toast);
+  const pageRef = useRef(page ?? 1);
+  const setTotalQueriesRef = useRef(setTotalQueries);
+  const pageSizeRef = useRef(pageSize);
+  const allotedAreaRef = useRef(allotedArea);
   const joinedRoomsRef = useRef<{ area: string; disposition: string }[]>([]);
-  const hasJoinedRef = useRef(false);
+  const processedLeadsRef = useRef<Set<string>>(new Set());
 
-  // Keep refs updated
   useEffect(() => {
     setQueriesRef.current = setQueries;
     toastRef.current = toast;
-  }, [setQueries, toast]);
+    pageRef.current = page ?? 1;
+    setTotalQueriesRef.current = setTotalQueries;
+    pageSizeRef.current = pageSize;
+    allotedAreaRef.current = allotedArea;
+  }, [setQueries, toast, page, setTotalQueries, setTotalPages, pageSize, allotedArea]);
 
-  // Serialize allotedArea for dependency comparison
   const areaKey = Array.isArray(allotedArea)
     ? allotedArea.sort().join(",")
     : allotedArea || "";
 
   useEffect(() => {
-    // Don't run if disabled or socket not ready
-    if (!enabled || !socket || !isConnected) {
-      return;
-    }
-
-    // Prevent duplicate setup
-    if (hasJoinedRef.current) {
-      return;
-    }
+    if (!enabled || !socket || !isConnected) return;
 
     const formattedDisposition = formatArea(disposition);
     const addEventName = `lead-${formattedDisposition}`;
     const removeEventName = `lead-removed-${formattedDisposition}`;
 
-    // Normalize allotedArea into an array of formatted area strings
+    const handleNewLead = (data: IQuery) => {
+      try {
+        const leadId = data._id?.toString();
+        if (!leadId) return;
+
+        if (processedLeadsRef.current.has(leadId)) return;
+        processedLeadsRef.current.add(leadId);
+
+        const currentAllotedArea = allotedAreaRef.current;
+        const rawAreas = Array.isArray(currentAllotedArea)
+          ? currentAllotedArea.filter((a) => a && a.trim())
+          : currentAllotedArea
+          ? [currentAllotedArea]
+          : [];
+
+        const formattedAreas = rawAreas.map(formatArea).filter(Boolean);
+        const isGlobalMode = formattedAreas.length === 0;
+        const dataArea = formatArea(data.location || "");
+
+        if (isGlobalMode || formattedAreas.includes(dataArea)) {
+          const ps = pageSizeRef.current;
+          const currentPage = pageRef.current;
+
+          setQueriesRef.current((prev) => {
+            if (prev.some((q) => q._id?.toString() === leadId)) return prev;
+
+            const updated = [data, ...prev];
+            if (currentPage === 1) {
+              return updated.slice(0, ps);
+            }
+            return updated;
+          });
+
+          if (setTotalQueriesRef.current) {
+            setTotalQueriesRef.current((prev) => prev + 1);
+          }
+
+          toastRef.current({
+            title: `New ${disposition.charAt(0).toUpperCase() + disposition.slice(1)} Lead`,
+            description: `Lead from ${data.name || "Unknown"}${
+              isGlobalMode ? "" : ` in ${data.location}`
+            }`,
+          });
+        }
+      } catch (err) {
+        console.error(`[LeadSocket] Error in handleNewLead for ${disposition}:`, err);
+      }
+    };
+
+    const handleLeadRemoved = (data: { _id: string; newDisposition: string }) => {
+      try {
+        setQueriesRef.current((prev) => prev.filter((q) => q._id !== data._id));
+        if (setTotalQueriesRef.current) {
+          setTotalQueriesRef.current((prev) => Math.max(0, prev - 1));
+        }
+      } catch (err) {
+        console.error("[LeadSocket] handleLeadRemoved error:", err);
+      }
+    };
+
+    // Normalize allotedArea for room joining
     const rawAreas = Array.isArray(allotedArea)
       ? allotedArea.filter((a) => a && a.trim())
       : allotedArea
@@ -76,99 +144,43 @@ export const useLeadSocket = ({
     const formattedAreas = rawAreas.map(formatArea).filter(Boolean);
     const isGlobalMode = formattedAreas.length === 0;
 
-    // ✅ Handler for NEW leads coming into this disposition
-    const handleNewLead = (data: IQuery) => {
-      const dataArea = formatArea(data.location || "");
-
-      // In global mode, accept all leads
-      // In area mode, only accept leads that match our areas
-      if (isGlobalMode || formattedAreas.includes(dataArea)) {
-        setQueriesRef.current((prev) => {
-          // Prevent duplicate entries
-          if (prev.some((q) => q._id === data._id)) {
-            console.log(`⚠️ Duplicate lead ignored: ${data._id}`);
-            return prev;
-          }
-          return [data, ...prev];
-        });
-
-        console.log(
-          `🆕 New ${disposition} lead received:`,
-          data.name,
-          `(${dataArea})`
-        );
-
-        toastRef.current({
-          title: `New ${disposition.charAt(0).toUpperCase() + disposition.slice(1)} Lead`,
-          description: `Lead from ${data.name || "Unknown"}${
-            isGlobalMode ? "" : ` in ${data.location}`
-          }`,
-        });
-      }
-    };
-
-    // ✅ Handler for leads LEAVING this disposition (moved elsewhere)
-    const handleLeadRemoved = (data: { _id: string; newDisposition: string }) => {
-      setQueriesRef.current((prev) => {
-        const filtered = prev.filter((q) => q._id !== data._id);
-        if (filtered.length !== prev.length) {
-          console.log(
-            `🚀 Lead ${data._id} moved to ${data.newDisposition}, removed from ${disposition}`
-          );
-        }
-        return filtered;
-      });
-    };
-
-    // ✅ Register event listeners BEFORE joining rooms
+    // Register event listeners
     socket.on(addEventName, handleNewLead);
     socket.on(removeEventName, handleLeadRemoved);
-    console.log(`📡 Listening for: ${addEventName}, ${removeEventName}`);
 
-    // ✅ Join rooms
+    // Join rooms so the socket server knows which events to send us
     joinedRoomsRef.current = [];
-    
+
     if (isGlobalMode) {
       const globalRoom = { area: "all", disposition: formattedDisposition };
       socket.emit("join-room", globalRoom);
       joinedRoomsRef.current.push(globalRoom);
-      console.log(
-        `✅ Joined global room: area-all|disposition-${formattedDisposition}`
-      );
     } else {
       formattedAreas.forEach((area) => {
         const room = { area, disposition: formattedDisposition };
         socket.emit("join-room", room);
         joinedRoomsRef.current.push(room);
-        console.log(
-          `✅ Joined room: area-${area}|disposition-${formattedDisposition}`
-        );
       });
     }
 
-    hasJoinedRef.current = true;
+    // Periodically clear processed leads cache to prevent memory buildup
+    const clearCacheInterval = setInterval(() => {
+      processedLeadsRef.current.clear();
+    }, 5 * 60 * 1000);
 
-    // ✅ Cleanup: Remove listeners and leave all joined rooms
     return () => {
-      console.log(`🧹 Cleaning up socket for ${disposition} leads...`);
-      hasJoinedRef.current = false;
-
-      // Remove event listeners with specific handler references
       socket.off(addEventName, handleNewLead);
       socket.off(removeEventName, handleLeadRemoved);
 
-      // Leave all rooms we joined
       joinedRoomsRef.current.forEach((room) => {
         socket.emit("leave-room", room);
-        console.log(
-          `🚪 Left room: area-${room.area}|disposition-${room.disposition}`
-        );
       });
 
+      clearInterval(clearCacheInterval);
+      processedLeadsRef.current.clear();
       joinedRoomsRef.current = [];
     };
   }, [socket, isConnected, areaKey, disposition, enabled]);
 
   return { socket, isConnected };
 };
-

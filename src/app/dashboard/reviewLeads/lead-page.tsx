@@ -369,7 +369,7 @@ export const ReviewLeads = () => {
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
-              <LeadTable queries={queries} setQueries={setQueries} />
+              <LeadTable queries={queries} setQueries={setQueries} page={page} />
             </div>
             <div className="flex items-center justify-between p-2 w-full">
               <div className="">

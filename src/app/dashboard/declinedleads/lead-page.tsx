@@ -85,11 +85,13 @@ export const DeclinedLeads = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
-  // ✅ Use the reusable socket hook for real-time lead updates
   useLeadSocket({
     disposition: "declined",
     allotedArea,
     setQueries,
+    page,
+    setTotalQueries,
+    setTotalPages,
   });
 
   const handlePageChange = (newPage: number) => {
@@ -383,7 +385,7 @@ export const DeclinedLeads = () => {
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
               {queries.length > 0 ? (
-                <DeclinedLeadTable queries={queries} />
+                <DeclinedLeadTable queries={queries} page={page} />
               ) : (
                 <div className=" w-full h-[80vh] flex flex-col items-center justify-center">
                   <img

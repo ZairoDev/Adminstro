@@ -28,7 +28,7 @@ import {
 import axios from "axios";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Table,
   TableRow,
@@ -81,6 +81,7 @@ import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditab
 import { SelectableCell } from "@/app/spreadsheet/components/cells/SelectableCell";
 import { AreaSelect} from "../leadTableSearch/page";
 import { FaWhatsapp } from "react-icons/fa6";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 
 interface AreaType {
   _id: string;
@@ -98,12 +99,12 @@ interface PhoneConfig {
   isInternal?: boolean;
 }
 
-export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,setQueries:Function}) {
+export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: IQuery[] ,setQueries:Function, page?: number}) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
   const { token } = useAuthStore();
-  const searchParams = useSearchParams();
+  const { emitDispositionChange } = useLeadSocketEmit();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
   const [activeModalRow, setActiveModalRow] = useState(-1);
@@ -116,7 +117,6 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
   );
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
-  const [page, setPage] = useState(1);
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
@@ -148,12 +148,6 @@ export default function  LeadTable({ queries ,setQueries}: { queries: IQuery[] ,
     token?.role === "LeadGen-TeamLead" || 
     token?.role === "SuperAdmin" || 
     token?.role === "Sales-TeamLead";
-
-  useEffect(() => {
-    if (searchParams?.get("page")) {
-      setPage(parseInt(searchParams.get("page") ?? "1") || 1);
-    }
-  }, []);
 
   // Fetch locations from monthlyTargets collection
   useEffect(() => {
@@ -306,7 +300,8 @@ const handleSave = async (
       return;
     }
     try {
-      const response = axios.post("/api/sales/rejectionReason", {
+      const oldStatus = queries[index].leadStatus || "fresh";
+      const response = await axios.post("/api/sales/rejectionReason", {
         id,
         rejectionReason,
       });
@@ -314,6 +309,9 @@ const handleSave = async (
         description: "Rejection reason saved succefully",
       });
       queries[index].rejectionReason = rejectionReason;
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, "rejected");
+      }
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -339,7 +337,8 @@ const handleSave = async (
       return;
     }
     try {
-      axios.post("/api/leads/disposition", {
+      const oldStatus = queries[index].leadStatus || "fresh";
+      const response = await axios.post("/api/leads/disposition", {
         id,
         disposition,
         dispositionReason,
@@ -348,6 +347,9 @@ const handleSave = async (
         description: "Disposition updated succefully",
       });
       queries[index].leadStatus = disposition;
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, disposition);
+      }
       setLoading(false);
     } catch (error: any) {
       setLoading(false);

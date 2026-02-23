@@ -24,7 +24,7 @@ import axios from "axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import {
   Table,
@@ -80,6 +80,7 @@ import { AreaSelect } from "@/components/leadTableSearch/page";
 import { options } from "@fullcalendar/core/preact.js";
 import { FaWhatsapp } from "react-icons/fa6";
 import { getWhatsAppErrorInfo, getActionMessage } from "@/lib/whatsapp/errorHandler";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 
 interface Timers {
   current: { [key: string]: NodeJS.Timeout };
@@ -105,16 +106,18 @@ export default function GoodTable({
   queries,
   setQueries,
   isBroker = false,
+  page = 1,
 }: {
   queries: IQuery[];
   setQueries: React.Dispatch<React.SetStateAction<IQuery[]>>;
   isBroker?: boolean;
+  page?: number;
 }) {
   const router = useRouter();
   const path = usePathname();
   const { toast } = useToast();
   const { token } = useAuthStore();
-  const searchParams = useSearchParams();
+  const { emitDispositionChange } = useLeadSocketEmit();
 
   const ellipsisRef = useRef<HTMLButtonElement>(null);
   const [activeModalRow, setActiveModalRow] = useState(-1);
@@ -130,7 +133,6 @@ export default function GoodTable({
   >([]);
   const [noteValue, setNoteValue] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
-  const [page, setPage] = useState(1);
   const [rows, setRows] = useState(() =>
     queries.map((q: IQuery) => ({
       leadId: q._id,
@@ -161,12 +163,6 @@ export default function GoodTable({
     return phoneConfigs[0]?.phoneNumberId || "";
   };
 
-  useEffect(() => {
-    if (searchParams?.get("page")) {
-      setPage(parseInt(searchParams?.get("page") ?? "1") || 1);
-    }
-  }, []);
-
   const IsView = async (id: any, index: any) => {
     try {
       await axios.post("/api/sales/queryStatusUpdate", {
@@ -196,7 +192,8 @@ export default function GoodTable({
       return;
     }
     try {
-      const response = axios.post("/api/sales/rejectionReason", {
+      const oldStatus = queries[index].leadStatus || "fresh";
+      const response = await axios.post("/api/sales/rejectionReason", {
         id,
         rejectionReason,
       });
@@ -204,6 +201,9 @@ export default function GoodTable({
         description: "Rejection reason saved succefully",
       });
       queries[index].rejectionReason = rejectionReason;
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, "rejected");
+      }
       setLoading(false);
     } catch (error: any) {
       setLoading(false);
@@ -233,7 +233,8 @@ export default function GoodTable({
       return;
     }
     try {
-      axios.post("/api/leads/disposition", {
+      const oldStatus = queries[index].leadStatus || "fresh";
+      const response = await axios.post("/api/leads/disposition", {
         id,
         disposition,
         dispositionReason,
@@ -242,6 +243,9 @@ export default function GoodTable({
         description: "Disposition updated succefully",
       });
       queries[index].leadStatus = disposition;
+      if (response.data?.data) {
+        emitDispositionChange(response.data.data, oldStatus, disposition);
+      }
       setLoading(false);
     } catch (error: any) {
       setLoading(false);

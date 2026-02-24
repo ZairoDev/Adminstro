@@ -17,7 +17,6 @@ const BoostCounts = () => {
       setIsError(false);
       setError("");
       const response = await getBoostCounts({ days });
-      // console.log("Boost counts response:", response);
       const transformedResponse = response.map(
         ({ date, total, newBoosts, reboosts ,posted}) => ({
           date,
@@ -29,7 +28,7 @@ const BoostCounts = () => {
         })
       );
       setTotalBoosts(transformedResponse);
-      console.log("Boost counts transformed:", transformedResponse);
+      // boost counts transformed
     } catch (err: any) {
       const error = new Error(err);
       setIsError(true);

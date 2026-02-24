@@ -242,17 +242,7 @@ export function SystemNotificationToast({
   // Micro-batcher callback
   const handleBatchedRelease = useCallback(
     (notifications: UnifiedNotification[]) => {
-      console.log("📦 MICRO-BATCHER RELEASING:", {
-        count: notifications.length,
-        notifications: notifications.map((n) => ({
-          id: n.id,
-          source: n.source,
-          title: n.title,
-          message: n.message?.substring
-            ? n.message.substring(0, 50)
-            : n.message,
-        })),
-      });
+
 
       notifications.forEach((notification) => {
         // Deduplication check
@@ -891,7 +881,7 @@ export function SystemNotificationToast({
       // FIX 3: Server-side event acknowledgement check
       if (deliveryId) {
         if (acknowledgedDeliveryIdsRef.current.has(deliveryId)) {
-          console.log(`⏭️ [ACKED] Delivery ${deliveryId} already acknowledged, skipping`);
+
           return;
         }
         // Acknowledge immediately (prevent replay on reconnect)
@@ -913,7 +903,7 @@ export function SystemNotificationToast({
         // This must happen BEFORE any other processing to prevent duplicates
         if (eventId) {
           if (seenEventIdsRef.current.has(eventId)) {
-            console.log(`⏭️ [DUPLICATE] Event ${eventId} already seen, skipping (seen set size: ${seenEventIdsRef.current.size})`);
+
             return; // EARLY RETURN - prevent all duplicate processing
           }
           // Mark as seen IMMEDIATELY (synchronous) - BEFORE any async operations
@@ -923,7 +913,7 @@ export function SystemNotificationToast({
             const array = Array.from(seenEventIdsRef.current);
             seenEventIdsRef.current = new Set(array.slice(-1000));
           }
-          console.log(`✅ [NEW EVENT] Added eventId ${eventId} to seen set (total: ${seenEventIdsRef.current.size})`);
+
         } else {
           console.warn(`⚠️ [WARNING] Notification missing eventId, cannot deduplicate properly - REJECTING`);
           return; // REJECT notifications without eventId to prevent duplicates
@@ -978,7 +968,7 @@ export function SystemNotificationToast({
         ) || existingNotification.metadata?.lastMessageId === existingMessageId;
         
         if (isDuplicateMessage) {
-          console.log(`⏭️ [DUPLICATE MESSAGE] Message ${existingMessageId} already in notification, skipping`);
+
           return;
         }
         
@@ -1147,7 +1137,7 @@ export function SystemNotificationToast({
     if (!socket || !isConnected || !token) return;
 
     const handleReconnect = async () => {
-      console.log("🔄 [REPLAY] Socket reconnected, fetching missed SYSTEM notifications only...");
+
 
       // Fetch missed system notifications ONLY (not WhatsApp)
       const missed = await fetchMissedSystemNotifications(
@@ -1162,7 +1152,6 @@ export function SystemNotificationToast({
         }
       });
 
-      console.log(`✅ [REPLAY] Replayed ${missed.length} missed SYSTEM notifications (WhatsApp NOT replayed)`);
     };
 
     // Listen for reconnect
@@ -1400,7 +1389,7 @@ export function SystemNotificationToast({
           conversationId,
         });
         
-        console.log(`🧹 [CLEAR] Cleared notifications for conversation: ${conversationId}`);
+
         
         // Dismiss the notification toast
         handleDismiss(conversationId);

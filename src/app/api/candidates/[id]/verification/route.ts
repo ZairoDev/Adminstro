@@ -53,7 +53,7 @@ export async function PATCH(
     const { documentType, verified } = body;
 
     // Log received data for debugging
-    console.log("Verification request:", { candidateId: id, documentType, verified });
+   
 
     // Validate document type
     if (!DOCUMENT_TYPES.includes(documentType as DocumentType)) {
@@ -102,7 +102,7 @@ export async function PATCH(
       if (oldAadharCard) {
         // Allow verification of front/back even if only old aadharCard exists
         documentValue = oldAadharCard;
-        console.log("Using backward compatibility: old aadharCard found for", validDocumentType);
+  
       }
     }
     

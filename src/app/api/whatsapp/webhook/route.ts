@@ -53,13 +53,13 @@ export async function GET(req: NextRequest) {
     const token = searchParams.get("hub.verify_token");
     const challenge = searchParams.get("hub.challenge");
 
-    console.log("Webhook verification request:", { mode, token, challenge });
+
 
     // Your verify token - you can set this in your Meta Developer Console
     const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "vacationsaga_whatsapp_webhook";
 
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("✅ Webhook verified successfully");
+
       return new NextResponse(challenge, { status: 200 });
     }
 
@@ -238,7 +238,7 @@ async function getMediaPermanentUrl(
         body: mediaBuffer,
       }
     );
-    console.log("uploadResponse", uploadResponse);
+
 
     if (!uploadResponse.ok) {
       console.error("Failed to upload to Bunny CDN:", await uploadResponse.text());

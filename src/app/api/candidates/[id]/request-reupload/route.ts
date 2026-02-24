@@ -97,9 +97,7 @@ export async function POST(
       );
     }
 
-    console.log("Candidate found:", candidate.name);
-    console.log("onboardingDetails exists:", !!candidate.onboardingDetails);
-    console.log("onboardingComplete:", candidate.onboardingDetails?.onboardingComplete);
+
 
     // Check if onboarding is complete
     if (!candidate.onboardingDetails?.onboardingComplete) {
@@ -129,10 +127,7 @@ export async function POST(
     tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7);
 
     // Update candidate with re-upload request
-    console.log("Creating re-upload request for candidate:", id);
-    console.log("Token:", secureToken);
-    console.log("Expires at:", tokenExpiresAt);
-    console.log("Requested documents:", documentTypes);
+
     
     // Build the complete reuploadRequest object
     const reuploadRequestData = {
@@ -185,15 +180,7 @@ export async function POST(
     const verifyCandidate = await Candidate.findById(id);
     const savedRequest = verifyCandidate?.onboardingDetails?.reuploadRequest;
     
-    console.log("=== VERIFICATION AFTER SAVE ===");
-    console.log("Candidate ID:", id);
-    console.log("onboardingDetails exists:", !!verifyCandidate?.onboardingDetails);
-    console.log("reuploadRequest exists:", !!savedRequest);
-    console.log("Saved reuploadRequest:", JSON.stringify(savedRequest, null, 2));
-    console.log("Token matches:", savedRequest?.token === secureToken);
-    console.log("Is active:", savedRequest?.isActive);
-    console.log("Requested documents:", savedRequest?.requestedDocuments);
-    console.log("===============================");
+
     
     if (!savedRequest) {
       console.error("ERROR: Re-upload request was not saved - savedRequest is null/undefined");
@@ -214,7 +201,7 @@ export async function POST(
       );
     }
     
-    console.log("✅ Re-upload request saved and verified successfully!");
+    // console.log("✅ Re-upload request saved and verified successfully!");
 
     // Generate re-upload link
     const baseUrl = process.env.APP_URL || "http://localhost:3000";
@@ -309,7 +296,7 @@ export async function POST(
         html: emailHtml,
       });
 
-      console.log("✅ Re-upload email sent successfully to:", candidate.email, "Message ID:", mailResponse.messageId);
+      // console.log("✅ Re-upload email sent successfully to:", candidate.email, "Message ID:", mailResponse.messageId);
 
       // Update email sent timestamp
       await Candidate.findByIdAndUpdate(id, {

@@ -14,14 +14,12 @@ const useUnregisteredOwnerCounts = () => {
       setError("");
 
       const response = await getUnregisteredOwnerCounts({ days });
-      console.log("Unregistered owner counts response:", response);
 
       // Normalize / ensure correct format
       const transformedResponse = response.map(({ date, owners }: { date: string; owners: number }) => ({
         date,
         owners: owners ?? 0,
       }));
-      console.log("transformedResponse", transformedResponse);
 
       setUnregisteredOwnerCounts(transformedResponse);
     } catch (err: any) {

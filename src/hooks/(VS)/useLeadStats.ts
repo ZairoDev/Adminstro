@@ -18,18 +18,18 @@ const useLeadStats = () => {
       setStatsError(false);
       setStatsErrMsg("");
       
-      console.log(`[Request ${requestId}] Fetching data for:`, month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+      
       
       const response = await getLocationLeadStats(month);
       
-      console.log(`[Request ${requestId}] Received data for:`, month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+      
       
       // Only update if this is still the active request
       if (activeRequestRef.current === requestId) {
         setLeadStats(response.visits);
-        console.log(`[Request ${requestId}] ✅ Applied data for:`, month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+        
       } else {
-        console.log(`[Request ${requestId}] ❌ Discarded stale data for:`, month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), `(active: ${activeRequestRef.current})`);
+        
       }
     } catch (err: any) {
       if (activeRequestRef.current === requestId) {
@@ -45,7 +45,7 @@ const useLeadStats = () => {
   };
 
   const handleMonthChange = (newMonth: Date) => {
-    console.log("📅 Month changed to:", newMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+    
     
     // Determine direction
     const prevTime = previousMonthRef.current.getTime();
@@ -64,13 +64,12 @@ const useLeadStats = () => {
     activeRequestRef.current += 1;
     const currentRequestId = activeRequestRef.current;
     
-    console.log(`[Request ${currentRequestId}] useEffect triggered for:`, selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+    
     
     fetchLeadStats(selectedMonth, currentRequestId);
 
     // Cleanup function
     return () => {
-      console.log(`[Request ${currentRequestId}] 🧹 Cleanup - cancelling request for:`, selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
     };
   }, [selectedMonth]);
 

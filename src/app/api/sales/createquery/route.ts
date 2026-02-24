@@ -51,7 +51,7 @@ async function sendGuestGreetingTemplate(
       formattedPhone = formattedPhone.substring(1);
     }
 
-    console.log(`📱 Sending guest_greeting template to ${formattedPhone} for lead: ${leadName} in ${location}`);
+
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
@@ -93,7 +93,7 @@ async function sendGuestGreetingTemplate(
     }
 
     const whatsappMessageId = data.messages?.[0]?.id;
-    console.log(`✅ guest_greeting template sent successfully to ${formattedPhone}:`, whatsappMessageId);
+
 
     // Save message to database and emit socket event for frontend display
     if (whatsappMessageId) {
@@ -182,7 +182,7 @@ async function sendGuestGreetingTemplate(
         },
       });
 
-      console.log(`✅ Message saved to DB and emitted to frontend`);
+
     }
   } catch (error) {
     console.error("❌ Error sending WhatsApp template:", error);

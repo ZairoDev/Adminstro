@@ -40,8 +40,6 @@ export async function POST(req: NextRequest) {
       isRetarget = false, // STEP 2: Flag to indicate this is a retarget message
     } = await req.json();
 
-    // Debug: log incoming retarget flag and template info
-    console.log(`[DEBUG][send-template] from=${token?.id || token?._id} to=${to} template=${templateName} isRetarget=${isRetarget} conversationId=${conversationId}`);
 
     if (!to || !templateName) {
       return NextResponse.json(
@@ -78,7 +76,7 @@ export async function POST(req: NextRequest) {
       const retargetPhoneId = getRetargetPhoneId();
       if (retargetPhoneId) {
         phoneNumberId = retargetPhoneId;
-        console.log(`🎯 Using retarget phone ID: ${phoneNumberId}`);
+   
       } else {
         console.warn("⚠️ Retarget phone ID not configured, falling back to default");
       }
@@ -114,7 +112,7 @@ export async function POST(req: NextRequest) {
     // For regular messages, check user permissions
     if (isRetarget && getRetargetPhoneId() === phoneNumberId) {
       // Retarget phone ID is allowed for retargeting (no permission check needed)
-      console.log(`✅ Using retarget phone ID for retargeting: ${phoneNumberId}`);
+
     } else if (!canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
       return NextResponse.json(
         { error: "You don't have permission to send from this WhatsApp number" },
@@ -389,21 +387,20 @@ export async function POST(req: NextRequest) {
           
           // Find all matching documents first for logging
           const matchingDocs = await UnregisteredOwnerModel.find({ phoneNumber: { $regex: phoneRegex } }).select('_id phoneNumber whatsappRetargetCount').lean();
-          console.log(`🔍 [AUDIT] Found ${matchingDocs.length} owner documents with phone ending in ${lastDigits}`);
+
           
           const updateResult = await UnregisteredOwnerModel.updateMany(
             { phoneNumber: { $regex: phoneRegex } },
             updateQuery
           );
           
-          console.log(`📊 [AUDIT] Updated ${updateResult.modifiedCount} owner documents with same phone`);
-          console.log(`📝 [AUDIT] Update query:`, JSON.stringify(updateQuery, null, 2));
+
           
           // Verify the update by fetching one document
           if (updateResult.modifiedCount > 0) {
             const verifyDoc = await UnregisteredOwnerModel.findOne({ phoneNumber: { $regex: phoneRegex } }).select('phoneNumber whatsappRetargetCount whatsappLastRetargetAt whatsappLastMessageAt').lean() as any;
             if (verifyDoc) {
-              console.log(`✅ [AUDIT] Verified update - retargetCount: ${verifyDoc.whatsappRetargetCount}, lastRetargetAt: ${verifyDoc.whatsappLastRetargetAt}, lastMessageAt: ${verifyDoc.whatsappLastMessageAt}`);
+
             }
           }
         }
@@ -423,7 +420,7 @@ export async function POST(req: NextRequest) {
             await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
               participantName: targetName,
             });
-            console.log(`✅ [AUDIT] Updated conversation ${conversation._id} participantName => ${targetName}`);
+
           }
         } catch (err) {
           console.error("Failed to update conversation participantName from target:", err);

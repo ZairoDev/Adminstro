@@ -9,8 +9,8 @@ export async function GET() {
   try {
     await connectDb();
     const roles = await Role.find({}).sort({ role: 1, department: 1 }).lean();
-    console.log(`Fetched ${roles.length} roles from database`);
-    console.log(`Roles:`, roles.map(r => ({ role: r.role, department: r.department, origin: r.origin, _id: r._id })));
+    // console.log(`Fetched ${roles.length} roles from database`);
+    // console.log(`Roles:`, roles.map(r => ({ role: r.role, department: r.department, origin: r.origin, _id: r._id })));
     
     const response = NextResponse.json({ data: roles }, { status: 200 });
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");

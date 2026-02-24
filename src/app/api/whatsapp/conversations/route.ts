@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     // Determine allowed phone IDs (not used to block access; area-based allocation is used)
     let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
     // Debug: log role, areas, and initial allowed phone IDs
-    console.log(`[DEBUG][conversations][GET] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIdsInitial=${JSON.stringify(allowedPhoneIds)}`);
+    // console.log(`[DEBUG][conversations][GET] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIdsInitial=${JSON.stringify(allowedPhoneIds)}`);
 
     const searchParams = req.nextUrl.searchParams;
     const retargetOnly = searchParams.get("retargetOnly") === "1" || searchParams.get("retargetOnly") === "true";
@@ -103,12 +103,11 @@ export async function GET(req: NextRequest) {
       const retargetPhoneId = getRetargetPhoneId();
       if (retargetPhoneId && requestedPhoneIdParam === retargetPhoneId) {
         allowedPhoneIds = [retargetPhoneId];
-        console.log(`[DEBUG][conversations][GET] granted retargetPhoneId access via phoneId param=${requestedPhoneIdParam}`);
+
       }
     }
 
-    // Debug: log retargetOnly and final allowed phone ids after fallback
-    console.log(`[DEBUG][conversations][GET] retargetOnly=${retargetOnly} allowedPhoneIdsFinal=${JSON.stringify(allowedPhoneIds)}`);
+ 
 
     const limit = parseInt(searchParams.get("limit") || "25");
     const status = searchParams.get("status") || "active";
@@ -182,7 +181,7 @@ export async function GET(req: NextRequest) {
     // Advert should only see retarget conversations (server-enforced)
     if (userRole === "Advert") {
       query.isRetarget = true;
-      console.log(`[DEBUG][conversations][GET] Advert user - restricting to retarget conversations`);
+
     }
 
     // Sales visibility rules: Sales must never see retarget conversations before handover
@@ -521,7 +520,7 @@ export async function POST(req: NextRequest) {
     
     const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
     // Debug: log role, areas, and allowed phone IDs for POST requests
-    console.log(`[DEBUG][conversations][POST] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIds=${JSON.stringify(allowedPhoneIds)}`);
+
 
     // Prevent Sales from opening existing retarget conversations via direct create
     const existingConv = await WhatsAppConversation.findOne({

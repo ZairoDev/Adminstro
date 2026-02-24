@@ -100,10 +100,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const limit = Number(url.searchParams.get("limit")) || defaultLimit;
     const skip = (page - 1) * limit;
     
-    if (isDateSpecificQuery) {
-      console.log(`[getquery] Date-specific query detected: fromDate=${fromDate}, toDate=${toDate}`);
-      console.log(`[getquery] Using limit=${limit} to fetch all results (default would be 50)`);
-    }
+
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "name";
     const dateFilter = url.searchParams.get("dateFilter") || "";

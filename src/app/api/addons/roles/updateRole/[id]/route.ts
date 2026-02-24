@@ -18,9 +18,9 @@ export async function PUT(
     }
     await connectDb();
     const body = await req.json();
-    console.log("Update role request body:", JSON.stringify(body, null, 2));
+    // console.log("Update role request body:", JSON.stringify(body, null, 2));
     const { role, department, isActive, origin } = body;
-    console.log(`Received isActive value: ${isActive} (type: ${typeof isActive})`);
+    // console.log(`Received isActive value: ${isActive} (type: ${typeof isActive})`);
 
     if (!role?.trim()) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function PUT(
     // Handle isActive: only false if explicitly false, otherwise true
     // This ensures we respect the toggle state from the frontend
     const isActiveBool = isActive === false ? false : true;
-    console.log(`Update role - received isActive: ${isActive} (type: ${typeof isActive}), setting to: ${isActiveBool}`);
+    // console.log(`Update role - received isActive: ${isActive} (type: ${typeof isActive}), setting to: ${isActiveBool}`);
 
     const updated = await Role.findByIdAndUpdate(
       id,
@@ -69,7 +69,7 @@ export async function PUT(
       { new: true }
     ).lean();
     
-    console.log(`Updated role:`, JSON.stringify(updated, null, 2));
+    // console.log(`Updated role:`, JSON.stringify(updated, null, 2));
 
     if (!updated) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 });

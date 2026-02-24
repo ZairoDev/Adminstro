@@ -41,13 +41,7 @@ export async function POST(req: NextRequest) {
     const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
     const cdnUrl = process.env.NEXT_PUBLIC_BUNNY_CDN_URL || `https://${storageZoneName}.b-cdn.net`;
 
-    console.log("📤 Upload request:", {
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      hasStorageZone: !!storageZoneName,
-      hasAccessKey: !!accessKey,
-    });
+
 
     if (!storageZoneName || !accessKey) {
       console.error("❌ Bunny CDN credentials missing:", {
@@ -177,7 +171,7 @@ export async function POST(req: NextRequest) {
     }
 
     const permanentUrl = `${cdnUrl}/${filename}`;
-    console.log("📤 File uploaded to Bunny CDN:", permanentUrl);
+    // console.log("📤 File uploaded to Bunny CDN:", permanentUrl);
 
     return NextResponse.json({
       success: true,

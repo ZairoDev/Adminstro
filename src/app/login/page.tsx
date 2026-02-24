@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/themeChangeButton";
 import FadeInAnimation from "@/components/fadeinAnimation";
 import { AnimatedLoginCharacters } from "@/components/AnimatedLoginCharacters";
+import { useSocket } from "@/hooks/useSocket";
 
 interface LoginResponse {
   otpRequired?: boolean;
@@ -31,6 +32,7 @@ const PageLogin: React.FC = () => {
   const { token, setToken } = useAuthStore();
   const { toast } = useToast();
   const router = useRouter();
+  const { socket } = useSocket();
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -76,6 +78,20 @@ const PageLogin: React.FC = () => {
         });
 
         // Keep happy emotion visible before redirect
+        // Ensure socket registers this new login immediately
+        try {
+          if (socket && response.data.tokenData?.id) {
+            if ((socket as any).connected) {
+              socket.emit("register-user", { employeeId: response.data.tokenData.id });
+            } else {
+              socket.once("connect", () => {
+                socket.emit("register-user", { employeeId: response.data.tokenData.id });
+              });
+            }
+          }
+        } catch (err) {
+          console.warn("Socket registration failed:", err);
+        }
         setTimeout(() => {
           router.push("/");
         }, 800);
@@ -87,7 +103,20 @@ const PageLogin: React.FC = () => {
         setToken(response.data.tokenData);
         // DO NOT set token in cookies - server already set httpOnly cookie
         setEmotion("happy");
-        
+        // Ensure socket registers this new login immediately
+        try {
+          if (socket && response.data.tokenData?.id) {
+            if ((socket as any).connected) {
+              socket.emit("register-user", { employeeId: response.data.tokenData.id });
+            } else {
+              socket.once("connect", () => {
+                socket.emit("register-user", { employeeId: response.data.tokenData.id });
+              });
+            }
+          }
+        } catch (err) {
+          console.warn("Socket registration failed:", err);
+        }
         // Keep happy emotion visible before redirect
         setTimeout(() => {
           router.push("/");

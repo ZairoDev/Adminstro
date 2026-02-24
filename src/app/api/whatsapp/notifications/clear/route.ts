@@ -37,7 +37,6 @@ export async function POST(req: NextRequest) {
 
     if (clearAll) {
       // Clear all notifications for this user (UI-only)
-      console.log(`🧹 [CLEAR ALL] Clearing all notifications for user ${userId} (UI-only)`);
 
       // Emit clear event for all conversations (UI-only, doesn't affect read state)
       emitWhatsAppEvent("whatsapp-notifications-cleared", {
@@ -68,7 +67,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log(`🧹 [CLEAR] Clearing notification for conversation ${conversationId} (UI-only)`);
 
       // Emit clear event for this conversation (UI-only, doesn't affect read state)
       emitWhatsAppEvent("whatsapp-notifications-cleared", {

@@ -25,27 +25,21 @@ export async function GET(
     const candidate = await Candidate.findById(id);
 
     if (!candidate) {
-      console.log("Candidate not found:", id);
+      // console.log("Candidate not found:", id);
       return NextResponse.json(
         { success: false, error: "Candidate not found" },
         { status: 404 }
       );
     }
 
-    console.log("Candidate found, checking reuploadRequest...");
-    console.log("onboardingDetails exists:", !!candidate.onboardingDetails);
-    console.log("Full onboardingDetails:", JSON.stringify(candidate.onboardingDetails, null, 2));
+
     
     const reuploadRequest = candidate.onboardingDetails?.reuploadRequest;
-    
-    console.log("reuploadRequest exists:", !!reuploadRequest);
-    if (reuploadRequest) {
-      console.log("reuploadRequest data:", JSON.stringify(reuploadRequest, null, 2));
-    }
+
 
     // Check if re-upload request exists
     if (!reuploadRequest) {
-      console.log("No reuploadRequest found in candidate data");
+      // console.log("No reuploadRequest found in candidate data");
       return NextResponse.json({
         success: false,
         error: "No re-upload request found for this candidate",
@@ -54,7 +48,7 @@ export async function GET(
     }
 
     if (!reuploadRequest.token) {
-      console.log("reuploadRequest exists but token is missing");
+      // console.log("reuploadRequest exists but token is missing");
       return NextResponse.json({
         success: false,
         error: "Re-upload request found but token is missing",
@@ -62,11 +56,6 @@ export async function GET(
       });
     }
 
-    console.log("Token comparison:", {
-      storedToken: reuploadRequest.token,
-      providedToken: token,
-      tokensMatch: reuploadRequest.token === token,
-    });
 
     // Check if token matches
     if (reuploadRequest.token !== token) {

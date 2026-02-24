@@ -151,7 +151,7 @@ goodVisits1.forEach(item=>{
        setloading(true);
        setIsError(false);
        setError("");
-      console.log("fetchUnregisteredVisits called with:", { days,location });
+     // debug: fetchUnregisteredVisits called with params
        const [response,ownersCount, responseCount] = await Promise.all([
          getUnregisteredOwners(),
          getNewOwnersCount({ days, location }),
@@ -159,8 +159,7 @@ goodVisits1.forEach(item=>{
        ]);
 
        setUnregisteredOwners(response.unregisteredOwners || []);
-       setNewOwnersCount(ownersCount.newOwnersCount ?? 0);
-       console.log("responseCount: ", ownersCount.newOwnersCount);
+      setNewOwnersCount(ownersCount.newOwnersCount ?? 0);
        setOwnersCount(responseCount);
      } catch (err: any) {
        console.error(err);

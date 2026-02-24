@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
           
           if (roleSearchValue) {
             try {
-              console.log(`Looking up role document for: ${roleSearchValue}`);
+              // console.log(`Looking up role document for: ${roleSearchValue}`);
               
               // Try exact match first
               let roleDoc = await Role.findOne({ 
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
               
               if (!roleDoc) {
                 // Try case-insensitive search as fallback
-                console.log(`Exact match not found, trying case-insensitive search`);
+                // console.log(`Exact match not found, trying case-insensitive search`);
                 roleDoc = await Role.findOne({ 
                   role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") }
                 }).lean() as { role: string; department: string } | null;
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
                 // roleDoc.department = department name from roles collection (e.g., "Backend Developer", "Sales", "HR") - used for department
                 roleName = roleDoc.role;
                 roleDepartment = roleDoc.department;
-                console.log(`Found role document - Role: ${roleName}, Department: ${roleDepartment}`);
+                // console.log(`Found role document - Role: ${roleName}, Department: ${roleDepartment}`);
               } else {
                 console.warn(`Role document not found for: ${roleSearchValue}`);
               }
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
         const filePath = path.join(process.cwd(), "public", "Ankita-mam.png");
         ankitaSignatureBytes = await fs.readFile(filePath);
         ankitaSignatureBase64 = ankitaSignatureBytes.toString("base64");
-        console.log("✅ Loaded Ankita mam's signature from public folder");
+
       } catch (err) {
         console.error("Error loading Ankita mam's signature from public folder:", err);
         ankitaSignatureBase64 = undefined;
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
           const base64Match = data.candidateSignatureBase64.match(/base64,(.+)$/);
           if (base64Match && base64Match[1]) {
             candidateSignatureBase64 = base64Match[1];
-            console.log("✅ Extracted candidate signature from data URL");
+
           } else {
             // If no match, try to use the whole string (might already be pure base64)
             candidateSignatureBase64 = data.candidateSignatureBase64;
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
             responseType: "arraybuffer",
           });
           candidateSignatureBase64 = Buffer.from(candidateSigRes.data).toString("base64");
-          console.log("✅ Fetched candidate signature from URL");
+
         }
       } catch (err) {
         console.error("Error processing candidate signature:", err);
@@ -707,14 +707,14 @@ export async function POST(req: NextRequest) {
       // Use role document values - this is the correct source
       designation = `${roleName} Executive`;
       department = roleDepartment;
-      console.log(`Using role document values - Designation: ${designation}, Department: ${department}`);
+
     } else {
       // Fallback only if role document not found
       designation = data.designation || 
                    (data.position ? `${data.position} Executive` : "Human Resource Executive (HR Executive)");
       department = data.department || 
                   (data.position || "Human Resources");
-      console.log(`Using fallback values - Designation: ${designation}, Department: ${department}`);
+
       console.warn(`Role document not found - using provided values as fallback`);
     }
     
@@ -833,16 +833,16 @@ export async function POST(req: NextRequest) {
     // Add candidate signature if provided (BEFORE the date)
     if (candidateSignatureBase64) {
       try {
-        console.log("🔍 Processing candidate signature for LOI...");
+        // console.log("🔍 Processing candidate signature for LOI...");
         const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
         let candidateSigImg;
         try {
           candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
-          console.log("✅ Candidate signature embedded as PNG");
+          // console.log("✅ Candidate signature embedded as PNG");
         } catch {
           try {
             candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
-            console.log("✅ Candidate signature embedded as JPG");
+            // console.log("✅ Candidate signature embedded as JPG");
           } catch (embedErr) {
             console.error("❌ Failed to embed candidate signature as PNG or JPG:", embedErr);
             throw embedErr;

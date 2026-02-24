@@ -345,7 +345,18 @@ export default function EmployeeTable({
                         setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
                         setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: value } : emp));
                         try {
-                          await updateEmployee(employee._id, { isLocked: value });
+                          const res = await updateEmployee(employee._id, { isLocked: value });
+                          // If employee was locked, force logout their sessions
+                          if (value === true) {
+                            try {
+                              await axios.post("/api/employee/forceLogout", { employeeId: employee._id });
+                              toast({ title: "Employee force-logged out", description: `${employee.name} has been logged out.` });
+                            } catch (err: any) {
+                              console.warn("Force logout API failed:", err);
+                              toast({ title: "Warning", description: "Employee locked but force-logout failed. They will be logged out on next request.", variant: "destructive" });
+                            }
+                          }
+                          return res;
                         } catch (error) {
                           setEmployeeList(employeeList?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));
                           setFilteredEmployee(filteredEmployee?.map((emp) => emp._id === employee._id ? { ...emp, isLocked: !value } : emp));

@@ -42,12 +42,7 @@ export async function GET(
       ? candidate.trainingAgreementDetails?.resignatureRequest
       : candidate.onboardingDetails?.resignatureRequest;
 
-    // Debug: log the actual data
-    console.log("=== VALIDATE RESIGNATURE DEBUG ===");
-    console.log("Agreement type:", agreementType);
-    console.log("Candidate ID:", id);
-    console.log("onboardingDetails:", JSON.stringify(candidate.onboardingDetails, null, 2));
-    console.log("resignatureRequest:", JSON.stringify(resignatureRequest, null, 2));
+
 
     if (!resignatureRequest) {
       console.error(`Resignature request not found for candidate ${id}, agreementType: ${agreementType}`);

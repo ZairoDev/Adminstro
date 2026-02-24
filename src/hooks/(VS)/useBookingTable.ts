@@ -44,43 +44,26 @@ export const useTargetStats = () => {
     year?: number;
   }) => {
     try {
-      console.log("📤 Fetching stats with: ", {
-        viewMode,
-        location,
-        month,
-        year,
-      });
-
       setLoading(true);
       setError(null);
-      
       const response = await getWeeklyTargetStats({
         viewMode,
         location: location === "all" ? undefined : location,
         month,
         year,
       });
-
-      console.log("📥 Stats API response:", response);
-
       setStats(response);
     } catch (err: any) {
       console.error("❌ Error fetching target stats:", err);
       setError(err.message || "Failed to fetch target stats");
     } finally {
-      console.log("⏳ Stats fetch finished");
       setLoading(false);
     }
   };
 
   const fetchLocations = async () => {
     try {
-      console.log("📤 Fetching available locations...");
-
       const locs = await getAvailableLocations();
-
-      console.log("📥 Locations received:", locs);
-
       setLocations(locs);
     } catch (err) {
       console.error("❌ Error fetching locations:", err);
@@ -88,9 +71,6 @@ export const useTargetStats = () => {
   };
 
   useEffect(() => {
-    console.log(
-      "🚀 useTargetStats mounted → fetching locations + initial stats..."
-    );
     fetchLocations();
     fetchStats({});
   }, []);

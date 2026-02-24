@@ -5,6 +5,7 @@ import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import "./globals.css";
+import SocketGlobalListener from "@/components/SocketGlobalListener";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -50,6 +51,7 @@ export default function RootLayout({
             ]}
             disableTransitionOnChange
           >
+            <SocketGlobalListener />
             {children}
           </ThemeProvider>
           <Toaster />

@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
           
           if (roleSearchValue) {
             try {
-              console.log(`[OfferLetter] Looking up role document for: ${roleSearchValue}`);
+             
               
               // Try exact match first
               let roleDoc = await Role.findOne({ 
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
           });
           imageBuffer = Buffer.from(candidateSigRes.data);
           candidateSignatureBase64 = imageBuffer.toString("base64");
-          console.log("✅ Fetched candidate signature from URL and converted to base64");
+
         }
         
         console.log("✅ Candidate signature successfully processed for PDF embedding");

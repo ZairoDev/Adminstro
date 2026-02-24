@@ -18,7 +18,6 @@ const ListingCounts = ()=>{
       setIsError(false);
       setError("");
       const response = await getListingCounts({days});
-      console.log("Listing counts response:", response);
       const transformedResponse = response.map(
         ({ date, total, shortTerm, longTerm }) => ({
           date,
@@ -28,7 +27,7 @@ const ListingCounts = ()=>{
         })
       );
       setTotalListings(transformedResponse);
-      console.log("Listing counts response:", transformedResponse);
+      // listing counts transformed
       // setTotalListings(response.totalListings);
       // setActiveListings(response.activeListings);
       // setInactiveListings(response.inactiveListings);

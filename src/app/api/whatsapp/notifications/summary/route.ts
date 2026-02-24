@@ -192,11 +192,6 @@ export async function GET(req: NextRequest) {
       ...unreadItems.slice(0, 5).map((item) => ({ ...item, type: "unread" as const })),
     ].slice(0, 7);
 
-    console.log(`📊 [NOTIFICATION SUMMARY] User ${userId}:`, {
-      expiringCount: expiringWithTime.length,
-      unreadCount: unreadItems.length,
-      totalItems: topItems.length
-    });
 
     return NextResponse.json({
       success: true,

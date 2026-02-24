@@ -122,7 +122,7 @@ export async function PATCH(
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },
         });
-        console.log(`✅ Reschedule confirmation email sent successfully to ${updatedCandidate.email}`);
+        // console.log(`✅ Reschedule confirmation email sent successfully to ${updatedCandidate.email}`);
       } catch (emailError: any) {
         console.error(`❌ Failed to send reschedule confirmation email to ${updatedCandidate.email}:`, emailError);
         // Continue even if email fails
@@ -184,7 +184,7 @@ export async function PATCH(
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },
         });
-        console.log(`✅ Reschedule rejection email sent successfully to ${updatedCandidate.email}`);
+        
       } catch (emailError: any) {
         console.error(`❌ Failed to send reschedule rejection email to ${updatedCandidate.email}:`, emailError);
         // Continue even if email fails

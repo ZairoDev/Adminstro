@@ -85,14 +85,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Debug logging to help diagnose differences between local and production
-    console.log('[phone-configs] User areas debug:', {
-      raw: token.allotedArea,
-      rawType: typeof token.allotedArea,
-      isArray: Array.isArray(token.allotedArea),
-      normalized: userAreas,
-      role: userRole,
-      env: process.env.NODE_ENV
-    });
+
 
     // CRITICAL: Fetch phone numbers directly from Meta API for business account
     // Meta is the ONLY source of truth for phone number existence

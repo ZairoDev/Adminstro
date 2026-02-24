@@ -67,11 +67,6 @@ const WeeklyTargetTable = () => {
 
     const fetchData = async () => {
       try {
-        console.log("📤 Fetching target data", {
-          viewMode,
-          month: selectedMonth,
-          year: selectedYear,
-        });
         setLoading(true);
         const resp = await getLocationWeeklyTargets({
           viewMode,
@@ -79,7 +74,7 @@ const WeeklyTargetTable = () => {
           year: selectedYear,
         });
         if (!mounted) return;
-        console.log("📥 Received target data", resp);
+        // received target data
         setData(resp);
       } catch (err: any) {
         if (controller.signal.aborted) {

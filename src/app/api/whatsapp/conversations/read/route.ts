@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    console.log(`👁️ [MARK READ] Request received: userId=${userId}, conversationId=${conversationId}`);
+
 
     // Verify conversation exists
     const conversation = await WhatsAppConversation.findById(conversationId);
@@ -72,8 +72,7 @@ export async function POST(req: NextRequest) {
     const lastReadMessageId = latestMessage?.messageId || conversation.lastMessageId || "";
     const lastReadAt = new Date();
 
-    console.log(`👁️ [MARK READ] Attempting to mark conversation ${conversationId} as read for user ${userId}`);
-    console.log(`👁️ [MARK READ] Latest message ID: ${lastReadMessageId}, lastReadAt: ${lastReadAt}`);
+ 
 
     // Upsert read state for this user and conversation
     const readState = await ConversationReadState.findOneAndUpdate(
@@ -94,12 +93,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (readState) {
-      console.log(`✅ [MARK READ] Successfully updated ConversationReadState:`, {
-        conversationId: readState.conversationId?.toString(),
-        userId: readState.userId?.toString(),
-        lastReadMessageId: readState.lastReadMessageId,
-        lastReadAt: readState.lastReadAt,
-      });
+
     } else {
       console.error(`❌ [MARK READ] Failed to create/update ConversationReadState`);
     }

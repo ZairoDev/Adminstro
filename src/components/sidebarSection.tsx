@@ -11,6 +11,7 @@ type Route = {
   label: string;
   Icon?: JSX.Element;
   openInNewTab?: boolean;
+  disabled?: boolean;
 };
 
 export default function SidebarSection({
@@ -57,7 +58,7 @@ export default function SidebarSection({
           id={`section-${title}`}
           className={cn("overflow-y-auto", showText ? "pl-2" : "")}
         >
-          {routes.map(({ path, label, Icon, openInNewTab }) => {
+          {routes.map(({ path, label, Icon, openInNewTab, disabled }) => {
             const active = currentPath === path;
             
             const linkClassName = cn(
@@ -69,7 +70,16 @@ export default function SidebarSection({
 
             return (
               <li key={path}>
-                {openInNewTab ? (
+                {disabled ? (
+                  <div
+                    aria-disabled
+                    className={cn(linkClassName, "opacity-60 cursor-not-allowed")}
+                    title="Please wait..."
+                  >
+                    {Icon}
+                    {showText && <span className="text-sm">{label}</span>}
+                  </div>
+                ) : openInNewTab ? (
                   <a
                     href={path}
                     target="_blank"

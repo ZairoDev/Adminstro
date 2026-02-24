@@ -71,13 +71,11 @@ export function WhatsAppNotifications() {
 
   const fetchNotifications = useCallback(async () => {
     if (!hasAccess) {
-      console.log("⏭️ [NAVBAR WA] No access, skipping fetch");
       return;
     }
 
     try {
       setLoading(true);
-      console.log("🔄 [NAVBAR WA] Fetching notifications from API...");
       const response = await axios.get("/api/whatsapp/notifications/summary");
       if (response.data.success) {
         const summaryData = response.data.summary || {
@@ -86,13 +84,6 @@ export function WhatsAppNotifications() {
           topItems: [],
         };
         setSummary(summaryData);
-        console.log(`✅ [NAVBAR WA] Fetched successfully:`, {
-          unreadCount: summaryData.unreadCount,
-          expiringCount: summaryData.expiringCount,
-          totalItems: summaryData.topItems.length,
-          unreadItems: summaryData.topItems.filter((i: any) => i.type === "unread").length,
-          expiringItems: summaryData.topItems.filter((i: any) => i.type === "expiring").length
-        });
       } else {
         console.error("❌ [NAVBAR WA] API returned success=false");
       }
@@ -138,11 +129,10 @@ export function WhatsAppNotifications() {
         }
         
         if (activeConvId && activeConvId === data.conversationId && isOnWhatsAppPage) {
-          console.log("📨 [NAVBAR WA] Message for active conversation, skipping");
           return;
         }
 
-        console.log("📨 [NAVBAR WA] Incoming message for conversation:", data.conversationId);
+        
         setSummary(prev => {
           const existingIndex = prev.topItems.findIndex(item => item._id === data.conversationId);
           
@@ -156,7 +146,7 @@ export function WhatsAppNotifications() {
                 lastMessageContent: data.lastMessagePreview || existing.lastMessageContent,
                 lastMessageTime: data.lastMessageTime
               };
-              console.log("📊 [NAVBAR WA] Updated unread conversation, new count:", newItems[existingIndex].unreadCount);
+              
               return {
                 ...prev,
                 unreadCount: prev.unreadCount + 1,
@@ -171,7 +161,7 @@ export function WhatsAppNotifications() {
                 lastMessageContent: data.lastMessagePreview || existing.lastMessageContent,
                 lastMessageTime: data.lastMessageTime
               };
-              console.log("📊 [NAVBAR WA] Converted expiring to unread");
+              
               return {
                 ...prev,
                 unreadCount: prev.unreadCount + 1,
@@ -190,7 +180,7 @@ export function WhatsAppNotifications() {
               businessPhoneId: data.businessPhoneId || "",
               assignedAgent: data.assignedAgent
             };
-            console.log("📊 [NAVBAR WA] Added new unread conversation");
+            
             return {
               ...prev,
               unreadCount: prev.unreadCount + 1,
@@ -234,21 +224,16 @@ export function WhatsAppNotifications() {
 
   // Debug logging
   if (!isMounted) {
-    console.log("⏭️ [WHATSAPP NOTIFICATIONS] Not mounted yet");
     return null;
   }
   
   if (!hasAccess) {
-    console.log("⏭️ [WHATSAPP NOTIFICATIONS] No access (role:", token?.role, ")");
     return null;
   }
   
   if (!FEATURE_WHATSAPP_NOTIFICATIONS) {
-    console.log("⏭️ [WHATSAPP NOTIFICATIONS] Feature disabled");
     return null;
   }
-  
-  console.log("✅ [WHATSAPP NOTIFICATIONS] Component visible, count:", totalCount);
 
   // Connection health indicator
   const getConnectionStatus = () => {

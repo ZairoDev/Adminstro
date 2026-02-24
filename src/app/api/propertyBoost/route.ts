@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
             : undefined)
         : undefined;
     const location = req.nextUrl.searchParams.get("location");
-    console.log("location", location,assignedArea,role);
+    // console.log("location", location,assignedArea,role);
 
     // Build query with location filtering
     const query: Record<string, any> = {};

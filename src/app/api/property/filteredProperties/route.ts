@@ -7,9 +7,9 @@ export async function POST(req: NextRequest) {
   const { filters, page }: { filters: FiltersInterface; page: number } =
     await req.json();
    await connectDb();
-  console.log("filters in backend: ", filters);
+  // console.log("filters in backend: ", filters);
 
-  console.log("filters: ", filters, filters.dateRange);
+  // console.log("filters: ", filters, filters.dateRange);
 
   const query: Record<string, any> = {};
   const projection = {

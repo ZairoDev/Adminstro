@@ -66,7 +66,6 @@ const employeeActivityLogSchema = new Schema<IEmployeeActivityLog>(
     // Session tracking fields
     sessionId: {
       type: String,
-      index: true,
       default: null,
     },
     status: {

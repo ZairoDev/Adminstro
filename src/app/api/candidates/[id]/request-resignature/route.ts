@@ -107,9 +107,6 @@ export async function POST(
       ? "trainingAgreementDetails.resignatureRequest"
       : "onboardingDetails.resignatureRequest";
 
-    console.log("=== REQUEST RESIGNATURE DEBUG ===");
-    console.log("Updating field:", updateField);
-    console.log("Resignature data:", JSON.stringify(resignatureRequest, null, 2));
     
     // Update the candidate with resignature request
     await Candidate.findByIdAndUpdate(
@@ -128,7 +125,7 @@ export async function POST(
       ? (verifyCandidate as any)?.trainingAgreementDetails?.resignatureRequest
       : (verifyCandidate as any)?.onboardingDetails?.resignatureRequest;
     
-    console.log("Verified saved resignatureRequest:", JSON.stringify(savedRequest, null, 2));
+    // console.log("Verified saved resignatureRequest:", JSON.stringify(savedRequest, null, 2));
 
     // Verify the update was successful
     if (!verifyCandidate) {
@@ -220,7 +217,7 @@ export async function POST(
         },
       });
 
-      console.log(`✅ Re-signature email sent to ${candidate.email}`);
+
     } catch (emailError) {
       console.error("Error sending re-signature email:", emailError);
       // Don't fail the request if email fails

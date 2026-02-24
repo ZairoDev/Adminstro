@@ -128,7 +128,7 @@ export async function PATCH(
           rescheduleLink: rescheduleLink,
         },
       });
-      console.log(`✅ Second round interview email sent successfully to ${updatedCandidate.email}`);
+      // console.log(`✅ Second round interview email sent successfully to ${updatedCandidate.email}`);
     } catch (emailError: any) {
       // Log email error but don't fail the entire operation
       console.error(`❌ Failed to send second round interview email to ${updatedCandidate.email}:`, emailError);

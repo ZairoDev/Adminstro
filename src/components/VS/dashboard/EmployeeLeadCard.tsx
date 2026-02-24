@@ -28,7 +28,7 @@ export function EmployeeLeadCard({ data }: { data: EmployeeLeadData }) {
     label: quality,
     count: count,
   }))
-  // console.log("qualityData: ", qualityData);
+
 
   // Calculate percentages for Athens and Chania
   const athensPercentage = Math.round((data.athensCount / data.totalLeads) * 100) || 0

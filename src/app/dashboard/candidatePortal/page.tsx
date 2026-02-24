@@ -408,7 +408,7 @@ function CandidatesPageContent() {
       console.log("🔍 [Frontend] Debug info:", result.debug);
       
       if (result.success && result.data) {
-        console.log("✅ [Frontend] Fetched pending reschedule requests:", result.data.length, result.data);
+
         setPendingRescheduleRequests(result.data);
       } else {
         console.error("Failed to fetch pending reschedule requests:", result);

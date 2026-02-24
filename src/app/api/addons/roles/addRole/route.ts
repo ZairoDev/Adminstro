@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const isActive = body.isActive === false ? false : true;
     const originStr = String(body.origin ?? "").trim();
     
-    console.log(`Creating role - received isActive: ${body.isActive} (type: ${typeof body.isActive}), setting to: ${isActive}`);
+
 
     if (!roleStr) {
       return NextResponse.json(
@@ -47,22 +47,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Uniqueness: same role + department + origin = duplicate. Same role + department with different origin = allowed.
-    console.log(`Checking for existing role: role="${roleStr}", department="${departmentStr}", origin="${originStr}"`);
+
     const existing = await Role.findOne({
       role: roleStr,
       department: departmentStr,
       origin: originStr,
     });
     if (existing) {
-      console.log(`Duplicate found:`, existing);
+      // console.log(`Duplicate found:`, existing);
       return NextResponse.json(
         { error: "A role with this name, department and origin already exists" },
         { status: 400 }
       );
     }
-    console.log(`No duplicate found, proceeding with creation`);
+    // console.log(`No duplicate found, proceeding with creation`);
 
-    console.log(`Creating role with: role="${roleStr}", department="${departmentStr}", origin="${originStr}", isActive=${isActive}`);
+    // console.log(`Creating role with: role="${roleStr}", department="${departmentStr}", origin="${originStr}", isActive=${isActive}`);
     
     const newRole = await Role.create({
       role: roleStr,
@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
       origin: originStr,
     });
 
-    console.log(`Role created successfully with ID: ${newRole._id}`);
-    console.log(`Role data:`, JSON.stringify(newRole.toObject(), null, 2));
+    // console.log(`Role created successfully with ID: ${newRole._id}`);
+    // console.log(`Role data:`, JSON.stringify(newRole.toObject(), null, 2));
 
     return NextResponse.json(
       { message: "Role created successfully", data: newRole },

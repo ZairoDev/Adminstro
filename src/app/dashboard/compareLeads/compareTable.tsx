@@ -166,7 +166,7 @@ export default function CompareTable({
       const data: IQuery[] = res.data?.data || [];
       setFetchedQueries(data);
       setQueries?.(data);
-      console.log(`[compareTable] Fetched ${data.length} queries for date ${isoDate}${employeeEmail ? ` (filtered by ${employeeEmail})` : ''} (total matches: ${res.data?.totalQueries || 0})`);
+      
     } catch (err) {
       console.error("Error fetching queries for date", err);
       setFetchedQueries([]);
@@ -194,7 +194,7 @@ export default function CompareTable({
       const data: IQuery[] = res.data?.data || [];
       setFetchedQueries(data);
       setQueries?.(data);
-      console.log(`[compareTable] Fetched ${data.length} queries for employee ${employeeEmail} from ${monthStart} to ${monthEnd} (total matches: ${res.data?.totalQueries || 0})`);
+
     } catch (err) {
       console.error("Error fetching employee month data", err);
       setFetchedQueries([]);

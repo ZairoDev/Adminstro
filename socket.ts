@@ -4,6 +4,7 @@ config({ path: '.env.production' });
 import next from "next";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
 import { parse } from "url";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -43,6 +44,82 @@ app.prepare().then(() => {
 
   io.on("connection", (socket: Socket) => {
     console.log(`✅ [SOCKET SERVER] Client connected: ${socket.id} from ${socket.handshake.headers.origin || 'unknown origin'}`);
+    // Try to auto-register socket into user/session rooms based on cookies (so clients that
+    // don't call `register-user` still get targeted on force-logout).
+    try {
+      const cookieHeader = (socket.handshake.headers.cookie || "") as string;
+      const cookies: Record<string, string> = {};
+      cookieHeader.split(";").forEach((c) => {
+        const [k, ...v] = c.split("=");
+        if (!k) return;
+        cookies[k.trim()] = decodeURIComponent((v || []).join("=").trim());
+      });
+
+      // Log which cookie names are present (but do NOT log token values)
+      const cookieNames = Object.keys(cookies);
+      console.log(`🔎 [SOCKET SERVER] Handshake cookies present: ${cookieNames.join(", ") || "none"}`);
+
+      const token = cookies["token"];
+      const sessionId = cookies["sessionId"];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.TOKEN_SECRET as string) as any;
+          if (decoded?.id) {
+            const userRoom = `user-${decoded.id}`;
+            socket.join(userRoom);
+            socket.data.employeeId = decoded.id;
+            console.log(`📌 [SOCKET SERVER] ${socket.id} auto-joined ${userRoom} via token`);
+            console.log(`🔑 [SOCKET SERVER] decoded token id: ${decoded.id}`);
+            // acknowledge registration to client for debugging/verification
+            try {
+              socket.emit("register-ack", { userRoom, via: "token" });
+            } catch {}
+          }
+        } catch (err) {
+          // invalid token -> ignore auto-join
+        }
+      }
+      if (sessionId) {
+        const sessionRoom = `session-${sessionId}`;
+        socket.join(sessionRoom);
+        socket.data.sessionId = sessionId;
+        console.log(`📌 [SOCKET SERVER] ${socket.id} auto-joined ${sessionRoom} via cookie`);
+        try {
+          socket.emit("register-ack", { sessionRoom, via: "cookie" });
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("Auto-register socket failed:", err);
+    }
+    // Allow clients to register their employee/session identity so we can target them
+    socket.on("register-user", (data?: { employeeId?: string; sessionId?: string }) => {
+      try {
+        // Temporary debug log: show register-user payload and socket id
+        console.log("📡 [SOCKET] register-user received from", socket.id, data);
+        if (!data) return;
+        const { employeeId, sessionId } = data as { employeeId?: string; sessionId?: string };
+        if (employeeId) {
+          const userRoom = `user-${employeeId}`;
+          socket.join(userRoom);
+          socket.data.employeeId = employeeId;
+          console.log(`📌 ${socket.id} registered and joined ${userRoom}`);
+          try {
+            socket.emit("register-ack", { userRoom, via: "client" });
+          } catch {}
+        }
+        if (sessionId) {
+          const sessionRoom = `session-${sessionId}`;
+          socket.join(sessionRoom);
+          socket.data.sessionId = sessionId;
+          console.log(`📌 ${socket.id} registered and joined ${sessionRoom}`);
+          try {
+            socket.emit("register-ack", { sessionRoom, via: "client" });
+          } catch {}
+        }
+      } catch (err) {
+        console.warn("Failed to register-user on socket:", err);
+      }
+    });
 
     // Handle joining rooms
     socket.on("join-room", ({ area, disposition }) => {

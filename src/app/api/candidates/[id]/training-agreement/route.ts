@@ -12,7 +12,7 @@ export async function POST(
     const { id } = await params;
     const formData = await request.formData();
 
-    console.log("Received training agreement data:", formData);
+    // console.log("Received training agreement data:", formData);
 
     // Parse form data
     const signature = formData.get("signature") as string;

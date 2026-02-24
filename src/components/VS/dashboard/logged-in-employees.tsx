@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Circle, RefreshCw, Users, Wifi, WifiOff, AlertTriangle, TrendingUp, Award } from "lucide-react";
+import { Circle, RefreshCw, Users, Wifi, WifiOff, AlertTriangle, TrendingUp, Award, Loader2, Trash } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/tooltip";
 import { useLoggedInEmployees } from "@/hooks/useLoggedInEmployees";
 import { useSocket } from "@/hooks/useSocket";
+import axios from "axios";
+import { useAuthStore } from "@/AuthStore";
+import { useRouter } from "next/navigation";
 
 const roleColors: Record<string, string> = {
   HR: "bg-purple-500/20 text-purple-500 border-purple-500/30",
@@ -59,6 +62,25 @@ const LoggedInEmployeesList = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const [forcingId, setForcingId] = useState<string | null>(null);
+  const [sessionsMap, setSessionsMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchSessionCounts = async () => {
+      try {
+        if (!employees || employees.length === 0) return;
+        const ids = employees.map((e: any) => e._id);
+        const res = await axios.post("/api/employee/getActiveSessionsCounts", { employeeIds: ids });
+        if (res.data?.success && res.data.counts) {
+          setSessionsMap(res.data.counts);
+        }
+      } catch (err) {
+        // ignore failures
+      }
+    };
+    fetchSessionCounts();
+  }, [employees]);
 
   // Prevent hydration mismatch
   if (!isMounted) {
@@ -159,6 +181,11 @@ const LoggedInEmployeesList = () => {
                       >
                         {employee.name}
                       </Link>
+                      <span className="ml-2">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-5">
+                          {sessionsMap[employee._id] ?? 0} session{(sessionsMap[employee._id] ?? 0) !== 1 ? "s" : ""}
+                        </Badge>
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <Badge
@@ -230,6 +257,34 @@ const LoggedInEmployeesList = () => {
                           })}
                       </span>
                     </div>
+                  </div>
+                  <div className="flex items-center">
+                    <button
+                      onClick={async () => {
+                        const confirmForce = window.confirm(`Force logout ${employee.name}? This will end their active sessions.`);
+                        if (!confirmForce) return;
+                        try {
+                          setForcingId(employee._id);
+                          const res = await axios.post("/api/employee/forceLogout", { employeeId: employee._id });
+                          if (res.data?.success) {
+                            // refresh list
+                            await refetch();
+                          } else {
+                            alert(res.data?.message || "Failed to force logout");
+                          }
+                        } catch (err: any) {
+                          console.error("Force logout failed:", err);
+                          alert(err?.message || "Force logout failed");
+                        } finally {
+                          setForcingId(null);
+                        }
+                      }}
+                      disabled={forcingId === employee._id}
+                      className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                      {forcingId === employee._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+                      Force logout
+                    </button>
                   </div>
                 </div>
               ))}

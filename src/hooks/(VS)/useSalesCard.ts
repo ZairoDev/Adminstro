@@ -58,7 +58,6 @@ const SalesCard = () => {
     try {
       // Fetch leads created within last 7 days (with today vs yesterday comparison)
       const salesData = await getSalesCardDetails({ days: "" });
-      console.log("Sales Card Data:", salesData);
       setSalesCardData(salesData);
       setLoading(false);
     } catch (err: any) {

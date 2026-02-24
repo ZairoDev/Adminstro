@@ -192,10 +192,6 @@ export async function POST(req: NextRequest) {
     // Batch insert
     const inserted = await RetargetContact.insertMany(validContacts, { ordered: false });
 
-    console.log(
-      `[RETARGET UPLOAD] ${inserted.length} contacts uploaded by ${uploadedBy} (batch: ${batchId}, file: ${fileName})`
-    );
-
     return NextResponse.json({
       success: true,
       batchId,

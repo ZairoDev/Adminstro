@@ -45,7 +45,7 @@ export default function HomePage() {
   const router = useRouter();
 
   const handleDashboard = () => {
-    if (!token) {
+    if (!token || !token.id) {
       router.push("/login");
       return;
     }
@@ -129,7 +129,9 @@ export default function HomePage() {
 
         <>
           {token ? (
-            <RainbowButton onClick={handleDashboard}>Dashboard</RainbowButton>
+            <RainbowButton onClick={handleDashboard} disabled={!token?.id}>
+              Dashboard
+            </RainbowButton>
           ) : (
             <Link href="/login">
               <RainbowButton>Login</RainbowButton>

@@ -781,20 +781,61 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   HAdmin: [
     {
+      path: "/holidaysera",
+      label: "HolidaySera",
+      Icon: <AiFillDashboard size={18} />,
+    },
+    {
       path: "/holidaysera/properties",
       label: "Properties",
       Icon: <Warehouse size={18} />,
     },
     {
       path: "/holidaysera/guests",
-      label: "Guests",
+      label: "Owners",
       Icon: <PersonStanding size={18} />,
     },
+
     {
-      path: "/holidaysera",
-      label: "HolidaySera",
-      Icon: <AiFillDashboard size={18} />,
-    }
+      path: "/holidaysera/coupons",
+      label: "Coupons",
+      Icon: <Ticket size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/send-offer",
+      label: "Sent Offer",
+      Icon: <BadgeEuro size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-connected",
+      label: "Not Connected",
+      Icon: <PhoneOff size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-interested",
+      label: "Not Interested",
+      Icon: <Frown size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/call-back",
+      label: "Call Back",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/language-barrier",
+      label: "Language Barrier",
+      Icon: <Languages size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklist",
+      label: "Blacklist Lead",
+      Icon: <ShieldAlert size={18} />,
+    },
   ],
   "Subscription-Sales": [
     {

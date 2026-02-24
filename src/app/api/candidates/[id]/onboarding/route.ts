@@ -17,10 +17,7 @@ export async function PATCH(
     const body = await request.json();
     const { documents, reuploadToken } = body;
 
-    console.log("=== RE-UPLOAD SUBMISSION ===");
-    console.log("Candidate ID:", id);
-    console.log("Token received:", reuploadToken);
-    console.log("Documents received:", Object.keys(documents || {}));
+
 
     // Validate input
     if (!reuploadToken) {
@@ -49,11 +46,10 @@ export async function PATCH(
       );
     }
 
-    console.log("Candidate found:", candidate.name);
-    console.log("onboardingDetails exists:", !!candidate.onboardingDetails);
+
     
     const reuploadRequest = candidate.onboardingDetails?.reuploadRequest;
-    console.log("reuploadRequest exists:", !!reuploadRequest);
+
     
     if (!reuploadRequest) {
       console.error("No reuploadRequest found in candidate data");
@@ -74,11 +70,7 @@ export async function PATCH(
     }
 
     // Validate token
-    console.log("Token comparison:", {
-      storedToken: reuploadRequest.token,
-      providedToken: reuploadToken,
-      tokensMatch: reuploadRequest.token === reuploadToken,
-    });
+
 
     if (reuploadRequest.token !== reuploadToken) {
       console.error("Token mismatch");
@@ -92,11 +84,7 @@ export async function PATCH(
     if (reuploadRequest.tokenExpiresAt) {
       const tokenExpiry = new Date(reuploadRequest.tokenExpiresAt);
       const now = new Date();
-      console.log("Token expiry check:", {
-        expiresAt: tokenExpiry,
-        now: now,
-        isExpired: tokenExpiry < now,
-      });
+
       
       if (tokenExpiry < now) {
         console.error("Token expired");
@@ -112,11 +100,7 @@ export async function PATCH(
     const submittedDocs = Object.keys(documents);
     const invalidDocs = submittedDocs.filter((doc) => !requestedDocs.includes(doc));
     
-    console.log("Document validation:", {
-      requestedDocs,
-      submittedDocs,
-      invalidDocs,
-    });
+
     
     if (invalidDocs.length > 0) {
       console.error("Invalid documents submitted:", invalidDocs);
@@ -171,8 +155,6 @@ export async function PATCH(
     updateOps["onboardingDetails.reuploadRequest.isActive"] = false;
     updateOps["onboardingDetails.reuploadRequest.completedAt"] = new Date();
 
-    console.log("Updating candidate with:", Object.keys(updateOps));
-    console.log("Reupload history entries:", reuploadHistoryEntries.length);
 
     // Update candidate
     const updatedCandidate = await Candidate.findByIdAndUpdate(
@@ -194,8 +176,6 @@ export async function PATCH(
       );
     }
 
-    console.log("✅ Documents updated successfully");
-    console.log("Updated documents:", Object.keys(documents));
 
     // Send notification email to HR
     try {
@@ -275,7 +255,7 @@ export async function PATCH(
           subject: `Documents Re-uploaded - ${candidate.name}`,
           html: emailHtml,
         });
-        console.log("✅ HR notification email sent successfully. Message ID:", mailResponse.messageId);
+
       }
     } catch (emailError: any) {
       console.error("❌ Failed to send HR notification email:", emailError.message || emailError);
@@ -309,7 +289,7 @@ export async function POST(
     const { id } = await params;
     const formData = await request.formData();
 
-    console.log("Received onboarding data:", formData);
+
 
     // Parse text fields
     const personalDetailsRaw = formData.get("personalDetails") as string;

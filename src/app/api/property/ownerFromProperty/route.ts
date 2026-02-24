@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const { propertyId, userId } = body;
-    console.log("userId: ", userId);
+    // console.log("userId: ", userId);
     // Validate input - either propertyId or userId must be provided
     if (!propertyId && !userId) {
       return NextResponse.json(

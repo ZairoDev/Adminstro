@@ -1907,13 +1907,7 @@ export const getLocationWeeklyTargets = async ({
       }
     });
 
-    console.log(
-      `📊 Period ${periodIndex + 1} (${period.periodLabel}):`,
-      results.map((r) => ({
-        location: r.originalLocation,
-        achieved: r.totalPaid,
-      }))
-    );
+
   }
 
   const monthNames = [
@@ -2165,11 +2159,7 @@ export const getWeeklyTargetStats = async ({
       const periodTarget = monthlyTarget / periods.length;
       const percentage = periodTarget > 0 ? (achieved / periodTarget) * 100 : 0;
 
-      console.log("📥 Stats for period", period.periodLabel, ":", {
-        achieved,
-        periodTarget,
-        percentage,
-      });
+
 
       return {
         period: period.periodLabel,

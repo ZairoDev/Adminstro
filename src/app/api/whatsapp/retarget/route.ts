@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
         })
         .filter(Boolean);
 
-      console.log(`📋 [AUDIT] Retarget owners fetch: ${recipients.length} unique owners, ${skippedCount} invalid, ${blockedCount} blocked`);
+
 
       return NextResponse.json({ 
         success: true, 
@@ -378,7 +378,7 @@ export async function POST(req: NextRequest) {
         
         if (!isValidPhone) {
           skippedCount++;
-          console.log(`⏭️ [AUDIT] Skipping lead ${q._id}: invalid phone format`);
+
           return null;
         }
 

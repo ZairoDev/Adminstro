@@ -63,7 +63,7 @@ export async function sendCandidateEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ Candidate email sent successfully to:", payload.to);
+    // Candidate email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ Candidate email sending error:", error);
@@ -94,7 +94,7 @@ export async function sendWarningEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ Warning email sent successfully to:", payload.to);
+    // Warning email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ Warning email sending error:", error);
@@ -125,7 +125,7 @@ export async function sendPIPEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ PIP email sent successfully to:", payload.to);
+    // PIP email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ PIP email sending error:", error);
@@ -168,7 +168,7 @@ export async function sendPIPCompletionEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ PIP completion email sent successfully to:", to);
+    // PIP completion email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ PIP completion email sending error:", error);
@@ -199,7 +199,7 @@ export async function sendAppreciationEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ Appreciation email sent successfully to:", payload.to);
+    // Appreciation email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ Appreciation email sending error:", error);
@@ -230,7 +230,7 @@ export async function sendSeparationEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log(`✅ ${payload.separationType} email sent successfully to:`, payload.to);
+    // Separation email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error(`❌ ${payload.separationType} email sending error:`, error);
@@ -265,7 +265,7 @@ export async function sendCustomEmail(
       throw new Error("Email address was rejected or invalid");
     }
 
-    console.log("✅ Custom email sent successfully to:", to);
+    // Custom email sent successfully
     return { success: true, messageId: mailResponse.messageId };
   } catch (error: any) {
     console.error("❌ Custom email sending error:", error);

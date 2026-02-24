@@ -132,7 +132,7 @@ export async function PATCH(
           rescheduleLink: rescheduleLink,
         },
       });
-      console.log(`✅ Interview scheduled email sent successfully to ${updatedCandidate.email}`);
+      // console.log(`✅ Interview scheduled email sent successfully to ${updatedCandidate.email}`);
     } catch (emailError: any) {
       // Log email error but don't fail the entire operation
       console.error(`❌ Failed to send interview scheduled email to ${updatedCandidate.email}:`, emailError);

@@ -479,6 +479,28 @@ setBooster(res.data);
                     }
                   />
                 </div>
+                {(token?.role === "SuperAdmin") && (
+                  <div className="flex items-center space-x-2">
+                    <MapPin size={20} />
+                    <Label>Area:</Label>
+                    <Input
+                      disabled={editDisabled}
+                      value={apiData?.area ?? ""}
+                      className="w-full"
+                      onChange={(e) =>
+                        setApiData(
+                          (prev) =>
+                            prev
+                              ? ({
+                                  ...prev,
+                                  area: e.target.value,
+                                } as IQuery)
+                              : undefined
+                        )
+                      }
+                    />
+                  </div>
+                )}
                 <div className="flex items-center space-x-2">
                   <FileText size={20} />
                   <Label>Email:</Label>

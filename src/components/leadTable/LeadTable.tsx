@@ -143,6 +143,16 @@ export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: 
     return phoneConfigs[0]?.phoneNumberId || "";
   };
 
+  const getFirstNameFromCreatedBy = (createdBy: string | undefined): string => {
+    if (!createdBy) return "-";
+    const base = createdBy.includes("@")
+      ? createdBy.split("@")[0]
+      : createdBy;
+    const first = base.trim().split(" ")[0] || "-";
+    if (!first || first === "-") return "-";
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  };
+
   // Check if user can edit location - only for LeadGen-TeamLead, SuperAdmin, and Sales-TeamLead
   const canEditLocation = 
     token?.role === "LeadGen-TeamLead" || 
@@ -870,25 +880,35 @@ const handleSave = async (
                     <span className="capitalize">{query?.location || "-"}</span>
                   )}
                   <div>|</div>
-                  <AreaSelect
-                    data={
-                      targets
-                        .find(
-                          (target) =>
-                            target.city.toLowerCase() ===
-                            query?.location.toLowerCase()
-                        )
-                        ?.areas.map((area) => ({
-                          value: area.name,
-                          label: area.name,
-                        })) ?? []
-                    }
-                    value={query.area ?? ""}
-                    save={(val) => handleSave(query._id!, "area", val)}
-                    tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
-                    icon={<span className="text-green-500">✅</span>}
-                    maxWidth="150px"
-                  />
+                  {/* SuperAdmin: show Created By (first name); others: show Area */}
+                  {token?.role === "SuperAdmin" ? (
+                    <span
+                      className="truncate max-w-[150px]"
+                      title={`Created by: ${query?.createdBy ?? "-"}`}
+                    >
+                      {getFirstNameFromCreatedBy(query?.createdBy)}
+                    </span>
+                  ) : (
+                    <AreaSelect
+                      data={
+                        targets
+                          .find(
+                            (target) =>
+                              target.city.toLowerCase() ===
+                              query?.location.toLowerCase()
+                          )
+                          ?.areas.map((area) => ({
+                            value: area.name,
+                            label: area.name,
+                          })) ?? []
+                      }
+                      value={query.area ?? ""}
+                      save={(val) => handleSave(query._id!, "area", val)}
+                      tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
+                      icon={<span className="text-green-500">✅</span>}
+                      maxWidth="150px"
+                    />
+                  )}
                   <div>|</div>
                   <Badge>
                     <CustomTooltip
@@ -1246,6 +1266,7 @@ const handleSave = async (
                                     "Didn't like the option",
                                     "Different Area",
                                     "Agency Fees",
+                                    "Ghosted",
                                   ].map((declineReason, ind) => (
                                     <DropdownMenuItem
                                       key={ind}
@@ -1282,6 +1303,7 @@ const handleSave = async (
                               "Different Area",
                               "Agency Fees",
                               "Low Duration",
+                              "Ghosted",
                             ].map((reason: string, ind) => (
                               <DropdownMenuItem
                                 key={ind}

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 
 import { SalesOfferInterface } from "@/util/type";

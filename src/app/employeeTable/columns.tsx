@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import { toast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 
 const renderCell = (value: any) => {

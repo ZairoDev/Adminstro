@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { IQuery } from "@/util/type";

@@ -1,10 +1,24 @@
 // import UnregisteredOwnersTable from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  try { 
+  try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
+    const body = await req.json();
 
     const data = await unregisteredOwner.create({
       name: body.name,

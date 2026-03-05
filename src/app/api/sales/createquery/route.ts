@@ -190,8 +190,8 @@ async function sendGuestGreetingTemplate(
 }
 
 export async function POST(req: NextRequest) {
-  const token = await getDataFromToken(req);
   try {
+    const token = await getDataFromToken(req);
     const {
       date,
       name,
@@ -285,10 +285,17 @@ export async function POST(req: NextRequest) {
       { success: true, data: newQuery },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("❌ Error creating lead:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: err?.message || "Internal server error" },
       { status: 500 }
     );
   }

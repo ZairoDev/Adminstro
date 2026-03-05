@@ -17,7 +17,7 @@ import { TermsConditionsModal } from "../../components/terms-conditions-modal";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import { SignaturePad } from "../../components/signature-pad";
 import { PDFDocument } from "pdf-lib";
-import axios from "axios";
+import axios from "@/util/axios";
 
 
 

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
         const logoutTime = new Date();
         await Employees.updateOne(
           { _id: decoded.id },
-          { $set: { isLoggedIn: false, lastLogout: logoutTime } }
+          { $set: { isLoggedIn: false, lastLogout: logoutTime, sessionId: null, sessionStartedAt: null, tokenValidAfter: Date.now() } }
         );
 
         // Session-based logout: end the matching active login record for this device/session

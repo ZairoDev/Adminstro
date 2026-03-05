@@ -22,7 +22,7 @@ import {
 import Image from "next/image";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 
 const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
 const colleges = [

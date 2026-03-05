@@ -15,7 +15,7 @@ import { useState, useEffect } from "react";
 import InfoCard from "@/components/infoCard/InfoCard";
 import { usePathname } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
 
 export default function DashboardLayout({
@@ -73,9 +73,9 @@ export default function DashboardLayout({
       }
     };
 
-    socket.on("force-logout", handleForceLogout);
+    // socket.on("force-logout", handleForceLogout);
     return () => {
-      socket.off("force-logout", handleForceLogout);
+      // socket.off("force-logout", handleForceLogout);
       socket.off("connect", registerSocket);
     };
   }, [socket, token, clearToken, router]);

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/app/whatsapp/utils";

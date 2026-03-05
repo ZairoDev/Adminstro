@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import toast from "react-hot-toast";
 import { Check, EllipsisVertical, Plus, X } from "lucide-react";
 

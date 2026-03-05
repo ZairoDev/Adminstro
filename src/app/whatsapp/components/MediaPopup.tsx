@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
-import axios from "axios";
+import axios from "@/util/axios";
 
 interface MediaPopupProps {
   open: boolean;

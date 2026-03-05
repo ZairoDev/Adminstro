@@ -6,7 +6,7 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { Property } from "@/models/listing";
-import axios from "axios";
+import axios from "@/util/axios";
 import { from } from "form-data";
 import Visits from "@/models/visit";
 import { MonthlyTarget } from "@/models/monthlytarget";

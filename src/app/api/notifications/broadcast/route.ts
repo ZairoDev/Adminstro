@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    
     console.error("Error broadcasting notification:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },

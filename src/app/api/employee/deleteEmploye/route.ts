@@ -1,14 +1,16 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 connectDb();
 interface Employee {
   _id: string;
 }
 export async function POST(request: NextRequest) {
-  const reqBody: Employee = await request.json();
-  const { _id } = reqBody;
   try {
+    await getDataFromToken(request);
+    const reqBody: Employee = await request.json();
+    const { _id } = reqBody;
     if (!_id) {
       return NextResponse.json(
         { error: "Employee ID is required" },
@@ -33,7 +35,14 @@ export async function POST(request: NextRequest) {
       { message: "Employee deleted successfully" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error(error);
     return NextResponse.json(
       { error: "Failed to delete employee" },

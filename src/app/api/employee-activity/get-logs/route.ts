@@ -2,34 +2,15 @@ import { connectDb } from "@/util/db";
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from headers to verify SuperAdmin access
-    const token = request.headers.get("authorization")?.replace("Bearer ", "") ||
-                  request.cookies.get("token")?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized - Token required" },
-        { status: 401 }
-      );
-    }
-
-    // Verify token and check if user is SuperAdmin
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, process.env.TOKEN_SECRET as string);
-    } catch (err) {
-      decoded = jwt.decode(token);
-    }
-
-    if (!decoded || decoded.role !== "SuperAdmin") {
-      console.log("No SuperAdmin access",decoded);
+    const payload = await getDataFromToken(request);
+    if (payload?.role !== "SuperAdmin") {
       return NextResponse.json(
         { error: "Forbidden - SuperAdmin access required" },
         { status: 403 }
@@ -135,7 +116,14 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Error fetching activity logs:", error);
     return NextResponse.json(
       { error: "Failed to fetch activity logs", success: false },

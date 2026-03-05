@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState, useCallback } from "react";
 import { BellDot, ExternalLink, LucideLoader2, Clock, CalendarDays } from "lucide-react";
 

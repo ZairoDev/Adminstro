@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";

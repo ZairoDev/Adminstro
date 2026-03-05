@@ -19,64 +19,58 @@ interface EmployeeWithLock extends EmployeeInterface {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const currentPage =
-    Number(request.nextUrl.searchParams.get("currentPage")) || 1;
-  const queryType = request.nextUrl.searchParams.get("queryType");
-  let EmployeeInput = request.nextUrl.searchParams.get("userInput");
-
-  const token = await getDataFromToken(request);
-  // console.log(token, "token");
-
-  if (EmployeeInput) {
-    EmployeeInput = EmployeeInput.trim();
-  }
-  const role = request.nextUrl.searchParams.get("role");
-
-  const query: UserQuery = {};
-
-  if (role) {
-    query.role = new RegExp(role, "i");
-  }
-
-  const validQueryTypes = ["name", "email", "phone"];
-  if (queryType) {
-    if (validQueryTypes.includes(queryType)) {
-      if (EmployeeInput) {
-        const regex = new RegExp(EmployeeInput, "i");
-        query[queryType] = regex;
-      }
-    } else {
-      // console.log("Invalid queryType:", queryType);
-    }
-  }
-
-  const skip = (currentPage - 1) * 10;
-
-  // if (role === "HR") {
-  //   query.role = { $nin: ["SuperAdmin", "Developer"] };
-  // }
-
-  // Role-based access control
-  const allowedRoles: readonly string[] = ["SuperAdmin", "HR", "Admin", "Developer", "LeadGen-TeamLead", "Sales-TeamLead"];
-  
-  // Type guard: ensure token exists and has a role property
-  if (!token || typeof token !== "object" || !("role" in token)) {
-    return NextResponse.json(
-      { message: "Unauthorized: Invalid token" },
-      { status: 403 }
-    );
-  }
-  
-  const userRole = String(token.role);
-  if (!allowedRoles.includes(userRole)) {
-    return NextResponse.json(
-      { message: "Unauthorized: You don't have permission to access employee data" },
-      { status: 403 }
-    );
-  }
-
-  let allEmployees: EmployeeWithLock[] = [];
   try {
+    const token = await getDataFromToken(request);
+    const currentPage =
+      Number(request.nextUrl.searchParams.get("currentPage")) || 1;
+    const queryType = request.nextUrl.searchParams.get("queryType");
+    let EmployeeInput = request.nextUrl.searchParams.get("userInput");
+
+    if (EmployeeInput) {
+      EmployeeInput = EmployeeInput.trim();
+    }
+      const role = request.nextUrl.searchParams.get("role");
+
+    const query: UserQuery = {};
+
+    if (role) {
+      query.role = new RegExp(role, "i");
+    }
+
+    const validQueryTypes = ["name", "email", "phone"];
+    if (queryType) {
+      if (validQueryTypes.includes(queryType)) {
+        if (EmployeeInput) {
+          const regex = new RegExp(EmployeeInput, "i");
+          query[queryType] = regex;
+        }
+      } else {
+        // console.log("Invalid queryType:", queryType);
+      }
+    }
+
+    const skip = (currentPage - 1) * 10;
+
+    // Role-based access control
+    const allowedRoles: readonly string[] = ["SuperAdmin", "HR", "Admin", "Developer", "LeadGen-TeamLead", "Sales-TeamLead"];
+
+    if (!token || typeof token !== "object" || !("role" in token)) {
+      return NextResponse.json(
+        { message: "Unauthorized: Invalid token" },
+        { status: 403 }
+      );
+    }
+
+    const userRole = String(token.role);
+    if (!allowedRoles.includes(userRole)) {
+      return NextResponse.json(
+        { message: "Unauthorized: You don't have permission to access employee data" },
+        { status: 403 }
+      );
+    }
+
+    let allEmployees: EmployeeWithLock[] = [];
+    try {
     const queryWithExclusion = excludeTestAccountFromQuery(query);
 
     // Start of day (UTC) for overdue PIP comparison
@@ -126,6 +120,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.error("Error fetching Employee:", error);
     return NextResponse.json({
       message: "Failed to fetch Employees",
-    });
+    }, { status: 500 });
+  }
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    throw error;
   }
 }

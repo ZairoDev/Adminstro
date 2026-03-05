@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";

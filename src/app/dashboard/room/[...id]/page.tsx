@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import Pusher from "pusher-js";
 import debounce from "lodash.debounce";

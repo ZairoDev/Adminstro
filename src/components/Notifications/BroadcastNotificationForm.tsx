@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 import { Loader2, Send } from "lucide-react";
 
 interface BroadcastNotificationFormProps {

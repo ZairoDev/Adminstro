@@ -3,7 +3,7 @@
  import { useEffect } from "react";
  import { useSocket } from "@/hooks/useSocket";
  import { useAuthStore } from "@/AuthStore";
- import axios from "axios";
+ import axios from "@/util/axios";
  import { useRouter } from "next/navigation";
 
  export default function SocketGlobalListener() {

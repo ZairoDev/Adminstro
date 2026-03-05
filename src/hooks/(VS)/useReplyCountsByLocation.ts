@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 
 interface ReplyCountByLocation {
   location: string;

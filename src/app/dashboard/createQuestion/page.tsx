@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 import React, { useState } from "react";
 
 const CreateQuestion = () => {

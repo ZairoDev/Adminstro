@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, AlertCircle, Loader2, Phone, RefreshCw } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/AuthStore";
 import {

@@ -20,7 +20,7 @@ import {
   MessageSquareX,
   MessageSquareOff,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useEffect, useRef, useState } from "react";

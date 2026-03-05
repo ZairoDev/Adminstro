@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { connectDb } from "@/util/db";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -14,6 +15,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
@@ -33,7 +35,14 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, counts: map });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Error fetching active session counts:", error);
     return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
   }

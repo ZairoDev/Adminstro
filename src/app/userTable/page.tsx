@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import debounce from "lodash.debounce";
-import axios from "axios";
+import axios from "@/util/axios";
 import { UserInterface } from "@/util/type";
 
 export default function TablePage() {

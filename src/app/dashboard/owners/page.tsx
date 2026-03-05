@@ -1,7 +1,7 @@
 "use client";
 
 import { z } from "zod";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 import { Check, RotateCcw, Save, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";

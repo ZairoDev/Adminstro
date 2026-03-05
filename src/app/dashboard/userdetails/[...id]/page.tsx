@@ -24,7 +24,7 @@ import {
   User,
   GitPullRequestCreate,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Heading from "@/components/Heading";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

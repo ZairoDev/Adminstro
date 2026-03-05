@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 import {
   Building2,

@@ -36,7 +36,7 @@ import type { Conversation } from "../types";
 import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { getRemainingHours } from "../utils";
 import { cn } from "@/lib/utils";
-import axios from "axios";
+import axios from "@/util/axios";
 
 interface ChatHeaderProps {
   conversation: Conversation;

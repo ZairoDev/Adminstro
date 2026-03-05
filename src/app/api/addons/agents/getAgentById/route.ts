@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import Agents from "@/models/agent";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
-  const { agentId } = await req.json();
-
   try {
+    await getDataFromToken(req);
+    const { agentId } = await req.json();
     if (!agentId)
       return NextResponse.json(
         { error: "Agent ID is required" },
@@ -19,10 +20,17 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ data: agent }, { status: 200 });
-  } catch (err) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     return NextResponse.json(
       { error: "Unable to fetch agent" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

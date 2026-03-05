@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

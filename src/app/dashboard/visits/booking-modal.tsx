@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { format } from "date-fns";

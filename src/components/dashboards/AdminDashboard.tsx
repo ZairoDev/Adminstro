@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { Loader2, RefreshCcw } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import {
   Card,
   CardContent,

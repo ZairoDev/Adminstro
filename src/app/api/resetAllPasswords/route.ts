@@ -1,18 +1,9 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import { generatePassword } from "@/util/generatePassword";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
-
-function generatePassword() {
-  const length = 6;
-  const charset = "0123456789";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
 
 export const GET = async (req: NextRequest) => {
   try {
@@ -36,7 +27,7 @@ export const GET = async (req: NextRequest) => {
     const updatedPassword = await Promise.all(
       employees.map(async (employee) => {
         try {
-          const newPassword = generatePassword();
+          const newPassword = generatePassword(6);
           employee.password = newPassword;
           employee.passwordExpiresAt = new Date(
             Date.now() + 24 * 60 * 60 * 1000

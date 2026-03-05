@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useRouter } from "next/navigation";

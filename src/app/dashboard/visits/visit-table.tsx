@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { Ellipsis, ClipboardCopy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

@@ -25,7 +25,7 @@ import {
   CheckCheck,
   Copy,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";

@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import debounce from "lodash.debounce";
 import { LucideLoader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";

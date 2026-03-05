@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";

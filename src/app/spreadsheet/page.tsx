@@ -1,5 +1,5 @@
 "use client";
-import axios from "axios";
+import axios from "@/util/axios";
 import { SpreadsheetTable } from "./spreadsheetTable";
 import { useEffect, useState, useRef } from "react";
 import type { unregisteredOwners } from "@/util/type";

@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Pusher from "pusher-js";
 import { format } from "date-fns";
 import debounce from "lodash.debounce";

@@ -4,7 +4,7 @@
  * Ensures zero missed notifications on reconnect
  */
 
-import axios from "axios";
+import axios from "@/util/axios";
 
 export interface ReplayState {
   lastNotificationTimestamp: Date | null;

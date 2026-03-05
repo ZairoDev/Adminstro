@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { toast } from "sonner";
 import { Candidate } from "../types";
 import { SelectionData } from "../../components/select-candidate-dialog";

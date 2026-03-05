@@ -17,7 +17,7 @@ import {
   UserPlus,
   Ban,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { CreateEmployeeDialog } from "../candidatePortal/components/createEmployee";
 import type { CandidateLite } from "../candidatePortal/components/new-user";
 import { RejectCandidateDialog, RejectionData } from "../candidatePortal/components/reject-candidate-dialog";

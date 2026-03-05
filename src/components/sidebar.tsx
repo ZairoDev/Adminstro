@@ -63,7 +63,7 @@ import SidebarSection from "./sidebarSection";
 import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
 import { FaWhatsapp } from "react-icons/fa6";
-import axios from "axios";
+import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
 
 // Simple active matcher (keep strict equality)

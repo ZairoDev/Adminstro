@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, UserPlus, Link2, X } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 

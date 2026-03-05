@@ -1,13 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
   try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(request);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
+    // Verify authorization (only SuperAdmin, Admin, HR can create employees)
+    const allowedRoles = ["SuperAdmin", "Admin", "HR", "HAdmin"];
+    if (!auth?.role || !allowedRoles.includes(auth.role)) {
+      return NextResponse.json(
+        { success: false, message: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+    
     const reqBody = await request.json();
     // Convert dateOfJoining from string to Date
     if (reqBody.dateOfJoining) {

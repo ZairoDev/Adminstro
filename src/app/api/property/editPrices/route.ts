@@ -1,12 +1,27 @@
 import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
-  const reqBody = await req.json();
-  const { propertyId, price, dateRange } = reqBody;
+  try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
+    const reqBody = await req.json();
+    const { propertyId, price, dateRange } = reqBody;
 
   if (!propertyId || !price) {
     return NextResponse.json(
@@ -46,6 +61,13 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json(
       { error: "Prices could not be updated" },
+      { status: 500 }
+    );
+  }
+  } catch (error) {
+    console.error("Error in editPrices:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

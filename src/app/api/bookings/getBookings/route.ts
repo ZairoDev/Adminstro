@@ -1,13 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 import "@/models/visit";
 import "@/models/query"; // make sure this is correct for your lead collection
 
 export async function POST(req: NextRequest) {
-  await connectDb();
-
   try {
+    await getDataFromToken(req);
+    await connectDb();
     const body = await req.json();
     const page = body.page ? Number.parseInt(body.page) : 1;
     const paymentStatus = body.travellerPaymentStatus || "pending"; // "pending" or "paid"
@@ -193,8 +194,15 @@ export async function POST(req: NextRequest) {
       { data, totalBookings: totalCount, totalPages },
       { status: 200 }
     );
-  } catch (err) {
-    console.error("Error in getting bookings:", err);
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    console.error("Error in getting bookings:", error);
     return NextResponse.json(
       { error: "Unable to get bookings" },
       { status: 500 }

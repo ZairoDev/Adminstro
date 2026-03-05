@@ -392,6 +392,12 @@ export async function POST(req: NextRequest) {
       wordsCount,
     });
   } catch (error: any) {
+    if (error?.status === 401) {
+      return NextResponse.json(
+        { success: false, code: error.code },
+        { status: 401 },
+      );
+    }
     console.log("error in getting filtered leads: ", error);
     return NextResponse.json(
       {

@@ -20,7 +20,7 @@ import {
   AlertCircle,
   CalendarDays,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast";

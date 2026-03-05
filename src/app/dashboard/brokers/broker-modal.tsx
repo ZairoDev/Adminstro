@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
 import React, { useState } from "react";

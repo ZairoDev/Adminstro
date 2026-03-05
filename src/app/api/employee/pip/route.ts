@@ -5,12 +5,14 @@ import { sendPIPEmail, getPIPLevelDescription, sendCustomEmail, sendPIPCompletio
 import { PIPLevel } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
 // Send PIP email and store in database
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const {
       employeeId,
@@ -103,10 +105,17 @@ export async function POST(request: NextRequest) {
       emailSent,
       pips: updatedEmployee?.pips || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("PIP API error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to send PIP" },
+      { error: err?.message || "Failed to send PIP" },
       { status: 500 }
     );
   }
@@ -115,6 +124,7 @@ export async function POST(request: NextRequest) {
 // Get all PIPs for an employee
 export async function GET(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get("employeeId");
@@ -135,9 +145,16 @@ export async function GET(request: NextRequest) {
       success: true,
       pips: employee.pips || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     return NextResponse.json(
-      { error: error.message || "Failed to fetch PIPs" },
+      { error: err?.message || "Failed to fetch PIPs" },
       { status: 500 }
     );
   }
@@ -146,6 +163,7 @@ export async function GET(request: NextRequest) {
 // Update PIP status
 export async function PUT(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const { 
       employeeId, 
@@ -241,9 +259,16 @@ export async function PUT(request: NextRequest) {
       pips: employee?.pips || [],
       emailSent,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     return NextResponse.json(
-      { error: error.message || "Failed to update PIP" },
+      { error: err?.message || "Failed to update PIP" },
       { status: 500 }
     );
   }
@@ -252,6 +277,7 @@ export async function PUT(request: NextRequest) {
 // Delete a PIP
 export async function DELETE(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const { employeeId, pipId } = await request.json();
 
@@ -277,9 +303,16 @@ export async function DELETE(request: NextRequest) {
       message: "PIP deleted successfully",
       pips: employee?.pips || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     return NextResponse.json(
-      { error: error.message || "Failed to delete PIP" },
+      { error: err?.message || "Failed to delete PIP" },
       { status: 500 }
     );
   }

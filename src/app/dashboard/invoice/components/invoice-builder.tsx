@@ -6,7 +6,7 @@ import { InvoicePreview } from "./invoice-preview";
 import { computeTotals, eur } from "./format";
 import type { InvoiceData } from "../page";
 import InvoicePdfButton from "./invoice-pdf-button";
-import axios from "axios";
+import axios from "@/util/axios";
 import Invoice from "@/models/invoice";
 // import type { InvoiceData } from "./types";
 

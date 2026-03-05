@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { Candidate } from "../types";
 
 export const generateUnsignedTrainingAgreement = async (candidate: Candidate) => {

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Agents from "@/models/agent";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function DELETE(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { agentId } = await req.json();
 
     if (!agentId) {
@@ -28,10 +30,17 @@ export async function DELETE(req: NextRequest) {
       { message: "Agent deleted successfully" },
       { status: 200 }
     );
-  } catch (err: any) {
-    console.error("Error deleting agent:", err);
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    console.error("Error deleting agent:", error);
     return NextResponse.json(
-      { error: err.message || "Unable to delete agent" },
+      { error: err?.message || "Unable to delete agent" },
       { status: 500 }
     );
   }

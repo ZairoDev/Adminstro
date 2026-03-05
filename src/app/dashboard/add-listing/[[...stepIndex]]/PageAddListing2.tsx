@@ -27,7 +27,7 @@ import { Plus } from "lucide-react";
 import { IoRemoveSharp } from "react-icons/io5";
 import { Label } from "@/components/ui/label";
 import Heading from "@/components/Heading";
-import axios from "axios";
+import axios from "@/util/axios";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import SearchableAreaSelect from "../../createquery/SearchAndSelect";
 import Loader from "@/components/loader";

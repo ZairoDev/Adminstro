@@ -1,16 +1,23 @@
 import Employees from "@/models/employee";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { excludeTestAccountFromQuery } from "@/util/employeeConstants";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
-export async function GET(req: Request) {
-  try{
+export async function GET(req: NextRequest) {
+  try {
+    await getDataFromToken(req);
     const query = excludeTestAccountFromQuery({ role: "Sales", isActive: true });
     const emp = await Employees.find(query).exec();
-    // console.log(emp);
-    return NextResponse.json({emp},{status: 200});
-  }
-  catch(err){
-    return NextResponse.json({error: err},{status: 500});
-    console.log(err);
+    return NextResponse.json({ emp }, { status: 200 });
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    console.log(error);
+    return NextResponse.json({ error: "Failed to fetch sales employees" }, { status: 500 });
   }
 }

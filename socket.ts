@@ -1,11 +1,12 @@
 // socket.ts
 import { config } from 'dotenv';
-config({ path: '.env.production' });
+config();
 import next from "next";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { parse } from "url";
+import { startDailyPasswordScheduler } from '@/util/dailyPasswordRotation';
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0"; // ✅ Listen on all network interfaces (important for VPS)
@@ -16,6 +17,7 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
+  startDailyPasswordScheduler();
   // Create one HTTP server for both Next.js and Socket.IO
   const httpServer = createServer(async (req, res) => {
     try {
@@ -298,6 +300,7 @@ app.prepare().then(() => {
       console.log(`❌ Client disconnected: ${socket.id} (${reason})`);
     });
   });
+  
 
   // ✅ Make Socket.IO globally accessible (for Next API routes)
   (global as any).io = io;

@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 
 interface UploadImagesToBunnyProps {
   event: any;

@@ -6,7 +6,7 @@ import { InvoiceData } from "../page";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import BulkPdfButton from "./buttonBulk";
-import axios from "axios";
+import axios from "@/util/axios";
 import {
   Select,
   SelectContent,

@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { EditableCell } from "./components/cells/EditableCell";
 import { EditableCopyCell } from "./components/cells/EditableCopyCell";
 import { SelectableCell } from "./components/cells/SelectableCell";
-import axios from "axios";
+import axios from "@/util/axios";
 import type { unregisteredOwners } from "@/util/type";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";

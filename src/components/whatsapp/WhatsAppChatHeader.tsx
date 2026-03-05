@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/AuthStore";
-import axios from "axios";
+import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {

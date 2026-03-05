@@ -23,12 +23,11 @@ function getISTStartOfDay(date: Date): Date {
 }
 
 export async function POST(req: NextRequest) {
-  const reqBody = await req.json();
-  const token = await getDataFromToken(req);
-  const assignedArea = token.allotedArea as String[];
-  const role = token.role;
-
   try {
+    const token = await getDataFromToken(req);
+    const reqBody = await req.json();
+    const assignedArea = token.allotedArea as String[];
+    const role = token.role;
     // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
@@ -369,12 +368,19 @@ export async function POST(req: NextRequest) {
 
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.log("error in getting filtered leads: ", error);
     return NextResponse.json(
       {
         message: "Failed to fetch properties from the database",
-        error: error.message,
+        error: err?.message,
       },
       { status: 500 }
     );

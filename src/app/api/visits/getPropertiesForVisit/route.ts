@@ -2,31 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { Properties, IProperty } from "@/models/property";
 import { quicklisting } from "@/models/quicklisting";
 import Users, { IOwner } from "@/models/user";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
-  const { userMobile } = await req.json();
-
   try {
-    const user = await Users.findOne({ phone: userMobile });
-    if (!user) {
-      return NextResponse.json({ error: "User does not exist" }, { status: 400 });
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
     }
 
-    const userId = user._id.toString();
-    let totalPropertiesRaw: unknown[] = [];
+    const { userMobile } = await req.json();
 
-    if (userId) {
-      const siteListings = await Properties.find({ userId: userId }).lean();
-      if (siteListings && siteListings.length) totalPropertiesRaw = [...siteListings];
-    }
+    try {
+      const user = await Users.findOne({ phone: userMobile });
+      if (!user) {
+        return NextResponse.json({ error: "User does not exist" }, { status: 400 });
+      }
 
-    const quickListings = await quicklisting.find({ ownerMobile: userMobile }).lean();
-    if (quickListings && quickListings.length) totalPropertiesRaw = [...totalPropertiesRaw, ...quickListings];
+      const userId = user._id.toString();
+      let totalPropertiesRaw: unknown[] = [];
 
-    // normalize into IProperty shape (no any)
-    const totalProperties: IProperty[] = totalPropertiesRaw.map((p: unknown) => {
-      const pp = p as Record<string, unknown>;
-      const propImages = (pp.propertyImages as unknown) || (pp.propertyPictureUrls as unknown) || [];
+      if (userId) {
+        const siteListings = await Properties.find({ userId: userId }).lean();
+        if (siteListings && siteListings.length) totalPropertiesRaw = [...siteListings];
+      }
+
+      const quickListings = await quicklisting.find({ ownerMobile: userMobile }).lean();
+      if (quickListings && quickListings.length) totalPropertiesRaw = [...totalPropertiesRaw, ...quickListings];
+
+      // normalize into IProperty shape (no any)
+      const totalProperties: IProperty[] = totalPropertiesRaw.map((p: unknown) => {
+        const pp = p as Record<string, unknown>;
+        const propImages = (pp.propertyImages as unknown) || (pp.propertyPictureUrls as unknown) || [];
       return {
         _id: String(pp._id ?? pp.propertyId ?? pp.VSID ?? ""),
         VSID: String(pp.VSID ?? ""),
@@ -59,8 +74,15 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(enriched, { status: 200 });
-  } catch (err) {
-    return NextResponse.json({ error: "Unable to fetch properties" }, { status: 400 });
+      return NextResponse.json(enriched, { status: 200 });
+    } catch (err) {
+      return NextResponse.json({ error: "Unable to fetch properties" }, { status: 400 });
+    }
+  } catch (error) {
+    console.error("Error in getPropertiesForVisit:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch properties" },
+      { status: 500 }
+    );
   }
 }

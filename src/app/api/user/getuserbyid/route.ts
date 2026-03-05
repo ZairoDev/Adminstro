@@ -10,22 +10,30 @@ interface RequestBody {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const reqBody: RequestBody = await request.json();
-  const { userId } = reqBody;
+  try {
+    const tokenData = await getDataFromToken(request);
+    const reqBody: RequestBody = await request.json();
+    const { userId } = reqBody;
+    const user = await Users.findOne({ _id: userId }).select("-password");
+    const { email } = tokenData;
 
-  // console.log("userId", userId);
-  const user = await Users.findOne({ _id: userId }).select("-password");
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-  const tokenData = await getDataFromToken(request);
-  const {email} = tokenData;
-
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({
+      message: "User found",
+      data: user,
+      loggedInUserEmail: email,
+    });
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    throw error;
   }
-
-  return NextResponse.json({
-    message: "User found",
-    data: user,
-    loggedInUserEmail: email,
-  });
 }

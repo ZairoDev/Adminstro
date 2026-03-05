@@ -61,7 +61,7 @@ import {
 import { toast } from "sonner";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
 import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
 import { CreateEmployeeDialog } from "../components/createEmployee";

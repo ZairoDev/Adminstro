@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";

@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { FilteredPropertiesInterface } from "./page";
 
 interface OwnerInterface {

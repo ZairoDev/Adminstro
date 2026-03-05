@@ -18,7 +18,7 @@ import {
   AlertCircle,
   MessageSquare,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 
 import {

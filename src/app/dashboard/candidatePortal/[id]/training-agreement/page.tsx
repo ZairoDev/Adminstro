@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
-import axios from "axios";
+import axios from "@/util/axios";
 
 interface Candidate {
   _id: string;

@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
+import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -43,10 +45,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate a fresh session for this OTP-verified login
+    const sessionId =
+      (globalThis as any)?.crypto?.randomUUID?.() ?? randomUUID();
+    const now = Date.now();
+
     await Employees.updateOne(
       { email: email },
-      // { $set: { otpToken: undefined, otpTokenExpiry: undefined } }
-      { $unset: { otpToken: "", otpTokenExpiry: "" }, $set: { isLoggedIn: true, lastLogin: new Date() } }
+      {
+        $unset: { otpToken: "", otpTokenExpiry: "" },
+        $set: {
+          isLoggedIn: true,
+          lastLogin: new Date(),
+          sessionId,
+          sessionStartedAt: now,
+          tokenValidAfter: now,
+        },
+      }
     );
 
     // Emit socket event for real-time tracking
@@ -62,29 +77,72 @@ export async function POST(request: NextRequest) {
 
     const tokenData = {
       id: savedUser[0]._id,
+      sid: sessionId,
       name: savedUser[0].name,
       email: savedUser[0].email,
       role: savedUser[0].role,
       allotedArea: savedUser[0].allotedArea,
     };
 
-    const token = jwt.sign(tokenData, process.env.TOKEN_SECRET!, {
-      expiresIn: "1d",
+    const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
+      expiresIn: "1d",  
     });
 
     const response = NextResponse.json({
       message: "Login successful",
       success: true,
       token,
-      tokenData: tokenData,
+      tokenData,
       status: 200,
     });
+
+    // Set httpOnly auth & session cookies
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24,
     });
+    try {
+      response.cookies.set("sessionId", sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+    } catch {
+      // ignore cookie errors
+    }
+
+    // Best-effort login activity log
+    try {
+      const { getClientIpFromHeaders } = await import("@/util/getClientIp");
+      const ipAddress =
+        getClientIpFromHeaders(request.headers) ||
+        request.headers.get("x-forwarded-for")?.split(",")[0] ||
+        request.headers.get("x-real-ip") ||
+        "Unknown";
+      const userAgent = request.headers.get("user-agent") || "";
+
+      const activityLog = new EmployeeActivityLog({
+        employeeId: savedUser[0]._id.toString(),
+        employeeName: savedUser[0].name,
+        employeeEmail: savedUser[0].email,
+        role: savedUser[0].role,
+        activityType: "login",
+        loginTime: new Date(),
+        sessionId,
+        status: "active",
+        lastActivityAt: new Date(),
+        ipAddress,
+        userAgent,
+        notes: "Login through employee portal (OTP verified)",
+      });
+      await activityLog.save().catch(() => {});
+    } catch {
+      // non-critical
+    }
 
     return response;
   } catch (error) {

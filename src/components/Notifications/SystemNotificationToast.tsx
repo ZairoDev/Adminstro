@@ -11,7 +11,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useAuthStore } from "@/AuthStore";
 import { useRouter } from "next/navigation";
 import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
-import axios from "axios";
+import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import {
   UnifiedNotification,

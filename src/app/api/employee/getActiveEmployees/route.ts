@@ -4,13 +4,14 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(request: NextRequest) {
-  const filters = await request.json();
-
   try {
+    await getDataFromToken(request);
+    const filters = await request.json();
     const filtersWithExclusion = excludeTestAccountFromQuery(filters);
     const tempActiveEmployees = await Employees.find(filtersWithExclusion).lean();
 
@@ -51,10 +52,18 @@ export async function POST(request: NextRequest) {
     const totalEmployee: number = await Employees.countDocuments(excludeTestAccountFromCount({ isActive: true }));
 
     return NextResponse.json({ activeEmployees, totalEmployee });
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Error fetching Employee:", error);
-    return NextResponse.json({
-      message: "Failed to fetch Employees",
-    });
+    return NextResponse.json(
+      { message: "Failed to fetch Employees" },
+      { status: 500 }
+    );
   }
 }

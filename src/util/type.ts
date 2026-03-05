@@ -7,6 +7,10 @@ export interface MiddlweareInterface {
   id: string;
   exp: Date;
   iat: Date;
+  sid: string;
+  tokenValidAfter: number;
+  sessionId: string;
+  sessionStartedAt: number;
 }
 
 export type WarningType =
@@ -92,6 +96,9 @@ export interface EmployeeInterface {
   warnings?: WarningRecord[];
   pips?: PIPRecord[];
   appreciations?: AppreciationRecord[];
+  sessionId?: string;
+  sessionStartedAt?: number;
+  tokenValidAfter?: number;
 }
 
 export interface PropertiesDataType {

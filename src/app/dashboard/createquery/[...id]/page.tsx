@@ -11,7 +11,7 @@ import {
   CalendarIcon,
   Rocket,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 

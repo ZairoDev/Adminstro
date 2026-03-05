@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 import { LucideLoader2 } from "lucide-react";
 

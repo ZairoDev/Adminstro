@@ -10,7 +10,7 @@ import {
   ArrowBigDownDash,
   Calendar as DateIcon,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
 import { useSearchParams } from "next/navigation";

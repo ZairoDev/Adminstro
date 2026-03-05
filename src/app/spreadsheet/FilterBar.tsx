@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { DateRange } from "react-day-picker";
 import { X, Search, Star, Pin, Euro, ArrowUp, ArrowDown } from "lucide-react";
 

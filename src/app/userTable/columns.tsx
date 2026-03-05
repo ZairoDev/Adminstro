@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
-import axios from "axios";
+import axios from "@/util/axios";
 
 const renderCell = (value: any) => (value ? value : "NA");
 

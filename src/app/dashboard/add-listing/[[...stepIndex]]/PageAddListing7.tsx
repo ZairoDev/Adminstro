@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import React, { FC } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { MdCancel } from "react-icons/md";
 import { FileUpIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

@@ -42,10 +42,21 @@ const PageLogin: React.FC = () => {
   const [isTyping, setIsTyping] = useState<boolean>(false);
   
   useEffect(() => {
-    const { token } = parseCookies();
-    if (token) {
-      router.push("/");
-    }
+    const checkSession = async () => {
+      try {
+        await axios.get("/api/employee/check-session", { withCredentials: true });
+        router.push("/");
+      } catch (error) {
+        // session invalid -> stay on login
+        console.log("Session invalid", error);
+        setEmotion("sad");
+        setTimeout(() => {
+          setEmotion("neutral");
+        }, 2000);
+      }
+    };
+
+    checkSession();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

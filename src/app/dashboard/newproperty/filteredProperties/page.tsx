@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import mongoose from "mongoose";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";

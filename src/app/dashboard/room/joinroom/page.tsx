@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 import { LucideLoader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";

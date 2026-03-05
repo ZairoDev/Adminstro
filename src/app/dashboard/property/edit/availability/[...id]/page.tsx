@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { addDays } from "date-fns";
 import { Pencil } from "lucide-react";
 import { DateRange } from "react-day-picker";

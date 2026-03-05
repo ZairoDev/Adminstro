@@ -1,6 +1,6 @@
-import mongoose, { Connection } from "mongoose";
+import mongoose from "mongoose";
 
-let cachedConnection: Connection | null = null;
+let cachedConnection: typeof mongoose.connection | null = null;
 
 export const connectDb = async (): Promise<void> => {
   try {

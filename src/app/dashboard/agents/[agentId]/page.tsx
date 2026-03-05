@@ -11,7 +11,7 @@ import {
   CreditCard,
   CalendarDays,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 
 import { toast } from "@/hooks/use-toast";

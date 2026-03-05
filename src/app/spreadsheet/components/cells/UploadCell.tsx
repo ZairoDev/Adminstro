@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ImageUp, Loader2 } from "lucide-react";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axios from "@/util/axios";
 import type { unregisteredOwners } from "@/util/type";
 
 interface UploadCellProps {

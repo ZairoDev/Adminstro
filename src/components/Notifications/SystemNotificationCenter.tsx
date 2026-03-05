@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
 import { cn } from "@/lib/utils";

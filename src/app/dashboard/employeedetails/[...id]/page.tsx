@@ -25,7 +25,7 @@ import {
   Star,
   Trophy,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useEffect, useState } from "react";

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 			);
 		}
     // Do not allow password changes for HAdmin role or protected emails
-    if (employee.role === "HAdmin" || employee.email === "khanshahid5880@gmail.com") {
+    if (employee.role === "HAdmin") {
       return NextResponse.json(
         { error: "Password change is not allowed for this employee" },
         { status: 403 }

@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSocket } from "./useSocket";
 

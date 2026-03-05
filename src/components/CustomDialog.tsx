@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import uploadImagesToBunny from "@/helper/uploadImagesToBunny";
 import { useRef, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";

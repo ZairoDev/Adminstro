@@ -1,7 +1,7 @@
 "use client";
 import Heading from "@/components/Heading";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 
 import {
   Table,

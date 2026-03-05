@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { useRouter } from "next/navigation";

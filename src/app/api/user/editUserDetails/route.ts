@@ -1,6 +1,7 @@
 import { connectDb } from "@/util/db";
 import User from "../../../../models/user";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -15,8 +16,20 @@ interface RequestBody {
   phone?: string;
   address?: string;
 }
-export async function PUT(request: Request): Promise<NextResponse> {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(request);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
     const body: RequestBody = await request.json();
     // console.log("Received body:", body);
 

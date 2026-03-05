@@ -5,12 +5,14 @@ import { sendAppreciationEmail, getAppreciationReasonText, sendCustomEmail } fro
 import { AppreciationType } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
 // Send appreciation email and store in database
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const {
       employeeId,
@@ -89,10 +91,17 @@ export async function POST(request: NextRequest) {
       emailSent,
       appreciations: (updatedEmployee)?.appreciations || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Appreciation API error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to send appreciation" },
+      { error: err?.message || "Failed to send appreciation" },
       { status: 500 }
     );
   }
@@ -137,6 +146,7 @@ export async function GET(request: NextRequest) {
 // Delete an appreciation
 export async function DELETE(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const { employeeId, appreciationId } = await request.json();
 

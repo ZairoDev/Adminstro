@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
-import axios from "axios";
+import axios from "@/util/axios";
 import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";

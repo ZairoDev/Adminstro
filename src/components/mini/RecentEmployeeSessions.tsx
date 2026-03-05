@@ -1,7 +1,7 @@
  "use client";
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

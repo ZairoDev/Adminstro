@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import {
   Pagination,
   PaginationContent,

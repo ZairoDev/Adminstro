@@ -1,14 +1,15 @@
 import { connectDb } from "@/util/db";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import Employees from "@/models/employee";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     const reqBody = await request.json();
     const {
       employeeId,
@@ -77,7 +78,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Error logging activity:", error);
     return NextResponse.json(
       { error: "Failed to log activity", success: false },

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 
 import { AliasInterface } from "@/util/type";

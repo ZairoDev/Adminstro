@@ -5,7 +5,7 @@ import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
-import axios from "axios";
+import axios from "@/util/axios";
 // Card components no longer needed for WhatsApp Web-style layout
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ArrowLeft } from "lucide-react";

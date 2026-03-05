@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/util/axios";
 import { Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";

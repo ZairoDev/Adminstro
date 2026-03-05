@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useLoggedInEmployees } from "@/hooks/useLoggedInEmployees";
 import { useSocket } from "@/hooks/useSocket";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { useRouter } from "next/navigation";
 

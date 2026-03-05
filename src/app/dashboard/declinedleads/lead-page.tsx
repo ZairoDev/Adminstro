@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";

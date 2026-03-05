@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";

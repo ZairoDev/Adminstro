@@ -8,7 +8,7 @@ import {
   UploadIcon,
   ExternalLink,
 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { IoIosBed } from "react-icons/io";
 import { MdAdsClick } from "react-icons/md";

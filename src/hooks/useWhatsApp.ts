@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 
 interface SendMessageParams {

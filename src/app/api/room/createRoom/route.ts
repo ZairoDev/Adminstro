@@ -1,20 +1,13 @@
 import Query from "@/models/query";
 import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
+import { generatePassword } from "@/util/generatePassword";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
 
-function generateStrongPassword(length = 8) {
-  const charset = "0123456789";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +23,7 @@ export async function POST(req: NextRequest) {
       name: lead.name,
       lead: lead._id,
       participants: [employee.email, lead.phoneNo.toString()],
-      password: generateStrongPassword(4),
+      password: generatePassword(4),
     });
 
     await Query.findByIdAndUpdate(

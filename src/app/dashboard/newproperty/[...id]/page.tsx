@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect, ChangeEvent } from "react";

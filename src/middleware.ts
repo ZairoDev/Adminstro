@@ -1,7 +1,7 @@
+import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { getDataFromToken } from "./util/getDataFromToken";
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
   SuperAdmin: [
@@ -276,8 +276,10 @@ export async function middleware(request: NextRequest) {
 
   if (token) {
     try {
-      const obj: any = await getDataFromToken(request);
-      const role = obj?.role as string;
+      const token = request.cookies.get("token")?.value || "";
+      const decodedToken = await jwtVerify(token, new TextEncoder().encode(process.env.TOKEN_SECRET as string));
+      // console.log("decodedToken", decodedToken);
+      const role = decodedToken?.payload?.role as string;
 
       if (path === "/login") {
         return NextResponse.redirect(
@@ -286,7 +288,7 @@ export async function middleware(request: NextRequest) {
       }
 
       if (!role || role.trim() === "") {
-        if (path !== "/norole") {
+        if (path !== "/norole") { 
           return NextResponse.redirect(new URL("/norole", request.url));
         }
         return NextResponse.next();
@@ -294,7 +296,7 @@ export async function middleware(request: NextRequest) {
 
       if (!role || !matchesRolePattern(role, path)) {
         const referer = request.headers.get("referer");
-        const previousUrl = referer ? new URL(referer) : null;
+        const previousUrl = referer ? new URL(referer) : null;  
 
         if (previousUrl && matchesRolePattern(role, previousUrl.pathname)) {
           return NextResponse.redirect(previousUrl);

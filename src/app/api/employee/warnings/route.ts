@@ -5,12 +5,14 @@ import { sendWarningEmail, getWarningReasonText, sendCustomEmail } from "@/lib/e
 import { WarningType } from "@/lib/email/types";
 import { EmployeeInterface } from "@/util/type";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
 // Send warning email and store in database
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const {
       employeeId,
@@ -96,10 +98,17 @@ export async function POST(request: NextRequest) {
       emailSent,
       warnings: updatedEmployee?.warnings || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Warning API error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to send warning" },
+      { error: err?.message || "Failed to send warning" },
       { status: 500 }
     );
   }
@@ -139,6 +148,7 @@ export async function GET(request: NextRequest) {
 // Delete a warning
 export async function DELETE(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     const { employeeId, warningId } = await request.json();
 
@@ -164,9 +174,16 @@ export async function DELETE(request: NextRequest) {
       message: "Warning deleted successfully",
       warnings: employee?.warnings || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     return NextResponse.json(
-      { error: error.message || "Failed to delete warning" },
+      { error: err?.message || "Failed to delete warning" },
       { status: 500 }
     );
   }

@@ -1,12 +1,14 @@
-import {NextRequest,NextResponse} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
-export async function GET(req:NextRequest){
-    try{
-        const statusPipeline = [
+export async function GET(req: NextRequest) {
+  try {
+    await getDataFromToken(req);
+    const statusPipeline = [
   {
     $match: {
       leadStatus: { $nin: ["rejected","declined" ] },
@@ -97,24 +99,29 @@ export async function GET(req:NextRequest){
 ];
 
     const result = await Query.aggregate(statusPipeline);
-
-    
     return NextResponse.json({
-        success: true,
-        statusSummary: result[0] || {
-          First: {},
-          Second: {},
-          Third: {},
-          Fourth: {},
-          Options: {},
-          Visit: {}
-        },
-    })
-    }catch(error){
-        console.error("Error fetching status count:", error);
-        return NextResponse.json(
-          { success: false, message: "Error fetching status summary"},
-          {status: 500}
-        );
-    }    
+      success: true,
+      statusSummary: result[0] || {
+        First: {},
+        Second: {},
+        Third: {},
+        Fourth: {},
+        Options: {},
+        Visit: {},
+      },
+    });
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
+    console.error("Error fetching status count:", error);
+    return NextResponse.json(
+      { success: false, message: "Error fetching status summary" },
+      { status: 500 }
+    );
+  }
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { connectDb } from "@/util/db";
 import Bookings from "@/models/booking";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 /* -------------------------------------------------------------------------- */
 /*                                TYPE DEFINITIONS                            */
@@ -65,8 +67,21 @@ function validateGuestPayment(guest: Partial<GuestPaymentData>): {
 /*                                   ROUTE                                    */
 /* -------------------------------------------------------------------------- */
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
     await connectDb();
     const body = (await req.json()) as ManualPaymentRequest;
     console.log("[Manual Payment] Received payload:", body);

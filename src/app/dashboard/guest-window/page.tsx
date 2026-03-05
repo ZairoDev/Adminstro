@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import { useEffect, useState } from "react";
 import { E164Number } from "libphonenumber-js/core";
 

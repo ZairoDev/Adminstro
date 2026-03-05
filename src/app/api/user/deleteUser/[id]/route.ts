@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import User from "@/models/user"; // your Mongoose User model
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function DELETE(
   req: NextRequest,
@@ -9,6 +9,28 @@ export async function DELETE(
 ) {
   await connectDb();
   try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
+    // Authorize (only SuperAdmin, Admin, HR can delete users)
+    const allowedRoles = ["SuperAdmin", "Admin", "HR", "HAdmin"];
+    if (!auth?.role || !allowedRoles.includes(auth.role)) {
+      return NextResponse.json(
+        { success: false, message: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+
     const { id } = params;
 
     if (!id) {

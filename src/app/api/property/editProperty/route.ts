@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    // Authenticate request
+    let auth: any;
+    try {
+      auth = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json(
+        { success: false, code, message: "Unauthorized" },
+        { status },
+      );
+    }
+
     const { PropertyId, propertyData, syncImages } = await req.json();
 
     if (!PropertyId)

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 
 interface PropertyItem {

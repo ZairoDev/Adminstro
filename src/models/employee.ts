@@ -95,17 +95,17 @@ const employeeSchema = new Schema<IEmployee>(
       type: [String],
       required: false,
     },
-    assignedCountry:{
-      type:String,
-      default:""
+    assignedCountry: {
+      type: String,
+      default: "",
     },
-    empType:{
-      type:String,
-      default:""
+    empType: {
+      type: String,
+      default: "",
     },
-    salary:{
-      type:Number,
-      default:0
+    salary: {
+      type: Number,
+      default: 0,
     },
     isVerified: {
       type: Boolean,
@@ -130,7 +130,7 @@ const employeeSchema = new Schema<IEmployee>(
       ],
       default: "Advert",
     },
-    duration:{
+    duration: {
       type: String,
     },
     isActive: {
@@ -146,7 +146,7 @@ const employeeSchema = new Schema<IEmployee>(
       type: Date,
       default: null,
     },
-    isLocked:{
+    isLocked: {
       type: Boolean,
       default: false,
     },
@@ -254,8 +254,22 @@ const employeeSchema = new Schema<IEmployee>(
       type: Date,
       default: null,
     },
+    sessionId: {
+      type: String,
+      default: null,
+    },
+
+    sessionStartedAt: {
+      type: Number,
+      default: null,
+    },
+
+    tokenValidAfter: {
+      type: Number,
+      default: 0,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Employees =

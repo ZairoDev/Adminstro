@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import axios from "@/util/axios";
 import type React from "react";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";

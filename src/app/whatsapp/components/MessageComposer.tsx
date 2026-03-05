@@ -23,7 +23,7 @@ import data from "@emoji-mart/data";
 import type { Template, Message } from "../types";
 import { TemplateDialog } from "./TemplateDialog";
 import { cn } from "@/lib/utils";
-import axios from "axios";
+import axios from "@/util/axios";
 import { getMessageDisplayText } from "../utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {

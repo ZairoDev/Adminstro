@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { excludeTestAccountFromQuery } from "@/util/employeeConstants";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 // Force dynamic rendering - disable caching for this route
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     await connectDb();
     
     const loggedInQuery = excludeTestAccountFromQuery({ isLoggedIn: true });
@@ -60,7 +62,14 @@ export async function GET(request: NextRequest) {
     response.headers.set("Surrogate-Control", "no-store");
 
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Error fetching logged-in employees:", error);
     return NextResponse.json(
       {

@@ -1,5 +1,5 @@
 import { AliasInterface } from "@/util/type";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 
 export const useDeleteAliases = () => {

@@ -21,19 +21,28 @@ interface Employee {
   role: string;
   isLocked: boolean;
   passwordExpiresAt: Date;
+  sessionId?: string | null;
+  sessionStartedAt?: number | null;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    let sessionIdVar: string | null = null;
+    // let sessionIdVar: string | null = null;
     const reqBody = await request.json();
     const { email, password } = reqBody;
     const trimmedPassword = password?.trim() ?? "";
+    const SESSION_DURATION = 24 * 60 * 60 * 1000;
+
+    const sessionIdVar = (globalThis as any)?.crypto?.randomUUID
+      ? (globalThis as any).crypto.randomUUID()
+      : randomUUID();
 
     // Test SuperAdmin: credentials-only login for QA, no DB record
     if (email === TEST_SUPERADMIN_EMAIL && trimmedPassword === TEST_SUPERADMIN_PASSWORD) {
+      const now = Date.now();
       const testAccountTokenData = {
         id: "test-superadmin",
+        sid: sessionIdVar,
         name: "Test SuperAdmin",
         email: TEST_SUPERADMIN_EMAIL,
         role: "SuperAdmin",
@@ -61,6 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
+        maxAge: 60 * 60 * 24,
       });
       // set sessionId cookie for this test session (no activity logged for test)
       try {
@@ -112,6 +122,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (
+      temp.sessionId &&
+      temp.sessionStartedAt &&
+      Date.now() - temp.sessionStartedAt < SESSION_DURATION
+    ) {
+      return NextResponse.json(
+        { error: "User already logged in on another device" },
+        { status: 409 },
+      );
+    } 
+
+    if (
       temp.role !== ("SuperAdmin" as Employee["role"]) &&
       temp.role !== ("HR" as Employee["role"]) &&
       temp.role !== ("HAdmin" as Employee["role"]) &&
@@ -153,14 +174,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           });
         }
 
+        
+
+        const now = Date.now();
+        const tokenPayload = {
+          id: temp._id,
+          sid: sessionIdVar,
+          name: temp.name,
+          email: temp.email,
+          role: temp.role,
+          allotedArea: temp.allotedArea,
+        };
         const token = jwt.sign(
-          {
-            id: temp._id,
-            name: temp.name,
-            email: temp.email,
-            role: temp.role,
-            allotedArea: temp.allotedArea,
-          },
+          tokenPayload,
           process.env.TOKEN_SECRET as string,
           { expiresIn: "1d" }
         );
@@ -170,13 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             message: "Login successful",
             otpRequired: false,
             token,
-            tokenData: {
-              id: temp._id,
-              name: temp.name,
-              email: temp.email,
-              role: temp.role,
-              allotedArea: temp.allotedArea,
-            },
+            tokenData: tokenPayload,
           },
           { status: 200 }
         );
@@ -187,14 +207,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           path: "/",
+          maxAge: 60 * 60 * 24,
         });
         
         // set sessionId cookie for this session
         try {
-          const saSessionId = (globalThis as any)?.crypto?.randomUUID
-            ? (globalThis as any).crypto.randomUUID()
-            : randomUUID();
-          response.cookies.set("sessionId", saSessionId, {
+
+          response.cookies.set("sessionId", sessionIdVar , {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
@@ -224,9 +243,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       newExpiryDate.setHours(newExpiryDate.getHours() + 24);
     }
 
+    const now = Date.now();
     await Employees.updateOne(
       { _id: temp._id },
-      { $set: { passwordExpiresAt: newExpiryDate, isLoggedIn: true, lastLogin: new Date() } }
+      {
+        $set: {
+          passwordExpiresAt: newExpiryDate,
+          isLoggedIn: true,
+          lastLogin: new Date(),
+          sessionId: sessionIdVar,
+          sessionStartedAt: now,
+          tokenValidAfter: now,
+        },
+      }
     );
 
     console.log(`✅ Employee logged in: ${temp.email}, isLoggedIn set to true`);
@@ -247,6 +276,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const tokenData = {
       id: temp._id,
+      sid: sessionIdVar,
       name: temp.name,
       email: temp.email,
       role: temp.role,
@@ -266,10 +296,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })();
       const userAgent = request.headers.get("user-agent") || "";
       // generate a session id for this device/session
-      const sessionId = (globalThis as any)?.crypto?.randomUUID
-        ? (globalThis as any).crypto.randomUUID()
-        : randomUUID();
-      sessionIdVar = sessionId;
 
       const activityLog = new EmployeeActivityLog({
         employeeId: temp._id.toString(),
@@ -278,7 +304,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         role: temp.role,
         activityType: "login",
         loginTime: new Date(),
-        sessionId,
+        sessionId: sessionIdVar,
         status: "active",
         lastActivityAt: new Date(),
         ipAddress: ipAddress,
@@ -321,6 +347,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24,
     });
 
     return response;

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, Train, Bus, BugPlay as Subway, Trash2, Edit2 } from "lucide-react";
-import axios from "axios";
+import axios from "@/util/axios";
 import TargetModal from "./target_model";
 
 

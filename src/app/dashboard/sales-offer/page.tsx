@@ -1,7 +1,7 @@
 "use client";
 
 import { z } from "zod";
-import axios from "axios";
+import axios from "@/util/axios";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";

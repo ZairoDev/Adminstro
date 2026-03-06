@@ -25,6 +25,15 @@ interface Employee {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const tokenSecret = process.env.TOKEN_SECRET;
+    if (!tokenSecret || typeof tokenSecret !== "string") {
+      console.error("employeelogin: TOKEN_SECRET is not set");
+      return NextResponse.json(
+        { error: "Server configuration error. Please try again later." },
+        { status: 500 }
+      );
+    }
+
     await connectDb();
 
     const reqBody = await request.json();
@@ -49,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       };
       const token = jwt.sign(
         testAccountTokenData,
-        process.env.TOKEN_SECRET as string,
+        tokenSecret,
         { expiresIn: "1d" }
       );
       
@@ -192,7 +201,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         };
         const token = jwt.sign(
           tokenPayload,
-          process.env.TOKEN_SECRET as string,
+          tokenSecret,
           { expiresIn: "1d" }
         );
 
@@ -285,10 +294,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name: temp.name,
       email: temp.email,
       role: temp.role,
-      allotedArea: temp.allotedArea,
+      allotedArea: Array.isArray(temp.allotedArea) ? temp.allotedArea : [],
     };
 
-    const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {
+    const token = jwt.sign(tokenData, tokenSecret, {
       expiresIn: "1d",
     });
 
@@ -356,9 +365,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     return response;
-  } catch (error: any) {
-    console.log(error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("employeelogin error:", err.message, err.stack);
+    const isDev = process.env.NODE_ENV === "development";
+    return NextResponse.json(
+      { error: isDev ? err.message : "Login failed. Please try again later." },
+      { status: 500 }
+    );
   }
 }
 

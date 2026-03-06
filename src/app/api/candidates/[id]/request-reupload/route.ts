@@ -109,7 +109,8 @@ export async function POST(
 
     // Check if there's already an active re-upload request
     if (candidate.onboardingDetails?.reuploadRequest?.isActive) {
-      const existingExpiry = new Date(candidate.onboardingDetails.reuploadRequest.tokenExpiresAt);
+      const expiresAt = candidate?.onboardingDetails?.reuploadRequest?.tokenExpiresAt;
+      const existingExpiry = expiresAt ? new Date(expiresAt) : new Date(0);
       if (existingExpiry > new Date()) {
         return NextResponse.json(
           { 

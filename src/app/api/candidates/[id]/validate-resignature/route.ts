@@ -63,7 +63,8 @@ export async function GET(
     }
 
     // Check if token is expired
-    if (new Date() > new Date(resignatureRequest.tokenExpiresAt)) {
+    const expiresAt = resignatureRequest.tokenExpiresAt;
+    if (expiresAt && new Date() > new Date(expiresAt)) {
       return NextResponse.json(
         { success: false, valid: false, error: "Token has expired", expired: true },
         { status: 400 }

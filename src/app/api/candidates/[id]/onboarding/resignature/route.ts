@@ -61,7 +61,7 @@ export async function POST(
       );
     }
 
-    if (new Date() > new Date(resignatureRequest.tokenExpiresAt)) {
+    if (new Date() > new Date(resignatureRequest?.tokenExpiresAt || "")) {
       return NextResponse.json(
         { success: false, error: "Token has expired" },
         { status: 400 }

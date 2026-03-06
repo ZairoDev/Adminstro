@@ -4,8 +4,8 @@
  */
 
 // Test SuperAdmin account - used for QA, not shown in employee lists
-export const TEST_SUPERADMIN_EMAIL = "testingmail@gmail.com";
-export const TEST_SUPERADMIN_PASSWORD = "125412";
+export const TEST_SUPERADMIN_EMAIL = "";
+export const TEST_SUPERADMIN_PASSWORD = "784512";
 
 /**
  * Exclude test account from employee list queries

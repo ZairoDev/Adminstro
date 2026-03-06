@@ -73,7 +73,7 @@ export async function PATCH(
 
     if (action === "approve") {
       // Update interview date and time
-      const requestedDate = parseLocalDateString(rescheduleRequest.requestedDate);
+      const requestedDate = parseLocalDateString(rescheduleRequest.requestedDate as string);
       const requestedTime = rescheduleRequest.requestedTime;
 
       // Validate date is not in the past
@@ -116,8 +116,8 @@ export async function PATCH(
           position: updatedCandidate.position,
           companyName: process.env.COMPANY_NAME || "Zairo International",
           interviewDetails: {
-            scheduledDate: rescheduleRequest.requestedDate,
-            scheduledTime: requestedTime,
+            scheduledDate: rescheduleRequest.requestedDate as string,
+            scheduledTime: requestedTime || "",
             officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },

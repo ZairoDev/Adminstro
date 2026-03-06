@@ -6,8 +6,8 @@ import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
-import { TEST_SUPERADMIN_EMAIL, TEST_SUPERADMIN_PASSWORD } from "@/util/employeeConstants";
-import { getIpLocation } from "@/util/getIpLocation";
+import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
+
 
 interface Employee {
   _id: string;
@@ -46,56 +46,56 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ? (globalThis as any).crypto.randomUUID()
       : randomUUID();
 
-    // Test SuperAdmin: credentials-only login for QA, no DB record
-    if (email === TEST_SUPERADMIN_EMAIL && trimmedPassword === TEST_SUPERADMIN_PASSWORD) {
-      const now = Date.now();
-      const testAccountTokenData = {
-        id: "test-superadmin",
-        sid: sessionIdVar,
-        name: "Test SuperAdmin",
-        email: TEST_SUPERADMIN_EMAIL,
-        role: "SuperAdmin",
-        allotedArea: [] as string[],
-      };
-      const token = jwt.sign(
-        testAccountTokenData,
-        tokenSecret,
-        { expiresIn: "1d" }
-      );
+
+    // if (email === TEST_SUPERADMIN_EMAIL && trimmedPassword === TEST_SUPERADMIN_PASSWORD) {
+    //   const now = Date.now();
+    //   const testAccountTokenData = {
+    //     id: "test-superadmin",
+    //     sid: sessionIdVar,
+    //     name: "Test SuperAdmin",
+    //     email: TEST_SUPERADMIN_EMAIL,
+    //     role: "SuperAdmin",
+    //     allotedArea: [] as string[],
+    //   };
+    //   const token = jwt.sign(
+    //     testAccountTokenData,
+    //     tokenSecret,
+    //     { expiresIn: "1d" }
+    //   );
       
-      const response = NextResponse.json(
-        {
-          message: "Login successful",
-          otpRequired: false,
-          token,
-          tokenData: testAccountTokenData,
-        },
-        { status: 200 }
-      );
+    //   const response = NextResponse.json(
+    //     {
+    //       message: "Login successful",
+    //       otpRequired: false,
+    //       token,
+    //       tokenData: testAccountTokenData,
+    //     },
+    //     { status: 200 }
+    //   );
       
-      // Set httpOnly cookie for test account
-      response.cookies.set("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24,
-      });
-      // set sessionId cookie for this test session (no activity logged for test)
-      try {
-        const testSessionId = (globalThis as any)?.crypto?.randomUUID
-          ? (globalThis as any).crypto.randomUUID()
-          : randomUUID();
-        response.cookies.set("sessionId", testSessionId, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-        });
-      } catch (e) {}
+    //   // Set httpOnly cookie for test account
+    //   response.cookies.set("token", token, {
+    //     httpOnly: true,
+    //     secure: process.env.NODE_ENV === "production",
+    //     sameSite: "lax",
+    //     path: "/",
+    //     maxAge: 60 * 60 * 24,
+    //   });
+    //   // set sessionId cookie for this test session (no activity logged for test)
+    //   try {
+    //     const testSessionId = (globalThis as any)?.crypto?.randomUUID
+    //       ? (globalThis as any).crypto.randomUUID()
+    //       : randomUUID();
+    //     response.cookies.set("sessionId", testSessionId, {
+    //       httpOnly: true,
+    //       secure: process.env.NODE_ENV === "production",
+    //       sameSite: "lax",
+    //       path: "/",
+    //     });
+    //   } catch (e) {}
       
-      return response;
-    }
+    //   return response;
+    // }
 
     const Employee = await Employees.find({ email });
     if (!Employee || Employee.length === 0) {
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
 
         // Emit socket for real-time tracking (exclude test account from lists)
-        if ((global as any).io && temp.email !== TEST_SUPERADMIN_EMAIL) {
+        if ((global as any).io ) {
           (global as any).io.emit("employee-login", {
             _id: temp._id,
             name: temp.name,
@@ -309,6 +309,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const h = getClientIpFromHeaders(request.headers);
       return h || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown";
     })();
+    const { getIpLocation } = await import("@/util/getIpLocation");
     const location = getIpLocation(ipAddress);
       const userAgent = request.headers.get("user-agent") || "";
       // generate a session id for this device/session

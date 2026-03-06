@@ -81,8 +81,8 @@ export async function POST(
             status === "shortlisted"
               ? shortlistDetails?.suitableRoles
               : undefined,
-          onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink) : undefined,
-          trainingAgreementLink: trainingAgreementLink || (status === "selected" ? candidate.trainingAgreementDetails?.signingLink : undefined),
+          onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink || "") as string | undefined : undefined,
+          trainingAgreementLink: trainingAgreementLink || (status === "selected" ? candidate.trainingAgreementDetails?.signingLink || "" : undefined) as string | undefined,
         });
         console.log(`✅ Email sent successfully to ${candidate.email} for status: ${emailStatus}`);
       } catch (emailError: any) {

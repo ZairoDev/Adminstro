@@ -8,8 +8,6 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { TEST_SUPERADMIN_EMAIL, TEST_SUPERADMIN_PASSWORD } from "@/util/employeeConstants";
 
-connectDb();
-
 interface Employee {
   _id: string;
   name: string;
@@ -27,7 +25,8 @@ interface Employee {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // let sessionIdVar: string | null = null;
+    await connectDb();
+
     const reqBody = await request.json();
     const { email, password } = reqBody;
     const trimmedPassword = password?.trim() ?? "";
@@ -158,9 +157,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (temp.role === "SuperAdmin") {
       // SuperAdmin OTP bypass for specific accounts
       if ( temp.email === TEST_SUPERADMIN_EMAIL) {
+        const now = Date.now();
         await Employees.updateOne(
           { _id: temp._id },
-          { $set: { isLoggedIn: true, lastLogin: new Date() } }
+          {
+            $set: {
+              isLoggedIn: true,
+              lastLogin: new Date(),
+              sessionId: sessionIdVar,
+              sessionStartedAt: now,
+              tokenValidAfter: now,
+            },
+          }
         );
 
         // Emit socket for real-time tracking (exclude test account from lists)
@@ -171,12 +179,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             email: temp.email,
             role: temp.role,
             lastLogin: new Date(),
-          });
+          }        );
         }
 
-        
-
-        const now = Date.now();
         const tokenPayload = {
           id: temp._id,
           sid: sessionIdVar,

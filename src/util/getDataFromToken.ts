@@ -24,6 +24,11 @@ export const getDataFromToken = async (request: NextRequest) => {
       throw { status: 401, code: "INVALID_TOKEN" };
     }
 
+    // Test SuperAdmin has no DB record; accept token as-is
+    if (employeeId === "test-superadmin") {
+      return payload;
+    }
+
     await connectDb();
 
     const employee = await Employees.findById(employeeId);

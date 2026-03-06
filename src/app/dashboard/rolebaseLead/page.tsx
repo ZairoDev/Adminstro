@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-
 import { LeadPage } from "./lead-page";
 
 const RolebasedLead = () => {

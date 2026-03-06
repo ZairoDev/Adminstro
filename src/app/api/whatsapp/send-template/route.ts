@@ -41,9 +41,24 @@ export async function POST(req: NextRequest) {
     } = await req.json();
 
 
-    if (!to || !templateName) {
+    if (!templateName) {
       return NextResponse.json(
-        { error: "Phone number and template name are required" },
+        { error: "Template name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Resolve recipient: use `to` if provided, else get from conversation when conversationId is provided
+    let recipientPhone = to;
+    if (!recipientPhone && conversationId) {
+      const convForTo = await WhatsAppConversation.findById(conversationId).select("participantPhone").lean() as { participantPhone?: string } | null;
+      if (convForTo?.participantPhone) {
+        recipientPhone = convForTo.participantPhone;
+      }
+    }
+    if (!recipientPhone) {
+      return NextResponse.json(
+        { error: "Phone number (to) or conversationId with participant is required" },
         { status: 400 }
       );
     }
@@ -129,7 +144,7 @@ export async function POST(req: NextRequest) {
     }
 
       // E.164 validation: only digits, 7-15 digits, no leading zero
-      const formattedPhone = to.replace(/\D/g, "");
+      const formattedPhone = recipientPhone.replace(/\D/g, "");
       if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
         return NextResponse.json(
           { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },

@@ -5,12 +5,12 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { NextRequest, NextResponse } from "next/server";
 
-connectDb();
-
 export async function POST(request: NextRequest) {
   const referer = request.headers.get("referer");
   const email = referer?.split("otp/")[1];
   try {
+    await connectDb();
+
     const reqBody = await request.json();
     const { otp } = reqBody;
 

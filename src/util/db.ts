@@ -1,17 +1,39 @@
 import mongoose from "mongoose";
 
-let cachedConnection: typeof mongoose.connection | null = null;
+const MONGO_URI = process.env.MONGO_DB_URL!;
 
-export const connectDb = async (): Promise<void> => {
-  if (cachedConnection && cachedConnection.readyState === 1) {
-    return;
+if (!MONGO_URI) {
+  throw new Error("MONGO_DB_URL is not defined");
+}
+
+type Cached = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
+
+let cached = (global as any).mongoose as Cached;
+
+if (!cached) {
+  cached = (global as any).mongoose = { conn: null, promise: null };
+}
+
+export const connectDb = async (): Promise<typeof mongoose> => {
+  if (cached.conn) {
+    console.log("Using cached database connection");
+    return cached.conn;
   }
-  if (!process.env.MONGO_DB_URL) {
-    throw new Error("MONGO_DB_URL is not defined in environment variables");
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGO_URI, {
+      dbName: "PropertyDb",
+      serverSelectionTimeoutMS: 10000,
+      bufferCommands: false,
+    });
   }
-  const { connection } = await mongoose.connect(process.env.MONGO_DB_URL, {
-    dbName: "PropertyDb",
-    serverSelectionTimeoutMS: 10000,
-  });
-  cachedConnection = connection;
+
+  cached.conn = await cached.promise;
+
+  console.log("DB connected");
+
+  return cached.conn;
 };

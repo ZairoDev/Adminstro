@@ -153,6 +153,7 @@ const AccountPage = ({ params }: PageProps) => {
         `${storageUrl}/${storageZoneName}/ProfilePictures/${randomNumberToAddInImageName}${file.name}`,
         file,
         {
+          withCredentials: false,
           headers: {
             AccessKey: accessKey,
             "Content-Type": file.type,

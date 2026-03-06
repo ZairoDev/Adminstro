@@ -236,6 +236,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
         `${storageUrl}/${storageZoneName}/${placeName}/${file.name}`,
         file,
         {
+          withCredentials: false,
           headers: {
             AccessKey: accessKey,
             "Content-Type": file.type,
@@ -348,6 +349,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
         `${storageUrl}/${storageZoneName}/${placeName}/${file.name}`,
         file,
         {
+          withCredentials: false,
           headers: {
             AccessKey: accessKey,
             "Content-Type": file.type,
@@ -475,6 +477,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
           `${storageUrl}/${storageZoneName}/${placeName}/${files[i].name}`,
           files[i],
           {
+            withCredentials: false,
             headers: {
               AccessKey: accessKey,
               "Content-Type": files[i].type,
@@ -592,6 +595,7 @@ const PageAddListing7: FC<PageAddListing7Props> = () => {
           `${storageUrl}/${storageZoneName}/${placeName}/${files[i].name}`,
           files[i],
           {
+            withCredentials: false,
             headers: {
               AccessKey: accessKey,
               "Content-Type": files[i].type,

@@ -57,6 +57,7 @@ export const useBunnyUpload = () => {
               `${storageUrl}/${storageZoneName}/${folderName}/${fileName}`,
               file,
               {
+                withCredentials: false,
                 headers: {
                   AccessKey: accessKey,
                   "Content-Type": file.type,

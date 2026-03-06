@@ -230,11 +230,14 @@ const AccountPage = ({ params }: PageProps) => {
       const response = await axios.put(
         `${storageUrl}/${storageZoneName}/ProfilePictures/${randomNumberToAddInImageName}${file.name}`,
         file,
+        
         {
+          withCredentials: false,
           headers: {
             AccessKey: accessKey,
             "Content-Type": file.type,
           },
+
         }
       );
 

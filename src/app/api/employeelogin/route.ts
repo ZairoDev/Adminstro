@@ -7,6 +7,7 @@ import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { TEST_SUPERADMIN_EMAIL, TEST_SUPERADMIN_PASSWORD } from "@/util/employeeConstants";
+import { getIpLocation } from "@/util/getIpLocation";
 
 interface Employee {
   _id: string;
@@ -308,6 +309,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const h = getClientIpFromHeaders(request.headers);
       return h || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown";
     })();
+    const location = getIpLocation(ipAddress);
       const userAgent = request.headers.get("user-agent") || "";
       // generate a session id for this device/session
 
@@ -321,7 +323,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         sessionId: sessionIdVar,
         status: "active",
         lastActivityAt: new Date(),
-        ipAddress: ipAddress,
+        ipAddress: location,
         userAgent: userAgent,
         notes: "Login through employee portal",
       });

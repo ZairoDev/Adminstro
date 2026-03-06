@@ -805,6 +805,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
           `${storageUrl}/${storageZoneName}/${placeName}/${dt}${file.name}`,
           file,
           {
+            withCredentials: false,
             headers: {
               AccessKey: accessKey,
               "Content-Type": file.type,

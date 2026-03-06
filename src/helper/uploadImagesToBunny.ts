@@ -63,6 +63,7 @@ const uploadImagesToBunny = async ({
         `${storageUrl}/${storageZoneName}/${propertyName}/${time}-${files[i].name}`,
         files[i],
         {
+          withCredentials: false,
           headers: {
             AccessKey: accessKey,
             "Content-Type": files[i].type,

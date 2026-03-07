@@ -5,6 +5,7 @@ import { connectDb } from "@/util/db";
 import { generatePassword } from "./generatePassword";
 
 
+
 const PASSWORD_VALIDITY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /** Emit force-logout to user's socket room and disconnect their clients (same as forceLogout API). */
@@ -53,6 +54,28 @@ async function endActivityLogSessions(employeeId: string, logoutTime: Date): Pro
   }
 }
 
+/** Create activity log entry for forced logout (password rotation). */
+async function createForcedLogoutLog(employee: any, logoutTime: Date): Promise<void> {
+  try {
+    const forcedLogoutLog = new EmployeeActivityLog({
+      employeeId: employee._id.toString(),
+      employeeName: employee.name,
+      employeeEmail: employee.email,
+      role: employee.role,
+      activityType: "logout",
+      logoutTime,
+      duration: 0, // No duration for forced logout
+      notes: "Automatic password rotation - forced logout. Password changed.",
+      sessionId: null,
+      status: "ended",
+      lastActivityAt: logoutTime,
+    });
+    await forcedLogoutLog.save();
+  } catch (e) {
+    console.warn("[password-rotation] Failed to create activity log for", employee.email, e);
+  }
+}
+
 // 🔁 Main rotation function
 export const rotatePasswordsNow = async () => {
   console.log("🔁 Starting daily password rotation...");
@@ -72,7 +95,8 @@ export const rotatePasswordsNow = async () => {
   for (const emp of employees) {
     try {
       const newPassword = generatePassword(6);
-      const hashed = newPassword;
+      const salt = await bcryptjs.genSalt(10);
+      const hashed = await bcryptjs.hash(newPassword, salt);
       const employeeId = emp._id.toString();
 
       await Employees.updateOne(
@@ -91,6 +115,7 @@ export const rotatePasswordsNow = async () => {
       );
 
       await endActivityLogSessions(employeeId, logoutTime);
+      await createForcedLogoutLog(emp, logoutTime);
       await emitForceLogoutAndDisconnect(employeeId);
 
       // 🔥 TODO: Send password securely (Email / WhatsApp / Internal Panel)

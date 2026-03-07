@@ -282,7 +282,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         _id: temp._id.toString(),
         name: temp.name,
         email: temp.email,
-        role: temp.role,
+        role: temp.role, 
         lastLogin: new Date().toISOString(),
       });
     } else {

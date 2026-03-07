@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { generatePassword } from "@/util/generatePassword";
 
 connectDb();
 
@@ -54,20 +56,68 @@ export async function POST(request: NextRequest) {
 
     const { employeeId, sessionId } = parsed.data;
 
-    // mark employee as logged out
+    // Fetch employee details before updating
+    const employee = await Employees.findById(employeeId);
+    if (!employee) {
+      return NextResponse.json(
+        { success: false, message: "Employee not found" },
+        { status: 404 },
+      );
+    }
+
+    // Generate new password and update employee
+    let newPassword: string | null = null;
     const logoutTime = new Date();
-    await Employees.updateOne(
-      { _id: employeeId },
-      {
-        $set: {
-          isLoggedIn: false,
-          lastLogout: logoutTime,
-          sessionId: null,
-          sessionStartedAt: null,
-          tokenValidAfter: Date.now(),
+    try {
+      newPassword = generatePassword(8);
+
+
+      // mark employee as logged out and change password
+      await Employees.updateOne(
+        { _id: employeeId },
+        {
+          $set: {
+            isLoggedIn: false,
+            lastLogout: logoutTime,
+            sessionId: null,
+            sessionStartedAt: null,
+            tokenValidAfter: Date.now(),
+            password: newPassword,
+            passwordExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
         },
-      },
-    );
+      );
+
+      // Log the new password for admin reference (should be communicated to employee securely)
+      console.log(`🔐 Forced logout for ${employee.email}: New password generated: ${newPassword}`);
+    } catch (updateError: any) {
+      console.error("Error during employee update and password change:", updateError);
+      return NextResponse.json(
+        { success: false, message: "Failed to update employee data" },
+        { status: 500 },
+      );
+    }
+
+    // Create activity log entry for forced logout (separate from employee update for robustness)
+    try {
+      const forcedLogoutLog = new EmployeeActivityLog({
+        employeeId,
+        employeeName: employee.name,
+        employeeEmail: employee.email,
+        role: employee.role,
+        activityType: "logout",
+        logoutTime,
+        duration: 0, // No duration for forced logout
+        notes: `Forced logout by ${auth.name} (${auth.role}). Password changed.`,
+        sessionId: sessionId || null,
+        status: "ended",
+        lastActivityAt: logoutTime,
+      });
+      await forcedLogoutLog.save();
+    } catch (logError: any) {
+      console.error("Error creating activity log for forced logout:", logError);
+      // Don't fail the operation if logging fails
+    }
 
     // end active session(s) for this employee (either specific sessionId or all active)
     const sessionQuery: any = {

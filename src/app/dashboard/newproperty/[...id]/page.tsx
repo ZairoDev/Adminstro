@@ -234,6 +234,7 @@ const PortionDetailsPage = ({ params }: PageProps) => {
           }/${dt}${file.name}`,
           file,
           {
+            withCredentials: false,
             headers: {
               AccessKey: accessKey,
               "Content-Type": file.type,

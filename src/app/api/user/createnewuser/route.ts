@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDb } from "@/util/db";
-connectDb();
 import Users from "@/models/user";
 import bcryptjs from "bcryptjs";
 import { sendEmail } from "@/util/mailer";
@@ -14,6 +13,8 @@ const generateRandomPassword = (length: number): string => {
 };
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    await connectDb();
+
     const reqBody = await request.json();
     const parsedBody = userSchema.parse(reqBody);
 

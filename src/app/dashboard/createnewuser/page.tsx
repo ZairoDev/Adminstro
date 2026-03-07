@@ -83,7 +83,7 @@ const NewUser = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     reset,
     watch,
     setValue,
@@ -104,17 +104,17 @@ const NewUser = () => {
     },
   });
 
-  const [loading, setLoading] = useState(false);
   const selectedRole = watch("role");
   const selectedGender = watch("gender");
-  useEffect(() => {
 
-  }, [watch]);
+  // isSubmitting from react-hook-form is true for the entire duration of onSubmit,
+  // preventing duplicate submissions from double-clicks.
+  const loading = isSubmitting;
 
   const onSubmit = async (data: UserSchema) => {
-    setLoading(true);
     const userData = {
       ...data,
+      phone: phone ?? data.phone,
       profilePic,
     };
 
@@ -126,6 +126,7 @@ const NewUser = () => {
         description: "Please check your email for verification link",
       });
       setPassword(response.data.password);
+      setPhone(undefined);
       reset();
     } catch (error: any) {
       console.error("Error creating user:", error);
@@ -134,9 +135,6 @@ const NewUser = () => {
         title: "Uh oh! Something went wrong.",
         description: error.response?.data?.error || "An error occurred.",
       });
-      setLoading(false);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -253,20 +251,16 @@ const NewUser = () => {
                 <div className="w-full ">
                   <Label htmlFor="phone">Phone Number</Label>
                   <PhoneInput
-                    {...register("phone")}
                     className="phone-input"
                     placeholder="Enter phone number"
                     value={phone}
                     international
                     countryCallingCodeEditable={false}
-                    error={
-                      // phone
-                      //   ? isValidPhoneNumber(phone)
-                      //     ? undefined
-                      //     : "Invalid phone number"
-                      "Phone number required"
-                    }
-                    onChange={(value) => setPhone(value?.toString())}
+                    onChange={(value) => {
+                      const v = value?.toString() ?? "";
+                      setPhone(v);
+                      setValue("phone", v, { shouldValidate: true });
+                    }}
                   />
                   {errors.phone && (
                     <p className="text-red-500 text-xs">
@@ -380,7 +374,7 @@ const NewUser = () => {
               </div>
 
               <div className="flex justify-between items-center">
-                <Button type="submit" className="w-full sm:w-2/6">
+                <Button type="submit" className="w-full sm:w-2/6" disabled={loading}>
                   {loading ? (
                     <>
                       Creating...

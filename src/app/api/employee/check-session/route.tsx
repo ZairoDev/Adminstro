@@ -1,4 +1,5 @@
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { buildAuthErrorResponse } from "@/util/authErrorResponse";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -10,25 +11,7 @@ export async function GET(request: NextRequest) {
     const err = error as { status?: number; code?: string };
     const code = err?.code || "AUTH_FAILED";
     const status = err?.status || 401;
-    const response = NextResponse.json(
-      { success: false, code },
-      { status },
-    );
 
-    if (code === "AUTH_EXPIRED") {
-      response.cookies.set("token", "", {
-        httpOnly: true,
-        expires: new Date(0),
-        path: "/",
-      });
-
-      response.cookies.set("sessionId", "", {
-        httpOnly: true,
-        expires: new Date(0),
-        path: "/",
-      });
-    }
-
-    return response;
+    return buildAuthErrorResponse({ status, code });
   }
 }

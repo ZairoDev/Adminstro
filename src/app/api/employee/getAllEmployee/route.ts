@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { buildAuthErrorResponse } from "@/util/authErrorResponse";
 import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
 import { EmployeeInterface } from "@/util/type";
 
@@ -124,12 +125,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
   } catch (error: unknown) {
     const err = error as { status?: number; code?: string };
-    if (err?.status === 401 || err?.code) {
-      return NextResponse.json(
-        { code: err.code || "AUTH_FAILED" },
-        { status: err.status || 401 }
-      );
-    }
-    throw error;
+    const status = err?.status || 401;
+    const code = err?.code || "AUTH_FAILED";
+
+    return buildAuthErrorResponse({ status, code });
   }
 }

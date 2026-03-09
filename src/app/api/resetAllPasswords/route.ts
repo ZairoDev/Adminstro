@@ -1,6 +1,7 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { generatePassword } from "@/util/generatePassword";
+import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { NextRequest, NextResponse } from "next/server";
 
 connectDb();
@@ -29,9 +30,7 @@ export const GET = async (req: NextRequest) => {
         try {
           const newPassword = generatePassword(6);
           employee.password = newPassword;
-          employee.passwordExpiresAt = new Date(
-            Date.now() + 24 * 60 * 60 * 1000
-          );
+          employee.passwordExpiresAt = computePasswordExpiryDate();
           await employee.save();
           return true;
         } catch (error) {

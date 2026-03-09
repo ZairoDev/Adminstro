@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
-import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import Employees from "@/models/employee";
+import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 // import { sendEmail } from "@/util/mailer";
 
 connectDb();
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		// const hashedPassword = await bcryptjs.hash(newPassword, 10);
 
 		employee.password = newPassword;
-		employee.passwordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+		employee.passwordExpiresAt = computePasswordExpiryDate();
 		await employee.save();
 
 		// Send email with new password

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 
 connectDb();
 
@@ -31,6 +32,7 @@ interface RequestBody {
   duration?: string;
   isLocked?: boolean;
   password?: string;
+  passwordExpiresAt?: Date;
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -90,6 +92,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.duration) updateData.duration = updateFields.duration;
     if (Object.keys(updateFields).includes("isLocked")) {
       updateData.isLocked = updateFields.isLocked;
+    }
+    if (updateFields.password) {
+      updateData.password = updateFields.password;
+      (updateData as any).passwordExpiresAt = computePasswordExpiryDate();
     }
 
     const user = await Employees.findOneAndUpdate(

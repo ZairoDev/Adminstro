@@ -7,6 +7,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { generatePassword } from "@/util/generatePassword";
+import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 
 connectDb();
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
             sessionStartedAt: null,
             tokenValidAfter: Date.now(),
             password: newPassword,
-            passwordExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            passwordExpiresAt: computePasswordExpiryDate(), // 24 hours by default
           },
         },
       );

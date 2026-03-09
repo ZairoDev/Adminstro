@@ -5,6 +5,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { excludeTestAccountFromQuery, excludeTestAccountFromCount } from "@/util/employeeConstants";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { buildAuthErrorResponse } from "@/util/authErrorResponse";
 
 connectDb();
 
@@ -54,16 +55,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ activeEmployees, totalEmployee });
   } catch (error: unknown) {
     const err = error as { status?: number; code?: string };
-    if (err?.status === 401 || err?.code) {
-      return NextResponse.json(
-        { code: err.code || "AUTH_FAILED" },
-        { status: err.status || 401 }
-      );
-    }
-    console.error("Error fetching Employee:", error);
-    return NextResponse.json(
-      { message: "Failed to fetch Employees" },
-      { status: 500 }
-    );
+    const status = err?.status || 401;
+    const code = err?.code || "AUTH_FAILED";
+
+    return buildAuthErrorResponse({ status, code });
   }
 }

@@ -5,6 +5,7 @@ import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // password: hashedPassword,
       password,
       profilePic,
+      passwordExpiresAt: computePasswordExpiryDate(),
     });
     const createUser = await newUser.save();
 

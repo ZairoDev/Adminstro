@@ -3,6 +3,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { connectDb } from "@/util/db";
 import { generatePassword } from "./generatePassword";
+import { computePasswordExpiryMs } from "./passwordExpiry";
 
 
 
@@ -95,16 +96,15 @@ export const rotatePasswordsNow = async () => {
   for (const emp of employees) {
     try {
       const newPassword = generatePassword(6);
-      const salt = await bcryptjs.genSalt(10);
-      const hashed = await bcryptjs.hash(newPassword, salt);
+
       const employeeId = emp._id.toString();
 
       await Employees.updateOne(
         { _id: emp._id },
         {
           $set: {
-            password: hashed,
-            passwordExpiresAt: new Date(now + PASSWORD_VALIDITY_MS),
+            password: newPassword,
+            passwordExpiresAt: new Date(computePasswordExpiryMs()),
             tokenValidAfter: now,
             sessionId: null,
             sessionStartedAt: null,

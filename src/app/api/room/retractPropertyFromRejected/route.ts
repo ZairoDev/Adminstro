@@ -5,6 +5,7 @@ import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -18,6 +19,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { roomId, propertyId } = await req.json();
 
     if (!roomId || !propertyId) {
@@ -88,8 +90,16 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
     }
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
-import axios from "@/util/axios";
 import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await getDataFromToken(request);
     const { id } = await params;
     await connectDb();
 
@@ -121,8 +122,15 @@ export async function POST(
       success: true,
       message: "Offer letter sent successfully",
     });
-  } catch (error: any) {
-    console.error("Error sending offer letter:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error sending offer letter:", err);
     return NextResponse.json(
       {
         success: false,

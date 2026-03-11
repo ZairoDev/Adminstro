@@ -2,6 +2,7 @@ import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -15,6 +16,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const {
       roomId,
       propertyId,
@@ -69,10 +71,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: "Visit Updated" }, { status: 200 });
   } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log("error in updating visit: ", err);
     return NextResponse.json(
       { error: "Error in updating visit" },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }

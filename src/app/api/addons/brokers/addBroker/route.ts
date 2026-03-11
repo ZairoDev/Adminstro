@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ const generateRandomPassword = (length: number): string => {
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     await connectDb();
     const brokerData = await req.json();
 
@@ -66,11 +68,18 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log("error in creating broker: ", err);
     return NextResponse.json(
-      { error: err.message || "Unable to create broker" },
-      { status: 401 }
+      { error: error.message || "Unable to create broker" },
+      { status: 500 }
     );
   }
 }

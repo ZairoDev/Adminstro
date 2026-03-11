@@ -5,17 +5,15 @@ import Bookings from "@/models/booking";
 import Query from "@/models/query";
 
 export async function POST(req: NextRequest) {
-  const bookingData = await req.json();
-  const token = await getDataFromToken(req);
-
-  const newBookingData = {
-    ...bookingData,
-    createdBy: token.email,
-  };
-
-  // console.log("new booking data: ", newBookingData);
-
   try {
+    const token = await getDataFromToken(req);
+    const bookingData = await req.json();
+
+    const newBookingData = {
+      ...bookingData,
+      createdBy: token.email,
+    };
+
     const created = await Bookings.create(newBookingData);
 
     // If booking references a lead, mark that lead as closed and attach bookingId
@@ -33,11 +31,18 @@ export async function POST(req: NextRequest) {
       { message: "Booking added successfully", booking: created },
       { status: 201 }
     );
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log("error in adding booking: ", err);
     return NextResponse.json(
       { error: "Unable to add booking" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

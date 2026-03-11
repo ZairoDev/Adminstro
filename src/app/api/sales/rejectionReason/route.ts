@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { id, rejectionReason } = await req.json();
 
     if (!id || !rejectionReason) {
@@ -60,8 +62,15 @@ export async function POST(req: Request) {
       { success: true, data: updatedQuery },
       { status: 200 }
     );
-  } catch (error) {
-    console.error("❌ Error updating rejection reason:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("❌ Error updating rejection reason:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

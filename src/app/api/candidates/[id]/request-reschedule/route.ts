@@ -49,7 +49,7 @@ export async function POST(
     if (!storedToken || storedToken !== token) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired reschedule link" },
-        { status: 401 }
+        { status: 400 }
       );
     }
 
@@ -151,7 +151,7 @@ export async function GET(
     if (!rescheduleRequest || rescheduleRequest.token !== token) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired reschedule link" },
-        { status: 401 }
+        { status: 400 }
       );
     }
 

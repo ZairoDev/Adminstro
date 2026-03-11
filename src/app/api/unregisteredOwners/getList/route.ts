@@ -3,10 +3,12 @@ import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 export async function POST(req: NextRequest) {
   try{
+    await getDataFromToken(req);
     const { filters }: { filters: FiltersInterface; page: number } =
         await req.json();
     const query: Record<string, any> = {};
@@ -27,8 +29,15 @@ export async function POST(req: NextRequest) {
     const data = await unregisteredOwner.find(query);
 
     return NextResponse.json({data}, {status: 200});
-  }catch(err){
+  }catch(err: unknown){
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log(err);
-    return NextResponse.json({error: err}, {status: 500});
+    return NextResponse.json({error: "Internal server error"}, {status: 500});
   }
 }

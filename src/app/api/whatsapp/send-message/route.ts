@@ -30,9 +30,13 @@ connectDb();
  */
 export async function POST(req: NextRequest) {
   try {
-    const token = (await getDataFromToken(req)) as any;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let token: any;
+    try {
+      token = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json({ code }, { status });
     }
 
     const body = await req.json();

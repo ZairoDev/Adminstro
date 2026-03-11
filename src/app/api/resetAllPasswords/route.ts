@@ -3,11 +3,16 @@ import { connectDb } from "@/util/db";
 import { generatePassword } from "@/util/generatePassword";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export const GET = async (req: NextRequest) => {
   try {
+    const authUser = await getDataFromToken(req);
+    if (authUser.role !== "SuperAdmin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content", "HAdmin"];
     const excludedEmails = ["khanshahid5880@gmail.com"];
 
@@ -49,10 +54,17 @@ export const GET = async (req: NextRequest) => {
       },
       { status: 200 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     return NextResponse.json(
       { error: "Error in resetting password" },
-      { status: 400 }
+      { status: 500 }
     );
   }
 };

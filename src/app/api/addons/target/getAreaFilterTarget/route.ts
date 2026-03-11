@@ -4,11 +4,13 @@ export const dynamic = "force-dynamic";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { Area } from "@/models/area";
 import { connectDb } from "@/util/db";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   await connectDb();
   try {
+    await getDataFromToken(request);
     const targets = await MonthlyTarget.find().lean();
     const areas = await Area.find({},{city:1,name:1}).lean();
 
@@ -25,10 +27,17 @@ export async function GET() {
     });
     
     return NextResponse.json({ data: result }, { status: 200 });
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.error("Error fetching targets:", err);
     return NextResponse.json(
-      { status: 500, error: "Unable to fetch targets" },
+      { error: "Unable to fetch targets" },
       { status: 500 }
     );
   }

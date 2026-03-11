@@ -1,9 +1,9 @@
-import { description } from "@/components/charts/DonutChart";
 import { quicklisting } from "@/models/quicklisting";
 import Rooms from "@/models/room";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -17,6 +17,7 @@ const pusher = new Pusher({
 
 export async function POST(req: NextRequest) {
 	try {
+		await getDataFromToken(req);
 		const {
 			roomId,
 			ownerName,
@@ -101,15 +102,16 @@ export async function POST(req: NextRequest) {
 
 		return NextResponse.json(newQuickListing, { status: 201 });
 	} catch (err: unknown) {
-		if (err instanceof Error) {
+		const error = err as { status?: number; code?: string };
+		if (error?.status) {
 			return NextResponse.json(
-				{ error: "Error in creating quick listing" },
-				{ status: 400 }
+				{ code: error.code || "AUTH_FAILED" },
+				{ status: error.status },
 			);
 		}
 		return NextResponse.json(
-			{ error: "Something went wrong" },
-			{ status: 400 }
+			{ error: "Error in creating quick listing" },
+			{ status: 500 }
 		);
 	}
 }

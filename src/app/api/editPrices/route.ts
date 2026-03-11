@@ -1,10 +1,23 @@
 import { Property } from "@/models/listing";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
+  try {
+    await getDataFromToken(req);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+  }
+
   const reqBody = await req.json();
   const { propertyId, portion, price, dateRange } = reqBody;
 
@@ -14,7 +27,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  
+
   try {
     const property = await Property.findById(propertyId);
     if (!property) {

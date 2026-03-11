@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import Catalogue from "@/models/catalogue";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
-  const { catalogueId, VSID, selectedMonths } = await req.json();
-
-  // console.log("data in catalogue: ", catalogueId, VSID, selectedMonths);
-
   try {
+    try {
+      await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json({ code }, { status });
+    }
+
+    const { catalogueId, VSID, selectedMonths } = await req.json();
+    if (!catalogueId || !VSID || !Array.isArray(selectedMonths)) {
+      return NextResponse.json(
+        { error: "catalogueId, VSID, and selectedMonths are required" },
+        { status: 400 },
+      );
+    }
+
     const catalogue = await Catalogue.findById(catalogueId);
     if (!catalogue) {
       return NextResponse.json({ error: "Catalogue not found" }, { status: 404 });
@@ -34,8 +47,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ updatedCatalogue }, { status: 201 });
   } catch (err: any) {
-    const error = new Error(err);
+    const error = err instanceof Error ? err : new Error(String(err));
     console.log("error: ", error);
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

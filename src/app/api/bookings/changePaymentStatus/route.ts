@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
     console.log("errr: ", err);
     return NextResponse.json(
       { error: "Unable to update payment status" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

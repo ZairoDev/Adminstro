@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Coupon from "@/models/coupon";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
+    await getDataFromToken(request);
     const { id } = params;
 
     const coupon = await Coupon.findById(id);
@@ -27,8 +29,15 @@ export async function GET(
       success: true,
       coupon,
     });
-  } catch (error) {
-    console.error("Error fetching coupon:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error fetching coupon:", err);
     return NextResponse.json(
       { success: false, message: "Failed to fetch coupon" },
       { status: 500 }
@@ -42,6 +51,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
+    await getDataFromToken(request);
     const { id } = params;
     const body = await request.json();
 
@@ -106,8 +116,15 @@ export async function PUT(
       message: "Coupon updated successfully",
       coupon: updatedCoupon,
     });
-  } catch (error: any) {
-    console.error("Error updating coupon:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error updating coupon:", err);
     return NextResponse.json(
       {
         success: false,
@@ -124,6 +141,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
+    await getDataFromToken(request);
     const { id } = params;
 
     const deletedCoupon = await Coupon.findByIdAndDelete(id);
@@ -139,8 +157,15 @@ export async function DELETE(
       success: true,
       message: "Coupon deleted successfully",
     });
-  } catch (error) {
-    console.error("Error deleting coupon:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error deleting coupon:", err);
     return NextResponse.json(
       { success: false, message: "Failed to delete coupon" },
       { status: 500 }

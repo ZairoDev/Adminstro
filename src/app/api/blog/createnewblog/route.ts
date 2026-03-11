@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
     }
     if (!(data.role === "Content" || data.role === "SuperAdmin")) {
       return NextResponse.json(
-        { success: false, message: `Unauthorized` },
-        { status: 401 }
+        { success: false, message: `Forbidden` },
+        { status: 403 }
       );
     }
     const { title, content, tags, maintext, banner, author, wordCount } =

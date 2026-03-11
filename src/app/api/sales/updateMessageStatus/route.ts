@@ -2,11 +2,13 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { leadId, changedStatus } = await req.json();
     console.log("lead: ", leadId, changedStatus);
 
@@ -31,7 +33,14 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log("error in status: ", err);
     return NextResponse.json(
       { error: "Error in updating message status" },

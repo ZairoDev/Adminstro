@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
+import { getDataFromToken } from "@/util/getDataFromToken";
 // import { sendEmail } from "@/util/mailer";
 
 connectDb();
@@ -18,6 +19,7 @@ function generatePassword() {
 }
 export async function POST(request: NextRequest): Promise<NextResponse> {
 	try {
+		await getDataFromToken(request);
 		const reqBody = await request.json();
 		const { employeeId } = reqBody;
 		const employee = await Employees.findById(employeeId);
@@ -56,8 +58,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 			},
 			{ status: 200 }
 		);
-	} catch (error: any) {
-		console.error(error);
-		return NextResponse.json({ error: error.message }, { status: 500 });
+	} catch (err: unknown) {
+		const error = err as { status?: number; code?: string; message?: string };
+		if (error?.status) {
+			return NextResponse.json(
+				{ code: error.code || "AUTH_FAILED" },
+				{ status: error.status },
+			);
+		}
+		console.error(err);
+		return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
 	}
 }

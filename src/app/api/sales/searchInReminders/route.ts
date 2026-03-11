@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 import {
   subDays,
   addHours,
@@ -24,6 +25,7 @@ function getISTStartOfDay(date: Date): Date {
 
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     const {
       page,
       limit,
@@ -155,8 +157,15 @@ export async function POST(request: NextRequest) {
       totalPages,
       totalQueries,
     });
-  } catch (error: any) {
-    console.error("Error in GET request:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error in POST request:", err);
     return NextResponse.json(
       {
         message: "Failed to fetch properties from the database",

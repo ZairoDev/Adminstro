@@ -3,7 +3,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { Properties } from "@/models/property";
 import { FiltersInterface } from "@/app/dashboard/newproperty/filteredProperties/page";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
+
 export async function POST(req: NextRequest) {
+  try {
+    await getDataFromToken(req);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+  }
+
   const { filters, page }: { filters: FiltersInterface; page: number } =
     await req.json();
    await connectDb();

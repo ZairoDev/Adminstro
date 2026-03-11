@@ -2,11 +2,13 @@ import { Property } from "@/models/listing";
 import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(request: NextRequest) {
   try {
+    await getDataFromToken(request);
     const body = await request.json();
 
     if (!body?.userId) {
@@ -32,9 +34,15 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ properties }, { status: 200 });
-  } catch (error: any) {
-    console.error("Error fetching properties:", error);
-
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error fetching properties:", err);
     return NextResponse.json(
       {
         error: "An internal server error occurred",

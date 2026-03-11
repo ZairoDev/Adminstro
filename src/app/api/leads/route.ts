@@ -50,11 +50,17 @@ export async function POST(req: NextRequest) {
     // );
 
     return NextResponse.json(leads, { status: 200 });
-  } catch (err) {
-    // Here you can handle the request and send a response
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     return NextResponse.json(
       { error: "Unable to filter leads" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

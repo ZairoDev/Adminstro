@@ -1,6 +1,7 @@
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 // GET - Fetch all notes for a candidate
 export async function GET(
@@ -10,6 +11,7 @@ export async function GET(
   await connectDb();
 
   try {
+    await getDataFromToken(request);
     const { id } = await params;
     const candidate = await Candidate.findById(id).select("notes");
 
@@ -31,8 +33,15 @@ export async function GET(
       success: true,
       data: sortedNotes,
     });
-  } catch (error) {
-    console.error("Error fetching notes:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error fetching notes:", err);
     return NextResponse.json(
       { success: false, error: "Failed to fetch notes" },
       { status: 500 }
@@ -48,6 +57,7 @@ export async function POST(
   await connectDb();
 
   try {
+    await getDataFromToken(request);
     const { id } = await params;
     const { content } = await request.json();
 
@@ -97,8 +107,15 @@ export async function POST(
       data: savedNote,
       message: "Note created successfully",
     });
-  } catch (error) {
-    console.error("Error creating note:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error creating note:", err);
     return NextResponse.json(
       { success: false, error: "Failed to create note" },
       { status: 500 }

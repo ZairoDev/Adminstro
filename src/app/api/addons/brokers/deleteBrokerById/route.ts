@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import Users from "@/models/user";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     await connectDb();
     const { brokerId } = await req.json();
 
@@ -31,10 +33,17 @@ export async function DELETE(req: NextRequest) {
       { message: "Broker deleted successfully" },
       { status: 200 }
     );
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     return NextResponse.json(
       { error: "Unable to delete broker" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

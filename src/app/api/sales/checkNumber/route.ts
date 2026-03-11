@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 // Connect to the database
 connectDb();
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { phoneNo } = await req.json();
     if (!phoneNo) {
       return NextResponse.json(
@@ -56,8 +58,15 @@ export async function POST(req: Request) {
       },
       { status: 200 }
     );
-  } catch (error) {
-    console.error("Error checking phone number:", error);
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.error("Error checking phone number:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

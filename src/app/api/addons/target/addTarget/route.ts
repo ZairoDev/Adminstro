@@ -1,12 +1,13 @@
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
-import { connect } from "http2";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 export async function POST(req: NextRequest) {
   try {
-    const targetData = await req.json(); // ✅ await here
+    await getDataFromToken(req);
+    const targetData = await req.json();
 
     // console.log("target data: ", targetData);
 
@@ -23,11 +24,18 @@ export async function POST(req: NextRequest) {
       { message: "Target created successfully" },
       { status: 201 }
     );
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log("error in creating target: ", err);
     return NextResponse.json(
       { error: "Unable to create target" },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

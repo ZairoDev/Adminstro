@@ -8,7 +8,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select";  
 import {
   Pagination,
   PaginationContent,
@@ -26,6 +26,7 @@ import CustomTooltip from "@/components/CustomToolTip";
 import Heading from "@/components/Heading";
 import CardSkeleton from "@/components/skelton/CardSkelton";
 import CardLoader from "@/components/CardLoader";
+import Image from "next/image";
 
 interface ApiResponse {
   data: Property[];
@@ -204,7 +205,7 @@ const CompletedProperties: React.FC = () => {
                         }}
                         target="_blank"
                       >
-                        <img
+                        <Image
                           src={property?.propertyCoverFileUrl}
                           alt="PropertyImage"
                           loading="lazy"
@@ -213,7 +214,7 @@ const CompletedProperties: React.FC = () => {
                       </Link>
                     ) : (
                       <div className="relative">
-                        <img
+                        <Image
                           src="https://vacationsaga.b-cdn.net/ProfilePictures/replacer.png"
                           loading="lazy"
                           alt="PropertyImage"

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import Question from "@/models/question";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { questionId } = await req.json();
     if (!questionId) {
       return NextResponse.json(
@@ -24,9 +26,16 @@ export async function POST(req: NextRequest) {
       { success: true, data: question },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     return NextResponse.json(
-      { success: false, message: error.message },
+      { success: false, message: error.message || "Internal server error" },
       { status: 500 }
     );
   }

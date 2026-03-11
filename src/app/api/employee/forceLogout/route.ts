@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     let newPassword: string | null = null;
     const logoutTime = new Date();
     try {
-      newPassword = generatePassword(8);
+      newPassword = generatePassword(6);
 
 
       // mark employee as logged out and change password

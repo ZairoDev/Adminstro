@@ -1,8 +1,10 @@
 import Rooms from "@/models/room";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
   try {
+    await getDataFromToken(req);
     const { page, phone } = await req.json();
 
     let query: Record<string, any> = {};
@@ -19,9 +21,14 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ rooms, totalRooms }, { status: 200 });
-  } catch (err: any) {
-    const error = new Error(err);
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { Offer } from "@/models/offer";
 import { SalesOfferInterface } from "@/util/type";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
-  const { phoneNumber } = await req.json();
-
-
   try {
+    await getDataFromToken(req);
+    const { phoneNumber } = await req.json();
     const existingPhone = (await Offer.find({
       phoneNumber,
     })) as SalesOfferInterface[];
@@ -35,8 +35,15 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ isAvailable: false }, { status: 200 });
-  } catch (error: any) {
-    console.log("error in finding number: ", error);
-    return NextResponse.json({ error: error.message }, { status: 401 });
+  } catch (err: unknown) {
+    const error = err as { status?: number; code?: string; message?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
+    console.log("error in finding number: ", err);
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

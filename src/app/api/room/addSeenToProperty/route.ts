@@ -5,6 +5,7 @@ import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
@@ -17,8 +18,19 @@ const pusher = new Pusher({
 });
 
 export async function POST(req: NextRequest) {
-	const { roomId, propertyId } = await req.json();
+	try {
+		await getDataFromToken(req);
+	} catch (err: unknown) {
+		const error = err as { status?: number; code?: string };
+		if (error?.status) {
+			return NextResponse.json(
+				{ code: error.code || "AUTH_FAILED" },
+				{ status: error.status },
+			);
+		}
+	}
 
+	const { roomId, propertyId } = await req.json();
 
 	let quickListing = false;
 

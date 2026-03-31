@@ -96,6 +96,32 @@ export interface EmployeeInterface {
   warnings?: WarningRecord[];
   pips?: PIPRecord[];
   appreciations?: AppreciationRecord[];
+  uiRuleIds?: string[];
+  pricingRule?: {
+    enabled?: boolean;
+    min?: number | null;
+    max?: number | null;
+  };
+  pricingRules?: {
+    all?: { enabled?: boolean; min?: number | null; max?: number | null };
+    byLocation?: Record<string, { enabled?: boolean; min?: number | null; max?: number | null }>;
+  };
+  propertyVisibilityRule?: {
+    enabled?: boolean;
+    allowedFurnishing?: string[];
+    allowedTypeOfProperty?: string[];
+  };
+  propertyVisibilityRules?: {
+    all?: { enabled?: boolean; allowedFurnishing?: string[]; allowedTypeOfProperty?: string[] };
+    byLocation?: Record<
+      string,
+      { enabled?: boolean; allowedFurnishing?: string[]; allowedTypeOfProperty?: string[] }
+    >;
+  };
+  guestLeadLocationBlock?: {
+    all?: string[];
+    byLocation?: Record<string, { blocked?: string[] }>;
+  };
   sessionId?: string;
   sessionStartedAt?: number;
   tokenValidAfter?: number;
@@ -555,6 +581,10 @@ export interface TokenInterface {
   email: string;
   role: string;
   allotedArea?: string | string[];
+  uiFlags?: {
+    hideGuestManagement?: boolean;
+    hideOwnerManagement?: boolean;
+  };
 }
 
 export interface SalesOfferInterface {

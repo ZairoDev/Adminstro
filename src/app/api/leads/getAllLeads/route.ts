@@ -9,8 +9,15 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
+import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { loadEmployeePricingRules, applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
+import {
+  applyPropertyVisibilityRuleToLeadQuery,
+  loadEmployeePropertyVisibilityRules,
+  applyPropertyVisibilityRulesByLocationToLeadQuery,
+} from "@/util/propertyVisibilityRule";
 
 connectDb();
 
@@ -31,6 +38,12 @@ export async function POST(req: NextRequest) {
   const role = String(token.role || "");
 
   try {
+    const employeeId = String((token as any)?.id || "");
+    const employeePricingRules = await loadEmployeePricingRules(employeeId);
+    const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
+    const employeeLocationBlock = await Employees.findById(employeeId)
+      .select("guestLeadLocationBlock")
+      .lean();
     // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
@@ -134,12 +147,67 @@ export async function POST(req: NextRequest) {
       }
 
     }
-    if (propertyType) query.propertyType = propertyType;
+    // propertyType enforced below (intersection with employee rule)
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
-    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
+    let effectiveLocations: string[] | null = (() => {
+      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
+      // For this route we have normalized assignedArea already; apply only for restricted roles
+      const locationExemptRoles = ["SuperAdmin", "Admin", "Developer", "HR", "Sales-TeamLead", "LeadGen-TeamLead", "LeadGen", "Advert"];
+      if (!locationExemptRoles.includes(role)) return assignedArea;
+      return null;
+    })();
+
+    const blocked = new Set(
+      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
+        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
+        : [],
+    );
+    if (blocked.size && effectiveLocations && effectiveLocations.length) {
+      const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
+      if (filtered.length === 0) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+      effectiveLocations = filtered;
+    }
+
+    {
+      const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
+        query,
+        rules: employeeVisibilityRules,
+        locations: effectiveLocations,
+        uiPropertyType: propertyType,
+        uiTypeOfProperty: typeOfProperty,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+    }
+    {
+      const { impossible } = applyPricingRulesByLocationToQuery({
+        query,
+        pricingRules: employeePricingRules,
+        uiBudgetFrom: budgetFrom,
+        uiBudgetTo: budgetTo,
+        locations: effectiveLocations,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+    }
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
-    if (typeOfProperty) query.typeOfProperty = typeOfProperty;
+    // typeOfProperty enforced above (intersection with employee rule)
 
 
       if(role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead"){
@@ -187,6 +255,25 @@ export async function POST(req: NextRequest) {
     } else if (allotedArea && allotedArea !== "All") {
       // For exempt roles, allow filtering by requested location if provided
       query.location = new RegExp(allotedArea, "i");
+    }
+
+    // Enforce "hide guest leads by location" at the query level too
+    if (blocked.size) {
+      if (query.location instanceof RegExp) {
+        const requested = String(allotedArea || "").trim().toLowerCase();
+        if (requested && blocked.has(requested)) {
+          query.location = { $in: [] };
+        }
+      } else if (typeof query.location === "string") {
+        if (blocked.has(query.location.toLowerCase())) {
+          query.location = { $in: [] };
+        }
+      } else if (query.location && typeof query.location === "object" && Array.isArray((query.location as any).$in)) {
+        const filtered = ((query.location as any).$in as any[])
+          .map((x) => String(x))
+          .filter((x) => !blocked.has(x.toLowerCase()));
+        query.location = { $in: filtered };
+      }
     }
 
     // console.log("created query: ", query);

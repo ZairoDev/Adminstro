@@ -2,7 +2,33 @@ import mongoose, { Schema, Document } from "mongoose";
 
 import { EmployeeSchema } from "@/schemas/employee.schema";
 
-interface IEmployee extends Document, EmployeeSchema {}
+interface IEmployee extends Document, EmployeeSchema {
+  pricingRule: {
+    enabled: boolean;
+    min: number | null;
+    max: number | null;
+  };
+  pricingRules: {
+    all: { enabled: boolean; min: number | null; max: number | null };
+    byLocation: Record<string, { enabled: boolean; min: number | null; max: number | null }>;
+  };
+  propertyVisibilityRule: {
+    enabled: boolean;
+    allowedFurnishing: string[];
+    allowedTypeOfProperty: string[];
+  };
+  propertyVisibilityRules: {
+    all: { enabled: boolean; allowedFurnishing: string[]; allowedTypeOfProperty: string[] };
+    byLocation: Record<
+      string,
+      { enabled: boolean; allowedFurnishing: string[]; allowedTypeOfProperty: string[] }
+    >;
+  };
+  guestLeadLocationBlock: {
+    all: string[];
+    byLocation: Record<string, { blocked: string[] }>;
+  };
+}
 export const employeeRoles = [
   "HR",
   "Admin",
@@ -241,6 +267,77 @@ const employeeSchema = new Schema<IEmployee>(
         },
       ],
       default: [],
+    },
+    uiRuleIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "EmployeeUiRule",
+        },
+      ],
+      default: [],
+    },
+    pricingRule: {
+      enabled: { type: Boolean, default: false },
+      min: { type: Number, default: null },
+      max: { type: Number, default: null },
+    },
+    pricingRules: {
+      all: {
+        enabled: { type: Boolean, default: false },
+        min: { type: Number, default: null },
+        max: { type: Number, default: null },
+      },
+      byLocation: {
+        type: Map,
+        of: new Schema(
+          {
+            enabled: { type: Boolean, default: false },
+            min: { type: Number, default: null },
+            max: { type: Number, default: null },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
+    },
+    propertyVisibilityRule: {
+      enabled: { type: Boolean, default: false },
+      allowedFurnishing: { type: [String], default: [] }, // Furnished/Semi-furnished/Unfurnished
+      allowedTypeOfProperty: { type: [String], default: [] }, // Studio/1 Bedroom/...
+    },
+    propertyVisibilityRules: {
+      all: {
+        enabled: { type: Boolean, default: false },
+        allowedFurnishing: { type: [String], default: [] },
+        allowedTypeOfProperty: { type: [String], default: [] },
+      },
+      byLocation: {
+        type: Map,
+        of: new Schema(
+          {
+            enabled: { type: Boolean, default: false },
+            allowedFurnishing: { type: [String], default: [] },
+            allowedTypeOfProperty: { type: [String], default: [] },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
+    },
+    guestLeadLocationBlock: {
+      all: { type: [String], default: [] }, // if empty => allow all
+      byLocation: {
+        // reserved for future; keep structure consistent with other rule objects
+        type: Map,
+        of: new Schema(
+          {
+            blocked: { type: [String], default: [] },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
     },
     isLoggedIn: {
       type: Boolean,

@@ -9,8 +9,17 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
+import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import {
+  loadEmployeePricingRules,
+  applyPricingRulesByLocationToQuery,
+} from "@/util/pricingRule";
+import {
+  loadEmployeePropertyVisibilityRules,
+  applyPropertyVisibilityRulesByLocationToLeadQuery,
+} from "@/util/propertyVisibilityRule";
 
 connectDb();
 
@@ -29,6 +38,12 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
+    const employeeId = String((token as any)?.id || "");
+    const employeePricingRules = await loadEmployeePricingRules(employeeId);
+    const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
+    const employeeLocationBlock = await Employees.findById(employeeId)
+      .select("guestLeadLocationBlock")
+      .lean();
     // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
@@ -120,10 +135,63 @@ export async function POST(req: NextRequest) {
     // Other filters
     if (guest) query.guest = { $gte: parseInt(guest, 10) };
     if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
-    if (propertyType) query.propertyType = propertyType;
+    let effectiveLocations: string[] | null = (() => {
+      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
+      if (role !== "SuperAdmin" && role !== "Sales-TeamLead") {
+        return Array.isArray(assignedArea) ? (assignedArea as any[]).map(String) : [String(assignedArea)];
+      }
+      return null;
+    })();
+
+    const blocked = new Set(
+      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
+        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
+        : [],
+    );
+    if (blocked.size && effectiveLocations && effectiveLocations.length) {
+      const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
+      if (filtered.length === 0) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+      effectiveLocations = filtered;
+    }
+
+    {
+      const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
+        query,
+        rules: employeeVisibilityRules,
+        locations: effectiveLocations,
+        uiPropertyType: propertyType,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+    }
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
-    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
+    {
+      const { impossible } = applyPricingRulesByLocationToQuery({
+        query,
+        pricingRules: employeePricingRules,
+        uiBudgetFrom: budgetFrom,
+        uiBudgetTo: budgetTo,
+        locations: effectiveLocations,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+        });
+      }
+    }
     if (leadQuality) query.leadQualityByReviewer = leadQuality;
 
     {
@@ -166,6 +234,25 @@ export async function POST(req: NextRequest) {
         } else {
           query.location = assignedArea;
         }
+      }
+    }
+
+    // Enforce "hide guest leads by location" at the query level too
+    if (blocked.size) {
+      if (query.location instanceof RegExp) {
+        const requested = String(allotedArea || "").trim().toLowerCase();
+        if (requested && blocked.has(requested)) {
+          query.location = { $in: [] };
+        }
+      } else if (typeof query.location === "string") {
+        if (blocked.has(query.location.toLowerCase())) {
+          query.location = { $in: [] };
+        }
+      } else if (query.location && typeof query.location === "object" && Array.isArray(query.location.$in)) {
+        const filtered = (query.location.$in as any[])
+          .map((x) => String(x))
+          .filter((x) => !blocked.has(x.toLowerCase()));
+        query.location = { $in: filtered };
       }
     }
 

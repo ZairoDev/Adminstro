@@ -7,6 +7,35 @@ import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
+import EmployeeUiRule from "@/models/employeeUiRule";
+
+type UiFlags = {
+  hideGuestManagement?: boolean;
+  hideOwnerManagement?: boolean;
+};
+
+async function computeUiFlags(uiRuleIds: any): Promise<UiFlags> {
+  const ids = Array.isArray(uiRuleIds)
+    ? uiRuleIds.map((x) => String(x)).filter(Boolean)
+    : [];
+  if (ids.length === 0) return {};
+
+  const rules = await EmployeeUiRule.find({ _id: { $in: ids } })
+    .select("flags")
+    .lean();
+
+  let hideGuestManagement = false;
+  let hideOwnerManagement = false;
+  for (const r of rules) {
+    if ((r as any)?.flags?.hideGuestManagement) hideGuestManagement = true;
+    if ((r as any)?.flags?.hideOwnerManagement) hideOwnerManagement = true;
+  }
+
+  return {
+    ...(hideGuestManagement ? { hideGuestManagement: true } : {}),
+    ...(hideOwnerManagement ? { hideOwnerManagement: true } : {}),
+  };
+}
 
 
 interface Employee {
@@ -192,6 +221,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }        );
         }
 
+        const uiFlags = await computeUiFlags((temp as any)?.uiRuleIds);
         const tokenPayload = {
           id: temp._id,
           sid: sessionIdVar,
@@ -199,6 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           email: temp.email,
           role: temp.role,
           allotedArea: temp.allotedArea,
+          uiFlags,
         };
         const token = jwt.sign(
           tokenPayload,
@@ -289,6 +320,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.log("⚠️ Socket.io not available on global");
     }
 
+    const uiFlags = await computeUiFlags((temp as any)?.uiRuleIds);
     const tokenData = {
       id: temp._id,
       sid: sessionIdVar,
@@ -296,6 +328,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       email: temp.email,
       role: temp.role,
       allotedArea: Array.isArray(temp.allotedArea) ? temp.allotedArea : [],
+      uiFlags,
     };
 
     const token = jwt.sign(tokenData, tokenSecret, {

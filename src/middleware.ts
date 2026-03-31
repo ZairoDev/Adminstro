@@ -280,10 +280,55 @@ export async function middleware(request: NextRequest) {
       const decodedToken = await jwtVerify(token, new TextEncoder().encode(process.env.TOKEN_SECRET as string));
       // console.log("decodedToken", decodedToken);
       const role = decodedToken?.payload?.role as string;
+      const uiFlags = (decodedToken?.payload as any)?.uiFlags as
+        | { hideGuestManagement?: boolean; hideOwnerManagement?: boolean }
+        | undefined;
+
+      const isGuestManagementPath = (p: string) => {
+        const prefixes = [
+          "/dashboard/createquery",
+          "/dashboard/lowBudget",
+          "/dashboard/rolebaseLead",
+          "/dashboard/goodtogoleads",
+          "/dashboard/closedleads",
+          "/dashboard/declinedleads",
+          "/dashboard/rejectedleads",
+          "/dashboard/reminders",
+          "/dashboard/reviewLeads",
+          "/dashboard/notReplying",
+          "/dashboard/compareLeads",
+          "/dashboard/website-leads",
+        ];
+        return prefixes.some((pre) => p === pre || p.startsWith(`${pre}/`));
+      };
+
+      const isOwnerManagementPath = (p: string) => {
+        const prefixes = [
+          "/spreadsheet",
+          "/dashboard/user",
+          "/dashboard/newproperty",
+          "/dashboard/newproperty/filteredProperties",
+        ];
+        return prefixes.some((pre) => p === pre || p.startsWith(`${pre}/`));
+      };
 
       if (path === "/login") {
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/", request.url)
+        );
+      }
+
+      // Per-employee UI rules: hide + block Guest Management
+      if (uiFlags?.hideGuestManagement && isGuestManagementPath(path)) {
+        return NextResponse.redirect(
+          new URL(defaultRoutes[role] || "/dashboard", request.url),
+        );
+      }
+
+      // Per-employee UI rules: hide + block Owner Management
+      if ((uiFlags as any)?.hideOwnerManagement && isOwnerManagementPath(path)) {
+        return NextResponse.redirect(
+          new URL(defaultRoutes[role] || "/dashboard", request.url),
         );
       }
 

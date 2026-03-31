@@ -9,12 +9,26 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
+import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { leadStatuses } from "@/app/dashboard/sales-offer/sales-offer-utils";
 import { isArray } from "@apollo/client/utilities";
 import { Regex } from "lucide-react";
 import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
+import {
+  applyEffectiveRangeToQuery,
+  computeEffectiveRange,
+  loadEmployeePricingRule,
+  loadEmployeePricingRules,
+  applyPricingRulesByLocationToQuery,
+} from "@/util/pricingRule";
+import {
+  applyPropertyVisibilityRuleToLeadQuery,
+  loadEmployeePropertyVisibilityRule,
+  loadEmployeePropertyVisibilityRules,
+  applyPropertyVisibilityRulesByLocationToLeadQuery,
+} from "@/util/propertyVisibilityRule";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,6 +48,12 @@ export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
   const assignedArea = token.allotedArea as String[];
   const role = token.role;
+  const employeeId = String((token as any)?.id || "");
+  const employeePricingRules = await loadEmployeePricingRules(employeeId);
+  const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
+  const employeeLocationBlock = await Employees.findById(employeeId)
+    .select("guestLeadLocationBlock")
+    .lean();
 
   try {
     // console.log("req body in filter route: ", assignedArea, reqBody);
@@ -138,12 +158,72 @@ export async function POST(req: NextRequest) {
     }
     }
 
-    if (propertyType) query.propertyType = propertyType;
+    // propertyType is enforced later (intersection with employee rule)
     if (billStatus) query.billStatus = billStatus;
-    if (budgetFrom) query.minBudget = { $gte: parseInt(budgetFrom, 10) };
-    if (budgetTo) query.maxBudget = { $lte: parseInt(budgetTo, 10) };
+
+    let effectiveLocations: string[] | null = (() => {
+      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
+      if (role !== "SuperAdmin" && role !== "Sales-TeamLead") {
+        return Array.isArray(assignedArea) ? (assignedArea as any[]).map(String) : [String(assignedArea)];
+      }
+      return null;
+    })();
+
+    const blocked = new Set(
+      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
+        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
+        : [],
+    );
+    if (blocked.size && effectiveLocations && effectiveLocations.length) {
+      const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
+      if (filtered.length === 0) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+          wordsCount: [],
+        });
+      }
+      effectiveLocations = filtered;
+    }
+
+    {
+      const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
+        query,
+        rules: employeeVisibilityRules,
+        locations: effectiveLocations,
+        uiPropertyType: propertyType,
+        uiTypeOfProperty: typeOfProperty,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+          wordsCount: [],
+        });
+      }
+    }
+
+    {
+      const { impossible } = applyPricingRulesByLocationToQuery({
+        query,
+        pricingRules: employeePricingRules,
+        uiBudgetFrom: budgetFrom,
+        uiBudgetTo: budgetTo,
+        locations: effectiveLocations,
+      });
+      if (impossible) {
+        return NextResponse.json({
+          data: [],
+          totalPages: 1,
+          totalQueries: 0,
+          wordsCount: [],
+        });
+      }
+    }
     if (leadQuality) query.leadQualityByReviewer = leadQuality; 
-    if (typeOfProperty) query.typeOfProperty = typeOfProperty;
+    // typeOfProperty is enforced later (intersection with employee rule)
 
     {
       /* Searching in non rejected Leads and leads with no reminders */
@@ -186,6 +266,25 @@ export async function POST(req: NextRequest) {
         } else {
           query.location = assignedArea;
         }
+      }
+    }
+
+    // Enforce "hide guest leads by location" at the query level too
+    if (blocked.size) {
+      if (query.location instanceof RegExp) {
+        const requested = String(allotedArea || "").trim().toLowerCase();
+        if (requested && blocked.has(requested)) {
+          query.location = { $in: [] };
+        }
+      } else if (typeof query.location === "string") {
+        if (blocked.has(query.location.toLowerCase())) {
+          query.location = { $in: [] };
+        }
+      } else if (query.location && typeof query.location === "object" && Array.isArray(query.location.$in)) {
+        const filtered = (query.location.$in as any[])
+          .map((x) => String(x))
+          .filter((x) => !blocked.has(x.toLowerCase()));
+        query.location = { $in: filtered };
       }
     }
 

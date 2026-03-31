@@ -117,6 +117,81 @@ export const employeeSchema = z.object({
     )
     .optional()
     .default([]),
+  // Stored as ObjectId[] in Mongo; represented as strings on the client/token.
+  uiRuleIds: z.array(z.any()).optional().default([]),
+  pricingRule: z
+    .object({
+      enabled: z.boolean().optional().default(false),
+      min: z.number().nullable().optional().default(null),
+      max: z.number().nullable().optional().default(null),
+    })
+    .optional()
+    .default({ enabled: false, min: null, max: null }),
+  pricingRules: z
+    .object({
+      all: z
+        .object({
+          enabled: z.boolean().optional().default(false),
+          min: z.number().nullable().optional().default(null),
+          max: z.number().nullable().optional().default(null),
+        })
+        .optional()
+        .default({ enabled: false, min: null, max: null }),
+      byLocation: z.record(
+        z.object({
+          enabled: z.boolean().optional().default(false),
+          min: z.number().nullable().optional().default(null),
+          max: z.number().nullable().optional().default(null),
+        }),
+      ).optional().default({}),
+    })
+    .optional()
+    .default({ all: { enabled: false, min: null, max: null }, byLocation: {} }),
+  propertyVisibilityRule: z
+    .object({
+      enabled: z.boolean().optional().default(false),
+      allowedFurnishing: z.array(z.string()).optional().default([]),
+      allowedTypeOfProperty: z.array(z.string()).optional().default([]),
+    })
+    .optional()
+    .default({ enabled: false, allowedFurnishing: [], allowedTypeOfProperty: [] }),
+  propertyVisibilityRules: z
+    .object({
+      all: z
+        .object({
+          enabled: z.boolean().optional().default(false),
+          allowedFurnishing: z.array(z.string()).optional().default([]),
+          allowedTypeOfProperty: z.array(z.string()).optional().default([]),
+        })
+        .optional()
+        .default({ enabled: false, allowedFurnishing: [], allowedTypeOfProperty: [] }),
+      byLocation: z.record(
+        z.object({
+          enabled: z.boolean().optional().default(false),
+          allowedFurnishing: z.array(z.string()).optional().default([]),
+          allowedTypeOfProperty: z.array(z.string()).optional().default([]),
+        }),
+      ).optional().default({}),
+    })
+    .optional()
+    .default({
+      all: { enabled: false, allowedFurnishing: [], allowedTypeOfProperty: [] },
+      byLocation: {},
+    }),
+  guestLeadLocationBlock: z
+    .object({
+      all: z.array(z.string()).optional().default([]),
+      byLocation: z
+        .record(
+          z.object({
+            blocked: z.array(z.string()).optional().default([]),
+          }),
+        )
+        .optional()
+        .default({}),
+    })
+    .optional()
+    .default({ all: [], byLocation: {} }),
   sessionId: z.string().optional(),
   sessionStartedAt: z.number().optional(),
   tokenValidAfter: z.number().optional(),

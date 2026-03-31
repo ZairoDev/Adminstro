@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
+import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
   try {
     const token = await getDataFromToken(req);
     const assignedArea = token.allotedArea;
+    const employeeId = String((token as any)?.id || "");
+    const employeeLocationBlock = employeeId
+      ? await Employees.findById(employeeId).select("guestLeadLocationBlock").lean()
+      : null;
 
     const { filters, page } = await req.json();
     const skip = (page - 1) * 50;
@@ -14,6 +19,25 @@ export async function POST(req: NextRequest) {
 
     if (assignedArea) {
       filters.location = assignedArea;
+    }
+
+    const blocked = new Set(
+      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
+        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
+        : [],
+    );
+    if (blocked.size && filters.location) {
+      if (Array.isArray(filters.location)) {
+        const filtered = (filters.location as any[])
+          .map((x) => String(x))
+          .filter((x) => !blocked.has(x.toLowerCase()));
+        filters.location = filtered;
+      } else {
+        const loc = String(filters.location).toLowerCase();
+        if (blocked.has(loc)) {
+          filters.location = [];
+        }
+      }
     }
 
     // console.log("filters: ", filters);

@@ -65,6 +65,7 @@ import { ModeToggle } from "./themeChangeButton";
 import { FaWhatsapp } from "react-icons/fa6";
 import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
+import { IoMdPaper } from "react-icons/io";
 
 // Simple active matcher (keep strict equality)
 const isActive = (currentPath: string, path: string): boolean =>
@@ -234,6 +235,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/target",
       label: "Add Area",
       Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/addRule",
+      label: "Add Rule",
+      Icon: <IoMdPaper size={18} />,
     },
 
     {
@@ -521,6 +527,7 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Closed Leads",
       Icon: <CheckCheck size={18} />,
     },
+
   ],
   Sales: [
     {
@@ -1147,6 +1154,11 @@ const otherSettingsRoutes = [
     Icon: <PencilLine size={18} />,
   },
   {
+    path: "/dashboard/addRule",
+    label: "Add Rule",
+    Icon: <IoMdPaper size={18} />,
+  },
+  {
     path: "/dashboard/areadetails",
     label: "Area Details",
     Icon: <TramFront size={18} />,
@@ -1164,6 +1176,8 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   // const [collapsed, setCollapsed] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
+  const [hideGuestManagement, setHideGuestManagement] = useState(false);
+  const [hideOwnerManagement, setHideOwnerManagement] = useState(false);
   const [whatsappPhones, setWhatsappPhones] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -1172,11 +1186,16 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       try {
         const mod: any = await import("@/AuthStore").catch(() => null);
         const store = mod?.useAuthStore;
-        const tokenRole =
-          typeof store?.getState === "function"
-            ? store.getState()?.token?.role
-            : undefined;
-        if (mounted) setRole(tokenRole ?? null);
+        const token =
+          typeof store?.getState === "function" ? store.getState()?.token : undefined;
+        const tokenRole = token?.role;
+        const hideGuest = Boolean(token?.uiFlags?.hideGuestManagement);
+        const hideOwner = Boolean(token?.uiFlags?.hideOwnerManagement);
+        if (mounted) {
+          setRole(tokenRole ?? null);
+          setHideGuestManagement(hideGuest);
+          setHideOwnerManagement(hideOwner);
+        }
       } catch {
         if (mounted) setRole(null);
       }
@@ -1309,22 +1328,26 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
             onNavigate={onNavigate}
           />
         )}  
-        <SidebarSection
-          title="Owner Management"
-          routes={ownerManagementRoute}
-          showText={showText}
-          currentPath={pathname}
-          defaultOpen={defaultOpen}
-          onNavigate={onNavigate}
-        />
-        <SidebarSection
-          title="Guest Management"
-          routes={leadRoute}
-          showText={showText}
-          currentPath={pathname}
-          defaultOpen={defaultOpen}
-          onNavigate={onNavigate}
-        />
+        {!hideOwnerManagement && (
+          <SidebarSection
+            title="Owner Management"
+            routes={ownerManagementRoute}
+            showText={showText}
+            currentPath={pathname}
+            defaultOpen={defaultOpen}
+            onNavigate={onNavigate}
+          />
+        )}
+        {!hideGuestManagement && (
+          <SidebarSection
+            title="Guest Management"
+            routes={leadRoute}
+            showText={showText}
+            currentPath={pathname}
+            defaultOpen={defaultOpen}
+            onNavigate={onNavigate}
+          />
+        )}
         <SidebarSection
           title="Visit Management"
           routes={visitsManagementRoute}

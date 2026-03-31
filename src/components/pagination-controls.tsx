@@ -76,7 +76,7 @@ export default function PaginationControls({ currentPage, total, pageSize, onPag
       {pages.map((p, idx) =>
         p === "..." ? (
           <span key={`${p}-${idx}`} className="px-2 text-sm text-muted-foreground">
-            ...
+            ..
           </span>
         ) : (
           <button

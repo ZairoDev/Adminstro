@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     // CRITICAL: Fetch phone numbers directly from Meta API for business account
     // Meta is the ONLY source of truth for phone number existence
-    const businessAccountId = "2394287697653581"; // WhatsApp Business Account ID
+    const businessAccountId = "770501279114785"; // WhatsApp Business Account ID
     const metaPhones = await fetchPhoneNumbersFromMeta(businessAccountId);
     
     // Create area mapping from existing configs (to preserve area assignments)

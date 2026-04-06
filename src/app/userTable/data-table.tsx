@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -30,6 +29,16 @@ import {
 import { UserInterface } from "@/util/type";
 import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
+import { OwnerJourneySites } from "@/components/owner-journey/OwnerJourneySites";
+import { cn } from "@/lib/utils";
+
+/** Left border accent on first cell — cycles so each record reads as its own block. */
+const RECORD_LEFT_ACCENT = [
+  "[&>td:first-child]:border-l-4 [&>td:first-child]:border-l-primary [&>td:first-child]:pl-3",
+  "[&>td:first-child]:border-l-4 [&>td:first-child]:border-l-emerald-500 [&>td:first-child]:pl-3",
+  "[&>td:first-child]:border-l-4 [&>td:first-child]:border-l-violet-500 [&>td:first-child]:pl-3",
+  "[&>td:first-child]:border-l-4 [&>td:first-child]:border-l-amber-500 [&>td:first-child]:pl-3",
+] as const;
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];
@@ -91,22 +100,22 @@ export function DataTable({
   const endItem = Math.min(currentPage * PAGE_SIZE, totalUsers);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Heading heading="All Users" subheading="Manage and view all registered users" />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
             placeholder="Search by name, email or phone... (Ctrl+K)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4"
+            className="h-10 border-border/80 bg-background pl-9 pr-4 shadow-sm"
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -135,41 +144,94 @@ export function DataTable({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06]">
         {loading ? (
-          <div className="flex items-center justify-center h-96">
+          <div className="flex h-96 items-center justify-center">
             <Loader />
           </div>
         ) : data.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
-            <Search className="h-12 w-12 mb-4 opacity-50" />
+          <div className="flex h-96 flex-col items-center justify-center text-muted-foreground">
+            <Search className="mb-4 h-12 w-12 opacity-50" />
             <p className="text-lg font-medium">No users found</p>
             <p className="text-sm">Try adjusting your search</p>
           </div>
         ) : (
-          <Table>
+          <Table className="border-separate border-spacing-0">
             <TableHeader>
               {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
+                <TableRow
+                  key={hg.id}
+                  className="border-b border-border/80 bg-muted/50 hover:bg-muted/50 dark:bg-muted/30"
+                >
                   {hg.headers.map((h) => (
-                    <TableHead key={h.id}>
+                    <TableHead
+                      key={h.id}
+                      className="h-11 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
                       {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/50">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {table.getRowModel().rows.map((row, recordIndex) => {
+              const user = row.original as UserInterface;
+              const colCount = table.getVisibleLeafColumns().length;
+              const accent = RECORD_LEFT_ACCENT[recordIndex % RECORD_LEFT_ACCENT.length];
+              const zebra = recordIndex % 2 === 0;
+
+              return (
+                <tbody
+                  key={row.id}
+                  className={cn(
+                    "border-b border-border/70 last:border-b-0",
+                    zebra
+                      ? "[&_tr]:bg-card/90"
+                      : "[&_tr]:bg-muted/40 dark:[&_tr]:bg-muted/15",
+                  )}
+                >
+                  <TableRow
+                    className={cn(
+                      "border-b-0 transition-colors",
+                      accent,
+                      "hover:bg-muted/50 dark:hover:bg-muted/25",
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className="py-3.5 text-sm first:rounded-tl-md last:rounded-tr-md"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  <TableRow
+                    className={cn(
+                      "border-b-0 transition-colors",
+                      "hover:bg-muted/40 dark:hover:bg-muted/20",
+                      zebra ? "bg-muted/25 dark:bg-muted/10" : "bg-muted/35 dark:bg-muted/20",
+                    )}
+                  >
+                    <TableCell
+                      colSpan={colCount}
+                      className="border-t border-dashed border-border/60 px-4 py-4 first:rounded-bl-md last:rounded-br-md sm:px-5"
+                    >
+                      <div className="mb-2.5 flex items-center gap-2">
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70"
+                          aria-hidden
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Owner journey
+                        </span>
+                      </div>
+                      <OwnerJourneySites journey={user.ownerJourney} />
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
+                  </TableRow>
+                </tbody>
+              );
+            })}
           </Table>
         )}
       </div>

@@ -165,7 +165,7 @@ export default function HolidaySeraHome() {
                 Manage Owners
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                View and search HolidaySera Owners (users with origin: holidaysera)
+                View and search HolidaySera app owners (holidayUsers)
               </p>
             </div>
             <ArrowRight

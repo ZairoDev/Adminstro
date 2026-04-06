@@ -1,3 +1,11 @@
+import type { FilterQuery } from "mongoose";
+
+import {
+  buildOwnerJourneyPayload,
+  stripJourneyAggregationFields,
+  type AggregatedUserForJourney,
+} from "@/lib/owner-journey";
+import { ownerJourneyUserLookupStages } from "@/lib/owner-journey/pipelines";
 import Users from "@/models/user";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -16,13 +24,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const search = (searchParams.get("search") || "").trim();
     const skip = (page - 1) * PAGE_SIZE;
 
-    const query: any = {};
+    const query: FilterQuery<Record<string, unknown>> = {};
 
     // If HAdmin, only show users with origin: "holidaysera"
     try {
-      const payload: any = await getDataFromToken(request).catch(() => null);
-      if (payload?.role === "HAdmin") {
-        query.origin = "holidaysera";
+      const payload = await getDataFromToken(request).catch(() => null);
+      if (payload && typeof payload === "object" && "role" in payload) {
+        const role = (payload as { role?: string }).role;
+        if (role === "HAdmin") {
+          query.origin = "holidaysera";
+        }
       }
     } catch (e) {
       // ignore token errors
@@ -39,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ];
     }
 
-    const [users, total] = await Promise.all([
+    const [rawUsers, total] = await Promise.all([
       Users.aggregate([
         { $match: query },
         { $sort: { _id: -1 } },
@@ -67,9 +78,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             as: "vsids2",
           },
         },
+        ...ownerJourneyUserLookupStages(),
       ]),
       Users.countDocuments(query),
     ]);
+
+    const users = rawUsers.map((doc) => {
+      const row = doc as unknown as AggregatedUserForJourney;
+      const ownerJourney = buildOwnerJourneyPayload(row);
+      const cleaned = stripJourneyAggregationFields(doc as Record<string, unknown>);
+      return { ...cleaned, ownerJourney };
+    });
 
     return NextResponse.json({
       success: true,

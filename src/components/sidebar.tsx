@@ -804,8 +804,8 @@ const roleRoutes: Record<string, Route[]> = {
     },
 
     {
-      path: "/holidaysera/coupons",
-      label: "Coupons",
+      path: "/dashboard/coupons",
+      label: "Manage Coupons",
       Icon: <Ticket size={18} />,
     },
     {
@@ -1116,6 +1116,11 @@ const propertyBoostRoutes = [
 
 const holidaySeraRoutes = [
   {
+    path: "/holidaysera",
+    label: "HolidaySera",
+    Icon: <AiFillDashboard size={18} />,
+  },
+  {
     path: "/holidaysera/properties",
     label: "Properties",
     Icon: <Warehouse size={18} />,
@@ -1271,7 +1276,10 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const subscriptionsRoute = inGroup(subscriptionsRoutes);
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
-    const otherSettingsRoute = inGroup(otherSettingsRoutes);
+    const otherSettingsRoute = inGroup(otherSettingsRoutes).filter(
+      (r) =>
+        !(role === "HAdmin" && r.path === "/dashboard/coupons")
+    );
     const holidaySeraRoute = inGroup(holidaySeraRoutes);
     const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
     const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");

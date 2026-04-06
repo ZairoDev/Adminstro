@@ -557,6 +557,7 @@ export default function CouponManagementPage() {
                         <>
                           <SelectItem value="vacationSaga">VacationSaga</SelectItem>
                           <SelectItem value="holidaysera">HolidaySera</SelectItem>
+                          <SelectItem value="housingSera">HousingEra</SelectItem>
                         </>
                       )}
                     </SelectContent>

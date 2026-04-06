@@ -12,15 +12,14 @@ import {
   ChevronRight,
   Users as UsersIcon,
   Loader2,
-  UserPlus,
 } from "lucide-react";
 import debounce from "lodash.debounce";
-import Link from "next/link";
 import Image from "next/image";
-import { UserInterface } from "@/util/type";
+import { HolidaySeraOwnerJourneyBar } from "@/components/owner-journey/HolidaySeraOwnerJourneyBar";
+import type { HolidaySeraGuestListItem } from "@/types/holidaySeraGuests";
 
 const HolidaySeraGuests = () => {
-  const [users, setUsers] = useState<UserInterface[]>([]);
+  const [users, setUsers] = useState<HolidaySeraGuestListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -34,7 +33,7 @@ const HolidaySeraGuests = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get("/api/user/getallusers", {
+        const res = await axios.get("/api/holidaysera/guests-list", {
           params: { page: pageVal, search: searchVal },
         });
         if (res.data.success) {
@@ -112,7 +111,7 @@ const HolidaySeraGuests = () => {
               No HolidaySera Owners found
             </p>
             <p className="text-gray-400 dark:text-gray-500 text-sm mb-6">
-              Owners with origin &quot;holidaysera&quot; will appear here
+              Owners from the HolidaySera app (holidayUsers, role Owner) appear here
             </p>
             {/* <Link
               href="/dashboard/createnewuser"
@@ -127,94 +126,92 @@ const HolidaySeraGuests = () => {
             {/* User cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
               {users.map((user) => (
-                <Link
+                <div
                   key={user._id}
-                  href={`/dashboard/userdetails/${user._id}`}
-                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 hover:shadow-lg transition-all duration-200 group"
+                  className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
                 >
-                  <div className="flex items-start gap-4 mb-4">
-                    {user.profilePic ? (
-                      <Image
-                        src={user.profilePic}
-                        alt={user.name}
-                        width={56}
-                        height={56}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-white font-semibold text-lg">
-                        {user.name.charAt(0).toUpperCase()}
+                  <div className="p-5">
+                    <div className="mb-4 flex items-start gap-4">
+                      {user.profilePic ? (
+                        <Image
+                          src={user.profilePic}
+                          alt={user.name}
+                          width={56}
+                          height={56}
+                          className="h-14 w-14 rounded-full border-2 border-gray-200 object-cover dark:border-gray-700"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-lg font-semibold text-white">
+                          {(user.name?.charAt(0) || "?").toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="mb-1 text-base font-semibold text-gray-900 dark:text-gray-100">
+                          {user.name}
+                        </h3>
+                        <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          {user.role}
+                        </span>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {user.name}
-                      </h3>
-                      <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                        {user.role}
-                      </span>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    {user.email && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <Mail size={14} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                    )}
-                    {user.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <Phone size={14} className="text-gray-400 flex-shrink-0" />
-                        <span
-                          className="cursor-pointer hover:underline"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(String(user.phone));
-                          }}
+                    <div className="space-y-2">
+                      {user.email ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                          <Mail size={14} className="flex-shrink-0 text-gray-400" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                      ) : null}
+                      {user.phone ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 text-left text-sm text-gray-600 hover:underline dark:text-gray-300"
+                          onClick={() => navigator.clipboard.writeText(String(user.phone))}
                           title="Click to copy"
                         >
+                          <Phone size={14} className="flex-shrink-0 text-gray-400" />
                           {user.phone}
+                        </button>
+                      ) : null}
+                      {user.address ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                          <MapPin size={14} className="flex-shrink-0 text-gray-400" />
+                          <span className="truncate">{user.address}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {(user.vsids?.length || user.vsids2?.length) ? (
+                      <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <Building2 size={14} />
+                          <span>
+                            {(user.vsids?.length || 0) + (user.vsids2?.length || 0)}{" "}
+                            {(user.vsids?.length || 0) + (user.vsids2?.length || 0) === 1
+                              ? "property"
+                              : "properties"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {user.isVerified ? (
+                        <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          Verified
                         </span>
-                      </div>
-                    )}
-                    {user.address && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{user.address}</span>
-                      </div>
-                    )}
+                      ) : null}
+                    </div>
                   </div>
 
-                  {/* Property count */}
-                  {(user.vsids?.length || user.vsids2?.length) ? (
-                    <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <Building2 size={14} />
-                        <span>
-                          {(user.vsids?.length || 0) + (user.vsids2?.length || 0)}{" "}
-                          {((user.vsids?.length || 0) + (user.vsids2?.length || 0)) === 1
-                            ? "property"
-                            : "properties"}
-                        </span>
-                      </div>
+                  {user.ownerJourney?.holidaySera ? (
+                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-950/50">
+                      <HolidaySeraOwnerJourneyBar
+                        currentStage={user.ownerJourney.holidaySera.stage}
+                      />
                     </div>
                   ) : null}
-
-                  {/* Status badges */}
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    {user.isVerified && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                        Verified
-                      </span>
-                    )}
-                    {user.isActive && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                </Link>
+                </div>
               ))}
             </div>
 

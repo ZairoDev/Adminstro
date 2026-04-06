@@ -18,6 +18,7 @@ import { Boosters } from "@/models/propertyBooster";
 import { PipelineStage } from "mongoose";
 import WebsiteLeads from "@/models/websiteLeads";
 import Users from "@/models/user";
+import HolidayUsers from "@/models/holidayUsers";
 
 connectDb();
 
@@ -1638,7 +1639,7 @@ export const getHolidayseraOverview = async () => {
   });
   const totalProperties = await Properties.countDocuments({});
 
-  const holidayGuests = await Users.countDocuments({ origin: { $regex: /holidaysera/i } });
+  const holidayGuests = await HolidayUsers.countDocuments({ role: "Owner" });
   const totalGuests = await Users.countDocuments({});
 
   return { success: true, holidayProperties, totalProperties, holidayGuests, totalGuests };
@@ -1694,7 +1695,7 @@ export const getHolidayGuestsStats = async ({ days = 30 }: { days?: number } = {
     {
       $match: {
         createdAt: { $gte: start },
-        origin: { $regex: /holidaysera/i },
+        role: "Owner",
       },
     },
     {
@@ -1706,7 +1707,7 @@ export const getHolidayGuestsStats = async ({ days = 30 }: { days?: number } = {
     { $sort: { _id: 1 } },
   ];
 
-  const results = await Users.aggregate(pipeline);
+  const results = await HolidayUsers.aggregate(pipeline);
   const map: Record<string, number> = {};
   results.forEach((r: any) => {
     map[r._id] = r.count;

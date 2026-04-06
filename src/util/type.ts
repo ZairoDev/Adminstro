@@ -1,5 +1,7 @@
 import mongoose, { ObjectId, Types } from "mongoose";
 
+import type { OwnerJourneyPayload } from "@/lib/owner-journey";
+
 export interface MiddlweareInterface {
   name: string;
   email: string;
@@ -240,6 +242,7 @@ export interface UserInterface {
   isActive: boolean;
   vsids?: VSID[];
   vsids2?: VSID[];
+  ownerJourney?: OwnerJourneyPayload;
 }
 
 export interface nearbyLocationInterface {

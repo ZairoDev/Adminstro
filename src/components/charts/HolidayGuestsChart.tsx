@@ -36,7 +36,7 @@ export default function HolidayGuestsChart() {
     <div>
       <ReusableLineChart
         title="Owners registered (30 days)"
-        description="Owners with origin set to HolidaySera"
+        description="HolidaySera app owners (holidayUsers collection, role Owner)"
         data={data.map((d) => ({ date: d.date, owners: d.count }))}
         dataKey="owners"
         label="Owners"

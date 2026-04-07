@@ -7,6 +7,9 @@ import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyLocationFilter, isLocationExempt, validateLocationAccess } from "@/util/apiSecurity";
+import Employees from "@/models/employee";
+import { applyOwnerPricingRulesByLocationToQuery } from "@/util/ownerPricingRule";
+import { applyOwnerLocationBlockToQuery, applyOwnerVisibilityRulesByLocationToQuery } from "@/util/ownerVisibilityRule";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -39,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
     // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
+    let effectiveLocations: string[] | null = null;
     if (filters.place) {
       const locations = filters.place.flat().filter(loc => typeof loc === 'string');
 
@@ -65,6 +69,7 @@ export async function POST(req: NextRequest) {
           );
 
           if (validLocations.length > 0) {
+            effectiveLocations = validLocations;
             query["$or"] = validLocations.map((loc: string) => ({
               location: { $regex: new RegExp(`^${loc}$`, "i") }
             }));
@@ -74,6 +79,7 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // Exempt roles can see all requested locations
+          effectiveLocations = locations;
           query["$or"] = locations.map((loc: string) => ({
             location: { $regex: new RegExp(`^${loc}$`, "i") }
           }));
@@ -82,6 +88,11 @@ export async function POST(req: NextRequest) {
     } else if (!isLocationExempt(role)) {
       // No location filter requested but user is restricted - apply default location filter
       applyLocationFilter(query, role, assignedArea, undefined);
+      effectiveLocations = Array.isArray(assignedArea)
+        ? assignedArea.map(String).filter(Boolean)
+        : assignedArea
+          ? [String(assignedArea)]
+          : [];
     }
      if (filters.area?.length) {
       // exact match any of selected areas (case-insensitive)
@@ -113,29 +124,42 @@ export async function POST(req: NextRequest) {
         query.area = { $in: areaNames };
       }
     }
-    if (filters.minPrice || filters.maxPrice) {
-      query["$expr"] = { $and: [] };
+    // Load employee owner rules (if employee exists)
+    const employeeId = String((token as any)?.id || "");
+    const employee =
+      employeeId && employeeId !== "test-superadmin"
+        ? await Employees.findById(employeeId)
+            .select("ownerPricingRules ownerVisibilityRules ownerLocationBlock")
+            .lean()
+        : null;
 
-      const priceField = {
-        $convert: {
-          input: { $trim: { input: "$price" } },
-          to: "double",
-          onError: null, // skip invalid values
-          onNull: null, // skip null values
-        },
-      };
+    // Enforce owner constraints for this employee
+    applyOwnerLocationBlockToQuery({
+      query,
+      blockedLocations: (employee as any)?.ownerLocationBlock?.all,
+    });
 
-      if (filters.minPrice) {
-        query["$expr"].$and.push({
-          $gte: [priceField, filters.minPrice],
-        });
-      }
+    const visibilityRes = applyOwnerVisibilityRulesByLocationToQuery({
+      query,
+      rules: (employee as any)?.ownerVisibilityRules || null,
+      locations: effectiveLocations,
+      uiInteriorStatus: undefined,
+      uiPropertyType: filters.propertyType,
+      uiPetStatus: undefined,
+    });
+    if (visibilityRes.impossible) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
+    }
 
-      if (filters.maxPrice) {
-        query["$expr"].$and.push({
-          $lte: [priceField, filters.maxPrice],
-        });
-      }
+    const pricingRes = applyOwnerPricingRulesByLocationToQuery({
+      query,
+      pricingRules: (employee as any)?.ownerPricingRules || null,
+      uiMinPrice: filters.minPrice,
+      uiMaxPrice: filters.maxPrice,
+      locations: effectiveLocations,
+    });
+    if (pricingRes.impossible) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
     
     const skip = (page - 1) * limit;

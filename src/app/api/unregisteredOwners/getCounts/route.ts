@@ -3,6 +3,9 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
+import Employees from "@/models/employee";
+import { applyOwnerPricingRulesByLocationToQuery } from "@/util/ownerPricingRule";
+import { applyOwnerLocationBlockToQuery, applyOwnerVisibilityRulesByLocationToQuery } from "@/util/ownerVisibilityRule";
 
 connectDb();
 
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
     if (filters?.isPinned) baseQuery.isPinned = "Pinned";
 
     const locations = filters?.place?.flat().filter((loc: any) => typeof loc === "string") || [];
+    let effectiveLocations: string[] | null = null;
 
     if (locations.length > 0) {
       if (!isLocationExempt(role)) {
@@ -59,15 +63,58 @@ export async function POST(req: NextRequest) {
           : [];
         const valid = locations.filter((loc: string) => userAreas.includes(loc.toLowerCase()));
         if (valid.length > 0) {
+          effectiveLocations = valid;
           baseQuery.$or = valid.map((loc: string) => ({ location: { $regex: new RegExp(`^${loc}$`, "i") } }));
         } else {
           return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
         }
       } else {
+        effectiveLocations = locations;
         baseQuery.$or = locations.map((loc: string) => ({ location: { $regex: new RegExp(`^${loc}$`, "i") } }));
       }
     } else if (!isLocationExempt(role)) {
       applyLocationFilter(baseQuery, role, assignedArea, undefined);
+      effectiveLocations = Array.isArray(assignedArea)
+        ? assignedArea.map(String).filter(Boolean)
+        : assignedArea
+          ? [String(assignedArea)]
+          : [];
+    }
+
+    const employeeId = String(token?.id || "");
+    const employee =
+      employeeId && employeeId !== "test-superadmin"
+        ? await Employees.findById(employeeId)
+            .select("ownerPricingRules ownerVisibilityRules ownerLocationBlock")
+            .lean()
+        : null;
+
+    applyOwnerLocationBlockToQuery({
+      query: baseQuery,
+      blockedLocations: (employee as any)?.ownerLocationBlock?.all,
+    });
+
+    const visibilityRes = applyOwnerVisibilityRulesByLocationToQuery({
+      query: baseQuery,
+      rules: (employee as any)?.ownerVisibilityRules || null,
+      locations: effectiveLocations,
+      uiInteriorStatus: undefined,
+      uiPropertyType: filters?.propertyType,
+      uiPetStatus: undefined,
+    });
+    if (visibilityRes.impossible) {
+      return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
+    }
+
+    const pricingRes = applyOwnerPricingRulesByLocationToQuery({
+      query: baseQuery,
+      pricingRules: (employee as any)?.ownerPricingRules || null,
+      uiMinPrice: filters?.minPrice,
+      uiMaxPrice: filters?.maxPrice,
+      locations: effectiveLocations,
+    });
+    if (pricingRes.impossible) {
+      return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
     }
 
     const [availableCount, notAvailableCount] = await Promise.all([

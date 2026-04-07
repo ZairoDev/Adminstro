@@ -5,10 +5,35 @@ import { Area } from "@/models/area";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
+import Employees from "@/models/employee";
+import { applyOwnerPricingRulesByLocationToQuery } from "@/util/ownerPricingRule";
+import { applyOwnerLocationBlockToQuery, applyOwnerVisibilityRulesByLocationToQuery } from "@/util/ownerVisibilityRule";
 
 connectDb();
 export async function POST(req: NextRequest) {
   try{
+    // Authenticate request
+    let token: any;
+    try {
+      token = await getDataFromToken(req);
+    } catch (err: any) {
+      const status = err?.status ?? 401;
+      const code = err?.code ?? "AUTH_FAILED";
+      return NextResponse.json({ code }, { status });
+    }
+
+    const role: string = (token.role || "") as string;
+    const assignedArea: string | string[] | undefined =
+      token.allotedArea
+        ? Array.isArray(token.allotedArea)
+          ? token.allotedArea
+          : typeof token.allotedArea === "string"
+            ? token.allotedArea
+            : undefined
+        : undefined;
+
     const { filters , page=1 , limit=50}  : { filters: FiltersInterfaces; page: number ; limit: number} =
         await req.json();
     const query: Record<string, any> = {};
@@ -21,6 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (filters.propertyType) query["propertyType"] = filters.propertyType;
     // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
+    let effectiveLocations: string[] | null = null;
     if (filters.place) {
   const locations = filters.place.flat().filter(loc => typeof loc === 'string');
 
@@ -33,10 +59,36 @@ if (filters.isPinned) {
 }
 
   if (locations.length > 0) {
-    query["$or"] = locations.map(loc => ({
-      location: { $regex: new RegExp(`^${loc}$`, "i") }
-    }));
+    if (!isLocationExempt(role)) {
+      const userAreas = Array.isArray(assignedArea)
+        ? assignedArea.map((a: string) => a.toLowerCase())
+        : assignedArea
+          ? [String(assignedArea).toLowerCase()]
+          : [];
+
+      const validLocations = locations.filter((loc: string) => userAreas.includes(loc.toLowerCase()));
+      effectiveLocations = validLocations;
+      if (validLocations.length > 0) {
+        query["$or"] = validLocations.map((loc: string) => ({
+          location: { $regex: new RegExp(`^${loc}$`, "i") }
+        }));
+      } else {
+        query["$or"] = [{ location: { $in: [] } }];
+      }
+    } else {
+      effectiveLocations = locations as string[];
+      query["$or"] = locations.map(loc => ({
+        location: { $regex: new RegExp(`^${loc}$`, "i") }
+      }));
+    }
   }
+} else if (!isLocationExempt(role)) {
+  applyLocationFilter(query, role, assignedArea, undefined);
+  effectiveLocations = Array.isArray(assignedArea)
+    ? assignedArea.map(String).filter(Boolean)
+    : assignedArea
+      ? [String(assignedArea)]
+      : [];
 }
      if (filters.area?.length) {
       // exact match any of selected areas (case-insensitive)
@@ -68,29 +120,41 @@ if (filters.isPinned) {
         query.area = { $in: areaNames };
       }
     }
-    if (filters.minPrice || filters.maxPrice) {
-      query["$expr"] = { $and: [] };
+    // Load employee owner rules (if employee exists)
+    const employeeId = String(token?.id || "");
+    const employee =
+      employeeId && employeeId !== "test-superadmin"
+        ? await Employees.findById(employeeId)
+            .select("ownerPricingRules ownerVisibilityRules ownerLocationBlock")
+            .lean()
+        : null;
 
-      const priceField = {
-        $convert: {
-          input: { $trim: { input: "$price" } },
-          to: "double",
-          onError: null, // skip invalid values
-          onNull: null, // skip null values
-        },
-      };
+    applyOwnerLocationBlockToQuery({
+      query,
+      blockedLocations: (employee as any)?.ownerLocationBlock?.all,
+    });
 
-      if (filters.minPrice) {
-        query["$expr"].$and.push({
-          $gte: [priceField, filters.minPrice],
-        });
-      }
+    const visibilityRes = applyOwnerVisibilityRulesByLocationToQuery({
+      query,
+      rules: (employee as any)?.ownerVisibilityRules || null,
+      locations: effectiveLocations,
+      uiInteriorStatus: undefined,
+      uiPropertyType: filters.propertyType,
+      uiPetStatus: undefined,
+    });
+    if (visibilityRes.impossible) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
+    }
 
-      if (filters.maxPrice) {
-        query["$expr"].$and.push({
-          $lte: [priceField, filters.maxPrice],
-        });
-      }
+    const pricingRes = applyOwnerPricingRulesByLocationToQuery({
+      query,
+      pricingRules: (employee as any)?.ownerPricingRules || null,
+      uiMinPrice: filters.minPrice,
+      uiMaxPrice: filters.maxPrice,
+      locations: effectiveLocations,
+    });
+    if (pricingRes.impossible) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
     
     const skip = (page - 1) * limit;

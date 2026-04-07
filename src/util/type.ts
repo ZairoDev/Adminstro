@@ -108,6 +108,10 @@ export interface EmployeeInterface {
     all?: { enabled?: boolean; min?: number | null; max?: number | null };
     byLocation?: Record<string, { enabled?: boolean; min?: number | null; max?: number | null }>;
   };
+  ownerPricingRules?: {
+    all?: { enabled?: boolean; min?: number | null; max?: number | null };
+    byLocation?: Record<string, { enabled?: boolean; min?: number | null; max?: number | null }>;
+  };
   propertyVisibilityRule?: {
     enabled?: boolean;
     allowedFurnishing?: string[];
@@ -120,9 +124,29 @@ export interface EmployeeInterface {
       { enabled?: boolean; allowedFurnishing?: string[]; allowedTypeOfProperty?: string[] }
     >;
   };
+  ownerVisibilityRules?: {
+    all?: {
+      enabled?: boolean;
+      allowedInteriorStatus?: string[];
+      allowedPropertyType?: string[];
+      allowedPetStatus?: string[];
+    };
+    byLocation?: Record<
+      string,
+      {
+        enabled?: boolean;
+        allowedInteriorStatus?: string[];
+        allowedPropertyType?: string[];
+        allowedPetStatus?: string[];
+      }
+    >;
+  };
   guestLeadLocationBlock?: {
     all?: string[];
     byLocation?: Record<string, { blocked?: string[] }>;
+  };
+  ownerLocationBlock?: {
+    all?: string[];
   };
   sessionId?: string;
   sessionStartedAt?: number;

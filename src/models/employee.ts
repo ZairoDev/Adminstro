@@ -12,6 +12,10 @@ interface IEmployee extends Document, EmployeeSchema {
     all: { enabled: boolean; min: number | null; max: number | null };
     byLocation: Record<string, { enabled: boolean; min: number | null; max: number | null }>;
   };
+  ownerPricingRules: {
+    all: { enabled: boolean; min: number | null; max: number | null };
+    byLocation: Record<string, { enabled: boolean; min: number | null; max: number | null }>;
+  };
   propertyVisibilityRule: {
     enabled: boolean;
     allowedFurnishing: string[];
@@ -24,9 +28,29 @@ interface IEmployee extends Document, EmployeeSchema {
       { enabled: boolean; allowedFurnishing: string[]; allowedTypeOfProperty: string[] }
     >;
   };
+  ownerVisibilityRules: {
+    all: {
+      enabled: boolean;
+      allowedInteriorStatus: string[];
+      allowedPropertyType: string[];
+      allowedPetStatus: string[];
+    };
+    byLocation: Record<
+      string,
+      {
+        enabled: boolean;
+        allowedInteriorStatus: string[];
+        allowedPropertyType: string[];
+        allowedPetStatus: string[];
+      }
+    >;
+  };
   guestLeadLocationBlock: {
     all: string[];
     byLocation: Record<string, { blocked: string[] }>;
+  };
+  ownerLocationBlock: {
+    all: string[];
   };
 }
 export const employeeRoles = [
@@ -301,6 +325,25 @@ const employeeSchema = new Schema<IEmployee>(
         default: {},
       },
     },
+    ownerPricingRules: {
+      all: {
+        enabled: { type: Boolean, default: false },
+        min: { type: Number, default: null },
+        max: { type: Number, default: null },
+      },
+      byLocation: {
+        type: Map,
+        of: new Schema(
+          {
+            enabled: { type: Boolean, default: false },
+            min: { type: Number, default: null },
+            max: { type: Number, default: null },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
+    },
     propertyVisibilityRule: {
       enabled: { type: Boolean, default: false },
       allowedFurnishing: { type: [String], default: [] }, // Furnished/Semi-furnished/Unfurnished
@@ -325,6 +368,27 @@ const employeeSchema = new Schema<IEmployee>(
         default: {},
       },
     },
+    ownerVisibilityRules: {
+      all: {
+        enabled: { type: Boolean, default: false },
+        allowedInteriorStatus: { type: [String], default: [] }, // Furnished/Semi-furnished/Unfurnished
+        allowedPropertyType: { type: [String], default: [] }, // Studio/1 Bedroom/...
+        allowedPetStatus: { type: [String], default: [] }, // Allowed/Not Allowed/None
+      },
+      byLocation: {
+        type: Map,
+        of: new Schema(
+          {
+            enabled: { type: Boolean, default: false },
+            allowedInteriorStatus: { type: [String], default: [] },
+            allowedPropertyType: { type: [String], default: [] },
+            allowedPetStatus: { type: [String], default: [] },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
+    },
     guestLeadLocationBlock: {
       all: { type: [String], default: [] }, // if empty => allow all
       byLocation: {
@@ -338,6 +402,9 @@ const employeeSchema = new Schema<IEmployee>(
         ),
         default: {},
       },
+    },
+    ownerLocationBlock: {
+      all: { type: [String], default: [] }, // if empty => allow all
     },
     isLoggedIn: {
       type: Boolean,

@@ -147,6 +147,29 @@ export const employeeSchema = z.object({
     })
     .optional()
     .default({ all: { enabled: false, min: null, max: null }, byLocation: {} }),
+  ownerPricingRules: z
+    .object({
+      all: z
+        .object({
+          enabled: z.boolean().optional().default(false),
+          min: z.number().nullable().optional().default(null),
+          max: z.number().nullable().optional().default(null),
+        })
+        .optional()
+        .default({ enabled: false, min: null, max: null }),
+      byLocation: z
+        .record(
+          z.object({
+            enabled: z.boolean().optional().default(false),
+            min: z.number().nullable().optional().default(null),
+            max: z.number().nullable().optional().default(null),
+          }),
+        )
+        .optional()
+        .default({}),
+    })
+    .optional()
+    .default({ all: { enabled: false, min: null, max: null }, byLocation: {} }),
   propertyVisibilityRule: z
     .object({
       enabled: z.boolean().optional().default(false),
@@ -178,6 +201,44 @@ export const employeeSchema = z.object({
       all: { enabled: false, allowedFurnishing: [], allowedTypeOfProperty: [] },
       byLocation: {},
     }),
+  ownerVisibilityRules: z
+    .object({
+      all: z
+        .object({
+          enabled: z.boolean().optional().default(false),
+          allowedInteriorStatus: z.array(z.string()).optional().default([]),
+          allowedPropertyType: z.array(z.string()).optional().default([]),
+          allowedPetStatus: z.array(z.string()).optional().default([]),
+        })
+        .optional()
+        .default({
+          enabled: false,
+          allowedInteriorStatus: [],
+          allowedPropertyType: [],
+          allowedPetStatus: [],
+        }),
+      byLocation: z
+        .record(
+          z.object({
+            enabled: z.boolean().optional().default(false),
+            allowedInteriorStatus: z.array(z.string()).optional().default([]),
+            allowedPropertyType: z.array(z.string()).optional().default([]),
+            allowedPetStatus: z.array(z.string()).optional().default([]),
+          }),
+        )
+        .optional()
+        .default({}),
+    })
+    .optional()
+    .default({
+      all: {
+        enabled: false,
+        allowedInteriorStatus: [],
+        allowedPropertyType: [],
+        allowedPetStatus: [],
+      },
+      byLocation: {},
+    }),
   guestLeadLocationBlock: z
     .object({
       all: z.array(z.string()).optional().default([]),
@@ -192,6 +253,12 @@ export const employeeSchema = z.object({
     })
     .optional()
     .default({ all: [], byLocation: {} }),
+  ownerLocationBlock: z
+    .object({
+      all: z.array(z.string()).optional().default([]),
+    })
+    .optional()
+    .default({ all: [] }),
   sessionId: z.string().optional(),
   sessionStartedAt: z.number().optional(),
   tokenValidAfter: z.number().optional(),

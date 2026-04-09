@@ -32,6 +32,7 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { CustomDatePicker } from "@/components/CustomDatePicker";
 import { employeeSchema, EmployeeSchema } from "@/schemas/employee.schema";
 import { useAuthStore } from "@/AuthStore";
+import { ORGANIZATIONS } from "@/util/organizationConstants";
 
 const NewUser = () => {
   const { toast } = useToast();
@@ -219,10 +220,18 @@ const NewUser = () => {
     }
   }, [phone, setValue]);
 
+  // Enforce org restriction for HAdmin
+  useEffect(() => {
+    if (currentUserRole === "HAdmin") {
+      setValue("organization", "Holidaysera");
+    }
+  }, [currentUserRole, setValue]);
+
   const selectedArea = watch("allotedArea");
   const selectedRole = watch("role");
   const selectedGender = watch("gender");
   const selectedEmpType = watch("empType");
+  const selectedOrganization = watch("organization");
   const selectedCountry = watch("assignedCountry");
   const selectedCity = watch("allotedArea");
 
@@ -448,6 +457,43 @@ const NewUser = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label
+                      htmlFor="organization"
+                      className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                    >
+                      Organization *
+                    </Label>
+                    {currentUserRole === "HAdmin" ? (
+                      <div className="h-11 flex items-center rounded-md border border-slate-200 dark:border-slate-700 px-3 text-sm">
+                        Holidaysera
+                      </div>
+                    ) : (
+                      <Select
+                        onValueChange={(value) =>
+                          setValue("organization", value as (typeof ORGANIZATIONS)[number])
+                        }
+                        value={selectedOrganization}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Select organization" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORGANIZATIONS.map((org) => (
+                            <SelectItem key={org} value={org}>
+                              {org}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {errors.organization && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.organization.message as string}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
                       htmlFor="role"
                       className="text-sm font-medium text-slate-700 dark:text-slate-300"
                     >
@@ -462,6 +508,7 @@ const NewUser = () => {
                             | "HAdmin"
                             | "Advert"
                             | "Sales"
+                            | "hSale"
                             | "Content"
                             | "HR"
                         )
@@ -483,6 +530,10 @@ const NewUser = () => {
                         </SelectItem>
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
+                        {(selectedOrganization === "Holidaysera" ||
+                          currentUserRole === "HAdmin") && (
+                          <SelectItem value="hSale">hSale</SelectItem>
+                        )}
                         <SelectItem value="Sales-TeamLead">
                           Sales-TeamLead
                         </SelectItem>

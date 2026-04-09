@@ -53,7 +53,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const skip = (currentPage - 1) * 10;
 
     // Role-based access control
-    const allowedRoles: readonly string[] = ["SuperAdmin", "HR", "Admin", "Developer", "LeadGen-TeamLead", "Sales-TeamLead"];
+    const allowedRoles: readonly string[] = [
+      "SuperAdmin",
+      "HR",
+      "Admin",
+      "Developer",
+      "LeadGen-TeamLead",
+      "Sales-TeamLead",
+      "HAdmin",
+    ];
 
     if (!token || typeof token !== "object" || !("role" in token)) {
       return NextResponse.json(
@@ -81,6 +89,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // LeadGen-TeamLead can only see LeadGen employees
     if (userRole === "LeadGen-TeamLead") {
       allEmployees = (await Employees.find({ ...queryWithExclusion, role: "LeadGen" })
+        .sort({ _id: -1 })
+        .lean() as unknown) as EmployeeWithLock[];
+    }
+    // HAdmin can only see Holidaysera employees
+    else if (userRole === "HAdmin") {
+      allEmployees = (await Employees.find({
+        ...queryWithExclusion,
+        organization: "Holidaysera",
+      })
         .sort({ _id: -1 })
         .lean() as unknown) as EmployeeWithLock[];
     }
@@ -114,7 +131,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const totalEmployee: number = await Employees.countDocuments(excludeTestAccountFromCount(query));
+    const baseCountQuery = excludeTestAccountFromCount(query);
+    const totalEmployee: number =
+      userRole === "HAdmin"
+        ? await Employees.countDocuments({ ...baseCountQuery, organization: "Holidaysera" })
+        : await Employees.countDocuments(baseCountQuery);
 
     return NextResponse.json({ allEmployees, totalEmployee });
   } catch (error) {

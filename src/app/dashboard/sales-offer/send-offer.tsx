@@ -1,10 +1,14 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import AddressDetails from "./address-details";
 import { useSalesOfferStore } from "./useSalesOfferStore";
+import { useAuthStore } from "@/AuthStore";
+import axios from "@/util/axios";
 import {
   Select,
   SelectContent,
@@ -15,8 +19,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type AliasOption = {
+  _id: string;
+  aliasName: string;
+  aliasEmail: string;
+  status: string;
+  organization?: string;
+};
+
 export default function SendOffer() {
-  const { setField, platform } = useSalesOfferStore();
+  const { setField, platform, aliasId } = useSalesOfferStore();
+  const token = useAuthStore((s) => s.token);
+  const role = String(token?.role ?? "").trim();
+  const showAliasOverride = role === "HAdmin" || role === "SuperAdmin";
+
+  const [aliases, setAliases] = useState<AliasOption[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadAliases() {
+      if (!showAliasOverride) return;
+      const res = await axios.get("/api/alias/getAllAliases");
+      const items = (res.data?.aliases ?? []) as AliasOption[];
+      if (!mounted) return;
+      setAliases(items.filter((a) => String(a.status) === "Active"));
+    }
+    loadAliases().catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [showAliasOverride]);
+
+  const aliasLabel = useMemo(() => {
+    if (!aliasId) return "";
+    const a = aliases.find((x) => x._id === aliasId);
+    return a ? `${a.aliasName} (${a.aliasEmail})` : "";
+  }, [aliasId, aliases]);
 
   return (
     <div className=" border border-neutral-600 rounded-md p-2">
@@ -24,6 +62,32 @@ export default function SendOffer() {
 
       {/* Offer Details */}
       <div className=" grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-x-4">
+        {showAliasOverride && (
+          <div>
+            <Label htmlFor="alias">Send using alias</Label>
+            <Select
+              value={aliasId ?? ""}
+              onValueChange={(v) => setField("aliasId", v)}
+            >
+              <SelectTrigger id="alias">
+                <SelectValue placeholder="Select an alias">
+                  {aliasLabel || undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Aliases</SelectLabel>
+                  {aliases.map((a) => (
+                    <SelectItem key={a._id} value={a._id}>
+                      {a.aliasName} ({a.aliasEmail})
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Name */}
         <div>
           <Label htmlFor="name">Name</Label>

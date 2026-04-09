@@ -71,6 +71,7 @@ export interface EmployeeInterface {
   _id: string;
   name: string;
   email: string;
+  organization?: "VacationSaga" | "Holidaysera";
   profilePic: string;
   nationality: string;
   gender: string;
@@ -616,6 +617,8 @@ export interface TokenInterface {
 
 export interface SalesOfferInterface {
   phoneNumber: string;
+  leadId?: string;
+  aliasId?: string;
   leadStatus: string;
   note: string;
   name: string;
@@ -633,8 +636,8 @@ export interface SalesOfferInterface {
   expiryDate: Date | null;
   callBackDate: Date | null;
   callBackTime: string | null;
-  platform: "VacationSaga" | "TechTunes";
-  availableOn?: ("VacationSaga" | "TechTunes")[] | [];
+  platform: "VacationSaga" | "Holidaysera" | "TechTunes";
+  availableOn?: ("VacationSaga" | "Holidaysera" | "TechTunes")[] | [];
   setField: (field: keyof SalesOfferInterface, value: any) => void;
   resetForm: () => void;
 }
@@ -665,7 +668,8 @@ export interface AliasInterface {
   aliasEmail: string;
   aliasEmailPassword: string;
   status: "Active" | "Inactive";
-  assignedTo: string;
+  assignedTo: string; // employeeId (ObjectId string) OR legacy employeeEmail for old records
+  organization?: "VacationSaga" | "Holidaysera";
   createdAt: Date;
 }
 export interface RoomInterface {

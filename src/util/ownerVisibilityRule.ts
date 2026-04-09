@@ -18,7 +18,7 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function toExactRegexList(values: string[]): RegExp[] {
+function toExactRegexList(values: string[]): RegExp[] { 
   return values
     .map((v) => String(v).trim())
     .filter(Boolean)

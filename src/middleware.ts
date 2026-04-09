@@ -84,6 +84,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/notReplying",
     "/dashboard/compareLeads",
     "/dashboard/reviewLeads",
+    "/dashboard/propertyBoost/list",
+    /^\/dashboard\/propertyBoost\/list\/.*$/,
   ],
   Content: [
     "/",
@@ -177,10 +179,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/.*$/,
     /^\/property\/.*$/,
   ],
-  Agent: [
-    "/", 
-    "/dashboard/sales-offer",
-  ],
+  Agent: ["/", "/dashboard/sales-offer"],
   Guest: [
     "/",
     "/dashboard", // Dashboard access for Guest (limited view)
@@ -203,9 +202,17 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/sales-offer\/.*$/,
   ],
   "Sales(New)": [
-    "/", 
+    "/",
     "/dashboard", // Dashboard access for Sales(New)
     "/dashboard/lowBudget",
+  ],
+  hSale: [
+    "/",
+    "/dashboard",
+    "/holidaysera",
+    /^\/holidaysera(\/.*)?$/,
+    "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
   ],
   HAdmin: [
     "/",
@@ -216,6 +223,14 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createnewuser(\/.*)?$/,
     /^\/dashboard\/newproperty\/.*$/,
     "/dashboard/coupons",
+    "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
+    /^\/dashboard\/sales-offer\/send-offer\/.*$/,
+    // Employee + Alias management (Holidaysera-only enforced by APIs)
+    "/dashboard/employee",
+    /^\/dashboard\/employee\/.*$/,
+    "/dashboard/createnewEmployee",
+    "/dashboard/aliases",
   ],
 };
 
@@ -229,12 +244,13 @@ export const defaultRoutes: { [key: string]: string } = {
   Sales: "/dashboard", // Updated: Sales now goes to dashboard
   "Sales-TeamLead": "/dashboard", // Updated: Sales-TeamLead now goes to dashboard
   HR: "/dashboard",
-  Developer: "/dashboard",
+  Developer: "/dashboard",    
   Agent: "/dashboard/sales-offer",
   Guest: "/dashboard",
   Intern: "/dashboard",
   "Subscription-Sales": "/dashboard/sales-offer",
   "Sales(New)": "/dashboard/lowBudget",
+  hSale: "/dashboard/sales-offer",
   HAdmin: "/holidaysera",
   Default: "/dashboard",
 };
@@ -279,7 +295,7 @@ export async function middleware(request: NextRequest) {
       const token = request.cookies.get("token")?.value || "";
       const decodedToken = await jwtVerify(token, new TextEncoder().encode(process.env.TOKEN_SECRET as string));
       // console.log("decodedToken", decodedToken);
-      const role = decodedToken?.payload?.role as string;
+      const role = String((decodedToken?.payload as any)?.role ?? "").trim();
       const uiFlags = (decodedToken?.payload as any)?.uiFlags as
         | { hideGuestManagement?: boolean; hideOwnerManagement?: boolean }
         | undefined;
@@ -332,7 +348,7 @@ export async function middleware(request: NextRequest) {
         );
       }
 
-      if (!role || role.trim() === "") {
+      if (!role) {
         if (path !== "/norole") { 
           return NextResponse.redirect(new URL("/norole", request.url));
         }

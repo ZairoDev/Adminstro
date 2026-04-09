@@ -25,6 +25,7 @@ interface RequestBody {
   experience?: string;
   ifsc?: string;
   role?: string;
+  organization?: string;
   assignedCountry?: string;
   allotedArea?: string[];
   salary?: number;
@@ -83,6 +84,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.experience = updateFields.experience;
     if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
     if (updateFields.role) updateData.role = updateFields.role;
+    // Ensure hSale always remains Holidaysera organization
+    if (updateFields.role === "hSale") {
+      (updateData as any).organization = "Holidaysera";
+    }
     if (updateFields.assignedCountry)
       updateData.assignedCountry = updateFields.assignedCountry;
     if (updateFields.allotedArea)

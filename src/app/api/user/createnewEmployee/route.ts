@@ -69,6 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       phone,
       password,
       profilePic,
+      organization: requestedOrganization,
     } = parsedBody;
     const existingUser = await Employees.findOne({ email });
     if (existingUser) {
@@ -82,6 +83,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // const passwordExpiresAt = new Date();
     // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
+
+    const organization =
+      auth.role === "HAdmin"
+        ? "Holidaysera"
+        : role === "hSale"
+          ? "Holidaysera"
+          : requestedOrganization || "VacationSaga";
 
     const newUser = new Employees({
       name,
@@ -108,6 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // password: hashedPassword,
       password,
       profilePic,
+      organization,
       passwordExpiresAt: computePasswordExpiryDate(),
     });
     const createUser = await newUser.save();

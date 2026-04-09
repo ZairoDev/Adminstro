@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 import { EmployeeSchema } from "@/schemas/employee.schema";
+import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
 interface IEmployee extends Document, EmployeeSchema {
   pricingRule: {
@@ -8,6 +9,7 @@ interface IEmployee extends Document, EmployeeSchema {
     min: number | null;
     max: number | null;
   };
+  organization: (typeof ORGANIZATIONS)[number];
   pricingRules: {
     all: { enabled: boolean; min: number | null; max: number | null };
     byLocation: Record<string, { enabled: boolean; min: number | null; max: number | null }>;
@@ -58,6 +60,7 @@ export const employeeRoles = [
   "Admin",
   "Sales",
   "Sales-TeamLead",
+  "hSale",
   "Guest",
   "Intern",
   "Advert",
@@ -171,6 +174,7 @@ const employeeSchema = new Schema<IEmployee>(
         "LeadGen-TeamLead",
         "Content",
         "Sales",
+        "hSale",
         "Sales-TeamLead",
         "HR",
         "Developer",
@@ -179,6 +183,12 @@ const employeeSchema = new Schema<IEmployee>(
         "HAdmin",
       ],
       default: "Advert",
+    },
+    organization: {
+      type: String,
+      enum: [...ORGANIZATIONS],
+      required: true,
+      default: DEFAULT_ORGANIZATION,
     },
     duration: {
       type: String,

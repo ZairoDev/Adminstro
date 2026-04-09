@@ -13,11 +13,14 @@ export const useFetchOffers = () => {
   const getAllOffers = async (leadStatus: LeadStatus, page?: number) => {
     setIsPending(true);
     try {
-      const response = await axios.post("/api/sales-offer/fetchSalesOffer", {
-        leadStatus,
-        page,
+      const response = await axios.get("/api/offers", {
+        params: {
+          leadStatus,
+          page: page ?? 1,
+          pageSize: 10,
+        },
       });
-      setOffers(response.data.offers);
+      setOffers(response.data.items);
       setTotalPages(response.data.totalPages);
     } catch (err) {
       console.log("error in getting offers: ", err);

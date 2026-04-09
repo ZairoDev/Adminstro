@@ -4,6 +4,8 @@ import { SalesOfferInterface } from "@/util/type";
 
 export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   phoneNumber: "",
+  leadId: undefined,
+  aliasId: undefined,
   leadStatus: "",
   note: "-",
   name: "-",
@@ -27,6 +29,8 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   resetForm: () =>
     set({
       phoneNumber: "",
+      leadId: undefined,
+      aliasId: undefined,
       leadStatus: "",
       note: "-",
       name: "-",

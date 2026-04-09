@@ -49,6 +49,9 @@ import {
   Ticket,
   Globe,
   Activity,
+  User,
+  Plus,
+  Mail,
 } from "lucide-react";
 
 import {
@@ -194,6 +197,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/compareLeads",
       label: "Compare Leads",
       Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/propertyBoost/list",
+      label: "Property List",
+      Icon: <List size={18} />,
     },
   ],
   Admin: [
@@ -384,6 +392,16 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/leads",
+      label: "Leads",
+      Icon: <Target size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/leads/import",
+      label: "Import Leads",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+    {
       path: "/dashboard/sales-offer/send-offer",
       label: "Sent Offer",
       Icon: <BadgeEuro size={18} />,
@@ -527,7 +545,6 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Closed Leads",
       Icon: <CheckCheck size={18} />,
     },
-
   ],
   Sales: [
     {
@@ -774,6 +791,58 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <BadgeEuro size={18} />,
     },
   ],
+  hSale: [
+    {
+      path: "/holidaysera",
+      label: "HolidaySera",
+      Icon: <AiFillDashboard size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer",
+      label: "Sales Offer",
+      Icon: <ClipboardPaste size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/leads",
+      label: "Leads",
+      Icon: <Target size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/leads/import",
+      label: "Import Leads",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/send-offer",
+      label: "Sent Offer",
+      Icon: <BadgeEuro size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-connected",
+      label: "Not Connected",
+      Icon: <PhoneOff size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/not-interested",
+      label: "Not Interested",
+      Icon: <Frown size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/call-back",
+      label: "Call Back",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/language-barrier",
+      label: "Language Barrier",
+      Icon: <Languages size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklist",
+      label: "Blacklist Lead",
+      Icon: <ShieldAlert size={18} />,
+    },
+  ],
   Guest: [
     {
       path: "/dashboard/guest-window",
@@ -814,6 +883,16 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ClipboardPaste size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/leads",
+      label: "Leads",
+      Icon: <Target size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/leads/import",
+      label: "Import Leads",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+    {
       path: "/dashboard/sales-offer/send-offer",
       label: "Sent Offer",
       Icon: <BadgeEuro size={18} />,
@@ -842,6 +921,21 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer/blacklist",
       label: "Blacklist Lead",
       Icon: <ShieldAlert size={18} />,
+    },
+    {
+      path: "/dashboard/employee",
+      label: "Manage Employee",
+      Icon: <User size={18} />,
+    },
+    {
+      path: "/dashboard/createnewEmployee",
+      label: "Create Employee",
+      Icon: <Plus size={18} />,
+    },
+    {
+      path: "/dashboard/aliases",
+      label: "Aliases",
+      Icon: <Mail size={18} />,
     },
   ],
   "Subscription-Sales": [
@@ -1086,6 +1180,16 @@ const subscriptionsRoutes = [
     path: "/dashboard/sales-offer/send-offer",
     label: "Sent Offer",
     Icon: <BadgeEuro size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/leads",
+    label: "Leads",
+    Icon: <Target size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/leads/import",
+    label: "Import Leads",
+    Icon: <FileSpreadsheet size={18} />,
   },
 ];
 const InvoiceRoutes = [

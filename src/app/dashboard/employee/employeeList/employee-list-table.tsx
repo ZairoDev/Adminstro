@@ -31,6 +31,7 @@ import { UserInterface } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Utility function to check if HR user is viewing SuperAdmin account
@@ -165,6 +166,7 @@ export default function EmployeeListTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
             <TableHead>Passwords</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
@@ -206,6 +208,13 @@ export default function EmployeeListTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                {["SuperAdmin", "HR"].includes(role) && (
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {(employee as any).organization || "VacationSaga"}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="flex h-[70px] gap-x-2 my-auto items-center">
                   {isRestricted ? (
                     <div className="flex items-center gap-2 text-muted-foreground">

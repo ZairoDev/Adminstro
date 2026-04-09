@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { AliasInterface } from "@/util/type";
+import { ORGANIZATIONS } from "@/util/organizationConstants";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,8 +42,11 @@ import { useFetchAliases } from "@/hooks/alias/useFetchAliases";
 import { SelectLabel } from "@radix-ui/react-select";
 import { useDeleteAliases } from "@/hooks/alias/useDeleteAliases";
 import { useEditAliases } from "@/hooks/alias/useEditAliases";
+import { useAuthStore } from "@/AuthStore";
 
 export default function AliasManagement() {
+  const token = useAuthStore((s) => s.token);
+  const currentUserRole = token?.role || null;
   // Fetching all aliases
   const { aliases, setAliases, error, isPending } = useFetchAliases();
   // Fetching all employees
@@ -67,7 +71,8 @@ export default function AliasManagement() {
     aliasName: string;
     aliasEmail: string;
     aliasEmailPassword: string;
-    agentEmail: string;
+    employeeId: string;
+    organization: "VacationSaga" | "Holidaysera";
     status: "Active" | "Inactive";
   }>();
 
@@ -76,6 +81,11 @@ export default function AliasManagement() {
     const agent = employees.find((a) => a._id === agentId);
     return agent ? agent.name : "Unknown Agent";
   };
+
+  const visibleEmployees =
+    currentUserRole === "HAdmin"
+      ? employees.filter((e) => (e as any).organization === "Holidaysera")
+      : employees;
 
   // const getAgentEmail = (aliasEmail: string): string => {
   //   const agent = employees.find((a) => a.email === aliasEmail);
@@ -95,7 +105,7 @@ export default function AliasManagement() {
     const matchesSearch =
       alias.aliasEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       alias.aliasName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alias.assignedTo.toLowerCase().includes(searchTerm.toLowerCase());
+      String(alias.assignedTo).toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "All" || alias.status === statusFilter;
 
@@ -108,7 +118,8 @@ export default function AliasManagement() {
     reset({
       aliasName: "",
       aliasEmail: "",
-      agentEmail: "",
+      employeeId: "",
+      organization: "VacationSaga",
       status: "Inactive",
     });
     setIsModalOpen(true);
@@ -120,6 +131,7 @@ export default function AliasManagement() {
     setValue("aliasEmail", alias.aliasEmail);
     setValue("aliasEmailPassword", alias.aliasEmailPassword);
     setValue("status", alias.status);
+    setValue("organization", (alias.organization || "VacationSaga") as "VacationSaga" | "Holidaysera");
     setIsModalOpen(true);
   };
 
@@ -137,7 +149,8 @@ export default function AliasManagement() {
         aliasEmail: data.aliasEmail,
         aliasEmailPassword: data.aliasEmailPassword,
         status: data.status,
-        assignedTo: data.agentEmail,
+        assignedTo: data.employeeId,
+        organization: data.organization,
         createdAt: new Date(),
       };
       if (currentAlias) {
@@ -243,6 +256,9 @@ export default function AliasManagement() {
               <TableHead>Alias Name</TableHead>
               <TableHead>Alias Email</TableHead>
               <TableHead>Assigned Agent</TableHead>
+              {["SuperAdmin", "HR"].includes(String(currentUserRole)) && (
+                <TableHead>Organization</TableHead>
+              )}
               <TableHead>Status</TableHead>
               <TableHead>Created Date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -256,12 +272,15 @@ export default function AliasManagement() {
                   <TableCell className="font-medium">{alias.aliasEmail}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="text-sm text-muted-foreground">
-                        {/* {getAgentEmail(alias.aliasEmail)} */}
-                        {alias.assignedTo}
-                      </div>
+                      <div className="text-sm font-medium">{getAgentName(String(alias.assignedTo))}</div>
+                      <div className="text-sm text-muted-foreground">{String(alias.assignedTo)}</div>
                     </div>
                   </TableCell>
+                  {["SuperAdmin", "HR"].includes(String(currentUserRole)) && (
+                    <TableCell>
+                      <Badge variant="secondary">{alias.organization || "VacationSaga"}</Badge>
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Badge variant={alias.status === "Active" ? "default" : "secondary"}>
                       {alias.status === "Active" ? "Active" : "Inactive"}
@@ -360,28 +379,50 @@ export default function AliasManagement() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="agent">Assign to Agent</Label>
+                <Label htmlFor="organization">Organization</Label>
                 <Select
-                  onValueChange={(value) => setValue("agentEmail", value)}
-                  defaultValue={currentAlias?.aliasEmail}
+                  onValueChange={(value) =>
+                    setValue("organization", value as "VacationSaga" | "Holidaysera")
+                  }
+                  defaultValue={"VacationSaga"}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an agent" />
+                    <SelectValue placeholder="Select organization" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((agent) => (
-                      <SelectItem key={agent._id} value={agent.email}>
-                        {agent.name} ({agent.email})
+                    {ORGANIZATIONS.map((org) => (
+                      <SelectItem key={org} value={org}>
+                        {org}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <input
                   type="hidden"
-                  {...register("agentEmail", { required: "Agent is required" })}
+                  {...register("organization", { required: "Organization is required" })}
                 />
-                {errors.agentEmail && (
-                  <p className="text-sm text-red-500">{errors.agentEmail.message}</p>
+                {errors.organization && (
+                  <p className="text-sm text-red-500">{errors.organization.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="agent">Assign to Employee</Label>
+                <Select onValueChange={(value) => setValue("employeeId", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibleEmployees.map((agent) => (
+                      <SelectItem key={agent._id} value={agent._id}>
+                        {agent.name} ({agent.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input type="hidden" {...register("employeeId", { required: "Employee is required" })} />
+                {errors.employeeId && (
+                  <p className="text-sm text-red-500">{errors.employeeId.message}</p>
                 )}
               </div>
 

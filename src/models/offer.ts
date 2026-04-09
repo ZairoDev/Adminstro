@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
 const validLeadStatus = [
   "Not Interested",
@@ -11,6 +12,19 @@ const validLeadStatus = [
 ];
 
 const validReminders = ["Reminder 1", "Reminder 2", "Reminder 3", "Last Reminder"];
+
+const validOfferStatus = [
+  "Draft",
+  "Sent",
+  "offer_sent",
+  "Opened",
+  "Replied",
+  "Accepted",
+  "Rejected",
+  "Expired",
+] as const;
+
+const validLeadStages = ["pending", "assigned", "claimed", "converted", "rejected"] as const;
 
 const offerSchema: Schema = new Schema(
   {
@@ -114,21 +128,21 @@ const offerSchema: Schema = new Schema(
     },
     platform: {
       type: String,
-      enum: ["VacationSaga", "TechTunes"],
+      enum: ["VacationSaga", "Holidaysera", "TechTunes"],
       required: [true, "Atleast one platform is required for sending Offer"],
     },
     availableOn: {
-      type: ["VacationSaga", "TechTunes"],
+      type: ["VacationSaga", "Holidaysera", "TechTunes"],
       validate: {
         validator: function (value: string[]) {
           if (value.length === 0) {
             return true;
           }
-          const validValues = ["VacationSaga", "TechTunes"];
+          const validValues = ["VacationSaga", "Holidaysera", "TechTunes"];
           const isValid = value.every((v) => validValues.includes(v));
           return isValid;
         },
-        message: 'Array can only contain "VacationSaga" and/or "TechTunes"',
+        message: 'Array can only contain "VacationSaga" and/or "Holidaysera" and/or "TechTunes"',
       },
       default: [],
     },
@@ -143,10 +157,109 @@ const offerSchema: Schema = new Schema(
         aliasEmail: String,
       },
     },
+    organization: {
+      type: String,
+      enum: [...ORGANIZATIONS],
+      required: true,
+      default: DEFAULT_ORGANIZATION,
+      index: true,
+    },
+    leadStage: {
+      type: String,
+      enum: {
+        values: [...validLeadStages],
+        message: "{VALUE} is not a valid lead stage",
+      },
+      default: "pending",
+      index: true,
+    },
+    assignedTo: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: null,
+      index: true,
+    },
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
+    source: {
+      type: String,
+      enum: {
+        values: ["manual", "excel_import"],
+        message: "{VALUE} is not a valid source",
+      },
+      default: "manual",
+    },
+    uploadedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: null,
+    },
+    offerStatus: {
+      type: String,
+      enum: {
+        values: [...validOfferStatus],
+        message: "{VALUE} is not a valid offer status",
+      },
+      default: "Draft",
+      index: true,
+    },
+    selectedByAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    sentByEmployee: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      index: true,
+    },
+    aliasUsed: {
+      type: Schema.Types.ObjectId,
+      ref: "Aliases",
+    },
+    sentBySnapshot: {
+      type: {
+        name: String,
+        email: String,
+        aliasName: String,
+        aliasEmail: String,
+      },
+    },
+    emailContent: {
+      type: String,
+    },
+    emailSubject: {
+      type: String,
+    },
+    history: {
+      type: [
+        {
+          type: {
+            type: String,
+            enum: ["lead", "offer"],
+            required: true,
+          },
+          status: {
+            type: String,
+            required: true,
+          },
+          note: { type: String, default: "" },
+          updatedBy: { type: Schema.Types.ObjectId, ref: "Employees", required: true },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
   }
 );
+
+offerSchema.index({ leadStatus: 1, organization: 1 });
+offerSchema.index({ sentByEmployee: 1, organization: 1 });
+offerSchema.index({ leadStage: 1, organization: 1 });
+offerSchema.index({ assignedTo: 1, organization: 1 });
 
 export const Offer = mongoose.models.offer || mongoose.model("offer", offerSchema);

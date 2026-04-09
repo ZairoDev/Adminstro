@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
           ? true
           : false;
       onTT =
-        platform1 === "TechTunes" || (platform2 && platform2 === "TechTunes")
+        platform1 === "Holidaysera" ||
+        platform1 === "TechTunes" ||
+        (platform2 && (platform2 === "Holidaysera" || platform2 === "TechTunes"))
           ? true
           : false;
 

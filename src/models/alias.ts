@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { ORGANIZATIONS } from "@/util/organizationConstants";
 
 const aliasSchema = new Schema(
   {
@@ -21,8 +22,14 @@ const aliasSchema = new Schema(
         message: "Please select a valid status",
       },
     },
-    assignedTo: {
+    organization: {
       type: String,
+      enum: [...ORGANIZATIONS],
+      required: [true, "Organization is required"],
+    },
+    assignedTo: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
       required: [true, "Please select an agent"],
     },
   },

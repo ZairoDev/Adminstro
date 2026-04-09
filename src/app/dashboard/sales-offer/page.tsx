@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import axios from "@/util/axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Check, CircleX, RotateCw, Save } from "lucide-react";
@@ -30,6 +30,8 @@ import PlanDetails from "./plan-details";
 import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import { useRouter } from "next/navigation";
+import EmailPreview from "./email-preview";
+import { useAuthStore } from "@/AuthStore";
 
 const FormSchema = z.object({
   phone: z
@@ -44,14 +46,45 @@ type FormData = z.infer<typeof FormSchema>;
 const SalesOffer = () => {
   const { toast } = useToast();
   const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const role = String(token?.role ?? "").trim();
   const [showAvailability, setShowAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState({
-    TechTunes: false,
+    Holidaysera: false,
     VacationSaga: false,
   });
 
   const { leadStatus, setField, resetForm } = useSalesOfferStore();
   const [saveOfferLoading, setSaveOfferLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadLead() {
+      if (typeof window === "undefined") return;
+      const sp = new URLSearchParams(window.location.search);
+      const leadId = sp.get("leadId");
+      if (!leadId) return;
+
+      const res = await axios.get(`/api/offers/${leadId}`);
+      const lead = res.data?.offer as Partial<SalesOfferInterface> | undefined;
+      if (!lead || !mounted) return;
+
+      useSalesOfferStore.getState().setField("leadId", leadId);
+      if (lead.phoneNumber) useSalesOfferStore.getState().setField("phoneNumber", lead.phoneNumber);
+      if (lead.name) useSalesOfferStore.getState().setField("name", lead.name);
+      if (lead.email) useSalesOfferStore.getState().setField("email", lead.email);
+      if (lead.propertyUrl) useSalesOfferStore.getState().setField("propertyUrl", lead.propertyUrl);
+      if (lead.country) useSalesOfferStore.getState().setField("country", lead.country);
+      if (lead.city) useSalesOfferStore.getState().setField("city", lead.city);
+      if (lead.state) useSalesOfferStore.getState().setField("state", lead.state);
+      if (lead.propertyName) useSalesOfferStore.getState().setField("propertyName", lead.propertyName);
+      if (lead.relation) useSalesOfferStore.getState().setField("relation", lead.relation);
+    }
+    loadLead().catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Select Lead Status
   const leadStatusSelector = () => {
@@ -93,7 +126,7 @@ const SalesOffer = () => {
           <SelectContent>
             <SelectGroup>
               <SelectLabel>Platform</SelectLabel>
-              {["VacationSaga", "TechTunes"].map((status, index) => (
+              {["VacationSaga", "Holidaysera"].map((status, index) => (
                 <SelectItem
                   key={index}
                   value={status}
@@ -127,7 +160,7 @@ const SalesOffer = () => {
       });
       setIsAvailable((prev) => {
         const avail = { ...prev };
-        avail.TechTunes = !response.data.availableOnTT;
+        avail.Holidaysera = !response.data.availableOnTT;
         avail.VacationSaga = !response.data.availableOnVS;
         return avail;
       });
@@ -151,7 +184,7 @@ const SalesOffer = () => {
     // console.log("offer Data: ", offerData);
     let emptyFieldsCount = 0;
     let emptyFields = "";
-    const canBeEmptyField = ["discount", "expiryDate"];
+    const canBeEmptyField = ["discount", "expiryDate", "leadId", "aliasId"];
     for (const key in offerData) {
       if (
         (offerData[key as keyof SalesOfferInterface] == "" ||
@@ -174,7 +207,37 @@ const SalesOffer = () => {
 
     try {
       setSaveOfferLoading(true);
-      const response = await axios.post("/api/sales-offer/addSalesOffer", offerData);
+      if (offerData.leadStatus === "Send Offer") {
+        const orgFromPlatform =
+          offerData.platform === "VacationSaga" || offerData.platform === "Holidaysera"
+            ? offerData.platform
+            : undefined;
+        const payload = {
+          leadId: offerData.leadId,
+          aliasId: offerData.aliasId,
+          organization: role === "SuperAdmin" ? orgFromPlatform : undefined,
+          phoneNumber: offerData.phoneNumber,
+          leadStatus: offerData.leadStatus,
+          note: offerData.note,
+          name: offerData.name,
+          propertyName: offerData.propertyName,
+          relation: offerData.relation,
+          email: offerData.email,
+          propertyUrl: offerData.propertyUrl,
+          country: offerData.country,
+          state: offerData.state,
+          city: offerData.city,
+          plan: offerData.plan,
+          discount: offerData.discount,
+          effectivePrice: offerData.effectivePrice,
+          expiryDate: offerData.expiryDate,
+          services: offerData.services,
+          platform: offerData.platform,
+        };
+        await axios.post("/api/offers/send", payload);
+      } else {
+        await axios.post("/api/sales-offer/addSalesOffer", offerData);
+      }
       toast({
         title: "Success",
         description:
@@ -244,11 +307,13 @@ const SalesOffer = () => {
           <div>
             <div
               className={`flex items-center gap-x-2 text-sm font-semibold ${
-                isAvailable.TechTunes ? "text-green-600" : "text-red-600"
+                isAvailable.Holidaysera ? "text-green-600" : "text-red-600"
               }`}
             >
-              {isAvailable.TechTunes ? <Check size={16} /> : <CircleX size={16} />}
-              <p>{isAvailable.TechTunes ? "Fresh Lead" : "Used Lead"} for Tech Tunes</p>
+              {isAvailable.Holidaysera ? <Check size={16} /> : <CircleX size={16} />}
+              <p>
+                {isAvailable.Holidaysera ? "Fresh Lead" : "Used Lead"} for Holidaysera
+              </p>
             </div>
             <div
               className={`flex items-center gap-x-2 text-sm font-semibold ${
@@ -266,7 +331,7 @@ const SalesOffer = () => {
 
       <div className=" flex gap-x-4 items-center">
         {platformSelector()}
-        {(isAvailable.VacationSaga || isAvailable.TechTunes) && leadStatusSelector()}
+        {(isAvailable.VacationSaga || isAvailable.Holidaysera) && leadStatusSelector()}
         {leadStatus && leadStatus != "Send Offer" && (
           <Textarea
             placeholder="Enter the reason"
@@ -276,6 +341,7 @@ const SalesOffer = () => {
       </div>
       <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
       <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
+      <div>{leadStatus === "Send Offer" && <EmailPreview />}</div>
 
       <div className={`flex gap-x-4 mx-auto`}>
         <Button onClick={resetForm}>

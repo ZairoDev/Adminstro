@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/models/employee";
 import { ToggleButton } from "@/components/toggle_button";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 /** Employee row may include pips from API */
 type EmployeeRow = UserInterface & {
@@ -152,6 +153,11 @@ export default function EmployeeTable({
 
   return (
     <div className=" w-full mt-2">
+      {/*
+        Organization visibility rules:
+        - SuperAdmin / HR can see org badge column.
+        - HAdmin only sees Holidaysera employees anyway (API enforced).
+      */}
       <div className=" flex justify-between">
         <div className=" flex gap-x-2">
           {/* Search Type */}
@@ -254,6 +260,7 @@ export default function EmployeeTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Passwords</TableHead>
             <TableHead>Actions </TableHead>
@@ -318,6 +325,13 @@ export default function EmployeeTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                {["SuperAdmin", "HR"].includes(role) && (
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {(employee as any).organization || "VacationSaga"}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell>
                   {hasOverdueActivePIP(employee) && employee.isLocked ? (
                     <div

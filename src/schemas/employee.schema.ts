@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ORGANIZATIONS } from "@/util/organizationConstants";
 
 export const employeeSchema = z.object({
   name: z.string().min(1, "Please enter your name"),
@@ -13,7 +14,9 @@ export const employeeSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
   aadhar: z.string().min(1, "Please enter your Aadhar number"),
   dateOfJoining: z.date(),
-  dateOfBirth: z.date(),
+  // Optional because the current create-employee UI does not always collect DOB.
+  // Stored as null in DB when omitted.
+  dateOfBirth: z.date().nullable().optional().default(null),
   experience: z.number().optional().default(0),
   alias: z.string().optional(),
   country: z.string().min(1, "Please enter your country"),
@@ -28,6 +31,7 @@ export const employeeSchema = z.object({
     "LeadGen-TeamLead",
     "Sales",
     "Sales-TeamLead",
+    "hSale",
     "HR",
     "Guest",
     "Developer",
@@ -45,6 +49,7 @@ export const employeeSchema = z.object({
   inactiveDate: z.date().nullable().optional().default(null),
   isLocked: z.boolean().optional().default(false),
   isfeatured: z.boolean().optional().default(false),
+  organization: z.enum(ORGANIZATIONS).optional().default("VacationSaga"),
   passwordExpiresAt: z.date().optional(),
   extras: z
     .record(

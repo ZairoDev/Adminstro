@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import AddressDetails from "./address-details";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import { useAuthStore } from "@/AuthStore";
+import { useOrgSelectionStore } from "./useOrgSelectionStore";
 import axios from "@/util/axios";
 import {
   Select,
@@ -30,6 +31,7 @@ type AliasOption = {
 export default function SendOffer() {
   const { setField, platform, aliasId } = useSalesOfferStore();
   const token = useAuthStore((s) => s.token);
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const role = String(token?.role ?? "").trim();
   const showAliasOverride = role === "HAdmin" || role === "SuperAdmin";
 
@@ -42,13 +44,19 @@ export default function SendOffer() {
       const res = await axios.get("/api/alias/getAllAliases");
       const items = (res.data?.aliases ?? []) as AliasOption[];
       if (!mounted) return;
-      setAliases(items.filter((a) => String(a.status) === "Active"));
+      setAliases(
+        items.filter(
+          (a) =>
+            String(a.status) === "Active" &&
+            (!selectedOrg || !a.organization || a.organization === selectedOrg),
+        ),
+      );
     }
     loadAliases().catch(() => {});
     return () => {
       mounted = false;
     };
-  }, [showAliasOverride]);
+  }, [showAliasOverride, selectedOrg]);
 
   const aliasLabel = useMemo(() => {
     if (!aliasId) return "";

@@ -1,8 +1,9 @@
 import axios from "@/util/axios";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { SalesOfferInterface } from "@/util/type";
 import { LeadStatus } from "@/app/dashboard/sales-offer/sales-offer-utils";
+import type { Organization } from "@/util/organizationConstants";
 
 export const useFetchOffers = () => {
   const [offers, setOffers] = useState<SalesOfferInterface[]>([]);
@@ -10,25 +11,36 @@ export const useFetchOffers = () => {
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
 
-  const getAllOffers = async (leadStatus: LeadStatus, page?: number) => {
-    setIsPending(true);
-    try {
-      const response = await axios.get("/api/offers", {
-        params: {
-          leadStatus,
+  /**
+   * @param leadStatus - omit or pass `null` for "All" (no leadStatus filter)
+   */
+  const getAllOffers = useCallback(
+    async (
+      leadStatus: LeadStatus | null,
+      page?: number,
+      organization?: Organization | null,
+    ) => {
+      setIsPending(true);
+      try {
+        const params: Record<string, string | number> = {
           page: page ?? 1,
           pageSize: 10,
-        },
-      });
-      setOffers(response.data.items);
-      setTotalPages(response.data.totalPages);
-    } catch (err) {
-      console.log("error in getting offers: ", err);
-      setError(err as string);
-    } finally {
-      setIsPending(false);
-    }
-  };
+        };
+        if (leadStatus) params.leadStatus = leadStatus;
+        if (organization) params.organization = organization;
+
+        const response = await axios.get("/api/offers", { params });
+        setOffers(response.data.items);
+        setTotalPages(response.data.totalPages);
+      } catch (err) {
+        console.log("error in getting offers: ", err);  
+        setError(err as string);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [],
+  );
 
   return { offers, setOffers, getAllOffers, totalPages, error, isPending };
 };

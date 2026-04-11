@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { useOrgSelectionStore } from "../../useOrgSelectionStore";
+
 type PreviewRow = Record<string, unknown>;
 
 export default function ImportLeadsPage() {
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -55,6 +58,7 @@ export default function ImportLeadsPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      if (selectedOrg) fd.append("organization", selectedOrg);
       const res = await axios.post("/api/leads/import", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -70,7 +74,8 @@ export default function ImportLeadsPage() {
         <div>
           <div className="text-2xl font-semibold">Import Leads</div>
           <div className="text-sm text-muted-foreground">
-            Upload CSV/XLSX to create pending leads in the Offer collection.
+            Upload CSV/XLSX to create pending leads in the Offer collection
+            {selectedOrg ? ` for ${selectedOrg}` : ""}.
           </div>
         </div>
         <a className="text-sm underline" href="/dashboard/sales-offer/leads">

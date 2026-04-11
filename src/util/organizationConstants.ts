@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ORGANIZATIONS = ["VacationSaga", "Holidaysera"] as const;
+export const ORGANIZATIONS = ["VacationSaga", "Holidaysera", "HousingSaga"] as const;
 export type Organization = (typeof ORGANIZATIONS)[number];
 
 export const OrganizationZod = z.enum(ORGANIZATIONS);

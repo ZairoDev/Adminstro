@@ -45,14 +45,32 @@ export async function POST(req: NextRequest) {
     await connectDb();
 
     const employee = await Employees.findById(employeeId).select("organization").lean();
-    const orgRaw = employee ? String((employee as any).organization ?? "") : "";
-    const orgParsed = OrganizationZod.safeParse(orgRaw);
-    if (!orgParsed.success) {
-      return NextResponse.json({ error: "Organization is required" }, { status: 400 });
-    }
-    const organization = orgParsed.data as Organization;
+    const employeeOrgRaw = employee ? String((employee as any).organization ?? "") : "";
 
     const formData = await req.formData();
+    const organizationField = formData.get("organization");
+    const organizationFromForm =
+      typeof organizationField === "string" ? organizationField.trim() : "";
+
+    let organization: Organization;
+    const fromEmployee = OrganizationZod.safeParse(employeeOrgRaw);
+    const fromForm = OrganizationZod.safeParse(organizationFromForm);
+
+    if (role === "SuperAdmin") {
+      if (fromForm.success) {
+        organization = fromForm.data;
+      } else if (fromEmployee.success) {
+        organization = fromEmployee.data;
+      } else {
+        return NextResponse.json({ error: "Organization is required" }, { status: 400 });
+      }
+    } else {
+      if (!fromEmployee.success) {
+        return NextResponse.json({ error: "Organization is required" }, { status: 400 });
+      }
+      organization = fromEmployee.data;
+    }
+
     const file = formData.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 

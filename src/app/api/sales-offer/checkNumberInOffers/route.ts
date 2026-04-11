@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     if (existingPhone.length > 0) {
       let onVS = false;
       let onTT = false;
+      let onHS = false;
       const platform1 = existingPhone[0]?.platform;
       const platform2 = existingPhone[1]?.platform;
 
@@ -29,14 +30,21 @@ export async function POST(req: NextRequest) {
         (platform2 && (platform2 === "Holidaysera" || platform2 === "TechTunes"))
           ? true
           : false;
+      onHS =
+        platform1 === "HousingSaga" || (platform2 && platform2 === "HousingSaga")
+          ? true
+          : false;
 
       return NextResponse.json(
-        { availableOnVS: onVS, availableOnTT: onTT },
-        { status: 200 }
+        { availableOnVS: onVS, availableOnTT: onTT, availableOnHS: onHS },
+        { status: 200 },
       );
     }
 
-    return NextResponse.json({ isAvailable: false }, { status: 200 });
+    return NextResponse.json(
+      { availableOnVS: false, availableOnTT: false, availableOnHS: false },
+      { status: 200 },
+    );
   } catch (err: unknown) {
     const error = err as { status?: number; code?: string; message?: string };
     if (error?.status) {

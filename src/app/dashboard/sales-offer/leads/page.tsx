@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { useOrgSelectionStore } from "../useOrgSelectionStore";
+
 type OfferLead = {
   _id: string;
   name: string;
@@ -45,10 +47,12 @@ async function fetchLeads(params: {
   leadStage?: string;
   mine?: boolean;
   page?: number;
+  organization?: string;
 }) {
   const sp = new URLSearchParams();
   if (params.leadStage) sp.set("leadStage", params.leadStage);
   if (params.mine) sp.set("mine", "true");
+  if (params.organization) sp.set("organization", params.organization);
   sp.set("page", String(params.page ?? 1));
   sp.set("pageSize", "20");
   const res = await axios.get(`/api/leads/list?${sp.toString()}`);
@@ -59,6 +63,7 @@ export default function LeadsDashboardPage() {
   const token = useAuthStore((s) => s.token);
   const role = String(token?.role ?? "").trim();
   const isAdmin = role === "SuperAdmin" || role === "HAdmin" || role === "Admin";
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
 
   const [tab, setTab] = useState<"pending" | "assigned" | "mine">("pending");
   const [items, setItems] = useState<OfferLead[]>([]);
@@ -80,10 +85,11 @@ export default function LeadsDashboardPage() {
     async function load() {
       setLoading(true);
       try {
+        const org = selectedOrg ?? undefined;
         const res =
           tab === "mine"
-            ? await fetchLeads({ mine: true, page })
-            : await fetchLeads({ leadStage: tab, page });
+            ? await fetchLeads({ mine: true, page, organization: org })
+            : await fetchLeads({ leadStage: tab, page, organization: org });
         if (!mounted) return;
         setItems(Array.isArray(res.items) ? res.items : []);
         setTotalPages(Number(res.totalPages ?? 1) || 1);
@@ -96,7 +102,7 @@ export default function LeadsDashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [tab, page]);
+  }, [tab, page, selectedOrg]);
 
   useEffect(() => {
     let mounted = true;
@@ -115,7 +121,11 @@ export default function LeadsDashboardPage() {
 
   async function claimLead(leadId: string) {
     await axios.post("/api/leads/claim", { leadId });
-    const res = await fetchLeads({ leadStage: "pending", page: 1 });
+    const res = await fetchLeads({
+      leadStage: "pending",
+      page: 1,
+      organization: selectedOrg ?? undefined,
+    });
     setTab("pending");
     setPage(1);
     setItems(res.items);
@@ -125,7 +135,11 @@ export default function LeadsDashboardPage() {
   async function assignLeads() {
     if (!assignEmployeeId || selectedIds.length === 0) return;
     await axios.patch("/api/leads/assign", { leadIds: selectedIds, employeeId: assignEmployeeId });
-    const res = await fetchLeads({ leadStage: "assigned", page: 1 });
+    const res = await fetchLeads({
+      leadStage: "assigned",
+      page: 1,
+      organization: selectedOrg ?? undefined,
+    });
     setTab("assigned");
     setPage(1);
     setItems(res.items);

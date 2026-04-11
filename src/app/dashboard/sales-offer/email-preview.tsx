@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "@/util/axios";
 import { renderTemplate } from "@/util/templateEngine";
 import { useSalesOfferStore } from "./useSalesOfferStore";
+import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
 type ActiveTemplate = {
   _id: string;
@@ -30,6 +31,7 @@ type AliasOption = {
 
 export default function EmailPreview() {
   const offer = useSalesOfferStore();
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const [template, setTemplate] = useState<ActiveTemplate | null>(null);
   const [alias, setAlias] = useState<CurrentAlias | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,8 @@ export default function EmailPreview() {
     async function load() {
       setLoading(true);
       try {
-        const tRes = await axios.get("/api/templates?activeOnly=true");
+        const orgParam = selectedOrg ? `&organization=${encodeURIComponent(selectedOrg)}` : "";
+        const tRes = await axios.get(`/api/templates?activeOnly=true${orgParam}`);
         const t0 = (tRes.data?.templates?.[0] ?? null) as ActiveTemplate | null;
         let a0: CurrentAlias | null = null;
 
@@ -72,7 +75,7 @@ export default function EmailPreview() {
     return () => {
       mounted = false;
     };
-  }, [offer.aliasId]);
+  }, [offer.aliasId, selectedOrg]);
 
   const subject = useMemo(() => {
     const planText = typeof offer.plan === "string" ? offer.plan : "";

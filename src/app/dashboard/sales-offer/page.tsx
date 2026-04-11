@@ -29,9 +29,8 @@ import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
 import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
-import { useRouter } from "next/navigation";
 import EmailPreview from "./email-preview";
-import { useAuthStore } from "@/AuthStore";
+import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
 const FormSchema = z.object({
   phone: z
@@ -45,17 +44,22 @@ type FormData = z.infer<typeof FormSchema>;
 
 const SalesOffer = () => {
   const { toast } = useToast();
-  const router = useRouter();
-  const token = useAuthStore((s) => s.token);
-  const role = String(token?.role ?? "").trim();
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const [showAvailability, setShowAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState({
     Holidaysera: false,
     VacationSaga: false,
+    HousingSaga: false,
   });
 
   const { leadStatus, setField, resetForm } = useSalesOfferStore();
   const [saveOfferLoading, setSaveOfferLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedOrg) return;
+    setField("platform", selectedOrg);
+    setField("availableOn", [selectedOrg]);
+  }, [selectedOrg, setField]);
 
   useEffect(() => {
     let mounted = true;
@@ -110,38 +114,6 @@ const SalesOffer = () => {
     );
   };
 
-  const platformSelector = () => {
-    return (
-      <div>
-        <Label htmlFor="platform">Select Platform</Label>
-        <Select
-          onValueChange={(value) => {
-            setField("availableOn", value);
-            setField("platform", value);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select Platform" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Platform</SelectLabel>
-              {["VacationSaga", "Holidaysera"].map((status, index) => (
-                <SelectItem
-                  key={index}
-                  value={status}
-                  disabled={!isAvailable[status as keyof typeof isAvailable]}
-                >
-                  <div>{status}</div>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  };
-
   const {
     control,
     handleSubmit,
@@ -162,6 +134,7 @@ const SalesOffer = () => {
         const avail = { ...prev };
         avail.Holidaysera = !response.data.availableOnTT;
         avail.VacationSaga = !response.data.availableOnVS;
+        avail.HousingSaga = !response.data.availableOnHS;
         return avail;
       });
       setShowAvailability(true);
@@ -208,14 +181,17 @@ const SalesOffer = () => {
     try {
       setSaveOfferLoading(true);
       if (offerData.leadStatus === "Send Offer") {
-        const orgFromPlatform =
-          offerData.platform === "VacationSaga" || offerData.platform === "Holidaysera"
+        const orgForSend =
+          selectedOrg ??
+          (offerData.platform === "VacationSaga" ||
+          offerData.platform === "Holidaysera" ||
+          offerData.platform === "HousingSaga"
             ? offerData.platform
-            : undefined;
+            : undefined);
         const payload = {
           leadId: offerData.leadId,
           aliasId: offerData.aliasId,
-          organization: role === "SuperAdmin" ? orgFromPlatform : undefined,
+          organization: orgForSend,
           phoneNumber: offerData.phoneNumber,
           leadStatus: offerData.leadStatus,
           note: offerData.note,
@@ -303,26 +279,37 @@ const SalesOffer = () => {
           </div>
         </div>
         {/* Availability */}
-        {showAvailability && (
+        {showAvailability && selectedOrg && (
           <div>
             <div
               className={`flex items-center gap-x-2 text-sm font-semibold ${
-                isAvailable.Holidaysera ? "text-green-600" : "text-red-600"
+                (selectedOrg === "VacationSaga"
+                  ? isAvailable.VacationSaga
+                  : selectedOrg === "Holidaysera"
+                    ? isAvailable.Holidaysera
+                    : isAvailable.HousingSaga)
+                  ? "text-green-600"
+                  : "text-red-600"
               }`}
             >
-              {isAvailable.Holidaysera ? <Check size={16} /> : <CircleX size={16} />}
+              {(selectedOrg === "VacationSaga"
+                ? isAvailable.VacationSaga
+                : selectedOrg === "Holidaysera"
+                  ? isAvailable.Holidaysera
+                  : isAvailable.HousingSaga) ? (
+                <Check size={16} />
+              ) : (
+                <CircleX size={16} />
+              )}
               <p>
-                {isAvailable.Holidaysera ? "Fresh Lead" : "Used Lead"} for Holidaysera
-              </p>
-            </div>
-            <div
-              className={`flex items-center gap-x-2 text-sm font-semibold ${
-                isAvailable.VacationSaga ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {isAvailable.VacationSaga ? <Check size={16} /> : <CircleX size={16} />}
-              <p>
-                {isAvailable.VacationSaga ? "Fresh Lead" : "Used Lead"} for Vacation saga
+                {(selectedOrg === "VacationSaga"
+                  ? isAvailable.VacationSaga
+                  : selectedOrg === "Holidaysera"
+                    ? isAvailable.Holidaysera
+                    : isAvailable.HousingSaga)
+                  ? "Fresh Lead"
+                  : "Used Lead"}{" "}
+                for {selectedOrg}
               </p>
             </div>
           </div>
@@ -330,8 +317,7 @@ const SalesOffer = () => {
       </form>
 
       <div className=" flex gap-x-4 items-center">
-        {platformSelector()}
-        {(isAvailable.VacationSaga || isAvailable.Holidaysera) && leadStatusSelector()}
+        {showAvailability && leadStatusSelector()}
         {leadStatus && leadStatus != "Send Offer" && (
           <Textarea
             placeholder="Enter the reason"

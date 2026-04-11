@@ -33,7 +33,7 @@ const BodySchema = z.object({
 
   // existing fields
   services: z.string().optional().default(""),
-  platform: z.enum(["VacationSaga", "Holidaysera", "TechTunes"]),
+  platform: z.enum(["VacationSaga", "Holidaysera", "HousingSaga", "TechTunes"]),
 });
 
 export async function POST(req: NextRequest) {

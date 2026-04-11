@@ -128,21 +128,22 @@ const offerSchema: Schema = new Schema(
     },
     platform: {
       type: String,
-      enum: ["VacationSaga", "Holidaysera", "TechTunes"],
+      enum: ["VacationSaga", "Holidaysera", "HousingSaga", "TechTunes"],
       required: [true, "Atleast one platform is required for sending Offer"],
     },
     availableOn: {
-      type: ["VacationSaga", "Holidaysera", "TechTunes"],
+      type: ["VacationSaga", "Holidaysera", "HousingSaga", "TechTunes"],
       validate: {
         validator: function (value: string[]) {
           if (value.length === 0) {
             return true;
           }
-          const validValues = ["VacationSaga", "Holidaysera", "TechTunes"];
+          const validValues = ["VacationSaga", "Holidaysera", "HousingSaga", "TechTunes"];
           const isValid = value.every((v) => validValues.includes(v));
           return isValid;
         },
-        message: 'Array can only contain "VacationSaga" and/or "Holidaysera" and/or "TechTunes"',
+        message:
+          'Array can only contain "VacationSaga" and/or "Holidaysera" and/or "HousingSaga" and/or "TechTunes"',
       },
       default: [],
     },

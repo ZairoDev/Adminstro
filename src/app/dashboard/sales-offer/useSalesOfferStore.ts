@@ -27,7 +27,7 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   platform: "TechTunes",
   setField: (field, value) => set((state) => ({ ...state, [field]: value })),
   resetForm: () =>
-    set({
+    set((state) => ({
       phoneNumber: "",
       leadId: undefined,
       aliasId: undefined,
@@ -48,7 +48,8 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
       expiryDate: null,
       callBackDate: null,
       callBackTime: null,
-      availableOn: [],
-      platform: "VacationSaga",
-    }),
+      // Keep org context (synced from layout org selector)
+      availableOn: state.availableOn,
+      platform: state.platform,
+    })),
 }));

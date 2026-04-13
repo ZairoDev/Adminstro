@@ -148,6 +148,11 @@ export interface EmployeeInterface {
   };
   ownerLocationBlock?: {
     all?: string[];
+    byLocation?: Record<string, { blocked?: string[] }>;
+  };
+  ownerPropertyTypeVisibilityRules?: {
+    all?: { enabled?: boolean; allowedPropertyType?: string[] };
+    byLocation?: Record<string, { enabled?: boolean; allowedPropertyType?: string[] }>;
   };
   sessionId?: string;
   sessionStartedAt?: number;

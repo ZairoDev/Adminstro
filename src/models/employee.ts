@@ -53,6 +53,11 @@ interface IEmployee extends Document, EmployeeSchema {
   };
   ownerLocationBlock: {
     all: string[];
+    byLocation: Record<string, { blocked: string[] }>;
+  };
+  ownerPropertyTypeVisibilityRules: {
+    all: { enabled: boolean; allowedPropertyType: string[] };
+    byLocation: Record<string, { enabled: boolean; allowedPropertyType: string[] }>;
   };
 }
 export const employeeRoles = [
@@ -415,6 +420,34 @@ const employeeSchema = new Schema<IEmployee>(
     },
     ownerLocationBlock: {
       all: { type: [String], default: [] }, // if empty => allow all
+      byLocation: {
+        // reserved for future; keep structure consistent with other rule objects
+        type: Map,
+        of: new Schema(
+          {
+            blocked: { type: [String], default: [] },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
+    },
+    ownerPropertyTypeVisibilityRules: {
+      all: {
+        enabled: { type: Boolean, default: false },
+        allowedPropertyType: { type: [String], default: [] },
+      },
+      byLocation: {
+        type: Map,
+        of: new Schema(
+          {
+            enabled: { type: Boolean, default: false },
+            allowedPropertyType: { type: [String], default: [] },
+          },
+          { _id: false },
+        ),
+        default: {},
+      },
     },
     isLoggedIn: {
       type: Boolean,

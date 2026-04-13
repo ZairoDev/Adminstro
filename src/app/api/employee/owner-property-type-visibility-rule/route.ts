@@ -10,7 +10,7 @@ function ensureHrOrSuperAdmin(role: unknown) {
   const r = String(role || "");
   if (r !== "HR" && r !== "SuperAdmin") {
     return NextResponse.json(
-      { error: "Unauthorized. Only HR/SuperAdmin can set owner location blocks." },
+      { error: "Unauthorized. Only HR/SuperAdmin can set owner visibility rules." },
       { status: 403 },
     );
   }
@@ -26,26 +26,29 @@ export async function PUT(request: NextRequest) {
     await connectDb();
     const body = await request.json();
     const employeeId = String(body?.employeeId || "").trim();
-    const blockedRaw = Array.isArray(body?.blockedLocations) ? body.blockedLocations : [];
+    const location = String(body?.location || "All").trim() || "All";
+    const enabled = Boolean(body?.enabled);
+    const allowedRaw = Array.isArray(body?.allowedPropertyType) ? body.allowedPropertyType : [];
 
     if (!employeeId) {
       return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
     }
 
-    const blockedLocations = Array.from(
-      new Set(
-        blockedRaw
-          .map((x: any) => String(x).trim())
-          .filter(Boolean)
-          .map((x: string) => x.toLowerCase()),
-      ),
+    const allowedPropertyType = Array.from(
+      new Set(allowedRaw.map((x: any) => String(x).trim()).filter(Boolean)),
     );
+
+    const locKey = location === "All" ? "All" : location.toLowerCase();
+    const targetPath =
+      location === "All"
+        ? "ownerPropertyTypeVisibilityRules.all"
+        : `ownerPropertyTypeVisibilityRules.byLocation.${locKey}`;
 
     const updated = await Employees.findByIdAndUpdate(
       employeeId,
-      { $set: { "ownerLocationBlock.all": blockedLocations } },
+      { $set: { [targetPath]: { enabled, allowedPropertyType } } },
       { new: true },
-    ).select("_id ownerLocationBlock name email isActive allotedArea");
+    ).select("_id ownerPropertyTypeVisibilityRules name email isActive allotedArea");
 
     if (!updated) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
@@ -60,9 +63,9 @@ export async function PUT(request: NextRequest) {
         { status: err.status || 401 },
       );
     }
-    console.error("owner-location-block PUT error:", error);
+    console.error("owner-property-type-visibility-rule PUT error:", error);
     return NextResponse.json(
-      { error: err?.message || "Failed to update owner location blocks" },
+      { error: err?.message || "Failed to update owner visibility rule" },
       { status: 500 },
     );
   }

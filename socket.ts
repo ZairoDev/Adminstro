@@ -33,12 +33,21 @@ app.prepare().then(() => {
   // ✅ Socket.IO setup
   const io = new Server(httpServer, {
     cors: {
-      origin: [
-        process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://adminstro.in",
-        "https://www.adminstro.in",
-      ],
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        const staticAllowed = [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "https://adminstro.in",
+          "https://www.adminstro.in",
+          process.env.NEXT_PUBLIC_SITE_URL,
+        ].filter(Boolean) as string[];
+        const ok =
+          !origin ||
+          staticAllowed.includes(origin) ||
+          /\.devtunnels\.ms$/.test(origin) ||
+          /\.ngrok/.test(origin);
+        callback(null, ok);
+      },
       methods: ["GET", "POST"],
       credentials: true,
     },

@@ -50,8 +50,26 @@ export const TemplateDialog = memo(function TemplateDialog({
     [selectedTemplate]
   );
 
+  // A parameter is "missing" if it's required (template has it) but empty/blank.
+  const missingParams = useMemo(
+    () =>
+      params.filter((p) => {
+        const val = templateParams[`${p.type}_${p.index}`];
+        return !val || val.trim() === "";
+      }),
+    [params, templateParams]
+  );
+
+  const canSend = selectedTemplate && !sendingMessage && missingParams.length === 0;
+
   const approvedTemplates = useMemo(
-    () => templates.filter((t) => t.status === "APPROVED"),
+    () => {
+      const approved = templates.filter(
+        (t) => String(t.status || "").trim().toUpperCase() === "APPROVED",
+      );
+      // If Meta returns unexpected status casing, don't hide everything.
+      return approved.length ? approved : templates;
+    },
     [templates]
   );
 
@@ -231,38 +249,58 @@ export const TemplateDialog = memo(function TemplateDialog({
                     {params.length} required
                   </span>
                 </div>
-                {params.map((param) => (
-                  <div key={`${param.type}_${param.index}`} className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-[#667781] dark:text-[#8696a0] flex items-center gap-2">
-                      <span className="bg-white dark:bg-[#2a3942] px-2 py-0.5 rounded text-[11px] border border-[#e9edef] dark:border-[#374045]">
-                        {`{{${param.index}}}`}
-                      </span>
-                      <span className="truncate">{param.text || `Parameter ${param.index}`}</span>
-                    </label>
-                    <Input
-                      placeholder="Enter value..."
-                      value={templateParams[`${param.type}_${param.index}`] || ""}
-                      onChange={(e) =>
-                        onTemplateParamsChange({
-                          ...templateParams,
-                          [`${param.type}_${param.index}`]: e.target.value,
-                        })
-                      }
-                      className="h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg"
-                    />
-                  </div>
-                ))}
+                {params.map((param) => {
+                  const paramKey = `${param.type}_${param.index}`;
+                  const val = templateParams[paramKey] || "";
+                  const isEmpty = val.trim() === "";
+                  return (
+                    <div key={paramKey} className="space-y-1.5">
+                      <label className="text-[12px] font-medium text-[#667781] dark:text-[#8696a0] flex items-center gap-2">
+                        <span className="bg-white dark:bg-[#2a3942] px-2 py-0.5 rounded text-[11px] border border-[#e9edef] dark:border-[#374045]">
+                          {`{{${param.index}}}`}
+                        </span>
+                        <span className="truncate">{param.text || `Parameter ${param.index}`}</span>
+                        {isEmpty && (
+                          <span className="text-red-500 text-[11px] font-medium ml-auto">Required</span>
+                        )}
+                      </label>
+                      <Input
+                        placeholder="Enter value..."
+                        value={val}
+                        onChange={(e) =>
+                          onTemplateParamsChange({
+                            ...templateParams,
+                            [paramKey]: e.target.value,
+                          })
+                        }
+                        className={cn(
+                          "h-10 bg-white dark:bg-[#2a3942] rounded-lg",
+                          isEmpty
+                            ? "border-red-400 dark:border-red-500 focus-visible:ring-red-400"
+                            : "border-[#e9edef] dark:border-[#374045]"
+                        )}
+                      />
+                    </div>
+                  );
+                })}
               </div>
+            )}
+
+            {/* Missing params warning */}
+            {selectedTemplate && missingParams.length > 0 && (
+              <p className="text-[12px] text-red-500 dark:text-red-400 text-center -mt-1">
+                Please fill in all {missingParams.length} required parameter{missingParams.length > 1 ? "s" : ""} before sending.
+              </p>
             )}
 
             {/* Send button */}
             <Button
-              className="w-full h-11 bg-[#25d366] hover:bg-[#1da851] text-white rounded-lg text-[15px] font-medium"
+              className="w-full h-11 bg-[#25d366] hover:bg-[#1da851] text-white rounded-lg text-[15px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
                 onSend();
                 onOpenChange(false);
               }}
-              disabled={!selectedTemplate || sendingMessage}
+              disabled={!canSend}
             >
               {sendingMessage ? (
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />

@@ -66,6 +66,16 @@ export async function POST(req: NextRequest) {
       replyToMessageId, // WhatsApp message ID (wamid) to reply to
     } = body;
 
+    console.log("📤 [send-message] incoming request", {
+      hasTo: Boolean(to),
+      toMasked: to ? String(to).replace(/\d(?=\d{4})/g, "x") : null,
+      type,
+      messagePreview: message ? String(message).substring(0, 40) : null,
+      conversationId: conversationId || null,
+      requestedPhoneId: requestedPhoneId || null,
+      user: { id: token?.id || token?._id || null, role: token?.role || null },
+    });
+
     if (!to) {
       return NextResponse.json(
         { error: "Recipient phone number is required" },
@@ -296,11 +306,22 @@ export async function POST(req: NextRequest) {
       phoneNumberId = getDefaultPhoneId(userRole, userAreas);
     }
 
+    console.log("📤 [send-message] phone resolution", {
+      requestedPhoneId: requestedPhoneId || null,
+      conversationBusinessPhoneId: conversation?.businessPhoneId || null,
+      resolvedPhoneId: phoneNumberId || null,
+      allowedPhoneIds,
+      userRole,
+    });
+
     // Verify permission
-    if (
-      !phoneNumberId ||
-      !canAccessPhoneId(phoneNumberId, userRole, userAreas)
-    ) {
+    const hasPermission = phoneNumberId && canAccessPhoneId(phoneNumberId, userRole, userAreas);
+    console.log("📤 [send-message] permission check", {
+      phoneNumberId: phoneNumberId || null,
+      hasPermission: !!hasPermission,
+    });
+
+    if (!hasPermission) {
       return NextResponse.json(
         {
           error: "You don't have permission to send from this WhatsApp number",
@@ -475,8 +496,19 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
+    console.log("📤 [send-message] Meta API response", {
+      ok: response.ok,
+      status: response.status,
+      messageId: data?.messages?.[0]?.id || null,
+      messageStatus: data?.messages?.[0]?.message_status || null,
+      contacts: data?.contacts?.[0] ? { waId: data.contacts[0].wa_id } : null,
+      error: data?.error
+        ? { code: data.error.code, type: data.error.type, message: data.error.message }
+        : null,
+    });
+
     if (!response.ok) {
-      console.error("WhatsApp API Error:", data);
+      console.error("📤 [send-message] Meta rejected message:", data);
       return NextResponse.json(
         { error: data.error?.message || "Failed to send message" },
         { status: response.status }

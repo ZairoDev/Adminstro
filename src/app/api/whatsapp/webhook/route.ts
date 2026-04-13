@@ -84,6 +84,10 @@ export async function POST(req: NextRequest) {
     
     const signature = req.headers.get('x-hub-signature-256');
     const rawBody = await req.text();
+    console.log("📩 [webhook] received", {
+      hasSignature: Boolean(signature),
+      contentLength: rawBody?.length || 0,
+    });
     
     if (signature && process.env.WHATSAPP_APP_SECRET) {
       const expectedSignature = crypto
@@ -98,6 +102,10 @@ export async function POST(req: NextRequest) {
     }
     
     const body = JSON.parse(rawBody);
+    console.log("📩 [webhook] parsed", {
+      object: body?.object || null,
+      entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+    });
 
     // Process the webhook event
     if (body.object === "whatsapp_business_account") {
@@ -110,6 +118,11 @@ export async function POST(req: NextRequest) {
           
           if (change.field === "messages") {
             const value = change.value;
+            console.log("📩 [webhook] messages change", {
+              messagesCount: Array.isArray(value?.messages) ? value.messages.length : 0,
+              statusesCount: Array.isArray(value?.statuses) ? value.statuses.length : 0,
+              phoneNumberId: value?.metadata?.phone_number_id || null,
+            });
             
             // Handle incoming messages
             if (value.messages && value.messages.length > 0) {
@@ -1117,6 +1130,15 @@ async function processStatusUpdate(status: any) {
     const timestamp = new Date(parseInt(status.timestamp) * 1000);
     const recipientId = status.recipient_id;
     const errorCode = status.errors?.[0]?.code;
+
+    console.log("📩 [webhook] status update", {
+      messageId,
+      newStatus,
+      recipientIdMasked: recipientId ? String(recipientId).replace(/\d(?=\d{4})/g, "x") : null,
+      errorCode: errorCode || null,
+      errorTitle: status.errors?.[0]?.title || null,
+      errorMessage: status.errors?.[0]?.message || null,
+    });
     
     if (errorCode && typeof errorCode === 'number') {
       await handleWhatsAppErrorCode(errorCode, recipientId, messageId).catch((err) => {
@@ -1126,7 +1148,10 @@ async function processStatusUpdate(status: any) {
 
     // STEP 4: Find message first to check current status (idempotency check)
     const existingMessage = await WhatsAppMessage.findOne({ messageId });
-    if (!existingMessage) return; // Unknown message - silent skip
+    if (!existingMessage) {
+      console.log("ℹ️ [webhook] status for unknown messageId (not in DB)", { messageId });
+      return;
+    }
 
     const previousStatus = existingMessage.status;
 
@@ -1164,6 +1189,13 @@ async function processStatusUpdate(status: any) {
     );
 
     if (!message) return; // Status already up-to-date - silent skip
+
+    console.log("✅ [webhook] status persisted", {
+      messageId,
+      previousStatus,
+      newStatus,
+      conversationId: message.conversationId?.toString?.() || null,
+    });
 
     // STEP 6: Handle error codes and update lead accordingly
     if (newStatus === "failed" && errorCode) {

@@ -600,7 +600,16 @@ export default function WhatsAppChat() {
       }
 
       const currentPhoneId = selectedPhoneIdRef.current;
-      if (data.businessPhoneId && currentPhoneId && data.businessPhoneId !== currentPhoneId) {
+      const currentConversation = selectedConversationRef.current;
+      // Allow events through if they belong to the currently open conversation,
+      // even when the message came in on a different business phone.
+      const isForCurrentConversation = currentConversation?._id === data.conversationId;
+      if (
+        data.businessPhoneId &&
+        currentPhoneId &&
+        data.businessPhoneId !== currentPhoneId &&
+        !isForCurrentConversation
+      ) {
         return;
       }
 
@@ -623,7 +632,6 @@ export default function WhatsAppChat() {
       } catch (e) {
         // ignore
       }
-      const currentConversation = selectedConversationRef.current;
 
       const displayText = (data.lastMessagePreview != null && data.lastMessagePreview !== "")
         ? data.lastMessagePreview
@@ -648,6 +656,7 @@ export default function WhatsAppChat() {
                 lastMessageTime: message.timestamp,
                 lastMessageDirection: message.direction,
                 unreadCount: newUnreadCount,
+                ...(isIncomingMessage ? { lastCustomerMessageAt: new Date(message.timestamp) } : {}),
               };
             }
             return conv;
@@ -686,7 +695,14 @@ export default function WhatsAppChat() {
         });
 
         if (isCurrentConversation) {
-          setSelectedConversation((prev) => prev ? { ...prev, lastMessageTime: message.timestamp } : prev);
+          setSelectedConversation((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              lastMessageTime: message.timestamp,
+              ...(isIncomingMessage ? { lastCustomerMessageAt: new Date(message.timestamp) } : {}),
+            };
+          });
         }
         
         if (isIncomingMessage && !isCurrentConversation) {

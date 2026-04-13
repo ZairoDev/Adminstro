@@ -19,6 +19,15 @@ export type OfferEmailPlaceholders = {
   payNowUrl?: string;
   discount?: number | null;
   effectivePrice?: number | null;
+  planFeature1?: string;
+  planFeature2?: string;
+  planFeature3?: string;
+  planFeature4?: string;
+  planFeature5?: string;
+  planFeature6?: string;
+  planFeature7?: string;
+  planFeature8?: string;
+  planFeature9?: string;
 };
 
 export type ResolvedAlias = {

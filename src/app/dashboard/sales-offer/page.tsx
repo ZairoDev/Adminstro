@@ -32,6 +32,7 @@ import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import EmailPreview from "./email-preview";
 import { useOrgSelectionStore } from "./useOrgSelectionStore";
+import { parseOfferPlan, serializeOfferPlan } from "@/util/offerPlan";
 
 const FormSchema = z.object({
   phone: z
@@ -240,6 +241,17 @@ const SalesOffer = () => {
     try {
       setSaveOfferLoading(true);
       if (offerData.leadStatus === "Send Offer") {
+        const parsedPlan = parseOfferPlan(offerData.plan);
+        const normalizedPlan = parsedPlan ? serializeOfferPlan(parsedPlan) : offerData.plan.trim();
+        if (!normalizedPlan) {
+          toast({
+            title: "Plan is required",
+            description: "Please select a valid plan before sending offer.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const orgForSend =
           selectedOrg ??
           (offerData.platform === "VacationSaga" ||
@@ -262,7 +274,7 @@ const SalesOffer = () => {
           country: offerData.country,
           state: offerData.state,
           city: offerData.city,
-          plan: offerData.plan,
+          plan: normalizedPlan,
           discount: offerData.discount,
           effectivePrice: offerData.effectivePrice,
           expiryDate: offerData.expiryDate,

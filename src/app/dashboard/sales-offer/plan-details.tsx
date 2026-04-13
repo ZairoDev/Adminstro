@@ -19,21 +19,102 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import axios from "@/util/axios";
+import { parseOfferPlan, serializeOfferPlan, type OfferPlanOption } from "@/util/offerPlan";
+import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
-import { plans } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 
+type CompanyPlanResponse = {
+  _id: string;
+  organization: "VacationSaga" | "Holidaysera" | "HousingSaga";
+  companyName: string;
+  plans: OfferPlanOption[];
+};
+
 const PlanDetails = () => {
+  const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const [selectedPlanPrice, setSelectedPlanPrice] = useState<number>(0);
   const [expiryDate, setExpiryDate] = useState<Date>();
   const [callbackDate, setCallbackDate] = useState<Date>();
+  const [availablePlans, setAvailablePlans] = useState<OfferPlanOption[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState("");
 
-  const { discount, effectivePrice, setField } = useSalesOfferStore();
+  const { discount, effectivePrice, plan, setField } = useSalesOfferStore();
 
   useEffect(() => {
     setField("expiryDate", expiryDate);
     setField("callBackDate", callbackDate);
-  }, [expiryDate, callbackDate]);
+  }, [expiryDate, callbackDate, setField]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPlans() {
+      if (!selectedOrg) {
+        if (!mounted) return;
+        setAvailablePlans([]);
+        setPlansError("Select organization to load plans.");
+        return;
+      }
+
+      setPlansLoading(true);
+      setPlansError("");
+      try {
+        const response = await axios.get(
+          `/api/companies/offer-plans?organization=${encodeURIComponent(selectedOrg)}`,
+        );
+        const companies = (response.data?.companies ?? []) as CompanyPlanResponse[];
+        const selectedCompany =
+          companies.find((company) => company.organization === selectedOrg) ?? null;
+        const plans = selectedCompany?.plans ?? [];
+        if (!mounted) return;
+        setAvailablePlans(plans);
+
+        if (plans.length === 0) {
+          setSelectedPlanPrice(0);
+          setField("plan", "");
+          setField("discount", 0);
+          setField("effectivePrice", 0);
+          return;
+        }
+
+        const existing = parseOfferPlan(plan);
+        if (
+          existing &&
+          plans.some(
+            (p) =>
+              p.planName === existing.planName &&
+              p.duration === existing.duration &&
+              p.price === existing.price &&
+              p.currency === existing.currency,
+          )
+        ) {
+          setSelectedPlanPrice(existing.price);
+          return;
+        }
+
+        const first = plans[0];
+        setSelectedPlanPrice(first.price);
+        setField("plan", serializeOfferPlan(first));
+        setField("discount", 0);
+        setField("effectivePrice", first.price);
+      } catch (_error) {
+        if (!mounted) return;
+        setAvailablePlans([]);
+        setPlansError("Unable to load plans for selected organization.");
+      } finally {
+        if (mounted) {
+          setPlansLoading(false);
+        }
+      }
+    }
+
+    loadPlans().catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [selectedOrg, plan, setField]);
 
   return (
     <div className="border border-neutral-600 rounded-md p-2">
@@ -44,33 +125,39 @@ const PlanDetails = () => {
         <div>
           <Label>Plan</Label>
           <Select
+            value={plan}
             onValueChange={(value) => {
-              const val = parseInt(value.split("-")[2], 10);
-              setSelectedPlanPrice(parseInt(value.split("-")[2], 10));
+              const parsed = parseOfferPlan(value);
+              if (!parsed) return;
+              const val = parsed.price;
+              setSelectedPlanPrice(val);
               setField("plan", value);
               setField("discount", 0);
               setField("effectivePrice", val);
             }}
+            disabled={plansLoading || availablePlans.length === 0}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select Plan" />
+              <SelectValue placeholder={plansLoading ? "Loading plans..." : "Select Plan"} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Plans</SelectLabel>
-                {plans?.map((plan, index) => (
+                {availablePlans.map((planOption, index) => (
                   <SelectItem
                     key={index}
-                    value={`${plan.planName}-${plan.duration}-${plan.price}-${plan.currency}`}
+                    value={serializeOfferPlan(planOption)}
                   >
                     <div>
-                      {plan.planName} {plan.duration} - {plan.price} {plan.currency}
+                      {planOption.planName} {planOption.duration} - {planOption.price}{" "}
+                      {planOption.currency}
                     </div>
                   </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
+          {plansError ? <p className="mt-1 text-xs text-red-500">{plansError}</p> : null}
         </div>
 
         {/* Discount */}

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export const useDeleteAliases = () => {
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [data, setData] = useState<{ message?: string } | null>(null);
 

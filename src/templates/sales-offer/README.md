@@ -18,4 +18,16 @@ npx tsx src/scripts/importOfferTemplate.ts --org HousingSaga --name "HousingSaga
 npx tsx src/scripts/importOfferTemplate.ts --org VacationSaga --name "VacationSaga Offer Template" src/templates/sales-offer/vacationsaga-offer.html
 ```
 
+Seed company plans used by Sales Offer dropdown:
+
+```bash
+npm run seed-company-offer-plans
+```
+
+Add `--create-missing` to create company docs if one of the three orgs does not exist yet:
+
+```bash
+npx tsx src/scripts/seedCompanyOfferPlans.ts --create-missing
+```
+
 Each import deactivates other templates for that organization and sets this file as the single active template.

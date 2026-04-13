@@ -8,6 +8,11 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendOfferEmailUsingAlias } from "@/util/offerEmailService";
 import { DEFAULT_ORGANIZATION, OrganizationZod } from "@/util/organizationConstants";
 import { resolvePayNowUrl } from "@/util/payNowUrl";
+import {
+  getHolidayseraPlanFeaturePlaceholders,
+  parseOfferPlan,
+  serializeOfferPlan,
+} from "@/util/offerPlan";
 
 const BodySchema = z.object({
   leadId: z.string().optional(),
@@ -48,6 +53,12 @@ export async function POST(req: NextRequest) {
     if (!body.success) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
+    const parsedPlan = parseOfferPlan(body.data.plan);
+    if (!parsedPlan) {
+      return NextResponse.json({ error: "Invalid plan format" }, { status: 400 });
+    }
+    const normalizedPlan = serializeOfferPlan(parsedPlan);
+    const planFeatures = getHolidayseraPlanFeaturePlaceholders(parsedPlan);
 
     await connectDb();
 
@@ -70,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send email + get rendered HTML snapshot
-    const subject = `Offer - ${body.data.plan}`;
+    const subject = `Offer - ${normalizedPlan}`;
     const payNowUrl = resolvePayNowUrl(organization, body.data.propertyUrl);
     const { alias, renderedHtml } = await sendOfferEmailUsingAlias({
       employeeId,
@@ -85,15 +96,17 @@ export async function POST(req: NextRequest) {
         employeeEmail: String((employee as any).email ?? ""),
         propertyName: body.data.propertyName,
         propertyUrl: body.data.propertyUrl,
-        plan: body.data.plan,
+        plan: normalizedPlan,
         payNowUrl,
         discount: body.data.discount,
         effectivePrice: body.data.effectivePrice,
+        ...planFeatures,
       },
     });
 
     const updateFields = {
       ...body.data,
+      plan: normalizedPlan,
       organization,
       offerStatus: "offer_sent",
       leadStage: "converted",

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "@/util/axios";
 import { renderTemplate } from "@/util/templateEngine";
 import { resolvePayNowUrl } from "@/util/payNowUrl";
+import { getHolidayseraPlanFeaturePlaceholders } from "@/util/offerPlan";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
@@ -98,6 +99,7 @@ export default function EmailPreview() {
     const payNowUrl = selectedOrg
       ? resolvePayNowUrl(selectedOrg, offer.propertyUrl || "#")
       : offer.propertyUrl || "#";
+    const planFeatures = getHolidayseraPlanFeaturePlaceholders(offer.plan);
     return renderTemplate(template.html, {
       ownerName: offer.name,
       price: offer.effectivePrice,
@@ -109,6 +111,7 @@ export default function EmailPreview() {
       payNowUrl,
       discount: offer.discount,
       effectivePrice: offer.effectivePrice,
+      ...planFeatures,
     });
   }, [
     template?.html,

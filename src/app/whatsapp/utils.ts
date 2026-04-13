@@ -242,10 +242,12 @@ export function buildTemplateComponents(
 ): any[] {
   const components: any[] = [];
 
+  // Only include parameters that have non-empty values.
+  // Sending empty-string parameters to Meta causes silent delivery suppression.
   const headerParams = Object.entries(params)
-    .filter(([key]) => key.startsWith("header_"))
+    .filter(([key, value]) => key.startsWith("header_") && value && value.trim() !== "")
     .sort(([a], [b]) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1]))
-    .map(([_, value]) => ({ type: "text", text: value }));
+    .map(([_, value]) => ({ type: "text", text: value.trim() }));
 
   if (headerParams.length > 0) {
     components.push({
@@ -255,9 +257,9 @@ export function buildTemplateComponents(
   }
 
   const bodyParams = Object.entries(params)
-    .filter(([key]) => key.startsWith("body_"))
+    .filter(([key, value]) => key.startsWith("body_") && value && value.trim() !== "")
     .sort(([a], [b]) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1]))
-    .map(([_, value]) => ({ type: "text", text: value }));
+    .map(([_, value]) => ({ type: "text", text: value.trim() }));
 
   if (bodyParams.length > 0) {
     components.push({

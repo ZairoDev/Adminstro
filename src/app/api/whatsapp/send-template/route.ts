@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("📨 [send-template] incoming request");
+
     const { 
       to, 
       templateName, 
@@ -39,6 +41,19 @@ export async function POST(req: NextRequest) {
       templateText, // The filled-in template text for display
       isRetarget = false, // STEP 2: Flag to indicate this is a retarget message
     } = await req.json();
+
+    console.log("📨 [send-template] payload", {
+      hasTo: Boolean(to),
+      toMasked: to ? String(to).replace(/\d(?=\d{4})/g, "x") : null,
+      conversationId: conversationId || null,
+      templateName: templateName || null,
+      languageCode,
+      componentsCount: Array.isArray(components) ? components.length : null,
+      requestedPhoneId: requestedPhoneId || null,
+      uploadedContactId: uploadedContactId || null,
+      isRetarget: Boolean(isRetarget),
+      user: { id: token?.id || token?._id || null, role: token?.role || null, email: token?.email || null },
+    });
 
 
     if (!templateName) {
@@ -62,6 +77,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    console.log("📨 [send-template] resolved recipient", {
+      fromConversation: !to && Boolean(conversationId),
+      recipientMasked: String(recipientPhone).replace(/\d(?=\d{4})/g, "x"),
+    });
 
     // Get user's allowed phone IDs
     const userRole = token.role || "";
@@ -115,6 +134,12 @@ export async function POST(req: NextRequest) {
       phoneNumberId = getDefaultPhoneId(userRole, userAreas);
     }
 
+    console.log("📨 [send-template] resolved phoneNumberId", {
+      phoneNumberId,
+      allowedPhoneIdsCount: allowedPhoneIds.length,
+      isRetarget: Boolean(isRetarget),
+    });
+
     // Verify permission (skip check for retarget phone ID if it's configured)
     if (!phoneNumberId) {
       return NextResponse.json(
@@ -152,6 +177,15 @@ export async function POST(req: NextRequest) {
         );
       }
 
+    console.log("📨 [send-template] sending to Meta", {
+      countryCodePrefix: formattedPhone.substring(0, 3),
+      toMasked: formattedPhone.replace(/\d(?=\d{4})/g, "x"),
+      templateName,
+      languageCode,
+      phoneNumberId,
+      components: Array.isArray(components) ? components : [],
+    });
+
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
       {
@@ -177,6 +211,15 @@ export async function POST(req: NextRequest) {
     );
 
     const data = await response.json();
+    console.log("📨 [send-template] Meta response", {
+      ok: response.ok,
+      status: response.status,
+      messageId: data?.messages?.[0]?.id || null,
+      messageStatus: data?.messages?.[0]?.message_status || null,
+      contacts: data?.contacts?.[0] ? { waId: data.contacts[0].wa_id, inputPhone: data.contacts[0].input } : null,
+      error: data?.error ? { message: data.error.message, type: data.error.type, code: data.error.code, errorData: data.error.error_data || null } : null,
+      rawResponse: response.ok ? undefined : data,
+    });
 
     if (!response.ok) {
       console.error("WhatsApp Template API Error:", data);
@@ -187,6 +230,9 @@ export async function POST(req: NextRequest) {
     }
 
     const whatsappMessageId = data.messages?.[0]?.id;
+    if (!whatsappMessageId) {
+      console.error("❌ [send-template] No message ID returned from Meta", data);
+    }
     const timestamp = new Date();
 
     // Get or create conversation using snapshot-safe helper

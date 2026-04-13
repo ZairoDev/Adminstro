@@ -261,9 +261,38 @@ export const employeeSchema = z.object({
   ownerLocationBlock: z
     .object({
       all: z.array(z.string()).optional().default([]),
+      byLocation: z
+        .record(
+          z.object({
+            blocked: z.array(z.string()).optional().default([]),
+          }),
+        )
+        .optional()
+        .default({}),
     })
     .optional()
-    .default({ all: [] }),
+    .default({ all: [], byLocation: {} }),
+  ownerPropertyTypeVisibilityRules: z
+    .object({
+      all: z
+        .object({
+          enabled: z.boolean().optional().default(false),
+          allowedPropertyType: z.array(z.string()).optional().default([]),
+        })
+        .optional()
+        .default({ enabled: false, allowedPropertyType: [] }),
+      byLocation: z
+        .record(
+          z.object({
+            enabled: z.boolean().optional().default(false),
+            allowedPropertyType: z.array(z.string()).optional().default([]),
+          }),
+        )
+        .optional()
+        .default({}),
+    })
+    .optional()
+    .default({ all: { enabled: false, allowedPropertyType: [] }, byLocation: {} }),
   sessionId: z.string().optional(),
   sessionStartedAt: z.number().optional(),
   tokenValidAfter: z.number().optional(),

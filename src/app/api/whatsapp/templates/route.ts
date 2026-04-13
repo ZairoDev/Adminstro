@@ -10,6 +10,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const url = new URL(req.url);
+    console.log("[whatsapp/templates] GET", {
+      pathname: url.pathname,
+      searchParams: Object.fromEntries(url.searchParams.entries()),
+    });
+
     const token = await getDataFromToken(req);
     if (!token) {
       return NextResponse.json(
@@ -40,6 +46,12 @@ export async function GET(req: NextRequest) {
     );
 
     const data = await response.json();
+    console.log("[whatsapp/templates] upstream response", {
+      ok: response.ok,
+      status: response.status,
+      templateCount: Array.isArray((data as any)?.data) ? (data as any).data.length : null,
+      hasError: Boolean((data as any)?.error),
+    });
 
     if (!response.ok) {
       console.error("WhatsApp Templates API Error:", data);

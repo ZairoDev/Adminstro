@@ -4,9 +4,6 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
-import Employees from "@/models/employee";
-import { applyOwnerPricingRulesByLocationToQuery } from "@/util/ownerPricingRule";
-import { applyOwnerLocationBlockToQuery, applyOwnerVisibilityRulesByLocationToQuery } from "@/util/ownerVisibilityRule";
 
 connectDb();
 
@@ -106,7 +103,6 @@ export async function POST(req: NextRequest) {
           .filter((loc: string) => !ownerBlocked.has(loc.toLowerCase()));
         effectiveLocationsForRules = valid.map(String);
         if (valid.length > 0) {
-          effectiveLocations = valid;
           baseQuery.$or = valid.map((loc: string) => ({ location: { $regex: new RegExp(`^${loc}$`, "i") } }));
         } else {
           return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });

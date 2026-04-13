@@ -7,10 +7,7 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { applyLocationFilter, isLocationExempt, validateLocationAccess } from "@/util/apiSecurity";
-import Employees from "@/models/employee";
-import { applyOwnerPricingRulesByLocationToQuery } from "@/util/ownerPricingRule";
-import { applyOwnerLocationBlockToQuery, applyOwnerVisibilityRulesByLocationToQuery } from "@/util/ownerVisibilityRule";
+import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -76,7 +73,6 @@ export async function POST(req: NextRequest) {
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
 
-    if (filters.propertyType) query["propertyType"] = filters.propertyType;
     // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
     let effectiveLocationsForRules: string[] = [];
     if (filters.place) {
@@ -106,7 +102,6 @@ export async function POST(req: NextRequest) {
           effectiveLocationsForRules = validLocations.map(String);
 
           if (validLocations.length > 0) {
-            effectiveLocations = validLocations;
             query["$or"] = validLocations.map((loc: string) => ({
               location: { $regex: new RegExp(`^${loc}$`, "i") }
             }));
@@ -230,43 +225,6 @@ export async function POST(req: NextRequest) {
       if (areaNames.length > 0) {
         query.area = { $in: areaNames };
       }
-    }
-    // Load employee owner rules (if employee exists)
-    const employeeId = String((token as any)?.id || "");
-    const employee =
-      employeeId && employeeId !== "test-superadmin"
-        ? await Employees.findById(employeeId)
-            .select("ownerPricingRules ownerVisibilityRules ownerLocationBlock")
-            .lean()
-        : null;
-
-    // Enforce owner constraints for this employee
-    applyOwnerLocationBlockToQuery({
-      query,
-      blockedLocations: (employee as any)?.ownerLocationBlock?.all,
-    });
-
-    const visibilityRes = applyOwnerVisibilityRulesByLocationToQuery({
-      query,
-      rules: (employee as any)?.ownerVisibilityRules || null,
-      locations: effectiveLocations,
-      uiInteriorStatus: undefined,
-      uiPropertyType: filters.propertyType,
-      uiPetStatus: undefined,
-    });
-    if (visibilityRes.impossible) {
-      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
-    }
-
-    const pricingRes = applyOwnerPricingRulesByLocationToQuery({
-      query,
-      pricingRules: (employee as any)?.ownerPricingRules || null,
-      uiMinPrice: filters.minPrice,
-      uiMaxPrice: filters.maxPrice,
-      locations: effectiveLocations,
-    });
-    if (pricingRes.impossible) {
-      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
     
     const skip = (page - 1) * limit;

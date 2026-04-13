@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
 
-    if (filters.propertyType) query["propertyType"] = filters.propertyType;
     const ownerVisAll = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.all;
     const ownerVisByLocation = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.byLocation;
     const getOwnerVisRuleForLocation = (locKey: string) => {
@@ -211,42 +210,6 @@ if (filters.isPinned) {
       if (areaNames.length > 0) {
         query.area = { $in: areaNames };
       }
-    }
-    // Load employee owner rules (if employee exists)
-    const employeeId = String(token?.id || "");
-    const employee =
-      employeeId && employeeId !== "test-superadmin"
-        ? await Employees.findById(employeeId)
-            .select("ownerPricingRules ownerVisibilityRules ownerLocationBlock")
-            .lean()
-        : null;
-
-    applyOwnerLocationBlockToQuery({
-      query,
-      blockedLocations: (employee as any)?.ownerLocationBlock?.all,
-    });
-
-    const visibilityRes = applyOwnerVisibilityRulesByLocationToQuery({
-      query,
-      rules: (employee as any)?.ownerVisibilityRules || null,
-      locations: effectiveLocations,
-      uiInteriorStatus: undefined,
-      uiPropertyType: filters.propertyType,
-      uiPetStatus: undefined,
-    });
-    if (visibilityRes.impossible) {
-      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
-    }
-
-    const pricingRes = applyOwnerPricingRulesByLocationToQuery({
-      query,
-      pricingRules: (employee as any)?.ownerPricingRules || null,
-      uiMinPrice: filters.minPrice,
-      uiMaxPrice: filters.maxPrice,
-      locations: effectiveLocations,
-    });
-    if (pricingRes.impossible) {
-      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
     
     const skip = (page - 1) * limit;

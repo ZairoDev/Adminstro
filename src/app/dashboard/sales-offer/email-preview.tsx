@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import axios from "@/util/axios";
 import { renderTemplate } from "@/util/templateEngine";
+import { resolvePayNowUrl } from "@/util/payNowUrl";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
@@ -35,11 +36,13 @@ export default function EmailPreview() {
   const [template, setTemplate] = useState<ActiveTemplate | null>(null);
   const [alias, setAlias] = useState<CurrentAlias | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       setLoading(true);
+      setLoadError("");
       try {
         const orgParam = selectedOrg ? `&organization=${encodeURIComponent(selectedOrg)}` : "";
         const tRes = await axios.get(`/api/templates?activeOnly=true${orgParam}`);
@@ -47,7 +50,10 @@ export default function EmailPreview() {
         let a0: CurrentAlias | null = null;
 
         if (offer.aliasId) {
-          const aRes = await axios.get("/api/alias/getAllAliases");
+          const orgParamForAlias = selectedOrg
+            ? `?organization=${encodeURIComponent(selectedOrg)}`
+            : "";
+          const aRes = await axios.get(`/api/alias/getAllAliases${orgParamForAlias}`);
           const list = (aRes.data?.aliases ?? []) as AliasOption[];
           const found = list.find((a) => a._id === offer.aliasId) ?? null;
           a0 = found
@@ -67,6 +73,11 @@ export default function EmailPreview() {
         if (!mounted) return;
         setTemplate(t0);
         setAlias(a0);
+      } catch (_err) {
+        if (!mounted) return;
+        setTemplate(null);
+        setAlias(null);
+        setLoadError("Unable to load template/alias for this organization.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -84,6 +95,9 @@ export default function EmailPreview() {
 
   const html = useMemo(() => {
     if (!template?.html) return "";
+    const payNowUrl = selectedOrg
+      ? resolvePayNowUrl(selectedOrg, offer.propertyUrl || "#")
+      : offer.propertyUrl || "#";
     return renderTemplate(template.html, {
       ownerName: offer.name,
       price: offer.effectivePrice,
@@ -92,6 +106,7 @@ export default function EmailPreview() {
       propertyName: offer.propertyName,
       propertyUrl: offer.propertyUrl,
       plan: offer.plan,
+      payNowUrl,
       discount: offer.discount,
       effectivePrice: offer.effectivePrice,
     });
@@ -102,6 +117,7 @@ export default function EmailPreview() {
     offer.propertyName,
     offer.propertyUrl,
     offer.plan,
+    selectedOrg,
     offer.discount,
   ]);
 
@@ -150,7 +166,7 @@ export default function EmailPreview() {
             )
           ) : (
             <div className="p-3 text-sm text-muted-foreground">
-              No active template found for your organization.
+              {loadError || "No active template found for your organization."}
             </div>
           )}
         </div>

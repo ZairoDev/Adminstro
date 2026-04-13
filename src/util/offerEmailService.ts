@@ -16,6 +16,7 @@ export type OfferEmailPlaceholders = {
   propertyName: string;
   propertyUrl: string;
   plan: string;
+  payNowUrl?: string;
   discount?: number | null;
   effectivePrice?: number | null;
 };

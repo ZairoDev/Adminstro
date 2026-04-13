@@ -1,36 +1,119 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import Aliases from "@/models/alias";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import { OrganizationZod } from "@/util/organizationConstants";
+
+const QuerySchema = z.object({
+  organization: OrganizationZod.optional(),
+  includeInactive: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+});
+
+type TokenPayload = {
+  id?: string;
+  role?: string;
+};
 
 export async function GET(req: NextRequest) {
   try {
-    const token = await getDataFromToken(req);
     await connectDb();
 
-    const userRole = String((token as any)?.role ?? "");
-    const employeeId = (token as any)?.id as string | undefined;
+    const token = (await getDataFromToken(req)) as TokenPayload;
 
-    // Default organization is VacationSaga when missing; only HAdmin is restricted.
-    let query: Record<string, unknown> = {};
-    if (userRole === "HAdmin") {
-      query.organization = "Holidaysera";
+    const parsedQuery = QuerySchema.safeParse(
+      Object.fromEntries(req.nextUrl.searchParams.entries()),
+    );
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Invalid query params" },
+        { status: 400 },
+      );
     }
 
-    // Optional safety: ensure HAdmin really belongs to Holidaysera in DB
-    if (userRole === "HAdmin" && employeeId && employeeId !== "test-superadmin") {
-      const emp = await Employees.findById(employeeId).select("organization").lean();
-      if (emp && (emp as any).organization && (emp as any).organization !== "Holidaysera") {
+    const userRole = String(token.role ?? "").trim();
+    const employeeId = token.id;
+    const requestedOrg = parsedQuery.data.organization;
+    const includeInactive = parsedQuery.data.includeInactive;
+
+    let finalOrg: string | null = null;
+
+    // 🔒 Role-based org resolution
+    if (userRole === "HAdmin" || userRole === "hSale") {
+      if (!employeeId) {
         return NextResponse.json({ aliases: [] }, { status: 200 });
       }
+
+      const emp = await Employees.findById(employeeId)
+        .select("organization")
+        .lean();
+
+      const employeeOrg = emp
+        ? String((emp as { organization?: string }).organization ?? "")
+        : "";
+
+      if (!employeeOrg) {
+        return NextResponse.json({ aliases: [] }, { status: 200 });
+      }
+
+      // ❌ Prevent cross-org access
+      if (requestedOrg && requestedOrg !== employeeOrg) {
+        return NextResponse.json({ aliases: [] }, { status: 200 });
+      }
+
+      finalOrg = employeeOrg;
     }
 
-    const aliases = await Aliases.find(query).lean();
+    // 🧠 SuperAdmin → can use requested org freely
+    else if (userRole === "SuperAdmin") {
+      finalOrg = requestedOrg ?? null;
+    }
+
+    // fallback (unknown roles)
+    else {
+      finalOrg = requestedOrg ?? null;
+    }
+
+    // 🧱 Build query
+    const query: Record<string, any> = {};
+
+    if (!includeInactive) {
+      query.status = { $regex: "^Active$", $options: "i" };
+    }
+
+    if (finalOrg) {
+      query.organization = {
+        $regex: `^${finalOrg}$`,
+        $options: "i",
+      };
+    }
+
+    console.log("---- ALIAS FETCH DEBUG ----");
+    console.log({
+      userRole,
+      employeeId,
+      requestedOrg,
+      finalOrg,
+      includeInactive,
+      query,
+    });
+
+    const aliases = await Aliases.find(query).sort({ updatedAt: -1 }).lean();
+
+    console.log("Aliases found:", aliases.length);
 
     return NextResponse.json({ aliases }, { status: 200 });
   } catch (err) {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    console.error("Alias API Error:", err);
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 },
+    );
   }
 }

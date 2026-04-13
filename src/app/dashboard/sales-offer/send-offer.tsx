@@ -36,21 +36,31 @@ export default function SendOffer() {
   const showAliasOverride = role === "HAdmin" || role === "SuperAdmin";
 
   const [aliases, setAliases] = useState<AliasOption[]>([]);
+  const [aliasesLoading, setAliasesLoading] = useState(false);
+  const [aliasesError, setAliasesError] = useState("");
 
   useEffect(() => {
     let mounted = true;
     async function loadAliases() {
       if (!showAliasOverride) return;
-      const res = await axios.get("/api/alias/getAllAliases");
-      const items = (res.data?.aliases ?? []) as AliasOption[];
-      if (!mounted) return;
-      setAliases(
-        items.filter(
-          (a) =>
-            String(a.status) === "Active" &&
-            (!selectedOrg || !a.organization || a.organization === selectedOrg),
-        ),
-      );
+      setAliasesLoading(true);
+      setAliasesError("");
+      try {
+        const orgParam = selectedOrg ? `?organization=${encodeURIComponent(selectedOrg)}` : "";
+        const res = await axios.get(`/api/alias/getAllAliases${orgParam}`);
+        const items = (res.data?.aliases ?? []) as AliasOption[];
+        console.log(items);
+        if (!mounted) return;
+        setAliases(items);
+      } catch (_err) {
+        if (!mounted) return;
+        setAliases([]);
+        setAliasesError("Unable to load aliases");
+      } finally {
+        if (mounted) {
+          setAliasesLoading(false);
+        }
+      }
     }
     loadAliases().catch(() => {});
     return () => {
@@ -90,6 +100,11 @@ export default function SendOffer() {
                       {a.aliasName} ({a.aliasEmail})
                     </SelectItem>
                   ))}
+                  {!aliasesLoading && aliases.length === 0 && (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">
+                      {aliasesError || "No active alias found for selected organization"}
+                    </div>
+                  )}
                 </SelectGroup>
               </SelectContent>
             </Select>

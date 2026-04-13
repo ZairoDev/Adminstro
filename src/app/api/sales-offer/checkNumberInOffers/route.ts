@@ -1,48 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { Offer } from "@/models/offer";
-import { SalesOfferInterface } from "@/util/type";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { computePlatformAvailability } from "@/util/salesOfferLookup";
+
+const BodySchema = z
+  .object({
+    phoneNumber: z.string().trim().optional(),
+    email: z.string().email().optional(),
+  })
+  .refine((v) => Boolean(v.phoneNumber || v.email), {
+    message: "Either phoneNumber or email is required",
+  });
+
+type MatchPayload = {
+  _id: string;
+  phoneNumber: string;
+  email: string;
+  name: string;
+  propertyName: string;
+  relation: string;
+  propertyUrl: string;
+  country: string;
+  state?: string;
+  city?: string;
+  leadStatus: string;
+  leadStage?: string;
+  platform?: string;
+};
 
 export async function POST(req: NextRequest) {
   try {
     await getDataFromToken(req);
-    const { phoneNumber } = await req.json();
-    const existingPhone = (await Offer.find({
-      phoneNumber,
-    })) as SalesOfferInterface[];
-
-
-    if (existingPhone.length > 0) {
-      let onVS = false;
-      let onTT = false;
-      let onHS = false;
-      const platform1 = existingPhone[0]?.platform;
-      const platform2 = existingPhone[1]?.platform;
-
-      onVS =
-        platform1 === "VacationSaga" || (platform2 && platform2 === "VacationSaga")
-          ? true
-          : false;
-      onTT =
-        platform1 === "Holidaysera" ||
-        platform1 === "TechTunes" ||
-        (platform2 && (platform2 === "Holidaysera" || platform2 === "TechTunes"))
-          ? true
-          : false;
-      onHS =
-        platform1 === "HousingSaga" || (platform2 && platform2 === "HousingSaga")
-          ? true
-          : false;
-
-      return NextResponse.json(
-        { availableOnVS: onVS, availableOnTT: onTT, availableOnHS: onHS },
-        { status: 200 },
-      );
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
 
+    const query: Record<string, string> = {};
+    if (parsed.data.phoneNumber) {
+      query.phoneNumber = parsed.data.phoneNumber;
+    }
+    if (parsed.data.email) {
+      query.email = parsed.data.email;
+    }
+
+    const matches = await Offer.find(query)
+      .sort({ createdAt: -1 })
+      .select(
+        "_id phoneNumber email name propertyName relation propertyUrl country state city leadStatus leadStage platform",
+      )
+      .lean();
+
+    const availability = computePlatformAvailability(
+      matches.map((offer) => ({
+        platform: typeof offer.platform === "string" ? offer.platform : undefined,
+      })),
+    );
+    const matchedOffer = ((matches[0] ?? null) as unknown) as MatchPayload | null;
+
     return NextResponse.json(
-      { availableOnVS: false, availableOnTT: false, availableOnHS: false },
+      {
+        ...availability,
+        matchedOffer,
+      },
       { status: 200 },
     );
   } catch (err: unknown) {

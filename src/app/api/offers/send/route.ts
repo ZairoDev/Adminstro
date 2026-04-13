@@ -7,6 +7,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendOfferEmailUsingAlias } from "@/util/offerEmailService";
 import { DEFAULT_ORGANIZATION, OrganizationZod } from "@/util/organizationConstants";
+import { resolvePayNowUrl } from "@/util/payNowUrl";
 
 const BodySchema = z.object({
   leadId: z.string().optional(),
@@ -53,13 +54,15 @@ export async function POST(req: NextRequest) {
     const employee = await Employees.findById(employeeId).lean();
     if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     const employeeOrg = (employee as any).organization;
-    const organization =
+    const organizationCandidate =
       employeeOrg ??
       (role === "SuperAdmin" ? body.data.organization ?? undefined : undefined) ??
       (employeeId === "test-superadmin" ? body.data.organization ?? DEFAULT_ORGANIZATION : undefined);
-    if (!organization) {
+    const parsedOrganization = OrganizationZod.safeParse(organizationCandidate);
+    if (!parsedOrganization.success) {
       return NextResponse.json({ error: "Organization is required" }, { status: 400 });
     }
+    const organization = parsedOrganization.data;
 
     const isAdminOverrideRole = role === "HAdmin" || role === "SuperAdmin";
     if (body.data.aliasId && !isAdminOverrideRole) {
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Send email + get rendered HTML snapshot
     const subject = `Offer - ${body.data.plan}`;
+    const payNowUrl = resolvePayNowUrl(organization, body.data.propertyUrl);
     const { alias, renderedHtml } = await sendOfferEmailUsingAlias({
       employeeId,
       organizationOverride: organization,
@@ -82,6 +86,7 @@ export async function POST(req: NextRequest) {
         propertyName: body.data.propertyName,
         propertyUrl: body.data.propertyUrl,
         plan: body.data.plan,
+        payNowUrl,
         discount: body.data.discount,
         effectivePrice: body.data.effectivePrice,
       },
@@ -112,7 +117,7 @@ export async function POST(req: NextRequest) {
       updatedBy: employeeId,
       createdAt: new Date(),
     } as const;
-
+    console.log("updateFields: ", updateFields);
     const offerDoc = body.data.leadId
       ? await Offer.findOneAndUpdate(
           { _id: body.data.leadId, organization },
@@ -123,7 +128,7 @@ export async function POST(req: NextRequest) {
           ...updateFields,
           history: [historyEntry],
         });
-
+    console.log("offerDoc: ", offerDoc);
     if (!offerDoc) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }

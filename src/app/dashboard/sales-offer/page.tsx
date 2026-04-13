@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
+import { Input } from "@/components/ui/input";
 import { SalesOfferInterface } from "@/util/type";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +42,9 @@ const FormSchema = z.object({
     }),
 });
 type FormData = z.infer<typeof FormSchema>;
+type LookupMatch = Partial<SalesOfferInterface> & {
+  _id?: string;
+};
 
 const SalesOffer = () => {
   const { toast } = useToast();
@@ -54,6 +58,7 @@ const SalesOffer = () => {
 
   const { leadStatus, setField, resetForm } = useSalesOfferStore();
   const [saveOfferLoading, setSaveOfferLoading] = useState(false);
+  const [emailLookup, setEmailLookup] = useState("");
 
   useEffect(() => {
     if (!selectedOrg) return;
@@ -124,11 +129,27 @@ const SalesOffer = () => {
     defaultValues: { phone: "" },
   });
 
-  // check number for availbility in database
-  const checkNumber = async (phone: string) => {
+  const applyMatchedOffer = (matched: LookupMatch | null) => {
+    if (!matched) return;
+
+    if (matched._id) setField("leadId", matched._id);
+    if (matched.phoneNumber) setField("phoneNumber", matched.phoneNumber);
+    if (matched.name) setField("name", matched.name);
+    if (matched.email) setField("email", matched.email);
+    if (matched.propertyUrl) setField("propertyUrl", matched.propertyUrl);
+    if (matched.country) setField("country", matched.country);
+    if (matched.city) setField("city", matched.city);
+    if (matched.state) setField("state", matched.state);
+    if (matched.propertyName) setField("propertyName", matched.propertyName);
+    if (matched.relation) setField("relation", matched.relation);
+  };
+
+  // check lead by phone/email for availability + prefill
+  const checkLead = async (params: { phoneNumber?: string; email?: string; source: "phone" | "email" }) => {
     try {
       const response = await axios.post("/api/sales-offer/checkNumberInOffers", {
-        phoneNumber: phone,
+        phoneNumber: params.phoneNumber,
+        email: params.email,
       });
       setIsAvailable((prev) => {
         const avail = { ...prev };
@@ -138,14 +159,52 @@ const SalesOffer = () => {
         return avail;
       });
       setShowAvailability(true);
+      applyMatchedOffer((response.data?.matchedOffer ?? null) as LookupMatch | null);
+      if (response.data?.matchedOffer) {
+        toast({
+          title: "Existing lead found",
+          description:
+            params.source === "phone"
+              ? "Form was prefilled from the latest matching phone record."
+              : "Form was prefilled from the latest matching email record.",
+        });
+      }
     } catch (error) {
       console.error("error in checking number: ", error);
+      toast({
+        title: "Lookup failed",
+        description: "Could not search existing leads right now.",
+        variant: "destructive",
+      });
     }
   };
 
   const onSubmit = (data: FormData) => {
-    checkNumber(data.phone);
+    checkLead({ phoneNumber: data.phone, source: "phone" });
     setField("phoneNumber", data.phone);
+  };
+
+  const handleEmailLookup = () => {
+    const email = emailLookup.trim().toLowerCase();
+    if (!email) {
+      toast({
+        title: "Email is required",
+        description: "Enter an email before searching.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const emailValidation = z.string().email().safeParse(email);
+    if (!emailValidation.success) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setField("email", email);
+    checkLead({ email, source: "email" });
   };
 
   {
@@ -220,11 +279,14 @@ const SalesOffer = () => {
           leadStatus === "Send Offer" ? "Offer sent successfully" : "Offer submitted",
       });
       resetForm();
-    } catch (error: any) {
-      console.log("error in frontend: ", error.response.data.error);
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Failed to save offer";
+      console.log("error in frontend: ", message);
       toast({
         title: "Error in saving Offer",
-        description: error.response.data.error,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -232,6 +294,7 @@ const SalesOffer = () => {
       reset({
         phone: "",
       });
+      setEmailLookup("");
       setShowAvailability(false);
     }
   };
@@ -241,7 +304,7 @@ const SalesOffer = () => {
       <Toaster />
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex items-center gap-x-4 space-y-3 p-2 border border-neutral-600 rounded-md"
+        className="flex items-end gap-x-6 space-y-3 p-2 border border-neutral-600 rounded-md"
       >
         {/* Phone Input Field */}{" "}
         <div className="flex flex-col items-start ">
@@ -275,6 +338,28 @@ const SalesOffer = () => {
               className="p-2 bg-primary text-background rounded-md text-sm"
             >
               Submit
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col items-start">
+          <label htmlFor="emailLookup" className="text-left font-medium">
+            Email
+          </label>
+          <div className="flex items-center gap-x-2 py-2">
+            <Input
+              id="emailLookup"
+              type="email"
+              value={emailLookup}
+              onChange={(e) => setEmailLookup(e.target.value)}
+              placeholder="Enter an email"
+              className="w-[240px]"
+            />
+            <button
+              type="button"
+              onClick={handleEmailLookup}
+              className="p-2 bg-primary text-background rounded-md text-sm"
+            >
+              Search
             </button>
           </div>
         </div>

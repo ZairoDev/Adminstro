@@ -14,7 +14,6 @@ const AllOffers = () => {
   useEffect(() => {
     void getAllOffers("Call Back", page, selectedOrg);
   }, [page, selectedOrg, getAllOffers]);
-
   return (
     <div>
       <h1 className="mb-2 text-xl font-semibold">Call back</h1>

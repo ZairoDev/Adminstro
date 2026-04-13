@@ -6,7 +6,8 @@
     "dev": "tsx socket.ts",
     "build": "next build",
     "start": "NODE_ENV=production tsx socket.ts",
-    "lint": "next lint"
+    "lint": "next lint",
+    "import-offer-template": "tsx src/scripts/importOfferTemplate.ts"
   },
   "dependencies": {
     "@apollo/client": "^3.11.7",

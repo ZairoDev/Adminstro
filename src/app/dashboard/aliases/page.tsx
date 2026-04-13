@@ -18,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogContent,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -39,10 +38,27 @@ import { Button } from "@/components/ui/button";
 import { useAddAliases } from "@/hooks/alias/useAddAliases";
 import { useEmployees } from "@/hooks/employee/useEmployees";
 import { useFetchAliases } from "@/hooks/alias/useFetchAliases";
-import { SelectLabel } from "@radix-ui/react-select";
 import { useDeleteAliases } from "@/hooks/alias/useDeleteAliases";
 import { useEditAliases } from "@/hooks/alias/useEditAliases";
 import { useAuthStore } from "@/AuthStore";
+
+type AliasFormValues = {
+  aliasName: string;
+  aliasEmail: string;
+  aliasEmailPassword: string;
+  employeeId: string;
+  organization: "VacationSaga" | "Holidaysera" | "HousingSaga";
+  status: "Active" | "Inactive";
+};
+
+const INITIAL_FORM_VALUES: AliasFormValues = {
+  aliasName: "",
+  aliasEmail: "",
+  aliasEmailPassword: "",
+  employeeId: "",
+  organization: "VacationSaga",
+  status: "Active",
+};
 
 export default function AliasManagement() {
   const token = useAuthStore((s) => s.token);
@@ -52,7 +68,7 @@ export default function AliasManagement() {
   // Fetching all employees
   const { employees } = useEmployees();
   // Fetching add alias function
-  const { addAlias, isPending: addAliasPending, error: addAliasError } = useAddAliases();
+  const { addAlias, isPending: addAliasPending } = useAddAliases();
   const { editAlias, isPending: editAliasPending } = useEditAliases();
   const { deleteAlias, isPending: deleteAliasPending } = useDeleteAliases();
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,15 +82,13 @@ export default function AliasManagement() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<{
-    aliasName: string;
-    aliasEmail: string;
-    aliasEmailPassword: string;
-    employeeId: string;
-    organization: "VacationSaga" | "Holidaysera";
-    status: "Active" | "Inactive";
-  }>();
+  } = useForm<AliasFormValues>({ defaultValues: INITIAL_FORM_VALUES });
+
+  const selectedOrganization = watch("organization");
+  const selectedEmployeeId = watch("employeeId");
+  const selectedStatus = watch("status");
 
   // Helper functions
   const getAgentName = (agentId: string): string => {
@@ -84,7 +98,7 @@ export default function AliasManagement() {
 
   const visibleEmployees =
     currentUserRole === "HAdmin"
-      ? employees.filter((e) => (e as any).organization === "Holidaysera")
+      ? employees.filter((employee) => employee.organization === "Holidaysera")
       : employees;
 
   // const getAgentEmail = (aliasEmail: string): string => {
@@ -115,36 +129,33 @@ export default function AliasManagement() {
   // Modal handlers
   const openCreateModal = () => {
     setCurrentAlias(null);
-    reset({
-      aliasName: "",
-      aliasEmail: "",
-      employeeId: "",
-      organization: "VacationSaga",
-      status: "Inactive",
-    });
+    reset(INITIAL_FORM_VALUES);
     setIsModalOpen(true);
   };
 
   const openEditModal = (alias: AliasInterface) => {
     setCurrentAlias(alias);
-    setValue("aliasName", alias.aliasName);
-    setValue("aliasEmail", alias.aliasEmail);
-    setValue("aliasEmailPassword", alias.aliasEmailPassword);
-    setValue("status", alias.status);
-    setValue("organization", (alias.organization || "VacationSaga") as "VacationSaga" | "Holidaysera");
+    reset({
+      aliasName: alias.aliasName,
+      aliasEmail: alias.aliasEmail,
+      aliasEmailPassword: alias.aliasEmailPassword,
+      employeeId: String(alias.assignedTo ?? ""),
+      organization: (alias.organization || "VacationSaga") as AliasFormValues["organization"],
+      status: alias.status,
+    });
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentAlias(null);
-    reset();
+    reset(INITIAL_FORM_VALUES);
   };
 
   // Form submission
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const newAlias: AliasInterface = {
+      const payload: AliasInterface = {
         aliasName: data.aliasName,
         aliasEmail: data.aliasEmail,
         aliasEmailPassword: data.aliasEmailPassword,
@@ -155,30 +166,34 @@ export default function AliasManagement() {
       };
       if (currentAlias) {
         // Update existing alias
+        await editAlias(payload, currentAlias.aliasEmail);
         setAliases((prev) =>
           prev.map((alias) =>
-            alias.aliasEmail === currentAlias.aliasEmail ? { ...alias, ...data } : alias
+            alias.aliasEmail === currentAlias.aliasEmail
+              ? {
+                  ...alias,
+                  aliasName: data.aliasName,
+                  aliasEmail: data.aliasEmail,
+                  aliasEmailPassword: data.aliasEmailPassword,
+                  status: data.status,
+                  organization: data.organization,
+                  assignedTo: data.employeeId,
+                }
+              : alias
           )
         );
         toast({
           title: "Alias updated",
           description: `${data.aliasEmail} has been updated successfully.`,
         });
-
-        editAlias(newAlias);
       } else {
         // Create new alias
-
-        setAliases((prev) => [...prev, newAlias]);
+        await addAlias(payload);
+        setAliases((prev) => [...prev, payload]);
         toast({
           title: "Alias created",
           description: `${data.aliasEmail} has been created successfully.`,
         });
-        addAlias(newAlias);
-        {
-          addAliasError &&
-            toast({ title: "Error", description: addAliasError, variant: "destructive" });
-        }
       }
 
       closeModal();
@@ -195,8 +210,8 @@ export default function AliasManagement() {
   const handleDeleteAlias = async (aliasEmail: string) => {
     if (confirm("Are you sure you want to delete this alias?")) {
       try {
+        await deleteAlias(aliasEmail);
         setAliases((prev) => prev.filter((alias) => alias.aliasEmail !== aliasEmail));
-        deleteAlias(aliasEmail);
         toast({
           title: "Alias deleted",
           description: "The alias has been deleted successfully.",
@@ -232,14 +247,13 @@ export default function AliasManagement() {
         </div>
         <Select
           value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as "Active" | "Inactive")}
+          onValueChange={(value) => setStatusFilter(value as "Active" | "Inactive" | "All")}
         >
           <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Filter by status">Filter By Status</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              {/* <SelectLabel>All Status</SelectLabel> */}
               <SelectItem value="All">All</SelectItem>
               <SelectItem value="Active">Active</SelectItem>
               <SelectItem value="Inactive">Inactive</SelectItem>
@@ -247,6 +261,13 @@ export default function AliasManagement() {
           </SelectContent>
         </Select>
       </div>
+
+      {error ? (
+        <p className="mb-4 text-sm text-red-500">Failed to load aliases. Please refresh the page.</p>
+      ) : null}
+      {isPending ? (
+        <p className="mb-4 text-sm text-muted-foreground">Loading aliases...</p>
+      ) : null}
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
@@ -312,7 +333,10 @@ export default function AliasManagement() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell
+                  colSpan={["SuperAdmin", "HR"].includes(String(currentUserRole)) ? 7 : 6}
+                  className="text-center py-6 text-muted-foreground"
+                >
                   No aliases found. Try adjusting your search or filters.
                 </TableCell>
               </TableRow>
@@ -322,7 +346,15 @@ export default function AliasManagement() {
       </div>
 
       {/* Create/Edit Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            closeModal();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{currentAlias ? "Edit Alias" : "Create New Alias"}</DialogTitle>
@@ -382,9 +414,9 @@ export default function AliasManagement() {
                 <Label htmlFor="organization">Organization</Label>
                 <Select
                   onValueChange={(value) =>
-                    setValue("organization", value as "VacationSaga" | "Holidaysera")
+                    setValue("organization", value as AliasFormValues["organization"])
                   }
-                  defaultValue={"VacationSaga"}
+                  value={selectedOrganization}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select organization" />
@@ -408,7 +440,7 @@ export default function AliasManagement() {
 
               <div className="grid gap-2">
                 <Label htmlFor="agent">Assign to Employee</Label>
-                <Select onValueChange={(value) => setValue("employeeId", value)}>
+                <Select onValueChange={(value) => setValue("employeeId", value)} value={selectedEmployeeId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an employee" />
                   </SelectTrigger>
@@ -432,7 +464,7 @@ export default function AliasManagement() {
                   onValueChange={(value) =>
                     setValue("status", value as "Active" | "Inactive")
                   }
-                  defaultValue={currentAlias?.status || "Active"}
+                  value={selectedStatus}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -453,8 +485,8 @@ export default function AliasManagement() {
               <Button type="button" variant="outline" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addAliasPending}>
-                {addAliasPending
+              <Button type="submit" disabled={addAliasPending || editAliasPending}>
+                {addAliasPending || editAliasPending
                   ? "Saving..."
                   : currentAlias
                   ? "Save Changes"

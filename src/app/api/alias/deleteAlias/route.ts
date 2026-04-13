@@ -1,18 +1,27 @@
 import Aliases from "@/models/alias";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { connectDb } from "@/util/db";
 
 export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest) {
   try {
     await getDataFromToken(req);
+    await connectDb();
     const { searchParams } = new URL(req.url);
-    const aliasEmail = searchParams.get("aliasEmail");
+    const aliasEmail = searchParams.get("aliasEmail")?.trim();
 
-    await Aliases.findOneAndDelete({ aliasEmail });
+    if (!aliasEmail) {
+      return NextResponse.json({ error: "aliasEmail is required" }, { status: 400 });
+    }
 
-    return NextResponse.json({ message: "Alias delete successfully" }, { status: 200 });
+    const deletedAlias = await Aliases.findOneAndDelete({ aliasEmail });
+    if (!deletedAlias) {
+      return NextResponse.json({ error: "Alias not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "Alias deleted successfully" }, { status: 200 });
   } catch (err: unknown) {
     const error = err as { status?: number; code?: string; message?: string };
     if (error?.status) {

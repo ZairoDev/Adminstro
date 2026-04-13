@@ -5,24 +5,28 @@ import { AliasInterface } from "@/util/type";
 
 export const useEditAliases = () => {
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<AliasInterface | null>(null);
 
-  const editAlias = async (doc: AliasInterface) => {
+  const editAlias = async (doc: AliasInterface, lookupAliasEmail?: string) => {
     setIsPending(true);
     setError(null);
     setSuccess(false);
 
     try {
       const response = await axios.patch("/api/alias/editAlias", {
-        aliasEmail: doc.aliasEmail,
+        aliasEmail: lookupAliasEmail ?? doc.aliasEmail,
         body: doc,
       });
-      setData(response.data);
+      const updatedAlias = (response.data?.alias ?? null) as AliasInterface | null;
+      setData(updatedAlias);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+      return updatedAlias;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to edit alias";
+      setError(message);
+      throw err;
     } finally {
       setIsPending(false);
     }

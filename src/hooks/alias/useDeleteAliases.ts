@@ -4,9 +4,9 @@ import { useState } from "react";
 
 export const useDeleteAliases = () => {
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<{ message?: string } | null>(null);
 
   const deleteAlias = async (aliasEmail: string) => {
     setIsPending(true);
@@ -14,13 +14,14 @@ export const useDeleteAliases = () => {
     setSuccess(false);
 
     try {
-      const response = await axios.delete(
-        `/api/alias/deleteAlias?aliasEmail=${aliasEmail}`
-      );
+      const response = await axios.delete(`/api/alias/deleteAlias?aliasEmail=${aliasEmail}`);
       setData(response.data);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+      return response.data;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete alias";
+      setError(message);
+      throw err;
     } finally {
       setIsPending(false);
     }

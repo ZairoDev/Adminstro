@@ -4,9 +4,9 @@ import { useState } from "react";
 
 export const useAddAliases = () => {
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<AliasInterface | null>(null);
 
   const addAlias = async (doc: AliasInterface) => {
     setIsPending(true);
@@ -15,10 +15,14 @@ export const useAddAliases = () => {
 
     try {
       const response = await axios.post("/api/alias/createAlias", doc);
-      setData(response.data);
+      const createdAlias = (response.data?.alias ?? null) as AliasInterface | null;
+      setData(createdAlias);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+      return createdAlias;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create alias";
+      setError(message);
+      throw err;
     } finally {
       setIsPending(false);
     }

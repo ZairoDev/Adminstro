@@ -25,9 +25,17 @@ export async function PATCH(req: NextRequest) {
       body.organization = body.organization ?? (employee as any).organization;
     }
 
-    const alias = await Aliases.findOneAndUpdate({ aliasEmail: aliasEmail }, body);
+    const alias = await Aliases.findOneAndUpdate(
+      { aliasEmail: aliasEmail },
+      body,
+      { new: true, runValidators: true },
+    );
 
-    return NextResponse.json({ alias }, { status: 201 });
+    if (!alias) {
+      return NextResponse.json({ error: "Alias not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ alias }, { status: 200 });
   } catch (err: unknown) {
     const error = err as { status?: number; code?: string; message?: string };
     if (error?.status) {

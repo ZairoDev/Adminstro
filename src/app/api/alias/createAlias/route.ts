@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!employee) {
       return NextResponse.json({ error: "Assigned employee not found" }, { status: 400 });
     }
-
+    console.log("alias body: ", body);
     const alias = await Aliases.create({
       ...body,
       assignedTo: (employee as any)._id,

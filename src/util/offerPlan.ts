@@ -111,3 +111,15 @@ export function getHolidayseraPlanFeaturePlaceholders(
 
   return toPlanFeaturePlaceholders(ACTION_PLAN_FEATURES);
 }
+
+export function getHolidayseraCheckoutPlanId(
+  plan: string | OfferPlanOption | null | undefined,
+): string | null {
+  const parsed = typeof plan === "string" ? parseOfferPlan(plan) : plan;
+  const normalizedPlanName = String(parsed?.planName ?? "").trim().toLowerCase();
+
+  if (normalizedPlanName.includes("action")) return "action";
+  if (normalizedPlanName.includes("game")) return "game";
+  if (normalizedPlanName.includes("master")) return "master";
+  return null;
+}

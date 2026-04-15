@@ -13,6 +13,8 @@ export type OfferEmailPlaceholders = {
   price: number;
   employeeName: string;
   employeeEmail: string;
+  aliasName?: string;
+  aliasEmail?: string;
   propertyName: string;
   propertyUrl: string;
   plan: string;
@@ -146,6 +148,8 @@ export async function sendOfferEmailUsingAlias(params: {
     ...params.placeholders,
     employeeName: params.placeholders.employeeName,
     employeeEmail: params.placeholders.employeeEmail,
+    aliasName: alias.aliasName,
+    aliasEmail: alias.aliasEmail,
   });
 
   const transporter = nodemailer.createTransport({

@@ -29,3 +29,53 @@ export function resolvePayNowUrl(organization: Organization, fallbackUrl: string
 
   return fallbackUrl.trim().length > 0 ? fallbackUrl : "#";
 }
+
+type BuildPayNowUrlOptions = {
+  couponCode?: string | null;
+  holidayseraPlanId?: string | null;
+};
+
+function appendQueryParams(
+  url: string,
+  params: Record<string, string | null | undefined>,
+): string {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return "#";
+
+  try {
+    const parsedUrl = new URL(trimmedUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      const normalizedValue = String(value ?? "").trim();
+      if (normalizedValue.length > 0) {
+        parsedUrl.searchParams.set(key, normalizedValue);
+      }
+    });
+    return parsedUrl.toString();
+  } catch {
+    return trimmedUrl;
+  }
+}
+
+export function buildPayNowUrl(
+  organization: Organization,
+  fallbackUrl: string,
+  options?: BuildPayNowUrlOptions,
+): string {
+  const baseUrl = resolvePayNowUrl(organization, fallbackUrl);
+  const couponCode = String(options?.couponCode ?? "").trim();
+  if (!couponCode) return baseUrl;
+
+  if (organization === "HousingSaga") {
+    return appendQueryParams(baseUrl, { couponCode });
+  }
+
+  if (organization === "Holidaysera") {
+    const holidayseraCheckoutBase = "https://holidaysera.com/subscriptions/checkout";
+    return appendQueryParams(holidayseraCheckoutBase, {
+      coupon: couponCode,
+      plan: options?.holidayseraPlanId ?? "",
+    });
+  }
+
+  return baseUrl;
+}

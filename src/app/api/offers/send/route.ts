@@ -1,14 +1,17 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import Coupon from "@/models/coupon";
 import { Offer } from "@/models/offer";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendOfferEmailUsingAlias } from "@/util/offerEmailService";
 import { DEFAULT_ORGANIZATION, OrganizationZod } from "@/util/organizationConstants";
-import { resolvePayNowUrl } from "@/util/payNowUrl";
+import { buildPayNowUrl } from "@/util/payNowUrl";
 import {
+  getHolidayseraCheckoutPlanId,
   getHolidayseraPlanFeaturePlaceholders,
   parseOfferPlan,
   serializeOfferPlan,
@@ -41,6 +44,59 @@ const BodySchema = z.object({
   services: z.string().optional().default(""),
   platform: z.enum(["VacationSaga", "Holidaysera", "HousingSaga", "TechTunes"]),
 });
+
+function generateOfferCouponCode(): string {
+  return `ADMN-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+function resolveOfferCouponExpiry(expiryDate: Date | null | undefined): Date {
+  const now = new Date();
+  if (expiryDate instanceof Date && !Number.isNaN(expiryDate.getTime()) && expiryDate > now) {
+    return expiryDate;
+  }
+
+  const inThirtyDays = new Date(now);
+  inThirtyDays.setDate(inThirtyDays.getDate() + 30);
+  return inThirtyDays;
+}
+
+async function createOneTimeOfferCoupon(params: {
+  discount: number;
+  validUntil: Date;
+  applicablePlans: string[];
+}): Promise<string | null> {
+  const { discount, validUntil, applicablePlans } = params;
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const couponCode = generateOfferCouponCode();
+
+    try {
+      await Coupon.create({
+        code: couponCode,
+        discountType: "fixed",
+        discountValue: discount,
+        minPurchaseAmount: 0,
+        validFrom: new Date(),
+        validUntil,
+        usageLimit: 1,
+        usedCount: 0,
+        applicablePlans,
+        isActive: true,
+        origin: "adminstro",
+      });
+      return couponCode;
+    } catch (error) {
+      const mongoError = error as { code?: number };
+      if (mongoError.code === 11000 && attempt < maxAttempts) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,7 +138,38 @@ export async function POST(req: NextRequest) {
 
     // Send email + get rendered HTML snapshot
     const subject = `Offer - ${normalizedPlan}`;
-    const payNowUrl = resolvePayNowUrl(organization, body.data.propertyUrl);
+    const holidayseraPlanId = getHolidayseraCheckoutPlanId(parsedPlan);
+    const shouldCreateOfferCoupon =
+      body.data.discount > 0 &&
+      (organization === "HousingSaga" || organization === "Holidaysera");
+
+    let couponCode: string | null = null;
+
+    if (shouldCreateOfferCoupon) {
+      try {
+        const applicablePlans =
+          organization === "HousingSaga"
+            ? ["property-listing"]
+            : holidayseraPlanId
+              ? [holidayseraPlanId]
+              : [];
+
+        if (organization !== "Holidaysera" || applicablePlans.length > 0) {
+          couponCode = await createOneTimeOfferCoupon({
+            discount: body.data.discount,
+            validUntil: resolveOfferCouponExpiry(body.data.expiryDate),
+            applicablePlans,
+          });
+        }
+      } catch (couponError) {
+        console.error("[OfferSend] Failed to create coupon:", couponError);
+      }
+    }
+
+    const payNowUrl = buildPayNowUrl(organization, body.data.propertyUrl, {
+      couponCode,
+      holidayseraPlanId,
+    });
     const { alias, renderedHtml } = await sendOfferEmailUsingAlias({
       employeeId,
       organizationOverride: organization,
@@ -91,7 +178,7 @@ export async function POST(req: NextRequest) {
       subject,
       placeholders: {
         ownerName: body.data.name,
-        price: body.data.effectivePrice,
+        price: body.data.effectivePrice + body.data.discount,
         employeeName: String((employee as any).name ?? ""),
         employeeEmail: String((employee as any).email ?? ""),
         propertyName: body.data.propertyName,
@@ -131,16 +218,28 @@ export async function POST(req: NextRequest) {
       createdAt: new Date(),
     } as const;
     console.log("updateFields: ", updateFields);
-    const offerDoc = body.data.leadId
-      ? await Offer.findOneAndUpdate(
-          { _id: body.data.leadId, organization },
+    let offerDoc = null;
+    if (body.data.leadId) {
+      offerDoc = await Offer.findOneAndUpdate(
+        { _id: body.data.leadId, organization },
+        { $set: updateFields, $push: { history: historyEntry } },
+        { new: true },
+      );
+
+      if (!offerDoc) {
+        // Legacy leads can exist without normalized organization values.
+        offerDoc = await Offer.findOneAndUpdate(
+          { _id: body.data.leadId },
           { $set: updateFields, $push: { history: historyEntry } },
           { new: true },
-        )
-      : await Offer.create({
-          ...updateFields,
-          history: [historyEntry],
-        });
+        );
+      }
+    } else {
+      offerDoc = await Offer.create({
+        ...updateFields,
+        history: [historyEntry],
+      });
+    }
     console.log("offerDoc: ", offerDoc);
     if (!offerDoc) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });

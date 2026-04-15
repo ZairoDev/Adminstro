@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
+import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneIds, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
@@ -1017,7 +1018,7 @@ async function processIncomingMessage(
       const eventId = `${conversation._id}:${message.id}:${user.userId}`;
       const deliveryId = `${eventId}:${Date.now()}`;
       
-      const emitted = emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+      emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
         deliveryId,
         eventId,
         conversationId: conversation._id.toString(),
@@ -1055,6 +1056,44 @@ async function processIncomingMessage(
           }),
         },
       });
+
+      notificationsEmitted += 1;
+
+      // Push notification to mobile devices (Expo Push), best-effort.
+      try {
+        const type = String(message.type || "text");
+        const preview =
+          type === "image"
+            ? "📷 Image"
+            : type === "document"
+              ? "📄 Document"
+              : type === "video"
+                ? "🎥 Video"
+                : type === "audio"
+                  ? "🎵 Audio"
+                  : displayText.substring(0, 100);
+
+        await sendExpoPushToEmployee({
+          employeeId: String(user.userId),
+          title: senderName || senderPhone,
+          body: preview,
+          data: {
+            conversationId: conversation._id.toString(),
+            businessPhoneId: phoneNumberId,
+            senderId: senderPhone,
+            messageType: type,
+            timestamp: timestamp.getTime(),
+          },
+          channelId: "default",
+        });
+      } catch (err) {
+        console.error("[push] failed", {
+          conversationId: conversation._id.toString(),
+          messageId: message.id,
+          userId: String(user.userId),
+          error: String((err as any)?.message ?? err),
+        });
+      }
       
 
     }

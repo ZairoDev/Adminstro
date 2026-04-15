@@ -9,6 +9,16 @@ export const getDataFromToken = async (request: NextRequest) => {
   try {
     token = request.cookies.get("token")?.value;
 
+    // Mobile/third-party clients may not use httpOnly cookies.
+    // Accept standard Bearer auth as a fallback.
+    if (!token) {
+      const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+      if (authHeader && typeof authHeader === "string") {
+        const m = authHeader.match(/^Bearer\s+(.+)$/i);
+        if (m?.[1]) token = m[1].trim();
+      }
+    }
+
     if (!token) {
       throw { status: 401, code: "NO_TOKEN" };
     }

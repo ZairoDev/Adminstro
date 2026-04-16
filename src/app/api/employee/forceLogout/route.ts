@@ -21,12 +21,28 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Authenticate and authorize caller using shared token logic
-    let auth: any;
+    let auth: { id?: string; role?: string; name?: string };
     try {
-      auth = await getDataFromToken(request);
-    } catch (err: any) {
-      const status = err?.status ?? 401;
-      const code = err?.code ?? "AUTH_FAILED";
+      auth = (await getDataFromToken(request)) as unknown as {
+        id?: string;
+        role?: string;
+        name?: string;
+      };
+    } catch (err: unknown) {
+      const status =
+        (typeof err === "object" &&
+          err !== null &&
+          "status" in err &&
+          typeof (err as { status?: unknown }).status === "number" &&
+          (err as { status: number }).status) ||
+        401;
+      const code =
+        (typeof err === "object" &&
+          err !== null &&
+          "code" in err &&
+          typeof (err as { code?: unknown }).code === "string" &&
+          (err as { code: string }).code) ||
+        "AUTH_FAILED";
       return NextResponse.json(
         { success: false, code, message: "Unauthorized" },
         { status },
@@ -57,12 +73,36 @@ export async function POST(request: NextRequest) {
 
     const { employeeId, sessionId } = parsed.data;
 
+    // Hard-block invalid targets before any DB work
+    if (auth?.id && auth.id === employeeId) {
+      return NextResponse.json(
+        { success: false, message: "You cannot force logout yourself." },
+        { status: 403 },
+      );
+    }
+
+    // Test SuperAdmin is token-only (no DB record) and must never be force-logged out
+    if (employeeId === "test-superadmin") {
+      return NextResponse.json(
+        { success: false, message: "SuperAdmin cannot be force logged out." },
+        { status: 403 },
+      );
+    }
+
     // Fetch employee details before updating
     const employee = await Employees.findById(employeeId);
     if (!employee) {
       return NextResponse.json(
         { success: false, message: "Employee not found" },
         { status: 404 },
+      );
+    }
+
+    const targetRole = String(employee.role || "").trim().toLowerCase();
+    if (targetRole === "superadmin") {
+      return NextResponse.json(
+        { success: false, message: "SuperAdmin cannot be force logged out." },
+        { status: 403 },
       );
     }
 

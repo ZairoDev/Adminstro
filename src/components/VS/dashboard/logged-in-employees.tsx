@@ -27,7 +27,6 @@ import { useLoggedInEmployees } from "@/hooks/useLoggedInEmployees";
 import { useSocket } from "@/hooks/useSocket";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
-import { useRouter } from "next/navigation";
 
 const roleColors: Record<string, string> = {
   HR: "bg-purple-500/20 text-purple-500 border-purple-500/30",
@@ -58,6 +57,7 @@ const LoggedInEmployeesList = () => {
   const [isMounted, setIsMounted] = useState(false);
   const { employees, count, isLoading, refetch } = useLoggedInEmployees();
   const { isConnected } = useSocket();
+  const authToken = useAuthStore((s) => s.token);
 
   useEffect(() => {
     setIsMounted(true);
@@ -70,7 +70,7 @@ const LoggedInEmployeesList = () => {
     const fetchSessionCounts = async () => {
       try {
         if (!employees || employees.length === 0) return;
-        const ids = employees.map((e: any) => e._id);
+        const ids = employees.map((e) => e._id);
         const res = await axios.post("/api/employee/getActiveSessionsCounts", { employeeIds: ids });
         if (res.data?.success && res.data.counts) {
           setSessionsMap(res.data.counts);
@@ -156,138 +156,225 @@ const LoggedInEmployeesList = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {employees.map((employee) => (
-                <div
-                  key={employee._id}
-                  className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
-                >
-                  <div className="relative">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage
-                        src={employee.profilePic}
-                        alt={employee.name}
-                      />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(employee.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-green-500 text-green-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/dashboard/employee/${employee._id}`}
-                        className="font-medium text-sm truncate hover:underline"
-                      >
-                        {employee.name}
-                      </Link>
-                      <span className="ml-2">
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-5">
-                          {sessionsMap[employee._id] ?? 0} session{(sessionsMap[employee._id] ?? 0) !== 1 ? "s" : ""}
+              {employees.map((employee) => {
+                const currentEmployeeId = authToken?.id ?? null;
+                const isSelf = Boolean(
+                  currentEmployeeId && employee._id === currentEmployeeId,
+                );
+                const targetRole = String(employee.role || "")
+                  .trim()
+                  .toLowerCase();
+                const isSuperAdminTarget =
+                  targetRole === "superadmin" || employee._id === "test-superadmin";
+                const forcingInProgress = forcingId === employee._id;
+                const protectedDisable = isSelf || isSuperAdminTarget;
+                const forceLogoutDisabled =
+                  protectedDisable || forcingInProgress;
+
+                const titleText = isSelf
+                  ? "You can't force logout yourself."
+                  : isSuperAdminTarget
+                    ? "SuperAdmin can't be force logged out."
+                    : undefined;
+
+                return (
+                  <div
+                    key={employee._id}
+                    className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage
+                          src={employee.profilePic}
+                          alt={employee.name}
+                        />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(employee.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-green-500 text-green-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          href={`/dashboard/employee/${employee._id}`}
+                          className="font-medium text-sm truncate hover:underline"
+                        >
+                          {employee.name}
+                        </Link>
+                        {isSelf && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0 h-5"
+                          >
+                            You
+                          </Badge>
+                        )}
+                        <span className="ml-1">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1 py-0 h-5"
+                          >
+                            {sessionsMap[employee._id] ?? 0} session
+                            {(sessionsMap[employee._id] ?? 0) !== 1 ? "s" : ""}
+                          </Badge>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] px-1.5 py-0 h-5",
+                            roleColors[employee.role] || "bg-gray-500/20",
+                          )}
+                        >
+                          {employee.role}
                         </Badge>
-                      </span>
+                        <TooltipProvider>
+                          {/* Warning Badge */}
+                          {(employee.warningsCount ?? 0) > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/30 flex items-center gap-1 cursor-help"
+                                >
+                                  <AlertTriangle className="h-2.5 w-2.5" />
+                                  {employee.warningsCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {employee.warningsCount} Warning
+                                  {(employee.warningsCount ?? 0) > 1
+                                    ? "s"
+                                    : ""}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* PIP Badge */}
+                          {(employee.pipsCount ?? 0) > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 border-amber-500/30 flex items-center gap-1 cursor-help"
+                                >
+                                  <TrendingUp className="h-2.5 w-2.5" />
+                                  {employee.pipsCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {employee.pipsCount} Active PIP
+                                  {(employee.pipsCount ?? 0) > 1
+                                    ? "s"
+                                    : ""}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Appreciation Badge */}
+                          {(employee.appreciationsCount ?? 0) > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 text-green-600 border-green-500/30 flex items-center gap-1 cursor-help"
+                                >
+                                  <Award className="h-2.5 w-2.5" />
+                                  {employee.appreciationsCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {employee.appreciationsCount} Appreciation
+                                  {(employee.appreciationsCount ?? 0) > 1
+                                    ? "s"
+                                    : ""}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </TooltipProvider>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {employee.lastLogin &&
+                            formatDistanceToNow(new Date(employee.lastLogin), {
+                              addSuffix: true,
+                            })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <Badge
-                        variant="outline"
+                    <div className="flex items-center">
+                      <button
+                        onClick={async () => {
+                          if (forceLogoutDisabled) return;
+                          const confirmForce = window.confirm(
+                            `Force logout ${employee.name}? This will end their active sessions.`,
+                          );
+                          if (!confirmForce) return;
+                          try {
+                            setForcingId(employee._id);
+                            const res = await axios.post(
+                              "/api/employee/forceLogout",
+                              { employeeId: employee._id },
+                            );
+                            if (res.data?.success) {
+                              // refresh list
+                              await refetch();
+                            } else {
+                              alert(
+                                res.data?.message ||
+                                  "Failed to force logout",
+                              );
+                            }
+                          } catch (err: unknown) {
+                            console.error("Force logout failed:", err);
+                            const message =
+                              (typeof err === "object" &&
+                                err !== null &&
+                                "response" in err &&
+                                typeof (err as { response?: unknown }).response ===
+                                  "object" &&
+                                (err as {
+                                  response?: { data?: { message?: unknown } };
+                                }).response?.data?.message) ||
+                              (typeof err === "object" &&
+                                err !== null &&
+                                "message" in err &&
+                                (err as { message?: unknown }).message) ||
+                              "Force logout failed";
+                            alert(
+                              typeof message === "string"
+                                ? message
+                                : "Force logout failed",
+                            );
+                          } finally {
+                            setForcingId(null);
+                          }
+                        }}
+                        disabled={forceLogoutDisabled}
+                        title={titleText}
+                        aria-disabled={forceLogoutDisabled}
                         className={cn(
-                          "text-[10px] px-1.5 py-0 h-5",
-                          roleColors[employee.role] || "bg-gray-500/20"
+                          "inline-flex items-center gap-2 text-xs px-2 py-1 rounded",
+                          protectedDisable
+                            ? "bg-red-600/20 text-red-800 hover:bg-red-600/20 disabled:opacity-100 cursor-not-allowed"
+                            : "bg-red-600 text-white hover:bg-red-700 disabled:opacity-60",
                         )}
                       >
-                        {employee.role}
-                      </Badge>
-                      <TooltipProvider>
-                        {/* Warning Badge */}
-                        {(employee.warningsCount ?? 0) > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/30 flex items-center gap-1 cursor-help"
-                              >
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                {employee.warningsCount}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{employee.warningsCount} Warning{(employee.warningsCount ?? 0) > 1 ? 's' : ''}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                        {forcingInProgress ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash className="h-4 w-4" />
                         )}
-                        {/* PIP Badge */}
-                        {(employee.pipsCount ?? 0) > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 border-amber-500/30 flex items-center gap-1 cursor-help"
-                              >
-                                <TrendingUp className="h-2.5 w-2.5" />
-                                {employee.pipsCount}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{employee.pipsCount} Active PIP{(employee.pipsCount ?? 0) > 1 ? 's' : ''}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {/* Appreciation Badge */}
-                        {(employee.appreciationsCount ?? 0) > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 text-green-600 border-green-500/30 flex items-center gap-1 cursor-help"
-                              >
-                                <Award className="h-2.5 w-2.5" />
-                                {employee.appreciationsCount}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{employee.appreciationsCount} Appreciation{(employee.appreciationsCount ?? 0) > 1 ? 's' : ''}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </TooltipProvider>
-                      <span className="text-[10px] text-muted-foreground truncate">
-                        {employee.lastLogin &&
-                          formatDistanceToNow(new Date(employee.lastLogin), {
-                            addSuffix: true,
-                          })}
-                      </span>
+
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center">
-                    <button
-                      onClick={async () => {
-                        const confirmForce = window.confirm(`Force logout ${employee.name}? This will end their active sessions.`);
-                        if (!confirmForce) return;
-                        try {
-                          setForcingId(employee._id);
-                          const res = await axios.post("/api/employee/forceLogout", { employeeId: employee._id });
-                          if (res.data?.success) {
-                            // refresh list
-                            await refetch();
-                          } else {
-                            alert(res.data?.message || "Failed to force logout");
-                          }
-                        } catch (err: any) {
-                          console.error("Force logout failed:", err);
-                          alert(err?.message || "Force logout failed");
-                        } finally {
-                          setForcingId(null);
-                        }
-                      }}
-                      disabled={forcingId === employee._id}
-                      className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
-                    >
-                      {forcingId === employee._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
-                      Force logout
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>

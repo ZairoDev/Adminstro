@@ -3018,9 +3018,10 @@ export default function WhatsAppChat() {
                     videoInputRef={videoInputRef}
                     audioInputRef={audioInputRef}
                     onOpenTemplateFromWarning={() => setShowTemplateDialog(true)}
-                    templateContext={getConversationTemplateContext(
-                      selectedConversation
-                    )}
+                    templateContext={{
+                      ...getConversationTemplateContext(selectedConversation),
+                      agentName: token?.name || "",
+                    }}
                     replyToMessage={replyToMessage}
                     onCancelReply={handleCancelReply}
                     isYouConversation={isYouConversation}

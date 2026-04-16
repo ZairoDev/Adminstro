@@ -34,14 +34,15 @@ export function getTemplateParameters(
   const params: { type: string; index: number; text: string; example: string; contextSnippet: string }[] = [];
 
   template.components?.forEach((component: any) => {
-    if (component.type === "BODY" && component.text) {
+    const compType = (component.type || "").toUpperCase();
+
+    if (compType === "BODY" && component.text) {
       const bodyExamples: string[] = component.example?.body_text?.[0] || [];
       const matches = component.text.match(/\{\{(\d+)\}\}/g);
       if (matches) {
         matches.forEach((match: string) => {
           const index = parseInt(match.replace(/[{}]/g, ""));
           const example = bodyExamples[index - 1] || "";
-          // Extract surrounding context for the placeholder
           const pos = component.text.indexOf(match);
           const before = component.text.substring(Math.max(0, pos - 25), pos).trim();
           const after = component.text.substring(pos + match.length, pos + match.length + 25).trim();
@@ -50,7 +51,8 @@ export function getTemplateParameters(
         });
       }
     }
-    if (component.type === "HEADER" && component.format === "TEXT" && component.text) {
+
+    if (compType === "HEADER" && (component.format || "").toUpperCase() === "TEXT" && component.text) {
       const headerExamples: string[] = component.example?.header_text || [];
       const matches = component.text.match(/\{\{(\d+)\}\}/g);
       if (matches) {
@@ -64,6 +66,24 @@ export function getTemplateParameters(
           params.push({ type: "header", index, text: `Header {{${index}}}`, example, contextSnippet });
         });
       }
+    }
+
+    // Detect URL button variables (e.g. buttons with dynamic URL suffix {{1}})
+    if (compType === "BUTTONS") {
+      (component.buttons || []).forEach((btn: any, btnIndex: number) => {
+        if ((btn.type || "").toUpperCase() === "URL" && btn.url) {
+          const matches = (btn.url as string).match(/\{\{(\d+)\}\}/g);
+          if (matches) {
+            params.push({
+              type: `button_${btnIndex}`,
+              index: 1,
+              text: `Button "${btn.text || "URL"}" link`,
+              example: "",
+              contextSnippet: `[URL suffix for "${btn.text || "button"}"]`,
+            });
+          }
+        }
+      });
     }
   });
 
@@ -118,8 +138,11 @@ export function detectParamIntent(
   paramType: string,
   paramIndex: number
 ): ParamIntent {
+  // Button URL params are always "custom" (specific URL suffix, not auto-detectable)
+  if (paramType.startsWith("button_")) return "custom";
+
   const comp = template.components?.find(
-    (c: any) => c.type === (paramType === "header" ? "HEADER" : "BODY")
+    (c: any) => (c.type || "").toUpperCase() === (paramType === "header" ? "HEADER" : "BODY")
   );
   if (!comp?.text) return "custom";
 
@@ -266,6 +289,24 @@ export function buildTemplateComponents(
       type: "body",
       parameters: bodyParams,
     });
+  }
+
+  // URL button parameters (dynamic link suffix via {{1}})
+  // Key format: button_{buttonIndex} → meta component: { type: "button", sub_type: "url", index: "N" }
+  const buttonEntries = Object.entries(params)
+    .filter(([key, value]) => key.startsWith("button_") && value && value.trim() !== "")
+    .sort(([a], [b]) => parseInt(a.split("_")[1]) - parseInt(b.split("_")[1]));
+
+  for (const [key, value] of buttonEntries) {
+    const btnIndex = parseInt(key.split("_")[1]);
+    if (!isNaN(btnIndex)) {
+      components.push({
+        type: "button",
+        sub_type: "url",
+        index: `${btnIndex}`,
+        parameters: [{ type: "text", text: value.trim() }],
+      });
+    }
   }
 
   return components;

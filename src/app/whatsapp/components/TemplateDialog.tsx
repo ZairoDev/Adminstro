@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { LayoutTemplate, Loader2, MessageSquare, Check, ChevronDown } from "lucide-react";
+import { LayoutTemplate, Loader2, MessageSquare, Check, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Template } from "../types";
 import { getTemplateParameters } from "../utils";
@@ -30,6 +30,7 @@ interface TemplateDialogProps {
   context?: {
     clientName?: string;
     locationName?: string;
+    agentName?: string;
   };
 }
 
@@ -60,7 +61,26 @@ export const TemplateDialog = memo(function TemplateDialog({
     [params, templateParams]
   );
 
-  const canSend = selectedTemplate && !sendingMessage && missingParams.length === 0;
+  // Raw scan of all component texts for {{N}} patterns as a safety net.
+  // If variables exist in the template but detection found none, block sending.
+  const rawVariableCount = useMemo(() => {
+    if (!selectedTemplate?.components) return 0;
+    let count = 0;
+    for (const comp of selectedTemplate.components) {
+      const texts: string[] = [
+        comp.text,
+        ...(comp.buttons?.map((b: any) => b.url || "") || []),
+      ].filter(Boolean);
+      for (const t of texts) {
+        count += (t.match(/\{\{(\d+)\}\}/g) || []).length;
+      }
+    }
+    return count;
+  }, [selectedTemplate]);
+
+  const detectionIncomplete = rawVariableCount > 0 && params.length === 0;
+
+  const canSend = selectedTemplate && !sendingMessage && missingParams.length === 0 && !detectionIncomplete;
 
   const approvedTemplates = useMemo(
     () => {
@@ -291,6 +311,16 @@ export const TemplateDialog = memo(function TemplateDialog({
               <p className="text-[12px] text-red-500 dark:text-red-400 text-center -mt-1">
                 Please fill in all {missingParams.length} required parameter{missingParams.length > 1 ? "s" : ""} before sending.
               </p>
+            )}
+
+            {/* Detection incomplete warning */}
+            {selectedTemplate && detectionIncomplete && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 -mt-1">
+                <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-[12px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                  This template has <strong>{rawVariableCount}</strong> variable{rawVariableCount > 1 ? "s" : ""} that could not be detected (unsupported component type). Sending without filling them will fail. Please contact your admin to check the template structure.
+                </p>
+              </div>
             )}
 
             {/* Send button */}

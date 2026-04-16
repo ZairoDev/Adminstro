@@ -61,6 +61,7 @@ interface MessageComposerProps {
   templateContext?: {
     clientName?: string;
     locationName?: string;
+    agentName?: string;
   };
   // Reply functionality
   replyToMessage?: Message | null;

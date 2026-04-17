@@ -137,7 +137,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Send email + get rendered HTML snapshot
-    const subject = `Offer - ${normalizedPlan}`;
+    const organizationSlug = String(organization).toLowerCase();
+    const subject =
+      organization === "Holidaysera" || organization === "HousingSaga"
+        ? `Partner with ${organization}`
+        : `Partner with ${organization}`;
     const holidayseraPlanId = getHolidayseraCheckoutPlanId(parsedPlan);
     const shouldCreateOfferCoupon =
       body.data.discount > 0 &&
@@ -170,6 +174,11 @@ export async function POST(req: NextRequest) {
       couponCode,
       holidayseraPlanId,
     });
+
+    const originalAmount = body.data.effectivePrice + body.data.discount;
+    const originalPrice =
+      body.data.discount > 0 ? `€ ${originalAmount}` : "";
+
     const { alias, renderedHtml } = await sendOfferEmailUsingAlias({
       employeeId,
       organizationOverride: organization,
@@ -179,6 +188,8 @@ export async function POST(req: NextRequest) {
       placeholders: {
         ownerName: body.data.name,
         price: body.data.effectivePrice + body.data.discount,
+        planName: parsedPlan.planName,
+        originalPrice,
         employeeName: String((employee as any).name ?? ""),
         employeeEmail: String((employee as any).email ?? ""),
         propertyName: body.data.propertyName,

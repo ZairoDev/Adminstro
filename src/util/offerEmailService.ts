@@ -15,6 +15,8 @@ export type OfferEmailPlaceholders = {
   employeeEmail: string;
   aliasName?: string;
   aliasEmail?: string;
+  planName?: string;
+  originalPrice?: string;
   propertyName: string;
   propertyUrl: string;
   plan: string;

@@ -56,6 +56,7 @@ import { DonutChart } from "@/components/charts/DonutChart";
 import { OwnerStageChart } from "@/components/charts/OwnerStageChart";
 // import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
+import { VisitsCreatedByMultiLineChart } from "@/components/charts/VisitsCreatedByMultiLineChart";
 
 // Hooks
 import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
@@ -175,6 +176,16 @@ const Dashboard = () => {
     days?: string;
   }>({});
 
+  const [visitsCreatedByFilters, setVisitsCreatedByFilters] = useState<{
+    days?: string;
+  }>({ days: "this month" });
+  const [visitsCreatedByCreators, setVisitsCreatedByCreators] = useState<string[]>([]);
+  const [visitsCreatedBySeries, setVisitsCreatedBySeries] = useState<
+    Array<{ date: string } & Record<string, number | string>>
+  >([]);
+  const [visitsCreatedByLoading, setVisitsCreatedByLoading] = useState(false);
+  const [visitsCreatedByError, setVisitsCreatedByError] = useState<string>("");
+
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
     createdBy?: string;
@@ -235,6 +246,36 @@ const Dashboard = () => {
     error: replyCountsErrorMsg,
     fetchReplyCountsByLocation,
   } = useReplyCountsByLocation();
+
+  const fetchVisitsCreatedByStats = async (filters: { days?: string }) => {
+    setVisitsCreatedByLoading(true);
+    setVisitsCreatedByError("");
+    try {
+      const res = await axios.get("/api/visits/stats/created-by", {
+        params: { days: filters.days || "12 days" },
+      });
+      if (res.data?.success) {
+        setVisitsCreatedByCreators(res.data.creators || []);
+        setVisitsCreatedBySeries(res.data.data || []);
+      } else {
+        setVisitsCreatedByCreators([]);
+        setVisitsCreatedBySeries([]);
+        setVisitsCreatedByError("Failed to load visit stats");
+      }
+    } catch (e: any) {
+      setVisitsCreatedByCreators([]);
+      setVisitsCreatedBySeries([]);
+      setVisitsCreatedByError(e?.response?.data?.error || "Failed to load visit stats");
+    } finally {
+      setVisitsCreatedByLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token?.id) return;
+    fetchVisitsCreatedByStats(visitsCreatedByFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token?.id, visitsCreatedByFilters.days]);
 
   //  Property Count
 
@@ -960,6 +1001,24 @@ const Dashboard = () => {
 
       {/* Sales Dashboard - For Sales, Sales-TeamLead (not for Advert, they have their own) */}
       {showSalesDashboard && !showAdvertDashboard && <SalesDashboard />}
+
+      {/* Visits Created By (date-wise) */}
+      {showSalesDashboard && !showAdvertDashboard && (
+        <div className="mt-6">
+          <VisitsCreatedByMultiLineChart
+            data={visitsCreatedBySeries}
+            creators={visitsCreatedByCreators}
+            filters={visitsCreatedByFilters}
+            onFilterChange={(value) => {
+              const next = { ...visitsCreatedByFilters, days: value };
+              setVisitsCreatedByFilters(next);
+            }}
+            loading={visitsCreatedByLoading}
+            isError={Boolean(visitsCreatedByError)}
+            error={visitsCreatedByError}
+          />
+        </div>
+      )}
 
       {/* Reply Counts by Location - Visible to all roles */}
       <Card className="overflow-hidden mt-6">

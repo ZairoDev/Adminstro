@@ -636,6 +636,12 @@ export interface SalesOfferInterface {
   state: string;
   city: string;
   plan: string;
+  pricePerProperty: number;
+  propertiesAllowed: number;
+  discountType: "PER_PROPERTY" | "TOTAL";
+  discountUnit: "FIXED" | "PERCENT";
+  discountValue: number;
+  totalPrice: number;
   discount: number;
   effectivePrice: number;
   expiryDate: Date | null;
@@ -643,7 +649,10 @@ export interface SalesOfferInterface {
   callBackTime: string | null;
   platform: "VacationSaga" | "Holidaysera" | "HousingSaga" | "TechTunes";
   availableOn?: ("VacationSaga" | "Holidaysera" | "HousingSaga" | "TechTunes")[] | [];
-  setField: (field: keyof SalesOfferInterface, value: any) => void;
+  setField: <K extends keyof Omit<SalesOfferInterface, "setField" | "resetForm">>(
+    field: K,
+    value: SalesOfferInterface[K],
+  ) => void;
   resetForm: () => void;
 }
 

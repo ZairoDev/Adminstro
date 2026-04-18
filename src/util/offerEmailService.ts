@@ -17,6 +17,10 @@ export type OfferEmailPlaceholders = {
   aliasEmail?: string;
   planName?: string;
   originalPrice?: string;
+  pricePerProperty?: string | number;
+  propertiesAllowed?: number;
+  totalPrice?: string | number;
+  discountApplied?: string;
   propertyName: string;
   propertyUrl: string;
   plan: string;

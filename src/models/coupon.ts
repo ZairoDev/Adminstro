@@ -4,10 +4,14 @@ export interface ICoupon {
   code: string;
   discountType: "percentage" | "fixed";
   discountValue: number;
+  propertiesAllowed?: number;
+  pricePerProperty?: number;
+  offerDiscountScope?: "PER_PROPERTY" | "TOTAL";
   minPurchaseAmount?: number;
   maxDiscountAmount?: number;
   validFrom: Date;
   validUntil: Date;
+  expiresAt?: Date;
   usageLimit?: number;
   usedCount: number;
   applicablePlans?: string[];
@@ -36,6 +40,21 @@ const couponSchema = new mongoose.Schema<ICoupon>(
       required: [true, "Discount value is required"],
       min: [0, "Discount value cannot be negative"],
     },
+    propertiesAllowed: {
+      type: Number,
+      min: [1, "Properties allowed must be at least 1"],
+      default: 1,
+    },
+    pricePerProperty: {
+      type: Number,
+      min: [0, "Price per property cannot be negative"],
+      default: 0,
+    },
+    offerDiscountScope: {
+      type: String,
+      enum: ["PER_PROPERTY", "TOTAL"],
+      default: "TOTAL",
+    },
     minPurchaseAmount: {
       type: Number,
       default: 0,
@@ -51,6 +70,10 @@ const couponSchema = new mongoose.Schema<ICoupon>(
     validUntil: {
       type: Date,
       required: [true, "Valid until date is required"],
+    },
+    expiresAt: {
+      type: Date,
+      default: null,
     },
     usageLimit: {
       type: Number,
@@ -96,7 +119,8 @@ couponSchema.methods.isValid = function (
     return { valid: false, message: "This coupon is not yet valid" };
   }
 
-  if (now > this.validUntil) {
+  const expiryDate = this.expiresAt ?? this.validUntil;
+  if (now > expiryDate) {
     return { valid: false, message: "This coupon has expired" };
   }
 

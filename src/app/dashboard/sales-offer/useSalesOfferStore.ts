@@ -18,6 +18,12 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   state: "-",
   city: "-",
   plan: "-",
+  pricePerProperty: 0,
+  propertiesAllowed: 1,
+  discountType: "TOTAL",
+  discountUnit: "FIXED",
+  discountValue: 0,
+  totalPrice: 0,
   discount: 0,
   effectivePrice: 0,
   expiryDate: null,
@@ -25,7 +31,11 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
   callBackTime: null,
   availableOn: [],
   platform: "TechTunes",
-  setField: (field, value) => set((state) => ({ ...state, [field]: value })),
+  setField: (field, value) =>
+    set((state) => ({
+      ...state,
+      [field]: value,
+    })),
   resetForm: () =>
     set((state) => ({
       phoneNumber: "",
@@ -43,6 +53,12 @@ export const useSalesOfferStore = create<SalesOfferInterface>((set) => ({
       state: "-",
       city: "-",
       plan: "-",
+      pricePerProperty: 0,
+      propertiesAllowed: 1,
+      discountType: "TOTAL",
+      discountUnit: "FIXED",
+      discountValue: 0,
+      totalPrice: 0,
       discount: 0,
       effectivePrice: 0,
       expiryDate: null,

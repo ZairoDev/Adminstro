@@ -44,7 +44,10 @@ const AddressDetails = () => {
           <Select
             onValueChange={(value) => {
               setSelectedCountry(value);
-              setField("country", Country.getCountryByCode(value)?.name);
+              setField(
+                "country",
+                Country.getCountryByCode(value)?.name ?? value,
+              );
             }}
           >
             <SelectTrigger>
@@ -69,7 +72,10 @@ const AddressDetails = () => {
           <Select
             onValueChange={(value) => {
               setSelectedState(value);
-              setField("state", State.getStateByCode(value)?.name);
+              setField(
+                "state",
+                State.getStateByCode(value)?.name ?? "",
+              );
             }}
           >
             <SelectTrigger>

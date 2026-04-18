@@ -82,7 +82,38 @@ const offerSchema: Schema = new Schema(
     },
     discount: {
       type: Number,
+      default: 0,
       min: [0, "Discount cannot be negative"],
+    },
+    pricePerProperty: {
+      type: Number,
+      min: [0, "Price per property cannot be negative"],
+      default: 0,
+    },
+    propertiesAllowed: {
+      type: Number,
+      min: [1, "Properties allowed must be at least 1"],
+      default: 1,
+    },
+    discountType: {
+      type: String,
+      enum: ["PER_PROPERTY", "TOTAL"],
+      default: "TOTAL",
+    },
+    discountUnit: {
+      type: String,
+      enum: ["FIXED", "PERCENT"],
+      default: "FIXED",
+    },
+    discountValue: {
+      type: Number,
+      min: [0, "Discount value cannot be negative"],
+      default: 0,
+    },
+    totalPrice: {
+      type: Number,
+      min: [0, "Total price cannot be negative"],
+      default: 0,
     },
     effectivePrice: {
       type: Number,

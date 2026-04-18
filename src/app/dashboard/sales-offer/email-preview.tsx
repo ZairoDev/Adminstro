@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import axios from "@/util/axios";
+import { formatEuroAmount } from "@/util/offerPricing";
 import { renderTemplate } from "@/util/templateEngine";
 import { resolvePayNowUrl } from "@/util/payNowUrl";
 import { getHolidayseraPlanFeaturePlaceholders } from "@/util/offerPlan";
@@ -100,14 +101,28 @@ export default function EmailPreview() {
       ? resolvePayNowUrl(selectedOrg, offer.propertyUrl || "#")
       : offer.propertyUrl || "#";
     const planFeatures = getHolidayseraPlanFeaturePlaceholders(offer.plan);
+    const originalPrice = offer.discount > 0 ? `€ ${formatEuroAmount(offer.totalPrice)}` : "";
+    const discountApplied =
+      offer.discount > 0
+        ? offer.discountUnit === "PERCENT"
+          ? `${formatEuroAmount(offer.discountValue)}%`
+          : `€ ${formatEuroAmount(offer.discount)}`
+        : "";
+
     return renderTemplate(template.html, {
       ownerName: offer.name,
-      price: offer.effectivePrice,
+      price: offer.totalPrice,
       employeeName: "—", // server will fill from session employee snapshot; keep preview safe
       employeeEmail: "—",
       propertyName: offer.propertyName,
       propertyUrl: offer.propertyUrl,
       plan: offer.plan,
+      planName: parsePlanName(offer.plan),
+      originalPrice,
+      pricePerProperty: formatEuroAmount(offer.pricePerProperty),
+      propertiesAllowed: offer.propertiesAllowed,
+      totalPrice: formatEuroAmount(offer.totalPrice),
+      discountApplied,
       payNowUrl,
       discount: offer.discount,
       effectivePrice: offer.effectivePrice,
@@ -117,6 +132,11 @@ export default function EmailPreview() {
     template?.html,
     offer.name,
     offer.effectivePrice,
+    offer.totalPrice,
+    offer.discountUnit,
+    offer.discountValue,
+    offer.pricePerProperty,
+    offer.propertiesAllowed,
     offer.propertyName,
     offer.propertyUrl,
     offer.plan,
@@ -176,5 +196,14 @@ export default function EmailPreview() {
       </div>
     </div>
   );
+}
+
+function parsePlanName(serializedPlan: string): string {
+  const chunks = serializedPlan.split("-");
+  if (chunks.length < 4) return serializedPlan;
+  chunks.pop();
+  chunks.pop();
+  chunks.pop();
+  return chunks.join("-") || serializedPlan;
 }
 

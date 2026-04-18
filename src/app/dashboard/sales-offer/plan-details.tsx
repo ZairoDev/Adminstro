@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 
 import {
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import axios from "@/util/axios";
+import { computeOfferTotals, formatEuroAmount } from "@/util/offerPricing";
 import { parseOfferPlan, serializeOfferPlan, type OfferPlanOption } from "@/util/offerPlan";
 import { useOrgSelectionStore } from "./useOrgSelectionStore";
 
@@ -34,18 +35,27 @@ type CompanyPlanResponse = {
 
 const PlanDetails = () => {
   const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
-  const [selectedPlanPrice, setSelectedPlanPrice] = useState<number>(0);
   const [expiryDate, setExpiryDate] = useState<Date>();
   const [callbackDate, setCallbackDate] = useState<Date>();
   const [availablePlans, setAvailablePlans] = useState<OfferPlanOption[]>([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [plansError, setPlansError] = useState("");
 
-  const { discount, effectivePrice, plan, setField } = useSalesOfferStore();
+  const {
+    discount,
+    effectivePrice,
+    plan,
+    pricePerProperty,
+    propertiesAllowed,
+    discountType,
+    discountUnit,
+    discountValue,
+    setField,
+  } = useSalesOfferStore();
 
   useEffect(() => {
-    setField("expiryDate", expiryDate);
-    setField("callBackDate", callbackDate);
+    setField("expiryDate", expiryDate ?? null);
+    setField("callBackDate", callbackDate ?? null);
   }, [expiryDate, callbackDate, setField]);
 
   useEffect(() => {
@@ -72,8 +82,13 @@ const PlanDetails = () => {
         setAvailablePlans(plans);
 
         if (plans.length === 0) {
-          setSelectedPlanPrice(0);
           setField("plan", "");
+          setField("pricePerProperty", 0);
+          setField("propertiesAllowed", 1);
+          setField("discountType", "TOTAL");
+          setField("discountUnit", "FIXED");
+          setField("discountValue", 0);
+          setField("totalPrice", 0);
           setField("discount", 0);
           setField("effectivePrice", 0);
           return;
@@ -90,13 +105,20 @@ const PlanDetails = () => {
               p.currency === existing.currency,
           )
         ) {
-          setSelectedPlanPrice(existing.price);
+          if (!pricePerProperty || pricePerProperty <= 0) {
+            setField("pricePerProperty", existing.price);
+          }
           return;
         }
 
         const first = plans[0];
-        setSelectedPlanPrice(first.price);
         setField("plan", serializeOfferPlan(first));
+        setField("pricePerProperty", first.price);
+        setField("propertiesAllowed", 1);
+        setField("discountType", "TOTAL");
+        setField("discountUnit", "FIXED");
+        setField("discountValue", 0);
+        setField("totalPrice", first.price);
         setField("discount", 0);
         setField("effectivePrice", first.price);
       } catch (_error) {
@@ -114,7 +136,25 @@ const PlanDetails = () => {
     return () => {
       mounted = false;
     };
-  }, [selectedOrg, plan, setField]);
+  }, [selectedOrg, plan, setField, pricePerProperty]);
+
+  const pricing = useMemo(
+    () =>
+      computeOfferTotals({
+        pricePerProperty,
+        propertiesAllowed,
+        discountType,
+        discountUnit,
+        discountValue,
+      }),
+    [pricePerProperty, propertiesAllowed, discountType, discountUnit, discountValue],
+  );
+
+  useEffect(() => {
+    setField("totalPrice", pricing.baseTotal);
+    setField("discount", pricing.totalDiscount);
+    setField("effectivePrice", pricing.effectivePrice);
+  }, [pricing.baseTotal, pricing.totalDiscount, pricing.effectivePrice, setField]);
 
   return (
     <div className="border border-neutral-600 rounded-md p-2">
@@ -129,11 +169,15 @@ const PlanDetails = () => {
             onValueChange={(value) => {
               const parsed = parseOfferPlan(value);
               if (!parsed) return;
-              const val = parsed.price;
-              setSelectedPlanPrice(val);
               setField("plan", value);
+              setField("pricePerProperty", parsed.price);
+              setField("propertiesAllowed", 1);
+              setField("discountType", "TOTAL");
+              setField("discountUnit", "FIXED");
+              setField("discountValue", 0);
+              setField("totalPrice", parsed.price);
               setField("discount", 0);
-              setField("effectivePrice", val);
+              setField("effectivePrice", parsed.price);
             }}
             disabled={plansLoading || availablePlans.length === 0}
           >
@@ -160,27 +204,115 @@ const PlanDetails = () => {
           {plansError ? <p className="mt-1 text-xs text-red-500">{plansError}</p> : null}
         </div>
 
-        {/* Discount */}
+        {/* Properties Allowed */}
         <div>
-          <Label>Discount</Label>
+          <Label>Properties Allowed</Label>
           <Input
             type="number"
-            min={0}
-            max={selectedPlanPrice}
-            value={!discount ? 0 : discount}
+            min={1}
+            value={propertiesAllowed}
             onChange={(e) => {
-              let minValue = Math.min(parseInt(e.target.value), selectedPlanPrice);
-              minValue = !minValue ? 0 : minValue;
-              setField("discount", minValue);
-              setField("effectivePrice", selectedPlanPrice - minValue);
+              const value = Number.parseInt(e.target.value, 10);
+              const normalized = Number.isFinite(value) ? Math.max(1, value) : 1;
+              setField("propertiesAllowed", normalized);
             }}
           />
         </div>
 
+        {/* Price Per Property */}
+        <div>
+          <Label>Price Per Property (€)</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={pricePerProperty}
+            onChange={(e) => {
+              const value = Number.parseFloat(e.target.value);
+              setField("pricePerProperty", Number.isFinite(value) ? Math.max(0, value) : 0);
+            }}
+          />
+        </div>
+
+        {/* Discount Type */}
+        <div>
+          <Label>Discount Type</Label>
+          <Select
+            value={discountType}
+            onValueChange={(value) => setField("discountType", value as "PER_PROPERTY" | "TOTAL")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select discount scope" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PER_PROPERTY">Per Property</SelectItem>
+              <SelectItem value="TOTAL">Total</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Discount Unit */}
+        <div>
+          <Label>Discount Unit</Label>
+          <Select
+            value={discountUnit}
+            onValueChange={(value) => {
+              setField("discountUnit", value as "FIXED" | "PERCENT");
+              if (value === "PERCENT" && discountValue > 100) {
+                setField("discountValue", 100);
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select discount unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="FIXED">Fixed (€)</SelectItem>
+              <SelectItem value="PERCENT">Percent (%)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Discount Value */}
+        <div>
+          <Label>{discountUnit === "PERCENT" ? "Discount (%)" : "Discount (€)"}</Label>
+          <Input
+            type="number"
+            min={0}
+            max={discountUnit === "PERCENT" ? 100 : undefined}
+            step={discountUnit === "PERCENT" ? 1 : 0.01}
+            value={discountValue}
+            onChange={(e) => {
+              const value = Number.parseFloat(e.target.value);
+              const raw = Number.isFinite(value) ? Math.max(0, value) : 0;
+              const normalized = discountUnit === "PERCENT" ? Math.min(raw, 100) : raw;
+              setField("discountValue", normalized);
+            }}
+          />
+        </div>
+
+        {/* Total Price */}
+        <div>
+          <Label>Base Total (€)</Label>
+          <Input type="text" value={formatEuroAmount(pricing.baseTotal)} disabled readOnly />
+        </div>
+
+        {/* Discount */}
+        <div>
+          <Label>Discount Amount (€)</Label>
+          <Input type="text" value={formatEuroAmount(discount)} disabled readOnly />
+        </div>
+
         {/* Effective Price */}
         <div>
-          <Label>Effective Price</Label>
-          <Input type="number" value={effectivePrice} disabled readOnly />
+          <Label>Final Payable (€)</Label>
+          <Input type="text" value={formatEuroAmount(effectivePrice)} disabled readOnly />
+        </div>
+
+        {/* Per Property Net */}
+        <div>
+          <Label>Per Property Effective (€)</Label>
+          <Input type="text" value={formatEuroAmount(pricing.perPropertyNet)} disabled readOnly />
         </div>
 
         {/* Expiry Date */}

@@ -61,12 +61,14 @@ export function buildPayNowUrl(
   fallbackUrl: string,
   options?: BuildPayNowUrlOptions,
 ): string {
-  const baseUrl = resolvePayNowUrl(organization, fallbackUrl);
   const couponCode = String(options?.couponCode ?? "").trim();
+  const baseUrl = resolvePayNowUrl(organization, fallbackUrl);
   if (!couponCode) return baseUrl;
 
   if (organization === "HousingSaga") {
-    return appendQueryParams(baseUrl, { couponCode });
+    // Keep HousingSaga offer links canonical for checkout auto-apply.
+    const housingSagaBaseUrl = resolvePayNowUrl("HousingSaga", DEFAULT_PAY_NOW_URL.HousingSaga);
+    return appendQueryParams(housingSagaBaseUrl, { couponCode });
   }
 
   if (organization === "Holidaysera") {

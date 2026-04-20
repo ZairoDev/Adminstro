@@ -86,6 +86,23 @@ export const getDataFromToken = async (request: NextRequest) => {
       throw error;
     }
 
+    const rawMessage = String(error?.message ?? "");
+    const loweredMessage = rawMessage.toLowerCase();
+    const rawCode = String(error?.code ?? "");
+    const isDbConnectivityError =
+      rawCode === "ETIMEOUT" ||
+      rawCode === "ENOTFOUND" ||
+      rawCode === "ECONNREFUSED" ||
+      loweredMessage.includes("querysrv") ||
+      loweredMessage.includes("mongodb connection failed") ||
+      loweredMessage.includes("server selection") ||
+      loweredMessage.includes("timed out") ||
+      loweredMessage.includes("getaddrinfo");
+
+    if (isDbConnectivityError) {
+      throw { status: 503, code: "DB_UNAVAILABLE" };
+    }
+
     // Fallback unknown auth failure
     throw { status: 401, code: "AUTH_FAILED" };
   }

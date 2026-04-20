@@ -152,8 +152,14 @@ const Spreadsheet = () => {
   {/* Center section - Title */}
   <h1 className="text-xl font-bold text-center flex-1">Owner Sheet</h1>
 
-  {/* Spacer for symmetry */}
-  <div className="w-[70px]" />
+  {/* Right section - Geo Search */}
+  <Link
+    href="/dashboard/geo-search"
+    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium
+    text-foreground hover:bg-muted transition-colors whitespace-nowrap"
+  >
+    📍 Geo Search
+  </Link>
 </div>
 
       <Tabs

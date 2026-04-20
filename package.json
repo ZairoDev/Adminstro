@@ -8,7 +8,9 @@
     "start": "NODE_ENV=production tsx socket.ts",
     "lint": "next lint",
     "import-offer-template": "tsx src/scripts/importOfferTemplate.ts",
-    "seed-company-offer-plans": "tsx src/scripts/seedCompanyOfferPlans.ts"
+    "seed-company-offer-plans": "tsx src/scripts/seedCompanyOfferPlans.ts",
+    "migrate:unregistered-owner-geo": "tsx src/scripts/migrateUnregisteredOwnerGeo.ts",
+    "migrate:unregistered-owner-geo:ts-node": "node --loader ts-node/esm src/scripts/migrateUnregisteredOwnerGeo.ts"
   },
   "dependencies": {
     "@apollo/client": "^3.11.7",

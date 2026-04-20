@@ -1,5 +1,32 @@
-import { propertyTypes } from "@/util/type";
 import mongoose from "mongoose";
+
+const geoPointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["Point"],
+      required: true,
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: (value: number[]): boolean => {
+          if (value.length !== 2) {
+            return false;
+          }
+          const [lng, lat] = value;
+          const validLng = Number.isFinite(lng) && lng >= -180 && lng <= 180;
+          const validLat = Number.isFinite(lat) && lat >= -90 && lat <= 90;
+          return validLng && validLat;
+        },
+        message: "locationGeo.coordinates must be [lng, lat]",
+      },
+    },
+  },
+  { _id: false },
+);
 
 const unregisteredOwnerSchema = new mongoose.Schema({
   VSID: {
@@ -52,6 +79,10 @@ petStatus: {
   },
   address:{
     type: String
+  },
+  locationGeo: {
+    type: geoPointSchema,
+    required: false,
   },
   remarks:{
     type: String
@@ -107,6 +138,8 @@ petStatus: {
 {
   timestamps: true,
 });
+
+unregisteredOwnerSchema.index({ locationGeo: "2dsphere" }, { sparse: true });
 
 export const unregisteredOwner =
   mongoose.models?.unregisteredOwner ||

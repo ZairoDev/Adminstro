@@ -735,6 +735,10 @@ export interface  unregisteredOwners {
   isVerified: string;
   isImportant: string;
   isPinned: string;
+  locationGeo?: {
+    type: "Point";
+    coordinates: [number, number];
+  };
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

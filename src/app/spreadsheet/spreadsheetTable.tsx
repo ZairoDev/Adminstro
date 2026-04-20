@@ -116,11 +116,15 @@ export function SpreadsheetTable({
   tableData,
   setTableData,
   serialOffset,
+  hiddenColumns = [],
+  focusRowId = null,
   onAvailabilityChange,
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
   serialOffset: number;
+  hiddenColumns?: string[];
+  focusRowId?: string | null;
   onAvailabilityChange?: () => void;
 }): ReactElement {
 
@@ -138,6 +142,17 @@ useEffect(() => {
 }, []);
 
 const columnWidths = isLargeScreen ? largeColumnWidths : smallColumnWidths;
+
+useEffect(() => {
+  if (!focusRowId) return;
+  setSelectedRow(focusRowId);
+  const root = tableBodyRef.current;
+  if (!root) return;
+  const rowEl = root.querySelector(`[data-owner-row-id="${focusRowId}"]`) as HTMLElement | null;
+  if (rowEl) {
+    rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}, [focusRowId, tableData]);
 
 
   const columns = [
@@ -223,7 +238,7 @@ const columnWidths = isLargeScreen ? largeColumnWidths : smallColumnWidths;
       sortable: false,
       width: columnWidths.actions,
     },
-  ];
+  ].filter((column) => !hiddenColumns.includes(column.field));
 
   interface TargetType {
     _id: string;
@@ -826,12 +841,13 @@ const columnWidths = isLargeScreen ? largeColumnWidths : smallColumnWidths;
           onSort={handleSort}
         />
 
-        <div className="overflow-auto flex-1 relative">
+        <div className="overflow-auto flex-1 relative" ref={tableBodyRef}>
           <div className="min-w-full">
             {applyFilter(sortedData).map(
               (item: unregisteredOwners, index: number) => (
                 <div
                   key={item?._id}
+                  data-owner-row-id={item._id}
                   onClick={() => setSelectedRow(item._id)}
                   className={`flex cursor-pointer hover:bg-accent/50 border-b border-border ${
                     selectedRow === item._id ? "bg-accent" : ""

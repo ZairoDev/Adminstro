@@ -181,7 +181,11 @@ const PageAddListing2: FC = () => {
           setArea(parsedData["area"] || "");
           setNeighborhood(parsedData["neighbourhood"] || "");
           setSubArea(parsedData["subarea"] || "");
-          setFloor(parsedData["floor"] || "");
+          setFloor(
+            parsedData["floor"] !== undefined && parsedData["floor"] !== null
+              ? String(parsedData["floor"])
+              : ""
+          );
           setAddress(parsedData["address"] || "");
           setCountry(parsedData["country"] || "");
           setState(parsedData["state"] || "");
@@ -351,12 +355,16 @@ const PageAddListing2: FC = () => {
   const [isValidForm, setIsValidForm] = useState(false);
   const validateForm = () => {
     const missingFields: string[] = [];
+    const parsedFloor = Number(floor);
 
     if (!country) missingFields.push("Country");
     if (!street) missingFields.push("Street");
     if (!city) missingFields.push("City");
     if (!state) missingFields.push("State");
     if (!postalCode) missingFields.push("Postal Code");
+    if (floor.trim() === "" || Number.isNaN(parsedFloor) || parsedFloor < 0) {
+      missingFields.push("Floor");
+    }
 
     if (missingFields.length > 0) {
       setIsValidForm(false);
@@ -465,7 +473,7 @@ const PageAddListing2: FC = () => {
 
   useEffect(() => {
     validateForm();
-  }, [country, street, city, state, postalCode]);
+  }, [country, street, city, state, postalCode, floor]);
 
     useEffect(() => {
     const fetchTargets = async () => {

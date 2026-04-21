@@ -12,6 +12,8 @@ interface Page6State {
   reviews: string[];
 }
 
+const sanitizeReview = (value: string): string => value.replace(/\s+/g, " ").trim();
+
 const PageAddListing6: FC<PageAddListing6Props> = () => {
   const params = useSearchParams() ?? null;
   const userId = params?.get("userId") ?? null;
@@ -51,17 +53,23 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
   });
 
   useEffect(() => {
+    const normalizedReviews = myArray.map((_, index) =>
+      sanitizeReview(reviews[index] || "")
+    );
+
     const newReviews: Page6State = {
-      reviews: reviews,
+      reviews: normalizedReviews,
     };
     setPage6(newReviews);
     localStorage.setItem("page6", JSON.stringify(newReviews));
-  }, [reviews]);
+  }, [myArray, reviews]);
 
   // Function to check if any review field is empty
   const isAnyReviewEmpty = () => {
     if (reviews.length === 0) return true;
-    return reviews.some((review) => !review || review.trim() === "");
+    return myArray.some(
+      (_, index) => sanitizeReview(reviews[index] || "") === ""
+    );
   };
 
   return (

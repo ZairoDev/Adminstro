@@ -18,6 +18,8 @@ const filtersSchema = z
     area: z.array(z.string()).optional().default([]),
     zone: z.string().optional().default(""),
     metroZone: z.string().optional().default(""),
+    minPrice: z.number().nullable().optional().default(0),
+    maxPrice: z.number().nullable().optional().default(0),
     sortByPrice: z.enum(["asc", "desc", ""]).optional().default(""),
     isImportant: z.boolean().optional().default(false),
     isPinned: z.boolean().optional().default(false),
@@ -43,6 +45,80 @@ function escapeRegex(value: string): string {
 
 function strictRegex(value: string): RegExp {
   return new RegExp(`^\\s*${escapeRegex(value)}\\s*$`, "i");
+}
+
+function parsePriceBounds(price: unknown): { min: number; max: number } | null {
+  if (price === null || price === undefined) {
+    return null;
+  }
+  const raw = String(price).trim();
+  if (!raw) {
+    return null;
+  }
+
+  // Capture numeric tokens and optional scale suffix (k/m).
+  // Examples:
+  // - "AED 1,500" => 1500
+  // - "2.5k" => 2500
+  // - "1m" => 1000000
+  // - "500-700" => [500,700]
+  const tokenRegex = /(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/g;
+  const extracted: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = tokenRegex.exec(raw)) !== null) {
+    const numericPart = Number(match[1].replace(/,/g, ""));
+    if (!Number.isFinite(numericPart)) {
+      continue;
+    }
+    const suffix = match[2]?.toLowerCase();
+    const multiplier = suffix === "k" ? 1_000 : suffix === "m" ? 1_000_000 : 1;
+    extracted.push(numericPart * multiplier);
+  }
+
+  if (extracted.length === 0) {
+    return null;
+  }
+
+  // Ignore obvious non-price tiny numbers (e.g. "2bhk") when real price tokens exist.
+  const hasRealisticPrice = extracted.some((n) => n >= 100);
+  const candidates = hasRealisticPrice ? extracted.filter((n) => n >= 100) : extracted;
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const min = Math.min(...candidates);
+  const max = Math.max(...candidates);
+  return { min, max };
+}
+
+function isPriceWithinRange(
+  price: unknown,
+  minPrice: number,
+  maxPrice: number,
+): boolean {
+  const bounds = parsePriceBounds(price);
+  if (bounds === null) {
+    return false;
+  }
+
+  // Only min set: row passes if its max can reach that min threshold.
+  if (minPrice > 0 && maxPrice <= 0) {
+    return bounds.max >= minPrice;
+  }
+
+  // Only max set: row passes if its min is within or below that max threshold.
+  if (maxPrice > 0 && minPrice <= 0) {
+    return bounds.min <= maxPrice;
+  }
+
+  // Both set: treat row price and filter as ranges and keep overlaps.
+  if (minPrice > 0 && maxPrice > 0) {
+    const filterMin = Math.min(minPrice, maxPrice);
+    const filterMax = Math.max(minPrice, maxPrice);
+    return bounds.max >= filterMin && bounds.min <= filterMax;
+  }
+
+  return true;
 }
 
 function buildAvailabilityFilter(
@@ -184,15 +260,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const skip = (page - 1) * limit;
 
-    const [mapData, fetchedTableData, total, availableCount, notAvailableCount] = await Promise.all([
-      unregisteredOwner.find(mapQuery).limit(1000).lean(),
-      unregisteredOwner.find(tableQuery).skip(skip).limit(limit).sort({ createdAt: -1, _id: -1 }).lean(),
-      unregisteredOwner.countDocuments(tableQuery),
-      unregisteredOwner.countDocuments({ ...baseQuery, availability: "Available" }),
-      unregisteredOwner.countDocuments({ ...baseQuery, availability: "Not Available" }),
+    const [rawMapData, rawTableCandidates] = await Promise.all([
+      unregisteredOwner.find(mapQuery).sort({ createdAt: -1, _id: -1 }).limit(10000).lean(),
+      unregisteredOwner.find(tableQuery).sort({ createdAt: -1, _id: -1 }).limit(10000).lean(),
     ]);
 
-    let tableData = fetchedTableData;
+    const minPrice = Number(filters.minPrice ?? 0);
+    const maxPrice = Number(filters.maxPrice ?? 0);
+    const shouldApplyPriceFilter =
+      (Number.isFinite(minPrice) && minPrice > 0) ||
+      (Number.isFinite(maxPrice) && maxPrice > 0);
+
+    const mapData = shouldApplyPriceFilter
+      ? rawMapData.filter((owner) => isPriceWithinRange(owner.price, minPrice, maxPrice))
+      : rawMapData;
+
+    const tableCandidates = shouldApplyPriceFilter
+      ? rawTableCandidates.filter((owner) => isPriceWithinRange(owner.price, minPrice, maxPrice))
+      : rawTableCandidates;
+
+    const total = tableCandidates.length;
+    const availableCount = mapData.filter((owner) => owner.availability === "Available").length;
+    const notAvailableCount = mapData.filter(
+      (owner) => owner.availability === "Not Available",
+    ).length;
+
+    let tableData = tableCandidates.slice(skip, skip + limit);
     if (focusOwnerId) {
       const alreadyIncluded = tableData.some((owner) => String(owner._id) === focusOwnerId);
       if (!alreadyIncluded) {

@@ -77,10 +77,21 @@ function shouldLogProgress(processed: number, total: number): boolean {
 async function migrateUnregisteredOwnerGeo(): Promise<void> {
   await connectDb();
 
-  await unregisteredOwner.collection.createIndex(
-    { locationGeo: "2dsphere" },
-    { name: "locationGeo_2dsphere" },
-  );
+  try {
+    await unregisteredOwner.collection.createIndex(
+      { locationGeo: "2dsphere" },
+      { name: "locationGeo_2dsphere", sparse: true },
+    );
+  } catch (error: unknown) {
+    const err = error as { code?: number; codeName?: string };
+    // Index already exists with same name but different legacy options.
+    // Safe to continue because a compatible 2dsphere index is already present.
+    if (err.code === 86 || err.codeName === "IndexKeySpecsConflict") {
+      console.warn("locationGeo_2dsphere index already exists; continuing migration.");
+    } else {
+      throw error;
+    }
+  }
 
   const total = await unregisteredOwner.countDocuments({});
   const stats: MigrationStats = {

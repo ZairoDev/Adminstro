@@ -68,6 +68,7 @@ const smallColumnWidths = {
   vsLink: "w-[120px] min-w-[120px] max-w-[120px]",
   vsid: "w-[100px] min-w-[100px] max-w-[100px]",
   address: "w-[160px] min-w-[160px] max-w-[160px]",
+  distance: "w-[140px] min-w-[140px] max-w-[140px]",
   actions: "w-[50px] min-w-[50px] max-w-[50px]",
 };
 
@@ -88,6 +89,7 @@ const largeColumnWidths = {
   vsLink: "w-[130px] min-w-[130px] max-w-[130px]",
   vsid: "w-[120px] min-w-[120px] max-w-[120px]",
   address: "w-[180px] min-w-[180px] max-w-[180px]",
+  distance: "w-[150px] min-w-[150px] max-w-[150px]",
   actions: "w-[80px] min-w-[80px] max-w-[80px]",
 };
 
@@ -119,6 +121,8 @@ export function SpreadsheetTable({
   hiddenColumns = [],
   focusRowId = null,
   onAvailabilityChange,
+  extraColumnLabel,
+  extraColumnRender,
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
@@ -126,6 +130,8 @@ export function SpreadsheetTable({
   hiddenColumns?: string[];
   focusRowId?: string | null;
   onAvailabilityChange?: () => void;
+  extraColumnLabel?: string;
+  extraColumnRender?: (owner: unregisteredOwners) => React.ReactNode;
 }): ReactElement {
 
   const [isLargeScreen, setIsLargeScreen] = useState(true);
@@ -232,6 +238,16 @@ useEffect(() => {
       sortable: false,
       width: columnWidths.address,
     },
+    ...(extraColumnLabel && extraColumnRender
+      ? [
+          {
+            label: extraColumnLabel,
+            field: "distance",
+            sortable: false,
+            width: columnWidths.distance,
+          },
+        ]
+      : []),
     {
       label: "Actions",
       field: "upload",
@@ -850,8 +866,6 @@ useEffect(() => {
                   data-owner-row-id={item._id}
                   onClick={() => setSelectedRow(item._id)}
                   className={`flex cursor-pointer hover:bg-accent/50 border-b border-border ${
-                    selectedRow === item._id ? "bg-accent" : ""
-                  } ${
                     (!item.VSID || item.VSID.trim() === "") &&
                     (!item.link || item.link.trim() === "") &&
                     (!item.referenceLink || item.referenceLink.trim() === "") &&
@@ -860,6 +874,10 @@ useEffect(() => {
                       : (!item.VSID || item.VSID.trim() === "") &&
                         (!item.link || item.link.trim() === "")
                       ? "bg-blue-100 dark:bg-blue-700/30"
+                      : ""
+                  } ${
+                    selectedRow === item._id
+                      ? "!bg-amber-200 dark:!bg-amber-500/40 ring-2 ring-inset ring-amber-500 shadow-sm"
                       : ""
                   }`}
                 >
@@ -1525,6 +1543,14 @@ useEffect(() => {
                       }
                     />
                   </div>
+
+                  {extraColumnLabel && extraColumnRender && (
+                    <div
+                      className={`${columnWidths.distance} px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 text-xs text-muted-foreground`}
+                    >
+                      <span className="truncate">{extraColumnRender(item)}</span>
+                    </div>
+                  )}
 
                   <div
                     className={`${columnWidths.actions} px-3 py-2 h-10 whitespace-nowrap flex items-center flex-shrink-0`}

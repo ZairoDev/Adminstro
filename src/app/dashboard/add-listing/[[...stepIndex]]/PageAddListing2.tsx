@@ -486,7 +486,7 @@ const PageAddListing2: FC = () => {
         console.error("Error fetching targets:", error);
       } 
     };
-    fetchTargets();
+    fetchTargets(); 
   }, []);
 
     useEffect(() => {

@@ -139,9 +139,40 @@ export async function GET(req: NextRequest) {
 
     // Build query - filter by allowed phone IDs
     const query: any = { status };
-    // If client requested a specific phoneId, filter by it (no global blocking)
+
+    // CRITICAL (Bug 1 fix): contacts/chats MUST be scoped per WhatsApp
+    // account. Without a server-side filter, an area-restricted user
+    // (e.g. Thessaloniki-only) whose frontend forgets to pass phoneId
+    // would see conversations from other accounts (e.g. Athens).
+    //
+    // Rules:
+    // - Full-access roles (SuperAdmin/Admin/Developer) may view any account
+    //   and may pass any phoneId they like.
+    // - Advert role already has its own retarget handling above.
+    // - Everyone else is restricted to their allowedPhoneIds.
+    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
+
     if (phoneIdFilter) {
+      // Verify the caller is allowed to view this specific phone.
+      if (!isFullAccess && !allowedPhoneIds.includes(phoneIdFilter)) {
+        return NextResponse.json(
+          { error: "You don't have access to this WhatsApp account" },
+          { status: 403 }
+        );
+      }
       query.businessPhoneId = phoneIdFilter;
+    } else if (!isFullAccess) {
+      // No explicit phoneId: enforce the user's allowed phones so contacts
+      // from other accounts cannot leak in.
+      if (allowedPhoneIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          conversations: [],
+          archivedCount: 0,
+          pagination: { limit: 25, hasMore: false, nextCursor: null },
+        });
+      }
+      query.businessPhoneId = { $in: allowedPhoneIds };
     }
 
     // Handle archive filtering (global archive)
@@ -531,7 +562,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Use: explicit phoneNumberId > phone for lead's location > default
+    // Bug 1 fix: contacts MUST be scoped to a specific WhatsApp account
+    // (phone_number_id). Order of resolution:
+    //   1. Explicit phoneNumberId from client (the inbox the user is viewing)
+    //   2. Phone ID derived from the lead's location
+    //   3. Default phone ID, ONLY if the user has exactly one allowed phone
+    //      or is a full-access role. If the user can access multiple phones
+    //      and did not disambiguate, reject the request so we do not silently
+    //      place the contact under the wrong account.
     let selectedPhoneId: string | null = null;
     if (phoneNumberId) {
       selectedPhoneId = phoneNumberId;
@@ -542,9 +580,24 @@ export async function POST(req: NextRequest) {
         selectedPhoneId = phoneIdForLocation;
       }
     }
-    // Fallback to default if no location match
+
     if (!selectedPhoneId) {
-      selectedPhoneId = getDefaultPhoneId(userRole, userAreas);
+      const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
+      if (isFullAccess) {
+        selectedPhoneId = getDefaultPhoneId(userRole, userAreas);
+      } else if (allowedPhoneIds.length === 1) {
+        // Only one possible account - safe to default.
+        selectedPhoneId = allowedPhoneIds[0];
+      } else {
+        return NextResponse.json(
+          {
+            error:
+              "Please select which WhatsApp account this contact should be created under.",
+            code: "PHONE_ID_REQUIRED",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     if (!selectedPhoneId) {
@@ -576,6 +629,29 @@ export async function POST(req: NextRequest) {
     }
 
 
+    // Bug 2 fix: deduplicate BEFORE creating. If a conversation already
+    // exists for this phone in the same account, just reuse it and tell
+    // the client so it can open the existing chat instead of creating a
+    // redundant record.
+    const existingSameAccount = await WhatsAppConversation.findOne({
+      participantPhone: normalizedPhone,
+      businessPhoneId: selectedPhoneId,
+    }).lean() as any;
+
+    // Also detect the same phone living under a DIFFERENT WhatsApp account,
+    // purely so the UI can surface an informational warning. We do NOT
+    // return that conversation here because it belongs to a different
+    // account - contacts are strictly scoped per account.
+    const existsInOtherAccount = !existingSameAccount
+      ? Boolean(
+          await WhatsAppConversation.exists({
+            participantPhone: normalizedPhone,
+            businessPhoneId: { $ne: selectedPhoneId },
+            source: { $ne: "internal" },
+          })
+        )
+      : false;
+
     // Find or create conversation with snapshot semantics.
     // This path is considered a trusted creation flow (manual / lead).
     const conversation = await findOrCreateConversationWithSnapshot({
@@ -594,6 +670,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       conversation,
+      alreadyExisted: Boolean(existingSameAccount),
+      existsInOtherAccount,
     });
   } catch (error: any) {
     console.error("Create conversation error:", error);

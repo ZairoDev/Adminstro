@@ -155,10 +155,24 @@ export const AddGuestModal = memo(function AddGuestModal({
       if (errorMessage.includes("already exists") || errorMessage.includes("duplicate")) {
         try {
           const normalizedPhone = (countryCode + phoneNumber).replace(/\D/g, "");
-          const conversationsResponse = await axios.get("/api/whatsapp/conversations");
+          // Bug 1/2 fix: scope the dedupe lookup to the currently-active
+          // WhatsApp account. Without phoneId, the conversations endpoint
+          // could return a chat belonging to a different account and we
+          // would "open" the wrong inbox.
+          const params = new URLSearchParams();
+          if (defaultPhoneNumberId) {
+            params.set("phoneId", defaultPhoneNumberId);
+          }
+          const conversationsResponse = await axios.get(
+            `/api/whatsapp/conversations?${params.toString()}`
+          );
           if (conversationsResponse.data.success) {
             const existingConv = conversationsResponse.data.conversations.find(
-              (c: any) => c.participantPhone === normalizedPhone
+              (c: any) =>
+                c.participantPhone === normalizedPhone &&
+                (!defaultPhoneNumberId ||
+                  !c.businessPhoneId ||
+                  c.businessPhoneId === defaultPhoneNumberId)
             );
             if (existingConv) {
               toast({

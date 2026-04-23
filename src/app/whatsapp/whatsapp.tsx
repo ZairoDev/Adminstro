@@ -1892,15 +1892,69 @@ export default function WhatsAppChat() {
     }
     const fullPhoneNumber = `${country}${phone}`;
 
+    // CRITICAL (Bug 1 fix): Scope conversation creation to the currently-active
+    // WhatsApp account. Without this, the server falls back to the first
+    // allowed phone config (e.g. Athens) and contacts created from the
+    // Thessaloniki/Milan inbox would leak into the Athens account.
+    const activePhoneId = selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal
+      ? selectedPhoneConfig.phoneNumberId
+      : undefined;
+
+    if (!activePhoneId) {
+      toast({
+        title: "No WhatsApp account selected",
+        description: "Please pick the WhatsApp number you want to chat from before starting a new conversation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Bug 2 fix (client side): if this phone already has a conversation in the
+    // active account, just open it instead of creating a duplicate.
+    const alreadyInList = conversations.find(
+      (c) =>
+        c.participantPhone === fullPhoneNumber &&
+        (c.businessPhoneId === activePhoneId || !c.businessPhoneId)
+    );
+    if (alreadyInList) {
+      selectConversation(alreadyInList);
+      setNewPhoneNumber("");
+      toast({
+        title: "Conversation exists",
+        description: "Opening existing chat instead of creating a duplicate.",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await axios.post("/api/whatsapp/conversations", {
         participantPhone: fullPhoneNumber,
         participantName: `+${country} ${phone}`,
+        phoneNumberId: activePhoneId,
       });
 
       if (response.data.success) {
         const conversation = response.data.conversation;
+
+        // Server may indicate that a conversation already existed in the
+        // same account (deduped) or that a conversation exists in a
+        // DIFFERENT account for the same phone number. In both cases we
+        // surface that to the user so they understand why they're not
+        // getting a brand-new thread.
+        if (response.data.alreadyExisted) {
+          toast({
+            title: "Conversation exists",
+            description: "Opening existing chat in this account.",
+          });
+        } else if (response.data.existsInOtherAccount) {
+          toast({
+            title: "Contact exists in another account",
+            description:
+              "This number is already a contact under a different WhatsApp number. A new chat has been created for the currently selected account.",
+          });
+        }
+
         setConversations((prev) => {
           const exists = prev.find((c) => c._id === conversation._id);
           if (exists) {
@@ -1917,7 +1971,7 @@ export default function WhatsAppChat() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create conversation",
+        description: error?.response?.data?.error || "Failed to create conversation",
         variant: "destructive",
       });
     } finally {

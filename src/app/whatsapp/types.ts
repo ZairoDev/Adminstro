@@ -104,6 +104,12 @@ export interface Conversation {
    */
   source?: "meta" | "internal";
   /**
+   * WhatsApp Business Phone Number ID that owns this conversation.
+   * CRITICAL: used to scope contacts/chats per account so Athens contacts
+   * never appear under Thessaloniki/Milan and vice versa.
+   */
+  businessPhoneId?: string;
+  /**
    * Per-user archive state (WhatsApp-style)
    */
   isArchivedByUser?: boolean;

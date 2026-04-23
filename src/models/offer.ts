@@ -1,6 +1,16 @@
 import mongoose, { Schema } from "mongoose";
 import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
+export const REJECTION_REASONS = [
+  "Not Interested",
+  "Language Barrier",
+  "Not Connected",
+  "Budget Issue",
+  "Other",
+] as const;
+
+export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
 const validLeadStatus = [
   "Not Interested",
   "Language Barrier",
@@ -264,12 +274,34 @@ const offerSchema: Schema = new Schema(
     emailSubject: {
       type: String,
     },
+    callbacks: {
+      type: [
+        {
+          callbackNo: { type: Number, required: true },
+          date: { type: Date, required: true },
+          time: { type: String, default: "" },
+          note: { type: String, default: "" },
+          createdBy: { type: Schema.Types.ObjectId, ref: "Employees", default: null },
+          createdByName: { type: String, default: "" },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+    rejectionReason: {
+      type: String,
+      enum: { values: [...REJECTION_REASONS, ""], message: "{VALUE} is not a valid rejection reason" },
+      default: "",
+    },
+    rejectedAt: { type: Date, default: null },
+    blacklistReason: { type: String, default: "" },
+    blacklistedAt: { type: Date, default: null },
     history: {
       type: [
         {
           type: {
             type: String,
-            enum: ["lead", "offer"],
+            enum: ["lead", "offer", "callback", "rejection", "blacklist"],
             required: true,
           },
           status: {
@@ -277,7 +309,8 @@ const offerSchema: Schema = new Schema(
             required: true,
           },
           note: { type: String, default: "" },
-          updatedBy: { type: Schema.Types.ObjectId, ref: "Employees", required: true },
+          updatedBy: { type: Schema.Types.ObjectId, ref: "Employees", default: null },
+          updatedByName: { type: String, default: "" },
           createdAt: { type: Date, default: Date.now },
         },
       ],
@@ -293,5 +326,8 @@ offerSchema.index({ leadStatus: 1, organization: 1 });
 offerSchema.index({ sentByEmployee: 1, organization: 1 });
 offerSchema.index({ leadStage: 1, organization: 1 });
 offerSchema.index({ assignedTo: 1, organization: 1 });
+offerSchema.index({ organization: 1, rejectedAt: -1 });
+offerSchema.index({ organization: 1, blacklistedAt: -1 });
+offerSchema.index({ organization: 1, "callbacks.date": -1 });
 
 export const Offer = mongoose.models.offer || mongoose.model("offer", offerSchema);

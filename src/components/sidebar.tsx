@@ -402,11 +402,6 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <FileSpreadsheet size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/send-offer",
-      label: "Sent Offer",
-      Icon: <BadgeEuro size={18} />,
-    },
-    {
       path: "/dashboard/candidatePortal",
       label: "Register Candidate",
       Icon: <Speech size={18} />,
@@ -449,28 +444,23 @@ const roleRoutes: Record<string, Route[]> = {
     },
 
     {
-      path: "/dashboard/sales-offer/not-connected",
-      label: "Not Connected",
-      Icon: <PhoneOff size={18} />,
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
+      Icon: <Target size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/not-interested",
-      label: "Not Interested",
-      Icon: <Frown size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/call-back",
-      label: "Call Back",
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
       Icon: <PhoneIncoming size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/language-barrier",
-      label: "Language Barrier",
-      Icon: <Languages size={18} />,
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/blacklist",
-      label: "Blacklist Lead",
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
     },
     {
@@ -621,8 +611,28 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/sales-offer",
-      label: "Sales Offer",
+      label: "New Lead",
       Icon: <ClipboardPaste size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
+      Icon: <Target size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
+      Icon: <ShieldAlert size={18} />,
     },
     {
       path: "/dashboard/invoice",
@@ -723,8 +733,28 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/sales-offer",
-      label: "Sales Offer",
+      label: "New Lead",
       Icon: <ClipboardPaste size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
+      Icon: <Target size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
+      Icon: <PhoneIncoming size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
+      Icon: <ShieldAlert size={18} />,
     },
     {
       path: "/dashboard/propertyBoost",
@@ -799,47 +829,27 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/sales-offer",
-      label: "Sales Offer",
+      label: "New Lead",
       Icon: <ClipboardPaste size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/leads",
-      label: "Leads",
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
       Icon: <Target size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/leads/import",
-      label: "Import Leads",
-      Icon: <FileSpreadsheet size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/send-offer",
-      label: "Sent Offer",
-      Icon: <BadgeEuro size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/not-connected",
-      label: "Not Connected",
-      Icon: <PhoneOff size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/not-interested",
-      label: "Not Interested",
-      Icon: <Frown size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/call-back",
-      label: "Call Back",
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
       Icon: <PhoneIncoming size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/language-barrier",
-      label: "Language Barrier",
-      Icon: <Languages size={18} />,
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/blacklist",
-      label: "Blacklist Lead",
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
     },
   ],
@@ -879,47 +889,27 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/sales-offer",
-      label: "Sales Offer",
+      label: "New Lead",
       Icon: <ClipboardPaste size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/leads",
-      label: "Leads",
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
       Icon: <Target size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/leads/import",
-      label: "Import Leads",
-      Icon: <FileSpreadsheet size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/send-offer",
-      label: "Sent Offer",
-      Icon: <BadgeEuro size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/not-connected",
-      label: "Not Connected",
-      Icon: <PhoneOff size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/not-interested",
-      label: "Not Interested",
-      Icon: <Frown size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/call-back",
-      label: "Call Back",
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
       Icon: <PhoneIncoming size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/language-barrier",
-      label: "Language Barrier",
-      Icon: <Languages size={18} />,
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/blacklist",
-      label: "Blacklist Lead",
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
     },
     {
@@ -941,37 +931,27 @@ const roleRoutes: Record<string, Route[]> = {
   "Subscription-Sales": [
     {
       path: "/dashboard/sales-offer",
-      label: "Sales Offer",
+      label: "New Lead",
       Icon: <ClipboardPaste size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/send-offer",
-      label: "Sent Offer",
-      Icon: <BadgeEuro size={18} />,
+      path: "/dashboard/sales-offer/pending-leads",
+      label: "Pending Leads",
+      Icon: <Target size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/not-connected",
-      label: "Not Connected",
-      Icon: <PhoneOff size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/not-interested",
-      label: "Not Interested",
-      Icon: <Frown size={18} />,
-    },
-    {
-      path: "/dashboard/sales-offer/call-back",
-      label: "Call Back",
+      path: "/dashboard/sales-offer/callbacks",
+      label: "Callbacks",
       Icon: <PhoneIncoming size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/language-barrier",
-      label: "Language Barrier",
-      Icon: <Languages size={18} />,
+      path: "/dashboard/sales-offer/rejected-leads",
+      label: "Rejected Leads",
+      Icon: <CircleX size={18} />,
     },
     {
-      path: "/dashboard/sales-offer/blacklist",
-      label: "Blacklist Lead",
+      path: "/dashboard/sales-offer/blacklisted-leads",
+      label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
     },
   ],
@@ -1173,18 +1153,33 @@ const roomRoutes = [
 const subscriptionsRoutes = [
   {
     path: "/dashboard/sales-offer",
-    label: "Sales Offer",
+    label: "New Lead",
     Icon: <ClipboardPaste size={18} />,
   },
   {
-    path: "/dashboard/sales-offer/send-offer",
-    label: "Sent Offer",
-    Icon: <BadgeEuro size={18} />,
+    path: "/dashboard/sales-offer/pending-leads",
+    label: "Pending Leads",
+    Icon: <Target size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/callbacks",
+    label: "Callbacks",
+    Icon: <PhoneIncoming size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/rejected-leads",
+    label: "Rejected Leads",
+    Icon: <CircleX size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/blacklisted-leads",
+    label: "Blacklisted Leads",
+    Icon: <ShieldAlert size={18} />,
   },
   {
     path: "/dashboard/sales-offer/leads",
     label: "Leads",
-    Icon: <Target size={18} />,
+    Icon: <List size={18} />,
   },
   {
     path: "/dashboard/sales-offer/leads/import",

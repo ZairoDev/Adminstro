@@ -37,9 +37,9 @@ import {
   TableHead,
   TableHeader,
 } from "@/components/ui/table";
-import { SalesOfferInterface } from "@/util/type";
+import type { OfferDoc } from "@/util/type";
 
-export const columns: ColumnDef<SalesOfferInterface>[] = [
+export const columns: ColumnDef<OfferDoc>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -160,7 +160,7 @@ export function OfferTable({
   setPage,
   totalPages,
 }: {
-  offers: SalesOfferInterface[];
+  offers: OfferDoc[];
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;

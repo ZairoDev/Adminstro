@@ -29,7 +29,16 @@ type AliasOption = {
 };
 
 export default function SendOffer() {
-  const { setField, platform, aliasId } = useSalesOfferStore();
+  const {
+    setField,
+    platform,
+    aliasId,
+    name,
+    propertyName,
+    relation,
+    email,
+    propertyUrl,
+  } = useSalesOfferStore();
   const token = useAuthStore((s) => s.token);
   const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
   const role = String(token?.role ?? "").trim();
@@ -118,6 +127,7 @@ export default function SendOffer() {
             type="text"
             id="name"
             name="name"
+            value={name}
             onChange={(e) => setField("name", e.target.value)}
           />
         </div>
@@ -129,6 +139,7 @@ export default function SendOffer() {
             type="text"
             id="propertyName"
             name="propertyName"
+            value={propertyName}
             onChange={(e) => setField("propertyName", e.target.value)}
           />
         </div>
@@ -140,6 +151,7 @@ export default function SendOffer() {
             type="text"
             id="relation"
             name="relation"
+            value={relation}
             onChange={(e) => setField("relation", e.target.value)}
           />
         </div>
@@ -151,6 +163,7 @@ export default function SendOffer() {
             type="email"
             id="email"
             name="email"
+            value={email}
             onChange={(e) => setField("email", e.target.value)}
           />
         </div>
@@ -162,6 +175,7 @@ export default function SendOffer() {
             type="text"
             id="propertyUrl"
             name="propertyUrl"
+            value={propertyUrl}
             onChange={(e) => setField("propertyUrl", e.target.value)}
           />
         </div>

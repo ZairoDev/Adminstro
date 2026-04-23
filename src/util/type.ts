@@ -656,6 +656,69 @@ export interface SalesOfferInterface {
   resetForm: () => void;
 }
 
+export interface OfferCallbackEntry {
+  _id?: string;
+  callbackNo: number;
+  date: string;
+  time: string;
+  note: string;
+  createdByName: string;
+  createdAt: string;
+}
+
+export interface OfferHistoryEntry {
+  _id?: string;
+  type: "lead" | "offer" | "callback" | "rejection" | "blacklist";
+  status: string;
+  note: string;
+  updatedByName: string;
+  createdAt: string;
+}
+
+/** Full offer document returned by the API (not the form store). */
+export interface OfferDoc {
+  _id: string;
+  phoneNumber: string;
+  leadStatus: string;
+  note: string;
+  name: string;
+  propertyName: string;
+  relation: string;
+  email: string;
+  propertyUrl: string;
+  services?: string;
+  country: string;
+  state?: string;
+  city?: string;
+  plan: string;
+  pricePerProperty: number;
+  propertiesAllowed: number;
+  discountType: "PER_PROPERTY" | "TOTAL";
+  discountUnit: "FIXED" | "PERCENT";
+  discountValue: number;
+  totalPrice: number;
+  discount: number;
+  effectivePrice: number;
+  expiryDate?: string | null;
+  callBackDate?: string | null;
+  callBackTime?: string | null;
+  platform: "VacationSaga" | "Holidaysera" | "HousingSaga" | "TechTunes";
+  organization: string;
+  offerStatus: string;
+  leadStage: string;
+  sentBySnapshot?: { name?: string; email?: string; aliasName?: string; aliasEmail?: string };
+  emailSubject?: string;
+  emailContent?: string;
+  callbacks: OfferCallbackEntry[];
+  rejectionReason?: string;
+  rejectedAt?: string | null;
+  blacklistReason?: string;
+  blacklistedAt?: string | null;
+  history: OfferHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OwnerInterface {
   _id?: string;
   phoneNumber: number;

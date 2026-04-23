@@ -125,6 +125,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/lowBudget",
     "/dashboard/website-leads",
     "/dashboard/unregistered-owner", // New Owners page access
+    "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
   ],
   "Sales-TeamLead": [
     "/",
@@ -153,6 +155,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/website-leads",
     "/dashboard/unregistered-owner", // New Owners page access
     "/dashboard/compareLeads",
+    "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
   ],
   HR: [
     "/",
@@ -179,7 +183,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/.*$/,
     /^\/property\/.*$/,
   ],
-  Agent: ["/", "/dashboard/sales-offer"],
+  Agent: ["/", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
   Guest: [
     "/",
     "/dashboard", // Dashboard access for Guest (limited view)
@@ -187,6 +191,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/owners",
     "/dashboard/owners/owner-list",
     "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
   ],
   Intern: [
     "/",
@@ -194,6 +199,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/owners",
     "/dashboard/owners/owner-list",
     "/dashboard/sales-offer",
+    /^\/dashboard\/sales-offer\/.*$/,
   ],
   "Subscription-Sales": [
     "/",

@@ -330,9 +330,32 @@ export async function POST(req: NextRequest) {
       emailContent: renderedHtml,
     } as const;
 
+    let historyStatus: "offer_sent" | "updated_offer" = "offer_sent";
+    if (body.data.leadId) {
+      const existingOffer =
+        (await Offer.findOne({ _id: body.data.leadId, organization })
+          .select("history offerStatus")
+          .lean()) ||
+        (await Offer.findOne({ _id: body.data.leadId })
+          .select("history offerStatus")
+          .lean());
+
+      const hasSentBefore =
+        Boolean((existingOffer as any)?.offerStatus === "offer_sent") ||
+        Boolean(
+          Array.isArray((existingOffer as any)?.history) &&
+            (existingOffer as any).history.some(
+              (entry: { status?: string }) =>
+                entry?.status === "offer_sent" ||
+                entry?.status === "updated_offer",
+            ),
+        );
+      historyStatus = hasSentBefore ? "updated_offer" : "offer_sent";
+    }
+
     const historyEntry = {
       type: "offer",
-      status: "offer_sent",
+      status: historyStatus,
       note: body.data.note ?? "",
       updatedBy: employeeId,
       createdAt: new Date(),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { PipelineStage } from "mongoose";
 import { connectDb } from "@/util/db";
 import { Boosters } from "@/models/propertyBooster";
 import { getDataFromToken } from "@/util/getDataFromToken";
@@ -6,19 +7,35 @@ import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 
 export const dynamic = "force-dynamic";
 
-// POST: Create a new property
+const ALLOWED_SORT_FIELDS = new Set(["lastReboostedAt", "createdAt"]);
+const FIXED_LOCATION_OPTIONS = ["Athens", "Milan", "Thessaloniki", "Chania", "Rome"] as const;
+const DEFAULT_PROPERTY_TYPE_OPTIONS = [
+  "Studio",
+  "House",
+  "1 Bedroom",
+  "2 Bedroom",
+  "3 Bedroom",
+  "4 Bedroom",
+  "5 Bedroom",
+] as const;
+const DEFAULT_FURNISHING_OPTIONS = ["Furnished", "Semi-furnished", "Unfurnished"] as const;
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function exactCaseInsensitive(value: string) {
+  return new RegExp(`^${escapeRegex(value)}$`, "i");
+}
+
 export async function POST(req: Request) {
   try {
     await connectDb();
     const body = await req.json();
+    const { title, location, description, ownerName, ownerPhone, images, createdBy, vsid } = body;
 
-    const { title,location, description,ownerName,ownerPhone, images, createdBy, vsid} = body;
-
-    if (!title ||!location|| !description ||!ownerName||!ownerPhone||  !images?.length) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    if (!title || !location || !description || !ownerName || !ownerPhone || !images?.length) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const property = await Boosters.create({
@@ -39,33 +56,32 @@ export async function POST(req: Request) {
   }
 }
 
-// GET: Fetch all properties
 export async function GET(req: NextRequest) {
   try {
-    const url = req.nextUrl;
-    const pageParam = Number(url.searchParams.get("page"));
-    const skipParam = Number(url.searchParams.get("skip"));
-    const limitParam = Number(url.searchParams.get("limit"));
-    const createdBy = url.searchParams.get("createdBy");
-    const dateFromParam = url.searchParams.get("dateFrom");
-    const dateToParam = url.searchParams.get("dateTo");
-    let dateQuery: { $gte: Date; $lte: Date } | undefined;
-    if (dateFromParam && dateToParam) {
-      const fromDate = new Date(dateFromParam);
-      const toDate = new Date(dateToParam);
-      if (!Number.isNaN(fromDate.getTime()) && !Number.isNaN(toDate.getTime())) {
-        fromDate.setHours(0, 0, 0, 0);
-        toDate.setHours(23, 59, 59, 999);
-        dateQuery = {
-          $gte: fromDate,
-          $lte: toDate,
-        };
-      }
-    } 
-    const limit =
-      Number.isFinite(limitParam) && limitParam > 0
-        ? Math.min(limitParam, 100)
-        : 10;
+    await connectDb();
+
+    const token = await getDataFromToken(req);
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ── Parse query params ──────────────────────────────────────────────────
+    const { searchParams } = req.nextUrl;
+
+    const pageParam  = Number(searchParams.get("page"));
+    const skipParam  = Number(searchParams.get("skip"));
+    const limitParam = Number(searchParams.get("limit"));
+    const sortParam  = searchParams.get("sort") ?? "-lastReboostedAt";
+    const createdBy       = searchParams.get("createdBy");
+    const propertyType    = searchParams.get("propertyType");
+    const propertyLocation = searchParams.get("propertyLocation");
+    const furnishingStatus = searchParams.get("furnishingStatus");
+    const locationParam   = searchParams.get("location");
+    const dateFromParam   = searchParams.get("dateFrom");
+    const dateToParam     = searchParams.get("dateTo");
+
+    // ── Pagination ──────────────────────────────────────────────────────────
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
     const page =
       Number.isFinite(pageParam) && pageParam > 0
         ? Math.floor(pageParam)
@@ -73,59 +89,161 @@ export async function GET(req: NextRequest) {
         ? Math.floor(skipParam / limit) + 1
         : 1;
     const skip = (page - 1) * limit;
-    const sort = url.searchParams.get("sort") || "-lastReboostedAt";
 
-    await connectDb();
+    // ── Sort ────────────────────────────────────────────────────────────────
+    const rawSortField  = sortParam.startsWith("-") ? sortParam.slice(1) : sortParam;
+    const sortDirection = sortParam.startsWith("-") ? -1 : 1;
+    const sortField     = ALLOWED_SORT_FIELDS.has(rawSortField) ? rawSortField : "lastReboostedAt";
 
-    // Get user token for authorization
-    const token = await getDataFromToken(req);
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // ── Date range ──────────────────────────────────────────────────────────
+    let dateQuery: { $gte: Date; $lte: Date } | undefined;
+    if (dateFromParam && dateToParam) {
+      const from = new Date(dateFromParam);
+      const to   = new Date(dateToParam);
+      if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+        from.setHours(0, 0, 0, 0);
+        to.setHours(23, 59, 59, 999);
+        dateQuery = { $gte: from, $lte: to };
+      }
     }
 
-    const role: string = (token.role || "") as string;
-    const assignedArea: string | string[] | undefined = 
-      token.allotedArea 
-        ? (Array.isArray(token.allotedArea) 
-            ? token.allotedArea 
-            : typeof token.allotedArea === "string" 
-            ? token.allotedArea 
-            : undefined)
-        : undefined;
-    const location = req.nextUrl.searchParams.get("location");
-    // console.log("location", location,assignedArea,role);
+    // ── Role-based location filter ──────────────────────────────────────────
+    const role: string = (token.role ?? "") as string;
+    const assignedArea: string | string[] | undefined = token.allotedArea
+      ? (Array.isArray(token.allotedArea) ? token.allotedArea : String(token.allotedArea))
+      : undefined;
 
-    // Build query with location filtering
-    const query: Record<string, unknown> = {};
+    const boosterQuery: Record<string, unknown> = {};
 
-    // Apply location filtering for Sales users (non-exempt roles)
-    // LeadGen and LeadGen-TeamLead are exempt and should see ALL properties (including reboosted)
     if (!isLocationExempt(role)) {
-      const locationStr = location && typeof location === "string" ? location : undefined;
-      applyLocationFilter(query, role, assignedArea, locationStr);
-    } else if (location && typeof location === "string" && location !== "All") {
-      // For exempt roles, allow location filtering if requested
-      query.location = new RegExp(location, "i");
-    }
-    if (createdBy && typeof createdBy === "string" && createdBy !== "All") {
-      query.createdBy = createdBy;
-    }
-    if (dateQuery) {
-      query.createdAt = dateQuery;
+      const loc = locationParam && typeof locationParam === "string" ? locationParam : undefined;
+      applyLocationFilter(boosterQuery, role, assignedArea, loc);
+    } else if (locationParam && locationParam !== "All") {
+      boosterQuery.location = new RegExp(locationParam, "i");
     }
 
-    // Fetch properties with location filter applied
+    if (createdBy && createdBy !== "All") boosterQuery.createdBy = createdBy;
+    if (dateQuery) boosterQuery.createdAt = dateQuery;
 
+    // ── Description/location-based filters ───────────────────────────────────
+    const derivedFieldConditions: Record<string, unknown> = {};
+    if (propertyType && propertyType !== "All") {
+      derivedFieldConditions.derivedPropertyType = exactCaseInsensitive(propertyType);
+    }
+    if (propertyLocation && propertyLocation !== "All") {
+      derivedFieldConditions.derivedLocation = exactCaseInsensitive(propertyLocation);
+    }
+    if (furnishingStatus && furnishingStatus !== "All") {
+      derivedFieldConditions.derivedFurnishingStatus = exactCaseInsensitive(furnishingStatus);
+    }
 
-    const [properties, totalProperties] = await Promise.all([
-      Boosters.find(query).lean().skip(skip).limit(limit).sort(sort),
-      Boosters.countDocuments(query),
-    ]);
-    const totalPages = Math.max(1, Math.ceil(totalProperties / limit));
+    // ── Aggregation pipeline ────────────────────────────────────────────────
+    const pipeline: PipelineStage[] = [
+      { $match: boosterQuery },
+      {
+        $addFields: {
+          _searchText: {
+            $toLower: {
+              $concat: [
+                { $ifNull: ["$description", ""] },
+                " ",
+                { $ifNull: ["$location", ""] },
+              ],
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          derivedPropertyType: {
+            $switch: {
+              branches: [
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)house(\\W|$)" } }, then: "House" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)(1\\s*bed(room)?|one\\s*bed(room)?)(\\W|$)" } }, then: "1 Bedroom" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)(2\\s*bed(room)?|two\\s*bed(room)?)(\\W|$)" } }, then: "2 Bedroom" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)(3\\s*bed(room)?|three\\s*bed(room)?)(\\W|$)" } }, then: "3 Bedroom" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)(4\\s*bed(room)?|four\\s*bed(room)?)(\\W|$)" } }, then: "4 Bedroom" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)(5\\s*bed(room)?|five\\s*bed(room)?)(\\W|$)" } }, then: "5 Bedroom" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)studio(\\W|$)" } }, then: "Studio" },
+              ],
+              default: "Studio",
+            },
+          },
+          derivedFurnishingStatus: {
+            $switch: {
+              branches: [
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)unfurnished(\\W|$)" } }, then: "Unfurnished" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)semi[\\s-]?furnished(\\W|$)" } }, then: "Semi-furnished" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)furnished(\\W|$)" } }, then: "Furnished" },
+              ],
+              default: "Furnished",
+            },
+          },
+          derivedLocation: {
+            $switch: {
+              branches: [
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)athens(\\W|$)" } }, then: "Athens" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)milan(\\W|$)" } }, then: "Milan" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)thessaloniki(\\W|$)" } }, then: "Thessaloniki" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)chania(\\W|$)" } }, then: "Chania" },
+                { case: { $regexMatch: { input: "$_searchText", regex: "(^|\\W)rome(\\W|$)" } }, then: "Rome" },
+              ],
+              default: null,
+            },
+          },
+        },
+      },
+      ...(Object.keys(derivedFieldConditions).length > 0
+        ? [{ $match: derivedFieldConditions } as PipelineStage]
+        : []),
+      {
+        $facet: {
+          data: [
+            { $sort: { [sortField]: sortDirection } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 1,
+                BoostID: 1,
+                vsid: 1,
+                title: 1,
+                description: 1,
+                images: 1,
+                createdBy: 1,
+                createdAt: 1,
+                lastReboostedAt: 1,
+                location: "$derivedLocation",
+                propertyType: "$derivedPropertyType",
+                furnishingStatus: "$derivedFurnishingStatus",
+              },
+            },
+          ],
+          totalCount: [{ $count: "count" }],
+          filterOptions: [
+            {
+              $project: {
+                _id: 0,
+                propertyTypes: { $literal: [...DEFAULT_PROPERTY_TYPE_OPTIONS] },
+                furnishingStatuses: { $literal: [...DEFAULT_FURNISHING_OPTIONS] },
+                locations: { $literal: [...FIXED_LOCATION_OPTIONS] },
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const [result] = await Boosters.aggregate(pipeline);
+    const properties     = (result?.data as unknown[]) ?? [];
+    const totalProperties = Number(result?.totalCount?.[0]?.count ?? 0);
+    const filterOptions  = result?.filterOptions?.[0] ?? { propertyTypes: [], locations: [], furnishingStatuses: [] };
+    const totalPages     = Math.max(1, Math.ceil(totalProperties / limit));
 
     return NextResponse.json({
       data: properties,
       totalProperties,
+      filterOptions,
       page,
       limit,
       totalPages,
@@ -134,9 +252,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("Error fetching properties:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch properties" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch properties" }, { status: 500 });
   }
 }

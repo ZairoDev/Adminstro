@@ -356,20 +356,18 @@ export default function PropertyBooster() {
                     <ScrollArea className="whitespace-nowrap rounded-md border w-full">
                       <div className="flex w-max space-x-4 p-4">
                         {properties?.map((property) => {
-                          const isSelected = selectedPropertyId === property.VSID;
+                          const isSelected =
+                            selectedPropertyId === property.VSID;
                           const index = properties.indexOf(property);
-                          console.log('Property:', {
+                          console.log("Property:", {
                             index,
                             propertyId: property.VSID,
                             selectedPropertyId: selectedPropertyId,
                             isSelected: isSelected,
-                            VSID: property.VSID
+                            VSID: property.VSID,
                           });
                           return (
-                            <figure
-                              key={property.VSID}
-                              className="shrink-0"
-                            >
+                            <figure key={property.VSID} className="shrink-0">
                               <div
                                 className={`overflow-hidden rounded-md relative border-2 cursor-pointer transition-all ${
                                   isSelected
@@ -568,7 +566,7 @@ export default function PropertyBooster() {
                 </label>
                 <Textarea
                   id="property-description"
-                  placeholder="Describe your property in detail... (supports bullet points, line breaks, etc.)"
+                  placeholder="e.g. Athens • Furnished • Apartment Include location, furnishing & property type in your description"
                   className="min-h-[180px] text-base"
                   onChange={(e) => setDescription(e.target.value)}
                   value={description}

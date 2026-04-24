@@ -40,6 +40,7 @@ export type DashboardSection =
   | "candidateStats"
   | "bookingChart"
   | "weeklyTarget"
+  | "ownerOnboardingStage"
   | "propertyCount"
   | "listingsCreated";
 
@@ -69,6 +70,7 @@ export const TEAM_DASHBOARDS: Record<TeamType, DashboardSection[]> = {
     "leadStatistics",
     "websiteLeads",
     "salesByAgent", // Added for LeadGen team
+    
   ],
   Sales: [
     "visitStatistics",
@@ -101,6 +103,15 @@ export const TEAM_DASHBOARDS: Record<TeamType, DashboardSection[]> = {
 
 // Custom role-specific section overrides (for roles that need specific sections beyond team mapping)
 export const ROLE_SECTION_OVERRIDES: Record<string, DashboardSection[]> = {
+  "LeadGen-TeamLead": [
+    "leadGenOverview",
+    "leadsByLocation",
+    "reviewsDashboard",
+    "leadStatistics",
+    "websiteLeads",
+    "salesByAgent",
+    "ownerOnboardingStage",
+  ],
   "Sales-TeamLead": [
     "visitStatistics",
     "newOwners",
@@ -307,6 +318,14 @@ export const DASHBOARD_SECTIONS_CONFIG: DashboardSectionConfig[] = [
     team: "Admin",
     requiresLocationFilter: false,
     order: 31,
+  },
+  {
+    id: "ownerOnboardingStage",
+    title: "Owner Onboarding Stage",
+    description: "Owner onboarding stage dashboard",
+    team: "Admin",
+    requiresLocationFilter: false,
+    order: 32,
   },
   {
     id: "propertyCount",

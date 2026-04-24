@@ -439,14 +439,7 @@ const Dashboard = () => {
   const [isNotificationDismissed, setIsNotificationDismissed] = useState(false);
   const [isLoadingCelebrations, setIsLoadingCelebrations] = useState(true);
 
-  const [ownerJourneySite, setOwnerJourneySite] = useState<
-    "vacationSaga" | "holidaysera" | "housingSaga"
-  >("vacationSaga");
-  const [ownerJourneyStages, setOwnerJourneyStages] = useState<Record<
-    1 | 2 | 3 | 4,
-    number
-  > | null>(null);
-  const [ownerJourneyLoading, setOwnerJourneyLoading] = useState(false);
+
 
   // Get random quote for current user (must be before early returns)
   const displayQuote = useMemo(() => {
@@ -524,35 +517,7 @@ const Dashboard = () => {
     };
   }, [token?.id]);
 
-  useEffect(() => {
-    if (!leads) return;
-    let cancelled = false;
-    setOwnerJourneyLoading(true);
-    void axios
-      .get<{ success: boolean; stages?: Record<1 | 2 | 3 | 4, number> }>(
-        "/api/dashboard/owner-journey-stats",
-        {
-          params: { site: ownerJourneySite },
-        },
-      )
-      .then((res) => {
-        if (cancelled) return;
-        if (res.data.success && res.data.stages) {
-          setOwnerJourneyStages(res.data.stages);
-        } else {
-          setOwnerJourneyStages(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setOwnerJourneyStages(null);
-      })
-      .finally(() => {
-        if (!cancelled) setOwnerJourneyLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [leads, ownerJourneySite]);
+
 
 
   // Fetch employees and detect today's events (for quote flip UI)
@@ -780,38 +745,7 @@ const Dashboard = () => {
       {/* Advert Dashboard - Only for Advert role */}
       {showAdvertDashboard && <AdvertDashboard />}
 
-      <Card className="mt-6 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-zinc-50 dark:from-slate-950/50 dark:to-zinc-950/50">
-          <CardTitle className="text-xl">Owner onboarding stages</CardTitle>
-          <CardDescription>
-            How many owners are in each funnel stage for the selected site (derived from live data, no
-            duplicate storage).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-6">
-          <div className="max-w-xs">
-            <Select
-              value={ownerJourneySite}
-              onValueChange={(value) =>
-                setOwnerJourneySite(value as "vacationSaga" | "holidaysera" | "housingSaga")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select site" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Product site</SelectLabel>
-                  <SelectItem value="vacationSaga">VacationSaga</SelectItem>
-                  <SelectItem value="holidaysera">HolidaySera</SelectItem>
-                  <SelectItem value="housingSaga">HousingSaga</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <OwnerStageChart stages={ownerJourneyStages} loading={ownerJourneyLoading} />
-        </CardContent>
-      </Card>
+
 
       {/* Sales by Agent Section - Only for Sales team (not for LeadGen or Advert) */}
       {showSalesDashboard &&
@@ -1003,7 +937,7 @@ const Dashboard = () => {
       {showSalesDashboard && !showAdvertDashboard && <SalesDashboard />}
 
       {/* Visits Created By (date-wise) */}
-      {showSalesDashboard && !showAdvertDashboard && (
+      {showSalesDashboard || showLeadGenDashboard && !showAdvertDashboard && (
         <div className="mt-6">
           <VisitsCreatedByMultiLineChart
             data={visitsCreatedBySeries}

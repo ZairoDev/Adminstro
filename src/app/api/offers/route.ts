@@ -19,6 +19,8 @@ const QuerySchema = z.object({
   organization: OrganizationZod.optional(),
   leadStatus: z.string().optional(),
   offerStatus: z.string().optional(),
+  sortBy: z.enum(["createdAt"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
   employeeId: z.string().optional(),
   rejectionReason: z.string().optional(),
   blacklistReason: z.string().optional(),
@@ -99,8 +101,10 @@ export async function GET(req: NextRequest) {
     }
 
     const skip = (page - 1) * pageSize;
+    const sortBy = parsed.data.sortBy ?? "createdAt";
+    const sortOrder = parsed.data.sortOrder === "asc" ? 1 : -1;
     const [items, totalCount] = await Promise.all([
-      Offer.find(query).sort({ createdAt: -1 }).skip(skip).limit(pageSize).lean(),
+      Offer.find(query).sort({ [sortBy]: sortOrder }).skip(skip).limit(pageSize).lean(),
       Offer.countDocuments(query),
     ]);
     const totalPages = Math.ceil(totalCount / pageSize);

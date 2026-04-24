@@ -42,6 +42,39 @@ export async function POST(req: Request) {
 // GET: Fetch all properties
 export async function GET(req: NextRequest) {
   try {
+    const url = req.nextUrl;
+    const pageParam = Number(url.searchParams.get("page"));
+    const skipParam = Number(url.searchParams.get("skip"));
+    const limitParam = Number(url.searchParams.get("limit"));
+    const createdBy = url.searchParams.get("createdBy");
+    const dateFromParam = url.searchParams.get("dateFrom");
+    const dateToParam = url.searchParams.get("dateTo");
+    let dateQuery: { $gte: Date; $lte: Date } | undefined;
+    if (dateFromParam && dateToParam) {
+      const fromDate = new Date(dateFromParam);
+      const toDate = new Date(dateToParam);
+      if (!Number.isNaN(fromDate.getTime()) && !Number.isNaN(toDate.getTime())) {
+        fromDate.setHours(0, 0, 0, 0);
+        toDate.setHours(23, 59, 59, 999);
+        dateQuery = {
+          $gte: fromDate,
+          $lte: toDate,
+        };
+      }
+    } 
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(limitParam, 100)
+        : 10;
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0
+        ? Math.floor(pageParam)
+        : Number.isFinite(skipParam) && skipParam >= 0
+        ? Math.floor(skipParam / limit) + 1
+        : 1;
+    const skip = (page - 1) * limit;
+    const sort = url.searchParams.get("sort") || "-lastReboostedAt";
+
     await connectDb();
 
     // Get user token for authorization
@@ -63,7 +96,7 @@ export async function GET(req: NextRequest) {
     // console.log("location", location,assignedArea,role);
 
     // Build query with location filtering
-    const query: Record<string, any> = {};
+    const query: Record<string, unknown> = {};
 
     // Apply location filtering for Sales users (non-exempt roles)
     // LeadGen and LeadGen-TeamLead are exempt and should see ALL properties (including reboosted)
@@ -74,25 +107,32 @@ export async function GET(req: NextRequest) {
       // For exempt roles, allow location filtering if requested
       query.location = new RegExp(location, "i");
     }
+    if (createdBy && typeof createdBy === "string" && createdBy !== "All") {
+      query.createdBy = createdBy;
+    }
+    if (dateQuery) {
+      query.createdAt = dateQuery;
+    }
 
     // Fetch properties with location filter applied
-    const properties = await Boosters.find(query).lean();
 
-    // Sort by most recent activity (lastReboostedAt or createdAt)
-    const sortedProperties = properties.sort((a, b) => {
-      const aDate = a.lastReboostedAt 
-        ? new Date(a.lastReboostedAt).getTime() 
-        : new Date(a.createdAt).getTime();
-      
-      const bDate = b.lastReboostedAt 
-        ? new Date(b.lastReboostedAt).getTime() 
-        : new Date(b.createdAt).getTime();
-      
-      return bDate - aDate;
+
+    const [properties, totalProperties] = await Promise.all([
+      Boosters.find(query).lean().skip(skip).limit(limit).sort(sort),
+      Boosters.countDocuments(query),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalProperties / limit));
+
+    return NextResponse.json({
+      data: properties,
+      totalProperties,
+      page,
+      limit,
+      totalPages,
+      hasPrevPage: page > 1,
+      hasNextPage: page < totalPages,
     });
-    // console.log("sortedProperties", sortedProperties[0]);
-    return NextResponse.json(sortedProperties);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching properties:", error);
     return NextResponse.json(
       { error: "Failed to fetch properties" },

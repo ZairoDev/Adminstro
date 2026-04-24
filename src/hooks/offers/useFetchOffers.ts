@@ -11,6 +11,8 @@ export type AnyLeadStatus = LeadStatus | "Reject Lead" | "Blacklist Lead";
 export interface OfferListFilters {
   leadStatus?: AnyLeadStatus | null;
   offerStatus?: string;
+  sortBy?: "createdAt";
+  sortOrder?: "asc" | "desc";
   employeeId?: string;
   rejectionReason?: string;
   blacklistReason?: string;
@@ -50,6 +52,8 @@ export const useFetchOffers = () => {
         } else if (filters && typeof filters === "object") {
           if (filters.leadStatus) params.leadStatus = filters.leadStatus;
           if (filters.offerStatus) params.offerStatus = filters.offerStatus;
+          if (filters.sortBy) params.sortBy = filters.sortBy;
+          if (filters.sortOrder) params.sortOrder = filters.sortOrder;
           if (filters.employeeId) params.employeeId = filters.employeeId;
           if (filters.rejectionReason) params.rejectionReason = filters.rejectionReason;
           if (filters.blacklistReason) params.blacklistReason = filters.blacklistReason;

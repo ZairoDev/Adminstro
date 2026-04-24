@@ -464,6 +464,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ShieldAlert size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
+    },
+    {
       path: "/dashboard/invoice",
       label: "Create Invoice",
       Icon: <PencilLine size={18} />,
@@ -635,6 +640,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ShieldAlert size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
+    },
+    {
       path: "/dashboard/invoice",
       label: "Create Invoice",
       Icon: <PencilLine size={18} />,
@@ -757,6 +767,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ShieldAlert size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
+    },
+    {
       path: "/dashboard/propertyBoost",
       label: "Property Boost",
       Icon: <Rocket size={18} />,
@@ -852,6 +867,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
     },
+    {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
+    },
   ],
   Guest: [
     {
@@ -913,6 +933,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ShieldAlert size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
+    },
+    {
       path: "/dashboard/employee",
       label: "Manage Employee",
       Icon: <User size={18} />,
@@ -953,6 +978,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer/blacklisted-leads",
       label: "Blacklisted Leads",
       Icon: <ShieldAlert size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/payment-complete",
+      label: "Payment Complete",
+      Icon: <CircleCheckBig size={18} />,
     },
   ],
 };
@@ -1175,6 +1205,11 @@ const subscriptionsRoutes = [
     path: "/dashboard/sales-offer/blacklisted-leads",
     label: "Blacklisted Leads",
     Icon: <ShieldAlert size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/payment-complete",
+    label: "Payment Complete",
+    Icon: <CircleCheckBig size={18} />,
   },
   {
     path: "/dashboard/sales-offer/leads",

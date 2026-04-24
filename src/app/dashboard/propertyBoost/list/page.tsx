@@ -1,14 +1,17 @@
-"use client";
+  "use client";
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Rocket, CheckCircle2, Sparkles, Info } from "lucide-react";
+import { Loader2, Search, Rocket, CheckCircle2, Sparkles, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/AuthStore";
 import axios from "@/util/axios";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmployeeInterface } from "@/util/type";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { DateRange } from "react-day-picker";
 
 interface Property {
   _id: string;
@@ -26,14 +29,57 @@ interface Token {
   role: string;
 }
 
+const PAGE_SIZE = 10;
+
+
+
 export default function BoostPropertiesPage() {
+
+  const Filters = ({createdBy, createdByValue, setCreatedByValue}: {createdBy: EmployeeInterface[], createdByValue: string, setCreatedByValue: (value: string) => void}) => {
+    const { token } = useAuthStore();
+
+    return (
+      <div className="flex items-center gap-2">
+        <Select
+          value={createdByValue}
+          onValueChange={(value: string) => setCreatedByValue(value)}
+        >
+          <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+            <SelectValue placeholder="Created by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            {createdBy.map((employee: EmployeeInterface) => (
+              <SelectItem key={employee._id} value={employee.name}>
+                {employee.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <DateRangePicker
+          date={date}
+          setDate={setDate}
+          className="relative z-50"
+          isDrawerOpen={isDrawerOpen}
+        />
+      </div>
+    );
+  };
+  
+  const [createdByValue, setCreatedByValue] = useState<string>("All");
+  const [createdBy, setCreatedBy] = useState<EmployeeInterface[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
    const [searchFilter, setSearchFilter] = useState<"boostid" | "vsid">("boostid");
   const [reboostingIds, setReboostingIds] = useState<Set<string>>(new Set());
   const [reboostedIds, setReboostedIds] = useState<Set<string>>(new Set());
-  
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [totalProperties, setTotalProperties] = useState(0);
   const {token} = useAuthStore();
 
   // Helper function to check if property was reboosted within last 24 hours
@@ -44,22 +90,49 @@ export default function BoostPropertiesPage() {
     return reboostedTime > oneDayAgo;
   };
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        const res = await fetch("/api/propertyBoost");
-        const data = await res.json();
-        // Backend already sorts the properties, so no need to sort again
-        setProperties(data);
-      } catch (err) {
-        console.error("Failed to fetch properties", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const fetchProperties = async (targetPage: number) => {
+        try {
+          setLoading(true);
+          const res = await axios.get("/api/propertyBoost", {
+            params: {
+              page: targetPage,
+              limit: PAGE_SIZE,
+              sort: "-lastReboostedAt",
+              createdBy: createdByValue,
+              dateFrom: date?.from?.toISOString(),
+              dateTo: date?.to?.toISOString(),
+            },
+          });
+          const data = res.data;
+          setTotalPages(data.totalPages || Math.max(1, Math.ceil(data.totalProperties / PAGE_SIZE)));
+          setTotalProperties(data.totalProperties);
+          setProperties(Array.isArray(data.data) ? data.data : []);
+        } catch (err) {
+          console.error("Failed to fetch properties", err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchProperties();
-  }, []);
+          const getEmployees = async () => {
+            const response = await axios.get("/api/employee/getSalesEmployee");
+            const data = response.data;
+            setCreatedBy(data.emp);
+          };
+ 
+
+  useEffect(() => {
+    fetchProperties(page);
+  }, [page, createdByValue, date]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [createdByValue, date?.from, date?.to]);
+
+  useEffect(()=>{
+    getEmployees();
+  },[])
+
 
   const handleReboost = async (e: React.MouseEvent, propertyId: string) => {
     e.preventDefault();
@@ -81,9 +154,7 @@ export default function BoostPropertiesPage() {
       });
       
       // Refetch to get properly sorted list from backend
-      const res = await fetch("/api/propertyBoost");
-      const data = await res.json();
-      setProperties(data);
+      await fetchProperties(page);
 
       setTimeout(() => {
         setReboostingIds((prev) => {
@@ -146,14 +217,69 @@ export default function BoostPropertiesPage() {
     );
   }
 
-  return (
+  return properties.length === 0 ? (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex gap-3">
+          {/* Search Filter Select */}
+          <Select
+            value={searchFilter}
+            onValueChange={(value: "boostid" | "vsid") =>
+              setSearchFilter(value)
+            }
+          >
+            <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+              <SelectValue placeholder="Search by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="boostid">Boost ID</SelectItem>
+              <SelectItem value="vsid">VSID</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Search Input */}
+          <div className="relative group flex-1">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-primary transition-colors" />
+            <Input
+              type="text"
+              placeholder={`Search by ${searchFilter === "boostid" ? "Boost ID" : "VSID"}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 h-14 text-lg border-2 rounded-xl focus:border-primary/50 transition-all shadow-sm hover:shadow-md"
+            />
+          </div>
+          <Filters
+            createdBy={createdBy}
+            createdByValue={createdByValue}
+            setCreatedByValue={setCreatedByValue}
+          />
+        </div>
+
+        {searchTerm && (
+          <div className="text-center mt-3">
+            <span className="inline-flex items-center gap-2 text-sm font-medium bg-primary/10 text-primary px-4 py-2 rounded-full">
+              {filteredProperties.length} result
+              {filteredProperties.length !== 1 ? "s" : ""} found
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="text-center space-y-6 p-8">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
+          <Rocket className="h-10 w-10 text-primary" />
+        </div>
+      </div>
+    </div>
+  ) : (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header Section */}
         <div className="text-center space-y-4 pt-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">Featured Properties</span>
+            <span className="text-sm font-semibold text-primary">
+              Featured Properties
+            </span>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Boosted Properties
@@ -164,10 +290,15 @@ export default function BoostPropertiesPage() {
         </div>
 
         {/* Search Section */}
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="flex gap-3">
             {/* Search Filter Select */}
-            <Select value={searchFilter} onValueChange={(value: "boostid" | "vsid") => setSearchFilter(value)}>
+            <Select
+              value={searchFilter}
+              onValueChange={(value: "boostid" | "vsid") =>
+                setSearchFilter(value)
+              }
+            >
               <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
                 <SelectValue placeholder="Search by..." />
               </SelectTrigger>
@@ -188,8 +319,13 @@ export default function BoostPropertiesPage() {
                 className="pl-12 h-14 text-lg border-2 rounded-xl focus:border-primary/50 transition-all shadow-sm hover:shadow-md"
               />
             </div>
+            <Filters
+              createdBy={createdBy}
+              createdByValue={createdByValue}
+              setCreatedByValue={setCreatedByValue}
+            />
           </div>
-          
+
           {searchTerm && (
             <div className="text-center mt-3">
               <span className="inline-flex items-center gap-2 text-sm font-medium bg-primary/10 text-primary px-4 py-2 rounded-full">
@@ -210,7 +346,8 @@ export default function BoostPropertiesPage() {
               No properties found for &quot;{searchTerm}&quot;
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Try searching with a different {searchFilter === "boostid" ? "Boost ID" : "VSID"}
+              Try searching with a different{" "}
+              {searchFilter === "boostid" ? "Boost ID" : "VSID"}
             </p>
           </div>
         ) : (
@@ -219,7 +356,9 @@ export default function BoostPropertiesPage() {
               {filteredProperties.map((prop) => {
                 const isReboosting = reboostingIds.has(prop._id);
                 const isReboosted = reboostedIds.has(prop._id);
-                const wasRecentlyReboosted = isRecentlyReboosted(prop.lastReboostedAt);
+                const wasRecentlyReboosted = isRecentlyReboosted(
+                  prop.lastReboostedAt,
+                );
                 const showBoostedState = isReboosted || wasRecentlyReboosted;
 
                 return (
@@ -227,9 +366,10 @@ export default function BoostPropertiesPage() {
                     key={prop._id}
                     className={cn(
                       "group relative border-b border-border last:border-b-0  transition-all duration-300",
-                      showBoostedState && "bg-green-50 dark:bg-green-950/20 border-green-500/50",
+                      showBoostedState &&
+                        "bg-green-50 dark:bg-green-950/20 border-green-500/50",
                       isReboosting && "bg-primary/5",
-                      !showBoostedState && !isReboosting && "hover:bg-muted/50"
+                      !showBoostedState && !isReboosting && "hover:bg-muted/50",
                     )}
                   >
                     <Link href={`list/${prop._id}`} className="block">
@@ -259,8 +399,6 @@ export default function BoostPropertiesPage() {
                           </span>
                         </div>
 
-
-
                         {/* Property Details */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate">
@@ -273,8 +411,12 @@ export default function BoostPropertiesPage() {
 
                         {/* Created By */}
                         <div className="flex-shrink-0 w-36 text-sm">
-                          <p className="text-xs text-muted-foreground">Created by</p>
-                          <p className="font-medium text-foreground truncate">{prop.createdBy}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Created by
+                          </p>
+                          <p className="font-medium text-foreground truncate">
+                            {prop.createdBy}
+                          </p>
                         </div>
 
                         {/* Date - Show last activity date */}
@@ -283,7 +425,9 @@ export default function BoostPropertiesPage() {
                             {prop.lastReboostedAt ? "Reboosted" : "Posted"}
                           </p>
                           <p className="font-medium text-foreground">
-                            {new Date(prop.lastReboostedAt || prop.createdAt).toLocaleDateString("en-US", {
+                            {new Date(
+                              prop.lastReboostedAt || prop.createdAt,
+                            ).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
@@ -292,7 +436,8 @@ export default function BoostPropertiesPage() {
                         </div>
 
                         {/* Reboost Button */}
-                        {(token?.role === "SuperAdmin" || token?.role === "Sales") && (
+                        {(token?.role === "SuperAdmin" ||
+                          token?.role === "Sales") && (
                           <div className="flex-shrink-0">
                             <Button
                               variant={showBoostedState ? "default" : "outline"}
@@ -301,8 +446,9 @@ export default function BoostPropertiesPage() {
                               disabled={isReboosting || wasRecentlyReboosted}
                               className={cn(
                                 "shrink-0 transition-all duration-300 min-w-[100px]",
-                                showBoostedState && "bg-green-500 hover:bg-green-600 border-green-500",
-                                isReboosting && "opacity-70"
+                                showBoostedState &&
+                                  "bg-green-500 hover:bg-green-600 border-green-500",
+                                isReboosting && "opacity-70",
                               )}
                             >
                               {isReboosting ? (
@@ -332,6 +478,29 @@ export default function BoostPropertiesPage() {
             </div>
           </div>
         )}
+        <div className="flex justify-center items-center gap-2">
+          {page > 1 && (
+            <Button
+              disabled={page <= 1}
+              onClick={() => {
+                setPage((prev) => Math.max(1, prev - 1));
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+          {page} / {totalPages}
+          {page < totalPages && (
+            <Button
+              disabled={page >= totalPages}
+              onClick={() => {
+                setPage((prev) => Math.min(totalPages, prev + 1));
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

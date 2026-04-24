@@ -62,7 +62,8 @@ type JourneyStepKey =
   | "rejected"
   | "callback"
   | "updatedOffer"
-  | "blacklisted";
+  | "blacklisted"
+  | "paymentComplete";
 
 const JOURNEY_LABELS: Record<JourneyStepKey, string> = {
   offer_sent: "offer_sent",
@@ -70,6 +71,7 @@ const JOURNEY_LABELS: Record<JourneyStepKey, string> = {
   callback: "callback",
   updatedOffer: "updatedOffer",
   blacklisted: "blacklisted",
+  paymentComplete: "paymentComplete",
 };
 
 function mapStatusToJourneyStep(status: string): JourneyStepKey | null {
@@ -94,6 +96,9 @@ function mapStatusToJourneyStep(status: string): JourneyStepKey | null {
   if (normalized === "reject lead" || normalized === "rejected") return "rejected";
   if (normalized === "call back" || normalized.startsWith("callback")) return "callback";
   if (normalized === "blacklist lead" || normalized === "blacklisted") return "blacklisted";
+  if (normalized === "payment_complete" || normalized === "payment complete" || normalized === "accepted") {
+    return "paymentComplete";
+  }
   return null;
 }
 

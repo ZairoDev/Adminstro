@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import axios from "@/util/axios";
+import { useToast } from "@/hooks/use-toast";
 
 import { useFetchOffers, type OfferListFilters } from "@/hooks/offers/useFetchOffers";
 import { useOrgSelectionStore } from "../useOrgSelectionStore";
@@ -20,6 +22,16 @@ import { BulkActionBar } from "../components/bulk-action-bar";
 
 const FILTER_FIELDS: FilterFieldConfig[] = [
   { key: "search", label: "Search", type: "search", placeholder: "Name, email, phone…" },
+  {
+    key: "sortOrder",
+    label: "Sort",
+    type: "dropdown",
+    options: [
+      { label: "Newest first", value: "desc" },
+      { label: "Oldest first", value: "asc" },
+    ],
+    placeholder: "Sort by date",
+  },
 ];
 
 const PENDING_STATUSES = [
@@ -31,6 +43,7 @@ const PENDING_STATUSES = [
 ];
 
 export default function PendingLeadsPage() {
+  const { toast } = useToast();
   const { offers, getAllOffers, totalCount, totalPages, isPending } = useFetchOffers();
   const selectedOrg = useOrgSelectionStore((s) => s.selectedOrg);
 
@@ -45,7 +58,7 @@ export default function PendingLeadsPage() {
   const [updateOfferTarget, setUpdateOfferTarget] = useState<OfferDoc | null>(null);
 
   const pendingOffers = offers.filter((o) =>
-    PENDING_STATUSES.includes(o.leadStatus) || !o.leadStatus,
+    (PENDING_STATUSES.includes(o.leadStatus) || !o.leadStatus) && o.offerStatus !== "Accepted",
   );
   const selectedOffers = pendingOffers.filter((o) => selectedIds.has(o._id));
 
@@ -53,6 +66,8 @@ export default function PendingLeadsPage() {
     (p: number, f: FilterValues) => {
       const apiFilters: OfferListFilters = {
         search: f.search ?? undefined,
+        sortBy: "createdAt",
+        sortOrder: (f.sortOrder as "asc" | "desc" | undefined) ?? "desc",
       };
       void getAllOffers(apiFilters, p, selectedOrg, 20);
     },
@@ -74,6 +89,22 @@ export default function PendingLeadsPage() {
 
   const refresh = () => load(page, filters);
 
+  const handlePaymentComplete = async (offer: OfferDoc) => {
+    try {
+      await axios.post(`/api/offers/${offer._id}/payment-complete`, {
+        organization: offer.organization,
+        note: "Manually marked as payment complete",
+      });
+      toast({ title: "Payment marked complete" });
+      refresh();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Failed to mark payment complete";
+      toast({ title: msg, variant: "destructive" });
+    }
+  };
+
   const actions: LeadsTableAction[] = [
     {
       label: "Add Callback",
@@ -91,6 +122,14 @@ export default function PendingLeadsPage() {
       label: "Update Offer",
       onClick: (offer) => setUpdateOfferTarget(offer),
       show: (offer) => offer.leadStatus !== "Blacklist Lead" && offer.leadStatus !== "Reject Lead",
+    },
+    {
+      label: "Complete Payment",
+      onClick: handlePaymentComplete,
+      show: (offer) =>
+        offer.leadStatus !== "Blacklist Lead" &&
+        offer.leadStatus !== "Reject Lead" &&
+        offer.offerStatus !== "Accepted",
     },
   ];
 

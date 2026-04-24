@@ -51,6 +51,7 @@ import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastN
 // Types
 import { UserInterface } from "@/util/type";
 import { employeeRoles } from "@/models/employee";
+import { OwnerStageChart } from "../charts/OwnerStageChart";
 
 const chartConfig = {
   listings: {
@@ -87,6 +88,15 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
   const [selectedRole, setSelectedRole] = useState<string>("All");
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [isPasswordGenerating, setIsPasswordGenerating] = useState(false);
+
+    const [ownerJourneySite, setOwnerJourneySite] = useState<
+      "vacationSaga" | "holidaysera" | "housingSaga"
+    >("vacationSaga");
+    const [ownerJourneyStages, setOwnerJourneyStages] = useState<Record<
+      1 | 2 | 3 | 4,
+      number
+    > | null>(null);
+    const [ownerJourneyLoading, setOwnerJourneyLoading] = useState(false);
 
   // Data hooks
   const {
@@ -170,6 +180,36 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
     fetchAllEmployees();
   }, [token?.role]);
 
+    useEffect(() => {
+      if (!token?.id) return;
+      let cancelled = false;
+      setOwnerJourneyLoading(true);
+      void axios
+        .get<{ success: boolean; stages?: Record<1 | 2 | 3 | 4, number> }>(
+          "/api/dashboard/owner-journey-stats",
+          {
+            params: { site: ownerJourneySite },
+          },
+        )
+        .then((res) => {
+          if (cancelled) return;
+          if (res.data.success && res.data.stages) {
+            setOwnerJourneyStages(res.data.stages);
+          } else {
+            setOwnerJourneyStages(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setOwnerJourneyStages(null);
+        })
+        .finally(() => {
+          if (!cancelled) setOwnerJourneyLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [token?.id, ownerJourneySite]);
+
   // Filter employees based on selected role and active status
   useEffect(() => {
     let filtered = allEmployeesList;
@@ -231,7 +271,6 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
   return (
     <div className={className}>
       {/* Broadcast Notification Form - SuperAdmin/HR only */}
-      
 
       {/* HR & Admin Section - Logged In Employees + Candidate Stats */}
       {(isSuperAdmin || isHR) && canAccess("loggedInEmployees") && (
@@ -429,6 +468,50 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
             </div>
           )}
 
+          {canAccess("ownerOnboardingStage") && (
+            <Card className="mt-6 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-zinc-50 dark:from-slate-950/50 dark:to-zinc-950/50">
+                <CardTitle className="text-xl">
+                  Owner onboarding stages
+                </CardTitle>
+                <CardDescription>
+                  How many owners are in each funnel stage for the selected site
+                  (derived from live data, no duplicate storage).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div className="max-w-xs">
+                  <Select
+                    value={ownerJourneySite}
+                    onValueChange={(value) =>
+                      setOwnerJourneySite(
+                        value as "vacationSaga" | "holidaysera" | "housingSaga",
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select site" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Product site</SelectLabel>
+                        <SelectItem value="vacationSaga">
+                          VacationSaga
+                        </SelectItem>
+                        <SelectItem value="holidaysera">HolidaySera</SelectItem>
+                        <SelectItem value="housingSaga">HousingSaga</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <OwnerStageChart
+                  stages={ownerJourneyStages}
+                  loading={ownerJourneyLoading}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Listings Created Chart */}
           {canAccess("listingsCreated") && (
             <div className="relative w-full mx-auto my-6 p-6  dark:bg-stone-950 rounded-xl border">
@@ -541,6 +624,7 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
           )}
         </>
       )}
+
     </div>
   );
 }

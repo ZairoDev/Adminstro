@@ -73,6 +73,9 @@ export default function BoostPropertiesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
    const [searchFilter, setSearchFilter] = useState<"boostid" | "vsid">("boostid");
+  const [sortBy, setSortBy] = useState<"reboostedFirst" | "createdFirst">(
+    "createdFirst",
+  );
   const [reboostingIds, setReboostingIds] = useState<Set<string>>(new Set());
   const [reboostedIds, setReboostedIds] = useState<Set<string>>(new Set());
   const [totalPages, setTotalPages] = useState(1);
@@ -97,7 +100,10 @@ export default function BoostPropertiesPage() {
             params: {
               page: targetPage,
               limit: PAGE_SIZE,
-              sort: "-lastReboostedAt",
+              sort:
+                sortBy === "createdFirst"
+                  ? "-createdAt"
+                  : "-lastReboostedAt",
               createdBy: createdByValue,
               dateFrom: date?.from?.toISOString(),
               dateTo: date?.to?.toISOString(),
@@ -123,11 +129,11 @@ export default function BoostPropertiesPage() {
 
   useEffect(() => {
     fetchProperties(page);
-  }, [page, createdByValue, date]);
+  }, [page, createdByValue, date, sortBy]);
 
   useEffect(() => {
     setPage(1);
-  }, [createdByValue, date?.from, date?.to]);
+  }, [createdByValue, date?.from, date?.to, sortBy]);
 
   useEffect(()=>{
     getEmployees();
@@ -221,6 +227,20 @@ export default function BoostPropertiesPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
       <div className="max-w-7xl mx-auto">
         <div className="flex gap-3">
+          <Select
+            value={sortBy}
+            onValueChange={(value: "reboostedFirst" | "createdFirst") =>
+              setSortBy(value)
+            }
+          >
+            <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+              <SelectValue placeholder="Sort by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="reboostedFirst">Reboosted First</SelectItem>
+              <SelectItem value="createdFirst">Created First</SelectItem>
+            </SelectContent>
+          </Select>
           {/* Search Filter Select */}
           <Select
             value={searchFilter}
@@ -292,6 +312,20 @@ export default function BoostPropertiesPage() {
         {/* Search Section */}
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-3">
+            <Select
+              value={sortBy}
+              onValueChange={(value: "reboostedFirst" | "createdFirst") =>
+                setSortBy(value)
+              }
+            >
+              <SelectTrigger className="w-[180px] h-14 text-lg border-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reboostedFirst">Reboosted First</SelectItem>
+                <SelectItem value="createdFirst">Created First</SelectItem>
+              </SelectContent>
+            </Select>
             {/* Search Filter Select */}
             <Select
               value={searchFilter}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Mail, Copy, Check } from "lucide-react";
+import { Phone, Mail, Copy, Check, ArrowBigRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ContactCellProps {
@@ -35,8 +35,9 @@ function CopyIcon({ value, icon: Icon }: { value: string; icon: React.ElementTyp
         <Check size={13} className="text-green-500" />
       ) : (
         <Icon size={13} />
-      )}
-      <span className="max-w-[140px] truncate">{value}</span>
+      )}  
+      {/* <ArrowBigRightIcon className="w-4 h-4" size={13} /> */}
+      {/* <span className="max-w-[140px] truncate">{value}</span> */}
     </button>
   );
 }

@@ -206,13 +206,9 @@ function buildBaseColumns(
       ),
     },
     {
-      accessorKey: "propertyName",
-      header: "Property",
-      cell: ({ row }) => (
-        <div className="text-sm max-w-[160px] truncate" title={row.getValue("propertyName")}>
-          {row.getValue("propertyName")}
-        </div>
-      ),
+      accessorKey: "price",
+      header: "Price",
+      cell: ({ row }) => <div className="text-sm">{row.getValue("price")}</div>,
     },
     {
       accessorKey: "country",

@@ -793,6 +793,7 @@ export interface  unregisteredOwners {
   referenceLink: string;
   remarks: string;
   availability: string;
+  unavailableUntil?: Date | string | null;
   petStatus: string;
   imageUrls: string[];
   isVerified: string;

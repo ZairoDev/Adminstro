@@ -1038,7 +1038,7 @@ const Dashboard = () => {
                       Reply Rate
                     </th>
                   </tr>
-                </thead>
+                </thead>      
                 <tbody>
                   {replyCountsByLocation.map((item, index) => {
                     const repliedPercentage =

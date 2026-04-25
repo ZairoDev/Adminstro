@@ -91,6 +91,10 @@ petStatus: {
     type: String,
     default: "Available"
   },
+  unavailableUntil: {
+    type: Date,
+    default: null,
+  },
   imageUrls:{
     type: [String],
     default: []

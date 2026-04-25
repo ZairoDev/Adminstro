@@ -8,6 +8,7 @@ const WebsiteLeadsSchema = new mongoose.Schema(
     VSID: { type: String, required: true },
     email: { type: String },
     message: { type: String, required: true },
+    note: { type: String, default: "" },
   },
   { timestamps: true }
 );

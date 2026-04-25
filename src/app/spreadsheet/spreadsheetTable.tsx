@@ -19,6 +19,14 @@ import {
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { EditableCell } from "./components/cells/EditableCell";
 import { EditableCopyCell } from "./components/cells/EditableCopyCell";
@@ -311,6 +319,13 @@ useEffect(() => {
     ("Allowed" | "Not Allowed" | "None")[]
   >(Array.from({ length: tableData?.length }, () => "None"));
   const [filterMode, setFilterMode] = useState<0 | 1 | 2>(0);
+  const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
+  const [unavailableUntilDate, setUnavailableUntilDate] = useState("");
+  const [pendingAvailabilityChange, setPendingAvailabilityChange] = useState<{
+    id: string;
+    key: keyof unregisteredOwners;
+    value: string;
+  } | null>(null);
 
   const { toast } = useToast();
 
@@ -503,6 +518,7 @@ useEffect(() => {
       address: "",
       remarks: "",
       availability: "Available",
+      unavailableUntil: null,
       date: new Date(),
       imageUrls: [],
       isVerified: "None",
@@ -593,14 +609,23 @@ useEffect(() => {
     applySort(field, newOrder);
   };
 
-  const handleSave = async (
+  const performSave = async (
     _id: string,
     key: keyof unregisteredOwners,
-    newValue: string
+    newValue: string,
+    unavailableUntilPayload?: string | null
   ) => {
     const prev = tableData;
     const updatedData = tableData.map((item) =>
-      item._id === _id ? { ...item, [key]: newValue } : item
+      item._id === _id
+        ? {
+            ...item,
+            [key]: newValue,
+            ...(key === "availability"
+              ? { unavailableUntil: unavailableUntilPayload ?? item.unavailableUntil }
+              : {}),
+          }
+        : item
     );
     setTableData(updatedData);
 
@@ -608,6 +633,7 @@ useEffect(() => {
       await axios.put(`/api/unregisteredOwners/updateData/${_id}`, {
         field: key,
         value: newValue,
+        unavailableUntil: unavailableUntilPayload,
       });
       toast({
         title: "Response status updated",
@@ -626,6 +652,54 @@ useEffect(() => {
       });
       setTableData(prev);
     }
+  };
+
+  const handleSave = async (
+    _id: string,
+    key: keyof unregisteredOwners,
+    newValue: string
+  ) => {
+    if (key === "availability" && newValue === "Not Available") {
+      setPendingAvailabilityChange({ id: _id, key, value: newValue });
+      setUnavailableUntilDate("");
+      setAvailabilityDialogOpen(true);
+      return;
+    }
+
+    const unavailableUntilPayload =
+      key === "availability" && newValue === "Available" ? null : undefined;
+    await performSave(_id, key, newValue, unavailableUntilPayload);
+  };
+
+  const handleConfirmUnavailableDate = async () => {
+    if (!pendingAvailabilityChange) return;
+    if (!unavailableUntilDate) {
+      toast({
+        title: "Date required",
+        description: "Please select an unavailable-until date.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const parsedDate = new Date(unavailableUntilDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      toast({
+        title: "Invalid date",
+        description: "Please enter a valid date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await performSave(
+      pendingAvailabilityChange.id,
+      pendingAvailabilityChange.key,
+      pendingAvailabilityChange.value,
+      parsedDate.toISOString(),
+    );
+    setAvailabilityDialogOpen(false);
+    setPendingAvailabilityChange(null);
+    setUnavailableUntilDate("");
   };
 
   const editableFields = [
@@ -831,6 +905,46 @@ useEffect(() => {
 
   return (
     <div className="space-y-4">
+      <Dialog
+        open={availabilityDialogOpen}
+        onOpenChange={(open) => {
+          setAvailabilityDialogOpen(open);
+          if (!open) {
+            setPendingAvailabilityChange(null);
+            setUnavailableUntilDate("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set unavailable until</DialogTitle>
+            <DialogDescription>
+              Select the date when this lead should become available again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              type="date"
+              value={unavailableUntilDate}
+              onChange={(e) => setUnavailableUntilDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAvailabilityDialogOpen(false);
+                setPendingAvailabilityChange(null);
+                setUnavailableUntilDate("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmUnavailableDate}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* <Button
           variant="outline"
           onClick={() =>

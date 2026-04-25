@@ -183,12 +183,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const [availableCount, notAvailableCount] = await Promise.all([
+    const now = new Date();
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+    const [availableCount, notAvailableCount, upcomingCount] = await Promise.all([
       unregisteredOwner.countDocuments({ ...baseQuery, availability: "Available" }),
       unregisteredOwner.countDocuments({ ...baseQuery, availability: "Not Available" }),
+      unregisteredOwner.countDocuments({
+        ...baseQuery,
+        availability: "Not Available",
+        unavailableUntil: { $gte: now, $lte: oneMonthFromNow },
+      }),
     ]);
 
-    return NextResponse.json({ availableCount, notAvailableCount });
+    return NextResponse.json({ availableCount, notAvailableCount, upcomingCount });
   } catch (error) {
     console.error("getCounts error:", error);
     return NextResponse.json({ error: "Failed to fetch counts" }, { status: 500 });

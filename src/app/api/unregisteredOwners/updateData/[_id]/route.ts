@@ -22,7 +22,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { field, value } = body;
+    const { field, value, unavailableUntil } = body;
 
     const data = await unregisteredOwner.findById(params._id);
     if (!data) {
@@ -39,6 +39,28 @@ export async function PUT(
     } 
     else {
       data[field] = value;
+    }
+
+    if (field === "availability") {
+      if (value === "Not Available") {
+        if (!unavailableUntil) {
+          return NextResponse.json(
+            { message: "unavailableUntil is required for Not Available" },
+            { status: 400 },
+          );
+        }
+        const parsedDate = new Date(unavailableUntil);
+        if (Number.isNaN(parsedDate.getTime())) {
+          return NextResponse.json(
+            { message: "Invalid unavailableUntil date" },
+            { status: 400 },
+          );
+        }
+        parsedDate.setHours(23, 59, 59, 999);
+        data.unavailableUntil = parsedDate;
+      } else if (value === "Available") {
+        data.unavailableUntil = null;
+      }
     }
 
     await data.save();

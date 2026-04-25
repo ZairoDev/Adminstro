@@ -17,6 +17,7 @@ const Spreadsheet = () => {
   //   const [properties, setProperties] = useState<FilteredPropertiesInterface[]>([])
   const [availableCount, setAvailableCount] = useState(0);
   const [notAvailableCount, setNotAvailableCount] = useState(0);
+  const [upcomingCount, setUpcomingCount] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -80,6 +81,7 @@ const Spreadsheet = () => {
         filters: effectiveFilters,
         page: currentPage,
         limit: pageSize,
+        upcomingOnly: tab === "upcoming",
       });
 
       const newData = Array.isArray(response.data.data)
@@ -114,6 +116,7 @@ const Spreadsheet = () => {
       });
       setAvailableCount(response.data.availableCount || 0);
       setNotAvailableCount(response.data.notAvailableCount || 0);
+      setUpcomingCount(response.data.upcomingCount || 0);
     } catch (error) {
       console.error("Failed to fetch counts:", error);
     }
@@ -254,6 +257,48 @@ const Spreadsheet = () => {
               </div>
             </div>
           </TabsContent>
+
+          {/* Upcoming Tab */}
+          <TabsContent value="upcoming" className="h-full">
+            <FilterBar
+              filters={filters}
+              setFilters={setFilters}
+              selectedTab={selectedTab}
+            />
+            <SpreadsheetTable
+              tableData={data}
+              setTableData={setData}
+              {...({ serialOffset } as any)}
+              onAvailabilityChange={handleAvailabilityChange}
+            />
+            {isLoading && <p className="text-center mt-4">Loading...</p>}
+            {!isLoading && total === 0 && (
+              <p className="text-center text-muted-foreground my-2">
+                No records found
+              </p>
+            )}
+            <div className="flex items-center justify-between mt-4 gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">
+                  Rows per page:
+                </label>
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setLimit(next);
+                    setPage(1);
+                  }}
+                  className="border rounded px-2 py-1 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label="Rows per page"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+          </TabsContent>
         </div>
 
         {/* Bottom Bar: Tabs + Pagination (Excel-like) */}
@@ -280,6 +325,17 @@ const Spreadsheet = () => {
               Not Available{" "}
               <span className="ml-1 text-muted-foreground">
                 ({notAvailableCount})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="upcoming"
+              className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 
+        data-[state=active]:bg-background data-[state=active]:shadow-sm 
+        data-[state=active]:text-primary hover:bg-background/70"
+            >
+              Upcoming{" "}
+              <span className="ml-1 text-muted-foreground">
+                ({upcomingCount})
               </span>
             </TabsTrigger>
             {/* <TabsTrigger

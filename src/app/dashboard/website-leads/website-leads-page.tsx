@@ -4,6 +4,7 @@ import axios from "@/util/axios";
 import { format } from "date-fns";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/AuthStore";
 import {
   Search,
   RefreshCw,
@@ -61,6 +62,7 @@ interface WebsiteLead {
   VSID: string;
   email?: string;
   message: string;
+  note?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,12 +71,19 @@ const WebsiteLeadsPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const token = useAuthStore((state) => state.token);
+  const isSuperAdmin = token?.role === "SuperAdmin";
 
   const [leads, setLeads] = useState<WebsiteLead[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalLeads, setTotalLeads] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [bulkNote, setBulkNote] = useState<string>("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editBuffer, setEditBuffer] = useState<
+    Record<string, { telephone: string; email: string }>
+  >({});
 
   const [page, setPage] = useState<number>(
     Number.parseInt(searchParams?.get("page") ?? "1")
@@ -178,6 +187,63 @@ const WebsiteLeadsPage = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleBulkNoteApply = async () => {
+    if (!bulkNote.trim()) {
+      toast({
+        title: "Note is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await axios.patch("/api/website-leads", {
+        action: "bulkNote",
+        note: bulkNote,
+        searchTerm,
+        searchType,
+      });
+      toast({
+        title: "Note applied",
+        description: "Note was applied to all matching leads.",
+      });
+      setBulkNote("");
+      fetchLeads();
+    } catch {
+      toast({
+        title: "Failed to apply note",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLeadUpdate = async (lead: WebsiteLead) => {
+    const payload = editBuffer[lead._id];
+    if (!payload) return;
+    try {
+      setUpdatingId(lead._id);
+      const res = await axios.patch("/api/website-leads", {
+        action: "updateLead",
+        leadId: lead._id,
+        telephone: payload.telephone,
+        email: payload.email,
+      });
+      const updatedLead: WebsiteLead = res.data.data;
+      setLeads((prev) =>
+        prev.map((item) => (item._id === lead._id ? updatedLead : item))
+      );
+      toast({
+        title: "Lead updated",
+      });
+    } catch {
+      toast({
+        title: "Failed to update lead",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   useEffect(() => {
     setPage(Number.parseInt(searchParams?.get("page") ?? "1"));
   }, [searchParams]);
@@ -251,6 +317,25 @@ const WebsiteLeadsPage = () => {
         </div>
       </form>
 
+      {isSuperAdmin && (
+        <div className="mt-4 p-4 rounded-lg border bg-muted/20">
+          <p className="text-sm font-medium mb-2">Add note for all</p>
+          <div className="flex flex-col md:flex-row gap-2">
+            <Input
+              placeholder="Write note to apply to all matching leads..."
+              value={bulkNote}
+              onChange={(e) => setBulkNote(e.target.value)}
+            />
+            <Button onClick={handleBulkNoteApply} className="md:w-auto w-full">
+              Apply Note
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Applies to all leads in current search filter.
+          </p>
+        </div>
+      )}
+
       {/* Content Section */}
       {loading ? (
         <div className="flex mt-8 min-h-[60vh] items-center justify-center">
@@ -323,7 +408,23 @@ const WebsiteLeadsPage = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground">Phone</p>
-                          <p className="font-medium truncate">{lead.telephone}</p>
+                          {isSuperAdmin ? (
+                            <Input
+                              className="h-8"
+                              value={editBuffer[lead._id]?.telephone ?? lead.telephone}
+                              onChange={(e) =>
+                                setEditBuffer((prev) => ({
+                                  ...prev,
+                                  [lead._id]: {
+                                    telephone: e.target.value,
+                                    email: prev[lead._id]?.email ?? lead.email ?? "",
+                                  },
+                                }))
+                              }
+                            />
+                          ) : (
+                            <p className="font-medium truncate">{lead.telephone}</p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
@@ -346,9 +447,25 @@ const WebsiteLeadsPage = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground">Email</p>
-                          <p className="font-medium truncate">
-                            {lead.email || "Not provided"}
-                          </p>
+                          {isSuperAdmin ? (
+                            <Input
+                              className="h-8"
+                              value={editBuffer[lead._id]?.email ?? lead.email ?? ""}
+                              onChange={(e) =>
+                                setEditBuffer((prev) => ({
+                                  ...prev,
+                                  [lead._id]: {
+                                    telephone: prev[lead._id]?.telephone ?? lead.telephone,
+                                    email: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          ) : (
+                            <p className="font-medium truncate">
+                              {lead.email || "Not provided"}
+                            </p>
+                          )}
                         </div>
                         {lead.email && (
                           <Button
@@ -404,6 +521,27 @@ const WebsiteLeadsPage = () => {
                         </div>
                       </div>
                     </div>
+
+                    {(isSuperAdmin || lead.note) && (
+                      <div className="mt-3 p-3 rounded-lg border bg-background/40">
+                        <p className="text-xs text-muted-foreground mb-1">Note</p>
+                        <p className="text-sm whitespace-pre-wrap">
+                          {lead.note || "No note"}
+                        </p>
+                      </div>
+                    )}
+
+                    {isSuperAdmin && (
+                      <div className="mt-3 flex justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => handleLeadUpdate(lead)}
+                          disabled={updatingId === lead._id}
+                        >
+                          {updatingId === lead._id ? "Saving..." : "Save Phone & Email"}
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

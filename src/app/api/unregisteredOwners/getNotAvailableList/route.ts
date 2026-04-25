@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         : [],
     );
 
-    const { filters , page=1 , limit=50}  : { filters: FiltersInterfaces; page: number ; limit: number} =
+    const { filters , page=1 , limit=50, upcomingOnly = false}  : { filters: FiltersInterfaces; page: number ; limit: number; upcomingOnly?: boolean} =
         await req.json();
     const query: Record<string, any> = {};
 
@@ -55,6 +55,15 @@ export async function POST(req: NextRequest) {
     
   
     query["availability"]= "Not Available";
+    if (upcomingOnly) {
+      const now = new Date();
+      const oneMonthFromNow = new Date();
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+      query.unavailableUntil = {
+        $gte: now,
+        $lte: oneMonthFromNow,
+      };
+    }
     // console.log("filters: ", filters);
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");

@@ -22,6 +22,7 @@ const validLeadStatus = [
 ];
 
 const validReminders = ["Reminder 1", "Reminder 2", "Reminder 3", "Last Reminder"];
+const validEmailEventKinds = ["REM1", "REM2", "REM3", "REM4", "REBUTTAL"] as const;
 
 const validOfferStatus = [
   "Draft",
@@ -296,12 +297,33 @@ const offerSchema: Schema = new Schema(
     rejectedAt: { type: Date, default: null },
     blacklistReason: { type: String, default: "" },
     blacklistedAt: { type: Date, default: null },
+    emailEvents: {
+      type: [
+        {
+          kind: {
+            type: String,
+            enum: {
+              values: [...validEmailEventKinds],
+              message: "{VALUE} is not a valid email event kind",
+            },
+            required: true,
+          },
+          subjectSnapshot: { type: String, required: true },
+          contentSnapshot: { type: String, required: true },
+          sentAt: { type: Date, default: Date.now },
+          sentBy: { type: Schema.Types.ObjectId, ref: "Employees", default: null },
+          sentByName: { type: String, default: "" },
+          templateId: { type: Schema.Types.ObjectId, ref: "EmailTemplates", default: null },
+        },
+      ],
+      default: [],
+    },
     history: {
       type: [
         {
           type: {
             type: String,
-            enum: ["lead", "offer", "callback", "rejection", "blacklist"],
+            enum: ["lead", "offer", "callback", "rejection", "blacklist", "reminder", "rebuttal"],
             required: true,
           },
           status: {

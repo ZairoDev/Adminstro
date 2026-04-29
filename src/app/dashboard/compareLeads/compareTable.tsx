@@ -5,6 +5,8 @@ import { IQuery } from "@/util/type";
 import { useAuthStore } from "@/AuthStore";
 import { EmployeeInterface } from "@/util/type";
 import debounce from "lodash.debounce";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface AreaType {
   _id: string;
@@ -43,7 +45,10 @@ export default function CompareTable({
 
   const { token: authToken } = useAuthStore();
   const userRole = authToken?.role;
-  const canUseEmployeeFilter = !!userRole && ["HR", "SuperAdmin", "Sales", "LeadGen", "LeadGen-TeamLead", "Sales-TeamLead"].includes(userRole);
+  const isLeadGen = userRole === "LeadGen";
+  const ownLeadGenEmail = isLeadGen ? authToken?.email?.toLowerCase() ?? "" : null;
+  const canUseEmployeeFilter =
+    !!userRole && ["HR", "SuperAdmin", "Sales", "LeadGen-TeamLead", "Sales-TeamLead"].includes(userRole);
 
   useEffect(() => {
     if (searchParams?.get("page")) {
@@ -65,6 +70,16 @@ export default function CompareTable({
 
   useEffect(() => {
     const fetchEmployees = async () => {
+      if (isLeadGen && authToken?.email) {
+        setEmployees([
+          {
+            _id: String(authToken.id || authToken.email),
+            name: authToken.name || authToken.email,
+            email: authToken.email,
+          } as EmployeeInterface,
+        ]);
+        return;
+      }
       try {
         const res = await axios.get("/api/employee/getAllEmployee");
         setEmployees(res.data.allEmployees || []);
@@ -74,7 +89,7 @@ export default function CompareTable({
     };
 
     fetchEmployees();
-  }, []);
+  }, [isLeadGen, authToken?.email, authToken?.id, authToken?.name]);
 
   const getDaysInMonth = (year: number, monthIndex: number) => {
     const date = new Date(year, monthIndex, 1);
@@ -115,15 +130,15 @@ export default function CompareTable({
     });
   };
 
-  const getCreatorName = (email?: string) => {
+  const getCreatorName = useCallback((email?: string) => {
     if (!email) return "Unknown";
 
     const emp = employees.find(
-      (e) => e.email.toLowerCase() === email.toLowerCase()
+      (e) => e.email?.toLowerCase() === email?.toLowerCase()
     );
 
     return emp ? emp.name : email;
-  };
+  }, [employees]);
 
   // Helper function to get month start and today's date
   const getMonthRange = useCallback((month: string) => {
@@ -152,14 +167,16 @@ export default function CompareTable({
   const fetchForDate = async (isoDate: string, employeeEmail?: string | null) => {
     setLoading(true);
     try {
+      const effectiveEmployeeEmail =
+        ownLeadGenEmail || employeeEmail || null;
       // CRITICAL FIX: Use a very high limit to get ALL results for the date query
       // This ensures we get all matches, not just the first 50
       let url = `/api/sales/getquery?fromDate=${isoDate}&toDate=${isoDate}&limit=10000`;
       
       // Add employee filter if an employee is selected
-      if (employeeEmail) {
-        url += `&createdBy=${encodeURIComponent(employeeEmail)}`;
-        console.log(`[compareTable] Filtering by employee: ${employeeEmail} for date ${isoDate}`);
+      if (effectiveEmployeeEmail) {
+        url += `&createdBy=${encodeURIComponent(effectiveEmployeeEmail)}`;
+
       }
       
       const res = await axios.get(url);
@@ -184,11 +201,12 @@ export default function CompareTable({
     setLoading(true);
     try {
       const { monthStart, monthEnd } = getMonthRange(month);
+      const effectiveEmployeeEmail = ownLeadGenEmail || employeeEmail;
       
       // Fetch all data from month start to month end (or today if current month)
-      let url = `/api/sales/getquery?fromDate=${monthStart}&toDate=${monthEnd}&limit=10000&createdBy=${encodeURIComponent(employeeEmail)}`;
+      let url = `/api/sales/getquery?fromDate=${monthStart}&toDate=${monthEnd}&limit=10000&createdBy=${encodeURIComponent(effectiveEmployeeEmail)}`;
       
-      console.log(`[compareTable] Fetching employee ${employeeEmail} data for month range: ${monthStart} to ${monthEnd}`);
+
       
       const res = await axios.get(url);
       const data: IQuery[] = res.data?.data || [];
@@ -210,6 +228,7 @@ export default function CompareTable({
   const fetchForMonth = async (month: string, employeeEmail?: string | null) => {
     setLoading(true);
     try {
+      const effectiveEmployeeEmail = ownLeadGenEmail || employeeEmail || null;
       let url = `/api/sales/monthly-stats?month=${month}`;
       
       // Note: monthly-stats endpoint doesn't support employee filter directly
@@ -219,15 +238,15 @@ export default function CompareTable({
       let data: IQuery[] = res.data?.queries || [];
       
       // Apply employee filter client-side if specified
-      if (employeeEmail) {
+      if (effectiveEmployeeEmail) {
         data = data.filter(
-          (q) => q.createdBy?.toLowerCase() === employeeEmail.toLowerCase()
+          (q) => q.createdBy?.toLowerCase() === effectiveEmployeeEmail?.toLowerCase()
         );
-        console.log(`[compareTable] Filtered monthly queries by employee: ${employeeEmail} (${data.length} of ${res.data?.queries?.length || 0})`);
+
       }
       
       setFetchedMonthQueries(data);
-      console.log(`[compareTable] Monthly Queries: ${data.length} total${employeeEmail ? ` (filtered by ${employeeEmail})` : ''}`);
+
     } catch (err) {
       console.error("Error fetching queries for month", err);
       setFetchedMonthQueries([]);
@@ -252,6 +271,13 @@ export default function CompareTable({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (ownLeadGenEmail) {
+      setSelectedEmployeeEmail(ownLeadGenEmail);
+      setIsFilteringByEmployee(true);
+    }
+  }, [ownLeadGenEmail]);
 
   // Separate effect to fetch monthly data when currentMonth OR selectedEmployeeEmail changes
   useEffect(() => {
@@ -291,7 +317,7 @@ export default function CompareTable({
   // Helper function to get employee email from name
   const getEmployeeEmailByName = useCallback((name: string): string | null => {
     const emp = employees.find(
-      (e) => e.name === name || e.email.toLowerCase() === name.toLowerCase()
+      (e) => e.name === name || e.email?.toLowerCase() === name?.toLowerCase()
     );
     return emp?.email || null;
   }, [employees]);
@@ -302,7 +328,7 @@ export default function CompareTable({
     
     if (selectedEmployeeEmail) {
       queriesToGroup = fetchedMonthQueries.filter(
-        (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail.toLowerCase()
+        (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail?.toLowerCase()
       );
     }
     
@@ -312,7 +338,7 @@ export default function CompareTable({
       acc[name].push(q);
       return acc;
     }, {});
-  }, [fetchedMonthQueries, employees, selectedEmployeeEmail]);
+  }, [fetchedMonthQueries, selectedEmployeeEmail, getCreatorName]);
 
 
   // Helper function to format date for grouping (YYYY-MM-DD from createdAt)
@@ -333,7 +359,7 @@ export default function CompareTable({
     if (!selectedEmployeeEmail) return {};
     
     const filteredQueries = fetchedQueries.filter(
-      (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail.toLowerCase()
+      (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail?.toLowerCase()
     );
     
     return filteredQueries.reduce((acc: Record<string, IQuery[]>, q) => {
@@ -350,7 +376,7 @@ export default function CompareTable({
     
     if (selectedEmployeeEmail) {
       queriesToGroup = fetchedQueries.filter(
-        (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail.toLowerCase()
+        (q) => q.createdBy?.toLowerCase() === selectedEmployeeEmail?.toLowerCase()
       );
     }
     
@@ -360,7 +386,7 @@ export default function CompareTable({
       acc[employeeName].push(q);
       return acc;
     }, {});
-  }, [fetchedQueries, employees, selectedEmployeeEmail]);
+  }, [fetchedQueries, selectedEmployeeEmail, getCreatorName]);
 
   const monthLabel = useMemo(() => {
     const [y, m] = currentMonth.split("-").map(Number);
@@ -592,34 +618,25 @@ export default function CompareTable({
   return (
     <div className=" w-full p-2 sm:p-4">
       {/* Controls - Hidden on Print */}
-      <div className="print:hidden mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="print:hidden mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-            onClick={prevMonth}
-          >
+          <Button variant="outline" size="sm" onClick={prevMonth}>
             Prev
-          </button>
-          <span className="font-medium text-gray-900 dark:text-gray-100">
+          </Button>
+          <span className="font-medium text-gray-900 dark:text-gray-100 min-w-[140px] text-center">
             {monthLabel}
           </span>
-          <button
-            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-            onClick={nextMonth}
-          >
+          <Button variant="outline" size="sm" onClick={nextMonth}>
             Next
-          </button>
+          </Button>
         </div>
-        <button
-          onClick={handlePrint}
-          className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
-        >
+        <Button onClick={handlePrint} size="sm">
           Print
-        </button>
+        </Button>
       </div>
 
       {/* Date Selector */}
-      <div className="print:hidden mb-4 flex justify-evenly ">
+      <div className="print:hidden mb-4 flex justify-evenly overflow-auto ">
         {daysInSelectedMonth.map((day) => {
           const isSelected = day === selectedDate && !selectedEmployeeEmail;
           const hasEmployeeFilter = selectedEmployeeEmail !== null;
@@ -627,7 +644,7 @@ export default function CompareTable({
             <button
               key={day}
               onClick={() => {
-                if (hasEmployeeFilter) {
+                if (hasEmployeeFilter && !isLeadGen) {
                   // If employee filter is active, clicking a date clears it and shows that date
                   setSelectedEmployeeEmail(null);
                   setIsFilteringByEmployee(false);
@@ -635,7 +652,7 @@ export default function CompareTable({
                 setSelectedDate(day);
                 // CRITICAL FIX: Immediately fetch for the selected date to avoid debounce delay issues
                 // This ensures the correct date is fetched right away, especially for edge cases like Sunday
-                fetchForDate(day, null);
+                fetchForDate(day, isLeadGen ? ownLeadGenEmail : null);
               }}
               className={`py-2 px-1 text-xs border rounded transition-all ${
                 isSelected
@@ -676,28 +693,46 @@ export default function CompareTable({
               ({fetchedQueries.length} leads for {monthLabel})
             </span>
           </div>
-          <button
-            onClick={() => {
-              setSelectedEmployeeEmail(null);
-              setIsFilteringByEmployee(false);
-              // Refetch for selected date (or today) without employee filter
-              const dateToUse = selectedDate || (() => {
-                const today = new Date();
-                return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-              })();
-              fetchForDate(dateToUse, null);
-            }}
-            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-            aria-label="Clear employee filter"
-          >
-            Clear Filter
-          </button>
+          {!isLeadGen && (
+            <button
+              onClick={() => {
+                setSelectedEmployeeEmail(null);
+                setIsFilteringByEmployee(false);
+                const dateToUse =
+                  selectedDate ||
+                  (() => {
+                    const today = new Date();
+                    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+                      2,
+                      "0"
+                    )}-${String(today.getDate()).padStart(2, "0")}`;
+                  })();
+                fetchForDate(dateToUse, null);
+              }}
+              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              aria-label="Clear employee filter"
+            >
+              Clear Filter
+            </button>
+          )}
         </div>
       )}
 
       {/* Monthly Summary Cards */}
       <div className="flex flex-wrap gap-4 mb-6">
-        {Object.keys(monthlyGroupedByCreator).map((creator) => {
+        {loading
+          ? Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={`skeleton-card-${idx}`}
+                className="w-full sm:w-[35%] lg:w-[18%] p-4 border rounded-lg"
+              >
+                <Skeleton className="h-5 w-24 mb-3" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-4/5 mb-2" />
+                <Skeleton className="h-4 w-3/5" />
+              </div>
+            ))
+          : Object.keys(monthlyGroupedByCreator).map((creator) => {
           const data = monthlyGroupedByCreator[creator];
           // Find the employee email for this creator - use helper function
           const creatorEmail = getEmployeeEmailByName(creator) || data[0]?.createdBy;
@@ -716,10 +751,13 @@ export default function CompareTable({
             ? "ring-2 ring-blue-500 ring-offset-2 shadow-lg transform scale-105"
             : "";
 
-          return (
+            return (
             <div
               key={creator}
               onClick={() => {
+                if (isLeadGen) {
+                  return;
+                }
                 if (!canUseEmployeeFilter) {
                   // Not allowed to filter by employee
                   alert("You do not have permission to filter by employee.");
@@ -743,7 +781,7 @@ export default function CompareTable({
                   }
                 }
               }}
-              className={`w-full sm:w-[35%] lg:w-[10%] p-4 border rounded-lg shadow-sm cursor-pointer transition-all hover:shadow-md ${color} ${selectedStyle}`}
+              className={`w-full sm:w-[35%] lg:w-[18%] p-4 border rounded-lg shadow-sm transition-all ${isLeadGen ? "cursor-default" : "cursor-pointer hover:shadow-md"} ${color} ${selectedStyle}`}
               title={`Click to filter by ${creator}`}
             >
               <div className="flex items-center justify-between mb-1">
@@ -768,7 +806,7 @@ export default function CompareTable({
               <p className="text-sm font-semibold mt-1">{monthly.status}</p>
             </div>
           );
-        })}
+          })}
       </div>
 
       {/* Report */}
@@ -801,8 +839,22 @@ export default function CompareTable({
         {/* Content */}
         <div className="p-2 sm:p-4">
           {loading ? (
-            <div className="text-center py-8 text-gray-900 dark:text-gray-100">
-              Loading...
+            <div className="py-6 space-y-3">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div
+                  key={`row-skeleton-${idx}`}
+                  className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 pb-3"
+                >
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
             </div>
           ) : fetchedQueries.length === 0 ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-8">

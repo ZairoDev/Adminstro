@@ -15,6 +15,10 @@ export interface IProperty {
   country?: string;
   propertyImages?: string[];
   propertyCoverFileUrl?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string;
+  approvedBy?: string;
+  approvedAt?: Date | null;
 }
 
 // VSID Generator Function
@@ -32,7 +36,7 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     commonId: String,
     email: {
       type: String,
-      // required: true,
+      required: true,
     },
     phone: {
       type: String,
@@ -161,6 +165,23 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
       type: [[String]],
       default: [[]],
     },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      required: false,
+    },
+    approvalNote: {
+      type: String,
+      default: "",
+    },
+    approvedBy: {
+      type: String,
+      default: "",
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
     isLive: {
       type: Boolean,
       default: true,
@@ -171,6 +192,7 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
     },
     origin: {
       type: String,
+      default:"vacationsaga"
     },
   },
   { timestamps: true }
@@ -178,5 +200,5 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
 
 // Property Model Export
 export const Properties =
-  mongoose.models?.properties ||
-  mongoose.model<PropertySchema>("properties", PropertySchema);
+  mongoose.models.Property ||
+  mongoose.model<PropertySchema>("Property", PropertySchema);

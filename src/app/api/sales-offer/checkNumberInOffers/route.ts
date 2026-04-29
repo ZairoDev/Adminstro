@@ -26,8 +26,12 @@ type MatchPayload = {
   state?: string;
   city?: string;
   leadStatus: string;
+  offerStatus?: string;
   leadStage?: string;
   platform?: string;
+  organization?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
     const matches = await Offer.find(query)
       .sort({ createdAt: -1 })
       .select(
-        "_id phoneNumber email name propertyName relation propertyUrl country state city leadStatus leadStage platform",
+        "_id phoneNumber email name propertyName relation propertyUrl country state city leadStatus offerStatus leadStage platform organization createdAt updatedAt",
       )
       .lean();
 

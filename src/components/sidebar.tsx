@@ -469,6 +469,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleCheckBig size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
+    },
+    {
       path: "/dashboard/invoice",
       label: "Create Invoice",
       Icon: <PencilLine size={18} />,
@@ -645,6 +650,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleCheckBig size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
+    },
+    {
       path: "/dashboard/invoice",
       label: "Create Invoice",
       Icon: <PencilLine size={18} />,
@@ -772,6 +782,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleCheckBig size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
+    },
+    {
       path: "/dashboard/propertyBoost",
       label: "Property Boost",
       Icon: <Rocket size={18} />,
@@ -872,6 +887,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Payment Complete",
       Icon: <CircleCheckBig size={18} />,
     },
+    {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
+    },
   ],
   Guest: [
     {
@@ -938,6 +958,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CircleCheckBig size={18} />,
     },
     {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
+    },
+    {
       path: "/dashboard/employee",
       label: "Manage Employee",
       Icon: <User size={18} />,
@@ -983,6 +1008,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer/payment-complete",
       label: "Payment Complete",
       Icon: <CircleCheckBig size={18} />,
+    },
+    {
+      path: "/dashboard/sales-offer/templates",
+      label: "Offer Templates",
+      Icon: <Mail size={18} />,
     },
   ],
 };
@@ -1210,6 +1240,11 @@ const subscriptionsRoutes = [
     path: "/dashboard/sales-offer/payment-complete",
     label: "Payment Complete",
     Icon: <CircleCheckBig size={18} />,
+  },
+  {
+    path: "/dashboard/sales-offer/templates",
+    label: "Offer Templates",
+    Icon: <Mail size={18} />,
   },
   {
     path: "/dashboard/sales-offer/leads",

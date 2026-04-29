@@ -49,6 +49,11 @@ export async function GET(request: NextRequest) {
 
     const projection = {
       isLive: 1,
+      approvalStatus: 1,
+      approvalNote: 1,
+      approvedBy: 1,
+      approvedAt: 1,
+      origin: 1,
       hostedFrom: 1,
       hostedBy: 1,
       rentalType: 1,
@@ -82,8 +87,16 @@ export async function GET(request: NextRequest) {
     );
     const totalPages = Math.ceil(totalProperties / limit);
 
+    const normalizedProperties = allProperties.map((property: any) => {
+      const plain = typeof property.toObject === "function" ? property.toObject() : property;
+      return {
+        ...plain,
+        effectiveApprovalStatus: plain.approvalStatus ?? "approved",
+      };
+    });
+
     return NextResponse.json({
-      data: allProperties,
+      data: normalizedProperties,
       page,
       totalPages,
       totalProperties,

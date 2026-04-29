@@ -13,6 +13,7 @@ import { useOrgSelectionStore } from "./useOrgSelectionStore";
 type ActiveTemplate = {
   _id: string;
   name: string;
+  type?: string;
   html: string;
 };
 
@@ -47,7 +48,7 @@ export default function EmailPreview() {
       setLoadError("");
       try {
         const orgParam = selectedOrg ? `&organization=${encodeURIComponent(selectedOrg)}` : "";
-        const tRes = await axios.get(`/api/templates?activeOnly=true${orgParam}`);
+        const tRes = await axios.get(`/api/templates?activeOnly=true&type=OFFER${orgParam}`);
         const t0 = (tRes.data?.templates?.[0] ?? null) as ActiveTemplate | null;
         let a0: CurrentAlias | null = null;
 

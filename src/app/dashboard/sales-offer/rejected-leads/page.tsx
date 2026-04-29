@@ -15,6 +15,7 @@ import type { OfferDoc } from "@/util/type";
 import { LeadsTable, type LeadsTableAction } from "../components/leads-table";
 import { LeadsFilterBar, type FilterFieldConfig, type FilterValues } from "../components/leads-filter-bar";
 import { LeadDetailDrawer } from "../components/lead-detail-drawer";
+import { SendRebuttalDialog } from "../components/action-dialogs";
 
 const FILTER_FIELDS: FilterFieldConfig[] = [
   { key: "search", label: "Search", type: "search", placeholder: "Name, email, phone…" },
@@ -79,6 +80,7 @@ export default function RejectedLeadsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<FilterValues>({});
   const [drawerOffer, setDrawerOffer] = useState<OfferDoc | null>(null);
+  const [rebuttalTarget, setRebuttalTarget] = useState<OfferDoc | null>(null);
 
   const load = useCallback(
     (p: number, f: FilterValues) => {
@@ -119,6 +121,7 @@ export default function RejectedLeadsPage() {
 
   const actions: LeadsTableAction[] = [
     { label: "Revert to Pending", onClick: handleRevert },
+    { label: "Send Rebuttal", onClick: (offer) => setRebuttalTarget(offer) },
   ];
 
   return (
@@ -153,6 +156,13 @@ export default function RejectedLeadsPage() {
         offer={drawerOffer}
         open={!!drawerOffer}
         onClose={() => setDrawerOffer(null)}
+      />
+
+      <SendRebuttalDialog
+        open={!!rebuttalTarget}
+        offer={rebuttalTarget}
+        onClose={() => setRebuttalTarget(null)}
+        onSuccess={refresh}
       />
     </div>
   );

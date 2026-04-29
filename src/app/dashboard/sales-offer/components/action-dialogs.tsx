@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MonacoEditor from "@monaco-editor/react";
 import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -29,12 +30,49 @@ import PlanDetails from "../plan-details";
 import EmailPreview from "../email-preview";
 import { useOrgSelectionStore } from "../useOrgSelectionStore";
 import { parseOfferPlan, serializeOfferPlan } from "@/util/offerPlan";
+import { renderTemplate } from "@/util/templateEngine";
 
 interface BaseDialogProps {
   open: boolean;
   offer: OfferDoc | null;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+type ReminderType = "REM1" | "REM2" | "REM3" | "REM4";
+type RebuttalType = "REBUTTAL1" | "REBUTTAL2";
+
+interface SalesTemplateDoc {
+  _id: string;
+  type: "OFFER" | ReminderType | RebuttalType;
+  name: string;
+  subject: string;
+  html: string;
+}
+
+const REMINDER_ORDER: ReminderType[] = ["REM1", "REM2", "REM3", "REM4"];
+const REBUTTAL_TYPES: RebuttalType[] = ["REBUTTAL1", "REBUTTAL2"];
+
+interface AliasOption {
+  _id: string;
+  aliasName: string;
+  aliasEmail: string;
+  organization?: string;
+  status?: string;
+}
+
+function renderEmailWithLeadData(raw: string, offer: OfferDoc): string {
+  return renderTemplate(raw, {
+    name: offer.name ?? "",
+    ownerName: offer.name ?? "",
+    propertyName: offer.propertyName ?? "",
+    propertyUrl: offer.propertyUrl ?? "",
+    email: offer.email ?? "",
+    relation: offer.relation ?? "",
+    platform: offer.platform ?? "",
+    plan: offer.plan ?? "",
+    organization: offer.organization ?? "",
+  });
 }
 
 /* ── Add Callback Dialog ──────────────────────────────────────────────── */
@@ -379,6 +417,391 @@ export function UpdateOfferDialog({ open, offer, onClose, onSuccess }: BaseDialo
           <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? "Updating…" : "Update Offer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDialogProps) {
+  const { toast } = useToast();
+  const [selectedType, setSelectedType] = useState<ReminderType>("REM1");
+  const [aliases, setAliases] = useState<AliasOption[]>([]);
+  const [selectedAliasId, setSelectedAliasId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [html, setHtml] = useState("");
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [loadingAliases, setLoadingAliases] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const sentKinds = new Set((offer?.emailEvents ?? []).map((event) => event.kind));
+  const canSendType = (type: ReminderType): boolean => {
+    if (type === "REM1") return true;
+    if (type === "REM2") return sentKinds.has("REM1");
+    if (type === "REM3") return sentKinds.has("REM2");
+    return sentKinds.has("REM3");
+  };
+  const hasSentType = (type: ReminderType): boolean => sentKinds.has(type);
+
+  const loadTemplate = async (type: ReminderType) => {
+    if (!offer) return;
+    setLoadingTemplate(true);
+    try {
+      const res = await axios.get("/api/sales-offer/templates", {
+        params: { organization: offer.organization, type, activeOnly: true },
+      });
+      const template = (res.data?.templates?.[0] ?? null) as SalesTemplateDoc | null;
+      if (!template) {
+        toast({ title: `No active ${type} template found`, variant: "destructive" });
+        setSubject("");
+        setHtml("");
+        return;
+      }
+      setSubject(template.subject ?? "");
+      setHtml(template.html ?? "");
+    } catch (_err) {
+      toast({ title: "Failed to load template", variant: "destructive" });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const loadAliases = async () => {
+    if (!offer) return;
+    setLoadingAliases(true);
+    try {
+      const res = await axios.get("/api/alias/getAllAliases", {
+        params: { organization: offer.organization },
+      });
+      const aliasList = ((res.data?.aliases ?? []) as AliasOption[]).filter(
+        (alias) => String(alias.status ?? "").toLowerCase() === "active",
+      );
+      setAliases(aliasList);
+      setSelectedAliasId((prev) =>
+        prev && aliasList.some((alias) => alias._id === prev) ? prev : (aliasList[0]?._id ?? ""),
+      );
+    } catch (_err) {
+      setAliases([]);
+      setSelectedAliasId("");
+      toast({ title: "Failed to load aliases", variant: "destructive" });
+    } finally {
+      setLoadingAliases(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !offer) return;
+    const firstAvailable = REMINDER_ORDER.find((type) => canSendType(type)) ?? "REM1";
+    setSelectedType(firstAvailable);
+    void loadTemplate(firstAvailable);
+    void loadAliases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, offer?._id]);
+
+  const handleSend = async () => {
+    if (!offer) return;
+    if (!subject.trim() || !html.trim()) {
+      toast({ title: "Subject and content are required", variant: "destructive" });
+      return;
+    }
+    if (!canSendType(selectedType)) {
+      toast({ title: `${selectedType} is locked by sequence rules`, variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const response = await axios.post(`/api/offers/${offer._id}/reminder`, {
+        organization: offer.organization,
+        type: selectedType,
+        subject,
+        html,
+        aliasId: selectedAliasId || undefined,
+      });
+      const isResend = Boolean(response?.data?.isResend);
+      toast({ title: isResend ? `${selectedType} resent successfully` : `${selectedType} sent successfully` });
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Failed to send reminder";
+      toast({ title: msg, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Send Reminder</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {REMINDER_ORDER.map((type) => (
+              <Button
+                key={type}
+                type="button"
+                variant={selectedType === type ? "default" : "outline"}
+                disabled={!canSendType(type) || loadingTemplate}
+                onClick={() => {
+                  setSelectedType(type);
+                  void loadTemplate(type);
+                }}
+              >
+                {hasSentType(type) ? `Resend ${type}` : type}
+              </Button>
+            ))}
+          </div>
+          <div>
+            <Label>Send Alias</Label>
+            <Select value={selectedAliasId} onValueChange={setSelectedAliasId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={loadingAliases ? "Loading aliases…" : "Select alias"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {aliases.map((alias) => (
+                  <SelectItem key={alias._id} value={alias._id}>
+                    {alias.aliasName} ({alias.aliasEmail})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="reminder-subject">Subject</Label>
+            <Input
+              id="reminder-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Reminder subject"
+            />
+          </div>
+          <div>
+            <Label htmlFor="reminder-html">Email Content (HTML)</Label>
+            <div className="border rounded-md overflow-hidden">
+              <MonacoEditor
+                height="260px"
+                language="html"
+                value={html}
+                onChange={(value) => setHtml(value ?? "")}
+                options={{
+                  minimap: { enabled: false },
+                  wordWrap: "on",
+                  fontSize: 13,
+                  formatOnPaste: false,
+                  formatOnType: false,
+                  automaticLayout: true,
+                }}
+              />
+            </div>
+          </div>
+          <div className="rounded-md border">
+            <div className="px-3 py-2 text-xs text-muted-foreground border-b">Preview</div>
+            <iframe
+              title="Reminder Preview"
+              className="w-full h-72 rounded-b-md"
+              srcDoc={offer ? renderEmailWithLeadData(html, offer) : ""}
+              sandbox=""
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
+          <Button onClick={handleSend} disabled={sending || loadingTemplate || loadingAliases || !selectedAliasId}>
+            {sending ? "Sending…" : `Send ${selectedType}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDialogProps) {
+  const { toast } = useToast();
+  const [selectedType, setSelectedType] = useState<RebuttalType>("REBUTTAL1");
+  const [aliases, setAliases] = useState<AliasOption[]>([]);
+  const [selectedAliasId, setSelectedAliasId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [html, setHtml] = useState("");
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [loadingAliases, setLoadingAliases] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const canSendRebuttal = offer?.leadStatus === "Reject Lead" || offer?.leadStatus === "Not Interested";
+
+  const loadTemplate = async (type: RebuttalType) => {
+    if (!offer) return;
+    setLoadingTemplate(true);
+    try {
+      const res = await axios.get("/api/sales-offer/templates", {
+        params: { organization: offer.organization, type, activeOnly: true },
+      });
+      const template = (res.data?.templates?.[0] ?? null) as SalesTemplateDoc | null;
+      if (!template) {
+        toast({ title: "No active rebuttal template found", variant: "destructive" });
+        setSubject("");
+        setHtml("");
+        return;
+      }
+      setSubject(template.subject ?? "");
+      setHtml(template.html ?? "");
+    } catch (_err) {
+      toast({ title: "Failed to load rebuttal template", variant: "destructive" });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const loadAliases = async () => {
+    if (!offer) return;
+    setLoadingAliases(true);
+    try {
+      const res = await axios.get("/api/alias/getAllAliases", {
+        params: { organization: offer.organization },
+      });
+      const aliasList = ((res.data?.aliases ?? []) as AliasOption[]).filter(
+        (alias) => String(alias.status ?? "").toLowerCase() === "active",
+      );
+      setAliases(aliasList);
+      setSelectedAliasId((prev) =>
+        prev && aliasList.some((alias) => alias._id === prev) ? prev : (aliasList[0]?._id ?? ""),
+      );
+    } catch (_err) {
+      setAliases([]);
+      setSelectedAliasId("");
+      toast({ title: "Failed to load aliases", variant: "destructive" });
+    } finally {
+      setLoadingAliases(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !offer) return;
+    setSelectedType("REBUTTAL1");
+    void loadTemplate("REBUTTAL1");
+    void loadAliases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, offer?._id]);
+
+  const handleSend = async () => {
+    if (!offer) return;
+    if (!canSendRebuttal) {
+      toast({ title: "Rebuttal is only allowed for rejected/not interested leads", variant: "destructive" });
+      return;
+    }
+    if (!subject.trim() || !html.trim()) {
+      toast({ title: "Subject and content are required", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      await axios.post(`/api/offers/${offer._id}/rebuttal`, {
+        organization: offer.organization,
+        type: selectedType,
+        subject,
+        html,
+        aliasId: selectedAliasId || undefined,
+      });
+      toast({ title: "Rebuttal sent successfully" });
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Failed to send rebuttal";
+      toast({ title: msg, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Send Rebuttal</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {REBUTTAL_TYPES.map((type) => (
+              <Button
+                key={type}
+                type="button"
+                variant={selectedType === type ? "default" : "outline"}
+                disabled={loadingTemplate}
+                onClick={() => {
+                  setSelectedType(type);
+                  void loadTemplate(type);
+                }}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+          <div>
+            <Label>Send Alias</Label>
+            <Select value={selectedAliasId} onValueChange={setSelectedAliasId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={loadingAliases ? "Loading aliases…" : "Select alias"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {aliases.map((alias) => (
+                  <SelectItem key={alias._id} value={alias._id}>
+                    {alias.aliasName} ({alias.aliasEmail})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="rebuttal-subject">Subject</Label>
+            <Input
+              id="rebuttal-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Rebuttal subject"
+            />
+          </div>
+          <div>
+            <Label htmlFor="rebuttal-html">Email Content (HTML)</Label>
+            <div className="border rounded-md overflow-hidden">
+              <MonacoEditor
+                height="260px"
+                language="html"
+                value={html}
+                onChange={(value) => setHtml(value ?? "")}
+                options={{
+                  minimap: { enabled: false },
+                  wordWrap: "on",
+                  fontSize: 13,
+                  formatOnPaste: false,
+                  formatOnType: false,
+                  automaticLayout: true,
+                }}
+              />
+            </div>
+          </div>
+          <div className="rounded-md border">
+            <div className="px-3 py-2 text-xs text-muted-foreground border-b">Preview</div>
+            <iframe
+              title="Rebuttal Preview"
+              className="w-full h-72 rounded-b-md"
+              srcDoc={offer ? renderEmailWithLeadData(html, offer) : ""}
+              sandbox=""
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
+          <Button onClick={handleSend} disabled={sending || loadingTemplate || loadingAliases || !canSendRebuttal || !selectedAliasId}>
+            {sending ? "Sending…" : `Send ${selectedType}`}
           </Button>
         </DialogFooter>
       </DialogContent>

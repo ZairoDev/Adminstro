@@ -49,6 +49,8 @@ export type ResolvedAlias = {
 export type ResolvedTemplate = {
   _id: Types.ObjectId;
   name: string;
+  subject?: string;
+  type?: string;
   html: string;
   organization: Organization;
 };
@@ -90,11 +92,18 @@ async function findAliasForEmployee(params: {
 
 async function findActiveTemplate(params: {
   organization: Organization;
+  type?: string;
 }): Promise<ResolvedTemplate | null> {
-  const { organization } = params;
-  const t = await EmailTemplates.findOne({ organization, isActive: true })
+  const { organization, type } = params;
+  const query: Record<string, unknown> = { organization, isActive: true };
+  if (type === "OFFER") {
+    query.$or = [{ type: "OFFER" }, { type: { $exists: false } }];
+  } else if (type) {
+    query.type = type;
+  }
+  const t = await EmailTemplates.findOne(query)
     .sort({ updatedAt: -1 })
-    .select("name html organization")
+    .select("name subject type html organization")
     .lean();
   return (t as unknown as ResolvedTemplate) || null;
 }
@@ -145,7 +154,7 @@ export async function sendOfferEmailUsingAlias(params: {
     throw new Error("Cross-organization alias usage is not allowed");
   }
 
-  const template = await findActiveTemplate({ organization: org });
+  const template = await findActiveTemplate({ organization: org, type: "OFFER" });
   if (!template) {
     throw new Error("No active email template found for this organization");
   }
@@ -178,5 +187,68 @@ export async function sendOfferEmailUsingAlias(params: {
   }
 
   return { alias, template, renderedHtml };
+}
+
+export async function sendDirectEmailUsingAlias(params: {
+  employeeId: string;
+  organizationOverride?: Organization;
+  aliasId?: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<{ alias: ResolvedAlias }> {
+  await connectDb();
+
+  const employee = await Employees.findById(params.employeeId).lean();
+  if (!employee) {
+    throw new Error("Employee not found");
+  }
+
+  const employeeOrg = (employee as { organization?: Organization }).organization;
+  const org = employeeOrg ?? params.organizationOverride;
+  if (!org) {
+    throw new Error("Employee organization is missing");
+  }
+
+  const alias = params.aliasId
+    ? ((await Aliases.findById(params.aliasId)
+        .select("aliasName aliasEmail aliasEmailPassword organization status")
+        .lean()) as unknown as (ResolvedAlias & { status?: string }) | null)
+    : await findAliasForEmployee({
+        employeeId: params.employeeId,
+        employeeEmail: String((employee as { email?: string }).email ?? ""),
+        organization: org,
+      });
+  if (!alias) {
+    throw new Error("No active alias found for this employee in the same organization");
+  }
+
+  if ((alias as { status?: string }).status && String((alias as { status?: string }).status) !== "Active") {
+    throw new Error("Selected alias is not active");
+  }
+  if (alias.organization !== org) {
+    throw new Error("Cross-organization alias usage is not allowed");
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: alias.aliasEmail,
+      pass: alias.aliasEmailPassword,
+    },
+  });
+
+  const mailResponse = await transporter.sendMail({
+    from: `${alias.aliasName} <${alias.aliasEmail}>`,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+  });
+
+  if (mailResponse.rejected.length > 0) {
+    throw new Error("Email address was rejected or invalid");
+  }
+
+  return { alias };
 }
 

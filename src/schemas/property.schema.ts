@@ -105,6 +105,10 @@ const propertyValidationSchema = z.object({
   lastUpdatedBy: z.array(z.string()).optional(),
   lastUpdates: z.array(z.array(z.string())).optional(),
   isLive: z.boolean().default(true),
+  approvalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+  approvalNote: z.string().default(""),
+  approvedBy: z.string().default(""),
+  approvedAt: z.date().nullable().default(null),
   availability: z.string().default("Available"),
   origin: z.string().optional(),
 });

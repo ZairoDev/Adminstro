@@ -30,7 +30,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const leadGenEmployees = await Employee.find({ role: "LeadGen" }).select("email");
     const leadGenEmails = leadGenEmployees.map(e => e.email);
 
-    // ⭐ FORCE LEADGEN-ONLY FILTERING FOR EVERY USER
+    // Keep base filter limited to LeadGen-created leads
     let matchQuery: Record<string, any> = {
       createdAt: {
         $gte: startDate,
@@ -39,8 +39,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       createdBy: { $in: leadGenEmails } // ⭐ VERY IMPORTANT
     };
 
-    // ⭐ IGNORE 'token.role' COMPLETELY — ALWAYS FILTER BY LEADGEN
-    // (we no longer use your old role-based logic)
+    // Strict RBAC: LeadGen can only view their own leads
+    if (token.role === "LeadGen" && token.email) {
+      matchQuery.createdBy = token.email;
+    }
 
     // Aggregation: group by createdBy
     const monthlyStats = await Query.aggregate([

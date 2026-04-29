@@ -17,6 +17,8 @@ import {
   RejectLeadDialog,
   BlacklistLeadDialog,
   UpdateOfferDialog,
+  SendReminderDialog,
+  SendRebuttalDialog,
 } from "../components/action-dialogs";
 import { BulkActionBar } from "../components/bulk-action-bar";
 
@@ -56,6 +58,8 @@ export default function PendingLeadsPage() {
   const [rejectTarget, setRejectTarget] = useState<OfferDoc | null>(null);
   const [blacklistTarget, setBlacklistTarget] = useState<OfferDoc | null>(null);
   const [updateOfferTarget, setUpdateOfferTarget] = useState<OfferDoc | null>(null);
+  const [reminderTarget, setReminderTarget] = useState<OfferDoc | null>(null);
+  const [rebuttalTarget, setRebuttalTarget] = useState<OfferDoc | null>(null);
 
   const pendingOffers = offers.filter((o) =>
     (PENDING_STATUSES.includes(o.leadStatus) || !o.leadStatus) && o.offerStatus !== "Accepted",
@@ -131,6 +135,16 @@ export default function PendingLeadsPage() {
         offer.leadStatus !== "Reject Lead" &&
         offer.offerStatus !== "Accepted",
     },
+    {
+      label: "Send Reminder",
+      onClick: (offer) => setReminderTarget(offer),
+      show: (offer) => offer.offerStatus !== "Accepted",
+    },
+    {
+      label: "Send Rebuttal",
+      onClick: (offer) => setRebuttalTarget(offer),
+      show: (offer) => offer.leadStatus === "Reject Lead" || offer.leadStatus === "Not Interested",
+    },
   ];
 
   return (
@@ -204,6 +218,20 @@ export default function PendingLeadsPage() {
         open={!!updateOfferTarget}
         offer={updateOfferTarget}
         onClose={() => setUpdateOfferTarget(null)}
+        onSuccess={refresh}
+      />
+
+      <SendReminderDialog
+        open={!!reminderTarget}
+        offer={reminderTarget}
+        onClose={() => setReminderTarget(null)}
+        onSuccess={refresh}
+      />
+
+      <SendRebuttalDialog
+        open={!!rebuttalTarget}
+        offer={rebuttalTarget}
+        onClose={() => setRebuttalTarget(null)}
         onSuccess={refresh}
       />
     </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import EmailTemplates from "@/models/emailTemplate";
+import EmailTemplates, { SALES_EMAIL_TEMPLATE_TYPES } from "@/models/emailTemplate";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import { OrganizationZod } from "@/util/organizationConstants";
@@ -9,6 +9,7 @@ import Employees from "@/models/employee";
 
 const QuerySchema = z.object({
   organization: OrganizationZod.optional(),
+  type: z.enum(SALES_EMAIL_TEMPLATE_TYPES).optional(),
   activeOnly: z
     .string()
     .optional()
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Invalid query params" }, { status: 400 });
     }
 
-    const { organization, activeOnly } = parsed.data;
+    const { organization, activeOnly, type } = parsed.data;
 
     // If organization isn’t provided, default to employee’s org from DB.
     let org = organization;
@@ -48,6 +49,11 @@ export async function GET(req: NextRequest) {
 
     const query: Record<string, unknown> = { organization: org };
     if (activeOnly) query.isActive = true;
+    if (type === "OFFER") {
+      query.$or = [{ type: "OFFER" }, { type: { $exists: false } }];
+    } else if (type) {
+      query.type = type;
+    }
 
     const templates = await EmailTemplates.find(query).sort({ updatedAt: -1 }).lean();
 

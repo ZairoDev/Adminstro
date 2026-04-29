@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import type { OfferDoc, OfferCallbackEntry, OfferHistoryEntry } from "@/util/type";
 import { LeadStatusBadge } from "./lead-status-badge";
 import { ContactCell } from "./contact-cell";
+import { Button } from "@/components/ui/button";
+import {
+  SendReminderDialog,
+  SendRebuttalDialog,
+} from "./action-dialogs";
 
 interface LeadDetailDrawerProps {
   offer: OfferDoc | null;
@@ -85,10 +91,43 @@ function CallbackCard({ cb }: { cb: OfferCallbackEntry }) {
   );
 }
 
+function EmailEventCard({
+  event,
+}: {
+  event: NonNullable<OfferDoc["emailEvents"]>[number];
+}) {
+  return (
+    <div className="rounded-md border p-3 text-sm space-y-1">
+      <div className="flex items-center justify-between">
+        <Badge variant="secondary" className="text-xs">
+          {event.kind}
+        </Badge>
+        <span className="text-xs text-muted-foreground">{formatDate(event.sentAt)}</span>
+      </div>
+      <p className="text-xs"><span className="text-muted-foreground">Subject:</span> {event.subjectSnapshot}</p>
+      {event.sentByName && (
+        <p className="text-xs text-muted-foreground">Sent by: {event.sentByName}</p>
+      )}
+      {event.contentSnapshot && (
+        <div className="rounded border bg-muted/40 p-2">
+          <p className="text-[11px] text-muted-foreground mb-1">Final content snapshot</p>
+          <div className="max-h-36 overflow-auto text-[11px] break-words whitespace-pre-wrap">
+            {event.contentSnapshot}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LeadDetailDrawer({ offer, open, onClose }: LeadDetailDrawerProps) {
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [rebuttalOpen, setRebuttalOpen] = useState(false);
   if (!offer) return null;
+  const canSendRebuttal = offer.leadStatus === "Reject Lead" || offer.leadStatus === "Not Interested";
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-xl p-0">
         <SheetHeader className="px-6 pt-6 pb-2 border-b">
@@ -114,6 +153,16 @@ export function LeadDetailDrawer({ offer, open, onClose }: LeadDetailDrawerProps
             <Row label="Relation" value={offer.relation} />
 
             <SectionTitle>Offer Details</SectionTitle>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Button size="sm" variant="outline" onClick={() => setReminderOpen(true)}>
+                Reminders
+              </Button>
+              {canSendRebuttal && (
+                <Button size="sm" variant="outline" onClick={() => setRebuttalOpen(true)}>
+                  Send Rebuttal
+                </Button>
+              )}
+            </div>
             <Row label="Platform" value={offer.platform} />
             <Row label="Plan" value={offer.plan} />
             <Row label="Effective Price" value={offer.effectivePrice ? `€${offer.effectivePrice}` : undefined} />
@@ -174,6 +223,17 @@ export function LeadDetailDrawer({ offer, open, onClose }: LeadDetailDrawerProps
               </>
             )}
 
+            {(offer.emailEvents?.length ?? 0) > 0 && (
+              <>
+                <SectionTitle>Reminder / Rebuttal Emails</SectionTitle>
+                <div className="space-y-2">
+                  {[...(offer.emailEvents ?? [])].reverse().map((event, i) => (
+                    <EmailEventCard key={event._id ?? i} event={event} />
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="pt-4">
               <Row label="Created" value={formatDate(offer.createdAt)} />
               <Row label="Updated" value={formatDate(offer.updatedAt)} />
@@ -182,5 +242,24 @@ export function LeadDetailDrawer({ offer, open, onClose }: LeadDetailDrawerProps
         </ScrollArea>
       </SheetContent>
     </Sheet>
+    <SendReminderDialog
+      open={reminderOpen}
+      offer={offer}
+      onClose={() => setReminderOpen(false)}
+      onSuccess={() => {
+        setReminderOpen(false);
+        onClose();
+      }}
+    />
+    <SendRebuttalDialog
+      open={rebuttalOpen}
+      offer={offer}
+      onClose={() => setRebuttalOpen(false)}
+      onSuccess={() => {
+        setRebuttalOpen(false);
+        onClose();
+      }}
+    />
+    </>
   );
 }

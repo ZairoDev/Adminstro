@@ -1,13 +1,22 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Edit, Search } from "lucide-react";
-import { PropertiesDataType, Property } from "@/util/type";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Edit, Loader2, Search } from "lucide-react";
+import { PropertiesDataType } from "@/util/type";
 import debounce from "lodash.debounce";
 import Link from "next/link";
+import { toast } from "sonner";
+import { useAuthStore } from "@/AuthStore";
+
+type ApprovalStatus = "pending" | "approved" | "rejected";
+type PropertyItem = PropertiesDataType & {
+  approvalStatus?: ApprovalStatus;
+  effectiveApprovalStatus?: ApprovalStatus;
+  origin?: string;
+};
 
 const PropertyPage: React.FC = () => {
-  const [property, setProperty] = useState<PropertiesDataType[]>();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [property, setProperty] = useState<PropertyItem[]>();
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
@@ -15,7 +24,13 @@ const PropertyPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [approvingPropertyId, setApprovingPropertyId] = useState<string | null>(
+    null
+  );
+  const [bulkApproving, setBulkApproving] = useState<boolean>(false);
   const limit: number = 12;
+  const role = useAuthStore((state) => state.token?.role);
+  const canApprove = role === "SuperAdmin" || role === "HAdmin";
 
   const fetchProperties = useCallback(
     debounce(async (searchTerm: string) => {
@@ -46,6 +61,103 @@ const PropertyPage: React.FC = () => {
   useEffect(() => {
     fetchProperties(searchTerm);
   }, [searchTerm, page]);
+
+  const getApprovalStatus = useCallback((item: PropertyItem) => {
+    return item.approvalStatus ?? item.effectiveApprovalStatus ?? "approved";
+  }, []);
+
+  const requiresApproval = useCallback((item: PropertyItem) => {
+    const source = (item.origin ?? "").toLowerCase().trim();
+    return source.includes("holidaysera");
+  }, []);
+
+  const pendingIds = useMemo(() => {
+    return (property ?? [])
+      .filter(
+        (item) => requiresApproval(item) && getApprovalStatus(item) === "pending"
+      )
+      .map((item) => item._id);
+  }, [property, getApprovalStatus, requiresApproval]);
+
+  const updateLocalApprovalStatus = useCallback(
+    (ids: string[]) => {
+      setProperty((prev) =>
+        prev?.map((item) =>
+          ids.includes(item._id)
+            ? {
+                ...item,
+                approvalStatus: "approved",
+                effectiveApprovalStatus: "approved",
+              }
+            : item
+        )
+      );
+      setProperties((prev) =>
+        prev.map((item) =>
+          ids.includes(item._id)
+            ? {
+                ...item,
+                approvalStatus: "approved",
+                effectiveApprovalStatus: "approved",
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
+
+  const approveSingle = useCallback(
+    async (propertyId: string, commonId?: string) => {
+      const rollback = property?.map((item) => ({ ...item })) ?? [];
+      setApprovingPropertyId(propertyId);
+      updateLocalApprovalStatus([propertyId]);
+      try {
+        const response = await fetch("/api/holidaysera/properties/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId, commonId }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to approve property");
+        }
+        toast.success("Property approved");
+      } catch (error: any) {
+        setProperty(rollback);
+        setProperties(rollback);
+        toast.error(error.message || "Approval failed");
+      } finally {
+        setApprovingPropertyId(null);
+      }
+    },
+    [property, updateLocalApprovalStatus]
+  );
+
+  const approveAllPending = useCallback(async () => {
+    if (pendingIds.length === 0) return;
+    const rollback = property?.map((item) => ({ ...item })) ?? [];
+    setBulkApproving(true);
+    updateLocalApprovalStatus(pendingIds);
+    try {
+      const response = await fetch("/api/holidaysera/properties/approve-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchTerm, searchType }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to approve pending properties");
+      }
+      toast.success(`Approved ${data.modifiedCount ?? pendingIds.length} properties`);
+    } catch (error: any) {
+      setProperty(rollback);
+      setProperties(rollback);
+      toast.error(error.message || "Bulk approval failed");
+    } finally {
+      setBulkApproving(false);
+    }
+  }, [pendingIds, property, searchTerm, searchType, updateLocalApprovalStatus]);
 
   const renderPaginationItems = () => {
     const items = [];
@@ -105,12 +217,26 @@ const PropertyPage: React.FC = () => {
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Properties
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Browse and manage your property listings
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Properties
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Browse and manage your property listings
+              </p>
+            </div>
+            {canApprove && (
+              <button
+                onClick={approveAllPending}
+                disabled={bulkApproving || pendingIds.length === 0}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {bulkApproving && <Loader2 className="h-4 w-4 animate-spin" />}
+                Approve All Pending ({pendingIds.length})
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search Filters */}
@@ -159,10 +285,19 @@ const PropertyPage: React.FC = () => {
                 const priceLabel =
                   property.rentalType === "Short Term" ? "night" : "month";
 
+                const approvalStatus = getApprovalStatus(property);
+                const approvalNeeded = requiresApproval(property);
+                const isPending = approvalNeeded && approvalStatus === "pending";
+                const isSingleApproving = approvingPropertyId === property._id;
+
                 return (
                   <div
                     key={property._id}
-                    className={`bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group ${
+                    className={`rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group border ${
+                      isPending
+                        ? "bg-amber-50/70 border-amber-200 dark:bg-amber-950/20 dark:border-amber-700"
+                        : "bg-white dark:bg-gray-900 border-transparent"
+                    } ${
                       isExpanded
                         ? "ring-2 ring-gray-900 dark:ring-gray-100 scale-[1.02]"
                         : "hover:scale-[1.01]"
@@ -196,7 +331,7 @@ const PropertyPage: React.FC = () => {
 
                     {/* Card Content */}
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-3 gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                             {property.propertyName || "Untitled Property"}
@@ -205,6 +340,20 @@ const PropertyPage: React.FC = () => {
                             {property.city || "Location not specified"}
                           </p>
                         </div>
+                        {approvalNeeded && (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              approvalStatus === "approved"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                : approvalStatus === "rejected"
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                            }`}
+                          >
+                            {approvalStatus.charAt(0).toUpperCase() +
+                              approvalStatus.slice(1)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-baseline gap-1 mb-4">
@@ -226,6 +375,21 @@ const PropertyPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
+                      {canApprove && approvalNeeded && isPending && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void approveSingle(property._id, property.commonId);
+                          }}
+                          disabled={isSingleApproving || bulkApproving}
+                          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isSingleApproving && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}
+                          Approve
+                        </button>
+                      )}
 
                       {/* Expanded Section
                       {isExpanded && (

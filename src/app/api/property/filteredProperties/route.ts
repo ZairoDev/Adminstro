@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
     rentalType: 1,
     email: 1,
     city: 1,
+    approvalStatus: 1,
+    approvalNote: 1,
+    approvedBy: 1,
+    approvedAt: 1,
     state: 1,
     country: 1,
     pricePerDay: 1,
@@ -77,6 +81,14 @@ export async function POST(req: NextRequest) {
       .skip((page - 1) * 20)
       .limit(20);
 
+    const normalizedFilteredProperties = filteredProperties.map((property: any) => {
+      const plain = typeof property.toObject === "function" ? property.toObject() : property;
+      return {
+        ...plain,
+        effectiveApprovalStatus: plain.approvalStatus ?? "approved",
+      };
+    });
+
     const totalProperties = await Properties.countDocuments(query);
     if (filters.dateRange) {
       const filteredDocs = getFilteredDocuments(
@@ -89,14 +101,17 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          filteredProperties: filteredDocs,
+        filteredProperties: filteredDocs.map((property: any) => ({
+          ...property,
+          effectiveApprovalStatus: property.approvalStatus ?? "approved",
+        })),
           totalProperties: filteredDocs.length,
         },
         { status: 200 }
       );
     }
     return NextResponse.json(
-      { filteredProperties, totalProperties },
+      { filteredProperties: normalizedFilteredProperties, totalProperties },
       { status: 200 }
     );
   } catch (err: any) {

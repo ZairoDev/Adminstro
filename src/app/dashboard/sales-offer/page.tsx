@@ -3,6 +3,7 @@
 import { z } from "zod";
 import axios from "@/util/axios";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Check, CircleX, RotateCw, Save } from "lucide-react";
@@ -28,7 +29,6 @@ import { PhoneInputLayout as PhoneInput } from "@/components/PhoneInputLayout";
 
 import SendOffer from "./send-offer";
 import PlanDetails from "./plan-details";
-import { leadStatuses } from "./sales-offer-utils";
 import { useSalesOfferStore } from "./useSalesOfferStore";
 import EmailPreview from "./email-preview";
 import { useOrgSelectionStore } from "./useOrgSelectionStore";
@@ -45,6 +45,11 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 type LookupMatch = Partial<SalesOfferInterface> & {
   _id?: string;
+  leadStatus?: string;
+  offerStatus?: string;
+  organization?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 const SalesOffer = () => {
@@ -60,6 +65,7 @@ const SalesOffer = () => {
   const { leadStatus, setField, resetForm } = useSalesOfferStore();
   const [saveOfferLoading, setSaveOfferLoading] = useState(false);
   const [emailLookup, setEmailLookup] = useState("");
+  const [matchedLead, setMatchedLead] = useState<LookupMatch | null>(null);
 
   useEffect(() => {
     if (!selectedOrg) return;
@@ -80,6 +86,7 @@ const SalesOffer = () => {
       if (!lead || !mounted) return;
 
       useSalesOfferStore.getState().setField("leadId", leadId);
+      // useSalesOfferStore.getState().setField("leadStatus", "Send Offer");
       if (lead.phoneNumber) useSalesOfferStore.getState().setField("phoneNumber", lead.phoneNumber);
       if (lead.name) useSalesOfferStore.getState().setField("name", lead.name);
       if (lead.email) useSalesOfferStore.getState().setField("email", lead.email);
@@ -97,28 +104,28 @@ const SalesOffer = () => {
   }, []);
 
   // Select Lead Status
-  const leadStatusSelector = () => {
-    return (
-      <div>
-        <Label htmlFor="leadStatus">Lead Status</Label>
-        <Select onValueChange={(value) => setField("leadStatus", value)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select Lead Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Status</SelectLabel>
-              {leadStatuses.map((status, index) => (
-                <SelectItem key={index} value={status}>
-                  <div>{status}</div>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  };
+  // const leadStatusSelector = () => {
+  //   return (
+  //     <div>
+  //       <Label htmlFor="leadStatus">Lead Status</Label>
+  //       <Select onValueChange={(value) => setField("leadStatus", value)}>
+  //         <SelectTrigger className="w-[180px]">
+  //           <SelectValue placeholder="Select Lead Status" />
+  //         </SelectTrigger>
+  //         <SelectContent>
+  //           <SelectGroup>
+  //             <SelectLabel>Status</SelectLabel>
+  //             {leadStatuses.map((status, index) => (
+  //               <SelectItem key={index} value={status}>
+  //                 <div>{status}</div>
+  //               </SelectItem>
+  //             ))}
+  //           </SelectGroup>
+  //         </SelectContent>
+  //       </Select>
+  //     </div>
+  //   );
+  // };
 
   const {
     control,
@@ -152,6 +159,10 @@ const SalesOffer = () => {
         phoneNumber: params.phoneNumber,
         email: params.email,
       });
+      // Keep send-offer form visible after a successful lookup.
+      setField("leadStatus", "Send Offer");
+      if (params.phoneNumber) setField("phoneNumber", params.phoneNumber);
+      if (params.email) setField("email", params.email);
       setIsAvailable((prev) => {
         const avail = { ...prev };
         avail.Holidaysera = !response.data.availableOnTT;
@@ -160,8 +171,10 @@ const SalesOffer = () => {
         return avail;
       });
       setShowAvailability(true);
-      applyMatchedOffer((response.data?.matchedOffer ?? null) as LookupMatch | null);
-      if (response.data?.matchedOffer) {
+      const matched = (response.data?.matchedOffer ?? null) as LookupMatch | null;
+      setMatchedLead(matched);
+      applyMatchedOffer(matched);
+      if (matched) {
         toast({
           title: "Existing lead found",
           description:
@@ -172,6 +185,7 @@ const SalesOffer = () => {
       }
     } catch (error) {
       console.error("error in checking number: ", error);
+      setMatchedLead(null);
       toast({
         title: "Lookup failed",
         description: "Could not search existing leads right now.",
@@ -215,25 +229,42 @@ const SalesOffer = () => {
   const handleSaveOffer = async () => {
     const offerData = useSalesOfferStore.getState();
     // console.log("offer Data: ", offerData);
-    let emptyFieldsCount = 0;
-    let emptyFields = "";
-    const canBeEmptyField = ["discount", "expiryDate", "leadId", "aliasId"];
-    for (const key in offerData) {
-      if (
-        (offerData[key as keyof SalesOfferInterface] == "" ||
-          offerData[key as keyof SalesOfferInterface] == null ||
-          offerData[key as keyof SalesOfferInterface] == undefined) &&
-        !canBeEmptyField.includes(key) // check if the key can be empty then leave it
-      ) {
-        emptyFields += `${key}, `;
-        emptyFieldsCount++;
-      }
-    }
-    if (emptyFieldsCount > 0 && offerData.leadStatus === "Send Offer") {
+    const requiredForSend: (keyof SalesOfferInterface)[] = [
+      "phoneNumber",
+      "leadStatus",
+      "name",
+      "propertyName",
+      "relation",
+      "email",
+      "propertyUrl",
+      "country",
+      "plan",
+      "platform",
+    ];
+    const emptyFields = requiredForSend.filter((key) => {
+      const value = offerData[key];
+      return value === "" || value === null || value === undefined;
+    });
+    if (emptyFields.length > 0 && offerData.leadStatus === "Send Offer") {
       toast({
         variant: "destructive",
         title: "Error in saving Offer",
-        description: "Please fill all the fields - " + emptyFields,
+        description: `Please fill all the fields - ${emptyFields.join(", ")}`,
+      });
+      return;
+    }
+
+    const isFreshForSelectedOrg =
+      selectedOrg === "VacationSaga"
+        ? isAvailable.VacationSaga
+        : selectedOrg === "Holidaysera"
+          ? isAvailable.Holidaysera
+          : isAvailable.HousingSaga;
+    if (offerData.leadStatus === "Send Offer" && showAvailability && selectedOrg && !isFreshForSelectedOrg) {
+      toast({
+        variant: "destructive",
+        title: "Lead already exists",
+        description: `This phone/email already exists for ${selectedOrg}. You cannot send a fresh offer.`,
       });
       return;
     }
@@ -314,6 +345,7 @@ const SalesOffer = () => {
       });
       setEmailLookup("");
       setShowAvailability(false);
+      setMatchedLead(null);
     }
   };
 
@@ -419,15 +451,25 @@ const SalesOffer = () => {
         )}
       </form>
 
-      <div className=" flex gap-x-4 items-center">
-        {showAvailability && leadStatusSelector()}
-        {leadStatus && leadStatus != "Send Offer" && (
-          <Textarea
-            placeholder="Enter the reason"
-            onChange={(e) => setField("note", e.target.value)}
-          />
-        )}
-      </div>
+      {matchedLead && (
+        <div className="border border-neutral-600 rounded-md p-3">
+          <p className="font-semibold text-base">Matched Lead Information</p>
+          <div className="mt-2 text-sm grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+            <p><span className="text-muted-foreground">Name:</span> {matchedLead.name || "—"}</p>
+            <p><span className="text-muted-foreground">Email:</span> {matchedLead.email || "—"}</p>
+            <p><span className="text-muted-foreground">Phone:</span> {matchedLead.phoneNumber || "—"}</p>
+            <p><span className="text-muted-foreground">Property:</span> {matchedLead.propertyName || "—"}</p>
+            <p><span className="text-muted-foreground">Lead Status:</span> {matchedLead.leadStatus || "—"}</p>
+            <p><span className="text-muted-foreground">Offer Status:</span> {matchedLead.offerStatus || "—"}</p>
+            <p><span className="text-muted-foreground">Organization:</span> {matchedLead.organization || "—"}</p>
+            <p>
+              <span className="text-muted-foreground">Last Updated:</span>{" "}
+              {matchedLead.updatedAt ? format(new Date(matchedLead.updatedAt), "dd MMM yyyy, HH:mm") : "—"}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
       <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
       <div>{leadStatus === "Send Offer" && <EmailPreview />}</div>

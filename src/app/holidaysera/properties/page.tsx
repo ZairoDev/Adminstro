@@ -1,15 +1,24 @@
 "use client";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
-import { Edit, Search } from "lucide-react";
-import { PropertiesDataType, Property } from "@/util/type";
+import { Edit, Loader2, Search } from "lucide-react";
+import { PropertiesDataType } from "@/util/type";
 import debounce from "lodash.debounce";
 import Link from "next/link";
 import Image from "next/image";
 import { ToggleButton } from "@/components/toggle_button";
+import { useAuthStore } from "@/AuthStore";
+import { toast } from "sonner";
+
+type ApprovalStatus = "pending" | "approved" | "rejected";
+type PropertyItem = PropertiesDataType & {
+  approvalStatus?: ApprovalStatus;
+  effectiveApprovalStatus?: ApprovalStatus;
+  origin?: string;
+};
 
 const HolidaySeraPropertyPage: React.FC = () => {
-  const [property, setProperty] = useState<PropertiesDataType[]>();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [property, setProperty] = useState<PropertyItem[]>();
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchType, setSearchType] = useState<string>("email");
   const [page, setPage] = useState<number>(1);
@@ -18,7 +27,13 @@ const HolidaySeraPropertyPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [showHolidaySeraOnly, setShowHolidaySeraOnly] = useState<boolean>(false);
+  const [approvingPropertyId, setApprovingPropertyId] = useState<string | null>(
+    null
+  );
+  const [bulkApproving, setBulkApproving] = useState<boolean>(false);
   const limit: number = 12;
+  const role = useAuthStore((state) => state.token?.role);
+  const canApprove = role === "SuperAdmin" || role === "HAdmin";
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchProperties = useCallback(
@@ -51,6 +66,116 @@ const HolidaySeraPropertyPage: React.FC = () => {
     fetchProperties(searchTerm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, page]);
+
+  const getApprovalStatus = useCallback((item: PropertyItem) => {
+    return item.approvalStatus ?? item.effectiveApprovalStatus ?? "approved";
+  }, []);
+
+  const requiresApproval = useCallback((item: PropertyItem) => {
+    const source = (item.origin ?? "").toLowerCase().trim();
+    return source.includes("holidaysera") || source.includes("housingsaga");
+  }, []);
+
+  const filteredProperties = useMemo(() => {
+    if (!property) return [];
+
+    if (showHolidaySeraOnly) {
+      return property.filter((prop) => {
+        const source = (prop.origin ?? "").toLowerCase().trim();
+        return source.includes("holidaysera");
+      });
+    }
+
+    return property;
+  }, [property, showHolidaySeraOnly]);
+
+  const pendingIds = useMemo(() => {
+    return filteredProperties
+      .filter(
+        (item) => requiresApproval(item) && getApprovalStatus(item) === "pending"
+      )
+      .map((item) => item._id);
+  }, [filteredProperties, getApprovalStatus, requiresApproval]);
+
+  const updateLocalApprovalStatus = useCallback(
+    (ids: string[]) => {
+      setProperty((prev) =>
+        prev?.map((item) =>
+          ids.includes(item._id)
+            ? {
+                ...item,
+                approvalStatus: "approved",
+                effectiveApprovalStatus: "approved",
+              }
+            : item
+        )
+      );
+      setProperties((prev) =>
+        prev.map((item) =>
+          ids.includes(item._id)
+            ? {
+                ...item,
+                approvalStatus: "approved",
+                effectiveApprovalStatus: "approved",
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
+
+  const approveSingle = useCallback(
+    async (propertyId: string, commonId?: string) => {
+      const rollback = property?.map((item) => ({ ...item })) ?? [];
+      setApprovingPropertyId(propertyId);
+      updateLocalApprovalStatus([propertyId]);
+      try {
+        const response = await fetch("/api/holidaysera/properties/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId, commonId }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to approve property");
+        }
+        toast.success("Property approved");
+      } catch (error: any) {
+        setProperty(rollback);
+        setProperties(rollback);
+        toast.error(error.message || "Approval failed");
+      } finally {
+        setApprovingPropertyId(null);
+      }
+    },
+    [property, updateLocalApprovalStatus]
+  );
+
+  const approveAllPending = useCallback(async () => {
+    if (pendingIds.length === 0) return;
+    const rollback = property?.map((item) => ({ ...item })) ?? [];
+    setBulkApproving(true);
+    updateLocalApprovalStatus(pendingIds);
+    try {
+      const response = await fetch("/api/holidaysera/properties/approve-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchTerm, searchType }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to approve pending properties");
+      }
+      toast.success(`Approved ${data.modifiedCount ?? pendingIds.length} properties`);
+    } catch (error: any) {
+      setProperty(rollback);
+      setProperties(rollback);
+      toast.error(error.message || "Bulk approval failed");
+    } finally {
+      setBulkApproving(false);
+    }
+  }, [pendingIds, property, searchTerm, searchType, updateLocalApprovalStatus]);
 
   const renderPaginationItems = () => {
     const items = [];
@@ -101,30 +226,31 @@ const HolidaySeraPropertyPage: React.FC = () => {
     setExpandedCard(expandedCard === propertyId ? null : propertyId);
   };
 
-  // Filter properties based on toggle state
-  const filteredProperties = useMemo(() => {
-    if (!property) return [];
-    
-    if (showHolidaySeraOnly) {
-      return property.filter(
-        (prop) => prop.hostedFrom?.toLowerCase() === "holidaysera"
-      );
-    }
-    
-    return property;
-  }, [property, showHolidaySeraOnly]);
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-background transition-colors duration-300">
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            HolidaySera Properties
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Browse and manage HolidaySera property listings
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                HolidaySera Properties
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Browse and manage HolidaySera property listings
+              </p>
+            </div>
+            {canApprove && (
+              <button
+                onClick={approveAllPending}
+                disabled={bulkApproving || pendingIds.length === 0}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {bulkApproving && <Loader2 className="h-4 w-4 animate-spin" />}
+                Approve All Pending ({pendingIds.length})
+              </button>
+            )}
+          </div>
           {showHolidaySeraOnly && filteredProperties && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
               <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
@@ -204,12 +330,20 @@ const HolidaySeraPropertyPage: React.FC = () => {
                   prop.rentalType === "Short Term" ? "night" : "month";
                 
                 // Determine if property is from HolidaySera or VacationSaga
-                const isHolidaySera = prop.hostedFrom?.toLowerCase() === "holidaysera";
+                const isHolidaySera = prop.origin?.toLowerCase().trim() === "holidaysera";
+                const approvalStatus = getApprovalStatus(prop);
+                const approvalNeeded = requiresApproval(prop);
+                const isPending = approvalNeeded && approvalStatus === "pending";
+                const isSingleApproving = approvingPropertyId === prop._id;
 
                 return (
                   <div
                     key={prop._id}
-                    className={`bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group ${
+                    className={`rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group border ${
+                      isPending
+                        ? "bg-amber-50/70 border-amber-200 dark:bg-amber-950/20 dark:border-amber-700"
+                        : "bg-white dark:bg-gray-900 border-transparent"
+                    } ${
                       isExpanded
                         ? "ring-2 ring-gray-900 dark:ring-gray-100 scale-[1.02]"
                         : "hover:scale-[1.01]"
@@ -254,7 +388,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
 
                     {/* Card Content */}
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-3 gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                             {prop.propertyName || "Untitled Property"}
@@ -263,6 +397,20 @@ const HolidaySeraPropertyPage: React.FC = () => {
                             {prop.city || "Location not specified"}
                           </p>
                         </div>
+                        {approvalNeeded && (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              approvalStatus === "approved"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                : approvalStatus === "rejected"
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                            }`}
+                          >
+                            {approvalStatus.charAt(0).toUpperCase() +
+                              approvalStatus.slice(1)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-baseline gap-1 mb-4">
@@ -284,6 +432,21 @@ const HolidaySeraPropertyPage: React.FC = () => {
                           </span> */}
                         </div>
                       </div>
+                      {canApprove && approvalNeeded && isPending && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void approveSingle(prop._id, prop.commonId);
+                          }}
+                          disabled={isSingleApproving || bulkApproving}
+                          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isSingleApproving && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}
+                          Approve
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

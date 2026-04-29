@@ -232,6 +232,11 @@ export interface PropertiesDataType {
   lastUpdatedBy?: string[];
   lastUpdates?: string[];
   isLive: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string;
+  approvedBy?: string;
+  approvedAt?: Date | null;
+  effectiveApprovalStatus?: "pending" | "approved" | "rejected";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -383,6 +388,11 @@ export interface Property {
   lastUpdates?: string[][];
 
   isLive?: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string;
+  approvedBy?: string;
+  approvedAt?: Date | null;
+  effectiveApprovalStatus?: "pending" | "approved" | "rejected";
 }
 
 export interface QuickListingInterface {
@@ -668,11 +678,22 @@ export interface OfferCallbackEntry {
 
 export interface OfferHistoryEntry {
   _id?: string;
-  type: "lead" | "offer" | "callback" | "rejection" | "blacklist";
+  type: "lead" | "offer" | "callback" | "rejection" | "blacklist" | "reminder" | "rebuttal";
   status: string;
   note: string;
   updatedByName: string;
   createdAt: string;
+}
+
+export interface OfferEmailEvent {
+  _id?: string;
+  kind: "REM1" | "REM2" | "REM3" | "REM4" | "REBUTTAL1" | "REBUTTAL2";
+  subjectSnapshot: string;
+  contentSnapshot: string;
+  sentAt: string;
+  sentBy?: string;
+  sentByName?: string;
+  templateId?: string | null;
 }
 
 /** Full offer document returned by the API (not the form store). */
@@ -714,6 +735,7 @@ export interface OfferDoc {
   rejectedAt?: string | null;
   blacklistReason?: string;
   blacklistedAt?: string | null;
+  emailEvents?: OfferEmailEvent[];
   history: OfferHistoryEntry[];
   createdAt: string;
   updatedAt: string;

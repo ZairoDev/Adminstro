@@ -93,12 +93,17 @@ export async function POST(request: Request) {
         isLive,
       } = data;
 
-      if (!userId || !email) {
+      if (!userId) {
         return NextResponse.json(
-          { error: "userId and email are required" },
+          { error: "userId is required" },
           { status: 400 }
         );
       }
+
+      const normalizedEmail =
+        typeof email === "string" && email.trim().length > 0
+          ? email.trim()
+          : "-";
 
       console.log("data:", data);
       const mongoIds: string[] = [];
@@ -148,7 +153,7 @@ export async function POST(request: Request) {
         const propertyData = {
           commonId,
           userId,
-          email,
+          email: normalizedEmail,
           propertyType,
           rentalForm,
           rentalType,

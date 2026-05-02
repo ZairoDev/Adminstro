@@ -277,18 +277,10 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
-    if (!user?.email) {
-      toast({
-        variant: "destructive",
-        title: "User not loaded",
-        description: "Please wait a moment and try again.",
-      });
-      return;
-    }
     setIsLoading(true);
     const data = {
       userId: userId,
-      email: user?.email,
+      email: user?.email?.trim() || "-",
       propertyType: combinedData?.propertyType,
       placeName: combinedData?.placeName,
       rentalForm: combinedData?.rentalForm,

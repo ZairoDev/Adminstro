@@ -5,7 +5,7 @@ import { DateRange } from "react-day-picker";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import axios from "@/util/axios";
 import { from } from "form-data";
 import Visits from "@/models/visit";
@@ -1531,7 +1531,7 @@ export const getListingCounts = async ({ days }: { days?: string }) => {
       );
   }
 
-  const result = await Property.aggregate([
+  const result = await Properties.aggregate([
     { $match: { createdAt: { $gte: start, $lte: end } } },
     {
       $group: {
@@ -1630,8 +1630,6 @@ export const getListingCounts = async ({ days }: { days?: string }) => {
 };
 
 // HolidaySera overview & stats (moved from api routes)
-import { Properties } from "@/models/property";
-
 export const getHolidayseraOverview = async () => {
   await connectDb();
   const holidayProperties = await Properties.countDocuments({
@@ -3009,9 +3007,9 @@ export const getPropertyCount = async () => {
     },
   ];
 
-  const propertyCount = await Property.aggregate(pipeline);
+  const propertyCount = await Properties.aggregate(pipeline);
 
-  const totalPropertyCount = await Property.countDocuments({});
+  const totalPropertyCount = await Properties.countDocuments({});
 
   return { propertyCount, totalPropertyCount };
 };
@@ -3633,8 +3631,8 @@ export const getCountryWisePropertyCount = async ({
     },
   ];
 
-  const countryWisePropertyCount = await Property.aggregate(pipeline);
-  const totalPropertyCount = await Property.countDocuments({
+  const countryWisePropertyCount = await Properties.aggregate(pipeline);
+  const totalPropertyCount = await Properties.countDocuments({
     country: country,
   });
 

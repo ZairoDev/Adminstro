@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Property } from "@/models/listing"; // your new properties model
 import { Properties } from "@/models/property";
 import { getDataFromToken } from "@/util/getDataFromToken";
 

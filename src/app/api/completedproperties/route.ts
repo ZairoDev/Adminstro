@@ -87,7 +87,7 @@
 // }
 
 import { NextRequest, NextResponse } from "next/server";
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Employees from "@/models/employee";
@@ -133,26 +133,22 @@ export async function GET(request: NextRequest) {
     let allProperties;
 
     if (!searchTerm) {
-      allProperties = await Property.find(query, projection)
+      allProperties = await Properties.find(query, projection)
         .skip(skip)
         .limit(limit)
         .sort({ _id: -1 });
     } else {
-      allProperties = await Property.find(query, projection).sort({ _id: -1 });
+      allProperties = await Properties.find(query, projection).sort({ _id: -1 });
     }
 
-    if (allProperties.length === 0) {
-      const totalCount = await Property.countDocuments();
-    }
-
-    const completedProperties = await Property.countDocuments(query);
+    const completedProperties = await Properties.countDocuments(query);
     const totalPages = Math.ceil(completedProperties / limit);
 
-    const propertiesWithDescriptionsCount = await Property.countDocuments({
+    const propertiesWithDescriptionsCount = await Properties.countDocuments({
       newReviews: { $exists: true, $ne: "" },
     });
 
-    const totalCount = await Property.countDocuments();
+    const totalCount = await Properties.countDocuments();
 
     return NextResponse.json({
       data: allProperties,

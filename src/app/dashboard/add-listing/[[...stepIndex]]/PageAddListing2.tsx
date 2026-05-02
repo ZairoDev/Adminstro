@@ -1242,6 +1242,17 @@ const PageAddListing2: FC = () => {
             pathname: `/dashboard/add-listing/3`,
             query: { userId: userId },
           }}
+          onClick={(e) => {
+            if (!isValidForm) {
+              e.preventDefault();
+              toast({
+                variant: "destructive",
+                title: "Missing required fields",
+                description:
+                  "Please fill in Country, Street, City, State, Postal Code, and Floor before continuing.",
+              });
+            }
+          }}
         >
           <Button disabled={!isValidForm}>Continue</Button>
         </Link>

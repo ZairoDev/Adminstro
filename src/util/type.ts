@@ -687,7 +687,10 @@ export interface OfferHistoryEntry {
 
 export interface OfferEmailEvent {
   _id?: string;
-  kind: "REM1" | "REM2" | "REM3" | "REM4" | "REBUTTAL1" | "REBUTTAL2";
+  kind: string;
+  category: "REMINDER" | "REBUTTAL";
+  templateName?: string;
+  templateDisplayName?: string;
   subjectSnapshot: string;
   contentSnapshot: string;
   sentAt: string;

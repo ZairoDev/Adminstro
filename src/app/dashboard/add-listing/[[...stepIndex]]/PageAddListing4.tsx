@@ -19,30 +19,40 @@ type MainState = {
   safeAmenities: InnerObject;
 };
 
+const DEFAULT_AMENITIES: MainState = {
+  generalAmenities: {
+    Wifi: true,
+    TV: true,
+    "Air conditioning": true,
+    Shower: true,
+    Fridge: true,
+    "Washing machine": true,
+    "Private entrance": true,
+  },
+  otherAmenities: {
+    Kettle: true,
+    Toaster: true,
+    Microwave: true,
+  },
+  safeAmenities: {},
+};
+
 const PageAddListing4: FC<PageAddListing4Props> = () => {
   const params = useSearchParams();
   // const userId = params.get("userId") ?? null;
   const userId = params?.get("userId") ?? null;
 
-
-  const savedAmenities =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("page4") || "[]")
-      : [];
-
   const [amenitiesState, setAmenitiesState] = useState<MainState>(() => {
     if (typeof window === "undefined") {
-      return { generalAmenities: {}, otherAmenities: {}, safeAmenities: {} };
+      return DEFAULT_AMENITIES;
     }
 
     const savedPage = localStorage.getItem("page4") || "";
     if (!savedPage) {
-      return { generalAmenities: {}, otherAmenities: {}, safeAmenities: {} };
+      return DEFAULT_AMENITIES;
     }
     const value = JSON.parse(savedPage);
-    return (
-      value || { generalAmenities: {}, otherAmenities: {}, safeAmenities: {} }
-    );
+    return value || DEFAULT_AMENITIES;
   });
 
   const generalAmenities = useMemo(

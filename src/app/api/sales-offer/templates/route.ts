@@ -1,13 +1,17 @@
   import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import EmailTemplates, { SALES_EMAIL_TEMPLATE_TYPES } from "@/models/emailTemplate";
+import EmailTemplates, {
+  SALES_EMAIL_TEMPLATE_CATEGORIES,
+  SALES_EMAIL_TEMPLATE_TYPES,
+} from "@/models/emailTemplate";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { OrganizationZod } from "@/util/organizationConstants";
 
 const TemplateTypeZod = z.enum(SALES_EMAIL_TEMPLATE_TYPES);
+const TemplateCategoryZod = z.enum(SALES_EMAIL_TEMPLATE_CATEGORIES);
 
 const ALLOWED_MANAGER_ROLES = new Set(["SuperAdmin", "Admin", "HAdmin"]);
 
@@ -34,6 +38,7 @@ function normalizeTemplateHtml(input: string): string {
 
 const QuerySchema = z.object({
   organization: OrganizationZod.optional(),
+  category: TemplateCategoryZod.optional(),
   type: TemplateTypeZod.optional(),
   activeOnly: z
     .string()
@@ -42,9 +47,12 @@ const QuerySchema = z.object({
 });
 
 const UpsertSchema = z.object({
+  templateId: z.string().optional(),
   organization: OrganizationZod,
-  type: TemplateTypeZod,
+  category: TemplateCategoryZod,
+  type: TemplateTypeZod.optional(),
   name: z.string().min(1),
+  displayName: z.string().min(1),
   subject: z.string().min(1),
   html: z.string().min(1),
   isActive: z.boolean().optional().default(true),
@@ -81,6 +89,13 @@ export async function GET(req: NextRequest) {
     }
 
     const query: Record<string, unknown> = { organization };
+    if (parsed.data.category === "REMINDER") {
+      query.$or = [{ category: "REMINDER" }, { type: { $in: ["REM1", "REM2", "REM3", "REM4"] } }];
+    } else if (parsed.data.category === "REBUTTAL") {
+      query.$or = [{ category: "REBUTTAL" }, { type: { $in: ["REBUTTAL1", "REBUTTAL2"] } }];
+    } else if (parsed.data.category === "OFFER") {
+      query.$or = [{ category: "OFFER" }, { type: "OFFER" }, { type: { $exists: false } }];
+    }
     if (parsed.data.type) query.type = parsed.data.type;
     if (parsed.data.activeOnly) query.isActive = true;
 
@@ -91,7 +106,16 @@ export async function GET(req: NextRequest) {
     }));
     return NextResponse.json({ templates }, { status: 200 });
   } catch (err: unknown) {
-    const error = err as { status?: number; code?: string; message?: string };
+    const error = err as { status?: number; code?: string | number; message?: string };
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        {
+          error:
+            "Template key/sequence already exists for this organization and category. Use a different name or sequence order.",
+        },
+        { status: 409 },
+      );
+    }
     if (error?.status) {
       return NextResponse.json({ code: error.code || "AUTH_FAILED" }, { status: error.status });
     }
@@ -116,20 +140,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid body", details: body.error.flatten() }, { status: 400 });
     }
 
-    const template = await EmailTemplates.findOneAndUpdate(
-      { organization: body.data.organization, type: body.data.type },
-      {
-        $set: {
-          organization: body.data.organization,
-          type: body.data.type,
-          name: body.data.name,
-          subject: body.data.subject,
-          html: normalizeTemplateHtml(body.data.html),
-          isActive: body.data.isActive,
-        },
-      },
-      { upsert: true, new: true },
-    ).lean();
+    const templatePayload = {
+      organization: body.data.organization,
+      category: body.data.category,
+      type: body.data.type,
+      name: body.data.name,
+      displayName: body.data.displayName,
+      subject: body.data.subject,
+      html: normalizeTemplateHtml(body.data.html),
+      sequenceOrder: null,
+      isActive: body.data.isActive,
+    };
+
+    const template = body.data.templateId
+      ? await EmailTemplates.findByIdAndUpdate(
+          body.data.templateId,
+          { $set: templatePayload },
+          { new: true },
+        ).lean()
+      : await EmailTemplates.create(templatePayload);
 
     return NextResponse.json({ template }, { status: 200 });
   } catch (err: unknown) {

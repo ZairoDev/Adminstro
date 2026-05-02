@@ -1,8 +1,7 @@
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
-import { Properties } from "@/models/property";
 
 connectDb();
 

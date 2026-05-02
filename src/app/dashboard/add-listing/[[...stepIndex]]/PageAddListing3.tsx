@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
 
 export interface PageAddListing3Props {}
 
@@ -21,6 +22,7 @@ interface Page3State {
 }
 
 const PageAddListing3: FC<PageAddListing3Props> = () => {
+  const { toast } = useToast();
   const params = useSearchParams();
   const userId = params?.get("userId") ?? null;
 
@@ -285,6 +287,17 @@ const PageAddListing3: FC<PageAddListing3Props> = () => {
           href={{
             pathname: `/dashboard/add-listing/4/`,
             query: { userId: userId },
+          }}
+          onClick={(e) => {
+            if (!isValidForm) {
+              e.preventDefault();
+              toast({
+                variant: "destructive",
+                title: "Missing required fields",
+                description:
+                  "Please fill in all portion details (name, size, guests, bedrooms, beds, bathroom) before continuing.",
+              });
+            }
           }}
         >
           <Button disabled={!isValidForm}>Continue</Button>

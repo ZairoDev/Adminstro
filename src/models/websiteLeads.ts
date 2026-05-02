@@ -1,5 +1,14 @@
 import mongoose from "mongoose";
 
+const WebsiteLeadNoteSchema = new mongoose.Schema(
+  {
+    noteData: { type: String, required: true },
+    createdBy: { type: String, required: true },
+    createOn: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const WebsiteLeadsSchema = new mongoose.Schema(
   {
     firstName: { type: String, required: true },
@@ -8,7 +17,7 @@ const WebsiteLeadsSchema = new mongoose.Schema(
     VSID: { type: String, required: true },
     email: { type: String },
     message: { type: String, required: true },
-    note: { type: String, default: "" },
+    note: { type: [WebsiteLeadNoteSchema], default: [] },
   },
   { timestamps: true }
 );

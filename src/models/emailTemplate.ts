@@ -13,6 +13,8 @@ export const SALES_EMAIL_TEMPLATE_TYPES = [
 ] as const;
 
 export type SalesEmailTemplateType = (typeof SALES_EMAIL_TEMPLATE_TYPES)[number];
+export const SALES_EMAIL_TEMPLATE_CATEGORIES = ["OFFER", "REMINDER", "REBUTTAL"] as const;
+export type SalesEmailTemplateCategory = (typeof SALES_EMAIL_TEMPLATE_CATEGORIES)[number];
 
 const emailTemplateSchema = new Schema(
   {
@@ -30,10 +32,27 @@ const emailTemplateSchema = new Schema(
       default: "",
       trim: true,
     },
+    displayName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    category: {
+      type: String,
+      enum: [...SALES_EMAIL_TEMPLATE_CATEGORIES],
+      default: "OFFER",
+      index: true,
+    },
+    sequenceOrder: {
+      type: Number,
+      default: null,
+      index: true,
+    },
+    // Legacy fixed identifier retained for backward compatibility.
     type: {
       type: String,
       enum: [...SALES_EMAIL_TEMPLATE_TYPES],
-      default: "OFFER",
+      default: undefined,
       index: true,
     },
     isActive: {
@@ -51,15 +70,13 @@ const emailTemplateSchema = new Schema(
   { timestamps: true },
 );
 
-emailTemplateSchema.index({ organization: 1, isActive: 1 });
-emailTemplateSchema.index({ organization: 1, name: 1 }, { unique: true });
+emailTemplateSchema.index({ organization: 1, category: 1, isActive: 1 });
+emailTemplateSchema.index({ organization: 1, category: 1, name: 1 }, { unique: true });
 emailTemplateSchema.index(
-  { organization: 1, type: 1 },
+  { organization: 1, category: 1, sequenceOrder: 1 },
   {
     unique: true,
-    partialFilterExpression: {
-      type: { $in: ["REM1", "REM2", "REM3", "REM4", "REBUTTAL1", "REBUTTAL2"] },
-    },
+    partialFilterExpression: { category: "REMINDER", isActive: true, sequenceOrder: { $type: "number" } },
   },
 );
 

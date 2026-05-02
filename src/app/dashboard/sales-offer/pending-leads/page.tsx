@@ -143,7 +143,6 @@ export default function PendingLeadsPage() {
     {
       label: "Send Rebuttal",
       onClick: (offer) => setRebuttalTarget(offer),
-      show: (offer) => offer.leadStatus === "Reject Lead" || offer.leadStatus === "Not Interested",
     },
   ];
 

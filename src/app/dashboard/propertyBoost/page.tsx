@@ -16,7 +16,6 @@ import { Label } from "@/components/ui/label"
 import { PhoneInput } from "@/components/phone-input"
 import { toast } from "@/hooks/use-toast"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Property } from "@/models/listing"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ImageData {

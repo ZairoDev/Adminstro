@@ -11,23 +11,14 @@ import { renderTemplate } from "@/util/templateEngine";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });
-const ReminderTypeZod = z.enum(["REM1", "REM2", "REM3", "REM4"]);
-
 const BodySchema = z.object({
   organization: OrganizationZod.optional(),
-  type: ReminderTypeZod,
+  templateId: z.string().min(1),
   subject: z.string().min(1),
   html: z.string().min(1),
   note: z.string().optional().default(""),
   aliasId: z.string().optional(),
 });
-
-const PREVIOUS_REMINDER: Record<z.infer<typeof ReminderTypeZod>, z.infer<typeof ReminderTypeZod> | null> = {
-  REM1: null,
-  REM2: "REM1",
-  REM3: "REM2",
-  REM4: "REM3",
-};
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -38,7 +29,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!body.success) {
       return NextResponse.json({ error: "Invalid body", details: body.error.flatten() }, { status: 400 });
     }
-
     await connectDb();
     const employee = await Employees.findById(employeeId).select("name organization").lean();
     const employeeOrg = employee ? String((employee as { organization?: string }).organization ?? "") : "";
@@ -52,33 +42,53 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
     if (!offer) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
 
-    const existingKinds = new Set(
-      Array.isArray((offer as { emailEvents?: Array<{ kind?: string }> }).emailEvents)
-        ? ((offer as { emailEvents?: Array<{ kind?: string }> }).emailEvents ?? [])
-            .map((event) => event.kind)
-            .filter((kind): kind is string => Boolean(kind))
-        : [],
-    );
-    const requiredPrevious = PREVIOUS_REMINDER[body.data.type];
-    if (requiredPrevious && !existingKinds.has(requiredPrevious)) {
-      return NextResponse.json(
-        { error: `${body.data.type} cannot be sent before ${requiredPrevious}` },
-        { status: 400 },
-      );
-    }
-    const isResend = existingKinds.has(body.data.type);
-
-    const activeTemplate = await EmailTemplates.findOne({
+    const selectedTemplate = await EmailTemplates.findOne({
+      _id: body.data.templateId,
       organization,
-      type: body.data.type,
+      category: "REMINDER",
       isActive: true,
     })
-      .select("_id")
+      .select("_id name displayName sequenceOrder")
       .lean();
-    const activeTemplateId =
-      activeTemplate && !Array.isArray(activeTemplate) && "_id" in activeTemplate
-        ? activeTemplate._id
-        : null;
+    if (!selectedTemplate || Array.isArray(selectedTemplate)) {
+      return NextResponse.json({ error: "Reminder template not found" }, { status: 404 });
+    }
+
+    const reminderTemplates = await EmailTemplates.find({
+      organization,
+      category: "REMINDER",
+      isActive: true,
+    })
+      .select("_id sequenceOrder")
+      .sort({ sequenceOrder: 1, createdAt: 1 })
+      .lean();
+
+    const selectedOrder = Number((selectedTemplate as { sequenceOrder?: number | null }).sequenceOrder ?? 0);
+    const previousTemplate = reminderTemplates
+      .filter((template) => Number((template as { sequenceOrder?: number | null }).sequenceOrder ?? 0) < selectedOrder)
+      .sort(
+        (a, b) =>
+          Number((b as { sequenceOrder?: number | null }).sequenceOrder ?? 0) -
+          Number((a as { sequenceOrder?: number | null }).sequenceOrder ?? 0),
+      )[0] as { _id?: unknown; sequenceOrder?: number } | undefined;
+
+    if (previousTemplate?._id) {
+      const previousId = String(previousTemplate._id);
+      const hasPrevious = (offer as { emailEvents?: Array<{ templateId?: unknown; category?: string }> }).emailEvents?.some(
+        (event) => event?.category === "REMINDER" && String(event?.templateId ?? "") === previousId,
+      );
+      if (!hasPrevious) {
+        return NextResponse.json(
+          { error: "Previous reminder in sequence must be sent first." },
+          { status: 400 },
+        );
+      }
+    }
+
+    const selectedTemplateId = String(selectedTemplate._id);
+    const isResend = (offer as { emailEvents?: Array<{ templateId?: unknown; category?: string }> }).emailEvents?.some(
+      (event) => event?.category === "REMINDER" && String(event?.templateId ?? "") === selectedTemplateId,
+    ) ?? false;
 
     const renderedHtml = renderTemplate(body.data.html, {
       name: String((offer as { name?: string }).name ?? ""),
@@ -111,7 +121,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const historyEntry = {
       type: "reminder",
-      status: `${body.data.type} Sent`,
+      status: `${String((selectedTemplate as { displayName?: string }).displayName ?? (selectedTemplate as { name?: string }).name ?? "Reminder")} Sent`,
       note: body.data.note || "",
       updatedBy: employeeId,
       updatedByName: String((employee as { name?: string })?.name ?? ""),
@@ -119,13 +129,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     };
 
     const eventEntry = {
-      kind: body.data.type,
+      kind: String((selectedTemplate as { name?: string }).name ?? "REMINDER"),
+      category: "REMINDER",
+      templateName: String((selectedTemplate as { name?: string }).name ?? ""),
+      templateDisplayName: String((selectedTemplate as { displayName?: string }).displayName ?? ""),
       subjectSnapshot: renderedSubject,
       contentSnapshot: renderedHtml,
       sentAt: new Date(),
       sentBy: employeeId,
       sentByName: String((employee as { name?: string })?.name ?? ""),
-      templateId: activeTemplateId,
+      templateId: selectedTemplate._id,
     };
 
     const updated = await Offer.findByIdAndUpdate(

@@ -13,7 +13,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 const ParamsSchema = z.object({ id: z.string().min(1) });
 const BodySchema = z.object({
   organization: OrganizationZod.optional(),
-  type: z.enum(["REBUTTAL1", "REBUTTAL2"]).default("REBUTTAL1"),
+  templateId: z.string().min(1),
   subject: z.string().min(1),
   html: z.string().min(1),
   note: z.string().optional().default(""),
@@ -43,25 +43,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
     if (!offer) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
 
-    const leadStatus = String((offer as { leadStatus?: string }).leadStatus ?? "");
-    if (leadStatus !== "Reject Lead" && leadStatus !== "Not Interested") {
-      return NextResponse.json(
-        { error: "Rebuttal is allowed only for rejected or not interested leads" },
-        { status: 400 },
-      );
-    }
-
-    const activeTemplate = await EmailTemplates.findOne({
+    const selectedTemplate = await EmailTemplates.findOne({
+      _id: body.data.templateId,
       organization,
-      type: body.data.type,
+      category: "REBUTTAL",
       isActive: true,
     })
-      .select("_id")
+      .select("_id name displayName")
       .lean();
-    const activeTemplateId =
-      activeTemplate && !Array.isArray(activeTemplate) && "_id" in activeTemplate
-        ? activeTemplate._id
-        : null;
+    if (!selectedTemplate || Array.isArray(selectedTemplate)) {
+      return NextResponse.json({ error: "Rebuttal template not found" }, { status: 404 });
+    }
 
     const renderedHtml = renderTemplate(body.data.html, {
       name: String((offer as { name?: string }).name ?? ""),
@@ -94,7 +86,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const historyEntry = {
       type: "rebuttal",
-      status: `${body.data.type} Sent`,
+      status: `${String((selectedTemplate as { displayName?: string }).displayName ?? (selectedTemplate as { name?: string }).name ?? "Rebuttal")} Sent`,
       note: body.data.note || "",
       updatedBy: employeeId,
       updatedByName: String((employee as { name?: string })?.name ?? ""),
@@ -102,13 +94,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     };
 
     const eventEntry = {
-      kind: body.data.type,
+      kind: String((selectedTemplate as { name?: string }).name ?? "REBUTTAL"),
+      category: "REBUTTAL",
+      templateName: String((selectedTemplate as { name?: string }).name ?? ""),
+      templateDisplayName: String((selectedTemplate as { displayName?: string }).displayName ?? ""),
       subjectSnapshot: renderedSubject,
       contentSnapshot: renderedHtml,
       sentAt: new Date(),
       sentBy: employeeId,
       sentByName: String((employee as { name?: string })?.name ?? ""),
-      templateId: activeTemplateId,
+      templateId: selectedTemplate._id,
     };
 
     const updated = await Offer.findByIdAndUpdate(

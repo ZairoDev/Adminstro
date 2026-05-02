@@ -22,7 +22,6 @@ const validLeadStatus = [
 ];
 
 const validReminders = ["Reminder 1", "Reminder 2", "Reminder 3", "Last Reminder"];
-const validEmailEventKinds = ["REM1", "REM2", "REM3", "REM4", "REBUTTAL"] as const;
 
 const validOfferStatus = [
   "Draft",
@@ -302,12 +301,15 @@ const offerSchema: Schema = new Schema(
         {
           kind: {
             type: String,
-            enum: {
-              values: [...validEmailEventKinds],
-              message: "{VALUE} is not a valid email event kind",
-            },
             required: true,
           },
+          category: {
+            type: String,
+            enum: ["REMINDER", "REBUTTAL"],
+            required: true,
+          },
+          templateName: { type: String, default: "" },
+          templateDisplayName: { type: String, default: "" },
           subjectSnapshot: { type: String, required: true },
           contentSnapshot: { type: String, required: true },
           sentAt: { type: Date, default: Date.now },

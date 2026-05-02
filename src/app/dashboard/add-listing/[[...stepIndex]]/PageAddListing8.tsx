@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { boolean } from "zod";
 import Heading from "@/components/Heading";
+import { useToast } from "@/hooks/use-toast";
 
 export interface PageAddListing8Props {}
 
@@ -46,6 +47,7 @@ export const MONTHS = [
 ];
 
 const PageAddListing8: FC<PageAddListing8Props> = () => {
+  const { toast } = useToast();
   const params = useSearchParams();
   // const userId = params.get("userId");
   const userId = params?.get("userId") ?? null;
@@ -211,6 +213,13 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
       setLongTermMonths([...longTermMonths, e.target.innerText]);
     }
   };
+
+  const isValidForm =
+    rentalType === "Long Term"
+      ? basePriceLongTerm.every((p) => p > 0)
+      : rentalType === "Both"
+        ? basePrice.every((p) => p > 0) && basePriceLongTerm.every((p) => p > 0)
+        : basePrice.every((p) => p > 0);
 
   return (
     <>
@@ -458,16 +467,25 @@ const PageAddListing8: FC<PageAddListing8Props> = () => {
         >
           <Button>Go back</Button>
         </Link>
-        <Button>
-          <Link
-            href={{
-              pathname: `/dashboard/add-listing/9`,
-              query: { userId: userId },
-            }}
-          >
-            Continue
-          </Link>
-        </Button>
+        <Link
+          href={{
+            pathname: `/dashboard/add-listing/9`,
+            query: { userId: userId },
+          }}
+          onClick={(e) => {
+            if (!isValidForm) {
+              e.preventDefault();
+              toast({
+                variant: "destructive",
+                title: "Price required",
+                description:
+                  "Please enter a base price greater than 0 for all portions before continuing.",
+              });
+            }
+          }}
+        >
+          <Button disabled={!isValidForm}>Continue</Button>
+        </Link>
       </div>
     </>
   );

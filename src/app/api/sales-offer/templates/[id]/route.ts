@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import EmailTemplates, { SALES_EMAIL_TEMPLATE_TYPES } from "@/models/emailTemplate";
+import EmailTemplates, {
+  SALES_EMAIL_TEMPLATE_CATEGORIES,
+  SALES_EMAIL_TEMPLATE_TYPES,
+} from "@/models/emailTemplate";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { OrganizationZod } from "@/util/organizationConstants";
 
 const TemplateTypeZod = z.enum(SALES_EMAIL_TEMPLATE_TYPES);
+const TemplateCategoryZod = z.enum(SALES_EMAIL_TEMPLATE_CATEGORIES);
 const ALLOWED_MANAGER_ROLES = new Set(["SuperAdmin", "Admin", "HAdmin"]);
 
 function escapeHtml(value: string): string {
@@ -32,10 +36,12 @@ const ParamsSchema = z.object({
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
+  displayName: z.string().min(1).optional(),
   subject: z.string().min(1).optional(),
   html: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
   organization: OrganizationZod.optional(),
+  category: TemplateCategoryZod.optional(),
   type: TemplateTypeZod.optional(),
 });
 

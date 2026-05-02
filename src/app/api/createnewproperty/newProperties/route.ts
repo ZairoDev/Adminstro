@@ -1,19 +1,27 @@
-  import { NextResponse } from "next/server";
-  import { connectDb } from "@/util/db";
-  import { Properties } from "@/models/property";
-  import { Property as PropertyType } from "@/util/type";
-  import { customAlphabet } from "nanoid";
+import { NextResponse } from "next/server";
+import { connectDb } from "@/util/db";
+import { Properties } from "@/models/property";
+import { Property as PropertyType } from "@/util/type";
+import { customAlphabet } from "nanoid";
 
-  connectDb();
+connectDb();
 
-  const generateCommonId = (length: number): string => {
-    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    return customAlphabet(charset, length)();
-  };
+const generateCommonId = (length: number): string => {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return customAlphabet(charset, length)();
+};
 
-  export async function POST(request: Request) {
-    try {
-      const data: PropertyType = await request.json();
+function sanitizeAmenities(obj: unknown): Record<string, boolean> {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+  const entries = Object.entries(obj as Record<string, unknown>).filter(
+    ([, v]) => v === true || v === false
+  ) as [string, boolean][];
+  return Object.fromEntries(entries);
+}
+
+export async function POST(request: Request) {
+  try {
+    const data: PropertyType = await request.json();
       const host = request.headers.get("host");
 
       const {
@@ -84,6 +92,13 @@
         longTermMonths,
         isLive,
       } = data;
+
+      if (!userId || !email) {
+        return NextResponse.json(
+          { error: "userId and email are required" },
+          { status: 400 }
+        );
+      }
 
       console.log("data:", data);
       const mongoIds: string[] = [];
@@ -164,9 +179,9 @@
           monthlyDiscountLongTerm: monthlyDiscountLongTerm?.[i],
           currency,
           icalLinks: {},
-          generalAmenities,
-          otherAmenities,
-          safeAmenities,
+          generalAmenities: sanitizeAmenities(generalAmenities),
+          otherAmenities: sanitizeAmenities(otherAmenities),
+          safeAmenities: sanitizeAmenities(safeAmenities),
           smoking,
           pet,
           party,
@@ -194,19 +209,24 @@
           levels,
           zones,
           propertyStyle,
-          constructionYear,
+          constructionYear: constructionYear
+            ? Number(constructionYear) || undefined
+            : undefined,
           isSuitableForStudents,
-          monthlyExpenses,
+          monthlyExpenses: monthlyExpenses
+            ? Number(monthlyExpenses) || undefined
+            : undefined,
           heatingType,
           heatingMedium,
           energyClass,
           nearbyLocations: nearbyLocationsMap,
           hostedFrom: host,
           hostedBy,
-          listedOn: [],
+          listedOn: ["VacationSaga"],
           lastUpdatedBy: [],
           lastUpdates: [],
           longTermMonths,
+          approvalStatus: "approved",
           isLive,
         };
 
@@ -216,11 +236,9 @@
       }
 
       return NextResponse.json({ propertyIds, mongoIds }, { status: 200 });
-    } catch (error) {
-      console.error("Error:", error);
-      return NextResponse.json(
-        { error: "Something went wrong" },
-        { status: 500 }
-      );
-    }
+  } catch (error) {
+    console.error("Error:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
+}

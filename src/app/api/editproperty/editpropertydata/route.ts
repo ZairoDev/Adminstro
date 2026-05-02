@@ -1,4 +1,3 @@
-import { Property } from "@/models/listing";
 import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -40,11 +39,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const property = await Properties.findOneAndUpdate(
       { _id: propertyId },
-      { $set: updatedData },
-      { new: true }
-    );
-    await Property.findOneAndUpdate(
-      { propertyId: propertyId },
       { $set: updatedData },
       { new: true }
     );

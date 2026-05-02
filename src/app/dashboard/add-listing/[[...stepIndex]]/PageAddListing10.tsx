@@ -3,7 +3,7 @@
 import axios from "@/util/axios";
 import Link from "next/link";
 import { Copy, Pencil } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FC, useEffect, useState } from "react";
 
 import Heading from "@/components/Heading";
@@ -12,8 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import internal from "stream";
-
 export type PageAddListing10Props = {};
 
 interface Page3State {
@@ -135,7 +133,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       localStorage.removeItem("page1");
       localStorage.removeItem("page2");
       localStorage.removeItem("page3");
-      // localStorage.removeItem("page4");
+      localStorage.removeItem("page4");
       localStorage.removeItem("page5");
       localStorage.removeItem("page6");
       localStorage.removeItem("page8");
@@ -203,9 +201,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         const page1 = JSON.parse(localStorage.getItem("page1") || "{}");
         const page2 = JSON.parse(localStorage.getItem("page2") || "{}");
         const page3 = JSON.parse(localStorage.getItem("page3") || "{}");
-        const page4 = JSON.parse(
-          localStorage.getItem("page4") || "[{}, {}, {}]"
-        );
+        const page4 = JSON.parse(localStorage.getItem("page4") || "{}");
         const page5 = JSON.parse(localStorage.getItem("page5") || "{}");
         const page6 = JSON.parse(localStorage.getItem("page6") || "{}");
         // const page7 = JSON.parse(localStorage.getItem('page7') || '{}');
@@ -245,6 +241,8 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     const data = fetchDataFromLocalStorage();
   }, [propertyCoverFileUrl]);
 
+  const router = useRouter();
+
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyVSID, setPropertyVSID] = useState<string>();
   const [vsidList, setVsidList] = useState<string[]>([]);
@@ -279,6 +277,14 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
+    if (!user?.email) {
+      toast({
+        variant: "destructive",
+        title: "User not loaded",
+        description: "Please wait a moment and try again.",
+      });
+      return;
+    }
     setIsLoading(true);
     const data = {
       userId: userId,
@@ -365,7 +371,6 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
     };
 
     try {
-      const response = await axios.post("/api/createnewproperty", data);
       const response2 = await axios.post(
         "/api/createnewproperty/newProperties",
         data
@@ -381,6 +386,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         });
         clearLocalStorage();
       }
+      router.push(`/dashboard/user/`);
     } catch (error) {
       toast({
         variant: "destructive",

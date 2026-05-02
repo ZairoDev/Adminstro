@@ -57,36 +57,7 @@ interface LeadsTableProps {
   bulkActionBar?: React.ReactNode;
 }
 
-type JourneyStepKey =
-  | "offerSent"
-  | "rejected"
-  | "callbackAdded"
-  | "updatedOffer"
-  | "blacklisted"
-  | "paymentComplete"
-  | "rem1Sent"
-  | "rem2Sent"
-  | "rem3Sent"
-  | "rem4Sent"
-  | "rebuttal1Sent"
-  | "rebuttal2Sent";
-
-const JOURNEY_LABELS: Record<JourneyStepKey, string> = {
-  offerSent: "Offer Sent",
-  rejected: "rejected",
-  callbackAdded: "Callback Added",
-  updatedOffer: "updatedOffer",
-  blacklisted: "blacklisted",
-  paymentComplete: "paymentComplete",
-  rem1Sent: "REM1 Sent",
-  rem2Sent: "REM2 Sent",
-  rem3Sent: "REM3 Sent",
-  rem4Sent: "REM4 Sent",
-  rebuttal1Sent: "Rebuttal1 Sent",
-  rebuttal2Sent: "Rebuttal2 Sent",
-};
-
-function mapStatusToJourneyStep(status: string): JourneyStepKey | null {
+function mapStatusToJourneyStep(status: string): string | null {
   const normalized = status.trim().toLowerCase();
   if (
     normalized === "offer_sent" ||
@@ -94,7 +65,7 @@ function mapStatusToJourneyStep(status: string): JourneyStepKey | null {
     normalized === "send offer" ||
     normalized === "sent"
   ) {
-    return "offerSent";
+    return "Offer Sent";
   }
   if (
     normalized === "updated offer" ||
@@ -103,28 +74,23 @@ function mapStatusToJourneyStep(status: string): JourneyStepKey | null {
     normalized === "updatedoffer" ||
     normalized === "reverted to pending"
   ) {
-    return "updatedOffer";
+    return "Updated Offer";
   }
-  if (normalized === "reject lead" || normalized === "rejected") return "rejected";
-  if (normalized === "call back" || normalized.startsWith("callback")) return "callbackAdded";
-  if (normalized === "blacklist lead" || normalized === "blacklisted") return "blacklisted";
+  if (normalized === "reject lead" || normalized === "rejected") return "Rejected";
+  if (normalized === "call back" || normalized.startsWith("callback")) return "Callback Added";
+  if (normalized === "blacklist lead" || normalized === "blacklisted") return "Blacklisted";
   if (normalized === "payment_complete" || normalized === "payment complete" || normalized === "accepted") {
-    return "paymentComplete";
+    return "Payment Complete";
   }
-  if (normalized === "rem1 sent") return "rem1Sent";
-  if (normalized === "rem2 sent") return "rem2Sent";
-  if (normalized === "rem3 sent") return "rem3Sent";
-  if (normalized === "rem4 sent") return "rem4Sent";
-  if (normalized === "rebuttal1 sent") return "rebuttal1Sent";
-  if (normalized === "rebuttal2 sent") return "rebuttal2Sent";
+  if (normalized.endsWith(" sent")) return status.trim();
   return null;
 }
 
-function deriveJourney(offer: OfferDoc): JourneyStepKey[] {
-  const steps: JourneyStepKey[] = [];
-  const pushStep = (step: JourneyStepKey | null) => {
+function deriveJourney(offer: OfferDoc): string[] {
+  const steps: string[] = [];
+  const pushStep = (step: string | null) => {
     if (!step) return;
-    if (step === "offerSent" && steps.includes("offerSent")) return;
+    if (step === "Offer Sent" && steps.includes("Offer Sent")) return;
     steps.push(step);
   };
   for (const event of offer.history ?? []) {
@@ -148,7 +114,7 @@ function JourneyTrail({ offer }: { offer: OfferDoc }) {
                 : "text-[10px] rounded-full px-2 py-0.5 bg-muted text-muted-foreground"
             }
           >
-            {JOURNEY_LABELS[step]}
+            {step}
           </span>
           {idx < steps.length - 1 && <span className="text-[10px] text-muted-foreground">→</span>}
         </React.Fragment>

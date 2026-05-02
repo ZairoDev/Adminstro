@@ -100,7 +100,7 @@ function EmailEventCard({
     <div className="rounded-md border p-3 text-sm space-y-1">
       <div className="flex items-center justify-between">
         <Badge variant="secondary" className="text-xs">
-          {event.kind}
+          {event.templateDisplayName || event.templateName || event.kind}
         </Badge>
         <span className="text-xs text-muted-foreground">{formatDate(event.sentAt)}</span>
       </div>

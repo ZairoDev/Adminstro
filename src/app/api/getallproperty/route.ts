@@ -61,7 +61,7 @@
 // }
 
 import { NextRequest, NextResponse } from "next/server";
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 
 export const dynamic = "force-dynamic";
@@ -94,18 +94,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
     let allProperties;
     if (!searchTerm) {
-      allProperties = await Property.find({}, projection)
+      allProperties = await Properties.find({}, projection)
         .skip(skip)
         .limit(limit)
         .sort({ _id: -1 });
     } else {
-      allProperties = await Property.find(query, projection).sort({ _id: -1 });
+      allProperties = await Properties.find(query, projection).sort({ _id: -1 });
     }
-    if (allProperties.length === 0) {
-      const totalCount = await Property.countDocuments();
-      // console.log("Total properties in database:", totalCount);
-    }
-    const totalProperties = await Property.countDocuments(query);
+    const totalProperties = await Properties.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limit);
     return NextResponse.json({
       data: allProperties,

@@ -12,11 +12,11 @@ import {
   Phone,
   Mail,
   MessageSquare,
-  User,
-  Calendar,
   ExternalLink,
   Copy,
   Check,
+  Building2,
+  Loader2,
 } from "lucide-react";
 
 import {
@@ -39,20 +39,21 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import HandLoader from "@/components/HandLoader";
 import { Toaster } from "@/components/ui/toaster";
-import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+    Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import type { NotesInterface } from "@/util/type";
+
+/** Public VacationSaga listing page is keyed by MongoDB property _id, not VSID. */
+function publicListingPropertyUrl(propertyMongoId: string): string {
+  return `https://www.vacationsaga.com/listing-stay-detail/${encodeURIComponent(propertyMongoId)}`;
+}
 
 interface WebsiteLead {
   _id: string;
@@ -60,9 +61,11 @@ interface WebsiteLead {
   lastName: string;
   telephone: string;
   VSID: string;
+  /** Resolved from Properties by VSID; public site URL must use this id. */
+  propertyMongoId: string | null;
   email?: string;
   message: string;
-  note?: string;
+  note?: NotesInterface[];
   createdAt: string;
   updatedAt: string;
 }
@@ -79,7 +82,9 @@ const WebsiteLeadsPage = () => {
   const [totalLeads, setTotalLeads] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [bulkNote, setBulkNote] = useState<string>("");
+  const [noteValue, setNoteValue] = useState<string>("");
+  const [creatingNote, setCreatingNote] = useState<boolean>(false);
+  const [resolvingLeadId, setResolvingLeadId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<
     Record<string, { telephone: string; email: string }>
@@ -187,32 +192,117 @@ const WebsiteLeadsPage = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleBulkNoteApply = async () => {
-    if (!bulkNote.trim()) {
-      toast({
-        title: "Note is required",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleAddNote = async (leadId: string) => {
+    if (!noteValue.trim()) return;
     try {
-      await axios.patch("/api/website-leads", {
-        action: "bulkNote",
-        note: bulkNote,
-        searchTerm,
-        searchType,
+      setCreatingNote(true);
+      const res = await axios.patch<{ data: WebsiteLead }>("/api/website-leads", {
+        action: "addNote",
+        leadId,
+        note: noteValue.trim(),
       });
-      toast({
-        title: "Note applied",
-        description: "Note was applied to all matching leads.",
-      });
-      setBulkNote("");
-      fetchLeads();
+      setNoteValue("");
+      const updated = res.data.data;
+      if (updated) {
+        setLeads((prev) =>
+          prev.map((item) => (item._id === leadId ? updated : item))
+        );
+      } else {
+        fetchLeads();
+      }
+      toast({ title: "Note saved" });
     } catch {
       toast({
-        title: "Failed to apply note",
+        title: "Failed to save note",
         variant: "destructive",
       });
+    } finally {
+      setCreatingNote(false);
+    }
+  };
+
+  /** VacationSaga public URLs use property MongoDB `_id`. Resolve via VSID when missing from list enrichment. */
+  const ensurePropertyMongoId = useCallback(
+    async (lead: WebsiteLead): Promise<string | null> => {
+      if (lead.propertyMongoId) {
+        return lead.propertyMongoId;
+      }
+      try {
+        const res = await axios.post<{ data?: { _id: string } }>(
+          "/api/property/getPropertyByVSID",
+          { VSID: lead.VSID }
+        );
+        const id =
+          res.data.data?._id !== undefined
+            ? String(res.data.data._id)
+            : null;
+        if (id) {
+          setLeads((prev) =>
+            prev.map((l) =>
+              l._id === lead._id ? { ...l, propertyMongoId: id } : l
+            )
+          );
+          return id;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
+
+  const openVacationSagaListing = async (lead: WebsiteLead) => {
+    try {
+      setResolvingLeadId(lead._id);
+      const id = await ensurePropertyMongoId(lead);
+      if (!id) {
+        toast({
+          title: "Listing not found",
+          description: "No property matches this VSID in the database.",
+          variant: "destructive",
+        });
+        return;
+      }
+      window.open(
+        publicListingPropertyUrl(id),
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch {
+      toast({
+        title: "Could not open listing",
+        variant: "destructive",
+      });
+    } finally {
+      setResolvingLeadId(null);
+    }
+  };
+
+  const openAdminPropertyEdit = async (lead: WebsiteLead) => {
+    try {
+      setResolvingLeadId(lead._id);
+      const id = await ensurePropertyMongoId(lead);
+      if (!id) {
+        toast({
+          title: "Property not found",
+          description: "No admin listing matches this VSID.",
+          variant: "destructive",
+        });
+        return;
+      }
+      window.open(
+        `/dashboard/property/edit/${id}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch {
+      toast({
+        title: "Could not open property",
+        variant: "destructive",
+      });
+    } finally {
+      setResolvingLeadId(null);
     }
   };
 
@@ -257,48 +347,33 @@ const WebsiteLeadsPage = () => {
     <div className="w-full min-h-screen">
       <Toaster />
 
-      {/* Header Section */}
-      <div className="flex items-center md:flex-row flex-col justify-between w-full gap-4">
-        <div className="w-full">
-          <Heading
-            heading="Website Leads"
-            subheading="View and manage leads coming from the website"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Badge
-            variant="outline"
-            className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500/30 text-emerald-600 px-4 py-2"
-          >
-            <Globe className="w-4 h-4 mr-2" />
-            {totalLeads} Total Leads
-          </Badge>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleRefresh}
-            className="hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Heading
+          heading="Website Leads"
+          subheading={`${totalLeads} lead${totalLeads === 1 ? "" : "s"} · VacationSaga links use property id resolved from VSID`}
+        />
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="shrink-0 gap-2">
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Search Section */}
-      <form onSubmit={handleSearch} className="mt-6">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      {/* Search */}
+      <form onSubmit={handleSearch} className="mt-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search leads..."
+              placeholder="Search…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-11 bg-background/50 backdrop-blur-sm border-muted-foreground/20 focus:border-emerald-500/50 transition-all"
+              className="h-9 pl-9"
             />
           </div>
           <Select value={searchType} onValueChange={setSearchType}>
-            <SelectTrigger className="w-full md:w-[180px] h-11 bg-background/50 backdrop-blur-sm">
-              <SelectValue placeholder="Search by" />
+            <SelectTrigger className="h-9 w-full sm:w-[140px]">
+              <SelectValue placeholder="Field" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
@@ -307,34 +382,11 @@ const WebsiteLeadsPage = () => {
               <SelectItem value="VSID">VSID</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            type="submit"
-            className="h-11 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 transition-all"
-          >
-            <Search className="w-4 h-4 mr-2" />
+          <Button type="submit" size="sm" className="h-9 shrink-0">
             Search
           </Button>
         </div>
       </form>
-
-      {isSuperAdmin && (
-        <div className="mt-4 p-4 rounded-lg border bg-muted/20">
-          <p className="text-sm font-medium mb-2">Add note for all</p>
-          <div className="flex flex-col md:flex-row gap-2">
-            <Input
-              placeholder="Write note to apply to all matching leads..."
-              value={bulkNote}
-              onChange={(e) => setBulkNote(e.target.value)}
-            />
-            <Button onClick={handleBulkNoteApply} className="md:w-auto w-full">
-              Apply Note
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Applies to all leads in current search filter.
-          </p>
-        </div>
-      )}
 
       {/* Content Section */}
       {loading ? (
@@ -344,73 +396,87 @@ const WebsiteLeadsPage = () => {
       ) : (
         <div className="mt-6">
           {leads.length > 0 ? (
-            <div className="grid gap-4">
+            <div className="divide-y rounded-md border bg-card">
               {leads.map((lead, index) => (
-                <Card
-                  key={lead._id}
-                  className="group overflow-hidden border-muted-foreground/10 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300"
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg shadow-lg shadow-emerald-500/30">
-                          {lead.firstName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-4 h-4 text-emerald-500" />
-                            {lead.firstName} {lead.lastName}
-                          </CardTitle>
-                          <CardDescription className="flex items-center gap-2 mt-1">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(lead.createdAt), "PPp")}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <a
-                                href={`https://www.vacationsaga.com/listing-stay-detail/${lead.VSID}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 text-violet-600 hover:from-violet-500/20 hover:to-purple-500/20 cursor-pointer transition-all"
-                                >
-                                  <ExternalLink className="w-3 h-3 mr-1" />
-                                  {lead.VSID}
-                                </Badge>
-                              </a>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>View property on VacationSaga</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <Badge
-                          variant="outline"
-                          className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30 text-amber-600"
+                <div key={lead._id} className="px-3 py-2.5 text-sm">
+                  <div className="flex flex-wrap items-start gap-2">
+                    <Dialog
+                      onOpenChange={(open) => {
+                        if (!open) setNoteValue("");
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant={lead.note && lead.note.length > 0 ? "secondary" : "ghost"}
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          aria-label="Notes"
+                          title="Notes"
                         >
-                          #{(page - 1) * 50 + index + 1}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid md:grid-cols-3 gap-4">
-                      {/* Phone */}
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 group/item hover:bg-emerald-500/5 transition-all">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/10">
-                          <Phone className="w-4 h-4 text-emerald-500" />
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Notes</DialogTitle>
+                        </DialogHeader>
+                        <Textarea
+                          className="min-h-[72px]"
+                          placeholder="Add a note…"
+                          value={noteValue}
+                          onChange={(e) => setNoteValue(e.target.value)}
+                        />
+                        <p className="text-sm font-medium text-foreground">Previous</p>
+                        <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
+                          {lead.note && lead.note.length > 0 ? (
+                            lead.note.map((n, noteIndex) => (
+                              <div
+                                key={`${n.createOn}-${noteIndex}`}
+                                className="border-b border-border/60 pb-2 last:border-0"
+                              >
+                                <p className="whitespace-pre-wrap">{n.noteData}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {n.createOn} · {n.createdBy}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-muted-foreground">No notes yet.</p>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Phone</p>
+                        <DialogFooter>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNote(lead._id)}
+                            disabled={!noteValue.trim() || creatingNote}
+                          >
+                            {creatingNote ? "Saving…" : "Save note"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                        <span className="font-medium">
+                          {lead.firstName} {lead.lastName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(lead.createdAt ?? ""), "PPp")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          · #{(page - 1) * 50 + index + 1}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <Phone className="h-3 w-3 shrink-0" />
                           {isSuperAdmin ? (
                             <Input
-                              className="h-8"
+                              className="h-7 max-w-[160px] text-xs"
                               value={editBuffer[lead._id]?.telephone ?? lead.telephone}
                               onChange={(e) =>
                                 setEditBuffer((prev) => ({
@@ -423,33 +489,28 @@ const WebsiteLeadsPage = () => {
                               }
                             />
                           ) : (
-                            <p className="font-medium truncate">{lead.telephone}</p>
+                            <span className="font-mono text-foreground">{lead.telephone}</span>
                           )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                          onClick={() => copyToClipboard(lead.telephone, `phone-${lead._id}`)}
-                        >
-                          {copiedId === `phone-${lead._id}` ? (
-                            <Check className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-
-                      {/* Email */}
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 group/item hover:bg-blue-500/5 transition-all">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10">
-                          <Mail className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Email</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => copyToClipboard(lead.telephone, `phone-${lead._id}`)}
+                            aria-label="Copy phone"
+                          >
+                            {copiedId === `phone-${lead._id}` ? (
+                              <Check className="h-3 w-3 text-emerald-600" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <Mail className="h-3 w-3 shrink-0" />
                           {isSuperAdmin ? (
                             <Input
-                              className="h-8"
+                              className="h-7 max-w-[200px] text-xs"
                               value={editBuffer[lead._id]?.email ?? lead.email ?? ""}
                               onChange={(e) =>
                                 setEditBuffer((prev) => ({
@@ -462,88 +523,101 @@ const WebsiteLeadsPage = () => {
                               }
                             />
                           ) : (
-                            <p className="font-medium truncate">
-                              {lead.email || "Not provided"}
-                            </p>
+                            <span className="truncate text-foreground">
+                              {lead.email || "—"}
+                            </span>
                           )}
-                        </div>
-                        {lead.email && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                            onClick={() => copyToClipboard(lead.email!, `email-${lead._id}`)}
-                          >
-                            {copiedId === `email-${lead._id}` ? (
-                              <Check className="w-4 h-4 text-emerald-500" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </Button>
+                          {lead.email ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => copyToClipboard(lead.email!, `email-${lead._id}`)}
+                              aria-label="Copy email"
+                            >
+                              {copiedId === `email-${lead._id}` ? (
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          ) : null}
+                        </span>
+                      </div>
+
+                      <p
+                        className="line-clamp-2 text-xs text-muted-foreground"
+                        title={lead.message}
+                      >
+                        {lead.message || "—"}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
+                      <span
+                        className="font-mono text-[11px] text-muted-foreground"
+                        title="VSID"
+                      >
+                        {lead.VSID}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2"
+                        title="Opens vacationsaga.com listing using MongoDB id resolved from VSID"
+                        onClick={() => void openVacationSagaListing(lead)}
+                        disabled={resolvingLeadId === lead._id}
+                      >
+                        {resolvingLeadId === lead._id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-3.5 w-3.5" />
                         )}
-                      </div>
-
-                      {/* VSID */}
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 group/item hover:bg-violet-500/5 transition-all">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-violet-500/10">
-                          <Globe className="w-4 h-4 text-violet-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">VS ID</p>
-                          <p className="font-medium truncate">{lead.VSID}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                          onClick={() => copyToClipboard(lead.VSID, `vsid-${lead._id}`)}
-                        >
-                          {copiedId === `vsid-${lead._id}` ? (
-                            <Check className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
+                        VacationSaga
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1 px-2"
+                        onClick={() => void openAdminPropertyEdit(lead)}
+                        disabled={resolvingLeadId === lead._id}
+                      >
+                        <Building2 className="h-3.5 w-3.5" />
+                        Admin
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => copyToClipboard(lead.VSID, `vsid-${lead._id}`)}
+                        aria-label="Copy VSID"
+                      >
+                        {copiedId === `vsid-${lead._id}` ? (
+                          <Check className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
+                  </div>
 
-                    {/* Message */}
-                    <div className="mt-4 p-4 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-muted-foreground/10">
-                      <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 shrink-0 mt-0.5">
-                          <MessageSquare className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground mb-1">Message</p>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {lead.message}
-                          </p>
-                        </div>
-                      </div>
+                  {isSuperAdmin && (
+                    <div className="mt-2 flex justify-end border-t border-border/50 pt-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleLeadUpdate(lead)}
+                        disabled={updatingId === lead._id}
+                      >
+                        {updatingId === lead._id ? "Saving…" : "Save phone & email"}
+                      </Button>
                     </div>
-
-                    {(isSuperAdmin || lead.note) && (
-                      <div className="mt-3 p-3 rounded-lg border bg-background/40">
-                        <p className="text-xs text-muted-foreground mb-1">Note</p>
-                        <p className="text-sm whitespace-pre-wrap">
-                          {lead.note || "No note"}
-                        </p>
-                      </div>
-                    )}
-
-                    {isSuperAdmin && (
-                      <div className="mt-3 flex justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleLeadUpdate(lead)}
-                          disabled={updatingId === lead._id}
-                        >
-                          {updatingId === lead._id ? "Saving..." : "Save Phone & Email"}
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               ))}
             </div>
           ) : (

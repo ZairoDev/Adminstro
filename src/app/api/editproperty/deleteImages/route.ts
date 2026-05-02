@@ -1,4 +1,4 @@
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const { pId, data } = reqBody;
 
   try {
-    const property = await Property.findById(pId);
+    const property = await Properties.findById(pId);
 
     if (!property) {
       return NextResponse.json(

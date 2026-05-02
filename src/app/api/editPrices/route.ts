@@ -1,4 +1,4 @@
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const property = await Property.findById(propertyId);
+    const property = await Properties.findById(propertyId);
     if (!property) {
       return NextResponse.json(
         { error: "Invalid Property Id" },

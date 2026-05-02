@@ -39,19 +39,19 @@ interface BaseDialogProps {
   onSuccess: () => void;
 }
 
-type ReminderType = "REM1" | "REM2" | "REM3" | "REM4";
-type RebuttalType = "REBUTTAL1" | "REBUTTAL2";
+type TemplateCategory = "OFFER" | "REMINDER" | "REBUTTAL";
 
 interface SalesTemplateDoc {
   _id: string;
-  type: "OFFER" | ReminderType | RebuttalType;
+  category: TemplateCategory;
+  type?: string;
   name: string;
+  displayName?: string;
+  sequenceOrder?: number | null;
   subject: string;
   html: string;
+  isActive?: boolean;
 }
-
-const REMINDER_ORDER: ReminderType[] = ["REM1", "REM2", "REM3", "REM4"];
-const REBUTTAL_TYPES: RebuttalType[] = ["REBUTTAL1", "REBUTTAL2"];
 
 interface AliasOption {
   _id: string;
@@ -426,7 +426,8 @@ export function UpdateOfferDialog({ open, offer, onClose, onSuccess }: BaseDialo
 
 export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDialogProps) {
   const { toast } = useToast();
-  const [selectedType, setSelectedType] = useState<ReminderType>("REM1");
+  const [templates, setTemplates] = useState<SalesTemplateDoc[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [aliases, setAliases] = useState<AliasOption[]>([]);
   const [selectedAliasId, setSelectedAliasId] = useState("");
   const [subject, setSubject] = useState("");
@@ -435,31 +436,48 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
   const [loadingAliases, setLoadingAliases] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const sentKinds = new Set((offer?.emailEvents ?? []).map((event) => event.kind));
-  const canSendType = (type: ReminderType): boolean => {
-    if (type === "REM1") return true;
-    if (type === "REM2") return sentKinds.has("REM1");
-    if (type === "REM3") return sentKinds.has("REM2");
-    return sentKinds.has("REM3");
+  const sentTemplateIds = new Set(
+    (offer?.emailEvents ?? [])
+      .filter((event) => event.category === "REMINDER")
+      .map((event) => String(event.templateId ?? "")),
+  );
+  const sortedTemplates = [...templates].sort(
+    (a, b) => Number(a.sequenceOrder ?? Number.MAX_SAFE_INTEGER) - Number(b.sequenceOrder ?? Number.MAX_SAFE_INTEGER),
+  );
+  const canSendTemplate = (template: SalesTemplateDoc): boolean => {
+    const index = sortedTemplates.findIndex((item) => item._id === template._id);
+    if (index <= 0) return true;
+    const previous = sortedTemplates[index - 1];
+    return sentTemplateIds.has(previous?._id ?? "");
   };
-  const hasSentType = (type: ReminderType): boolean => sentKinds.has(type);
+  const hasSentTemplate = (template: SalesTemplateDoc): boolean => sentTemplateIds.has(template._id);
+  const activeTemplate = templates.find((template) => template._id === selectedTemplateId) ?? null;
 
-  const loadTemplate = async (type: ReminderType) => {
+  const loadTemplates = async () => {
     if (!offer) return;
     setLoadingTemplate(true);
     try {
       const res = await axios.get("/api/sales-offer/templates", {
-        params: { organization: offer.organization, type, activeOnly: true },
+        params: { organization: offer.organization, category: "REMINDER", activeOnly: true },
       });
-      const template = (res.data?.templates?.[0] ?? null) as SalesTemplateDoc | null;
-      if (!template) {
-        toast({ title: `No active ${type} template found`, variant: "destructive" });
+      const list = (res.data?.templates ?? []) as SalesTemplateDoc[];
+      const sorted = [...list].sort(
+        (a, b) =>
+          Number(a.sequenceOrder ?? Number.MAX_SAFE_INTEGER) -
+          Number(b.sequenceOrder ?? Number.MAX_SAFE_INTEGER),
+      );
+      setTemplates(sorted);
+      const initialTemplate = sorted.find((template) => canSendTemplate(template)) ?? sorted[0];
+      if (!initialTemplate) {
+        setSelectedTemplateId("");
         setSubject("");
         setHtml("");
+        toast({ title: "No active reminder templates found", variant: "destructive" });
         return;
       }
-      setSubject(template.subject ?? "");
-      setHtml(template.html ?? "");
+      setSelectedTemplateId(initialTemplate._id);
+      setSubject(initialTemplate.subject ?? "");
+      setHtml(initialTemplate.html ?? "");
     } catch (_err) {
       toast({ title: "Failed to load template", variant: "destructive" });
     } finally {
@@ -492,12 +510,16 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
 
   useEffect(() => {
     if (!open || !offer) return;
-    const firstAvailable = REMINDER_ORDER.find((type) => canSendType(type)) ?? "REM1";
-    setSelectedType(firstAvailable);
-    void loadTemplate(firstAvailable);
+    void loadTemplates();
     void loadAliases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, offer?._id]);
+
+  useEffect(() => {
+    if (!activeTemplate) return;
+    setSubject(activeTemplate.subject ?? "");
+    setHtml(activeTemplate.html ?? "");
+  }, [activeTemplate]);
 
   const handleSend = async () => {
     if (!offer) return;
@@ -505,21 +527,26 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
       toast({ title: "Subject and content are required", variant: "destructive" });
       return;
     }
-    if (!canSendType(selectedType)) {
-      toast({ title: `${selectedType} is locked by sequence rules`, variant: "destructive" });
+    if (!activeTemplate) {
+      toast({ title: "Please select a reminder template", variant: "destructive" });
+      return;
+    }
+    if (!canSendTemplate(activeTemplate)) {
+      toast({ title: "Selected reminder is locked by sequence rules", variant: "destructive" });
       return;
     }
     setSending(true);
     try {
       const response = await axios.post(`/api/offers/${offer._id}/reminder`, {
         organization: offer.organization,
-        type: selectedType,
+        templateId: selectedTemplateId,
         subject,
         html,
         aliasId: selectedAliasId || undefined,
       });
       const isResend = Boolean(response?.data?.isResend);
-      toast({ title: isResend ? `${selectedType} resent successfully` : `${selectedType} sent successfully` });
+      const label = activeTemplate.displayName || activeTemplate.name;
+      toast({ title: isResend ? `${label} resent successfully` : `${label} sent successfully` });
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -540,18 +567,21 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {REMINDER_ORDER.map((type) => (
+            {sortedTemplates.map((template) => (
               <Button
-                key={type}
+                key={template._id}
                 type="button"
-                variant={selectedType === type ? "default" : "outline"}
-                disabled={!canSendType(type) || loadingTemplate}
+                variant={selectedTemplateId === template._id ? "default" : "outline"}
+                disabled={!canSendTemplate(template) || loadingTemplate}
                 onClick={() => {
-                  setSelectedType(type);
-                  void loadTemplate(type);
+                  setSelectedTemplateId(template._id);
+                  setSubject(template.subject ?? "");
+                  setHtml(template.html ?? "");
                 }}
               >
-                {hasSentType(type) ? `Resend ${type}` : type}
+                {hasSentTemplate(template)
+                  ? `Resend ${template.displayName || template.name}`
+                  : template.displayName || template.name}
               </Button>
             ))}
           </div>
@@ -613,7 +643,7 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
           <Button onClick={handleSend} disabled={sending || loadingTemplate || loadingAliases || !selectedAliasId}>
-            {sending ? "Sending…" : `Send ${selectedType}`}
+            {sending ? "Sending…" : `Send ${activeTemplate?.displayName || activeTemplate?.name || "Reminder"}`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -623,7 +653,8 @@ export function SendReminderDialog({ open, offer, onClose, onSuccess }: BaseDial
 
 export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDialogProps) {
   const { toast } = useToast();
-  const [selectedType, setSelectedType] = useState<RebuttalType>("REBUTTAL1");
+  const [templates, setTemplates] = useState<SalesTemplateDoc[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [aliases, setAliases] = useState<AliasOption[]>([]);
   const [selectedAliasId, setSelectedAliasId] = useState("");
   const [subject, setSubject] = useState("");
@@ -632,22 +663,27 @@ export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDial
   const [loadingAliases, setLoadingAliases] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const canSendRebuttal = offer?.leadStatus === "Reject Lead" || offer?.leadStatus === "Not Interested";
+  const canSendRebuttal = !!offer;
+  const selectedTemplate = templates.find((template) => template._id === selectedTemplateId) ?? null;
 
-  const loadTemplate = async (type: RebuttalType) => {
+  const loadTemplates = async () => {
     if (!offer) return;
     setLoadingTemplate(true);
     try {
       const res = await axios.get("/api/sales-offer/templates", {
-        params: { organization: offer.organization, type, activeOnly: true },
+        params: { organization: offer.organization, category: "REBUTTAL", activeOnly: true },
       });
-      const template = (res.data?.templates?.[0] ?? null) as SalesTemplateDoc | null;
+      const list = (res.data?.templates ?? []) as SalesTemplateDoc[];
+      setTemplates(list);
+      const template = list[0] ?? null;
       if (!template) {
         toast({ title: "No active rebuttal template found", variant: "destructive" });
+        setSelectedTemplateId("");
         setSubject("");
         setHtml("");
         return;
       }
+      setSelectedTemplateId(template._id);
       setSubject(template.subject ?? "");
       setHtml(template.html ?? "");
     } catch (_err) {
@@ -682,11 +718,16 @@ export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDial
 
   useEffect(() => {
     if (!open || !offer) return;
-    setSelectedType("REBUTTAL1");
-    void loadTemplate("REBUTTAL1");
+    void loadTemplates();
     void loadAliases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, offer?._id]);
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    setSubject(selectedTemplate.subject ?? "");
+    setHtml(selectedTemplate.html ?? "");
+  }, [selectedTemplate]);
 
   const handleSend = async () => {
     if (!offer) return;
@@ -698,11 +739,15 @@ export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDial
       toast({ title: "Subject and content are required", variant: "destructive" });
       return;
     }
+    if (!selectedTemplateId) {
+      toast({ title: "Please select a rebuttal template", variant: "destructive" });
+      return;
+    }
     setSending(true);
     try {
       await axios.post(`/api/offers/${offer._id}/rebuttal`, {
         organization: offer.organization,
-        type: selectedType,
+        templateId: selectedTemplateId,
         subject,
         html,
         aliasId: selectedAliasId || undefined,
@@ -728,18 +773,19 @@ export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDial
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {REBUTTAL_TYPES.map((type) => (
+            {templates.map((template) => (
               <Button
-                key={type}
+                key={template._id}
                 type="button"
-                variant={selectedType === type ? "default" : "outline"}
+                variant={selectedTemplateId === template._id ? "default" : "outline"}
                 disabled={loadingTemplate}
                 onClick={() => {
-                  setSelectedType(type);
-                  void loadTemplate(type);
+                  setSelectedTemplateId(template._id);
+                  setSubject(template.subject ?? "");
+                  setHtml(template.html ?? "");
                 }}
               >
-                {type}
+                {template.displayName || template.name}
               </Button>
             ))}
           </div>
@@ -801,7 +847,7 @@ export function SendRebuttalDialog({ open, offer, onClose, onSuccess }: BaseDial
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
           <Button onClick={handleSend} disabled={sending || loadingTemplate || loadingAliases || !canSendRebuttal || !selectedAliasId}>
-            {sending ? "Sending…" : `Send ${selectedType}`}
+            {sending ? "Sending…" : `Send ${selectedTemplate?.displayName || selectedTemplate?.name || "Rebuttal"}`}
           </Button>
         </DialogFooter>
       </DialogContent>

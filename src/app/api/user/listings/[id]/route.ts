@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { Property } from "@/models/listing";
+import { Properties } from "@/models/property";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 
@@ -25,7 +25,7 @@ export async function DELETE(
     }
 
     const { id } = params;
-    const deleted = await Property.findByIdAndDelete(id);
+    const deleted = await Properties.findByIdAndDelete(id);
 
     if (!deleted) {
       return NextResponse.json(

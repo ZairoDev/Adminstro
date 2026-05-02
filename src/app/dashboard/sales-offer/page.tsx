@@ -73,7 +73,7 @@ const SalesOffer = () => {
     setField("availableOn", [selectedOrg]);
   }, [selectedOrg, setField]);
 
-  useEffect(() => {
+  useEffect(() => { 
     let mounted = true;
     async function loadLead() {
       if (typeof window === "undefined") return;
@@ -97,7 +97,7 @@ const SalesOffer = () => {
       if (lead.propertyName) useSalesOfferStore.getState().setField("propertyName", lead.propertyName);
       if (lead.relation) useSalesOfferStore.getState().setField("relation", lead.relation);
     }
-    loadLead().catch(() => {});
+    loadLead().catch(() => {}); 
     return () => {
       mounted = false;
     };

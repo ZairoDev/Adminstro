@@ -1,4 +1,3 @@
-import { Property } from "@/models/listing";
 import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";

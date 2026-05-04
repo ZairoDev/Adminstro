@@ -1,7 +1,7 @@
 "use client";
 import axios from "@/util/axios";
 import { SpreadsheetTable } from "./spreadsheetTable";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import type { unregisteredOwners } from "@/util/type";
 // import type { FilteredPropertiesInterface } from "../newproperty/filteredProperties/page"
 import FilterBar, { type FiltersInterfaces } from "./FilterBar";
@@ -9,8 +9,44 @@ import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 const DEFAULT_LIMIT = 50;
+
+function SheetDataPanel({
+  isLoading,
+  total,
+  children,
+}: {
+  isLoading: boolean;
+  total: number;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <div className="relative min-h-[min(50vh,420px)]">
+        {children}
+        {isLoading && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-md bg-background/80 backdrop-blur-[1px]"
+            aria-busy="true"
+            aria-label="Loading spreadsheet data"
+          >
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Loading results…
+            </p>
+          </div>
+        )}
+      </div>
+      {!isLoading && total === 0 && (
+        <p className="text-center text-muted-foreground my-4">
+          No records found
+        </p>
+      )}
+    </>
+  );
+}
 
 const Spreadsheet = () => {
   const [data, setData] = useState<unregisteredOwners[]>([]);
@@ -25,6 +61,7 @@ const Spreadsheet = () => {
   const [selectedTab, setSelectedTab] = useState("available");
   const observerRef = useRef<HTMLDivElement | null>(null);
   const observerInstance = useRef<IntersectionObserver | null>(null);
+  const getDataAbortRef = useRef<AbortController | null>(null);
   const token = useAuthStore((state) => state.token);
 
   const role = token?.role;
@@ -61,10 +98,12 @@ const Spreadsheet = () => {
     tab: string,
     currentPage: number,
     appliedFilters?: FiltersInterfaces,
-    pageSize: number = limit
-  
+    pageSize: number = limit,
   ) => {
-    if (isLoading) return;
+    getDataAbortRef.current?.abort();
+    const controller = new AbortController();
+    getDataAbortRef.current = controller;
+
     try {
       setIsLoading(true);
       const endpoint =
@@ -77,12 +116,16 @@ const Spreadsheet = () => {
         effectiveFilters.place = parsedAllocations;
       }
 
-      const response = await axios.post(endpoint, {
-        filters: effectiveFilters,
-        page: currentPage,
-        limit: pageSize,
-        upcomingOnly: tab === "upcoming",
-      });
+      const response = await axios.post(
+        endpoint,
+        {
+          filters: effectiveFilters,
+          page: currentPage,
+          limit: pageSize,
+          upcomingOnly: tab === "upcoming",
+        },
+        { signal: controller.signal },
+      );
 
       const newData = Array.isArray(response.data.data)
         ? response.data.data
@@ -90,10 +133,14 @@ const Spreadsheet = () => {
 
       setData(newData);
       setTotal(response.data.total || 0);
-    } catch (error) {
+    } catch (error: unknown) {
+      if (controller.signal.aborted) return;
       console.error("Failed to fetch data:", error);
     } finally {
-      setIsLoading(false);
+      if (getDataAbortRef.current === controller) {
+        setIsLoading(false);
+        getDataAbortRef.current = null;
+      }
     }
   };
 
@@ -182,19 +229,16 @@ const Spreadsheet = () => {
               filters={filters}
               setFilters={setFilters}
               selectedTab={selectedTab}
+              isDataLoading={isLoading}
             />
-            <SpreadsheetTable
-              tableData={data}
-              setTableData={setData}
-              {...({ serialOffset } as any)}
-              onAvailabilityChange={handleAvailabilityChange}
-            />
-            {isLoading && <p className="text-center mt-4">Loading...</p>}
-            {!isLoading && total === 0 && (
-              <p className="text-center text-muted-foreground my-2">
-                No records found
-              </p>
-            )}
+            <SheetDataPanel isLoading={isLoading} total={total}>
+              <SpreadsheetTable
+                tableData={data}
+                setTableData={setData}
+                {...({ serialOffset } as any)}
+                onAvailabilityChange={handleAvailabilityChange}
+              />
+            </SheetDataPanel>
             {/* <div className="flex items-center justify-between mt-4 gap-4">
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">Rows per page:</label>
@@ -222,19 +266,16 @@ const Spreadsheet = () => {
               filters={filters}
               setFilters={setFilters}
               selectedTab={selectedTab}
+              isDataLoading={isLoading}
             />
-            <SpreadsheetTable
-              tableData={data}
-              setTableData={setData}
-              {...({ serialOffset } as any)}
-              onAvailabilityChange={handleAvailabilityChange}
-            />
-            {isLoading && <p className="text-center mt-4">Loading...</p>}
-            {!isLoading && total === 0 && (
-              <p className="text-center text-muted-foreground my-2">
-                No records found
-              </p>
-            )}
+            <SheetDataPanel isLoading={isLoading} total={total}>
+              <SpreadsheetTable
+                tableData={data}
+                setTableData={setData}
+                {...({ serialOffset } as any)}
+                onAvailabilityChange={handleAvailabilityChange}
+              />
+            </SheetDataPanel>
             <div className="flex items-center justify-between mt-4 gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-muted-foreground">
@@ -264,19 +305,16 @@ const Spreadsheet = () => {
               filters={filters}
               setFilters={setFilters}
               selectedTab={selectedTab}
+              isDataLoading={isLoading}
             />
-            <SpreadsheetTable
-              tableData={data}
-              setTableData={setData}
-              {...({ serialOffset } as any)}
-              onAvailabilityChange={handleAvailabilityChange}
-            />
-            {isLoading && <p className="text-center mt-4">Loading...</p>}
-            {!isLoading && total === 0 && (
-              <p className="text-center text-muted-foreground my-2">
-                No records found
-              </p>
-            )}
+            <SheetDataPanel isLoading={isLoading} total={total}>
+              <SpreadsheetTable
+                tableData={data}
+                setTableData={setData}
+                {...({ serialOffset } as any)}
+                onAvailabilityChange={handleAvailabilityChange}
+              />
+            </SheetDataPanel>
             <div className="flex items-center justify-between mt-4 gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-muted-foreground">

@@ -1370,6 +1370,7 @@ export default function GeoSearchPage() {
                   filters={filters}
                   setFilters={setFilters}
                   selectedTab={selectedTab}
+                  isDataLoading={isSearching}
                 />
               </div>
               <div className="overflow-x-auto">
@@ -1414,6 +1415,7 @@ export default function GeoSearchPage() {
                   filters={filters}
                   setFilters={setFilters}
                   selectedTab={selectedTab}
+                  isDataLoading={isSearching}
                 />
               </div>
               <div className="overflow-x-auto">

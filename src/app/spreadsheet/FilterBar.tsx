@@ -16,7 +16,16 @@ import { Popover,PopoverContent,PopoverTrigger,} from "@/components/ui/popover";
 
 import axios from "@/util/axios";
 import { DateRange } from "react-day-picker";
-import { X, Search, Star, Pin, Euro, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  X,
+  Search,
+  Star,
+  Pin,
+  Euro,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+} from "lucide-react";
 
 import { useAuthStore } from "@/AuthStore";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
@@ -26,6 +35,8 @@ interface PageProps {
   filters: FiltersInterfaces;
   setFilters: React.Dispatch<React.SetStateAction<FiltersInterfaces>>;
   selectedTab: string;
+  /** True while the sheet is fetching rows for the current filters. */
+  isDataLoading?: boolean;
 }
 interface TargetType {
   _id: string;
@@ -268,7 +279,12 @@ const getSearchTypeIcon = (type: string): string => {
   }
 };
 
-const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
+const FilterBar = ({
+  filters,
+  setFilters,
+  selectedTab,
+  isDataLoading = false,
+}: PageProps) => {
   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
   const [locationws, setLocationws] = useState<string[]>([]);
   const [targets, setTargets] = useState<TargetType[]>([]);
@@ -296,11 +312,11 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
   const handleSearch = useCallback(async () => {
     if (!localSearchValue.trim()) {
       // Clear search if empty
-      setFilters({
-        ...filters,
+      setFilters((prev) => ({
+        ...prev,
         searchType: "",
         searchValue: "",
-      });
+      }));
       return;
     }
 
@@ -320,17 +336,17 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
     }
 
     // Update filters with searchType, searchValue, and search strategy
-    setFilters({
-      ...filters,
+    setFilters((prev) => ({
+      ...prev,
       searchType: backendSearchType,
       searchValue: localSearchValue.trim(),
       // You might want to pass the search strategy to backend
       // searchStrategy: detection.searchStrategy
-    });
+    }));
 
     // Reset searching state after a brief delay
     setTimeout(() => setIsSearching(false), 500);
-  }, [localSearchValue, filters, setFilters]);
+  }, [localSearchValue, setFilters]);
 
   // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -358,11 +374,11 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
   const handleClearSearch = () => {
     setLocalSearchValue("");
     setDetectionResult(null);
-    setFilters({
-      ...filters,
+    setFilters((prev) => ({
+      ...prev,
       searchType: "",
       searchValue: "",
-    });
+    }));
   };
 
   // Sync local search value with filters
@@ -577,62 +593,64 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
   const activeFilters = getActiveFilters();
 
   const removeFilter = (key: string) => {
-
-     if (key.startsWith("area-")) {
-    const areaToRemove = key.replace("area-", "");
-    setFilters({
-      ...filters,
-      area: filters.area.filter((a) => a !== areaToRemove),
-    });
-    return; // ✅ Important: return early to skip the switch statement
-  }
-
-    const updatedFilters = { ...filters };
-
-    switch (key) {
-      case "search":
-        updatedFilters.searchType = "";
-        updatedFilters.searchValue = "";
-        setLocalSearchValue("");
-        setDetectionResult(null);
-        break;
-      case "propertyType":
-        updatedFilters.propertyType = "";
-        break;
-      case "place":
-        updatedFilters.place = [];
-        break;
-      // case "area":
-      //   updatedFilters.area = [];
-      //   break;
-      case "zone":
-        updatedFilters.zone = "";
-        break;
-      case "metroZone":
-        updatedFilters.metroZone = "";
-        break;
-      case "minPrice":
-        updatedFilters.minPrice = null;
-        break;
-      case "maxPrice":
-        updatedFilters.maxPrice = null;
-        break;
-      case "sortByPrice":
-        updatedFilters.sortByPrice = "";
-        break;
-      case "beds":
-        updatedFilters.beds = 0;
-        break;
-      case "isImportant":
-        updatedFilters.isImportant = false;
-        break;
-      case "isPinned":
-        updatedFilters.isPinned = false;
-      default:
-        break;
+    if (key.startsWith("area-")) {
+      const areaToRemove = key.replace("area-", "");
+      setFilters((prev) => ({
+        ...prev,
+        area: prev.area.filter((a) => a !== areaToRemove),
+      }));
+      return;
     }
 
-    setFilters(updatedFilters);
+    if (key === "search") {
+      setLocalSearchValue("");
+      setDetectionResult(null);
+    }
+
+    setFilters((prev) => {
+      const updatedFilters = { ...prev };
+
+      switch (key) {
+        case "search":
+          updatedFilters.searchType = "";
+          updatedFilters.searchValue = "";
+          break;
+        case "propertyType":
+          updatedFilters.propertyType = "";
+          break;
+        case "place":
+          updatedFilters.place = [];
+          break;
+        case "zone":
+          updatedFilters.zone = "";
+          break;
+        case "metroZone":
+          updatedFilters.metroZone = "";
+          break;
+        case "minPrice":
+          updatedFilters.minPrice = null;
+          break;
+        case "maxPrice":
+          updatedFilters.maxPrice = null;
+          break;
+        case "sortByPrice":
+          updatedFilters.sortByPrice = "";
+          break;
+        case "beds":
+          updatedFilters.beds = 0;
+          break;
+        case "isImportant":
+          updatedFilters.isImportant = false;
+          break;
+        case "isPinned":
+          updatedFilters.isPinned = false;
+          break;
+        default:
+          break;
+      }
+
+      return updatedFilters;
+    });
   };
 
   const clearAllFilters = () => {
@@ -652,12 +670,27 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
       beds: 0,
       dateRange: undefined,
       isImportant: false,
+      isPinned: false,
     });
   };
 
   return (
-    <div className="flex flex-col">
-      <div className="  bg-background">
+    <div className="flex flex-col gap-0">
+      {isDataLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-primary border-b border-primary/20 bg-primary/5"
+        >
+          <Loader2
+            className="h-4 w-4 shrink-0 animate-spin"
+            aria-hidden
+          />
+          <span>Applying filters…</span>
+        </div>
+      )}
+      <div className="bg-background">
         <div className="flex flex-wrap items-center gap-2 p-2">
           {/* Enhanced Smart Search Box */}
           <div className="relative flex items-center">
@@ -733,7 +766,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
           <Select
             value={filters.propertyType}
             onValueChange={(value) =>
-              setFilters({ ...filters, propertyType: value })
+              setFilters((prev) => ({ ...prev, propertyType: value }))
             }
           >
             <SelectTrigger className="w-44 h-9">
@@ -762,7 +795,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
 
           <Select
             onValueChange={(value) => {
-              setFilters({ ...filters, place: value ? [value] : [] });
+              setFilters((prev) => ({
+                ...prev,
+                place: value ? [value] : [],
+              }));
             }}
             value={filters.place.length > 0 ? filters.place[0] : ""}
           >
@@ -815,14 +851,16 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
                 }))}
               values={Array.isArray(filters.area) ? filters.area : []}
               save={(newValues: string[]) =>
-                setFilters({ ...filters, area: newValues })
+                setFilters((prev) => ({ ...prev, area: newValues }))
               }
               tooltipText="Select one or more areas"
             />
           </div>
 
          <Select
-  onValueChange={(value) => setFilters({ ...filters, zone: value })}
+  onValueChange={(value) =>
+    setFilters((prev) => ({ ...prev, zone: value }))
+  }
   value={filters.zone}
 >
   <SelectTrigger
@@ -920,7 +958,7 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
 
           <Select
             onValueChange={(value) =>
-              setFilters({ ...filters, metroZone: value })
+              setFilters((prev) => ({ ...prev, metroZone: value }))
             }
             value={filters.metroZone}
           >
@@ -975,10 +1013,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
                     value={filters.minPrice === null ? "" : filters.minPrice}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setFilters({
-                        ...filters,
+                      setFilters((prev) => ({
+                        ...prev,
                         minPrice: value === "" ? null : parseInt(value, 10),
-                      });
+                      }));
                     }}
                     type="number"
                     placeholder="0"
@@ -992,10 +1030,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
                     value={filters.maxPrice === null ? "" : filters.maxPrice}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setFilters({
-                        ...filters,
+                      setFilters((prev) => ({
+                        ...prev,
                         maxPrice: value === "" ? null : parseInt(value, 10),
-                      });
+                      }));
                     }}
                     type="number"
                     placeholder="0"
@@ -1016,15 +1054,15 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
         : "text-gray-600 border-gray-400 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
     }`}
             onClick={() => {
-              setFilters({
-                ...filters,
+              setFilters((prev) => ({
+                ...prev,
                 sortByPrice:
-                  filters.sortByPrice === "asc"
+                  prev.sortByPrice === "asc"
                     ? "desc"
-                    : filters.sortByPrice === "desc"
-                    ? ""
-                    : "asc",
-              });
+                    : prev.sortByPrice === "desc"
+                      ? ""
+                      : "asc",
+              }));
             }}
           >
             {filters.sortByPrice === "asc" ? (
@@ -1054,10 +1092,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
         : "text-yellow-500 border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900"
     }`}
             onClick={() => {
-              setFilters({
-                ...filters,
-                isImportant: !filters.isImportant,
-              });
+              setFilters((prev) => ({
+                ...prev,
+                isImportant: !prev.isImportant,
+              }));
             }}
           >
             <Star
@@ -1080,10 +1118,10 @@ const FilterBar = ({ filters, setFilters, selectedTab }: PageProps) => {
         : "text-red-500 border-red-500 hover:bg-blue-50 dark:hover:bg-red-900"
     }`}
             onClick={() => {
-              setFilters({
-                ...filters,
-                isPinned: !filters.isPinned,
-              });
+              setFilters((prev) => ({
+                ...prev,
+                isPinned: !prev.isPinned,
+              }));
             }}
           >
             <Pin

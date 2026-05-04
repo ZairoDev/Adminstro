@@ -106,7 +106,7 @@ export async function POST(request: Request) {
           : "-";
 
       console.log("data:", data);
-      const mongoIds: string[] = [];
+      const mongoIds: string[] = [];  
       const propertyIds: string[] = [];
       const commonId = generateCommonId(7);
 

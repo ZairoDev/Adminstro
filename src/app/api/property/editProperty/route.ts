@@ -5,6 +5,16 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
+/** Accepts numbers or numeric strings (e.g. inputs); strips thousands separators. */
+function parseNumericField(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = Number(value.replace(/,/g, "").trim());
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     // Authenticate request
@@ -44,14 +54,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // ====================================
     // 🔥 AUTO-MERGE UPLOADED IMAGES
     // ====================================
-    const incomingImages = propertyData.propertyImages ?? [];
-    const incomingPics = propertyData.propertyPictureUrls ?? [];
+    const incomingImages = Array.isArray(propertyData.propertyImages)
+      ? propertyData.propertyImages
+      : [];
+    const incomingPics = Array.isArray(propertyData.propertyPictureUrls)
+      ? propertyData.propertyPictureUrls
+      : [];
+    const existingImages = Array.isArray(existing.propertyImages)
+      ? existing.propertyImages
+      : [];
+    const existingPics = Array.isArray(existing.propertyPictureUrls)
+      ? existing.propertyPictureUrls
+      : [];
 
     let mergedImages = Array.from(
-      new Set([...existing.propertyImages, ...incomingImages])
+      new Set([...existingImages, ...incomingImages])
     ).filter(Boolean);
     let mergedPics = Array.from(
-      new Set([...existing.propertyPictureUrls, ...incomingPics])
+      new Set([...existingPics, ...incomingPics])
     ).filter(Boolean);
 
     // ====================================
@@ -120,20 +140,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // PRICING FIELDS
     // ---------------------------
     if (propertyData.basePrice !== undefined) {
-      updateData.basePrice = Number(propertyData.basePrice) || 0;
+      updateData.basePrice = parseNumericField(propertyData.basePrice);
     }
 
     if (propertyData.basePriceLongTerm !== undefined) {
-      updateData.basePriceLongTerm =
-        Number(propertyData.basePriceLongTerm) || 0;
+      updateData.basePriceLongTerm = parseNumericField(
+        propertyData.basePriceLongTerm,
+      );
+    }
+
+    if (propertyData.weekendPrice !== undefined) {
+      updateData.weekendPrice = parseNumericField(propertyData.weekendPrice);
     }
 
     if (propertyData.weeklyDiscount !== undefined) {
-      updateData.weeklyDiscount = Number(propertyData.weeklyDiscount) || 0;
+      updateData.weeklyDiscount = parseNumericField(
+        propertyData.weeklyDiscount,
+      );
     }
 
     if (propertyData.monthlyDiscount !== undefined) {
-      updateData.monthlyDiscount = Number(propertyData.monthlyDiscount) || 0;
+      updateData.monthlyDiscount = parseNumericField(
+        propertyData.monthlyDiscount,
+      );
     }
 
     // ---------------------------
@@ -182,7 +211,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       updateData.country = propertyData.country;
     }
 
-    if (propertyData.center !== undefined) {
+    if (
+      propertyData.center !== undefined &&
+      propertyData.center !== null &&
+      typeof propertyData.center === "object" &&
+      "lat" in propertyData.center &&
+      "lng" in propertyData.center
+    ) {
       updateData.center = {
         lat: Number(propertyData.center.lat) || 0,
         lng: Number(propertyData.center.lng) || 0,
@@ -326,14 +361,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const currentDate = new Date().toISOString();
 
     // Prepare update tracking
-    const lastUpdatedBy = existing.lastUpdatedBy || [];
-    const lastUpdates = existing.lastUpdates || [];
+    const lastUpdatedBy = Array.isArray(existing.lastUpdatedBy)
+      ? [...existing.lastUpdatedBy]
+      : [];
+    const priorUpdates = Array.isArray(existing.lastUpdates)
+      ? [...existing.lastUpdates]
+      : [];
+    // Schema is [[String]]; older saves may have pushed plain strings (invalid rows).
+    const lastUpdates: string[][] = priorUpdates.flatMap((row: unknown) => {
+      if (Array.isArray(row)) return [row as string[]];
+      if (typeof row === "string") return [[row]];
+      return [];
+    });
 
     lastUpdatedBy.push(propertyData.updatedBy || "Admin");
-    lastUpdates.push(currentDate);
+    lastUpdates.push([currentDate]);
 
     updateData.lastUpdatedBy = lastUpdatedBy;
     updateData.lastUpdates = lastUpdates;
+
+    // Never $set immutable / server-owned fields (MongoDB errors on _id; timestamps should stay server-driven).
+    delete updateData._id;
+    delete updateData.__v;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
 
     // ====================================
     // 💾 SAVE UPDATED PROPERTY

@@ -1028,9 +1028,12 @@ const PortionDetailsPage = ({ params }: PageProps) => {
                               <Label>Last Updated At</Label>
                               <Input
                                 disabled
-                                defaultValue={propertyData[
-                                  selectedPortion
-                                ]?.lastUpdates.at(-1)}
+                                defaultValue={
+                                  propertyData[selectedPortion]?.lastUpdates
+                                    ?.at(-1)
+                                    ?.at(-1) ??
+                                  ""
+                                }
                                 className="bg-muted"
                               />
                               <p className="text-xs text-muted-foreground mt-1">

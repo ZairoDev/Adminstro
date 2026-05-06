@@ -10,6 +10,8 @@ import axios from "@/util/axios";
 import { from } from "form-data";
 import Visits from "@/models/visit";
 import { MonthlyTarget } from "@/models/monthlytarget";
+import { MonthlyPerformanceTarget } from "@/models/monthlyPerformanceTarget";
+import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
@@ -860,7 +862,7 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
       { $match: { createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
       {
         $group: {
-          _id: { $toLower: "$location" },
+          _id: { $toLower: { $trim: { input: "$location" } } },
           monthCount: { $sum: 1 },
         },
       },
@@ -872,7 +874,7 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
       { $match: { createdAt: { $gte: startOfToday, $lte: endOfToday } } },
       {
         $group: {
-          _id: { $toLower: "$location" },
+          _id: { $toLower: { $trim: { input: "$location" } } },
           todayCount: { $sum: 1 },
         },
       },
@@ -884,7 +886,7 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
       },
       {
         $group: {
-          _id: { $toLower: "$location" },
+          _id: { $toLower: { $trim: { input: "$location" } } },
           yesterdayCount: { $sum: 1 },
         },
       },
@@ -909,22 +911,58 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
       )
     : {};
 
-  const monthlyTargets = await MonthlyTarget.find({}).lean();
+  const monthlyTargets = await MonthlyPerformanceTarget.find({
+    month: month + 1,
+    year,
+  }).lean();
+  const legacyTargets = await MonthlyTarget.find({
+    month: { $exists: false },
+  }).lean();
 
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const dayToday = today.getUTCDate();
   const daysPassed = isCurrentMonth ? dayToday : daysInMonth;
 
-  const visits = monthlyTargets.map((mt) => {
-    const loc = mt.city.toLowerCase();
-    const target = mt.leads;
+  const targetByCity = new Map<
+    string,
+    { city: string; leads: number; visits: number; sales: number; cityKey?: string }
+  >();
+
+  legacyTargets.forEach((target) => {
+    const city = toDisplayCity(target.city || "");
+    const cityKey = normalizeCityKey(city);
+    if (!city || targetByCity.has(cityKey)) return;
+    targetByCity.set(cityKey, {
+      city,
+      cityKey,
+      leads: target.leads || 0,
+      visits: target.visits || 0,
+      sales: target.sales || 0,
+    });
+  });
+
+  monthlyTargets.forEach((mt) => {
+    const cityKey = mt.cityKey || normalizeCityKey(mt.city || "");
+    // Current-month monthly targets take precedence over legacy defaults
+    targetByCity.set(cityKey, {
+      city: toDisplayCity(mt.city || ""),
+      cityKey,
+      leads: mt.leads || 0,
+      visits: mt.visits || 0,
+      sales: mt.sales || 0,
+    });
+  });
+
+  const visits = Array.from(targetByCity.values()).map((mt) => {
+    const loc = mt.cityKey || normalizeCityKey(mt.city || "");
+    const target = mt.leads || 0;
     const achieved = monthMap[loc] || 0;
 
     const dailyRequired = Math.ceil(target / daysInMonth);
     const currentAvg = (achieved / daysPassed).toFixed(2);
 
     return {
-      location: mt.city,
+      location: toDisplayCity(mt.city || ""),
       target,
       achieved,
       today: todayMap[loc] || 0,
@@ -1058,7 +1096,7 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
       { $unwind: "$leadInfo" },
       {
         $group: {
-          _id: { $toLower: "$leadInfo.location" },
+          _id: { $toLower: { $trim: { input: "$leadInfo.location" } } },
           monthCount: { $sum: 1 },
         },
       },
@@ -1080,7 +1118,7 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
       { $unwind: "$leadInfo" },
       {
         $group: {
-          _id: { $toLower: "$leadInfo.location" },
+          _id: { $toLower: { $trim: { input: "$leadInfo.location" } } },
           todayCount: { $sum: 1 },
         },
       },
@@ -1101,7 +1139,7 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
       { $unwind: "$leadInfo" },
       {
         $group: {
-          _id: { $toLower: "$leadInfo.location" },
+          _id: { $toLower: { $trim: { input: "$leadInfo.location" } } },
           yesterdayCount: { $sum: 1 },
         },
       },
@@ -1136,13 +1174,49 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
   // ----------------------------
   // Get monthly targets
   // ----------------------------
-  const monthlyTargets = await MonthlyTarget.find({}).lean();
+  const monthlyTargets = await MonthlyPerformanceTarget.find({
+    month: referenceDate.getMonth() + 1,
+    year: referenceDate.getFullYear(),
+  }).lean();
+  const legacyTargets = await MonthlyTarget.find({
+    month: { $exists: false },
+  }).lean();
 
   // ----------------------------
   // Merge and calculate stats
   // ----------------------------
-  const visits = monthlyTargets.map((mt) => {
-    const loc = mt.city.toLowerCase();
+  const targetByCity = new Map<
+    string,
+    { city: string; leads: number; visits: number; sales: number; cityKey?: string }
+  >();
+
+  legacyTargets.forEach((target) => {
+    const city = toDisplayCity(target.city || "");
+    const cityKey = normalizeCityKey(city);
+    if (!city || targetByCity.has(cityKey)) return;
+    targetByCity.set(cityKey, {
+      city,
+      cityKey,
+      leads: target.leads || 0,
+      visits: target.visits || 0,
+      sales: target.sales || 0,
+    });
+  });
+
+  monthlyTargets.forEach((mt) => {
+    const cityKey = mt.cityKey || normalizeCityKey(mt.city || "");
+    // Current-month monthly targets take precedence over legacy defaults
+    targetByCity.set(cityKey, {
+      city: toDisplayCity(mt.city || ""),
+      cityKey,
+      leads: mt.leads || 0,
+      visits: mt.visits || 0,
+      sales: mt.sales || 0,
+    });
+  });
+
+  const visits = Array.from(targetByCity.values()).map((mt) => {
+    const loc = mt.cityKey || normalizeCityKey(mt.city || "");
     const target = mt.visits || 0;
     const achieved = monthMap[loc] || 0;
     const todayCount = todayMap[loc] || 0;
@@ -1155,7 +1229,7 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
       target > 0 ? ((achieved / target) * 100).toFixed(2) : "0";
 
     return {
-      location: mt.city,
+      location: toDisplayCity(mt.city || ""),
       target,
       achieved,
       today: todayCount,
@@ -1738,7 +1812,10 @@ export const getLocationWeeklyTargets = async ({
   // ---------------------------------
   // 📊 Fetch ALL Location Targets
   // ---------------------------------
-  const monthlyTargets = await MonthlyTarget.find({}).lean();
+  const monthlyTargets = await MonthlyPerformanceTarget.find({
+    month: month + 1,
+    year,
+  }).lean();
 
   if (!monthlyTargets || monthlyTargets.length === 0) {
     return {
@@ -2061,13 +2138,18 @@ export const getWeeklyTargetStats = async ({
   let locationName = "All Locations";
 
   if (location) {
-    const target = (await MonthlyTarget.findOne({
-      city: location,
+    const target = (await MonthlyPerformanceTarget.findOne({
+      cityKey: normalizeCityKey(location),
+      month: month + 1,
+      year,
     }).lean()) as any;
     monthlyTarget = target?.sales || 0;
     locationName = location;
   } else {
-    const allTargets = await MonthlyTarget.find({}).lean();
+    const allTargets = await MonthlyPerformanceTarget.find({
+      month: month + 1,
+      year,
+    }).lean();
     monthlyTarget = allTargets.reduce((sum, t) => sum + (t.sales || 0), 0);
   }
 
@@ -2207,8 +2289,17 @@ export const getWeeklyTargetStats = async ({
 // ---------------------------------
 export const getAvailableLocations = async (): Promise<string[]> => {
   await connectDb();
-  const targets = await MonthlyTarget.find({}).lean();
-  return targets.map((t) => t.city).filter(Boolean);
+  const targets = await MonthlyTarget.find({ month: { $exists: false } }).lean();
+  const unique = new Map<string, string>();
+  targets.forEach((target) => {
+    const city = toDisplayCity(target.city || "");
+    if (!city) return;
+    const cityKey = normalizeCityKey(city);
+    if (!unique.has(cityKey)) {
+      unique.set(cityKey, city);
+    }
+  });
+  return Array.from(unique.values());
 };
 
 

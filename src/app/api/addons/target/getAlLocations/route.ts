@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-      const res = await MonthlyTarget.find({}, { area: 1, city:1 })
+      const res = await MonthlyTarget.find({ month: { $exists: false } }, { area: 1, city:1 })
       // console.log("val: ", res);
       return NextResponse.json({ data: res }, { status: 200 });
     }

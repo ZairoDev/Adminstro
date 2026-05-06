@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
+import { MonthlyTargetGate } from "@/components/monthly-target/MonthlyTargetGate";
 
 export default function DashboardLayout({
   children,
@@ -136,7 +137,9 @@ export default function DashboardLayout({
         </div>
         <div>
           <div>
-            <div className="pb-16 lg:pb-0">{children}</div>
+            <div className="pb-16 lg:pb-0">
+              <MonthlyTargetGate>{children}</MonthlyTargetGate>
+            </div>
           </div>
         </div>
       </main>

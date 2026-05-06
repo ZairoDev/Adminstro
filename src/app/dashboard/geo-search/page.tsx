@@ -1372,7 +1372,7 @@ export default function GeoSearchPage() {
                   selectedTab={selectedTab}
                   isDataLoading={isSearching}
                 />
-              </div>
+              </div>  
               <div className="overflow-x-auto">
                 <SpreadsheetTable
                   tableData={tableData}

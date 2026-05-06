@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   await connectDb();
   try {
     await getDataFromToken(request);
-    const targets = await MonthlyTarget.find().lean();
+    // Only return location config records (legacy records without month/year)
+    const targets = await MonthlyTarget.find({ month: { $exists: false } }).lean();
     const areas = await Area.find({},{city:1,name:1}).lean();
 
     

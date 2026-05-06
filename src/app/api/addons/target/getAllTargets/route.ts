@@ -3,20 +3,34 @@ export const dynamic = "force-dynamic";
 
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { Area } from "@/models/area";
+import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import { connectDb } from "@/util/db";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   await connectDb();
   try {
-    const targets = await MonthlyTarget.find().lean();
+    // Only return location config records (legacy records without month/year)
+    const targets = await MonthlyTarget.find({ month: { $exists: false } }).lean();
     const areas = await Area.find().lean();
 
-    // Merge targets with their matching areas based on city field
-    const result = targets.map((target) => {
-      const matchingAreas = areas.filter((a) => a.city === target.city);
+    const targetByCity = new Map<string, (typeof targets)[number]>();
+    targets.forEach((target) => {
+      const cityKey = normalizeCityKey(target.city || "");
+      if (!targetByCity.has(cityKey)) {
+        targetByCity.set(cityKey, target);
+      }
+    });
+
+    // Merge targets with their matching areas based on normalized city field
+    const result = Array.from(targetByCity.values()).map((target) => {
+      const targetCityKey = normalizeCityKey(target.city || "");
+      const matchingAreas = areas.filter(
+        (a) => normalizeCityKey(String(a.city || "")) === targetCityKey
+      );
       return {
         ...target,
+        city: toDisplayCity(target.city || ""),
         areas: matchingAreas, // all areas for this target's city
       };
     });

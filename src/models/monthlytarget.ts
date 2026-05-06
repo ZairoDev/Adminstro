@@ -13,6 +13,10 @@ const targetSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     area: [{ type: mongoose.Schema.Types.ObjectId, ref: "Area" }],
     leads: { type: Number, required: true },
     visits: { type: Number, required: true },

@@ -96,7 +96,8 @@ export default function TargetPage() {
       const response = await axios.get("/api/addons/target/getAllTargets");
 
       // response.data.data = list of targets with an areas[] array attached
-      const sortedData: CityData[] = response.data.data.sort(
+      console.log(response?.data?.data);  
+      const sortedData: CityData[] = (response?.data?.data ?? []).sort(
         (a: CityData, b: CityData) => a.country.localeCompare(b.country)
       );
 

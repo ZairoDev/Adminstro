@@ -15,6 +15,19 @@ function parseNumericField(value: unknown): number {
   return 0;
 }
 
+function keepExistingIfBlank(
+  incomingValue: unknown,
+  existingValue: unknown,
+): unknown {
+  if (typeof incomingValue === "string" && incomingValue.trim() === "") {
+    return existingValue;
+  }
+  if (incomingValue === null || incomingValue === undefined) {
+    return existingValue;
+  }
+  return incomingValue;
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     // Authenticate request
@@ -379,6 +392,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     updateData.lastUpdatedBy = lastUpdatedBy;
     updateData.lastUpdates = lastUpdates;
+   // Preserve required identity fields when legacy rows/frontends send blank values.
+    updateData.email = keepExistingIfBlank(updateData.email, existing.email);
+    updateData.userId = keepExistingIfBlank(updateData.userId, existing.userId);
 
     // Never $set immutable / server-owned fields (MongoDB errors on _id; timestamps should stay server-driven).
     delete updateData._id;

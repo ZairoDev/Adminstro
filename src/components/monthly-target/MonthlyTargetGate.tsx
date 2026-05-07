@@ -6,19 +6,22 @@ import { TargetSetupModal } from "./TargetSetupModal";
 import { useAuthStore } from "@/AuthStore";
 import axios from "@/util/axios";
 
-interface MonthlyTargetData {
+export interface MonthlyTargetRow {
   city: string;
   cityKey: string;
   leads: number;
   visits: number;
   sales: number;
+  leadsConfigured: boolean;
+  visitsConfigured: boolean;
+  salesConfigured: boolean;
   month: number;
   year: number;
 }
 
 interface CurrentTargetResponse {
   hasTarget: boolean;
-  existingTargetsByCity: MonthlyTargetData[];
+  existingTargetsByCity: MonthlyTargetRow[];
   availableCities: string[];
   editableFields: Array<"leads" | "visits" | "sales">;
   currentMonth: number;
@@ -35,7 +38,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
   const { token } = useAuthStore();
   const [status, setStatus] = useState<GateStatus>("loading");
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [existingTargetsByCity, setExistingTargetsByCity] = useState<MonthlyTargetData[]>([]);
+  const [existingTargetsByCity, setExistingTargetsByCity] = useState<MonthlyTargetRow[]>([]);
   const [editableFields, setEditableFields] = useState<Array<"leads" | "visits" | "sales">>([]);
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
@@ -49,14 +52,20 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
     try {
       const { data } = await axios.get<CurrentTargetResponse>("/api/monthly-target/current");
       setAvailableCities(data.availableCities ?? []);
-      setExistingTargetsByCity(data.existingTargetsByCity ?? []);
+      // Preserve *Configured booleans — ensure they are real booleans even if API omits them
+      setExistingTargetsByCity(
+        (data.existingTargetsByCity ?? []).map((t) => ({
+          ...t,
+          leadsConfigured: Boolean(t.leadsConfigured),
+          visitsConfigured: Boolean(t.visitsConfigured),
+          salesConfigured: Boolean(t.salesConfigured),
+        }))
+      );
       setEditableFields(data.editableFields ?? []);
       setCurrentMonth(data.currentMonth);
       setCurrentYear(data.currentYear);
-      // Only SuperAdmin/TeamLeads are gated. Employees can continue normally.
       setStatus(!requiresMonthlyTargets || data.hasTarget ? "allowed" : "blocked");
     } catch {
-      // On auth failure the middleware will redirect; treat other errors as blocked
       setStatus(requiresMonthlyTargets ? "blocked" : "allowed");
     }
   }, [requiresMonthlyTargets]);
@@ -66,7 +75,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
     checkTarget();
   }, [token, checkTarget]);
 
-  // Re-run when the calendar month changes (e.g. user stays logged in past midnight on 1st)
+  // Re-run when the calendar month changes
   useEffect(() => {
     const intervalId = setInterval(() => {
       const now = new Date();
@@ -77,8 +86,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
         setCurrentYear(year);
         checkTarget();
       }
-    }, 60_000); // check every minute
-
+    }, 60_000);
     return () => clearInterval(intervalId);
   }, [currentMonth, currentYear, checkTarget]);
 

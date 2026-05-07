@@ -58,14 +58,28 @@ export async function GET(req: NextRequest) {
       leads: target.leads ?? 0,
       visits: target.visits ?? 0,
       sales: target.sales ?? 0,
+      leadsConfigured: Boolean(target.leadsConfigured),
+      visitsConfigured: Boolean(target.visitsConfigured),
+      salesConfigured: Boolean(target.salesConfigured),
       month: target.month,
       year: target.year,
     }));
 
-    const existingTargetKeys = new Set(existingTargetsByCity.map((target) => target.cityKey));
+    const existingByKey = new Map(existingTargetsByCity.map((target) => [target.cityKey, target]));
     const requiredKeys = scopedCities.map((city) => normalizeCityKey(city));
+
+    // Completion rules:
+    // - For TeamLeads: presence of a monthly record per city is enough
+    // - For SuperAdmin: require visits+sales to be set (>0) for each city (since LeadGen TL may only fill leads)
     const hasTarget =
-      requiredKeys.length > 0 && requiredKeys.every((cityKey) => existingTargetKeys.has(cityKey));
+      requiredKeys.length > 0 &&
+      requiredKeys.every((cityKey) => {
+        const existing = existingByKey.get(cityKey);
+        if (!existing) return false;
+        if (role !== "SuperAdmin") return true;
+        // SuperAdmin completion requires explicit configuration of visits + sales (0 is allowed)
+        return Boolean(existing.visitsConfigured) && Boolean(existing.salesConfigured);
+      });
 
     return NextResponse.json(
       {

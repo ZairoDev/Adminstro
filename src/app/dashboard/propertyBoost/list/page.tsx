@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Loader2,
@@ -94,7 +94,7 @@ export default function BoostPropertiesPage() {
     return new Date(lastReboostedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000;
   };
 
-  const fetchProperties = async (targetPage: number) => {
+  const fetchProperties = useCallback(async (targetPage: number) => {
     try {
       setLoading(true);
       const res = await axios.get("/api/propertyBoost", {
@@ -102,6 +102,8 @@ export default function BoostPropertiesPage() {
           page: targetPage,
           limit: PAGE_SIZE,
           sort: sortBy === "createdFirst" ? "-createdAt" : "-lastReboostedAt",
+          searchTerm: searchTerm.trim(),
+          searchFilter,
           createdBy: createdByValue,
           propertyType: propertyTypeValue,
           propertyLocation: locationValue,
@@ -126,7 +128,7 @@ export default function BoostPropertiesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [createdByValue, date?.from, date?.to, furnishingValue, locationValue, propertyTypeValue, searchFilter, searchTerm, sortBy]);
 
   useEffect(() => {
     axios.get("/api/employee/getSalesEmployee")
@@ -136,12 +138,26 @@ export default function BoostPropertiesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [createdByValue, propertyTypeValue, locationValue, furnishingValue, date?.from, date?.to, sortBy]);
+  }, [createdByValue, propertyTypeValue, locationValue, furnishingValue, date?.from, date?.to, sortBy, searchFilter, searchTerm]);
 
   useEffect(() => {
     fetchProperties(page);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, createdByValue, propertyTypeValue, locationValue, furnishingValue, date, sortBy]);
+  }, [fetchProperties, page]);
+
+  // Debounced search: when you're already on page 1, changing the search term
+  // won't trigger a new fetch via setPage(1). This ensures we still call the DB.
+  useEffect(() => {
+    const q = searchTerm.trim();
+    const handle = window.setTimeout(() => {
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+      void fetchProperties(1);
+    }, q.length > 0 ? 250 : 0);
+
+    return () => window.clearTimeout(handle);
+  }, [fetchProperties, page, searchFilter, searchTerm]);
 
   const handleReboost = async (e: React.MouseEvent, propertyId: string) => {
     e.preventDefault();
@@ -166,13 +182,6 @@ export default function BoostPropertiesPage() {
       setReboostingIds((prev) => { const s = new Set(prev); s.delete(propertyId); return s; });
     }
   };
-
-  const filteredProperties = properties.filter((p) => {
-    const q = searchTerm.toLowerCase();
-    return searchFilter === "boostid"
-      ? p.BoostID.toLowerCase().includes(q)
-      : p.vsid?.toLowerCase().includes(q);
-  });
 
   const canReboost = token?.role === "SuperAdmin" || token?.role === "Sales";
 
@@ -311,9 +320,9 @@ export default function BoostPropertiesPage() {
         </div>
 
         {/* Result info */}
-        {searchTerm && !loading && (
+        {searchTerm.trim() && !loading && (
           <p className="text-xs text-muted-foreground">
-            {filteredProperties.length} result{filteredProperties.length !== 1 ? "s" : ""} for &quot;{searchTerm}&quot;
+            {properties.length} result{properties.length !== 1 ? "s" : ""} for &quot;{searchTerm}&quot;
           </p>
         )}
 
@@ -324,7 +333,7 @@ export default function BoostPropertiesPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="text-sm">Loading properties…</span>
             </div>
-          ) : filteredProperties.length === 0 ? (
+          ) : properties.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                 <Rocket className="h-6 w-6" />
@@ -336,7 +345,7 @@ export default function BoostPropertiesPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {filteredProperties.map((prop) => {
+              {properties.map((prop) => {
                 const isReboosting        = reboostingIds.has(prop._id);
                 const isReboosted         = reboostedIds.has(prop._id);
                 const wasRecentlyReboosted = isRecentlyReboosted(prop.lastReboostedAt);

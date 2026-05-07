@@ -918,6 +918,13 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
   const legacyTargets = await MonthlyTarget.find({
     month: { $exists: false },
   }).lean();
+  const activeCityDocs = await MonthlyTarget.find(
+    { isActive: { $ne: false } },
+    { city: 1, _id: 0 }
+  ).lean();
+  const activeCityKeys = new Set(
+    activeCityDocs.map((doc) => normalizeCityKey(toDisplayCity(doc.city || "")))
+  );
 
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const dayToday = today.getUTCDate();
@@ -953,7 +960,9 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
     });
   });
 
-  const visits = Array.from(targetByCity.values()).map((mt) => {
+  const visits = Array.from(targetByCity.values())
+    .filter((mt) => activeCityKeys.has(normalizeCityKey(toDisplayCity(mt.city || ""))))
+    .map((mt) => {
     const loc = mt.cityKey || normalizeCityKey(mt.city || "");
     const target = mt.leads || 0;
     const achieved = monthMap[loc] || 0;
@@ -1181,6 +1190,13 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
   const legacyTargets = await MonthlyTarget.find({
     month: { $exists: false },
   }).lean();
+  const activeCityDocs = await MonthlyTarget.find(
+    { isActive: { $ne: false } },
+    { city: 1, _id: 0 }
+  ).lean();
+  const activeCityKeys = new Set(
+    activeCityDocs.map((doc) => normalizeCityKey(toDisplayCity(doc.city || "")))
+  );
 
   // ----------------------------
   // Merge and calculate stats
@@ -1215,7 +1231,9 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
     });
   });
 
-  const visits = Array.from(targetByCity.values()).map((mt) => {
+  const visits = Array.from(targetByCity.values())
+    .filter((mt) => activeCityKeys.has(normalizeCityKey(toDisplayCity(mt.city || ""))))
+    .map((mt) => {
     const loc = mt.cityKey || normalizeCityKey(mt.city || "");
     const target = mt.visits || 0;
     const achieved = monthMap[loc] || 0;

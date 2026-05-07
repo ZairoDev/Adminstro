@@ -76,6 +76,17 @@ export async function POST(req: NextRequest) {
       nextValues[field] = data[field];
     }
 
+    const nextConfigured = {
+      leadsConfigured: existingTarget?.leadsConfigured ?? false,
+      visitsConfigured: existingTarget?.visitsConfigured ?? false,
+      salesConfigured: existingTarget?.salesConfigured ?? false,
+    };
+
+    // Mark configured flags for fields the current role is allowed to set
+    if (editableFields.includes("leads")) nextConfigured.leadsConfigured = true;
+    if (editableFields.includes("visits")) nextConfigured.visitsConfigured = true;
+    if (editableFields.includes("sales")) nextConfigured.salesConfigured = true;
+
     const target = await MonthlyPerformanceTarget.findOneAndUpdate(
       { cityKey, month: data.month, year: data.year },
       {
@@ -85,6 +96,9 @@ export async function POST(req: NextRequest) {
           leads: nextValues.leads,
           visits: nextValues.visits,
           sales: nextValues.sales,
+          leadsConfigured: nextConfigured.leadsConfigured,
+          visitsConfigured: nextConfigured.visitsConfigured,
+          salesConfigured: nextConfigured.salesConfigured,
           createdBy: tokenData.id,
         },
         $setOnInsert: {

@@ -30,7 +30,7 @@ export const getEmailSignature = (config?: EmailSignatureConfig): string => {
     name = "Zairo International",
     title = "HR Manager",
     website = "zairointernational.com",
-    email = "hr@zairointernational.com",
+    email = "hr.zairointernational@gmail.com",
     phone = "+919519803665",
     logoUrl,
   } = config || {};

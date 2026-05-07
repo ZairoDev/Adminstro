@@ -103,7 +103,7 @@ export async function POST(
 
     // Send email with signing link
     await transporter.sendMail({
-      from: `"Zairo International HR" <hr@zairointernational.com>`,
+      from: `"Zairo International HR" <hr.zairointernational@gmail.com>`,
       to: candidate.email,
       subject: `Appointment Letter - ${candidate.name}`,
       html: emailHtml,

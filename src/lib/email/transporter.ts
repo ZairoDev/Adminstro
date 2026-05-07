@@ -15,7 +15,7 @@ export const createTransporterHR = () => {
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "hr@zairointernational.com",
+      user: "hr.zairointernational@gmail.com",
       pass: process.env.HR_APP_PASSWORD,
     },
   });

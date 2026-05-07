@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
     const skipParam  = Number(searchParams.get("skip"));
     const limitParam = Number(searchParams.get("limit"));
     const sortParam  = searchParams.get("sort") ?? "-lastReboostedAt";
+    const searchTerm = (searchParams.get("searchTerm") ?? "").trim();
+    const searchFilter = (searchParams.get("searchFilter") ?? "boostid").toLowerCase();
     const createdBy       = searchParams.get("createdBy");
     const propertyType    = searchParams.get("propertyType");
     const propertyLocation = searchParams.get("propertyLocation");
@@ -124,6 +126,18 @@ export async function GET(req: NextRequest) {
 
     if (createdBy && createdBy !== "All") boosterQuery.createdBy = createdBy;
     if (dateQuery) boosterQuery.createdAt = dateQuery;
+
+    // ── Search (BoostID / VSID) ─────────────────────────────────────────────
+    // Client requests regex search; we escape input to avoid regex injection.
+    // This is applied at the DB layer so search is across all pages.
+    if (searchTerm.length > 0) {
+      const rx = new RegExp(escapeRegex(searchTerm), "i");
+      if (searchFilter === "vsid") {
+        boosterQuery.vsid = rx;
+      } else {
+        boosterQuery.BoostID = rx;
+      }
+    }
 
     // ── Description/location-based filters ───────────────────────────────────
     const derivedFieldConditions: Record<string, unknown> = {};

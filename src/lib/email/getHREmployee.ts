@@ -24,7 +24,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
       return {
         name: hrEmployee.name,
         title: "HR Manager",
-        email: "hr@zairointernational.com",
+        email: "hr.zairointernational@gmail.com",
         phone:  "+919519803665",
       };
     }
@@ -33,7 +33,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
     return {
       name: "Zairo International",
       title: "HR Manager",
-      email: "hr@zairointernational.com",
+      email: "hr.zairointernational@gmail.com",
       phone: "+919519803665",
     };
   } catch (error) {
@@ -42,7 +42,7 @@ export async function getActiveHREmployee(): Promise<EmailSignatureConfig> {
     return {
       name: "Zairo International",
       title: "HR Manager",
-      email: "hr@zairointernational.com",
+      email: "hr.zairointernational@gmail.com",
       phone: "+919519803665",
     };
   }

@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Train, Bus, BugPlay as Subway, Trash2, Edit2 } from "lucide-react";
+import { MapPin, Train, Bus, BugPlay as Subway, Trash2, Edit2, ToggleLeft, ToggleRight } from "lucide-react";
 import axios from "@/util/axios";
 import TargetModal from "./target_model";
 
@@ -18,11 +18,13 @@ import {
 } from "@/components/ui/accordion";
 import { EditArea } from "./components/editArea";
 import { AreaModel } from "./area-model";
+import { TargetEditModal } from "./target-edit-model";
 
 export interface Area {
   _id?: string;
   city: string;
   name: string;
+  isActive?: boolean;
   zone?: string;
   subUrban?: boolean;
   town?: boolean;
@@ -51,6 +53,10 @@ interface CityData {
   country: string;
   state?: string;
   city: string;
+  isActive?: boolean;
+  leads?: number;
+  visits?: number;
+  sales?: number;
   areas: Area[];
 }
 
@@ -62,6 +68,8 @@ export default function TargetPage() {
   const [addCity, setAddCity] = useState(false);
   const [cityId, setCityId] = useState("");
   const [addArea,setAddArea] = useState(false);
+  const [editCityOpen, setEditCityOpen] = useState(false);
+  const [editCityData, setEditCityData] = useState<CityData | null>(null);
   const [editArea, setEditArea] = useState<Area>({
     city: "",
     name: "",
@@ -136,11 +144,29 @@ export default function TargetPage() {
     }
   };
 
+  const handleToggleCityStatus = async (targetId: string) => {
+    try {
+      await axios.put(`/api/addons/target/toggle-city-status/${targetId}`);
+      getTargets();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const handleDeleteArea = async (areaName: string) => {
     try {
       await axios.delete(`/api/addons/target/deleteArea`,{
         data:{areaName}
       });
+      getTargets();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const handleToggleAreaStatus = async (areaId: string) => {
+    try {
+      await axios.put(`/api/addons/target/toggle-area-status/${areaId}`);
       getTargets();
     } catch (err) {
       console.log(err);
@@ -272,7 +298,35 @@ export default function TargetPage() {
                           )}
                           <button
                             className="ml-auto"
-                            onClick={() => handleDeleteCity(c._id || "")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditCityData(c);
+                              setEditCityOpen(true);
+                            }}
+                            title="Edit City"
+                          >
+                            <Edit2 className="h-6 w-5" />
+                          </button>
+                          <button
+                            className="ml-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (c._id) handleToggleCityStatus(c._id);
+                            }}
+                            title={c.isActive === false ? "Mark Active" : "Mark Inactive"}
+                          >
+                            {c.isActive === false ? (
+                              <ToggleLeft className="h-6 w-6 text-muted-foreground" />
+                            ) : (
+                              <ToggleRight className="h-6 w-6 text-green-600" />
+                            )}
+                          </button>
+                          <button
+                            className="ml-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCity(c._id || "");
+                            }}
                           >
                             <Trash2 className="h-6 w-5 mr-0" />
                           </button>
@@ -331,6 +385,20 @@ export default function TargetPage() {
                             }}
                           >
                             <Edit2 className="h-6 w-5" />
+                          </button>
+                          <button
+                            className="ml-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (areas._id) handleToggleAreaStatus(areas._id);
+                            }}
+                            title={areas.isActive === false ? "Mark Active" : "Mark Inactive"}
+                          >
+                            {areas.isActive === false ? (
+                              <ToggleLeft className="h-6 w-6 text-muted-foreground" />
+                            ) : (
+                              <ToggleRight className="h-6 w-6 text-green-600" />
+                            )}
                           </button>
                           <button
                             className="ml-auto"
@@ -534,6 +602,23 @@ export default function TargetPage() {
           open={editBox}
           setOpen={setEditBoxOpen}
           areaData={editArea}
+          getAllTargets={getTargets}
+        />
+      )}
+      {editCityOpen && editCityData && (
+        <TargetEditModal
+          open={editCityOpen}
+          onOpenChange={setEditCityOpen}
+          targetData={{
+            _id: editCityData._id || "",
+            country: editCityData.country,
+            city: editCityData.city,
+            state: editCityData.state || "",
+            sales: Number(editCityData.sales || 0),
+            visits: Number(editCityData.visits || 0),
+            leads: Number(editCityData.leads || 0),
+            area: editCityData.areas || [],
+          }}
           getAllTargets={getTargets}
         />
       )}

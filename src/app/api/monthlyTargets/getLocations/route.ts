@@ -6,7 +6,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 export async function GET(req: NextRequest) {
   try {
     await getDataFromToken(req);
-    const locations = await MonthlyTarget.find({ month: { $exists: false } }).select("city").lean();
+    const locations = await MonthlyTarget.find({ month: { $exists: false }, isActive: { $ne: false } }).select("city").lean();
     const cities = dedupeCities(
       locations.map((location) => toDisplayCity(location.city || ""))
     );

@@ -96,7 +96,7 @@ export function TargetSetupModal({
       for (const city of availableCities) {
         const cityKey = normalizeCityKey(city);
         const existing = existingByCityKey.get(cityKey);
-        const prevRow = prev[city];
+        const prevRow = prev[city];   
 
         // If row doesn't exist yet, initialize it
         if (!prevRow) {

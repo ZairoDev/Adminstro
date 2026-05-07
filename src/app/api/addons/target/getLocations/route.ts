@@ -10,14 +10,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const target = searchParams.get("target") ;
     if (target === "country") {
-      const val = await MonthlyTarget.find({ month: { $exists: false } }, { country: 1, _id: 0 }).distinct(
+      const val = await MonthlyTarget.find({ month: { $exists: false }, isActive: { $ne: false } }, { country: 1, _id: 0 }).distinct(
         "country"
       );
       // console.log("val: ", val);
       return NextResponse.json({ data: val }, { status: 200 });
     } else {
       const val = await MonthlyTarget.find(
-        { month: { $exists: false } },
+        { month: { $exists: false }, isActive: { $ne: false } },
         { city: 1, _id: 0 }
       ).distinct("city");
       const deduped = dedupeCities(val.map((city) => toDisplayCity(String(city))));

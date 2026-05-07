@@ -12,7 +12,7 @@ const ALLOWED_ROLES = ["SuperAdmin", "Sales-TeamLead", "LeadGen-TeamLead"];
 const EDITABLE_FIELDS_BY_ROLE: Record<string, Array<"leads" | "visits" | "sales">> = {
   SuperAdmin: ["leads", "visits", "sales"],
   "LeadGen-TeamLead": ["leads"],
-  "Sales-TeamLead": ["visits", "sales"],
+  "Sales-TeamLead": ["leads", "visits", "sales"],
 };
 
 const createTargetSchema = z.object({

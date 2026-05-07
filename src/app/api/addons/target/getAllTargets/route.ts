@@ -11,8 +11,9 @@ export async function GET() {
   await connectDb();
   try {
     // Only return location config records (legacy records without month/year)
+    // This endpoint powers the admin Target Locations screen, so include inactive cities too.
     const targets = await MonthlyTarget.find({ month: { $exists: false } }).lean();
-    const areas = await Area.find().lean();
+    const areas = await Area.find({ isActive: { $ne: false } }).lean();
 
     const targetByCity = new Map<string, (typeof targets)[number]>();
     targets.forEach((target) => {

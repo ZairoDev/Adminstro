@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IArea extends Document {
   city: string;
   name: string;
+  isActive?: boolean;
   zone?: string;
   subUrban?: boolean;
   town?: boolean;
@@ -29,6 +30,7 @@ export const AreaSchema = new Schema<IArea>(
   {
     city: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
+    isActive: { type: Boolean, default: true },
     zone: { type: String, default: "" },
     subUrban: { type: Boolean, default: false },
     town: { type: Boolean, default: false },

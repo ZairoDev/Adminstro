@@ -156,7 +156,7 @@ export const getAllAgent = async () => {
   const leadsByAgent = await Employees.find(
     {
       role: "LeadGen",
-      isActive: true,
+      isActive: { $ne: false },
     },
     { email: 1, _id: 0 }
   );
@@ -2289,7 +2289,7 @@ export const getWeeklyTargetStats = async ({
 // ---------------------------------
 export const getAvailableLocations = async (): Promise<string[]> => {
   await connectDb();
-  const targets = await MonthlyTarget.find({ month: { $exists: false } }).lean();
+  const targets = await MonthlyTarget.find({ month: { $exists: false }, isActive: { $ne: false } }).lean();
   const unique = new Map<string, string>();
   targets.forEach((target) => {
     const city = toDisplayCity(target.city || "");

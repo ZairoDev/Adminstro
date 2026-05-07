@@ -10,7 +10,7 @@ connectDb();
 const EDITABLE_FIELDS_BY_ROLE: Record<string, Array<"leads" | "visits" | "sales">> = {
   SuperAdmin: ["leads", "visits", "sales"],
   "LeadGen-TeamLead": ["leads"],
-  "Sales-TeamLead": ["visits", "sales"],
+  "Sales-TeamLead": ["leads", "visits", "sales"],
 };
 
 export async function GET(req: NextRequest) {
@@ -24,8 +24,10 @@ export async function GET(req: NextRequest) {
     const currentYear = now.getFullYear();
     const editableFields = EDITABLE_FIELDS_BY_ROLE[role] ?? [];
 
+    // Locations source-of-truth lives in MonthlyTarget. Do not rely on `month` existing/non-existing
+    // because older data may still have those fields from earlier experiments.
     const configuredCityDocs = await MonthlyTarget.find(
-      { month: { $exists: false } },
+      { isActive: { $ne: false } },
       { city: 1, _id: 0 }
     ).lean();
     const configuredCities = dedupeCities(configuredCityDocs.map((doc) => toDisplayCity(doc.city || "")));

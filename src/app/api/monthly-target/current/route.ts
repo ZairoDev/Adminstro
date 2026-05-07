@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const configuredCities = dedupeCities(configuredCityDocs.map((doc) => toDisplayCity(doc.city || "")));
 
     const scopedCities =
-      role === "SuperAdmin"
+      role === "SuperAdmin" || role === "LeadGen-TeamLead"
         ? configuredCities
         : dedupeCities(
             (Array.isArray(allotedArea) ? allotedArea : [allotedArea])

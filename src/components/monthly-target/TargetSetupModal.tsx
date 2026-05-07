@@ -136,6 +136,9 @@ export function TargetSetupModal({
   const canEditField = (field: "leads" | "visits" | "sales") =>
     editableFields.includes(field);
 
+  const showVisits = canEditField("visits");
+  const showSales = canEditField("sales");
+
   const updateRowField = (city: string, field: "leads" | "visits" | "sales", value: string) => {
     setRows((prev) => ({
       ...prev,
@@ -252,8 +255,8 @@ export function TargetSetupModal({
                       <tr className="border-b">
                         <th className="text-left p-2">City</th>
                         <th className="text-left p-2">Leads</th>
-                        <th className="text-left p-2">Visits</th>
-                        <th className="text-left p-2">Sales</th>
+                        {showVisits && <th className="text-left p-2">Visits</th>}
+                        {showSales && <th className="text-left p-2">Sales</th>}
                         <th className="text-left p-2">Status</th>
                         <th className="text-left p-2">Action</th>
                       </tr>
@@ -274,24 +277,28 @@ export function TargetSetupModal({
                                 onChange={(e) => updateRowField(city, "leads", e.target.value)}
                               />
                             </td>
-                            <td className="p-2">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={row.visits}
-                                disabled={!canEditField("visits") || row.status === "saving"}
-                                onChange={(e) => updateRowField(city, "visits", e.target.value)}
-                              />
-                            </td>
-                            <td className="p-2">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={row.sales}
-                                disabled={!canEditField("sales") || row.status === "saving"}
-                                onChange={(e) => updateRowField(city, "sales", e.target.value)}
-                              />
-                            </td>
+                            {showVisits && (
+                              <td className="p-2">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={row.visits}
+                                  disabled={!canEditField("visits") || row.status === "saving"}
+                                  onChange={(e) => updateRowField(city, "visits", e.target.value)}
+                                />
+                              </td>
+                            )}
+                            {showSales && (
+                              <td className="p-2">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={row.sales}
+                                  disabled={!canEditField("sales") || row.status === "saving"}
+                                  onChange={(e) => updateRowField(city, "sales", e.target.value)}
+                                />
+                              </td>
+                            )}
                             <td className="p-2">
                               {row.status === "saved" && (
                                 <span className="inline-flex items-center gap-1 text-green-600">

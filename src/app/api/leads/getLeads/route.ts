@@ -17,6 +17,7 @@ import {
   applyPropertyVisibilityRulesByLocationToLeadQuery,
   loadEmployeePropertyVisibilityRules,
 } from "@/util/propertyVisibilityRule";
+import { exactCaseInsensitiveRegex } from "@/util/regex";
 
 connectDb();
 
@@ -240,10 +241,15 @@ export async function POST(req: NextRequest) {
       query.location = new RegExp(allotedArea, "i");
     } else {
       if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead" && role !== "Advert") {
-        if (Array.isArray(assignedArea)) {
-          query.location = { $in: assignedArea };
+        if (effectiveLocations && effectiveLocations.length > 1) {
+          const areas = effectiveLocations.map((a) => String(a)).filter((a) => a.trim() !== "");
+          query.$or = areas.map((area) => ({ location: exactCaseInsensitiveRegex(area) }));
         } else {
-          query.location = assignedArea;
+          const single =
+            effectiveLocations && effectiveLocations.length === 1
+              ? String(effectiveLocations[0])
+              : String(assignedArea);
+          query.location = exactCaseInsensitiveRegex(single);
         }
       }
     }
@@ -321,8 +327,8 @@ export async function POST(req: NextRequest) {
       leadStatus: "fresh",   
       ...(allotedArea
       ? { location: new RegExp(allotedArea, "i") }  
-      : (assignedArea && assignedArea.length > 0
-          ? { location: { $in: assignedArea } }  
+      : (effectiveLocations && effectiveLocations.length > 0
+          ? { $or: effectiveLocations.map((a) => ({ location: exactCaseInsensitiveRegex(String(a)) })) }
           : {})),
     }
   },

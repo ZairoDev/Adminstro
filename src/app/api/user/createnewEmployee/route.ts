@@ -6,17 +6,19 @@ import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
+import { normalizeAllotedArea } from "@/util/location";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
   try {
-    // Authenticate request
-    let auth: any;
+
+    let auth: unknown;
     try {
       auth = await getDataFromToken(request);
-    } catch (err: any) {
-      const status = err?.status ?? 401;
-      const code = err?.code ?? "AUTH_FAILED";
+    } catch (err: unknown) {
+      const e = err as { status?: number; code?: string };
+      const status = e?.status ?? 401;
+      const code = e?.code ?? "AUTH_FAILED";
       return NextResponse.json(
         { success: false, code, message: "Unauthorized" },
         { status },
@@ -25,7 +27,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Verify authorization (only SuperAdmin, Admin, HR can create employees)
     const allowedRoles = ["SuperAdmin", "Admin", "HR", "HAdmin"];
-    if (!auth?.role || !allowedRoles.includes(auth.role)) {
+    const authRole = (auth as { role?: unknown } | null)?.role;
+    if (typeof authRole !== "string" || !allowedRoles.includes(authRole)) {
       return NextResponse.json(
         { success: false, message: "Insufficient permissions" },
         { status: 403 },
@@ -85,23 +88,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // passwordExpiresAt.setHours(passwordExpiresAt.getHours() + 24);
 
     const organization =
-      auth.role === "HAdmin"
+      authRole === "HAdmin"
         ? "Holidaysera"
         : role === "hSale"
           ? "Holidaysera"
           : requestedOrganization || "VacationSaga";
 
+    const normalizedAllotedArea = normalizeAllotedArea(allotedArea);
     const newUser = new Employees({
       name,
       email,
       role,
       duration,
       gender,
-      country,
+      country,    
       nationality,
       spokenLanguage,
       address,
-      allotedArea,
+      allotedArea: normalizedAllotedArea,
       accountNo,
       ifsc,
       aadhar,

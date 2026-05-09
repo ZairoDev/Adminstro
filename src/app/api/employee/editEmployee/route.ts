@@ -4,6 +4,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
+import { normalizeAllotedArea } from "@/util/location";
 
 connectDb();
 
@@ -86,12 +87,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.role) updateData.role = updateFields.role;
     // Ensure hSale always remains Holidaysera organization
     if (updateFields.role === "hSale") {
-      (updateData as any).organization = "Holidaysera";
+      updateData.organization = "Holidaysera";
     }
     if (updateFields.assignedCountry)
       updateData.assignedCountry = updateFields.assignedCountry;
-    if (updateFields.allotedArea)
-      updateData.allotedArea = updateFields.allotedArea;
+    if (updateFields.allotedArea) {
+      updateData.allotedArea = normalizeAllotedArea(updateFields.allotedArea);
+    }
     if (updateFields.salary) updateData.salary = updateFields.salary;
     if (updateFields.empType) updateData.empType = updateFields.empType;
     if (updateFields.duration) updateData.duration = updateFields.duration;
@@ -100,7 +102,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
     if (updateFields.password) {
       updateData.password = updateFields.password;
-      (updateData as any).passwordExpiresAt = computePasswordExpiryDate();
+      updateData.passwordExpiresAt = computePasswordExpiryDate();
     }
 
     const user = await Employees.findOneAndUpdate(

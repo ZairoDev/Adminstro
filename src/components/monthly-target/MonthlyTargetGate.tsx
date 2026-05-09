@@ -5,19 +5,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TargetSetupModal } from "./TargetSetupModal";
 import { useAuthStore } from "@/AuthStore";
 import axios from "@/util/axios";
+import type { MonthlyTargetRow } from "./types";
 
-export interface MonthlyTargetRow {
-  city: string;
-  cityKey: string;
-  leads: number;
-  visits: number;
-  sales: number;
-  leadsConfigured: boolean;
-  visitsConfigured: boolean;
-  salesConfigured: boolean;
-  month: number;
-  year: number;
-}
+  export type { MonthlyTargetRow };
 
 interface CurrentTargetResponse {
   hasTarget: boolean;

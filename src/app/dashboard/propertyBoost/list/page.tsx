@@ -148,16 +148,15 @@ export default function BoostPropertiesPage() {
   // won't trigger a new fetch via setPage(1). This ensures we still call the DB.
   useEffect(() => {
     const q = searchTerm.trim();
+    if (!q) return;
     const handle = window.setTimeout(() => {
-      if (page !== 1) {
-        setPage(1);
-        return;
-      }
+      // Search always starts from page 1.
+      setPage(1);
       void fetchProperties(1);
-    }, q.length > 0 ? 250 : 0);
+    }, 250);
 
     return () => window.clearTimeout(handle);
-  }, [fetchProperties, page, searchFilter, searchTerm]);
+  }, [fetchProperties, searchFilter, searchTerm]);
 
   const handleReboost = async (e: React.MouseEvent, propertyId: string) => {
     e.preventDefault();

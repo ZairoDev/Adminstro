@@ -448,7 +448,8 @@ const FilterBar = ({
     } else {
       setAreas([]);
     }
-    setFilters((prev) => ({ ...prev, area: [] }));
+    // Avoid unnecessary state updates (prevents pagination resetting)
+    setFilters((prev) => (prev.area.length > 0 ? { ...prev, area: [] } : prev));
   }, [selectedLocation, targets]);
 
   const filteredTargets = useMemo(() => {
@@ -472,9 +473,13 @@ const FilterBar = ({
 
     if (!matchesCurrent) {
       if (filteredTargets.length === 1) {
-        setFilters((prev) => ({ ...prev, place: [filteredTargets[0].city] }));
+        setFilters((prev) =>
+          prev.place.length === 1 && prev.place[0] === filteredTargets[0].city
+            ? prev
+            : { ...prev, place: [filteredTargets[0].city] }
+        );
       } else {
-        setFilters((prev) => ({ ...prev, place: [] }));
+        setFilters((prev) => (prev.place.length === 0 ? prev : { ...prev, place: [] }));
       }
     }
   }, [filteredTargets]);
@@ -486,7 +491,9 @@ const FilterBar = ({
     if (!place) {
       setAreas([]);
       setSelectedLocation("");
-      if (filters.area) setFilters((prev) => ({ ...prev, area: [] }));
+      if (filters.area && filters.area.length > 0) {
+        setFilters((prev) => ({ ...prev, area: [] }));
+      }
       return;
     }
 
@@ -502,7 +509,9 @@ const FilterBar = ({
       setSelectedLocation(place);
     }
 
-    if (filters.area) setFilters((prev) => ({ ...prev, area: [] }));
+    if (filters.area && filters.area.length > 0) {
+      setFilters((prev) => ({ ...prev, area: [] }));
+    }
   }, [filters.place, targets]);
 
   const getActiveFilters = () => {

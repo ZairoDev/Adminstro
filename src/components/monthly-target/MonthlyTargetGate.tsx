@@ -16,7 +16,7 @@ interface CurrentTargetResponse {
   editableFields: Array<"leads" | "visits" | "sales">;
   currentMonth: number;
   currentYear: number;
-}
+} 
 
 type GateStatus = "loading" | "blocked" | "allowed";
 

@@ -177,13 +177,18 @@ const Spreadsheet = () => {
     setPage(1);
     getData(selectedTab, 1, filters, limit);
     getCounts(filters);
+  // getData/getCounts are defined in-component and intentionally not memoized.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTab, limit, filters]);
 
   useEffect(() => {
-    if (page > 1) {
-      getData(selectedTab, page, filters, limit);
-    }
-  }, [page]);
+    // When user navigates pages (including back to page 1),
+    // always fetch that page. Previously we skipped page 1,
+    // which caused page 2 data to remain visible on page 1.
+    if (!isMountedRef.current) return;
+    getData(selectedTab, page, filters, limit);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, selectedTab, filters, limit]);
 
   const serialOffset = (page - 1) * limit;
 

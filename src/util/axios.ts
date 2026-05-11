@@ -10,13 +10,14 @@ axios.interceptors.response.use(
     const requestUrl = error?.config?.url ?? "";
 
     // These codes mean the session/token itself is invalid — the user must re-authenticate.
+    // NOTE: USER_NOT_FOUND is intentionally excluded here because it is also returned by
+    // the OTP verify flow (pre-login) where triggering a forced logout makes no sense.
     const AUTH_FAILURE_CODES = [
       "AUTH_EXPIRED",
       "SESSION_INVALID",
       "NO_TOKEN",
       "AUTH_FAILED",
       "INVALID_TOKEN",
-      "USER_NOT_FOUND",
     ];
 
     // Don't treat "no token" on check-session as a logout trigger —

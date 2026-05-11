@@ -2,9 +2,11 @@ import { NextRequest } from "next/server";
 import { jwtVerify, decodeJwt } from "jose";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
 
 export const getDataFromToken = async (request: NextRequest) => {
   let token: string | undefined;
+  const deviceType = getDeviceTypeFromHeaders(request.headers);
 
   try {
     token = request.cookies.get("token")?.value;
@@ -29,6 +31,7 @@ export const getDataFromToken = async (request: NextRequest) => {
 
     const employeeId = payload.id as string;
     const sessionId = payload.sid as string;
+    const issuedAtSeconds = payload.iat as number | undefined;
 
     if (!employeeId) {
       throw { status: 401, code: "INVALID_TOKEN" };
@@ -47,8 +50,51 @@ export const getDataFromToken = async (request: NextRequest) => {
       throw { status: 401, code: "USER_NOT_FOUND" };
     }
 
-    if (!employee.sessionId || employee.sessionId !== sessionId) {
-      throw { status: 401, code: "SESSION_INVALID", };
+    // Force-invalidate tokens (password change / admin logout)
+    // jsonwebtoken's `iat` is second-granularity, while `tokenValidAfter` is ms.
+    // Without a tolerance window, a freshly issued token can be rejected
+    // if tokenValidAfter is set a few hundred ms after iat's rounded timestamp.
+    if (
+      typeof employee.tokenValidAfter === "number" &&
+      employee.tokenValidAfter > 0 &&
+      typeof issuedAtSeconds === "number"
+    ) {
+      const issuedAtMs = issuedAtSeconds * 1000;
+      const SKEW_TOLERANCE_MS = 1500;
+      if (issuedAtMs + SKEW_TOLERANCE_MS < employee.tokenValidAfter) {
+        throw { status: 401, code: "SESSION_INVALID" };
+      }
+    }
+
+    const slot = deviceType === "mobile" ? employee.mobileSession : employee.webSession;
+    if (!slot?.sessionId || slot.sessionId !== sessionId || slot.isLoggedIn !== true) {
+      throw { status: 401, code: "SESSION_INVALID" };
+    }
+
+    // Web session expiry enforcement (12h), independent of JWT exp.
+    if (deviceType === "web") {
+      const expiresAt = (slot as any)?.expiresAt as number | null | undefined;
+      if (typeof expiresAt === "number" && expiresAt > 0 && Date.now() > expiresAt) {
+        // Best-effort cleanup; don't touch tokenValidAfter.
+        await Employees.updateOne(
+          { _id: employeeId, "webSession.sessionId": sessionId },
+          {
+            $set: {
+              "webSession.sessionId": null,
+              "webSession.sessionStartedAt": null,
+              "webSession.expiresAt": null,
+              "webSession.isLoggedIn": false,
+            },
+          },
+        ).catch(() => undefined);
+        throw { status: 401, code: "AUTH_EXPIRED" };
+      }
+    } else {
+      // Mobile session heartbeat
+      await Employees.updateOne(
+        { _id: employeeId, "mobileSession.sessionId": sessionId },
+        { $set: { "mobileSession.lastActiveAt": Date.now() } },
+      ).catch(() => undefined);
     }
 
     return payload;
@@ -58,21 +104,32 @@ export const getDataFromToken = async (request: NextRequest) => {
       try {
         const decoded: any = decodeJwt(token);
         const employeeId = decoded?.id;
+        const sessionId = decoded?.sid;
 
         if (employeeId) {
           await connectDb();
 
+          const isMobile = deviceType === "mobile";
+          const matchField = isMobile ? "mobileSession.sessionId" : "webSession.sessionId";
+          const unsetPrefix = isMobile ? "mobileSession" : "webSession";
           await Employees.updateOne(
-            { _id: employeeId },
+            sessionId ? { _id: employeeId, [matchField]: sessionId } : { _id: employeeId },
             {
-              $set: {
-                sessionId: null,
-                sessionStartedAt: null,
-                tokenValidAfter: Date.now(),
-                isLoggedIn: false,
-              },
+              $set: isMobile
+                ? {
+                    [`${unsetPrefix}.sessionId`]: null,
+                    [`${unsetPrefix}.sessionStartedAt`]: null,
+                    [`${unsetPrefix}.lastActiveAt`]: null,
+                    [`${unsetPrefix}.isLoggedIn`]: false,
+                  }
+                : {
+                    [`${unsetPrefix}.sessionId`]: null,
+                    [`${unsetPrefix}.sessionStartedAt`]: null,
+                    [`${unsetPrefix}.expiresAt`]: null,
+                    [`${unsetPrefix}.isLoggedIn`]: false,
+                  },
             },
-          );
+          ).catch(() => undefined);
         }
       } catch {
         console.log("Decode failed");

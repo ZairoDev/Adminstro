@@ -10,7 +10,9 @@
     "import-offer-template": "tsx src/scripts/importOfferTemplate.ts",
     "seed-company-offer-plans": "tsx src/scripts/seedCompanyOfferPlans.ts",
     "migrate:unregistered-owner-geo": "tsx src/scripts/migrateUnregisteredOwnerGeo.ts",
-    "migrate:unregistered-owner-geo:ts-node": "node --loader ts-node/esm src/scripts/migrateUnregisteredOwnerGeo.ts"
+    "migrate:unregistered-owner-geo:ts-node": "node --loader ts-node/esm src/scripts/migrateUnregisteredOwnerGeo.ts",
+    "migrate:employee-sessions-to-slots": "tsx src/scripts/migrateEmployeeSessionsToSlots.ts",
+    "migrate:employee-mobile-pins": "tsx src/scripts/generateMissingEmployeeMobilePins.ts"
   },
   "dependencies": {
     "@apollo/client": "^3.11.7",
@@ -63,6 +65,7 @@
     "@tiptap/react": "^2.7.4",
     "@tiptap/starter-kit": "^2.7.4",
     "@tremor/react": "^3.18.7",
+    "@vitalets/google-translate-api": "^9.2.1",
     "apollo-server": "^3.13.0",
     "apollo-server-micro": "^3.13.0",
     "axios": "^1.7.7",

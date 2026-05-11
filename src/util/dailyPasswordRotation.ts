@@ -3,6 +3,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { connectDb } from "@/util/db";
 import { generatePassword } from "./generatePassword";
+import { generateMobilePin } from "./generateMobilePin";
 import { computePasswordExpiryMs } from "./passwordExpiry";
 
 
@@ -96,6 +97,7 @@ export const rotatePasswordsNow = async () => {
   for (const emp of employees) {
     try {
       const newPassword = generatePassword(6);
+      const newMobilePin = generateMobilePin(4);
 
       const employeeId = emp._id.toString();
 
@@ -104,11 +106,17 @@ export const rotatePasswordsNow = async () => {
         {
           $set: {
             password: newPassword,
+            mobilePin: newMobilePin,
             passwordExpiresAt: new Date(computePasswordExpiryMs()),
             tokenValidAfter: now,
-            sessionId: null,
-            sessionStartedAt: null,
-            isLoggedIn: false,
+            "webSession.sessionId": null,
+            "webSession.sessionStartedAt": null,
+            "webSession.expiresAt": null,
+            "webSession.isLoggedIn": false,
+            "mobileSession.sessionId": null,
+            "mobileSession.sessionStartedAt": null,
+            "mobileSession.lastActiveAt": null,
+            "mobileSession.isLoggedIn": false,
             lastLogout: logoutTime,
           },
         },

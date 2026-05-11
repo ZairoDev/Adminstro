@@ -8,6 +8,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
 import EmployeeUiRule from "@/models/employeeUiRule";
+import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
 
 type UiFlags = {
   hideGuestManagement?: boolean;
@@ -43,14 +44,25 @@ interface Employee {
   name: string;
   email: string;
   password: string;
+  mobilePin?: string | null;
   isVerified: boolean;
   isActive?: boolean;
   allotedArea: [string];
   role: string;
   isLocked: boolean;
   passwordExpiresAt: Date;
-  sessionId?: string | null;
-  sessionStartedAt?: number | null;
+  webSession?: {
+    sessionId?: string | null;
+    sessionStartedAt?: number | null;
+    expiresAt?: number | null;
+    isLoggedIn?: boolean;
+  };
+  mobileSession?: {
+    sessionId?: string | null;
+    sessionStartedAt?: number | null;
+    lastActiveAt?: number | null;
+    isLoggedIn?: boolean;
+  };
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -67,9 +79,56 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await connectDb();
 
     const reqBody = await request.json();
-    const { email, password } = reqBody;
-    const trimmedPassword = password?.trim() ?? "";
-    const SESSION_DURATION = 24 * 60 * 60 * 1000;
+    const rawEmail = reqBody?.email;
+    const rawPassword = reqBody?.password;
+    const rawMobilePin = reqBody?.mobilePin;
+
+    const email =
+      typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+    const trimmedPassword =
+      typeof rawPassword === "string" ? rawPassword.trim() : "";
+    const trimmedMobilePin =
+      typeof rawMobilePin === "string" ? rawMobilePin.trim() : "";
+
+    const deviceType = getDeviceTypeFromHeaders(request.headers);
+
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email is required", code: "MISSING_EMAIL" },
+        { status: 400 },
+      );
+    }
+
+    if (deviceType === "mobile") {
+      if (!trimmedPassword) {
+        return NextResponse.json(
+          { error: "Password is required", code: "MISSING_PASSWORD" },
+          { status: 400 },
+        );
+      }
+      if (!trimmedMobilePin) {
+        return NextResponse.json(
+          { error: "Mobile PIN is required", code: "MISSING_MOBILE_PIN" },
+          { status: 400 },
+        );
+      }
+      if (!/^\d{4}$/.test(trimmedMobilePin)) {
+        return NextResponse.json(
+          {
+            error: "Mobile PIN must be exactly 4 digits",
+            code: "INVALID_MOBILE_PIN_FORMAT",
+          },
+          { status: 400 },
+        );
+      }
+    } else {
+      if (!trimmedPassword) {
+        return NextResponse.json(
+          { error: "Password is required", code: "MISSING_PASSWORD" },
+          { status: 400 },
+        );
+      }
+    }
 
     const sessionIdVar = (globalThis as any)?.crypto?.randomUUID
       ? (globalThis as any).crypto.randomUUID()
@@ -126,15 +185,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   return response;
     // }
 
-    const Employee = await Employees.find({ email });
-    if (!Employee || Employee.length === 0) {
+    const Employee = await Employees.findOne({ email });
+    if (!Employee) {
       return NextResponse.json(
-        { error: "Please enter a valid email or password" },
+        { error: "Please enter a valid email or password", code: "INVALID_CREDENTIALS" },
         { status: 400 }
       );
     }
 
-    const temp: Employee = Employee[0];
+    const temp: Employee = Employee as any;
     
     // Check if employee is active
     if (temp.isActive === false) {
@@ -150,25 +209,80 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 403 }
       );
     }
-    // const validPassword: boolean = await bcryptjs.compare(
-    //   password,
-    //   temp.password
-    // );
-    const validPassword: boolean = temp.password === password.trim();
-    if (!validPassword) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
+
+    if (deviceType === "mobile") {
+      const validPassword: boolean = temp.password === trimmedPassword;
+      if (!validPassword) {
+        return NextResponse.json(
+          { error: "Invalid email or password", code: "INVALID_CREDENTIALS" },
+          { status: 400 },
+        );
+      }
+
+      const storedPin =
+        typeof temp.mobilePin === "string" ? temp.mobilePin.trim() : "";
+      if (!storedPin) {
+        return NextResponse.json(
+          {
+            error:
+              "Mobile PIN is not set for this account. Please contact the administrator.",
+            code: "MOBILE_PIN_NOT_SET",
+          },
+          { status: 403 },
+        );
+      }
+      const validPin = storedPin === trimmedMobilePin;
+      if (!validPin) {
+        return NextResponse.json(
+          { error: "Invalid email or mobile PIN", code: "INVALID_CREDENTIALS" },
+          { status: 400 },
+        );
+      }
+    } else {
+      // const validPassword: boolean = await bcryptjs.compare(
+      //   password,
+      //   temp.password
+      // );
+      const validPassword: boolean = temp.password === trimmedPassword;
+      if (!validPassword) {
+        return NextResponse.json(
+          { error: "Invalid email or password", code: "INVALID_CREDENTIALS" },
+          { status: 400 },
+        );
+      }
     }
 
-    if (
-      temp.sessionId &&
-      temp.sessionStartedAt &&
-      Date.now() - temp.sessionStartedAt < SESSION_DURATION
-    ) {
-      return NextResponse.json(
-        { error: "User already logged in on another device" },
-        { status: 409 },
-      );
-    } 
+    // Web: block login if an unexpired web session already exists.
+    if (deviceType === "web") {
+      const existing = temp.webSession;
+      const nowMs = Date.now();
+      const existingLoggedIn = existing?.isLoggedIn === true;
+      const existingSessionId = typeof existing?.sessionId === "string" && existing.sessionId.length > 0;
+      const existingExpiresAt = typeof existing?.expiresAt === "number" ? existing.expiresAt : null;
+      const unexpired = typeof existingExpiresAt === "number" && existingExpiresAt > nowMs;
+
+      if (existingLoggedIn && existingSessionId && unexpired) {
+        return NextResponse.json(
+          { error: "User already logged in on another tab/device" },
+          { status: 409 },
+        );
+      }
+    }
+
+    // Mobile: block login if an active mobile session already exists (permanent sessions,
+    // no expiry — only one mobile device allowed at a time).
+    if (deviceType === "mobile") {
+      const existing = temp.mobileSession;
+      const existingLoggedIn = existing?.isLoggedIn === true;
+      const existingSessionId = typeof existing?.sessionId === "string" && existing.sessionId.length > 0;
+
+      if (existingLoggedIn && existingSessionId) {
+        return NextResponse.json(
+          { error: "This account is already logged in on another mobile device. Please log out from that device first." },
+          { status: 409 },
+        );
+      }
+    }
 
     if (
       temp.role !== ("SuperAdmin" as Employee["role"]) &&
@@ -197,15 +311,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // SuperAdmin OTP bypass for specific accounts
       if ( temp.email === TEST_SUPERADMIN_EMAIL) {
         const now = Date.now();
+        const webSessionUpdate = {
+          "webSession.isLoggedIn": true,
+          "webSession.sessionId": sessionIdVar,
+          "webSession.sessionStartedAt": now,
+          "webSession.expiresAt": now + WEB_SESSION_DURATION_MS,
+        };
+        const mobileSessionUpdate = {
+          "mobileSession.isLoggedIn": true,
+          "mobileSession.sessionId": sessionIdVar,
+          "mobileSession.sessionStartedAt": now,
+          "mobileSession.lastActiveAt": now,
+        };
         await Employees.updateOne(
           { _id: temp._id },
           {
             $set: {
-              isLoggedIn: true,
               lastLogin: new Date(),
-              sessionId: sessionIdVar,
-              sessionStartedAt: now,
-              tokenValidAfter: now,
+              ...(deviceType === "mobile" ? mobileSessionUpdate : webSessionUpdate),
             },
           }
         );
@@ -234,7 +357,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const token = jwt.sign(
           tokenPayload,
           tokenSecret,
-          { expiresIn: "1d" }
+          deviceType === "mobile" ? {} : { expiresIn: "12h" }
         );
 
         const response = NextResponse.json(
@@ -247,25 +370,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { status: 200 }
         );
         
-        // Set httpOnly cookie
-        response.cookies.set("token", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24,
-        });
-        
-        // set sessionId cookie for this session
-        try {
-
-          response.cookies.set("sessionId", sessionIdVar , {
+        if (deviceType === "web") {
+          // Set httpOnly cookie for browser clients
+          response.cookies.set("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
             path: "/",
+            maxAge: 60 * 60 * 12,
           });
-        } catch (e) {}
+          // set sessionId cookie for this session (web only)
+          try {
+            response.cookies.set("sessionId", sessionIdVar , {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "lax",
+              path: "/",
+            });
+          } catch (e) {}
+        }
         
         return response;
       }
@@ -290,16 +413,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const now = Date.now();
+    const webSessionUpdate = {
+      "webSession.isLoggedIn": true,
+      "webSession.sessionId": sessionIdVar,
+      "webSession.sessionStartedAt": now,
+      "webSession.expiresAt": now + WEB_SESSION_DURATION_MS,
+    };
+    const mobileSessionUpdate = {
+      "mobileSession.isLoggedIn": true,
+      "mobileSession.sessionId": sessionIdVar,
+      "mobileSession.sessionStartedAt": now,
+      "mobileSession.lastActiveAt": now,
+    };
     await Employees.updateOne(
       { _id: temp._id },
       {
         $set: {
           passwordExpiresAt: newExpiryDate,
-          isLoggedIn: true,
           lastLogin: new Date(),
-          sessionId: sessionIdVar,
-          sessionStartedAt: now,
-          tokenValidAfter: now,
+          ...(deviceType === "mobile" ? mobileSessionUpdate : webSessionUpdate),
         },
       }
     );
@@ -331,9 +463,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       uiFlags,
     };
 
-    const token = jwt.sign(tokenData, tokenSecret, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(tokenData, tokenSecret, deviceType === "mobile" ? {} : { expiresIn: "12h" });
 
     // Log login activity
     try {
@@ -378,27 +508,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tokenData: tokenData,
     });
 
-    // set sessionId cookie (HttpOnly) for future session-specific logout/activity updates
-    try {
-      if (sessionIdVar) {
-        response.cookies.set("sessionId", sessionIdVar, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-        });
+    if (deviceType === "web") {
+      // set sessionId cookie (HttpOnly) for web logout/activity updates
+      try {
+        if (sessionIdVar) {
+          response.cookies.set("sessionId", sessionIdVar, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+          });
+        }
+      } catch (e) {
+        // ignore cookie set errors
       }
-    } catch (e) {
-      // ignore cookie set errors
-    }
 
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24,
-    });
+      response.cookies.set("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 12,
+      });
+    }
 
     return response;
   } catch (error: unknown) {

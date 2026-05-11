@@ -24,7 +24,8 @@ function employeeProjection() {
     "-verifyTokenExpiry",
     "-otpToken",
     "-otpTokenExpiry",
-    "-sessionId",
+    "-webSession",
+    "-mobileSession",
   ].join(" ");
 }
 

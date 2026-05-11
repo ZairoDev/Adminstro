@@ -77,6 +77,26 @@ export const employeeRoles = [
   "HAdmin",
 ] as const;
 
+const webSessionSchema = new Schema(
+  {
+    sessionId: { type: String, default: null },
+    sessionStartedAt: { type: Number, default: null },
+    expiresAt: { type: Number, default: null },
+    isLoggedIn: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const mobileSessionSchema = new Schema(
+  {
+    sessionId: { type: String, default: null },
+    sessionStartedAt: { type: Number, default: null },
+    lastActiveAt: { type: Number, default: null },
+    isLoggedIn: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 const employeeSchema = new Schema<IEmployee>(
   {
     name: {
@@ -148,6 +168,11 @@ const employeeSchema = new Schema<IEmployee>(
     password: {
       type: String,
       required: [true, "Password is required"],
+    },
+    mobilePin: {
+      // 4-digit PIN used only for mobile login. Optional for existing employees.
+      type: String,
+      default: null,
     },
     allotedArea: {
       type: [String],
@@ -449,10 +474,6 @@ const employeeSchema = new Schema<IEmployee>(
         default: {},
       },
     },
-    isLoggedIn: {
-      type: Boolean,
-      default: false,
-    },
     lastLogin: {
       type: Date,
       default: null,
@@ -461,14 +482,13 @@ const employeeSchema = new Schema<IEmployee>(
       type: Date,
       default: null,
     },
-    sessionId: {
-      type: String,
-      default: null,
+    webSession: {
+      type: webSessionSchema,
+      default: () => ({}),
     },
-
-    sessionStartedAt: {
-      type: Number,
-      default: null,
+    mobileSession: {
+      type: mobileSessionSchema,
+      default: () => ({}),
     },
 
     tokenValidAfter: {

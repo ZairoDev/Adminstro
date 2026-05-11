@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
     await getDataFromToken(request);
     await connectDb();
     
-    const loggedInQuery = excludeTestAccountFromQuery({ isLoggedIn: true });
+    const loggedInQuery = excludeTestAccountFromQuery({
+      $or: [{ "webSession.isLoggedIn": true }, { "mobileSession.isLoggedIn": true }],
+    });
     const loggedInEmployees = await Employees.find(
       loggedInQuery,
       {

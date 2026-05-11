@@ -7,6 +7,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { generatePassword } from "@/util/generatePassword";
+import { generateMobilePin } from "@/util/generateMobilePin";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 
 connectDb();
@@ -108,9 +109,11 @@ export async function POST(request: NextRequest) {
 
     // Generate new password and update employee
     let newPassword: string | null = null;
+    let newMobilePin: string | null = null;
     const logoutTime = new Date();
     try {
       newPassword = generatePassword(6);
+      newMobilePin = generateMobilePin(4);
 
 
       // mark employee as logged out and change password
@@ -118,12 +121,18 @@ export async function POST(request: NextRequest) {
         { _id: employeeId },
         {
           $set: {
-            isLoggedIn: false,
             lastLogout: logoutTime,
-            sessionId: null,
-            sessionStartedAt: null,
+            "webSession.sessionId": null,
+            "webSession.sessionStartedAt": null,
+            "webSession.expiresAt": null,
+            "webSession.isLoggedIn": false,
+            "mobileSession.sessionId": null,
+            "mobileSession.sessionStartedAt": null,
+            "mobileSession.lastActiveAt": null,
+            "mobileSession.isLoggedIn": false,
             tokenValidAfter: Date.now(),
             password: newPassword,
+            mobilePin: newMobilePin,
             passwordExpiresAt: computePasswordExpiryDate(), // 24 hours by default
           },
         },

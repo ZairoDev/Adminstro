@@ -22,6 +22,12 @@ export const employeeSchema = z.object({
   country: z.string().min(1, "Please enter your country"),
   address: z.string().min(1, "Address is required"),
   password: z.string().min(1, "Please enter your password"),
+  mobilePin: z
+    .string()
+    .regex(/^\d{4}$/, "Mobile PIN must be exactly 4 digits")
+    .nullable()
+    .optional()
+    .default(null),
   isVerified: z.boolean().optional().default(true),
   role: z.enum([
     "Admin",
@@ -39,7 +45,6 @@ export const employeeSchema = z.object({
   ]),
   assignedCountry: z.string().optional().default(""),
   empType: z.string().optional().default(""),
-  isLoggedIn: z.boolean().optional().default(false),
   lastLogin: z.date().optional(),
   lastLogout: z.date().optional(),
   salary: z.number().optional().default(0),
@@ -293,8 +298,24 @@ export const employeeSchema = z.object({
     })
     .optional()
     .default({ all: { enabled: false, allowedPropertyType: [] }, byLocation: {} }),
-  sessionId: z.string().optional(),
-  sessionStartedAt: z.number().optional(),
+  webSession: z
+    .object({
+      sessionId: z.string().nullable().optional().default(null),
+      sessionStartedAt: z.number().nullable().optional().default(null),
+      expiresAt: z.number().nullable().optional().default(null),
+      isLoggedIn: z.boolean().optional().default(false),
+    })
+    .optional()
+    .default({ sessionId: null, sessionStartedAt: null, expiresAt: null, isLoggedIn: false }),
+  mobileSession: z
+    .object({
+      sessionId: z.string().nullable().optional().default(null),
+      sessionStartedAt: z.number().nullable().optional().default(null),
+      lastActiveAt: z.number().nullable().optional().default(null),
+      isLoggedIn: z.boolean().optional().default(false),
+    })
+    .optional()
+    .default({ sessionId: null, sessionStartedAt: null, lastActiveAt: null, isLoggedIn: false }),
   tokenValidAfter: z.number().optional(),
 });
 

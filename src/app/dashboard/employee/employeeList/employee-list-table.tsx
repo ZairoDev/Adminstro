@@ -145,7 +145,10 @@ export default function EmployeeListTable({
               // Exclude SuperAdmin accounts when HR is viewing
               const copyPasswords = filteredEmployee
                 ?.filter((row) => !isHRViewingSuperAdmin(role, row.role))
-                .map((row) => `${row.email} : ${row.password}`);
+                .map(
+                  (row) =>
+                    `${row.email} : ${row.password} | PIN: ${row.mobilePin ?? "—"}`,
+                );
               navigator.clipboard.writeText(
                 JSON.stringify(copyPasswords, null, 2)
               );
@@ -167,7 +170,7 @@ export default function EmployeeListTable({
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
-            <TableHead>Passwords</TableHead>
+            <TableHead>Password / PIN</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
         </TableHeader>
@@ -222,7 +225,12 @@ export default function EmployeeListTable({
                       <span>Restricted</span>
                     </div>
                   ) : (
-                    <p>{employee?.password}</p>
+                    <div className="flex flex-col leading-tight">
+                      <p className="text-sm">{employee?.password}</p>
+                      <p className="text-xs text-muted-foreground">
+                        PIN: {employee?.mobilePin ?? "—"}
+                      </p>
+                    </div>
                   )}
                 </TableCell>
 
@@ -250,7 +258,7 @@ export default function EmployeeListTable({
                         <DropdownMenuGroup>
                           <DropdownMenuItem
                             onClick={() => {
-                              const textToCopy = `${employee.email} ${employee.password}`;
+                              const textToCopy = `${employee.email} ${employee.password} PIN:${employee.mobilePin ?? "—"}`;
                               navigator.clipboard.writeText(textToCopy);
                             }}
                           >

@@ -95,7 +95,11 @@ export default function EmployeeTable({
 
       const updatedEmployeeList = filteredEmployee?.map((emp) =>
         employee._id === emp._id
-          ? { ...emp, password: response.data.newPassword }
+          ? {
+              ...emp,
+              password: response.data.newPassword,
+              mobilePin: response.data.mobilePin,
+            }
           : emp
       );
       setEmployeeList(updatedEmployeeList);
@@ -239,7 +243,10 @@ export default function EmployeeTable({
               // Exclude SuperAdmin accounts when HR is viewing
               const copyPasswords = filteredEmployee
                 ?.filter((row) => !isHRViewingSuperAdmin(role, row.role))
-                .map((row) => `${row.email} : ${row.password}`);
+                .map(
+                  (row) =>
+                    `${row.email} : ${row.password} | PIN: ${row.mobilePin ?? "—"}`,
+                );
               navigator.clipboard.writeText(
                 JSON.stringify(copyPasswords, null, 2)
               );
@@ -262,7 +269,7 @@ export default function EmployeeTable({
             <TableHead>Role</TableHead>
             {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
             <TableHead>Status</TableHead>
-            <TableHead>Passwords</TableHead>
+            <TableHead>Password / PIN</TableHead>
             <TableHead>Actions </TableHead>
           </TableRow>
         </TableHeader>
@@ -388,7 +395,12 @@ export default function EmployeeTable({
                     </div>
                   ) : (
                     <>
-                      <p>{employee?.password}</p>
+                      <div className="flex flex-col leading-tight">
+                        <p className="text-sm">{employee?.password}</p>
+                        <p className="text-xs text-muted-foreground">
+                          PIN: {employee?.mobilePin ?? "—"}
+                        </p>
+                      </div>
                       <RefreshCcw
                         size={16}
                         className={`cursor-pointer ${
@@ -424,7 +436,7 @@ export default function EmployeeTable({
                         <DropdownMenuGroup>
                           <DropdownMenuItem
                             onClick={() => {
-                              const textToCopy = `${employee.email} ${employee.password}`;
+                              const textToCopy = `${employee.email} ${employee.password} PIN:${employee.mobilePin ?? "—"}`;
                               navigator.clipboard.writeText(textToCopy);
                             }}
                           >

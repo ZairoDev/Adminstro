@@ -4,6 +4,7 @@ import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { generateMobilePin } from "@/util/generateMobilePin";
 // import { sendEmail } from "@/util/mailer";
 
 connectDb();
@@ -37,9 +38,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 		const newPassword = generatePassword();
+    const newMobilePin = generateMobilePin(4);
 		// const hashedPassword = await bcryptjs.hash(newPassword, 10);
 
 		employee.password = newPassword;
+    employee.mobilePin = newMobilePin;
 		employee.passwordExpiresAt = computePasswordExpiryDate();
 		await employee.save();
 
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 			{
 				message: "New password generated and sent to employee",
 				newPassword: newPassword,
+        mobilePin: newMobilePin,
 			},
 			{ status: 200 }
 		);

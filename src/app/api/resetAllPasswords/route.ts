@@ -1,6 +1,7 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { generatePassword } from "@/util/generatePassword";
+import { generateMobilePin } from "@/util/generateMobilePin";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
@@ -34,7 +35,9 @@ export const GET = async (req: NextRequest) => {
       employees.map(async (employee) => {
         try {
           const newPassword = generatePassword(6);
+          const newMobilePin = generateMobilePin(4);
           employee.password = newPassword;
+          employee.mobilePin = newMobilePin;
           employee.passwordExpiresAt = computePasswordExpiryDate();
           await employee.save();
           return true;

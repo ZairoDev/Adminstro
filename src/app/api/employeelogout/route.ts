@@ -4,6 +4,7 @@ import type { NextRequest, NextResponse as ResponseType } from "next/server";
 import jwt from "jsonwebtoken";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
+import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ connectDb();
 
 export async function GET(request: NextRequest): Promise<ResponseType> {
   try {
+    const deviceType = getDeviceTypeFromHeaders(request.headers);
     // Get token from cookies or authorization header
     const token = request.cookies.get("token")?.value || 
                   request.headers.get("authorization")?.replace("Bearer ", "");
@@ -21,14 +23,29 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
         
         // Update employee login status
         const logoutTime = new Date();
+        const sessionIdFromToken = decoded?.sid as string | undefined;
+        const slotUnset =
+          deviceType === "mobile"
+            ? {
+                "mobileSession.sessionId": null,
+                "mobileSession.sessionStartedAt": null,
+                "mobileSession.lastActiveAt": null,
+                "mobileSession.isLoggedIn": false,
+              }
+            : {
+                "webSession.sessionId": null,
+                "webSession.sessionStartedAt": null,
+                "webSession.expiresAt": null,
+                "webSession.isLoggedIn": false,
+              };
         await Employees.updateOne(
-          { _id: decoded.id },
-          { $set: { isLoggedIn: false, lastLogout: logoutTime, sessionId: null, sessionStartedAt: null, tokenValidAfter: Date.now() } }
+          { _id: decoded.id, ...(sessionIdFromToken ? { [(deviceType === "mobile" ? "mobileSession.sessionId" : "webSession.sessionId")]: sessionIdFromToken } : {}) } as any,
+          { $set: { lastLogout: logoutTime, ...slotUnset } }
         );
 
         // Session-based logout: end the matching active login record for this device/session
         try {
-          const sessionId = request.cookies.get("sessionId")?.value;
+          const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value;
           if (sessionId) {
             const loginDoc = await EmployeeActivityLog.findOne({
               sessionId,
@@ -53,7 +70,7 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
         try {
           const employee = await Employees.findById(decoded.id);
           if (employee) {
-            const sessionId = request.cookies.get("sessionId")?.value || null;
+            const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value || null;
             const activityLog = new EmployeeActivityLog({
               employeeId: decoded.id.toString(),
               employeeName: decoded.name || employee.name,
@@ -89,16 +106,31 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
         const decoded = jwt.decode(token) as any;
         if (decoded?.id) {
           const logoutTime = new Date();
+          const sessionIdFromToken = decoded?.sid as string | undefined;
+          const slotUnset =
+            deviceType === "mobile"
+              ? {
+                  "mobileSession.sessionId": null,
+                  "mobileSession.sessionStartedAt": null,
+                  "mobileSession.lastActiveAt": null,
+                  "mobileSession.isLoggedIn": false,
+                }
+              : {
+                  "webSession.sessionId": null,
+                  "webSession.sessionStartedAt": null,
+                  "webSession.expiresAt": null,
+                  "webSession.isLoggedIn": false,
+                };
           await Employees.updateOne(
-            { _id: decoded.id },
-            { $set: { isLoggedIn: false, lastLogout: logoutTime } }
+            { _id: decoded.id, ...(sessionIdFromToken ? { [(deviceType === "mobile" ? "mobileSession.sessionId" : "webSession.sessionId")]: sessionIdFromToken } : {}) } as any,
+            { $set: { lastLogout: logoutTime, ...slotUnset } }
           );
 
           // Log logout activity
           try {
             const employee = await Employees.findById(decoded.id);
             if (employee) {
-            const sessionId = request.cookies.get("sessionId")?.value || null;
+            const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value || null;
             const activityLog = new EmployeeActivityLog({
                 employeeId: decoded.id.toString(),
                 employeeName: decoded.name || employee.name,
@@ -138,21 +170,23 @@ export async function GET(request: NextRequest): Promise<ResponseType> {
       success: true,
     });
 
-    await response.cookies.delete({
-      name: "token",
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-    // clear sessionId cookie as well
-    try {
+    if (deviceType === "web") {
       await response.cookies.delete({
-        name: "sessionId",
+        name: "token",
         path: "/",
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       });
-    } catch (e) {}
+      // clear sessionId cookie as well
+      try {
+        await response.cookies.delete({
+          name: "sessionId",
+          path: "/",
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+        });
+      } catch (e) {}
+    }
 
     response.headers.set("Cache-Control", "no-store");
 

@@ -11,8 +11,6 @@ export interface MiddlweareInterface {
   iat: Date;
   sid: string;
   tokenValidAfter: number;
-  sessionId: string;
-  sessionStartedAt: number;
 }
 
 export type WarningType =
@@ -74,6 +72,10 @@ export interface EmployeeInterface {
   organization?: "VacationSaga" | "Holidaysera" | "HousingSaga";
   profilePic: string;
   nationality: string;
+  /** Numeric password currently used for login (legacy/plain in DB). */
+  password?: string;
+  /** 4-digit PIN for mobile login. */
+  mobilePin?: string | null;
   gender: string;
   spokenLanguage: string;
   accountNo: string;
@@ -89,7 +91,6 @@ export interface EmployeeInterface {
   isActive?: boolean;
   inactiveReason?: SeparationType | null;
   inactiveDate?: string | null;
-  isLoggedIn?: boolean;
   lastLogin?: string;
   lastLogout?: string;
   role: [string];
@@ -154,8 +155,18 @@ export interface EmployeeInterface {
     all?: { enabled?: boolean; allowedPropertyType?: string[] };
     byLocation?: Record<string, { enabled?: boolean; allowedPropertyType?: string[] }>;
   };
-  sessionId?: string;
-  sessionStartedAt?: number;
+  webSession?: {
+    sessionId?: string | null;
+    sessionStartedAt?: number | null;
+    expiresAt?: number | null;
+    isLoggedIn?: boolean;
+  };
+  mobileSession?: {
+    sessionId?: string | null;
+    sessionStartedAt?: number | null;
+    lastActiveAt?: number | null;
+    isLoggedIn?: boolean;
+  };
   tokenValidAfter?: number;
 }
 
@@ -269,6 +280,7 @@ export interface UserInterface {
   name: string;
   nationality: string;
   password: string;
+  mobilePin?: string | null;
   phone: number;
   profilePic: string;
   role: string;

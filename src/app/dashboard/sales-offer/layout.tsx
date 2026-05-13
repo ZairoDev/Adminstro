@@ -29,7 +29,7 @@ export default function SalesOfferLayout({ children }: { children: React.ReactNo
         return;
       }
 
-      if (role === "HAdmin") {
+      if (role.toLowerCase() === "hadmin") {
         initialize({ role, userId });
         if (!cancelled) setReady(true);
         return;

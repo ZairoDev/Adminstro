@@ -24,6 +24,9 @@ export const WHATSAPP_EVENTS = {
   INCOMING_CALL: "whatsapp-incoming-call",
   CALL_STATUS_UPDATE: "whatsapp-call-status",
   CALL_MISSED: "whatsapp-call-missed",
+  CALL_SDP_ANSWER: "whatsapp-call-sdp-answer",
+  /** Customer-initiated call: Call Connect webhook carries Meta SDP offer. */
+  CALL_INCOMING_OFFER: "whatsapp-call-incoming-offer",
 
   // History events (history webhook field)
   HISTORY_SYNC: "whatsapp-history-sync",

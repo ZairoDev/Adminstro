@@ -24,6 +24,17 @@ export async function POST(req: NextRequest) {
 
     const { id, isLive }: { id: string; isLive: boolean } = await req.json();
 
+    const role = String((auth as { role?: string }).role ?? "").trim();
+    if (role !== "SuperAdmin" && role !== "Advert") {
+      return NextResponse.json(
+        {
+          message:
+            "Only SuperAdmin or Advert can change property visibility. Ask SuperAdmin to approve or hide the property.",
+        },
+        { status: 403 },
+      );
+    }
+
     if (!id || typeof isLive !== "boolean") {
       return NextResponse.json(
         { message: "Invalid data provided." },

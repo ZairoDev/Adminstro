@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, startTransition } from "react
 import { flushSync } from "react-dom";
 import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
 import axios from "@/util/axios";
@@ -28,6 +29,192 @@ import { AddGuestModal } from "./components/AddGuestModal";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
+import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
+import {
+  restrictPeerConnectionAudioToOpus,
+  buildCleanWhatsAppOfferDetailed,
+  validateWhatsAppCallingSdp,
+  sanitizeMetaAnswerSdpForBrowser,
+  sanitizeMetaOfferSdpForBrowser,
+} from "@/lib/whatsapp/callingSdp";
+import {
+  OutboundCallSoundController,
+  getOutboundCallAudioConstraints,
+  WA_CALL_SIGNALING_ANSWER_TIMEOUT_MS,
+  WA_CALL_ICE_DISCONNECTED_GRACE_MS,
+  type OutboundCallUiState,
+  type SilentOutboundAudioHandle,
+  attachSilentOutboundAudioTrack,
+  logWebRtcMediaDiagnostics,
+  collectOutboundRtpAudioSummary,
+} from "@/lib/whatsapp/calling";
+import { usePeerConnectionStats } from "./hooks/usePeerConnectionStats";
+import { WhatsAppCallOverlay } from "./components/calling/WhatsAppCallOverlay";
+
+/**
+ * `/api/whatsapp/call` returns Zod `issues`, or `{ error, data }` (Meta body in `data`).
+ * Axios only logs "400"; the real reason is in `response.data` — use this for toasts.
+ */
+function formatWhatsAppCallApiError(error: unknown): string {
+  if (typeof error !== "object" || error === null) return String(error);
+  const ax = error as {
+    response?: { data?: Record<string, unknown>; status?: number };
+    message?: string;
+  };
+  const body = ax.response?.data;
+  if (body && typeof body === "object") {
+    if (Array.isArray(body.issues)) {
+      const zod = body.issues
+        .map((i: unknown) => (typeof i === "object" && i !== null ? JSON.stringify(i) : String(i)))
+        .join("; ");
+      if (zod) return `Invalid request: ${zod}`;
+    }
+
+    if (typeof body.error === "string" && body.error.trim()) return body.error.trim();
+
+    const fromGraph = collectMetaGraphErrorText(body.data);
+    if (fromGraph) return fromGraph;
+  }
+  return ax.message || "Request failed";
+}
+
+function simpleHashUtf8(s: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+type PendingIncomingCallInvite = {
+  callId: string;
+  conversationId: string;
+  phoneNumberId: string;
+  offerSdp: string;
+  contactLabel: string;
+};
+
+/**
+ * Fallback ICE servers used when the `/api/whatsapp/ice-servers` fetch fails.
+ * On open networks these STUN servers are sufficient.  On restricted networks
+ * (corporate firewalls that block UDP 3478) you must configure TURN via the
+ * server environment variables — see `src/app/api/whatsapp/ice-servers/route.ts`.
+ */
+const WA_FALLBACK_ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
+/** Cache so we don't re-fetch on every single call attempt within a session. */
+let _iceServerCache: RTCIceServer[] | null = null;
+let _iceServerCacheTs = 0;
+const ICE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function fetchIceServers(): Promise<RTCIceServer[]> {
+  const now = Date.now();
+  if (_iceServerCache && now - _iceServerCacheTs < ICE_CACHE_TTL_MS) {
+    return _iceServerCache;
+  }
+  try {
+    const res = await fetch("/api/whatsapp/ice-servers");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = (await res.json()) as { servers?: RTCIceServer[] };
+    if (Array.isArray(json.servers) && json.servers.length > 0) {
+      _iceServerCache = json.servers;
+      _iceServerCacheTs = now;
+      return _iceServerCache;
+    }
+  } catch (err) {
+    console.warn("[ice] failed to fetch ICE servers from API, using fallback:", err);
+  }
+  return WA_FALLBACK_ICE_SERVERS;
+}
+
+/**
+ * Wait until ICE gathering finishes **or** the timeout elapses, then resolve.
+ *
+ * We intentionally RESOLVE (never reject) on timeout so callers can proceed
+ * with whatever candidates Chrome gathered so far.  Rejecting here would kill
+ * the call even when Chrome already has a usable srflx candidate but the
+ * `iceGatheringState === "complete"` event arrived slightly after our cutoff.
+ *
+ * Listens to both:
+ *   - `icegatheringstatechange` → "complete"  (standard)
+ *   - `icecandidate` → null candidate          (Chrome trickle-ICE end signal)
+ */
+function awaitIceGatheringOrTimeout(pc: RTCPeerConnection, timeoutMs: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (pc.iceGatheringState === "complete") {
+      resolve();
+      return;
+    }
+
+    let done = false;
+    const finish = (reason: string) => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      pc.removeEventListener("icegatheringstatechange", onStateChange);
+      pc.removeEventListener("icecandidate", onCandidate);
+      console.log(`[ice] gathering finished (${reason}), state=${pc.iceGatheringState}`);
+      resolve();
+    };
+
+    const onStateChange = () => {
+      if (pc.iceGatheringState === "complete") finish("state-complete");
+    };
+
+    const onCandidate = (ev: RTCPeerConnectionIceEvent) => {
+      // Chrome signals end-of-candidates with a null candidate (trickle ICE).
+      if (ev.candidate === null) finish("null-candidate");
+    };
+
+    const timer = window.setTimeout(() => {
+      const count = (pc.localDescription?.sdp?.match(/^a=candidate:/gm) ?? []).length;
+      console.warn(`[ice] gathering timeout after ${timeoutMs}ms; ${count} raw candidate(s) in SDP so far — continuing anyway`);
+      finish("timeout");
+    }, timeoutMs);
+
+    pc.addEventListener("icegatheringstatechange", onStateChange);
+    pc.addEventListener("icecandidate", onCandidate);
+  });
+}
+
+/**
+ * Prefer real mic for two-way audio. If no mic or permission denied, attach a **near-silent**
+ * generated track so Opus still emits RTP toward Meta (avoids ~20s media-timeout drops).
+ */
+async function attachLocalAudioOrRecvOnly(
+  pc: RTCPeerConnection,
+  streamHolder: { current: MediaStream | null },
+): Promise<{ usedMic: boolean; silentHandle: SilentOutboundAudioHandle | null }> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: getOutboundCallAudioConstraints(),
+      video: false,
+    });
+    streamHolder.current = stream;
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    return { usedMic: true, silentHandle: null };
+  } catch (err: unknown) {
+    const dom = err instanceof DOMException ? err : null;
+    const name = dom?.name || "";
+    const msg = err instanceof Error ? err.message : "";
+    const noDevice =
+      name === "NotFoundError" ||
+      name === "DevicesNotFoundError" ||
+      /requested device not found/i.test(msg);
+    const denied = name === "NotAllowedError" || name === "PermissionDeniedError";
+
+    if (noDevice || denied) {
+      const silentHandle = attachSilentOutboundAudioTrack(pc);
+      streamHolder.current = silentHandle.stream;
+      return { usedMic: false, silentHandle };
+    }
+    throw err;
+  }
+}
 
 export default function WhatsAppChat() {
   const { token } = useAuthStore();
@@ -157,10 +344,51 @@ export default function WhatsAppChat() {
   // Call state
   const [callingAudio, setCallingAudio] = useState(false);
   const [callingVideo, setCallingVideo] = useState(false);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const activeCallIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+  }, [activeCallId]);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const localCallStreamRef = useRef<MediaStream | null>(null);
   const [callPermissions, setCallPermissions] = useState({
     canMakeCalls: false,
     canMakeVideoCalls: false,
   });
+  const [outboundCallUi, setOutboundCallUi] = useState<OutboundCallUiState | null>(null);
+  const [pendingIncomingInvite, setPendingIncomingInvite] = useState<PendingIncomingCallInvite | null>(null);
+  const pendingIncomingInviteRef = useRef<PendingIncomingCallInvite | null>(null);
+  const [answeringIncoming, setAnsweringIncoming] = useState(false);
+  const [remoteAudioPlayBlocked, setRemoteAudioPlayBlocked] = useState(false);
+  const [callDiagnosticsOpen, setCallDiagnosticsOpen] = useState(false);
+  const [peerForStats, setPeerForStats] = useState<RTCPeerConnection | null>(null);
+  const [lastIceDiagnostics, setLastIceDiagnostics] = useState<{
+    kept: string[];
+    dropped: { line: string; reason: string }[];
+    metaOfferPreview: string;
+  } | null>(null);
+  const [lastAnswerSdpPreview, setLastAnswerSdpPreview] = useState<string | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingOutboundCallRef = useRef<{ conversationId: string } | null>(null);
+  const callSoundRef = useRef<OutboundCallSoundController | null>(null);
+  const signalingAnswerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iceDisconnectedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdpAnswerAppliedHashRef = useRef<string | null>(null);
+  const reconnectIceAttemptedRef = useRef(false);
+  const statsSnapshotRef = useRef<Record<string, unknown> | undefined>(undefined);
+  const silentOutboundAudioRef = useRef<SilentOutboundAudioHandle | null>(null);
+  const callSessionMetaRef = useRef<{
+    startedAtMs: number;
+    conversationId: string;
+    summaryVariant?: "outbound" | "inbound";
+  } | null>(null);
+  const mediaStallWarnedRef = useRef(false);
+  const hangUpInProgressRef = useRef(false);
+  /**
+   * Inbound answer: ICE can briefly hit failed/closed before Meta receives our `accept` SDP.
+   * {@link attachOutboundCallMediaHandlers} must not tear down the PC during that window.
+   */
+  const suppressPrematureInboundIceCleanupRef = useRef(false);
 
   // Search in messages
   const [showMessageSearch, setShowMessageSearch] = useState(false);
@@ -238,6 +466,544 @@ export default function WhatsAppChat() {
     };
   }, [selectedConversation, persistActiveConversation]);
 
+  const cleanupOutboundCallResources = useCallback(() => {
+    suppressPrematureInboundIceCleanupRef.current = false;
+    if (signalingAnswerTimerRef.current) {
+      clearTimeout(signalingAnswerTimerRef.current);
+      signalingAnswerTimerRef.current = null;
+    }
+    if (iceDisconnectedTimerRef.current) {
+      clearTimeout(iceDisconnectedTimerRef.current);
+      iceDisconnectedTimerRef.current = null;
+    }
+    callSoundRef.current?.stopRing();
+    callSoundRef.current?.dispose();
+    callSoundRef.current = null;
+
+    const pc = peerRef.current;
+    localCallStreamRef.current?.getTracks().forEach((t) => {
+      t.stop();
+    });
+    localCallStreamRef.current = null;
+    if (pc) {
+      for (const s of pc.getSenders()) {
+        try {
+          s.track?.stop();
+        } catch {
+          /* ignore */
+        }
+      }
+      pc.close();
+    }
+    peerRef.current = null;
+    setPeerForStats(null);
+    const el = remoteAudioRef.current;
+    if (el) {
+      el.srcObject = null;
+      el.volume = 1;
+    }
+    pendingOutboundCallRef.current = null;
+    sdpAnswerAppliedHashRef.current = null;
+    reconnectIceAttemptedRef.current = false;
+    silentOutboundAudioRef.current?.stop();
+    silentOutboundAudioRef.current = null;
+    callSessionMetaRef.current = null;
+    mediaStallWarnedRef.current = false;
+    setActiveCallId(null);
+    setOutboundCallUi(null);
+    setRemoteAudioPlayBlocked(false);
+    setCallDiagnosticsOpen(false);
+    setLastIceDiagnostics(null);
+    setLastAnswerSdpPreview(null);
+  }, []);
+
+  const attachOutboundCallMediaHandlers = useCallback(
+    (pc: RTCPeerConnection) => {
+      const syncConn = () => {
+        setOutboundCallUi((prev) =>
+          prev
+            ? {
+                ...prev,
+                connectionState: pc.connectionState,
+                iceState: pc.iceConnectionState,
+                signalingState: pc.signalingState,
+              }
+            : prev,
+        );
+      };
+
+      pc.ontrack = (ev: RTCTrackEvent) => {
+        const el = remoteAudioRef.current;
+        if (!el) return;
+        const stream =
+          ev.streams[0] ??
+          (ev.receiver.track ? new MediaStream([ev.receiver.track]) : null);
+        if (!stream) return;
+        el.srcObject = stream;
+        void el.play().catch((err) => {
+          console.warn("[call] remote audio play() failed:", err);
+          setRemoteAudioPlayBlocked(true);
+        });
+        callSoundRef.current?.stopRing();
+        void callSoundRef.current?.playConnectChime();
+        setOutboundCallUi((prev) => (prev ? { ...prev, phase: "connected" } : prev));
+      };
+
+      pc.onconnectionstatechange = () => {
+        syncConn();
+        if (pc.connectionState === "failed") {
+          setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
+          if (suppressPrematureInboundIceCleanupRef.current) {
+            console.warn(
+              "[call] connectionState failed during inbound answer prep — waiting for Meta accept; not closing PC yet",
+            );
+            return;
+          }
+          cleanupOutboundCallResources();
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        syncConn();
+        const ice = pc.iceConnectionState;
+        if (ice === "disconnected") {
+          setOutboundCallUi((prev) => (prev ? { ...prev, phase: "reconnecting" } : prev));
+          if (iceDisconnectedTimerRef.current) clearTimeout(iceDisconnectedTimerRef.current);
+          iceDisconnectedTimerRef.current = setTimeout(() => {
+            if (peerRef.current !== pc) return;
+            const s = pc.iceConnectionState;
+            if (s === "connected" || s === "completed") return;
+            try {
+              if (!reconnectIceAttemptedRef.current) {
+                pc.restartIce();
+                reconnectIceAttemptedRef.current = true;
+              }
+            } catch {
+              /* ignore */
+            }
+          }, WA_CALL_ICE_DISCONNECTED_GRACE_MS);
+        } else if (ice === "connected" || ice === "completed") {
+          if (iceDisconnectedTimerRef.current) {
+            clearTimeout(iceDisconnectedTimerRef.current);
+            iceDisconnectedTimerRef.current = null;
+          }
+          reconnectIceAttemptedRef.current = false;
+          setOutboundCallUi((prev) => {
+            if (!prev) return prev;
+            if (prev.phase === "reconnecting") return { ...prev, phase: "connected" };
+            return prev;
+          });
+        } else if (ice === "failed") {
+          setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
+          if (suppressPrematureInboundIceCleanupRef.current) {
+            console.warn(
+              "[call] ICE failed during inbound answer prep — waiting for Meta accept; not closing PC yet",
+            );
+            return;
+          }
+          cleanupOutboundCallResources();
+        }
+      };
+    },
+    [cleanupOutboundCallResources],
+  );
+
+  const rejectPendingIncomingForNewOutbound = useCallback(() => {
+    const inv = pendingIncomingInviteRef.current;
+    if (!inv) return;
+    pendingIncomingInviteRef.current = null;
+    setPendingIncomingInvite(null);
+    void axios
+      .post("/api/whatsapp/call", {
+        action: "reject_incoming_call",
+        callId: inv.callId,
+        phoneNumberId: inv.phoneNumberId,
+        ...(inv.conversationId.trim() ? { conversationId: inv.conversationId.trim() } : {}),
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleDeclineIncomingCall = useCallback(() => {
+    const inv = pendingIncomingInviteRef.current;
+    if (!inv) return;
+    pendingIncomingInviteRef.current = null;
+    setPendingIncomingInvite(null);
+    void axios
+      .post("/api/whatsapp/call", {
+        action: "reject_incoming_call",
+        callId: inv.callId,
+        phoneNumberId: inv.phoneNumberId,
+        ...(inv.conversationId.trim() ? { conversationId: inv.conversationId.trim() } : {}),
+      })
+      .catch((e: unknown) => {
+        toast({
+          title: "Could not decline call",
+          description: formatWhatsAppCallApiError(e),
+          variant: "destructive",
+        });
+      });
+  }, [toast]);
+
+  const handleAnswerIncomingWhatsAppCall = useCallback(async () => {
+    const inv = pendingIncomingInviteRef.current;
+    if (!inv || answeringIncoming) return;
+    setAnsweringIncoming(true);
+    pendingIncomingInviteRef.current = null;
+    setPendingIncomingInvite(null);
+
+    try {
+      if (peerRef.current) {
+        cleanupOutboundCallResources();
+      }
+
+      const iceServers = await fetchIceServers();
+      console.log("[call-inbound] ICE servers:", iceServers.map((s) => s.urls));
+      const pc = new RTCPeerConnection({ iceServers });
+      peerRef.current = pc;
+      sdpAnswerAppliedHashRef.current = null;
+      reconnectIceAttemptedRef.current = false;
+      setPeerForStats(pc);
+      callSoundRef.current?.dispose();
+      callSoundRef.current = new OutboundCallSoundController();
+      pendingOutboundCallRef.current = null;
+
+      const startedAtMs = Date.now();
+      callSessionMetaRef.current = {
+        startedAtMs,
+        conversationId: inv.conversationId,
+        summaryVariant: "inbound",
+      };
+
+      suppressPrematureInboundIceCleanupRef.current = true;
+      attachOutboundCallMediaHandlers(pc);
+
+      setOutboundCallUi({
+        sessionKind: "inbound",
+        phase: "connecting",
+        surface: "fullscreen",
+        contactLabel: inv.contactLabel,
+        connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        signalingState: pc.signalingState,
+        startedAtMs,
+        muted: false,
+        speaker: true,
+      });
+
+      const browserOffer = sanitizeMetaOfferSdpForBrowser(inv.offerSdp);
+      await pc.setRemoteDescription({ type: "offer", sdp: browserOffer });
+
+      const { usedMic, silentHandle } = await attachLocalAudioOrRecvOnly(pc, localCallStreamRef);
+      silentOutboundAudioRef.current = silentHandle;
+      if (!usedMic) {
+        toast({
+          title: "Microphone unavailable",
+          description:
+            "Using a low-level silent carrier so RTP keeps flowing. Allow the mic for two-way audio with the customer.",
+          duration: 10_000,
+        });
+      }
+
+      restrictPeerConnectionAudioToOpus(pc);
+
+      const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+      if (audioSender) {
+        try {
+          const params = audioSender.getParameters();
+          if (!params.encodings?.length) params.encodings = [{}];
+          const enc = params.encodings[0];
+          if (enc) {
+            // 64 kbps gives noticeably better Opus fidelity for voice without
+            // stressing the connection; Meta's infra handles the media relay.
+            enc.maxBitrate = 64_000;
+            enc.networkPriority = "high";
+          }
+          await audioSender.setParameters(params);
+        } catch {
+          /* optional tuning */
+        }
+      }
+
+      logWebRtcMediaDiagnostics(pc, "inbound-pre-createAnswer");
+      const rawAnswer = await pc.createAnswer();
+      await pc.setLocalDescription(rawAnswer);
+
+      await awaitIceGatheringOrTimeout(pc, 15_000);
+
+      logWebRtcMediaDiagnostics(pc, "inbound-post-ICE-gather");
+
+      const gathered = pc.localDescription?.sdp ?? "";
+      if (!gathered) throw new Error("Failed to generate SDP answer");
+
+      const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "answer" });
+      setLastIceDiagnostics({
+        kept: [...kept],
+        dropped: [...dropped],
+        metaOfferPreview: sdp.slice(0, 1600),
+      });
+
+      const sdpProblems = validateWhatsAppCallingSdp(sdp);
+      if (sdpProblems.length > 0) {
+        console.warn("[call inbound] SDP validation warnings:", sdpProblems);
+      }
+
+      if (kept.length === 0) {
+        suppressPrematureInboundIceCleanupRef.current = false;
+        cleanupOutboundCallResources();
+        const droppedSummary = dropped.length
+          ? `Gathered ${dropped.length} candidate(s) but all were dropped: ${[...new Set(dropped.map((d) => d.reason))].join(", ")}.`
+          : "No candidates gathered at all — STUN server may be unreachable.";
+        toast({
+          title: "No usable ICE candidates",
+          description: `Meta requires a public (srflx/relay) IPv4 candidate. ${droppedSummary} Check that UDP port 3478 is not blocked by your firewall.`,
+          variant: "destructive",
+          duration: 10_000,
+        });
+        return;
+      }
+
+      const phoneNumberId =
+        inv.phoneNumberId.trim() || (selectedPhoneIdRef.current != null ? String(selectedPhoneIdRef.current).trim() : "");
+      if (!phoneNumberId) {
+        suppressPrematureInboundIceCleanupRef.current = false;
+        cleanupOutboundCallResources();
+        toast({
+          title: "Could not answer call",
+          description: "Missing WhatsApp phone line id. Select the correct business number in the sidebar and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const sdpForMeta = sdp.includes("\r\n") ? sdp : sdp.replace(/\n/g, "\r\n");
+
+      const answerPayload: Record<string, unknown> = {
+        action: "answer_incoming_call",
+        callId: inv.callId,
+        phoneNumberId,
+        session: { sdpType: "answer" as const, sdp: sdpForMeta },
+      };
+      if (inv.conversationId.trim()) {
+        answerPayload.conversationId = inv.conversationId.trim();
+      }
+
+      const response = await axios.post("/api/whatsapp/call", answerPayload);
+
+      if (!response.data?.success) {
+        suppressPrematureInboundIceCleanupRef.current = false;
+        cleanupOutboundCallResources();
+        toast({
+          title: "Answer failed",
+          description:
+            typeof response.data?.error === "string" && response.data.error.trim()
+              ? response.data.error.trim()
+              : "Meta did not accept the call answer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      suppressPrematureInboundIceCleanupRef.current = false;
+
+      setActiveCallId(inv.callId);
+      // Do NOT play the outbound ring here — the call is already live from the
+      // customer's side. Playing a ring tone through speakers while the mic is
+      // open feeds it back to the customer (the "ting" noise). Instead wait for
+      // `ontrack` to fire which plays the connect chime quietly.
+      //
+      // If ICE was in a failed/closed state during the answer-prep window
+      // (suppressed above), nudge the connection by restarting ICE now that
+      // Meta has confirmed the accept.
+      if (
+        pc.iceConnectionState === "failed" ||
+        pc.iceConnectionState === "closed" ||
+        pc.connectionState === "failed"
+      ) {
+        try {
+          pc.restartIce();
+        } catch {
+          /* ignore — best-effort */
+        }
+      }
+
+      setOutboundCallUi((prev) =>
+        prev ? { ...prev, signalingState: pc.signalingState, phase: "ringing" } : prev,
+      );
+      toast({
+        title: "Call answered",
+        description: "Connecting audio with the customer…",
+      });
+    } catch (error: unknown) {
+      cleanupOutboundCallResources();
+      console.error("Incoming call answer failed:", error);
+      toast({
+        title: "Could not answer call",
+        description: formatWhatsAppCallApiError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setAnsweringIncoming(false);
+    }
+  }, [
+    answeringIncoming,
+    attachOutboundCallMediaHandlers,
+    cleanupOutboundCallResources,
+    toast,
+  ]);
+
+  const handleHangUpWhatsAppCall = useCallback(() => {
+    if (hangUpInProgressRef.current) return;
+    hangUpInProgressRef.current = true;
+
+    const sessionSnap = callSessionMetaRef.current;
+    const callId = activeCallId;
+    let durationSeconds: number | undefined;
+    if (sessionSnap?.conversationId) {
+      durationSeconds = Math.max(0, Math.round((Date.now() - sessionSnap.startedAtMs) / 1000));
+    }
+
+    void callSoundRef.current?.playEndChime().catch(() => {});
+
+    // Close UI + peer immediately so End always responds (terminate/telemetry can lag or hang).
+    cleanupOutboundCallResources();
+
+    const convId = sessionSnap?.conversationId;
+    if (callId && convId) {
+      void axios
+        .post("/api/whatsapp/call", {
+          action: "terminate_call",
+          callId,
+          conversationId: convId,
+        })
+        .catch((e) => {
+          console.warn("[call] terminate_call failed:", e);
+        });
+      void axios
+        .post("/api/whatsapp/calls/telemetry", {
+          callId,
+          conversationId: convId,
+          event: "client_ended",
+          disconnectReason: "user_hangup",
+          stats: statsSnapshotRef.current,
+          ...(typeof durationSeconds === "number" ? { durationSeconds } : {}),
+          recordChatSummary: true,
+          ...(sessionSnap?.summaryVariant === "inbound" ? { chatSummaryVariant: "inbound" as const } : {}),
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
+    }
+
+    hangUpInProgressRef.current = false;
+  }, [activeCallId, cleanupOutboundCallResources]);
+
+  const handleResumeRemoteCallAudio = useCallback(() => {
+    const el = remoteAudioRef.current;
+    if (!el) return;
+    void el.play().then(
+      () => setRemoteAudioPlayBlocked(false),
+      (err) => {
+        console.warn("[call] resume play failed:", err);
+      },
+    );
+  }, []);
+
+  const callStats = usePeerConnectionStats(peerForStats, !!outboundCallUi);
+  useEffect(() => {
+    if (callStats) statsSnapshotRef.current = callStats as unknown as Record<string, unknown>;
+  }, [callStats]);
+
+  useEffect(() => {
+    const fn = () => {
+      const el = remoteAudioRef.current;
+      if (document.visibilityState === "visible" && el?.srcObject) {
+        void el.play().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", fn);
+    return () => document.removeEventListener("visibilitychange", fn);
+  }, []);
+
+  const handleToggleCallMute = useCallback(() => {
+    setOutboundCallUi((prev) => {
+      if (!prev) return prev;
+      const nextMuted = !prev.muted;
+      localCallStreamRef.current?.getAudioTracks().forEach((t) => {
+        t.enabled = !nextMuted;
+      });
+      return { ...prev, muted: nextMuted };
+    });
+  }, []);
+
+  const handleToggleCallSpeaker = useCallback(() => {
+    const el = remoteAudioRef.current;
+    setOutboundCallUi((prev) => {
+      if (!prev) return prev;
+      const next = !prev.speaker;
+      if (el) el.volume = next ? 1 : 0.88;
+      return { ...prev, speaker: next };
+    });
+  }, []);
+
+  const handleCallMinimize = useCallback(() => {
+    setOutboundCallUi((prev) => (prev ? { ...prev, surface: "floating" } : prev));
+  }, []);
+
+  const handleCallExpand = useCallback(() => {
+    setOutboundCallUi((prev) => (prev ? { ...prev, surface: "fullscreen" } : prev));
+  }, []);
+
+  useEffect(() => {
+    if (!outboundCallUi) return;
+    const id = window.setInterval(() => {
+      setOutboundCallUi((prev) => (prev ? { ...prev } : prev));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [outboundCallUi]);
+
+  const callElapsedLabel = !outboundCallUi
+    ? "0:00"
+    : (() => {
+        const sec = Math.floor((Date.now() - outboundCallUi.startedAtMs) / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${s.toString().padStart(2, "0")}`;
+      })();
+
+  /** RTP / outbound media watchdog — Meta drops calls when packetsSent stays ~0. */
+  useEffect(() => {
+    if (!outboundCallUi || outboundCallUi.phase !== "connected") return;
+    const pc = peerRef.current;
+    if (!pc) return;
+    const t0 = Date.now();
+    const id = window.setInterval(() => {
+      const p = peerRef.current;
+      if (!p) return;
+      void (async () => {
+        logWebRtcMediaDiagnostics(p, "periodic");
+        const rtp = await collectOutboundRtpAudioSummary(p);
+        const sent = rtp.packetsSent;
+        if (
+          (sent === 0 || sent === undefined) &&
+          Date.now() - t0 > 12_000 &&
+          !mediaStallWarnedRef.current
+        ) {
+          mediaStallWarnedRef.current = true;
+          toast({
+            title: "No outbound RTP (audio)",
+            description:
+              "packetsSent is still 0 — Meta may disconnect (~20s). Check mic, mute, and console [call-media:periodic] logs.",
+            variant: "destructive",
+            duration: 14_000,
+          });
+        }
+      })();
+    }, 4000);
+    return () => {
+      window.clearInterval(id);
+      mediaStallWarnedRef.current = false;
+    };
+  }, [outboundCallUi?.phase, toast]);
 
   // Initialize cross-tab WhatsApp notification controller
   useEffect(() => {
@@ -906,6 +1672,61 @@ export default function WhatsAppChat() {
       playNotificationSound();
     });
 
+    socket.on("whatsapp-call-incoming-offer", (data: Record<string, unknown>) => {
+      const phoneId = data.businessPhoneId != null ? String(data.businessPhoneId) : "";
+      const selectedPid = selectedPhoneIdRef.current;
+      if (selectedPid && phoneId && phoneId !== selectedPid) {
+        return;
+      }
+
+      const callId = typeof data.callId === "string" ? data.callId.trim() : "";
+      const sdp = typeof data.sdp === "string" ? data.sdp : "";
+      if (!callId || !sdp.trim()) return;
+
+      const resolvedPhoneId =
+        phoneId.trim() || (selectedPhoneIdRef.current != null ? String(selectedPhoneIdRef.current).trim() : "");
+      if (!resolvedPhoneId) {
+        toast({
+          title: "Incoming WhatsApp call",
+          description: "Could not determine which business line this call is for. Select the correct WhatsApp number in the sidebar.",
+          variant: "destructive",
+          duration: 10_000,
+        });
+        playNotificationSound();
+        return;
+      }
+
+      const conversationId =
+        data.conversationId != null && String(data.conversationId).trim() !== ""
+          ? String(data.conversationId).trim()
+          : "";
+
+      const contactLabelRaw =
+        (typeof data.contactLabel === "string" && data.contactLabel.trim()
+          ? String(data.contactLabel).trim()
+          : null) ||
+        (data.callerInfo as { profile?: { name?: string } } | undefined)?.profile?.name ||
+        (typeof data.from === "string" ? data.from : null) ||
+        "Caller";
+
+      const next: PendingIncomingCallInvite = {
+        callId,
+        conversationId,
+        phoneNumberId: resolvedPhoneId,
+        offerSdp: sdp,
+        contactLabel: contactLabelRaw,
+      };
+      pendingIncomingInviteRef.current = next;
+      setPendingIncomingInvite(next);
+
+      toast({
+        title: "📞 Incoming call",
+        description: `${contactLabelRaw} is calling. Tap Answer to connect.`,
+        duration: 12_000,
+      });
+      playNotificationSound();
+    });
+
     // Handle missed calls
     socket.on("whatsapp-call-missed", (data: any) => {
       toast({
@@ -915,9 +1736,115 @@ export default function WhatsAppChat() {
       });
     });
 
-    // Handle call status updates
-    socket.on("whatsapp-call-status", (data: any) => {
-      console.log("Call status update:", data);
+    // Handle call status updates (Meta / WhatsApp Calling statuses)
+    socket.on("whatsapp-call-status", (data: { callId?: string; callStatus?: string }) => {
+      const callIdStr = data?.callId != null ? String(data.callId) : "";
+      const pendingInv = pendingIncomingInviteRef.current;
+      if (pendingInv && callIdStr && callIdStr === pendingInv.callId) {
+        const st0 = String(data?.callStatus || "").toLowerCase();
+        if (
+          st0 === "busy" ||
+          st0 === "rejected" ||
+          st0 === "declined" ||
+          st0 === "missed" ||
+          st0 === "failed" ||
+          st0 === "terminated"
+        ) {
+          pendingIncomingInviteRef.current = null;
+          setPendingIncomingInvite(null);
+        }
+      }
+
+      const currentId = activeCallIdRef.current;
+      if (!currentId || callIdStr !== String(currentId)) return;
+      const st = String(data?.callStatus || "").toLowerCase();
+      if (st === "busy" || st === "rejected" || st === "declined" || st === "missed" || st === "failed") {
+        toast({
+          title: "Call ended",
+          description: `Status: ${data.callStatus ?? "unknown"}`,
+          variant: st === "missed" ? "default" : "destructive",
+        });
+        cleanupOutboundCallResources();
+      }
+    });
+
+    // SDP answer for business-initiated calls
+    socket.on("whatsapp-call-sdp-answer", async (data: Record<string, unknown>) => {
+      try {
+        const convId = data?.conversationId != null ? String(data.conversationId) : "";
+        if (!convId) return;
+        const pending = pendingOutboundCallRef.current;
+        const selectedId = selectedConversationRef.current?._id;
+        const matches =
+          pending?.conversationId === convId ||
+          (selectedId != null && String(selectedId) === convId);
+        if (!matches) return;
+
+        const pc = peerRef.current;
+        const rawSdp = data?.sdp;
+        if (!pc || typeof rawSdp !== "string" || !rawSdp.trim()) return;
+
+        const browserSdp = sanitizeMetaAnswerSdpForBrowser(rawSdp);
+        const sdpHash = simpleHashUtf8(browserSdp);
+        if (sdpAnswerAppliedHashRef.current === sdpHash) {
+          return;
+        }
+
+        await pc.setRemoteDescription({ type: "answer", sdp: browserSdp });
+        sdpAnswerAppliedHashRef.current = sdpHash;
+        setLastAnswerSdpPreview(browserSdp.slice(0, 1600));
+        logWebRtcMediaDiagnostics(pc, "post-setRemoteDescription-answer");
+
+        if (signalingAnswerTimerRef.current) {
+          clearTimeout(signalingAnswerTimerRef.current);
+          signalingAnswerTimerRef.current = null;
+        }
+
+        setOutboundCallUi((prev) => {
+          if (!prev) return prev;
+          if (prev.phase === "connecting") return { ...prev, phase: "ringing", signalingState: pc.signalingState };
+          return { ...prev, signalingState: pc.signalingState };
+        });
+
+        try {
+          if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+            navigator.vibrate([120, 80, 120]);
+          }
+        } catch {
+          /* ignore */
+        }
+
+        const el = remoteAudioRef.current;
+        if (el) {
+          const audioTracks = pc
+            .getReceivers()
+            .map((r) => r.track)
+            .filter((t): t is MediaStreamTrack => t != null && t.kind === "audio");
+          if (audioTracks.length > 0 && el.srcObject == null) {
+            el.srcObject = new MediaStream(audioTracks);
+            void el.play().catch((err) => {
+              console.warn("[call] receiver fallback play() failed:", err);
+              setRemoteAudioPlayBlocked(true);
+            });
+            callSoundRef.current?.stopRing();
+            void callSoundRef.current?.playConnectChime();
+            setOutboundCallUi((prev) => (prev ? { ...prev, phase: "connected" } : prev));
+          }
+        }
+
+        const cid = data?.callId;
+        if (typeof cid === "string" && cid.trim()) {
+          setActiveCallId(cid.trim());
+        }
+      } catch (err) {
+        console.error("Failed to apply SDP answer:", err);
+        cleanupOutboundCallResources();
+        toast({
+          title: "Call signaling failed",
+          description: "Could not apply SDP answer.",
+          variant: "destructive",
+        });
+      }
     });
 
     // Handle history sync events
@@ -1015,14 +1942,16 @@ export default function WhatsAppChat() {
       socket.off("whatsapp-message-status", handleMessageStatus);
       socket.off("whatsapp-message-echo", handleMessageEcho);
       socket.off("whatsapp-incoming-call");
+      socket.off("whatsapp-call-incoming-offer");
       socket.off("whatsapp-call-missed");
       socket.off("whatsapp-call-status");
+      socket.off("whatsapp-call-sdp-answer");
       socket.off("whatsapp-history-sync");
       socket.off("whatsapp-app-state-sync");
       socket.off("whatsapp-conversation-read");
       socket.off("whatsapp-conversation-update");
     };
-  }, [socket, toast, token, playNotificationSound]);
+  }, [socket, toast, token, playNotificationSound, selectedConversation, cleanupOutboundCallResources]);
 
 
   // Fetch conversation counts from database
@@ -2786,22 +3715,239 @@ export default function WhatsAppChat() {
 
     setCallingAudio(true);
     try {
-      const response = await axios.post("/api/whatsapp/call", {
-        conversationId: selectedConversation._id,
-        callType: "audio",
-        action: "request",
+      rejectPendingIncomingForNewOutbound();
+      if (peerRef.current) {
+        cleanupOutboundCallResources();
+      }
+      // 0) Check permission state first (prevents wasting the limited permission-request sends)
+      const phoneNumberId = selectedConversation.businessPhoneId;
+      const userWaId = selectedConversation.participantPhone;
+      if (phoneNumberId && userWaId) {
+        try {
+          const permRes = await axios.get("/api/whatsapp/call", { params: { phoneNumberId, userWaId } });
+          const perm = permRes.data?.data?.permission;
+          const actions = Array.isArray(permRes.data?.data?.actions) ? permRes.data.data.actions : [];
+          const startAction = actions.find((a: any) => a.action_name === "start_call");
+          const canStart = startAction?.can_perform_action;
+
+          if (!canStart) {
+            const canReq = actions.find((a: any) => a.action_name === "send_call_permission_request")?.can_perform_action;
+            if (canReq) {
+              await axios.post("/api/whatsapp/call", {
+                conversationId: selectedConversation._id,
+                action: "permission_request",
+                bodyText: "We would like to call you to help resolve your query. Please allow calls.",
+              });
+              toast({
+                title: "Call permission request sent",
+                description: "User must accept before we can call.",
+              });
+              return;
+            }
+
+            toast({
+              title: "Cannot start call yet",
+              description: (() => {
+                const status = perm?.status || "unknown";
+                const limits = Array.isArray(startAction?.limits) ? startAction.limits : [];
+                const limitText = limits
+                  .map((l: any) => {
+                    const tp = l.time_period || "";
+                    const cur = typeof l.current_usage === "number" ? l.current_usage : "?";
+                    const max = typeof l.max_allowed === "number" ? l.max_allowed : "?";
+                    const exp = l.limit_expiration_time ? ` exp:${new Date(Number(l.limit_expiration_time) * 1000).toLocaleString()}` : "";
+                    return `${tp} ${cur}/${max}${exp}`;
+                  })
+                  .filter(Boolean)
+                  .join(" | ");
+                return `Permission: ${status}. start_call not allowed right now.${limitText ? ` Limits: ${limitText}` : ""}`;
+              })(),
+              variant: "destructive",
+            });
+            return;
+          }
+        } catch (e: any) {
+          // If the permission-state endpoint fails, continue and let start_call return the real error.
+          console.warn("Call permission state check failed:", e?.response?.data || e?.message);
+        }
+      }
+
+      // Build WebRTC offer (audio only) and start call via Calls API
+      const iceServers = await fetchIceServers();
+      console.log("[call-outbound] ICE servers:", iceServers.map((s) => s.urls));
+      const pc = new RTCPeerConnection({ iceServers });
+      peerRef.current = pc;
+      sdpAnswerAppliedHashRef.current = null;
+      reconnectIceAttemptedRef.current = false;
+      setPeerForStats(pc);
+      callSoundRef.current?.dispose();
+      callSoundRef.current = new OutboundCallSoundController();
+      attachOutboundCallMediaHandlers(pc);
+      pendingOutboundCallRef.current = { conversationId: String(selectedConversation._id) };
+      const contactLabel =
+        selectedConversation.participantName?.trim() ||
+        selectedConversation.participantPhone ||
+        "Contact";
+      const startedAtMs = Date.now();
+      callSessionMetaRef.current = {
+        startedAtMs,
+        conversationId: String(selectedConversation._id),
+        summaryVariant: "outbound",
+      };
+      setOutboundCallUi({
+        sessionKind: "outbound",
+        phase: "connecting",
+        surface: "fullscreen",
+        contactLabel,
+        connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        signalingState: pc.signalingState,
+        startedAtMs,
+        muted: false,
+        speaker: true,
       });
 
-      if (response.data.success) {
+      const { usedMic, silentHandle } = await attachLocalAudioOrRecvOnly(pc, localCallStreamRef);
+      silentOutboundAudioRef.current = silentHandle;
+      if (!usedMic) {
         toast({
-          title: "Call Request Sent",
-          description: response.data.message,
+          title: "Microphone unavailable",
+          description:
+            "Using a low-level silent carrier so RTP keeps flowing to WhatsApp (avoids ~20s media drops). Allow the mic for real two-way audio.",
+          duration: 10000,
         });
       }
-    } catch (error: any) {
+
+      restrictPeerConnectionAudioToOpus(pc);
+      const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+      if (audioSender) {
+        try {
+          const params = audioSender.getParameters();
+          if (!params.encodings?.length) params.encodings = [{}];
+          const enc = params.encodings[0];
+          if (enc) {
+            enc.maxBitrate = 64_000;
+            enc.networkPriority = "high";
+          }
+          await audioSender.setParameters(params);
+        } catch {
+          /* optional tuning */
+        }
+      }
+
+      logWebRtcMediaDiagnostics(pc, "pre-createOffer");
+      // Set Chrome's ORIGINAL offer as local description (Chrome rejects any modification).
+      console.log("[call] signalingState before createOffer:", pc.signalingState);
+      const rawOffer = await pc.createOffer();
+      console.log("[call] raw Chrome offer SDP:\n", rawOffer.sdp);
+      await pc.setLocalDescription(rawOffer);
+      console.log("[call] signalingState after setLocalDescription:", pc.signalingState);
+
+      // Wait for ICE gathering (resolves on complete OR timeout — never rejects).
+      await awaitIceGatheringOrTimeout(pc, 15_000);
+
+      logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
+
+      // Build a fresh minimal RFC 8866 SDP from Chrome's local description.  This drops
+      // all Chrome-only attributes (extmap, rtcp-fb, …) and filters ICE candidates so we
+      // send Meta only public IPv4 srflx/relay candidates.
+      const gathered = pc.localDescription?.sdp ?? "";
+      if (!gathered) throw new Error("Failed to generate SDP offer");
+
+      const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "offer" });
+      console.log("[call] kept ICE candidates:", kept);
+      console.log("[call] dropped ICE candidates:", dropped);
+      console.log("[call] clean offer SDP sent to Meta:\n", sdp);
+      setLastIceDiagnostics({
+        kept: [...kept],
+        dropped: [...dropped],
+        metaOfferPreview: sdp.slice(0, 1600),
+      });
+
+      const sdpProblems = validateWhatsAppCallingSdp(sdp);
+      if (sdpProblems.length > 0) {
+        console.warn("[call] SDP validation warnings:", sdpProblems);
+      }
+
+      if (kept.length === 0) {
+        cleanupOutboundCallResources();
+        const droppedSummary = dropped.length
+          ? `Gathered ${dropped.length} candidate(s) but all were dropped: ${[...new Set(dropped.map((d) => d.reason))].join(", ")}.`
+          : "No candidates gathered at all — STUN server may be unreachable.";
+        toast({
+          title: "No usable ICE candidates",
+          description: `Meta requires a public (srflx/relay) IPv4 candidate. ${droppedSummary} Check that UDP port 3478 is not blocked by your firewall.`,
+          variant: "destructive",
+          duration: 10_000,
+        });
+        return;
+      }
+
+      const response = await axios.post("/api/whatsapp/call", {
+        conversationId: String(selectedConversation._id),
+        action: "start_call",
+        session: { sdpType: "offer", sdp },
+        bizOpaqueCallbackData: String(selectedConversation._id),
+      });
+
+      if (!response.data?.success) {
+        cleanupOutboundCallResources();
+        toast({
+          title: "Call Failed",
+          description:
+            typeof response.data?.error === "string" && response.data.error.trim()
+              ? response.data.error.trim()
+              : "Call did not start.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const startedCallId =
+        typeof response.data.callId === "string" && response.data.callId.trim()
+          ? response.data.callId.trim()
+          : null;
+      if (startedCallId) {
+        setActiveCallId(startedCallId);
+      }
+      if (signalingAnswerTimerRef.current) {
+        clearTimeout(signalingAnswerTimerRef.current);
+        signalingAnswerTimerRef.current = null;
+      }
+      signalingAnswerTimerRef.current = setTimeout(() => {
+        const p = peerRef.current;
+        if (!p || p.signalingState === "stable") return;
+        toast({
+          title: "Call timed out",
+          description: "No SDP answer received in time. Check webhook connectivity.",
+          variant: "destructive",
+        });
+        cleanupOutboundCallResources();
+      }, WA_CALL_SIGNALING_ANSWER_TIMEOUT_MS);
+      void callSoundRef.current?.startOutboundRing();
+      setOutboundCallUi((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: "ringing",
+              signalingState: pc.signalingState,
+            }
+          : prev,
+      );
+      toast({
+        title: "📞 Calling…",
+        description: "Call initiated. Waiting for SDP answer…",
+      });
+    } catch (error: unknown) {
+      cleanupOutboundCallResources();
+      console.error("Call initiation failed:", error);
+      const ax = error as { response?: { data?: unknown; status?: number; headers?: unknown } };
+      console.error("Call API response status:", ax?.response?.status);
+      console.error("Call API response headers:", ax?.response?.headers);
+      console.error("Call API response body:", ax?.response?.data);
       toast({
         title: "Call Failed",
-        description: error.response?.data?.error || "Failed to initiate call",
+        description: formatWhatsAppCallApiError(error),
         variant: "destructive",
       });
     } finally {
@@ -2815,23 +3961,246 @@ export default function WhatsAppChat() {
 
     setCallingVideo(true);
     try {
-      const response = await axios.post("/api/whatsapp/call", {
-        conversationId: selectedConversation._id,
-        callType: "video",
-        action: "request",
+      rejectPendingIncomingForNewOutbound();
+      if (peerRef.current) {
+        cleanupOutboundCallResources();
+      }
+      // Same permission gating as audio call
+      const phoneNumberId = selectedConversation.businessPhoneId;
+      const userWaId = selectedConversation.participantPhone;
+      if (phoneNumberId && userWaId) {
+        try {
+          const permRes = await axios.get("/api/whatsapp/call", { params: { phoneNumberId, userWaId } });
+          const perm = permRes.data?.data?.permission;
+          const actions = Array.isArray(permRes.data?.data?.actions) ? permRes.data.data.actions : [];
+          const startAction = actions.find((a: any) => a.action_name === "start_call");
+          const canStart = startAction?.can_perform_action;
+          if (!canStart) {
+            const canReq = actions.find((a: any) => a.action_name === "send_call_permission_request")?.can_perform_action;
+            if (canReq) {
+              await axios.post("/api/whatsapp/call", {
+                conversationId: selectedConversation._id,
+                action: "permission_request",
+                bodyText: "We would like to call you to help resolve your query. Please allow calls.",
+              });
+              toast({
+                title: "Call permission request sent",
+                description: "User must accept before we can call.",
+              });
+              return;
+            }
+
+            toast({
+              title: "Cannot start call yet",
+              description: (() => {
+                const status = perm?.status || "unknown";
+                const limits = Array.isArray(startAction?.limits) ? startAction.limits : [];
+                const limitText = limits
+                  .map((l: any) => {
+                    const tp = l.time_period || "";
+                    const cur = typeof l.current_usage === "number" ? l.current_usage : "?";
+                    const max = typeof l.max_allowed === "number" ? l.max_allowed : "?";
+                    const exp = l.limit_expiration_time ? ` exp:${new Date(Number(l.limit_expiration_time) * 1000).toLocaleString()}` : "";
+                    return `${tp} ${cur}/${max}${exp}`;
+                  })
+                  .filter(Boolean)
+                  .join(" | ");
+                return `Permission: ${status}. start_call not allowed right now.${limitText ? ` Limits: ${limitText}` : ""}`;
+              })(),
+              variant: "destructive",
+            });
+            return;
+          }
+        } catch (e: any) {
+          console.warn("Call permission state check failed:", e?.response?.data || e?.message);
+        }
+      }
+
+      // Video calling via Calling API requires video SDP/media constraints. For now,
+      // keep parity with audio flow by checking permissions and then initiating the call
+      // using the same backend start_call action (audio-only SDP offer is sent).
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      peerRef.current = pc;
+      sdpAnswerAppliedHashRef.current = null;
+      reconnectIceAttemptedRef.current = false;
+      setPeerForStats(pc);
+      callSoundRef.current?.dispose();
+      callSoundRef.current = new OutboundCallSoundController();
+      attachOutboundCallMediaHandlers(pc);
+      pendingOutboundCallRef.current = { conversationId: String(selectedConversation._id) };
+      const contactLabel =
+        selectedConversation.participantName?.trim() ||
+        selectedConversation.participantPhone ||
+        "Contact";
+      const startedAtMs = Date.now();
+      callSessionMetaRef.current = {
+        startedAtMs,
+        conversationId: String(selectedConversation._id),
+        summaryVariant: "outbound",
+      };
+      setOutboundCallUi({
+        sessionKind: "outbound",
+        phase: "connecting",
+        surface: "fullscreen",
+        contactLabel,
+        connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        signalingState: pc.signalingState,
+        startedAtMs,
+        muted: false,
+        speaker: true,
       });
 
-      if (response.data.success) {
+      const { usedMic, silentHandle } = await attachLocalAudioOrRecvOnly(pc, localCallStreamRef);
+      silentOutboundAudioRef.current = silentHandle;
+      if (!usedMic) {
         toast({
-          title: "Video Call Request Sent",
-          description: response.data.message,
+          title: "Microphone unavailable",
+          description:
+            "Using a low-level silent carrier so RTP keeps flowing to WhatsApp (avoids ~20s media drops). Allow the mic for real two-way audio.",
+          duration: 10000,
         });
       }
-    } catch (error: any) {
+
+      restrictPeerConnectionAudioToOpus(pc);
+      const videoAudioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+      if (videoAudioSender) {
+        try {
+          const params = videoAudioSender.getParameters();
+          if (!params.encodings?.length) params.encodings = [{}];
+          const enc = params.encodings[0];
+          if (enc) {
+            enc.maxBitrate = 40_000;
+            enc.networkPriority = "high";
+          }
+          await videoAudioSender.setParameters(params);
+        } catch {
+          /* optional tuning */
+        }
+      }
+
+      logWebRtcMediaDiagnostics(pc, "videocall-pre-createOffer");
+      console.log("[videocall] signalingState before createOffer:", pc.signalingState);
+      const rawOffer = await pc.createOffer();
+      console.log("[videocall] raw Chrome offer SDP:\n", rawOffer.sdp);
+      await pc.setLocalDescription(rawOffer);
+      console.log("[videocall] signalingState after setLocalDescription:", pc.signalingState);
+
+      await new Promise<void>((resolve, reject) => {
+        if (pc.iceGatheringState === "complete") return resolve();
+        const ms = 12_000;
+        const timer = window.setTimeout(() => {
+          pc.removeEventListener("icegatheringstatechange", onState);
+          reject(new Error("ICE gathering timed out; try again or check your network."));
+        }, ms);
+        const onState = () => {
+          if (pc.iceGatheringState === "complete") {
+            window.clearTimeout(timer);
+            pc.removeEventListener("icegatheringstatechange", onState);
+            resolve();
+          }
+        };
+        pc.addEventListener("icegatheringstatechange", onState);
+      });
+
+      logWebRtcMediaDiagnostics(pc, "videocall-post-ICE-gather");
+
+      const gathered = pc.localDescription?.sdp ?? "";
+      if (!gathered) throw new Error("Failed to generate SDP offer");
+
+      const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "offer" });
+      console.log("[videocall] kept ICE candidates:", kept);
+      console.log("[videocall] dropped ICE candidates:", dropped);
+      console.log("[videocall] clean offer SDP sent to Meta:\n", sdp);
+      setLastIceDiagnostics({
+        kept: [...kept],
+        dropped: [...dropped],
+        metaOfferPreview: sdp.slice(0, 1600),
+      });
+
+      const sdpProblems = validateWhatsAppCallingSdp(sdp);
+      if (sdpProblems.length > 0) {
+        console.warn("[videocall] SDP validation warnings:", sdpProblems);
+      }
+
+      if (kept.length === 0) {
+        cleanupOutboundCallResources();
+        toast({
+          title: "Video Call Failed",
+          description:
+            "No usable ICE candidates (only mDNS/host/IPv6). Check STUN/TURN server availability.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await axios.post("/api/whatsapp/call", {
+        conversationId: String(selectedConversation._id),
+        action: "start_call",
+        session: { sdpType: "offer", sdp },
+        bizOpaqueCallbackData: String(selectedConversation._id),
+      });
+
+      if (!response.data?.success) {
+        cleanupOutboundCallResources();
+        toast({
+          title: "Video Call Failed",
+          description:
+            typeof response.data?.error === "string" && response.data.error.trim()
+              ? response.data.error.trim()
+              : "Call did not start.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const startedCallId =
+        typeof response.data.callId === "string" && response.data.callId.trim()
+          ? response.data.callId.trim()
+          : null;
+      if (startedCallId) {
+        setActiveCallId(startedCallId);
+      }
+      if (signalingAnswerTimerRef.current) {
+        clearTimeout(signalingAnswerTimerRef.current);
+        signalingAnswerTimerRef.current = null;
+      }
+      signalingAnswerTimerRef.current = setTimeout(() => {
+        const p = peerRef.current;
+        if (!p || p.signalingState === "stable") return;
+        toast({
+          title: "Call timed out",
+          description: "No SDP answer received in time. Check webhook connectivity.",
+          variant: "destructive",
+        });
+        cleanupOutboundCallResources();
+      }, WA_CALL_SIGNALING_ANSWER_TIMEOUT_MS);
+      void callSoundRef.current?.startOutboundRing();
+      setOutboundCallUi((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: "ringing",
+              signalingState: pc.signalingState,
+            }
+          : prev,
+      );
+      toast({
+        title: "📞 Calling…",
+        description: "Call initiated. Waiting for SDP answer…",
+      });
+    } catch (error: unknown) {
+      cleanupOutboundCallResources();
+      console.error("Video call initiation failed:", error);
+      const ax = error as { response?: { data?: unknown; status?: number; headers?: unknown } };
+      console.error("Call API response status:", ax?.response?.status);
+      console.error("Call API response headers:", ax?.response?.headers);
+      console.error("Call API response body:", ax?.response?.data);
       toast({
         title: "Video Call Failed",
-        description:
-          error.response?.data?.error || "Failed to initiate video call",
+        description: formatWhatsAppCallApiError(error),
         variant: "destructive",
       });
     } finally {
@@ -2887,6 +4256,12 @@ export default function WhatsAppChat() {
           "pt-[env(safe-area-inset-top,0px)]"
         )}>
           <h1 className="text-white font-semibold text-base md:text-lg">Chat</h1>
+          <Link
+            href="/whatsapp/calls"
+            className="ml-3 text-xs font-medium text-white/85 underline-offset-2 hover:text-white hover:underline md:text-sm"
+          >
+            Call history
+          </Link>
           <div className="flex-1" />
           {/* User info - hidden on mobile, shown on tablet+ */}
           <div className="text-white/80 text-sm hidden md:block">
@@ -3157,6 +4532,71 @@ export default function WhatsAppChat() {
         onTransfer={handleTransferLead}
         loading={transferringLead}
       />
+
+      <audio ref={remoteAudioRef} playsInline className="hidden" aria-hidden />
+
+      {pendingIncomingInvite && !outboundCallUi ? (
+        <div className="pointer-events-auto fixed inset-x-0 top-[max(3.25rem,env(safe-area-inset-top,0px))] z-[190] flex justify-center px-3 pt-2">
+          <div className="flex max-w-lg flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-[#0b3d2e] px-4 py-3 text-white shadow-xl">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/90">
+                Incoming WhatsApp call
+              </p>
+              <p className="truncate text-sm font-semibold">{pendingIncomingInvite.contactLabel}</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={handleDeclineIncomingCall}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
+              >
+                Decline
+              </button>
+              <button
+                type="button"
+                disabled={answeringIncoming}
+                onClick={() => {
+                  void handleAnswerIncomingWhatsAppCall();
+                }}
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {answeringIncoming ? "Connecting…" : "Answer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {outboundCallUi ? (
+        <WhatsAppCallOverlay
+          visible
+          sessionKind={outboundCallUi.sessionKind ?? "outbound"}
+          surface={outboundCallUi.surface}
+          phase={outboundCallUi.phase}
+          contactLabel={outboundCallUi.contactLabel}
+          connectionState={outboundCallUi.connectionState}
+          iceState={outboundCallUi.iceState}
+          signalingState={outboundCallUi.signalingState}
+          elapsedLabel={callElapsedLabel}
+          reconnecting={outboundCallUi.phase === "reconnecting"}
+          muted={outboundCallUi.muted}
+          speaker={outboundCallUi.speaker}
+          remoteAudioPlayBlocked={remoteAudioPlayBlocked}
+          diagnosticsOpen={callDiagnosticsOpen}
+          onDiagnosticsOpenChange={setCallDiagnosticsOpen}
+          stats={callStats}
+          keptCandidates={lastIceDiagnostics?.kept ?? []}
+          droppedCandidates={lastIceDiagnostics?.dropped ?? []}
+          metaOfferSdpPreview={lastIceDiagnostics?.metaOfferPreview}
+          lastAnswerSdpPreview={lastAnswerSdpPreview ?? undefined}
+          onToggleMute={handleToggleCallMute}
+          onToggleSpeaker={handleToggleCallSpeaker}
+          onHangUp={handleHangUpWhatsAppCall}
+          onResumeAudio={handleResumeRemoteCallAudio}
+          onMinimize={handleCallMinimize}
+          onExpand={handleCallExpand}
+        />
+      ) : null}
     </div>
   );
 }

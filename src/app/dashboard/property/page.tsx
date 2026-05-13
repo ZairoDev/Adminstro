@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import CardLoader from "@/components/CardLoader";
 import CustomTooltip from "@/components/CustomToolTip";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import {
   Drawer,
   DrawerClose,
   DrawerContent,
@@ -58,8 +65,22 @@ const PropertyPage: React.FC = () => {
   );
   const limit: number = 12;
   const router = useRouter();
+  const { toast } = useToast();
 
   const { token } = useAuthStore();
+
+  const userRole = String(token?.role ?? "").trim();
+  const canTogglePropertyLive = userRole === "SuperAdmin" || userRole === "Advert";
+  const isHAdminPropertyView = userRole === "HAdmin";
+  const showVisibilityActions = canTogglePropertyLive || isHAdminPropertyView;
+
+  const hAdminVisibilityHint = () => {
+    toast({
+      title: "Approval required",
+      description:
+        "Only SuperAdmin or Advert can approve or hide properties. Ask SuperAdmin to approve this property.",
+    });
+  };
 
   const handleEditClick = (propertyId: string) => {
     router.push(`/dashboard/property/edit/${propertyId}`);
@@ -203,6 +224,7 @@ const PropertyPage: React.FC = () => {
   }, []);
 
   return (
+    <TooltipProvider delayDuration={250}>
     <div>
       <Heading
         heading="All Properties"
@@ -330,11 +352,11 @@ const PropertyPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex gap-y-2 mt-1 px-2 gap-x-2  justify-between">
-                    {!property?.isLive && (
+                    {!property?.isLive && showVisibilityActions && (
+                      <>
+                        {canTogglePropertyLive ? (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          {token?.role === "SuperAdmin" ||
-                          token?.role === "Advert" ? (
                             <Button
                               className=" absolute top-0 text-green-700 left-0"
                               variant="link"
@@ -342,10 +364,10 @@ const PropertyPage: React.FC = () => {
                                 setSelectedPropertyId(property?._id)
                               }
                               disabled={isSubmitting}
+                              aria-label="Open confirmation to make property live"
                             >
                               <EyeIcon size={18} />
                             </Button>
-                          ) : null}
                         </DrawerTrigger>
                         <DrawerContent className="max-w-3xl m-auto">
                           <DrawerHeader>
@@ -367,13 +389,35 @@ const PropertyPage: React.FC = () => {
                           </DrawerFooter>
                         </DrawerContent>
                       </Drawer>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                className="absolute top-0 left-0 text-green-700"
+                                variant="link"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  hAdminVisibilityHint();
+                                }}
+                                aria-label="Make live — only SuperAdmin or Advert can approve"
+                              >
+                                <EyeIcon size={18} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[280px] text-xs">
+                              Only SuperAdmin or Advert can make a property live. Ask SuperAdmin to
+                              approve this property.
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </>
                     )}
-                    {property?.isLive && (
+                    {property?.isLive && showVisibilityActions && (
+                      <>
+                        {canTogglePropertyLive ? (
                       <Drawer>
                         <DrawerTrigger asChild>
-                          {(token?.role === "SuperAdmin" ||
-                            token?.role === "Advert") &&
-                          property?.isLive ? (
                             <Button
                               className="absolute text-red-700 left-0 top-0"
                               variant="link"
@@ -381,10 +425,10 @@ const PropertyPage: React.FC = () => {
                               onClick={() =>
                                 setSelectedPropertyId(property?._id)
                               }
+                              aria-label="Open confirmation to hide property"
                             >
                               <EyeOff size={18} />
                             </Button>
-                          ) : null}
                         </DrawerTrigger>
                         <DrawerContent className="max-w-3xl m-auto">
                           <DrawerHeader>
@@ -406,6 +450,29 @@ const PropertyPage: React.FC = () => {
                           </DrawerFooter>
                         </DrawerContent>
                       </Drawer>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                className="absolute left-0 top-0 text-red-700"
+                                variant="link"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  hAdminVisibilityHint();
+                                }}
+                                aria-label="Hide property — only SuperAdmin or Advert"
+                              >
+                                <EyeOff size={18} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[280px] text-xs">
+                              Only SuperAdmin or Advert can hide a property. Ask SuperAdmin to change
+                              visibility.
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </>
                     )}
                     <div className="absolute  right-0 top-0 ">
                       {token?.role === "SuperAdmin" && (
@@ -448,6 +515,7 @@ const PropertyPage: React.FC = () => {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 };
 

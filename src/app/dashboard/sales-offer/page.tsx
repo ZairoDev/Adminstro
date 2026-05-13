@@ -8,20 +8,12 @@ import { useForm, Controller } from "react-hook-form";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Check, CircleX, RotateCw, Save } from "lucide-react";
 
-import {
-  Select,
-  SelectItem,
-  SelectLabel,
-  SelectValue,
-  SelectGroup,
-  SelectTrigger,
-  SelectContent,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SalesOfferInterface } from "@/util/type";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -350,136 +342,143 @@ const SalesOffer = () => {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-y-4">
+    <div className="mx-auto mt-2  flex flex-col gap-6 pb-10">
       <Toaster />
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="flex items-end gap-x-6 space-y-3 p-2 border border-neutral-600 rounded-md"
-      >
-        {/* Phone Input Field */}{" "}
-        <div className="flex flex-col items-start ">
-          <label htmlFor="phone" className="text-left font-medium">
-            Phone Number
-          </label>
-          <div className=" flex items-center gap-x-8 py-2">
-            <div className=" flex flex-col">
-              <Controller
-                name="phone"
-                control={control}
-                render={({ field }) => (
-                  <PhoneInput
-                    {...field}
-                    id="phone"
-                    placeholder="Enter a phone number"
-                    className="w-full border rounded-lg"
-                  />
-                )}
-              />
-              <div>
-                {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
-                )}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">Sales offer</h1>
+        <p className="text-sm text-muted-foreground">
+          Look up a lead by phone or email, then send or save the offer.
+        </p>
+      </div>
+
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader className="pb-4 space-y-1">
+          <CardTitle className="text-base font-semibold">Lead lookup</CardTitle>
+          <CardDescription className="text-xs">
+            Validates freshness for the selected organization before you compose the offer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end"
+          >
+            <div className="flex flex-col gap-2 min-w-[200px] flex-1">
+              <Label htmlFor="phone">Phone number</Label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Controller
+                  name="phone"
+                  control={control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      {...field}
+                      id="phone"
+                      placeholder="Enter phone number"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  )}
+                />
+                <Button type="submit" size="sm" className="shrink-0 sm:h-10">
+                  Search
+                </Button>
+              </div>
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 min-w-[220px] flex-1">
+              <Label htmlFor="emailLookup">Email</Label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  id="emailLookup"
+                  type="email"
+                  value={emailLookup}
+                  onChange={(e) => setEmailLookup(e.target.value)}
+                  placeholder="name@example.com"
+                  className="h-10 sm:flex-1"
+                />
+                <Button type="button" variant="secondary" size="sm" className="shrink-0 sm:h-10" onClick={handleEmailLookup}>
+                  Search
+                </Button>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="p-2 bg-primary text-background rounded-md text-sm"
-            >
-              Submit
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-col items-start">
-          <label htmlFor="emailLookup" className="text-left font-medium">
-            Email
-          </label>
-          <div className="flex items-center gap-x-2 py-2">
-            <Input
-              id="emailLookup"
-              type="email"
-              value={emailLookup}
-              onChange={(e) => setEmailLookup(e.target.value)}
-              placeholder="Enter an email"
-              className="w-[240px]"
-            />
-            <button
-              type="button"
-              onClick={handleEmailLookup}
-              className="p-2 bg-primary text-background rounded-md text-sm"
-            >
-              Search
-            </button>
-          </div>
-        </div>
-        {/* Availability */}
-        {showAvailability && selectedOrg && (
-          <div>
-            <div
-              className={`flex items-center gap-x-2 text-sm font-semibold ${
-                (selectedOrg === "VacationSaga"
-                  ? isAvailable.VacationSaga
-                  : selectedOrg === "Holidaysera"
-                    ? isAvailable.Holidaysera
-                    : isAvailable.HousingSaga)
-                  ? "text-green-600"
-                  : "text-red-600"
-              }`}
-            >
-              {(selectedOrg === "VacationSaga"
-                ? isAvailable.VacationSaga
-                : selectedOrg === "Holidaysera"
-                  ? isAvailable.Holidaysera
-                  : isAvailable.HousingSaga) ? (
-                <Check size={16} />
-              ) : (
-                <CircleX size={16} />
-              )}
-              <p>
+            {showAvailability && selectedOrg && (
+              <div
+                className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                  (selectedOrg === "VacationSaga"
+                    ? isAvailable.VacationSaga
+                    : selectedOrg === "Holidaysera"
+                      ? isAvailable.Holidaysera
+                      : isAvailable.HousingSaga)
+                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+                    : "border-destructive/30 bg-destructive/5 text-destructive"
+                }`}
+              >
                 {(selectedOrg === "VacationSaga"
                   ? isAvailable.VacationSaga
                   : selectedOrg === "Holidaysera"
                     ? isAvailable.Holidaysera
-                    : isAvailable.HousingSaga)
-                  ? "Fresh Lead"
-                  : "Used Lead"}{" "}
-                for {selectedOrg}
-              </p>
-            </div>
-          </div>
-        )}
-      </form>
+                    : isAvailable.HousingSaga) ? (
+                  <Check size={16} aria-hidden />
+                ) : (
+                  <CircleX size={16} aria-hidden />
+                )}
+                <span className="font-medium">
+                  {(selectedOrg === "VacationSaga"
+                    ? isAvailable.VacationSaga
+                    : selectedOrg === "Holidaysera"
+                      ? isAvailable.Holidaysera
+                      : isAvailable.HousingSaga)
+                    ? "Fresh lead"
+                    : "Existing lead"}{" "}
+                  · {selectedOrg}
+                </span>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
 
       {matchedLead && (
-        <div className="border border-neutral-600 rounded-md p-3">
-          <p className="font-semibold text-base">Matched Lead Information</p>
-          <div className="mt-2 text-sm grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-            <p><span className="text-muted-foreground">Name:</span> {matchedLead.name || "—"}</p>
-            <p><span className="text-muted-foreground">Email:</span> {matchedLead.email || "—"}</p>
-            <p><span className="text-muted-foreground">Phone:</span> {matchedLead.phoneNumber || "—"}</p>
-            <p><span className="text-muted-foreground">Property:</span> {matchedLead.propertyName || "—"}</p>
-            <p><span className="text-muted-foreground">Lead Status:</span> {matchedLead.leadStatus || "—"}</p>
-            <p><span className="text-muted-foreground">Offer Status:</span> {matchedLead.offerStatus || "—"}</p>
-            <p><span className="text-muted-foreground">Organization:</span> {matchedLead.organization || "—"}</p>
-            <p>
-              <span className="text-muted-foreground">Last Updated:</span>{" "}
-              {matchedLead.updatedAt ? format(new Date(matchedLead.updatedAt), "dd MMM yyyy, HH:mm") : "—"}
-            </p>
-          </div>
-        </div>
+        <Card className="border-border/80 bg-muted/30 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Matched lead</CardTitle>
+            <CardDescription className="text-xs">
+              Latest record for this phone or email — sending may be blocked if not fresh.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm md:grid-cols-2">
+              <p><span className="text-muted-foreground">Name</span> · {matchedLead.name || "—"}</p>
+              <p><span className="text-muted-foreground">Email</span> · {matchedLead.email || "—"}</p>
+              <p><span className="text-muted-foreground">Phone</span> · {matchedLead.phoneNumber || "—"}</p>
+              <p><span className="text-muted-foreground">Property</span> · {matchedLead.propertyName || "—"}</p>
+              <p><span className="text-muted-foreground">Lead status</span> · {matchedLead.leadStatus || "—"}</p>
+              <p><span className="text-muted-foreground">Offer status</span> · {matchedLead.offerStatus || "—"}</p>
+              <p><span className="text-muted-foreground">Organization</span> · {matchedLead.organization || "—"}</p>
+              <p>
+                <span className="text-muted-foreground">Last updated</span> ·{" "}
+                {matchedLead.updatedAt ? format(new Date(matchedLead.updatedAt), "dd MMM yyyy, HH:mm") : "—"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div>{leadStatus === "Send Offer" && <SendOffer />}</div>
-      <div>{leadStatus === "Send Offer" && <PlanDetails />}</div>
-      <div>{leadStatus === "Send Offer" && <EmailPreview />}</div>
+      <div className="space-y-6">
+        {leadStatus === "Send Offer" && <SendOffer />}
+        {leadStatus === "Send Offer" && <PlanDetails />}
+        {leadStatus === "Send Offer" && <EmailPreview />}
+      </div>
 
-      <div className={`flex gap-x-4 mx-auto`}>
-        <Button onClick={resetForm}>
-          Reset <RotateCw className=" ml-1" size={16} />
+      <div className="flex flex-wrap justify-center gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={resetForm}>
+          Reset <RotateCw className="ml-1 h-4 w-4" aria-hidden />
         </Button>
-        <Button onClick={handleSaveOffer} disabled={saveOfferLoading}>
-          {saveOfferLoading ? "Saving..." : "Submit"} <Save className=" ml-1" size={16} />
+        <Button type="button" onClick={handleSaveOffer} disabled={saveOfferLoading}>
+          {saveOfferLoading ? "Saving…" : "Submit"} <Save className="ml-1 h-4 w-4" aria-hidden />
         </Button>
       </div>
     </div>

@@ -11,6 +11,11 @@ import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 import crypto from "crypto";
+import {
+  shouldEmitSdpAnswerAndMark,
+  updateCallFromMetaStatus,
+  recordUserInitiatedIncomingOffer,
+} from "@/services/whatsapp-calling/callHistoryService";
 
 export const dynamic = "force-dynamic";
 
@@ -689,13 +694,52 @@ async function processIncomingMessage(
         
       case "interactive":
         // Extract text from interactive - check all possible sources
-        contentObj.text = 
-          message.interactive?.button_reply?.title || 
-          message.interactive?.button_reply?.id ||
-          message.interactive?.list_reply?.title ||
-          message.interactive?.list_reply?.id ||
-          "Interactive response";
-        contentObj.interactivePayload = message.interactive;
+        if (message.interactive?.type === "call_permission_reply") {
+          const reply = message.interactive?.call_permission_reply;
+          const response = reply?.response || "unknown";
+          const isPermanent = Boolean(reply?.is_permanent);
+          const expirationTs = reply?.expiration_timestamp ? Number(reply.expiration_timestamp) : undefined;
+          contentObj.text =
+            response === "accept"
+              ? `📞 Call permission granted (${isPermanent ? "permanent" : "temporary"})`
+              : response === "reject"
+                ? "📞 Call permission declined"
+                : "📞 Call permission updated";
+          contentObj.interactivePayload = message.interactive;
+
+          // Persist permission state on conversation metadata for quick UI access
+          try {
+            await WhatsAppConversation.updateOne(
+              { _id: conversation._id },
+              {
+                $set: {
+                  "metadata.callPermission": {
+                    status:
+                      response === "accept"
+                        ? isPermanent
+                          ? "permanent"
+                          : "temporary"
+                        : "no_permission",
+                    isPermanent,
+                    ...(expirationTs ? { expirationTimestamp: expirationTs } : {}),
+                    updatedAt: new Date(),
+                    responseSource: reply?.response_source || null,
+                  },
+                },
+              },
+            );
+          } catch (err) {
+            console.error("Failed to persist call permission state:", err);
+          }
+        } else {
+          contentObj.text =
+            message.interactive?.button_reply?.title ||
+            message.interactive?.button_reply?.id ||
+            message.interactive?.list_reply?.title ||
+            message.interactive?.list_reply?.id ||
+            "Interactive response";
+          contentObj.interactivePayload = message.interactive;
+        }
         break;
         
       case "reaction":
@@ -1356,10 +1400,110 @@ async function handleWhatsAppErrorCode(
  */
 async function processCallEvent(value: any) {
   try {
-    const phoneNumberId = value.metadata?.phone_number_id;
-    const calls = value.calls || [];
+    /** Meta usually puts this under `metadata`; some payloads expose it on the value root. */
+    const phoneNumberId = String(
+      value?.metadata?.phone_number_id ?? value?.phone_number_id ?? "",
+    ).trim();
+    const calls = Array.isArray(value.calls) ? value.calls : [];
+    const statuses = Array.isArray(value.statuses) ? value.statuses : [];
 
     for (const call of calls) {
+      // Business-initiated connect webhook includes SDP answer in call.session.sdp
+      if (call?.event === "connect" && call?.session?.sdp_type === "answer" && call?.session?.sdp) {
+        const conversationId = call?.biz_opaque_callback_data;
+        const sdp = String(call.session.sdp);
+        if (conversationId && call.id) {
+          const shouldEmit = await shouldEmitSdpAnswerAndMark(String(call.id), sdp, {
+            conversationId: String(conversationId),
+            businessPhoneId: phoneNumberId ? String(phoneNumberId) : undefined,
+          });
+          if (shouldEmit) {
+            emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_SDP_ANSWER, {
+              conversationId: String(conversationId),
+              callId: call.id,
+              phoneNumberId,
+              sdpType: call.session.sdp_type,
+              sdp,
+              timestamp: call.timestamp ? new Date(parseInt(call.timestamp) * 1000) : new Date(),
+              direction: call.direction || "BUSINESS_INITIATED",
+            });
+          }
+        }
+      }
+
+      // Customer-initiated voice: Call Connect webhook carries an SDP **offer** (we answer with WebRTC + pre_accept/accept).
+      if (
+        call?.event === "connect" &&
+        call?.session?.sdp_type === "offer" &&
+        typeof call?.session?.sdp === "string" &&
+        call.session.sdp.trim() &&
+        call.id
+      ) {
+        const direction = String(call.direction || "").toUpperCase();
+        if (direction === "USER_INITIATED") {
+          const callerDigits = String(call.from ?? "").replace(/\D/g, "");
+          if (!callerDigits) continue;
+          if (!phoneNumberId) {
+            console.error("[webhook] USER_INITIATED call: missing phone_number_id on webhook value", {
+              valueKeys: value && typeof value === "object" ? Object.keys(value) : [],
+            });
+            continue;
+          }
+
+          const contactName = (value.contacts?.[0]?.profile?.name as string | undefined)?.trim() || "";
+
+          type ConvLean = { _id: unknown; participantName?: string; businessPhoneId?: string } | null;
+          let existing: ConvLean = (await WhatsAppConversation.findOne({
+            businessPhoneId: String(phoneNumberId),
+            $or: [{ participantPhone: callerDigits }, { participantPhone: `+${callerDigits}` }],
+          }).lean()) as ConvLean;
+
+          if (!existing?._id) {
+            const created = await findOrCreateConversationWithSnapshot({
+              participantPhone: callerDigits,
+              businessPhoneId: String(phoneNumberId),
+              ...(contactName ? { participantName: contactName } : {}),
+              snapshotSource: "untrusted",
+            });
+            existing = {
+              _id: created._id,
+              participantName: created.participantName,
+              businessPhoneId: created.businessPhoneId,
+            };
+          }
+
+          const conversationIdStr = String(existing._id);
+          const callerLabel =
+            contactName ||
+            (typeof existing.participantName === "string" ? existing.participantName.trim() : "") ||
+            callerDigits;
+
+          try {
+            await recordUserInitiatedIncomingOffer({
+              callId: String(call.id),
+              conversationId: conversationIdStr,
+              businessPhoneId: String(phoneNumberId),
+              participantPhone: callerDigits,
+              ...(callerLabel && callerLabel !== callerDigits ? { participantName: callerLabel } : {}),
+            });
+          } catch (e) {
+            console.warn("[webhook] user-initiated call log:", e);
+          }
+
+          emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_INCOMING_OFFER, {
+            conversationId: conversationIdStr,
+            businessPhoneId: String(phoneNumberId),
+            callId: call.id,
+            sdpType: call.session.sdp_type,
+            sdp: String(call.session.sdp),
+            direction: "USER_INITIATED",
+            from: callerDigits,
+            callerInfo: value.contacts?.[0] ?? null,
+            contactLabel: callerLabel,
+          });
+        }
+      }
+
       const callData = {
         callId: call.id,
         from: call.from,
@@ -1396,6 +1540,29 @@ async function processCallEvent(value: any) {
           lastCallStatus: callData.callStatus,
         });
       }
+    }
+
+    // Status webhooks for calls (RINGING / ACCEPTED / REJECTED)
+    for (const st of statuses) {
+      const callData = {
+        callId: st.id,
+        callStatus: st.status,
+        timestamp: st.timestamp ? new Date(parseInt(st.timestamp) * 1000) : new Date(),
+        recipientId: st.recipient_id,
+        phoneNumberId,
+      };
+      if (st.id && st.status) {
+        try {
+          await updateCallFromMetaStatus({
+            callId: String(st.id),
+            metaStatus: String(st.status),
+            duration: typeof st.duration === "number" ? st.duration : undefined,
+          });
+        } catch (e) {
+          console.warn("[webhook] call history status:", e);
+        }
+      }
+      emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_STATUS_UPDATE, callData);
     }
   } catch (error) {
     console.error("❌ Error processing call event:", error);

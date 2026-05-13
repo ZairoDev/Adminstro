@@ -81,7 +81,7 @@ export const useOrgSelectionStore = create<OrgSelectionState>((set, get) => ({
   initialize: ({ role, userId, employeeOrg }) => {
     const r = role.trim();
 
-    if (r === "HAdmin") {
+    if (r.toLowerCase() === "hadmin") {
       set({
         selectedOrg: "Holidaysera",
         isLocked: true,

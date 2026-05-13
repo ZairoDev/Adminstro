@@ -7,6 +7,9 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { OrganizationZod } from "@/util/organizationConstants";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const QuerySchema = z.object({
   /** Invalid values become undefined so GET never 400s; server still enforces org by role. */
   organization: z

@@ -35,7 +35,7 @@ export interface IWhatsAppCallLog extends Document {
 
 const whatsAppCallLogSchema = new Schema<IWhatsAppCallLog>(
   {
-    callId: { type: String, required: true, index: true },
+    callId: { type: String, required: true },
     conversationId: { type: Schema.Types.ObjectId, ref: "WhatsAppConversation", index: true },
     businessPhoneId: { type: String, index: true },
     participantPhone: { type: String },

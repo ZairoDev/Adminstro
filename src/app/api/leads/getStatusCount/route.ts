@@ -3,6 +3,9 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 connectDb();
 
 export async function GET(req: NextRequest) {

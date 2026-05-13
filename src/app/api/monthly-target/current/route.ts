@@ -5,6 +5,9 @@ import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 connectDb();
 
 const EDITABLE_FIELDS_BY_ROLE: Record<string, Array<"leads" | "visits" | "sales">> = {

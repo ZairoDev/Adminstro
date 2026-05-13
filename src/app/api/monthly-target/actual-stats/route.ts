@@ -5,6 +5,9 @@ import Query from "@/models/query";
 import Visits from "@/models/visit";
 import Bookings from "@/models/booking";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 connectDb();
 
 export async function GET(req: NextRequest) {

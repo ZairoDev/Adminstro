@@ -4,6 +4,9 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import Employees from "@/models/employee";
 import { EmployeeMonthlyTarget } from "@/models/employeeMonthlyTarget";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 connectDb();
 
 const ALLOWED_ROLES = ["SuperAdmin", "Sales-TeamLead", "LeadGen-TeamLead"];

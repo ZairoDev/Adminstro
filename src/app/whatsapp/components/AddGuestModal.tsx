@@ -210,8 +210,17 @@ export const AddGuestModal = memo(function AddGuestModal({
     }
   };
 
-  // Shared form content for both Dialog and Drawer
-  const FormContent = () => (
+  /** Radix passes the next open state; only reset when closing (never on `true`). */
+  const handleRadixOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      handleClose();
+    }
+  };
+
+  // Inline JSX (not a nested `const Form = () => …` component). A new function
+  // reference each render makes React treat the subtree as a new component type
+  // and remount inputs on every keystroke — cursor jumps / broken delete.
+  const formFields = (
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       {/* Phone Number */}
       <div className="space-y-2">
@@ -343,7 +352,7 @@ export const AddGuestModal = memo(function AddGuestModal({
   // Mobile bottom sheet (Drawer)
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={handleClose}>
+      <Drawer open={open} onOpenChange={handleRadixOpenChange}>
         <DrawerContent className="bg-white dark:bg-[#111b21] border-[#e9edef] dark:border-[#222d34] max-h-[90vh]">
           {/* Header */}
           <DrawerHeader className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34]">
@@ -360,7 +369,7 @@ export const AddGuestModal = memo(function AddGuestModal({
             </DrawerTitle>
           </DrawerHeader>
           <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
-            <FormContent />
+            {formFields}
           </div>
         </DrawerContent>
       </Drawer>
@@ -369,7 +378,7 @@ export const AddGuestModal = memo(function AddGuestModal({
 
   // Desktop dialog
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleRadixOpenChange}>
       <DialogContent className="sm:max-w-[450px] p-0 gap-0 bg-white dark:bg-[#111b21] border-[#e9edef] dark:border-[#222d34] overflow-hidden">
         {/* Header */}
         <DialogHeader className="px-6 py-4 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34]">
@@ -385,7 +394,7 @@ export const AddGuestModal = memo(function AddGuestModal({
             </div>
           </DialogTitle>
         </DialogHeader>
-        <FormContent />
+        {formFields}
       </DialogContent>
     </Dialog>
   );

@@ -39,6 +39,7 @@ import {
 } from "@/lib/whatsapp/callingSdp";
 import {
   OutboundCallSoundController,
+  IncomingCallRingController,
   getOutboundCallAudioConstraints,
   WA_CALL_SIGNALING_ANSWER_TIMEOUT_MS,
   WA_CALL_ICE_DISCONNECTED_GRACE_MS,
@@ -48,6 +49,12 @@ import {
   logWebRtcMediaDiagnostics,
   collectOutboundRtpAudioSummary,
 } from "@/lib/whatsapp/calling";
+import {
+  showDesktopNotification,
+  requestDesktopNotificationPermission,
+  getDesktopNotificationPermission,
+  isDesktopNotificationSupported,
+} from "@/lib/whatsapp/browserDesktopNotify";
 import { usePeerConnectionStats } from "./hooks/usePeerConnectionStats";
 import { WhatsAppCallOverlay } from "./components/calling/WhatsAppCallOverlay";
 
@@ -85,6 +92,22 @@ function simpleHashUtf8(s: string): string {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0).toString(16);
+}
+
+/** Webhook / socket call status → remote leg ended; close local UI + PC. */
+function isRemoteCallTerminalStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  return (
+    s === "busy" ||
+    s === "rejected" ||
+    s === "declined" ||
+    s === "missed" ||
+    s === "failed" ||
+    s === "terminated" ||
+    s === "completed" ||
+    s === "ended" ||
+    s === "disconnect"
+  );
 }
 
 type PendingIncomingCallInvite = {
@@ -307,6 +330,15 @@ export default function WhatsAppChat() {
   
   // Total unread messages count (socket-based, real-time)
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+
+  const [desktopNotifyBannerDismissed, setDesktopNotifyBannerDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return localStorage.getItem("whatsapp_desktop_notify_dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
   
   // Add Guest Modal state
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
@@ -369,8 +401,11 @@ export default function WhatsAppChat() {
   } | null>(null);
   const [lastAnswerSdpPreview, setLastAnswerSdpPreview] = useState<string | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  /** Single MediaStream for all remote audio tracks — avoids replace races / duplicate playback. */
+  const remotePlaybackStreamRef = useRef<MediaStream | null>(null);
   const pendingOutboundCallRef = useRef<{ conversationId: string } | null>(null);
   const callSoundRef = useRef<OutboundCallSoundController | null>(null);
+  const incomingCallRingRef = useRef<IncomingCallRingController | null>(null);
   const signalingAnswerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iceDisconnectedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sdpAnswerAppliedHashRef = useRef<string | null>(null);
@@ -380,6 +415,7 @@ export default function WhatsAppChat() {
   const callSessionMetaRef = useRef<{
     startedAtMs: number;
     conversationId: string;
+    phoneNumberId: string;
     summaryVariant?: "outbound" | "inbound";
   } | null>(null);
   const mediaStallWarnedRef = useRef(false);
@@ -479,8 +515,12 @@ export default function WhatsAppChat() {
     callSoundRef.current?.stopRing();
     callSoundRef.current?.dispose();
     callSoundRef.current = null;
+    incomingCallRingRef.current?.stop();
+    incomingCallRingRef.current?.dispose();
+    incomingCallRingRef.current = null;
 
     const pc = peerRef.current;
+    peerRef.current = null;
     localCallStreamRef.current?.getTracks().forEach((t) => {
       t.stop();
     });
@@ -495,7 +535,6 @@ export default function WhatsAppChat() {
       }
       pc.close();
     }
-    peerRef.current = null;
     setPeerForStats(null);
     const el = remoteAudioRef.current;
     if (el) {
@@ -507,6 +546,14 @@ export default function WhatsAppChat() {
     reconnectIceAttemptedRef.current = false;
     silentOutboundAudioRef.current?.stop();
     silentOutboundAudioRef.current = null;
+    remotePlaybackStreamRef.current?.getTracks().forEach((t) => {
+      try {
+        t.stop();
+      } catch {
+        /* ignore */
+      }
+    });
+    remotePlaybackStreamRef.current = null;
     callSessionMetaRef.current = null;
     mediaStallWarnedRef.current = false;
     setActiveCallId(null);
@@ -520,6 +567,7 @@ export default function WhatsAppChat() {
   const attachOutboundCallMediaHandlers = useCallback(
     (pc: RTCPeerConnection) => {
       const syncConn = () => {
+        if (peerRef.current !== pc) return;
         setOutboundCallUi((prev) =>
           prev
             ? {
@@ -533,13 +581,29 @@ export default function WhatsAppChat() {
       };
 
       pc.ontrack = (ev: RTCTrackEvent) => {
+        if (peerRef.current !== pc) return;
+        if (ev.track.kind !== "audio") {
+          try {
+            ev.track.stop();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+
         const el = remoteAudioRef.current;
         if (!el) return;
-        const stream =
-          ev.streams[0] ??
-          (ev.receiver.track ? new MediaStream([ev.receiver.track]) : null);
-        if (!stream) return;
-        el.srcObject = stream;
+
+        let ms = remotePlaybackStreamRef.current;
+        if (!ms) {
+          ms = new MediaStream();
+          remotePlaybackStreamRef.current = ms;
+        }
+        if (!ms.getTracks().some((t) => t.id === ev.track.id)) {
+          ms.addTrack(ev.track);
+        }
+        el.srcObject = ms;
+        el.muted = false;
         void el.play().catch((err) => {
           console.warn("[call] remote audio play() failed:", err);
           setRemoteAudioPlayBlocked(true);
@@ -550,8 +614,16 @@ export default function WhatsAppChat() {
       };
 
       pc.onconnectionstatechange = () => {
+        if (peerRef.current !== pc) return;
         syncConn();
-        if (pc.connectionState === "failed") {
+        const st = pc.connectionState;
+        if (st === "closed") {
+          if (!suppressPrematureInboundIceCleanupRef.current) {
+            cleanupOutboundCallResources();
+          }
+          return;
+        }
+        if (st === "failed") {
           setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
           if (suppressPrematureInboundIceCleanupRef.current) {
             console.warn(
@@ -564,6 +636,7 @@ export default function WhatsAppChat() {
       };
 
       pc.oniceconnectionstatechange = () => {
+        if (peerRef.current !== pc) return;
         syncConn();
         const ice = pc.iceConnectionState;
         if (ice === "disconnected") {
@@ -613,6 +686,9 @@ export default function WhatsAppChat() {
     if (!inv) return;
     pendingIncomingInviteRef.current = null;
     setPendingIncomingInvite(null);
+    incomingCallRingRef.current?.stop();
+    incomingCallRingRef.current?.dispose();
+    incomingCallRingRef.current = null;
     void axios
       .post("/api/whatsapp/call", {
         action: "reject_incoming_call",
@@ -628,6 +704,9 @@ export default function WhatsAppChat() {
     if (!inv) return;
     pendingIncomingInviteRef.current = null;
     setPendingIncomingInvite(null);
+    incomingCallRingRef.current?.stop();
+    incomingCallRingRef.current?.dispose();
+    incomingCallRingRef.current = null;
     void axios
       .post("/api/whatsapp/call", {
         action: "reject_incoming_call",
@@ -650,6 +729,9 @@ export default function WhatsAppChat() {
     setAnsweringIncoming(true);
     pendingIncomingInviteRef.current = null;
     setPendingIncomingInvite(null);
+    incomingCallRingRef.current?.stop();
+    incomingCallRingRef.current?.dispose();
+    incomingCallRingRef.current = null;
 
     try {
       if (peerRef.current) {
@@ -672,6 +754,7 @@ export default function WhatsAppChat() {
         startedAtMs,
         conversationId: inv.conversationId,
         summaryVariant: "inbound",
+        phoneNumberId: inv.phoneNumberId,
       };
 
       suppressPrematureInboundIceCleanupRef.current = true;
@@ -857,8 +940,13 @@ export default function WhatsAppChat() {
 
     const sessionSnap = callSessionMetaRef.current;
     const callId = activeCallId;
+    const convId = sessionSnap?.conversationId?.trim() ?? "";
+    const phoneId =
+      sessionSnap?.phoneNumberId?.trim() ||
+      (selectedPhoneIdRef.current != null ? String(selectedPhoneIdRef.current).trim() : "");
+
     let durationSeconds: number | undefined;
-    if (sessionSnap?.conversationId) {
+    if (sessionSnap && convId) {
       durationSeconds = Math.max(0, Math.round((Date.now() - sessionSnap.startedAtMs) / 1000));
     }
 
@@ -867,17 +955,19 @@ export default function WhatsAppChat() {
     // Close UI + peer immediately so End always responds (terminate/telemetry can lag or hang).
     cleanupOutboundCallResources();
 
-    const convId = sessionSnap?.conversationId;
-    if (callId && convId) {
+    if (callId && (convId || phoneId)) {
       void axios
         .post("/api/whatsapp/call", {
           action: "terminate_call",
           callId,
-          conversationId: convId,
+          ...(convId ? { conversationId: convId } : {}),
+          ...(phoneId ? { phoneNumberId: phoneId } : {}),
         })
         .catch((e) => {
           console.warn("[call] terminate_call failed:", e);
         });
+    }
+    if (callId && convId) {
       void axios
         .post("/api/whatsapp/calls/telemetry", {
           callId,
@@ -1538,8 +1628,22 @@ export default function WhatsAppChat() {
             conversationId: conversationId,
           }).catch(() => {});
         }
-      } else if (message.direction === "incoming") {
+      }
+
+      const internalLike =
+        message.isInternal === true ||
+        message.source === "internal" ||
+        (typeof message.messageId === "string" && message.messageId.startsWith("internal_"));
+      const tabHidden = typeof document !== "undefined" && document.hidden;
+      if (message.direction === "incoming" && !internalLike && (!isCurrentConversation || tabHidden)) {
         playNotificationSound();
+        const preview =
+          typeof displayText === "string" && displayText.trim() ? displayText.trim().slice(0, 180) : "New message";
+        showDesktopNotification({
+          title: "WhatsApp",
+          body: preview,
+          tag: `wa-msg-${conversationId}-${message.messageId}`,
+        });
       }
       // Note: In-app toast notifications are handled by the notification controller
       // via SystemNotificationToast component - no need for duplicate toast here
@@ -1662,14 +1766,20 @@ export default function WhatsAppChat() {
     socket.on("whatsapp-message-status", handleMessageStatus);
     socket.on("whatsapp-message-echo", handleMessageEcho);
     socket.on("whatsapp-incoming-call", (data: any) => {
+      const name = data.callerInfo?.profile?.name || data.from || "Caller";
+      const callIdStr = data.callId != null ? String(data.callId) : "";
       toast({
         title: "📞 Incoming Call",
-        description: `${
-          data.callerInfo?.profile?.name || data.from
-        } is calling...`,
+        description: `${name} is calling...`,
         duration: 10000,
       });
       playNotificationSound();
+      showDesktopNotification({
+        title: "Incoming WhatsApp call",
+        body: `${name} is calling`,
+        tag: callIdStr ? `wa-incoming-${callIdStr}` : "wa-incoming-call",
+        requireInteraction: true,
+      });
     });
 
     socket.on("whatsapp-call-incoming-offer", (data: Record<string, unknown>) => {
@@ -1719,12 +1829,24 @@ export default function WhatsAppChat() {
       pendingIncomingInviteRef.current = next;
       setPendingIncomingInvite(next);
 
+      incomingCallRingRef.current?.stop();
+      incomingCallRingRef.current?.dispose();
+      const ring = new IncomingCallRingController();
+      incomingCallRingRef.current = ring;
+      void ring.start();
+
       toast({
         title: "📞 Incoming call",
         description: `${contactLabelRaw} is calling. Tap Answer to connect.`,
         duration: 12_000,
       });
       playNotificationSound();
+      showDesktopNotification({
+        title: "Incoming WhatsApp call",
+        body: `${contactLabelRaw} is calling — tap to answer in the app`,
+        tag: `wa-incoming-${callId}`,
+        requireInteraction: true,
+      });
     });
 
     // Handle missed calls
@@ -1742,23 +1864,19 @@ export default function WhatsAppChat() {
       const pendingInv = pendingIncomingInviteRef.current;
       if (pendingInv && callIdStr && callIdStr === pendingInv.callId) {
         const st0 = String(data?.callStatus || "").toLowerCase();
-        if (
-          st0 === "busy" ||
-          st0 === "rejected" ||
-          st0 === "declined" ||
-          st0 === "missed" ||
-          st0 === "failed" ||
-          st0 === "terminated"
-        ) {
+        if (isRemoteCallTerminalStatus(st0)) {
           pendingIncomingInviteRef.current = null;
           setPendingIncomingInvite(null);
+          incomingCallRingRef.current?.stop();
+          incomingCallRingRef.current?.dispose();
+          incomingCallRingRef.current = null;
         }
       }
 
       const currentId = activeCallIdRef.current;
       if (!currentId || callIdStr !== String(currentId)) return;
       const st = String(data?.callStatus || "").toLowerCase();
-      if (st === "busy" || st === "rejected" || st === "declined" || st === "missed" || st === "failed") {
+      if (isRemoteCallTerminalStatus(st)) {
         toast({
           title: "Call ended",
           description: `Status: ${data.callStatus ?? "unknown"}`,
@@ -3793,6 +3911,7 @@ export default function WhatsAppChat() {
         startedAtMs,
         conversationId: String(selectedConversation._id),
         summaryVariant: "outbound",
+        phoneNumberId: String(selectedConversation.businessPhoneId || ""),
       };
       setOutboundCallUi({
         sessionKind: "outbound",
@@ -4039,6 +4158,7 @@ export default function WhatsAppChat() {
         startedAtMs,
         conversationId: String(selectedConversation._id),
         summaryVariant: "outbound",
+        phoneNumberId: String(selectedConversation.businessPhoneId || ""),
       };
       setOutboundCallUi({
         sessionKind: "outbound",
@@ -4268,6 +4388,50 @@ export default function WhatsAppChat() {
             {token?.name} &bull; {token?.role}
           </div>
         </div>
+
+        {isDesktopNotificationSupported() &&
+          getDesktopNotificationPermission() === "default" &&
+          !desktopNotifyBannerDismissed && (
+            <div
+              role="region"
+              aria-label="Desktop notifications"
+              className="flex flex-shrink-0 flex-wrap items-center justify-center gap-2 border-b border-amber-200/80 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+            >
+              <span className="text-center">Enable browser notifications for new messages and incoming calls.</span>
+              <button
+                type="button"
+                className="rounded-md bg-amber-600 px-3 py-1.5 font-medium text-white hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500"
+                onClick={async () => {
+                  const p = await requestDesktopNotificationPermission();
+                  if (p === "granted") {
+                    toast({ title: "Notifications on", description: "You will get alerts when the tab is in the background." });
+                  } else if (p === "denied") {
+                    toast({
+                      title: "Notifications blocked",
+                      description: "Allow notifications for this site in your browser settings.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                Turn on
+              </button>
+              <button
+                type="button"
+                className="rounded-md px-3 py-1.5 font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-200"
+                onClick={() => {
+                  try {
+                    localStorage.setItem("whatsapp_desktop_notify_dismissed", "1");
+                  } catch {
+                    /* ignore */
+                  }
+                  setDesktopNotifyBannerDismissed(true);
+                }}
+              >
+                Not now
+              </button>
+            </div>
+          )}
 
         <div className="flex-1 overflow-x-hidden max-w-full min-h-0">
           {/* Mobile-first responsive layout */}
@@ -4537,18 +4701,16 @@ export default function WhatsAppChat() {
 
       {pendingIncomingInvite && !outboundCallUi ? (
         <div className="pointer-events-auto fixed inset-x-0 top-[max(3.25rem,env(safe-area-inset-top,0px))] z-[190] flex justify-center px-3 pt-2">
-          <div className="flex max-w-lg flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-[#0b3d2e] px-4 py-3 text-white shadow-xl">
+          <div className="flex max-w-lg flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#2a3942] bg-[#202c33] px-4 py-3.5 shadow-xl">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/90">
-                Incoming WhatsApp call
-              </p>
-              <p className="truncate text-sm font-semibold">{pendingIncomingInvite.contactLabel}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-[#8696a0]">Incoming voice call</p>
+              <p className="truncate text-[15px] font-normal text-[#e9edef]">{pendingIncomingInvite.contactLabel}</p>
             </div>
             <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={handleDeclineIncomingCall}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
+                className="min-h-[44px] rounded-full bg-[#2a3942] px-5 text-[14px] font-medium text-[#e9edef] hover:bg-[#3b4a54]"
               >
                 Decline
               </button>
@@ -4558,7 +4720,7 @@ export default function WhatsAppChat() {
                 onClick={() => {
                   void handleAnswerIncomingWhatsAppCall();
                 }}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                className="min-h-[44px] rounded-full bg-[#25d366] px-5 text-[14px] font-semibold text-[#0b141a] hover:bg-[#20bd5a] disabled:opacity-50"
               >
                 {answeringIncoming ? "Connecting…" : "Answer"}
               </button>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppCallLog from "@/models/whatsappCallLog";
 import {
   canAccessPhoneId,
   getAllowedPhoneIds,
@@ -223,6 +224,79 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    /** Terminate only needs `callId` + routable `phoneNumberId` (conversation optional). */
+    if (action === "terminate_call") {
+      const callId = parsed.data.callId?.trim();
+      if (!callId) {
+        return NextResponse.json({ error: "callId is required" }, { status: 400 });
+      }
+
+      let phoneNumberId = parsed.data.phoneNumberId?.trim();
+      const convIdOpt = parsed.data.conversationId?.trim();
+
+      if (convIdOpt) {
+        const conversation = (await WhatsAppConversation.findById(convIdOpt).lean()) as {
+          businessPhoneId?: string;
+        } | null;
+        if (!conversation) {
+          return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        }
+        if (phoneNumberId && String(conversation.businessPhoneId) !== phoneNumberId) {
+          return NextResponse.json(
+            { error: "conversationId does not match phoneNumberId" },
+            { status: 400 },
+          );
+        }
+        phoneNumberId = phoneNumberId || String(conversation.businessPhoneId);
+      }
+
+      if (!phoneNumberId) {
+        const log = (await WhatsAppCallLog.findOne({ callId }).lean()) as { businessPhoneId?: string } | null;
+        phoneNumberId = log?.businessPhoneId?.trim() || "";
+      }
+
+      if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+        return NextResponse.json(
+          { error: "Valid phoneNumberId required (or conversationId to resolve it)" },
+          { status: 403 },
+        );
+      }
+
+      const whatsappTokenTerminate = getWhatsAppToken();
+      if (!whatsappTokenTerminate) {
+        return NextResponse.json({ error: "WhatsApp configuration missing" }, { status: 500 });
+      }
+
+      const response = await fetch(`${WHATSAPP_API_BASE_URL}/${phoneNumberId}/calls`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${whatsappTokenTerminate}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          call_id: callId,
+          action: "terminate",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const combined =
+          collectMetaGraphErrorText(data) ||
+          (typeof (data as { error?: { message?: string } }).error?.message === "string"
+            ? (data as { error: { message: string } }).error.message
+            : "") ||
+          "Failed to terminate call";
+        return NextResponse.json({ error: combined, data }, { status: response.status });
+      }
+      try {
+        await updateCallFromMetaStatus({ callId, metaStatus: "terminated" });
+      } catch (e) {
+        console.warn("[whatsapp/call] call history terminate:", e);
+      }
+      return NextResponse.json({ success: true, type: "call_terminated" });
+    }
+
     const { to, conversationId, phoneNumberId: requestedPhoneId } = parsed.data;
 
     if (!to && !conversationId) {
@@ -413,40 +487,6 @@ export async function POST(req: NextRequest) {
         callId: startedCallId,
         data,
       });
-    }
-
-    // Terminate a call via Calls API (official)
-    if (action === "terminate_call") {
-      const callId = parsed.data.callId;
-      if (!callId) return NextResponse.json({ error: "callId is required" }, { status: 400 });
-      const response = await fetch(`${WHATSAPP_API_BASE_URL}/${phoneNumberId}/calls`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${whatsappToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          call_id: callId,
-          action: "terminate",
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const combined =
-          collectMetaGraphErrorText(data) ||
-          (typeof (data as { error?: { message?: string } }).error?.message === "string"
-            ? (data as { error: { message: string } }).error.message
-            : "") ||
-          "Failed to terminate call";
-        return NextResponse.json({ error: combined, data }, { status: response.status });
-      }
-      try {
-        await updateCallFromMetaStatus({ callId, metaStatus: "terminated" });
-      } catch (e) {
-        console.warn("[whatsapp/call] call history terminate:", e);
-      }
-      return NextResponse.json({ success: true, type: "call_terminated" });
     }
 
     // Notify action - send a template message about missed call

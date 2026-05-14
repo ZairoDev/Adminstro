@@ -130,8 +130,27 @@ export function getAllowedPhoneConfigs(
   }
 
   // Filter by user's assigned areas
-  const normalizedAreas = userAreas.map(a => a.toLowerCase().trim());
-  
+  const normalizedAreas = userAreas.map(a => a.toLowerCase().trim()).filter(Boolean);
+
+  // HR sometimes omits `allotedArea` on Sales/LeadGen. That used to yield zero
+  // allowed phones while the inbox could still show a line, and POST
+  // /conversations returned 403 "area mismatch". Advert keeps strict empty =
+  // no lines (retarget flows supply the phone separately).
+  const UNALLOCATED_AREA_USES_ALL_LINES: readonly string[] = [
+    "Sales",
+    "Sales-TeamLead",
+    "LeadGen",
+    "LeadGen-TeamLead",
+  ];
+  if (
+    normalizedAreas.length === 0 &&
+    UNALLOCATED_AREA_USES_ALL_LINES.includes(userRole)
+  ) {
+    return WHATSAPP_PHONE_CONFIGS.filter(
+      (config) => config.phoneNumberId && !config.isInternal
+    );
+  }
+
   // "all" or "both" gives access to all areas
   if (normalizedAreas.includes("all") || normalizedAreas.includes("both")) {
     return WHATSAPP_PHONE_CONFIGS.filter(config => config.phoneNumberId);

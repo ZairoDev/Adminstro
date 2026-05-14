@@ -128,6 +128,81 @@ export async function recordUserInitiatedIncomingOffer(
   );
 }
 
+/**
+ * Internal chat row when customer initiates a call (rings) — mirrors visibility of outbound call logs.
+ */
+export async function createIncomingCallInternalChatMessage(input: {
+  conversationId: string;
+  callId: string;
+  businessPhoneId: string;
+  contactLabel?: string;
+}): Promise<void> {
+  const conversation = await WhatsAppConversation.findById(input.conversationId);
+  if (!conversation) return;
+
+  const phoneId = String(conversation.businessPhoneId || input.businessPhoneId || "");
+  const internalMessageId = `internal_call_incoming_${input.callId}`;
+  const label = input.contactLabel?.trim() || conversation.participantName?.trim() || "Customer";
+  const text = `📞 Incoming voice call · ${label} is calling`;
+  const timestamp = new Date();
+
+  let savedMessage;
+  try {
+    savedMessage = await WhatsAppMessage.create({
+      conversationId: conversation._id,
+      messageId: internalMessageId,
+      ...(phoneId ? { businessPhoneId: phoneId } : {}),
+      from: phoneId || "internal",
+      to: conversation.participantPhone,
+      source: "internal",
+      type: "text",
+      content: { text },
+      status: "sent",
+      statusEvents: [],
+      direction: "outgoing",
+      timestamp,
+      conversationSnapshot: {
+        participantPhone: conversation.participantPhone,
+        assignedAgent: conversation.assignedAgent,
+      },
+    });
+  } catch (e: unknown) {
+    const code = typeof e === "object" && e !== null && "code" in e ? (e as { code: unknown }).code : undefined;
+    if (code === 11000) {
+      return;
+    }
+    throw e;
+  }
+
+  await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
+    lastMessageId: internalMessageId,
+    lastMessageContent: text.substring(0, 100),
+    lastMessageTime: timestamp,
+    lastMessageDirection: "outgoing",
+    lastOutgoingMessageTime: timestamp,
+  });
+
+  emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+    conversationId: conversation._id.toString(),
+    businessPhoneId: phoneId || undefined,
+    isInternal: true,
+    message: {
+      id: savedMessage._id.toString(),
+      messageId: internalMessageId,
+      from: phoneId || "internal",
+      to: conversation.participantPhone,
+      type: "text",
+      content: { text },
+      status: "sent",
+      direction: "outgoing",
+      timestamp,
+      source: "internal",
+      isInternal: true,
+      senderName: "Call log",
+    },
+  });
+}
+
 export async function updateCallFromMetaStatus(input: {
   callId: string;
   metaStatus: string;
@@ -151,8 +226,9 @@ export async function updateCallFromMetaStatus(input: {
   else if (norm === "busy") lifecycle = "busy";
   else if (norm === "missed") lifecycle = "missed";
   else if (norm === "failed") lifecycle = "failed";
-  else if (norm === "terminated" || norm === "completed") lifecycle = "ended";
-  else if (norm === "timeout") lifecycle = "timeout";
+  else if (norm === "terminated" || norm === "completed" || norm === "ended" || norm === "disconnect") {
+    lifecycle = "ended";
+  } else if (norm === "timeout") lifecycle = "timeout";
 
   const patch: Record<string, unknown> = {
     metaCallStatus: input.metaStatus,

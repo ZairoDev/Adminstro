@@ -14,7 +14,6 @@ import {
   getDefaultPhoneId,
   getPhoneIdForLocation,
   getRetargetPhoneId,
-  getPhoneConfigById,
   FULL_ACCESS_ROLES,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
@@ -552,16 +551,6 @@ export async function POST(req: NextRequest) {
     const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
     // Debug: log role, areas, and allowed phone IDs for POST requests
 
-
-    // Prevent Sales from opening existing retarget conversations via direct create
-    const existingConv = await WhatsAppConversation.findOne({
-      participantPhone: normalizedPhone,
-      isRetarget: true,
-    }).lean() as any;
-    if (existingConv && existingConv.isRetarget && (userRole === "Sales") && existingConv.retargetStage !== "handed_to_sales") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     // Bug 1 fix: contacts MUST be scoped to a specific WhatsApp account
     // (phone_number_id). Order of resolution:
     //   1. Explicit phoneNumberId from client (the inbox the user is viewing)
@@ -607,21 +596,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify user can access this phone ID based on area mapping or full-access role
-    const phoneConfig = getPhoneConfigById(selectedPhoneId);
-    const normalizedUserAreas = userAreas.map(a => a.toLowerCase());
-    let phoneAllowed = false;
-    if (!phoneConfig) {
-      phoneAllowed = false;
-    } else if ((FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
-      phoneAllowed = true;
-    } else {
-      const cfgAreas = Array.isArray(phoneConfig.area) ? phoneConfig.area : [phoneConfig.area];
-      const normalizedCfgAreas = cfgAreas.map((a: any) => String(a).toLowerCase());
-      phoneAllowed = normalizedCfgAreas.some((a: string) => normalizedUserAreas.includes(a));
+    // Prevent Sales from hijacking an existing retarget row on this same
+    // WhatsApp account before Advert hands it over. Scoped by business phone
+    // so a retarget on another line does not block creating an owner here.
+    const existingRetargetSameAccount = await WhatsAppConversation.findOne({
+      participantPhone: normalizedPhone,
+      isRetarget: true,
+      businessPhoneId: selectedPhoneId,
+    }).lean() as { retargetStage?: string } | null;
+    if (
+      existingRetargetSameAccount &&
+      userRole === "Sales" &&
+      existingRetargetSameAccount.retargetStage !== "handed_to_sales"
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!phoneAllowed) {
+    // Verify user can access this phone (single source of truth with GET/list)
+    if (!canAccessPhoneId(selectedPhoneId, userRole, userAreas)) {
       return NextResponse.json(
         { error: "You don't have permission to use this WhatsApp number (area mismatch)" },
         { status: 403 }

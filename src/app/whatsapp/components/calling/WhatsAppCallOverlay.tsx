@@ -48,9 +48,9 @@ function phaseLabel(
     case "initializing":
       return "Starting…";
     case "connecting":
-      return sessionKind === "inbound" ? "Connecting to customer…" : "Connecting…";
+      return sessionKind === "inbound" ? "Connecting…" : "Calling…";
     case "ringing":
-      return sessionKind === "inbound" ? "Joining call…" : "Ringing…";
+      return sessionKind === "inbound" ? "Ringing" : "Ringing…";
     case "connected":
       return "On call";
     case "failed":
@@ -105,161 +105,169 @@ export function WhatsAppCallOverlay({
           initial={{ opacity: 0, y: isFloating ? 12 : 0, scale: isFloating ? 0.96 : 1 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: isFloating ? 16 : 0, scale: isFloating ? 0.95 : 1 }}
-          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          transition={{ type: "spring", stiffness: 420, damping: 34 }}
           className={cn(
-            "z-[200] flex flex-col overflow-hidden border border-white/10 shadow-2xl",
+            "z-[200] flex flex-col overflow-hidden shadow-2xl",
             isFloating
-              ? "fixed bottom-[max(5.5rem,env(safe-area-inset-bottom,0px))] right-4 w-[min(100vw-2rem,340px)] rounded-2xl"
-              : "fixed inset-0 md:inset-4 md:mx-auto md:my-auto md:h-[min(92vh,640px)] md:max-w-lg md:rounded-3xl",
-            "bg-gradient-to-b from-[#0b3d2e] via-[#064e3b] to-[#022c22]",
+              ? "fixed bottom-[max(5.5rem,env(safe-area-inset-bottom,0px))] right-4 w-[min(100vw-2rem,340px)] rounded-xl border border-[#2a3942]"
+              : "fixed inset-0 bg-[#0b141a] md:inset-0 md:flex md:items-center md:justify-center md:bg-black/60 md:backdrop-blur-sm",
           )}
         >
+          {/* Fullscreen: WhatsApp-style dark panel */}
           <div
             className={cn(
-              "pointer-events-none absolute inset-0 opacity-40",
-              "bg-[radial-gradient(ellipse_at_top,_rgba(52,211,153,0.35),_transparent_55%)]",
+              "flex flex-1 flex-col bg-[#0b141a]",
+              !isFloating && "md:mx-auto md:my-auto md:h-[min(92vh,520px)] md:max-w-[400px] md:rounded-xl md:border md:border-[#2a3942]",
+              isFloating && "rounded-xl",
             )}
-          />
+          >
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-0 opacity-[0.07]",
+                "bg-[radial-gradient(ellipse_at_50%_0%,_#25d366,_transparent_50%)]",
+                !isFloating && "md:rounded-xl",
+              )}
+            />
 
-          <div className="relative z-10 flex flex-1 flex-col px-5 pb-6 pt-8 md:px-8 md:pt-10">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium uppercase tracking-wide text-emerald-100/80">
+            <div className="relative z-10 flex flex-1 flex-col px-5 pb-8 pt-10 md:px-7 md:pt-12">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[13px] font-medium text-[#8696a0]">
+                    {phaseLabel(phase, reconnecting, sessionKind)}
+                  </span>
+                  <span className="truncate font-mono text-[11px] text-[#667781]">
+                    {elapsedLabel}
+                    {(phase === "connected" || phase === "reconnecting") && (
+                      <> · {reconnecting ? "ICE reconnect" : connectionState}</>
+                    )}
+                  </span>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  {!isFloating ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 text-[#aebac1] hover:bg-[#2a3942] hover:text-white"
+                      onClick={onMinimize}
+                      aria-label="Minimize call"
+                    >
+                      <Minimize2 className="h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 shrink-0 text-[#aebac1] hover:bg-[#2a3942] hover:text-white"
+                      onClick={onExpand}
+                    >
+                      Expand
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-10 flex flex-col items-center md:mt-14">
+                <motion.div
+                  animate={
+                    phase === "ringing" || phase === "connecting"
+                      ? { scale: [1, 1.03, 1] }
+                      : reconnecting
+                        ? { opacity: [1, 0.75, 1] }
+                        : { scale: 1 }
+                  }
+                  transition={{
+                    repeat: phase === "ringing" || phase === "connecting" || reconnecting ? Infinity : 0,
+                    duration: 1.8,
+                  }}
+                  className="relative"
+                >
+                  <div className="pointer-events-none absolute inset-0 rounded-full bg-[#25d366]/20 blur-2xl" />
+                  <Avatar className="relative h-[120px] w-[120px] border-2 border-[#2a3942] shadow-lg md:h-[132px] md:w-[132px]">
+                    <AvatarFallback className="bg-[#25d366] text-4xl font-normal text-[#0b141a] md:text-[2.75rem]">
+                      {initials(contactLabel)}
+                    </AvatarFallback>
+                  </Avatar>
+                </motion.div>
+                <h2 className="mt-7 max-w-full truncate px-2 text-center text-[22px] font-normal leading-tight text-[#e9edef] md:text-2xl">
+                  {contactLabel}
+                </h2>
+                <p className="mt-2 text-center text-[15px] text-[#8696a0]">
                   {phaseLabel(phase, reconnecting, sessionKind)}
-                </span>
-                <span className="font-mono text-[10px] text-white/45">
-                  {elapsedLabel} · {connectionState} · {iceState}
-                </span>
+                </p>
               </div>
-              <div className="flex gap-1">
-                {!isFloating ? (
+
+              <div className="mt-auto flex flex-col gap-5 pt-10">
+                {remoteAudioPlayBlocked ? (
                   <Button
                     type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9 shrink-0 text-white/80 hover:bg-white/10 hover:text-white"
-                    onClick={onMinimize}
-                    aria-label="Minimize call"
+                    className="h-11 w-full rounded-lg bg-[#25d366] text-[15px] font-medium text-[#0b141a] hover:bg-[#20bd5a]"
+                    onClick={onResumeAudio}
                   >
-                    <Minimize2 className="h-4 w-4" />
+                    Tap to hear call audio
                   </Button>
-                ) : (
+                ) : null}
+
+                <div className="flex items-center justify-center gap-6 md:gap-8">
+                  <button
+                    type="button"
+                    onClick={onToggleMute}
+                    aria-label={muted ? "Unmute" : "Mute"}
+                    className={cn(
+                      "flex h-14 w-14 items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      muted && "bg-[#3d3d00] text-[#ffca28]",
+                    )}
+                  >
+                    {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onHangUp}
+                    aria-label="End call"
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-[#ea0038] text-white shadow-lg transition-transform hover:bg-[#d70432] active:scale-95"
+                  >
+                    <PhoneOff className="h-8 w-8" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleSpeaker}
+                    aria-label="Speaker"
+                    className={cn(
+                      "flex h-14 w-14 items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      !speaker && "opacity-50",
+                    )}
+                  >
+                    {speaker ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
+                  </button>
+                </div>
+
+                <div className="flex justify-center">
                   <Button
                     type="button"
+                    variant="ghost"
                     size="sm"
-                    variant="ghost"
-                    className="h-9 shrink-0 text-white/80 hover:bg-white/10 hover:text-white"
-                    onClick={onExpand}
+                    className="gap-1.5 text-[#667781] hover:bg-[#2a3942] hover:text-[#aebac1]"
+                    onClick={() => onDiagnosticsOpenChange(!diagnosticsOpen)}
                   >
-                    Expand
+                    <Bug className="h-4 w-4" />
+                    Diagnostics
                   </Button>
-                )}
+                </div>
+
+                <CallDiagnosticsPanel
+                  open={diagnosticsOpen}
+                  onOpenChange={onDiagnosticsOpenChange}
+                  stats={stats}
+                  signalingState={signalingState}
+                  connectionState={connectionState}
+                  iceState={iceState}
+                  keptCandidates={keptCandidates}
+                  droppedCandidates={droppedCandidates}
+                  metaOfferSdpPreview={metaOfferSdpPreview}
+                  lastAnswerSdpPreview={lastAnswerSdpPreview}
+                />
               </div>
-            </div>
-
-            <div className="mt-8 flex flex-col items-center">
-              <motion.div
-                animate={
-                  phase === "ringing" || phase === "connecting"
-                    ? { scale: [1, 1.04, 1] }
-                    : reconnecting
-                      ? { opacity: [1, 0.7, 1] }
-                      : { scale: 1 }
-                }
-                transition={{ repeat: phase === "ringing" || phase === "connecting" || reconnecting ? Infinity : 0, duration: 1.6 }}
-                className="relative"
-              >
-                <div className="pointer-events-none absolute inset-0 rounded-full bg-emerald-400/25 blur-xl" />
-                <Avatar className="relative h-28 w-28 border-4 border-white/15 shadow-lg md:h-32 md:w-32">
-                  <AvatarFallback className="bg-emerald-600 text-3xl font-semibold text-white md:text-4xl">
-                    {initials(contactLabel)}
-                  </AvatarFallback>
-                </Avatar>
-              </motion.div>
-              <h2 className="mt-6 max-w-full truncate text-center text-xl font-semibold text-white md:text-2xl">
-                {contactLabel}
-              </h2>
-              <p className="mt-1 text-center text-sm text-emerald-100/75">
-                {phaseLabel(phase, reconnecting, sessionKind)}
-              </p>
-            </div>
-
-            <div className="mt-auto flex flex-col gap-4 pt-8">
-              {remoteAudioPlayBlocked ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={onResumeAudio}
-                >
-                  Tap to enable call audio
-                </Button>
-              ) : null}
-
-              <div className="flex items-center justify-center gap-4 md:gap-6">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  className={cn(
-                    "h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20",
-                    muted && "bg-amber-500/30 text-amber-100",
-                  )}
-                  onClick={onToggleMute}
-                  aria-label={muted ? "Unmute" : "Mute"}
-                >
-                  {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  className="h-16 w-16 rounded-full shadow-lg shadow-red-900/40"
-                  onClick={onHangUp}
-                  aria-label="End call"
-                >
-                  <PhoneOff className="h-7 w-7" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  className={cn(
-                    "h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20",
-                    !speaker && "opacity-70",
-                  )}
-                  onClick={onToggleSpeaker}
-                  aria-label="Speaker"
-                >
-                  {speaker ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
-                </Button>
-              </div>
-
-              <div className="flex justify-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-white/60 hover:bg-white/10 hover:text-white"
-                  onClick={() => onDiagnosticsOpenChange(!diagnosticsOpen)}
-                >
-                  <Bug className="h-4 w-4" />
-                  Diagnostics
-                </Button>
-              </div>
-
-              <CallDiagnosticsPanel
-                open={diagnosticsOpen}
-                onOpenChange={onDiagnosticsOpenChange}
-                stats={stats}
-                signalingState={signalingState}
-                connectionState={connectionState}
-                iceState={iceState}
-                keptCandidates={keptCandidates}
-                droppedCandidates={droppedCandidates}
-                metaOfferSdpPreview={metaOfferSdpPreview}
-                lastAnswerSdpPreview={lastAnswerSdpPreview}
-              />
             </div>
           </div>
         </motion.div>

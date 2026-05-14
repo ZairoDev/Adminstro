@@ -297,7 +297,7 @@ export function buildCleanWhatsAppOfferDetailed(
     "a=sendrecv",
     "a=rtcp-mux",
     "a=rtpmap:111 opus/48000/2",
-    "a=fmtp:111 minptime=10;useinbandfec=1;maxplaybackrate=48000",
+    "a=fmtp:111 minptime=10;useinbandfec=1",
     "a=ptime:20",
     "a=rtpmap:126 telephone-event/8000",
     "a=fmtp:126 0-15",

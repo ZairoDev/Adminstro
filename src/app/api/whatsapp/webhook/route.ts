@@ -15,6 +15,7 @@ import {
   shouldEmitSdpAnswerAndMark,
   updateCallFromMetaStatus,
   recordUserInitiatedIncomingOffer,
+  createIncomingCallInternalChatMessage,
 } from "@/services/whatsapp-calling/callHistoryService";
 
 export const dynamic = "force-dynamic";
@@ -1488,6 +1489,17 @@ async function processCallEvent(value: any) {
             });
           } catch (e) {
             console.warn("[webhook] user-initiated call log:", e);
+          }
+
+          try {
+            await createIncomingCallInternalChatMessage({
+              conversationId: conversationIdStr,
+              callId: String(call.id),
+              businessPhoneId: String(phoneNumberId),
+              contactLabel: callerLabel,
+            });
+          } catch (e) {
+            console.warn("[webhook] incoming call chat line:", e);
           }
 
           emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_INCOMING_OFFER, {

@@ -98,38 +98,65 @@ export function logRawLocalSdpIce(
 }
 
 const ICE_GATHER_BASE_MS = 20_000;
-const ICE_GATHER_TURN_MS = 30_000;
-const ICE_GATHER_EXTRA_MS = 12_000;
+const ICE_GATHER_TURN_MS = 25_000;
+const ICE_GATHER_EXTRA_MS = 8_000;
+
+function isPcAlive(pc: RTCPeerConnection): boolean {
+  return pc.signalingState !== "closed" && pc.connectionState !== "closed";
+}
 
 /**
- * Wait for ICE gathering; when TURN is configured, wait longer and optionally restart ICE
- * if raw SDP still has no srflx/relay.
+ * Wait for ICE gathering with a single extra pass when TURN is configured and no
+ * relay/srflx appeared. restartIce() is intentionally NOT called — we are often
+ * the answerer (inbound) and restartIce without re-negotiation tears down the connection.
+ * Exits early if the PC closes during any wait.
  */
 export async function awaitIceGatheringForMeta(
   pc: RTCPeerConnection,
   relayConfigured: boolean,
   awaitGather: (pc: RTCPeerConnection, timeoutMs: number) => Promise<void>,
 ): Promise<RawSdpIceSummary | null> {
+  console.log("[ice] pre-gather PC state", {
+    signalingState: pc.signalingState,
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+  });
+
+  if (!isPcAlive(pc)) {
+    console.error("[ice] PC already closed before gather started — aborting");
+    return null;
+  }
+
   const primaryMs = relayConfigured ? ICE_GATHER_TURN_MS : ICE_GATHER_BASE_MS;
   await awaitGather(pc, primaryMs);
+
+  if (!isPcAlive(pc)) {
+    console.error("[ice] PC closed during primary gather — aborting");
+    return null;
+  }
+
   let summary = logRawLocalSdpIce(pc, "gather-pass-1");
 
+  // One extra pass when TURN is on and no useful candidates appeared yet.
+  // Do NOT call restartIce(): as the answerer, it requires re-negotiation we
+  // cannot initiate; calling it can corrupt or close the peer connection.
   if (relayConfigured && summary && !summary.hasSrflx && !summary.hasRelay) {
-    console.warn(
-      "[ice] TURN configured but raw SDP has no srflx/relay after first gather — extra wait + restartIce",
-    );
+    console.warn("[ice] TURN configured but no srflx/relay after pass-1 — extra wait");
     await awaitGather(pc, ICE_GATHER_EXTRA_MS);
-    summary = logRawLocalSdpIce(pc, "gather-pass-2");
-    if (summary && !summary.hasSrflx && !summary.hasRelay) {
-      try {
-        pc.restartIce();
-        await awaitGather(pc, ICE_GATHER_EXTRA_MS);
-        summary = logRawLocalSdpIce(pc, "gather-after-restartIce");
-      } catch (err) {
-        console.warn("[ice] restartIce failed:", err);
-      }
+    if (!isPcAlive(pc)) {
+      console.error("[ice] PC closed during extra gather — aborting");
+      return summary;
     }
+    summary = logRawLocalSdpIce(pc, "gather-pass-2");
   }
+
+  console.log("[ice] post-gather PC state", {
+    signalingState: pc.signalingState,
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+  });
 
   return summary;
 }

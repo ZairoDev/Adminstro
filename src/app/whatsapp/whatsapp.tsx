@@ -644,11 +644,19 @@ export default function WhatsAppChat() {
 
       pc.onconnectionstatechange = () => {
         if (peerRef.current !== pc) return;
+        console.log("[PC STATE]", pc.connectionState, {
+          iceConnectionState: pc.iceConnectionState,
+          signalingState: pc.signalingState,
+          iceGatheringState: pc.iceGatheringState,
+          suppress: suppressPrematureInboundIceCleanupRef.current,
+        });
         syncConn();
         const st = pc.connectionState;
         if (st === "closed") {
           if (!suppressPrematureInboundIceCleanupRef.current) {
             cleanupOutboundCallResources();
+          } else {
+            console.warn("[call] PC closed during inbound ICE gather — suppress is ON, skipping cleanup");
           }
           return;
         }
@@ -666,6 +674,11 @@ export default function WhatsAppChat() {
 
       pc.oniceconnectionstatechange = () => {
         if (peerRef.current !== pc) return;
+        console.log("[ICE STATE]", pc.iceConnectionState, {
+          connectionState: pc.connectionState,
+          signalingState: pc.signalingState,
+          suppress: suppressPrematureInboundIceCleanupRef.current,
+        });
         syncConn();
         const ice = pc.iceConnectionState;
         if (ice === "disconnected") {
@@ -847,7 +860,30 @@ export default function WhatsAppChat() {
         awaitIceGatheringOrTimeout,
       );
 
+      // Guard: if PC closed during gather abort here with diagnostic context.
+      console.log("[call-inbound] post-gather PC state", {
+        signalingState: pc.signalingState,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+      });
+      if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+        throw new Error(
+          `[inbound] RTCPeerConnection closed during ICE gathering — ` +
+            `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
+            `iceConnectionState=${pc.iceConnectionState}. ` +
+            `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
+        );
+      }
+
       logWebRtcMediaDiagnostics(pc, "inbound-post-ICE-gather");
+
+      // Log sender track health before reading localDescription.
+      pc.getSenders().forEach((s) => {
+        if (s.track) {
+          console.log("[call-inbound] sender track", s.track.kind, "readyState:", s.track.readyState);
+        }
+      });
 
       const gathered = pc.localDescription?.sdp ?? "";
       if (!gathered) throw new Error("Failed to generate SDP answer");
@@ -3991,12 +4027,16 @@ export default function WhatsAppChat() {
       }
 
       logWebRtcMediaDiagnostics(pc, "pre-createOffer");
+      console.log("[call] pre-createOffer PC state", {
+        signalingState: pc.signalingState,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+      });
       // Set Chrome's ORIGINAL offer as local description (Chrome rejects any modification).
-      console.log("[call] signalingState before createOffer:", pc.signalingState);
       const rawOffer = await pc.createOffer();
       console.log("[call] raw Chrome offer SDP:\n", rawOffer.sdp);
       await pc.setLocalDescription(rawOffer);
-      console.log("[call] signalingState after setLocalDescription:", pc.signalingState);
 
       // Wait for ICE gathering (resolves on complete OR timeout — never rejects).
       const rawIceSummary = await awaitIceGatheringForMeta(
@@ -4004,6 +4044,22 @@ export default function WhatsAppChat() {
         relayConfigured,
         awaitIceGatheringOrTimeout,
       );
+
+      // Guard: if PC closed during gather abort here with diagnostic context.
+      console.log("[call] post-gather PC state", {
+        signalingState: pc.signalingState,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+      });
+      if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+        throw new Error(
+          `[outbound] RTCPeerConnection closed during ICE gathering — ` +
+            `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
+            `iceConnectionState=${pc.iceConnectionState}. ` +
+            `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
+        );
+      }
 
       logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
 
@@ -4244,17 +4300,37 @@ export default function WhatsAppChat() {
       }
 
       logWebRtcMediaDiagnostics(pc, "videocall-pre-createOffer");
-      console.log("[videocall] signalingState before createOffer:", pc.signalingState);
+      console.log("[videocall] pre-createOffer PC state", {
+        signalingState: pc.signalingState,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+      });
       const rawOffer = await pc.createOffer();
       console.log("[videocall] raw Chrome offer SDP:\n", rawOffer.sdp);
       await pc.setLocalDescription(rawOffer);
-      console.log("[videocall] signalingState after setLocalDescription:", pc.signalingState);
 
       const rawIceSummary = await awaitIceGatheringForMeta(
         pc,
         relayConfigured,
         awaitIceGatheringOrTimeout,
       );
+
+      // Guard: if PC closed during gather abort here with diagnostic context.
+      console.log("[videocall] post-gather PC state", {
+        signalingState: pc.signalingState,
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+      });
+      if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+        throw new Error(
+          `[videocall] RTCPeerConnection closed during ICE gathering — ` +
+            `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
+            `iceConnectionState=${pc.iceConnectionState}. ` +
+            `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
+        );
+      }
 
       logWebRtcMediaDiagnostics(pc, "videocall-post-ICE-gather");
 

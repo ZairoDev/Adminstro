@@ -52,6 +52,7 @@ import {
   collectOutboundRtpAudioSummary,
   CLIENT_FALLBACK_ICE_SERVERS,
   createWhatsAppCallPeerConnection,
+  awaitIceGatheringForMeta,
   getIceGatheredCandidates,
   type IceGatheredCandidate,
 } from "@/lib/whatsapp/calling";
@@ -147,6 +148,12 @@ async function fetchIceServers(): Promise<IceServersFetchResult> {
     const json = (await res.json()) as {
       servers?: RTCIceServer[];
       relayConfigured?: boolean;
+      iceConfig?: {
+        source?: string;
+        turnServerCount?: number;
+        credentialPresent?: boolean;
+        totalServers?: number;
+      };
     };
     if (Array.isArray(json.servers) && json.servers.length > 0) {
       _iceServerCache = {
@@ -154,7 +161,13 @@ async function fetchIceServers(): Promise<IceServersFetchResult> {
         relayConfigured: Boolean(json.relayConfigured),
       };
       _iceServerCacheTs = now;
-      console.log("[ice] loaded servers from API, relayConfigured=", _iceServerCache.relayConfigured);
+      console.log("[ice] loaded from GET /api/whatsapp/ice-servers", {
+        relayConfigured: _iceServerCache.relayConfigured,
+        serverCount: json.servers.length,
+        iceConfig: json.iceConfig,
+        turnUrls: json.servers.map((s) => s.urls),
+        hasTurnUsername: json.servers.some((s) => Boolean(s.username)),
+      });
       return _iceServerCache;
     }
   } catch (err) {
@@ -828,7 +841,11 @@ export default function WhatsAppChat() {
       const rawAnswer = await pc.createAnswer();
       await pc.setLocalDescription(rawAnswer);
 
-      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
+      const rawIceSummary = await awaitIceGatheringForMeta(
+        pc,
+        relayConfigured,
+        awaitIceGatheringOrTimeout,
+      );
 
       logWebRtcMediaDiagnostics(pc, "inbound-post-ICE-gather");
 
@@ -856,7 +873,7 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
         toast({
           title: "No usable ICE candidates",
-          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured, rawIceSummary),
           variant: "destructive",
           duration: 10_000,
         });
@@ -3982,7 +3999,11 @@ export default function WhatsAppChat() {
       console.log("[call] signalingState after setLocalDescription:", pc.signalingState);
 
       // Wait for ICE gathering (resolves on complete OR timeout — never rejects).
-      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
+      const rawIceSummary = await awaitIceGatheringForMeta(
+        pc,
+        relayConfigured,
+        awaitIceGatheringOrTimeout,
+      );
 
       logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
 
@@ -4015,7 +4036,7 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
         toast({
           title: "No usable ICE candidates",
-          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured, rawIceSummary),
           variant: "destructive",
           duration: 10_000,
         });
@@ -4229,7 +4250,11 @@ export default function WhatsAppChat() {
       await pc.setLocalDescription(rawOffer);
       console.log("[videocall] signalingState after setLocalDescription:", pc.signalingState);
 
-      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
+      const rawIceSummary = await awaitIceGatheringForMeta(
+        pc,
+        relayConfigured,
+        awaitIceGatheringOrTimeout,
+      );
 
       logWebRtcMediaDiagnostics(pc, "videocall-post-ICE-gather");
 
@@ -4258,7 +4283,7 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
         toast({
           title: "Video Call Failed",
-          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured, rawIceSummary),
           variant: "destructive",
         });
         return;

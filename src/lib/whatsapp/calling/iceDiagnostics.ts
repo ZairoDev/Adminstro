@@ -2,6 +2,11 @@
  * ICE gathering / connection logging and RTCPeerConnection factory for WhatsApp calls.
  */
 
+import {
+  analyzeRawSdpIce,
+  type RawSdpIceSummary,
+} from "@/lib/whatsapp/callingSdp";
+
 export type IceGatheredCandidate = {
   candidate: string;
   typ: string | null;
@@ -71,6 +76,62 @@ export function attachIceConnectionLogging(pc: RTCPeerConnection): void {
       console.log(`${logPrefix} gathering complete (null candidate)`);
     }
   });
+}
+
+/** Log full local SDP + typ counts (before Meta sanitization). */
+export function logRawLocalSdpIce(
+  pc: RTCPeerConnection,
+  label: string,
+): RawSdpIceSummary | null {
+  const sdp = pc.localDescription?.sdp ?? "";
+  if (!sdp.trim()) {
+    console.warn(`[RAW LOCAL SDP:${label}] empty — iceGatheringState=${pc.iceGatheringState}`);
+    return null;
+  }
+  console.log(`[RAW LOCAL SDP:${label}]`, sdp);
+  const summary = analyzeRawSdpIce(sdp);
+  console.log(`[RAW LOCAL SDP:${label}] summary`, {
+    ...summary,
+    iceGatheringState: pc.iceGatheringState,
+  });
+  return summary;
+}
+
+const ICE_GATHER_BASE_MS = 20_000;
+const ICE_GATHER_TURN_MS = 30_000;
+const ICE_GATHER_EXTRA_MS = 12_000;
+
+/**
+ * Wait for ICE gathering; when TURN is configured, wait longer and optionally restart ICE
+ * if raw SDP still has no srflx/relay.
+ */
+export async function awaitIceGatheringForMeta(
+  pc: RTCPeerConnection,
+  relayConfigured: boolean,
+  awaitGather: (pc: RTCPeerConnection, timeoutMs: number) => Promise<void>,
+): Promise<RawSdpIceSummary | null> {
+  const primaryMs = relayConfigured ? ICE_GATHER_TURN_MS : ICE_GATHER_BASE_MS;
+  await awaitGather(pc, primaryMs);
+  let summary = logRawLocalSdpIce(pc, "gather-pass-1");
+
+  if (relayConfigured && summary && !summary.hasSrflx && !summary.hasRelay) {
+    console.warn(
+      "[ice] TURN configured but raw SDP has no srflx/relay after first gather — extra wait + restartIce",
+    );
+    await awaitGather(pc, ICE_GATHER_EXTRA_MS);
+    summary = logRawLocalSdpIce(pc, "gather-pass-2");
+    if (summary && !summary.hasSrflx && !summary.hasRelay) {
+      try {
+        pc.restartIce();
+        await awaitGather(pc, ICE_GATHER_EXTRA_MS);
+        summary = logRawLocalSdpIce(pc, "gather-after-restartIce");
+      } catch (err) {
+        console.warn("[ice] restartIce failed:", err);
+      }
+    }
+  }
+
+  return summary;
 }
 
 export async function logSelectedIceCandidatePair(pc: RTCPeerConnection): Promise<void> {

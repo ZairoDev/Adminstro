@@ -21,6 +21,19 @@ export async function GET(request: NextRequest) {
   }
 
   const { servers, relayConfigured } = buildIceServersFromEnv();
+  const turnServerCount = servers.filter(
+    (s) => s.username != null && s.username !== "",
+  ).length;
 
-  return NextResponse.json({ servers, relayConfigured });
+  return NextResponse.json({
+    servers,
+    relayConfigured,
+    /** Safe for client logs — no secrets */
+    iceConfig: {
+      source: relayConfigured ? "metered-turn" : "google-stun-fallback",
+      turnServerCount,
+      credentialPresent: turnServerCount > 0,
+      totalServers: servers.length,
+    },
+  });
 }

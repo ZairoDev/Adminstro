@@ -256,19 +256,72 @@ export function filterCandidatesForMeta(
   return { kept: sortIceCandidatesForMeta(keptRaw), dropped };
 }
 
+/** Count candidate types in Chrome local SDP before Meta filtering. */
+export type RawSdpIceSummary = {
+  candidateLineCount: number;
+  byTyp: Record<string, number>;
+  hasSrflx: boolean;
+  hasRelay: boolean;
+  hasHost: boolean;
+  hasMdns: boolean;
+};
+
+export function analyzeRawSdpIce(sdp: string): RawSdpIceSummary {
+  const byTyp: Record<string, number> = {};
+  let hasSrflx = false;
+  let hasRelay = false;
+  let hasHost = false;
+  let hasMdns = false;
+  let candidateLineCount = 0;
+
+  for (const rawLine of sdp.split(/\r?\n/)) {
+    if (!/^a=candidate:/i.test(rawLine)) continue;
+    candidateLineCount += 1;
+    const parsed = parseIceCandidateLine(rawLine);
+    if (!parsed) continue;
+    byTyp[parsed.typ] = (byTyp[parsed.typ] ?? 0) + 1;
+    if (parsed.typ === "srflx") hasSrflx = true;
+    if (parsed.typ === "relay") hasRelay = true;
+    if (parsed.typ === "host") hasHost = true;
+    if (/\.local$/i.test(parsed.address)) hasMdns = true;
+  }
+
+  return {
+    candidateLineCount,
+    byTyp,
+    hasSrflx,
+    hasRelay,
+    hasHost,
+    hasMdns,
+  };
+}
+
 export function formatNoUsableMetaCandidatesMessage(
   dropped: { line: string; reason: string }[],
   relayConfigured: boolean,
+  rawSummary?: RawSdpIceSummary | null,
 ): string {
+  const credHint = relayConfigured
+    ? "Server reports TURN configured (GET /api/whatsapp/ice-servers). Creds come from server env, not the client bundle — set TURN_USERNAME + TURN_CREDENTIAL on Hostinger and redeploy."
+    : "Set TURN_USERNAME + TURN_CREDENTIAL on the server (Hostinger app env), then redeploy.";
+
+  if (rawSummary?.hasRelay || rawSummary?.hasSrflx) {
+    const droppedReasons = [...new Set(dropped.map((d) => d.reason))].join(", ");
+    return `Raw SDP had srflx/relay but the Meta filter removed every line (${droppedReasons || "unknown"}). Check console [ICE FILTER] logs.`;
+  }
+
+  if (rawSummary && rawSummary.candidateLineCount > 0) {
+    const typList = Object.entries(rawSummary.byTyp)
+      .map(([t, n]) => `${t}:${n}`)
+      .join(", ");
+    return `After ICE gather, raw SDP had ${rawSummary.candidateLineCount} candidate line(s) (${typList}) but no typ srflx or typ relay. ${credHint}`;
+  }
+
   const droppedSummary = dropped.length
-    ? `Chrome produced ${dropped.length} line(s) but none passed the Meta filter (${[...new Set(dropped.map((d) => d.reason))].join(", ")}). Need typ srflx (UDP) or typ relay (UDP/TCP/TLS), public IPv4.`
-    : "No srflx/relay lines appeared in the SDP in time.";
+    ? `Filter saw ${dropped.length} rejected line(s); raw SDP had no usable a=candidate lines.`
+    : "No srflx/relay lines appeared in the SDP in time (no a=candidate in localDescription).";
 
-  const fix = relayConfigured
-    ? "TURN is configured; try another network or confirm Metered credentials in server env (TURN_USERNAME / TURN_CREDENTIAL)."
-    : "Set TURN_USERNAME and TURN_CREDENTIAL (or NEXT_PUBLIC_TURN_USERNAME / NEXT_PUBLIC_TURN_PASSWORD) on the server, then redeploy.";
-
-  return `No usable public ICE candidates available. ${droppedSummary} ${fix}`;
+  return `No usable public ICE candidates available. ${droppedSummary} ${credHint}`;
 }
 
 /**

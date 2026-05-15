@@ -16,8 +16,16 @@ export async function collectWebRtcStats(pc: RTCPeerConnection): Promise<WebRtcS
 
   let candidatePair: RTCStats | undefined;
   const remoteInboundForAudio: RTCStats[] = [];
+  const localCandidates = new Map<string, RTCStats>();
+  const remoteCandidates = new Map<string, RTCStats>();
 
   inbound.forEach((report) => {
+    if (report.type === "local-candidate") {
+      localCandidates.set(report.id, report);
+    }
+    if (report.type === "remote-candidate") {
+      remoteCandidates.set(report.id, report);
+    }
     if (report.type === "candidate-pair" && "state" in report && (report as RTCStats & { state?: string }).state === "succeeded") {
       candidatePair = report;
     }
@@ -46,8 +54,25 @@ export async function collectWebRtcStats(pc: RTCPeerConnection): Promise<WebRtcS
   });
 
   if (candidatePair && "currentRoundTripTime" in candidatePair) {
-    const rtt = (candidatePair as { currentRoundTripTime?: number }).currentRoundTripTime;
+    const pair = candidatePair as {
+      currentRoundTripTime?: number;
+      localCandidateId?: string;
+      remoteCandidateId?: string;
+    };
+    const rtt = pair.currentRoundTripTime;
     if (typeof rtt === "number" && rtt > 0) snap.rttMs = rtt * 1000;
+
+    const local = pair.localCandidateId ? localCandidates.get(pair.localCandidateId) : undefined;
+    const remote = pair.remoteCandidateId ? remoteCandidates.get(pair.remoteCandidateId) : undefined;
+    if (local && "candidateType" in local) {
+      snap.localCandidateType = String((local as { candidateType?: string }).candidateType ?? "");
+    }
+    if (remote && "candidateType" in remote) {
+      snap.remoteCandidateType = String((remote as { candidateType?: string }).candidateType ?? "");
+    }
+    if (local && "protocol" in local) {
+      snap.transport = String((local as { protocol?: string }).protocol ?? "");
+    }
   }
 
   const firstRemote = remoteInboundForAudio[0] as unknown as {

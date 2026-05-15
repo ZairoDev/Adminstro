@@ -24,8 +24,10 @@ export type WhatsAppCallOverlayProps = {
   diagnosticsOpen: boolean;
   onDiagnosticsOpenChange: (open: boolean) => void;
   stats: WebRtcStatsSnapshot | null;
+  relayConfigured: boolean;
   keptCandidates: string[];
   droppedCandidates: { line: string; reason: string }[];
+  gatheredCandidates?: { candidate: string; typ: string | null }[];
   metaOfferSdpPreview?: string;
   lastAnswerSdpPreview?: string;
   onToggleMute: () => void;
@@ -83,8 +85,10 @@ export function WhatsAppCallOverlay({
   diagnosticsOpen,
   onDiagnosticsOpenChange,
   stats,
+  relayConfigured,
   keptCandidates,
   droppedCandidates,
+  gatheredCandidates,
   metaOfferSdpPreview,
   lastAnswerSdpPreview,
   onToggleMute,
@@ -109,16 +113,16 @@ export function WhatsAppCallOverlay({
           className={cn(
             "z-[200] flex flex-col overflow-hidden shadow-2xl",
             isFloating
-              ? "fixed bottom-[max(5.5rem,env(safe-area-inset-bottom,0px))] right-4 w-[min(100vw-2rem,340px)] rounded-xl border border-[#2a3942]"
-              : "fixed inset-0 bg-[#0b141a] md:inset-0 md:flex md:items-center md:justify-center md:bg-black/60 md:backdrop-blur-sm",
+              ? "fixed bottom-[max(5.5rem,env(safe-area-inset-bottom,0px))] right-4 w-[min(100vw-2rem,320px)] rounded-xl border border-[#2a3942]"
+              : "fixed inset-x-0 bottom-0 max-h-[min(78dvh,400px)] rounded-t-2xl border-t border-[#2a3942] bg-[#0b141a] md:inset-0 md:flex md:max-h-none md:items-center md:justify-center md:rounded-none md:border-0 md:bg-black/60 md:backdrop-blur-sm",
           )}
         >
-          {/* Fullscreen: WhatsApp-style dark panel */}
-          <div
+          <motion.div
             className={cn(
               "flex flex-1 flex-col bg-[#0b141a]",
-              !isFloating && "md:mx-auto md:my-auto md:h-[min(92vh,520px)] md:max-w-[400px] md:rounded-xl md:border md:border-[#2a3942]",
-              isFloating && "rounded-xl",
+              !isFloating &&
+                "h-full md:mx-auto md:my-auto md:h-[min(68vh,380px)] md:max-w-[360px] md:rounded-xl md:border md:border-[#2a3942]",
+              isFloating && "max-h-[min(72dvh,360px)] rounded-xl",
             )}
           >
             <div
@@ -129,7 +133,12 @@ export function WhatsAppCallOverlay({
               )}
             />
 
-            <div className="relative z-10 flex flex-1 flex-col px-5 pb-8 pt-10 md:px-7 md:pt-12">
+            <div
+              className={cn(
+                "relative z-10 flex flex-1 flex-col px-5 pb-6",
+                isFloating ? "pt-5" : "pt-6 md:px-6 md:pb-7 md:pt-8",
+              )}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[13px] font-medium text-[#8696a0]">
@@ -168,7 +177,12 @@ export function WhatsAppCallOverlay({
                 </div>
               </div>
 
-              <div className="mt-10 flex flex-col items-center md:mt-14">
+              <motion.div
+                className={cn(
+                  "flex flex-col items-center",
+                  isFloating ? "mt-3" : "mt-5 md:mt-6",
+                )}
+              >
                 <motion.div
                   animate={
                     phase === "ringing" || phase === "connecting"
@@ -184,21 +198,36 @@ export function WhatsAppCallOverlay({
                   className="relative"
                 >
                   <div className="pointer-events-none absolute inset-0 rounded-full bg-[#25d366]/20 blur-2xl" />
-                  <Avatar className="relative h-[120px] w-[120px] border-2 border-[#2a3942] shadow-lg md:h-[132px] md:w-[132px]">
-                    <AvatarFallback className="bg-[#25d366] text-4xl font-normal text-[#0b141a] md:text-[2.75rem]">
+                  <Avatar
+                    className={cn(
+                      "relative border-2 border-[#2a3942] shadow-lg",
+                      isFloating ? "h-20 w-20" : "h-[88px] w-[88px] md:h-24 md:w-24",
+                    )}
+                  >
+                    <AvatarFallback
+                      className={cn(
+                        "bg-[#25d366] font-normal text-[#0b141a]",
+                        isFloating ? "text-2xl" : "text-3xl md:text-[2rem]",
+                      )}
+                    >
                       {initials(contactLabel)}
                     </AvatarFallback>
                   </Avatar>
                 </motion.div>
-                <h2 className="mt-7 max-w-full truncate px-2 text-center text-[22px] font-normal leading-tight text-[#e9edef] md:text-2xl">
+                <h2
+                  className={cn(
+                    "max-w-full truncate px-2 text-center font-normal leading-tight text-[#e9edef]",
+                    isFloating ? "mt-3 text-lg" : "mt-4 text-xl",
+                  )}
+                >
                   {contactLabel}
                 </h2>
-                <p className="mt-2 text-center text-[15px] text-[#8696a0]">
+                <p className="mt-1 text-center text-sm text-[#8696a0]">
                   {phaseLabel(phase, reconnecting, sessionKind)}
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="mt-auto flex flex-col gap-5 pt-10">
+              <div className={cn("mt-auto flex flex-col gap-3", isFloating ? "pt-4" : "gap-4 pt-5 md:pt-6")}>
                 {remoteAudioPlayBlocked ? (
                   <Button
                     type="button"
@@ -209,36 +238,41 @@ export function WhatsAppCallOverlay({
                   </Button>
                 ) : null}
 
-                <div className="flex items-center justify-center gap-6 md:gap-8">
+                <div className={cn("flex items-center justify-center", isFloating ? "gap-5" : "gap-6")}>
                   <button
                     type="button"
                     onClick={onToggleMute}
                     aria-label={muted ? "Unmute" : "Mute"}
                     className={cn(
-                      "flex h-14 w-14 items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      "flex items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      isFloating ? "h-11 w-11" : "h-12 w-12",
                       muted && "bg-[#3d3d00] text-[#ffca28]",
                     )}
                   >
-                    {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+                    {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                   </button>
                   <button
                     type="button"
                     onClick={onHangUp}
                     aria-label="End call"
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-[#ea0038] text-white shadow-lg transition-transform hover:bg-[#d70432] active:scale-95"
+                    className={cn(
+                      "flex items-center justify-center rounded-full bg-[#ea0038] text-white shadow-lg transition-transform hover:bg-[#d70432] active:scale-95",
+                      isFloating ? "h-14 w-14" : "h-[3.5rem] w-[3.5rem]",
+                    )}
                   >
-                    <PhoneOff className="h-8 w-8" />
+                    <PhoneOff className={isFloating ? "h-7 w-7" : "h-7 w-7"} />
                   </button>
                   <button
                     type="button"
                     onClick={onToggleSpeaker}
                     aria-label="Speaker"
                     className={cn(
-                      "flex h-14 w-14 items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      "flex items-center justify-center rounded-full bg-[#2a3942] text-[#e9edef] transition-colors hover:bg-[#3b4a54] active:scale-95",
+                      isFloating ? "h-11 w-11" : "h-12 w-12",
                       !speaker && "opacity-50",
                     )}
                   >
-                    {speaker ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
+                    {speaker ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                   </button>
                 </div>
 
@@ -262,14 +296,16 @@ export function WhatsAppCallOverlay({
                   signalingState={signalingState}
                   connectionState={connectionState}
                   iceState={iceState}
+                  relayConfigured={relayConfigured}
                   keptCandidates={keptCandidates}
                   droppedCandidates={droppedCandidates}
+                  gatheredCandidates={gatheredCandidates}
                   metaOfferSdpPreview={metaOfferSdpPreview}
                   lastAnswerSdpPreview={lastAnswerSdpPreview}
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       ) : null}
     </AnimatePresence>

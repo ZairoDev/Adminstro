@@ -5,3 +5,5 @@ export * from "./webrtcStats";
 export * from "./callSounds";
 export * from "./silentAudio";
 export * from "./mediaDiagnostics";
+export * from "./iceServers";
+export * from "./iceDiagnostics";

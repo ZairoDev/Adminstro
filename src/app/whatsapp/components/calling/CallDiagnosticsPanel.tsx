@@ -13,8 +13,10 @@ export type CallDiagnosticsPanelProps = {
   signalingState: string;
   connectionState: string;
   iceState: string;
+  relayConfigured: boolean;
   keptCandidates: string[];
   droppedCandidates: { line: string; reason: string }[];
+  gatheredCandidates?: { candidate: string; typ: string | null }[];
   metaOfferSdpPreview?: string;
   lastAnswerSdpPreview?: string;
 };
@@ -31,8 +33,10 @@ export function CallDiagnosticsPanel({
   signalingState,
   connectionState,
   iceState,
+  relayConfigured,
   keptCandidates,
   droppedCandidates,
+  gatheredCandidates = [],
   metaOfferSdpPreview,
   lastAnswerSdpPreview,
 }: CallDiagnosticsPanelProps) {
@@ -64,6 +68,28 @@ export function CallDiagnosticsPanel({
           <span className="font-mono">{connectionState}</span>
           <span className="text-white/55">ICE</span>
           <span className="font-mono">{iceState}</span>
+          <span className="text-white/55">TURN relay</span>
+          <span className={cn("font-mono", relayConfigured ? "text-emerald-300" : "text-amber-300")}>
+            {relayConfigured ? "configured" : "not configured"}
+          </span>
+          {stats?.localCandidateType ? (
+            <>
+              <span className="text-white/55">local typ</span>
+              <span className="font-mono">{stats.localCandidateType}</span>
+            </>
+          ) : null}
+          {stats?.remoteCandidateType ? (
+            <>
+              <span className="text-white/55">remote typ</span>
+              <span className="font-mono">{stats.remoteCandidateType}</span>
+            </>
+          ) : null}
+          {stats?.transport ? (
+            <>
+              <span className="text-white/55">transport</span>
+              <span className="font-mono">{stats.transport}</span>
+            </>
+          ) : null}
         </div>
         {summary ? <p className="border-t border-white/10 pt-2 text-white/80">{summary}</p> : null}
         {stats ? (
@@ -74,15 +100,31 @@ export function CallDiagnosticsPanel({
             <dd>{stats.bytesSent ?? "—"}</dd>
             <dt className="text-white/50">packetsSent</dt>
             <dd>{stats.packetsSent ?? "—"}</dd>
+            <dt className="text-white/50">packetsReceived</dt>
+            <dd>{stats.packetsReceived ?? "—"}</dd>
             <dt className="text-white/50">audioLevel</dt>
             <dd>{stats.audioLevel != null ? stats.audioLevel.toFixed(3) : "—"}</dd>
           </dl>
         ) : null}
 
+        {gatheredCandidates.length > 0 ? (
+          <div className="border-t border-white/10 pt-2">
+            <div className="text-white/50">Browser gathered ({gatheredCandidates.length})</div>
+            <div className="mt-1 max-h-20 overflow-y-auto rounded bg-black/25 p-2 font-mono text-[9px] text-sky-200/90">
+              {gatheredCandidates.map((g, i) => (
+                <div key={`${g.candidate}-${i}`} className="break-all">
+                  {g.typ ? `[${g.typ}] ` : ""}
+                  {g.candidate}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <Collapsible open={candOpen} onOpenChange={setCandOpen} className="border-t border-white/10 pt-2">
           <CollapsibleTrigger className="flex w-full items-center gap-1 text-white/80">
             {candOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            ICE candidates (kept {keptCandidates.length}, dropped {droppedCandidates.length})
+            Meta SDP (kept {keptCandidates.length}, dropped {droppedCandidates.length})
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-1 max-h-28 overflow-y-auto rounded bg-black/25 p-2 font-mono text-[9px] text-emerald-200/90">
             {keptCandidates.map((l) => (

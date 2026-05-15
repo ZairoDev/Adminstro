@@ -61,10 +61,24 @@ export function logWebRtcMediaDiagnostics(pc: RTCPeerConnection, label: string):
         const r = report as unknown as {
           currentRoundTripTime?: number;
           availableOutgoingBitrate?: number;
+          localCandidateId?: string;
+          remoteCandidateId?: string;
         };
+        let localTyp: string | undefined;
+        let remoteTyp: string | undefined;
+        stats.forEach((inner) => {
+          if (inner.id === r.localCandidateId && inner.type === "local-candidate") {
+            localTyp = (inner as { candidateType?: string }).candidateType;
+          }
+          if (inner.id === r.remoteCandidateId && inner.type === "remote-candidate") {
+            remoteTyp = (inner as { candidateType?: string }).candidateType;
+          }
+        });
         console.info(prefix, "candidate-pair succeeded", {
           currentRoundTripTime: r.currentRoundTripTime,
           availableOutgoingBitrate: r.availableOutgoingBitrate,
+          localCandidateType: localTyp,
+          remoteCandidateType: remoteTyp,
         });
       }
     });

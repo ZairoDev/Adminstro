@@ -36,6 +36,8 @@ import {
   validateWhatsAppCallingSdp,
   sanitizeMetaAnswerSdpForBrowser,
   sanitizeMetaOfferSdpForBrowser,
+  formatNoUsableMetaCandidatesMessage,
+  summarizeMetaCandidates,
 } from "@/lib/whatsapp/callingSdp";
 import {
   OutboundCallSoundController,
@@ -48,6 +50,10 @@ import {
   attachSilentOutboundAudioTrack,
   logWebRtcMediaDiagnostics,
   collectOutboundRtpAudioSummary,
+  CLIENT_FALLBACK_ICE_SERVERS,
+  createWhatsAppCallPeerConnection,
+  getIceGatheredCandidates,
+  type IceGatheredCandidate,
 } from "@/lib/whatsapp/calling";
 import {
   showDesktopNotification,
@@ -118,23 +124,19 @@ type PendingIncomingCallInvite = {
   contactLabel: string;
 };
 
-/**
- * Fallback ICE servers used when the `/api/whatsapp/ice-servers` fetch fails.
- * On open networks these STUN servers are sufficient.  On restricted networks
- * (corporate firewalls that block UDP 3478) you must configure TURN via the
- * server environment variables — see `src/app/api/whatsapp/ice-servers/route.ts`.
- */
-const WA_FALLBACK_ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-];
+type IceServersFetchResult = {
+  servers: RTCIceServer[];
+  relayConfigured: boolean;
+};
+
+const ICE_GATHER_TIMEOUT_MS = 20_000;
 
 /** Cache so we don't re-fetch on every single call attempt within a session. */
-let _iceServerCache: RTCIceServer[] | null = null;
+let _iceServerCache: IceServersFetchResult | null = null;
 let _iceServerCacheTs = 0;
 const ICE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-async function fetchIceServers(): Promise<RTCIceServer[]> {
+async function fetchIceServers(): Promise<IceServersFetchResult> {
   const now = Date.now();
   if (_iceServerCache && now - _iceServerCacheTs < ICE_CACHE_TTL_MS) {
     return _iceServerCache;
@@ -142,16 +144,27 @@ async function fetchIceServers(): Promise<RTCIceServer[]> {
   try {
     const res = await fetch("/api/whatsapp/ice-servers");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { servers?: RTCIceServer[] };
+    const json = (await res.json()) as {
+      servers?: RTCIceServer[];
+      relayConfigured?: boolean;
+    };
     if (Array.isArray(json.servers) && json.servers.length > 0) {
-      _iceServerCache = json.servers;
+      _iceServerCache = {
+        servers: json.servers,
+        relayConfigured: Boolean(json.relayConfigured),
+      };
       _iceServerCacheTs = now;
+      console.log("[ice] loaded servers from API, relayConfigured=", _iceServerCache.relayConfigured);
       return _iceServerCache;
     }
   } catch (err) {
     console.warn("[ice] failed to fetch ICE servers from API, using fallback:", err);
   }
-  return WA_FALLBACK_ICE_SERVERS;
+  return { servers: CLIENT_FALLBACK_ICE_SERVERS, relayConfigured: false };
+}
+
+function snapshotIceGathered(pc: RTCPeerConnection): IceGatheredCandidate[] {
+  return getIceGatheredCandidates(pc);
 }
 
 /**
@@ -398,7 +411,10 @@ export default function WhatsAppChat() {
     kept: string[];
     dropped: { line: string; reason: string }[];
     metaOfferPreview: string;
+    relayConfigured: boolean;
+    gathered: IceGatheredCandidate[];
   } | null>(null);
+  const relayConfiguredRef = useRef(false);
   const [lastAnswerSdpPreview, setLastAnswerSdpPreview] = useState<string | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   /** Single MediaStream for all remote audio tracks — avoids replace races / duplicate playback. */
@@ -738,9 +754,10 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
       }
 
-      const iceServers = await fetchIceServers();
+      const { servers: iceServers, relayConfigured } = await fetchIceServers();
+      relayConfiguredRef.current = relayConfigured;
       console.log("[call-inbound] ICE servers:", iceServers.map((s) => s.urls));
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = createWhatsAppCallPeerConnection(iceServers);
       peerRef.current = pc;
       sdpAnswerAppliedHashRef.current = null;
       reconnectIceAttemptedRef.current = false;
@@ -763,7 +780,7 @@ export default function WhatsAppChat() {
       setOutboundCallUi({
         sessionKind: "inbound",
         phase: "connecting",
-        surface: "fullscreen",
+        surface: "floating",
         contactLabel: inv.contactLabel,
         connectionState: pc.connectionState,
         iceState: pc.iceConnectionState,
@@ -811,7 +828,7 @@ export default function WhatsAppChat() {
       const rawAnswer = await pc.createAnswer();
       await pc.setLocalDescription(rawAnswer);
 
-      await awaitIceGatheringOrTimeout(pc, 15_000);
+      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
 
       logWebRtcMediaDiagnostics(pc, "inbound-post-ICE-gather");
 
@@ -819,10 +836,14 @@ export default function WhatsAppChat() {
       if (!gathered) throw new Error("Failed to generate SDP answer");
 
       const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "answer" });
+      const metaSummary = summarizeMetaCandidates(kept);
+      console.log("[call-inbound] Meta candidates:", metaSummary);
       setLastIceDiagnostics({
         kept: [...kept],
         dropped: [...dropped],
         metaOfferPreview: sdp.slice(0, 1600),
+        relayConfigured,
+        gathered: snapshotIceGathered(pc),
       });
 
       const sdpProblems = validateWhatsAppCallingSdp(sdp);
@@ -833,12 +854,9 @@ export default function WhatsAppChat() {
       if (kept.length === 0) {
         suppressPrematureInboundIceCleanupRef.current = false;
         cleanupOutboundCallResources();
-        const droppedSummary = dropped.length
-          ? `Gathered ${dropped.length} candidate(s) but all were dropped: ${[...new Set(dropped.map((d) => d.reason))].join(", ")}.`
-          : "No candidates gathered at all — STUN server may be unreachable.";
         toast({
           title: "No usable ICE candidates",
-          description: `Meta requires a public (srflx/relay) IPv4 candidate. ${droppedSummary} Check that UDP port 3478 is not blocked by your firewall.`,
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
           variant: "destructive",
           duration: 10_000,
         });
@@ -3891,9 +3909,10 @@ export default function WhatsAppChat() {
       }
 
       // Build WebRTC offer (audio only) and start call via Calls API
-      const iceServers = await fetchIceServers();
+      const { servers: iceServers, relayConfigured } = await fetchIceServers();
+      relayConfiguredRef.current = relayConfigured;
       console.log("[call-outbound] ICE servers:", iceServers.map((s) => s.urls));
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = createWhatsAppCallPeerConnection(iceServers);
       peerRef.current = pc;
       sdpAnswerAppliedHashRef.current = null;
       reconnectIceAttemptedRef.current = false;
@@ -3916,7 +3935,7 @@ export default function WhatsAppChat() {
       setOutboundCallUi({
         sessionKind: "outbound",
         phase: "connecting",
-        surface: "fullscreen",
+        surface: "floating",
         contactLabel,
         connectionState: pc.connectionState,
         iceState: pc.iceConnectionState,
@@ -3963,7 +3982,7 @@ export default function WhatsAppChat() {
       console.log("[call] signalingState after setLocalDescription:", pc.signalingState);
 
       // Wait for ICE gathering (resolves on complete OR timeout — never rejects).
-      await awaitIceGatheringOrTimeout(pc, 15_000);
+      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
 
       logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
 
@@ -3974,13 +3993,17 @@ export default function WhatsAppChat() {
       if (!gathered) throw new Error("Failed to generate SDP offer");
 
       const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "offer" });
+      const metaSummary = summarizeMetaCandidates(kept);
       console.log("[call] kept ICE candidates:", kept);
       console.log("[call] dropped ICE candidates:", dropped);
+      console.log("[call] Meta candidate summary:", metaSummary);
       console.log("[call] clean offer SDP sent to Meta:\n", sdp);
       setLastIceDiagnostics({
         kept: [...kept],
         dropped: [...dropped],
         metaOfferPreview: sdp.slice(0, 1600),
+        relayConfigured,
+        gathered: snapshotIceGathered(pc),
       });
 
       const sdpProblems = validateWhatsAppCallingSdp(sdp);
@@ -3990,12 +4013,9 @@ export default function WhatsAppChat() {
 
       if (kept.length === 0) {
         cleanupOutboundCallResources();
-        const droppedSummary = dropped.length
-          ? `Gathered ${dropped.length} candidate(s) but all were dropped: ${[...new Set(dropped.map((d) => d.reason))].join(", ")}.`
-          : "No candidates gathered at all — STUN server may be unreachable.";
         toast({
           title: "No usable ICE candidates",
-          description: `Meta requires a public (srflx/relay) IPv4 candidate. ${droppedSummary} Check that UDP port 3478 is not blocked by your firewall.`,
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
           variant: "destructive",
           duration: 10_000,
         });
@@ -4138,9 +4158,10 @@ export default function WhatsAppChat() {
       // Video calling via Calling API requires video SDP/media constraints. For now,
       // keep parity with audio flow by checking permissions and then initiating the call
       // using the same backend start_call action (audio-only SDP offer is sent).
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
+      const { servers: iceServers, relayConfigured } = await fetchIceServers();
+      relayConfiguredRef.current = relayConfigured;
+      console.log("[videocall] ICE servers:", iceServers.map((s) => s.urls));
+      const pc = createWhatsAppCallPeerConnection(iceServers);
       peerRef.current = pc;
       sdpAnswerAppliedHashRef.current = null;
       reconnectIceAttemptedRef.current = false;
@@ -4163,7 +4184,7 @@ export default function WhatsAppChat() {
       setOutboundCallUi({
         sessionKind: "outbound",
         phase: "connecting",
-        surface: "fullscreen",
+        surface: "floating",
         contactLabel,
         connectionState: pc.connectionState,
         iceState: pc.iceConnectionState,
@@ -4208,22 +4229,7 @@ export default function WhatsAppChat() {
       await pc.setLocalDescription(rawOffer);
       console.log("[videocall] signalingState after setLocalDescription:", pc.signalingState);
 
-      await new Promise<void>((resolve, reject) => {
-        if (pc.iceGatheringState === "complete") return resolve();
-        const ms = 12_000;
-        const timer = window.setTimeout(() => {
-          pc.removeEventListener("icegatheringstatechange", onState);
-          reject(new Error("ICE gathering timed out; try again or check your network."));
-        }, ms);
-        const onState = () => {
-          if (pc.iceGatheringState === "complete") {
-            window.clearTimeout(timer);
-            pc.removeEventListener("icegatheringstatechange", onState);
-            resolve();
-          }
-        };
-        pc.addEventListener("icegatheringstatechange", onState);
-      });
+      await awaitIceGatheringOrTimeout(pc, ICE_GATHER_TIMEOUT_MS);
 
       logWebRtcMediaDiagnostics(pc, "videocall-post-ICE-gather");
 
@@ -4233,11 +4239,14 @@ export default function WhatsAppChat() {
       const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "offer" });
       console.log("[videocall] kept ICE candidates:", kept);
       console.log("[videocall] dropped ICE candidates:", dropped);
+      console.log("[videocall] Meta candidate summary:", summarizeMetaCandidates(kept));
       console.log("[videocall] clean offer SDP sent to Meta:\n", sdp);
       setLastIceDiagnostics({
         kept: [...kept],
         dropped: [...dropped],
         metaOfferPreview: sdp.slice(0, 1600),
+        relayConfigured,
+        gathered: snapshotIceGathered(pc),
       });
 
       const sdpProblems = validateWhatsAppCallingSdp(sdp);
@@ -4249,8 +4258,7 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
         toast({
           title: "Video Call Failed",
-          description:
-            "No usable ICE candidates (only mDNS/host/IPv6). Check STUN/TURN server availability.",
+          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured),
           variant: "destructive",
         });
         return;
@@ -4747,8 +4755,10 @@ export default function WhatsAppChat() {
           diagnosticsOpen={callDiagnosticsOpen}
           onDiagnosticsOpenChange={setCallDiagnosticsOpen}
           stats={callStats}
+          relayConfigured={lastIceDiagnostics?.relayConfigured ?? relayConfiguredRef.current}
           keptCandidates={lastIceDiagnostics?.kept ?? []}
           droppedCandidates={lastIceDiagnostics?.dropped ?? []}
+          gatheredCandidates={lastIceDiagnostics?.gathered ?? []}
           metaOfferSdpPreview={lastIceDiagnostics?.metaOfferPreview}
           lastAnswerSdpPreview={lastAnswerSdpPreview ?? undefined}
           onToggleMute={handleToggleCallMute}

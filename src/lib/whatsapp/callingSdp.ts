@@ -119,10 +119,17 @@ export function sanitizeWhatsAppCallingSdp(sdp: string): string {
 
 /** Diagnostic decision for a single `a=candidate:` line. */
 export type CandidateDecision =
-  | { keep: true }
+  | { keep: true; typ: "srflx" | "relay"; transport: string }
   | {
       keep: false;
-      reason: "malformed" | "mdns" | "ipv6" | "host" | "tcp" | "unsupported_type";
+      reason:
+        | "malformed"
+        | "mdns"
+        | "ipv6"
+        | "host"
+        | "tcp_srflx"
+        | "unsupported_transport"
+        | "unsupported_type";
     };
 
 /**
@@ -150,8 +157,10 @@ export function parseIceCandidateLine(
  *   a=candidate:<foundation> <component> <transport> <priority>
  *               <address> <port> typ <type> [raddr <a>] [rport <p>] ...
  *
- * Meta accepts only public, routable IPv4 **server-reflexive (srflx)** or **relay**
- * candidates. Host, prflx, mDNS, IPv6, and non-UDP transports are dropped.
+ * Meta accepts public IPv4 **srflx** (UDP) and **relay** (UDP or TCP/TLS via TURN).
+ * Host, prflx, mDNS, and IPv6 are dropped. Relay over TCP/TLS is kept when UDP is
+ * blocked (Metered `?transport=tcp` / `turns:`) — rejecting all non-UDP lines was
+ * dropping every TURN relay on restrictive networks.
  */
 export function classifyIceCandidate(candidateLine: string): CandidateDecision {
   const parsed = parseIceCandidateLine(candidateLine);
@@ -159,13 +168,107 @@ export function classifyIceCandidate(candidateLine: string): CandidateDecision {
 
   const { transport, address, typ: type } = parsed;
 
-  if (transport !== "udp") return { keep: false, reason: "tcp" };
   if (/\.local$/i.test(address)) return { keep: false, reason: "mdns" };
   if (address.includes(":")) return { keep: false, reason: "ipv6" };
   if (type === "host") return { keep: false, reason: "host" };
-  if (type !== "srflx" && type !== "relay") return { keep: false, reason: "unsupported_type" };
 
-  return { keep: true };
+  if (type === "srflx") {
+    if (transport !== "udp") return { keep: false, reason: "tcp_srflx" };
+    return { keep: true, typ: "srflx", transport };
+  }
+
+  if (type === "relay") {
+    const relayTransportOk =
+      transport === "udp" || transport === "tcp" || transport === "tls";
+    if (!relayTransportOk) {
+      return { keep: false, reason: "unsupported_transport" };
+    }
+    return { keep: true, typ: "relay", transport };
+  }
+
+  return { keep: false, reason: "unsupported_type" };
+}
+
+/** True when an SDP `a=candidate:` line may be sent to Meta (UDP IPv4 srflx or relay). */
+export function isValidMetaCandidate(candidateLine: string): boolean {
+  return classifyIceCandidate(candidateLine).keep;
+}
+
+/** Summarize kept lines for logging / UI. */
+export function summarizeMetaCandidates(kept: string[]): {
+  hasRelay: boolean;
+  hasSrflx: boolean;
+  hasRelayUdp: boolean;
+  hasRelayTcp: boolean;
+  count: number;
+} {
+  let hasRelay = false;
+  let hasSrflx = false;
+  let hasRelayUdp = false;
+  let hasRelayTcp = false;
+  for (const line of kept) {
+    const p = parseIceCandidateLine(line);
+    if (!p) continue;
+    if (p.typ === "relay") {
+      hasRelay = true;
+      if (p.transport === "udp") hasRelayUdp = true;
+      if (p.transport === "tcp" || p.transport === "tls") hasRelayTcp = true;
+    }
+    if (p.typ === "srflx") hasSrflx = true;
+  }
+  return { hasRelay, hasSrflx, hasRelayUdp, hasRelayTcp, count: kept.length };
+}
+
+export type FilterCandidatesForMetaOptions = {
+  /** Log each accept/reject to console (for debugging). */
+  logFilter?: boolean;
+};
+
+/**
+ * Filter SDP `a=candidate:` lines for Meta and optionally log decisions.
+ */
+export function filterCandidatesForMeta(
+  rawCandidates: string[],
+  options?: FilterCandidatesForMetaOptions,
+): { kept: string[]; dropped: { line: string; reason: string }[] } {
+  const keptRaw: string[] = [];
+  const dropped: { line: string; reason: string }[] = [];
+
+  for (const c of rawCandidates) {
+    const decision = classifyIceCandidate(c);
+    if (decision.keep) {
+      keptRaw.push(c);
+      if (options?.logFilter) {
+        console.log("[ICE FILTER] ACCEPT", {
+          typ: decision.typ,
+          transport: decision.transport,
+          line: c,
+        });
+      }
+    } else {
+      dropped.push({ line: c, reason: decision.reason });
+      if (options?.logFilter) {
+        console.log("[ICE FILTER] REJECT", { reason: decision.reason, line: c });
+      }
+    }
+  }
+
+  return { kept: sortIceCandidatesForMeta(keptRaw), dropped };
+}
+
+export function formatNoUsableMetaCandidatesMessage(
+  dropped: { line: string; reason: string }[],
+  relayConfigured: boolean,
+): string {
+  const droppedSummary = dropped.length
+    ? `Chrome produced ${dropped.length} line(s) but none passed the Meta filter (${[...new Set(dropped.map((d) => d.reason))].join(", ")}). Need typ srflx (UDP) or typ relay (UDP/TCP/TLS), public IPv4.`
+    : "No srflx/relay lines appeared in the SDP in time.";
+
+  const fix = relayConfigured
+    ? "TURN is configured; try another network or confirm Metered credentials in server env (TURN_USERNAME / TURN_CREDENTIAL)."
+    : "Set TURN_USERNAME and TURN_CREDENTIAL (or NEXT_PUBLIC_TURN_USERNAME / NEXT_PUBLIC_TURN_PASSWORD) on the server, then redeploy.";
+
+  return `No usable public ICE candidates available. ${droppedSummary} ${fix}`;
 }
 
 /**
@@ -257,14 +360,7 @@ export function buildCleanWhatsAppOfferDetailed(
     }
   }
 
-  const keptRaw: string[] = [];
-  const dropped: { line: string; reason: string }[] = [];
-  for (const c of rawCandidates) {
-    const decision = classifyIceCandidate(c);
-    if (decision.keep) keptRaw.push(c);
-    else dropped.push({ line: c, reason: decision.reason });
-  }
-  const kept = sortIceCandidatesForMeta(keptRaw);
+  const { kept, dropped } = filterCandidatesForMeta(rawCandidates, { logFilter: true });
 
   // If credentials couldn't be extracted (shouldn't happen for a real Chrome offer),
   // fall back to the sanitize-only approach so we at least try with something.

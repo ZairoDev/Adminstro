@@ -283,41 +283,41 @@ export async function GET(req: NextRequest) {
           }
         }
         
-        // Determine conversation type - always recalculate to ensure accuracy
-        // Find the first outgoing message with a template
-        const firstTemplateMessage = await WhatsAppMessage.findOne({
-          conversationId: conv._id,
-          direction: "outgoing",
-          type: "template",
-          templateName: { $exists: true, $ne: null },
-        })
-          .sort({ timestamp: 1 }) // Get the earliest template message
-          .select("templateName")
-          .lean() as any;
-        
-        let conversationType: "owner" | "guest";
-        
-        // If first template contains "owners_template" or starts with "owner" (case-insensitive), it's an owner conversation
-        // Otherwise, it's a guest conversation
-        if (firstTemplateMessage && firstTemplateMessage.templateName) {
-          const templateName = String(firstTemplateMessage.templateName).toLowerCase();
-          // Check if template name contains "owners_template" or starts with "owner"
-          // This handles variations like "owners_template", "owners_template_1", "owner_message", etc.
-          conversationType = (templateName.includes("owners_template") || templateName.startsWith("owner")) 
-            ? "owner" 
+        // Use stored conversationType when set (migration, manual meta, create flows).
+        // Only infer from first template when missing.
+        let conversationType: "owner" | "guest" =
+          conv.conversationType === "owner" || conv.conversationType === "guest"
+            ? conv.conversationType
             : "guest";
-        } else {
-          // Default to guest if no template found
-          conversationType = "guest";
+
+        if (conv.conversationType !== "owner" && conv.conversationType !== "guest") {
+          const firstTemplateMessage = await WhatsAppMessage.findOne({
+            conversationId: conv._id,
+            direction: "outgoing",
+            type: "template",
+            templateName: { $exists: true, $ne: null },
+          })
+            .sort({ timestamp: 1 })
+            .select("templateName")
+            .lean() as { templateName?: string } | null;
+
+          if (firstTemplateMessage?.templateName) {
+            const templateName = String(firstTemplateMessage.templateName).toLowerCase();
+            conversationType =
+              templateName.includes("owners_template") || templateName.startsWith("owner")
+                ? "owner"
+                : "guest";
+          }
+
+          if (conv.conversationType !== conversationType) {
+            await WhatsAppConversation.findByIdAndUpdate(
+              conv._id,
+              { conversationType },
+              { new: false },
+            );
+          }
         }
-        
-        // Update conversation type in database if it has changed or doesn't exist
-        if (conv.conversationType !== conversationType) {
-          await WhatsAppConversation.findByIdAndUpdate(conv._id, {
-            conversationType,
-          }, { new: false }); // Don't return updated doc, just update
-        }
-        
+
         conv.conversationType = conversationType;
 
         // ---- Per-employee unread logic (WhatsApp-style) ----
@@ -652,9 +652,10 @@ export async function POST(req: NextRequest) {
       participantName,
       participantLocation,
       participantProfilePic: participantProfilePic || undefined,
-      participantRole: conversationType === "owner" || conversationType === "guest"
-        ? conversationType
-        : undefined,
+      conversationType:
+        conversationType === "owner" || conversationType === "guest"
+          ? conversationType
+          : undefined,
       referenceLink,
       snapshotSource: "trusted",
     });

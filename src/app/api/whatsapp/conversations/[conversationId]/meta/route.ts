@@ -8,6 +8,15 @@ export const dynamic = "force-dynamic";
 
 connectDb();
 
+function parseConversationType(value: unknown): "owner" | "guest" | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "owner" || normalized === "guest") {
+    return normalized;
+  }
+  return null;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
@@ -34,19 +43,20 @@ export async function POST(
     }
 
     const body = await req.json();
-    const update: any = {};
+    const update: Record<string, string> = {};
     if (typeof body.participantName === "string") {
       update.participantName = body.participantName;
     }
     if (typeof body.participantProfilePic === "string") {
       update.participantProfilePic = body.participantProfilePic;
     }
-    if (typeof body.participantRole === "string") {
-      const role = body.participantRole;
-      if (!["owner", "guest"].includes(role)) {
-        return NextResponse.json({ error: "Invalid participantRole" }, { status: 400 });
-      }
-      update.participantRole = role;
+
+    // Primary field for owner/guest classification
+    const typeFromBody =
+      parseConversationType(body.conversationType) ??
+      parseConversationType(body.participantRole); // deprecated alias
+    if (typeFromBody) {
+      update.conversationType = typeFromBody;
     }
 
     if (Object.keys(update).length === 0) {
@@ -56,9 +66,9 @@ export async function POST(
     await WhatsAppConversation.findByIdAndUpdate(conversationId, update);
 
     return NextResponse.json({ success: true, updated: update });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
     console.error("Conversation meta update error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

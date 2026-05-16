@@ -9,7 +9,7 @@ interface ConversationSnapshotInput {
   businessPhoneId: string;
   participantName?: string;
   participantLocation?: string;
-  participantRole?: "owner" | "guest";
+  conversationType?: "owner" | "guest";
   participantProfilePic?: string; // Lead/client profile picture URL
   referenceLink?: string;
   // Source of this data:
@@ -23,7 +23,7 @@ interface ConversationSnapshotInput {
  *
  * Invariants:
  * - One conversation per (participantPhone, businessPhoneId).
- * - Snapshot identity fields (name/location/role/referenceLink) are only set:
+ * - Snapshot identity fields (name/location/type/referenceLink) are only set:
  *   - at creation time, OR
  *   - when currently empty AND the source is 'trusted'.
  * - Retargeting / background flows must pass snapshotSource: 'untrusted'
@@ -37,7 +37,7 @@ export async function findOrCreateConversationWithSnapshot(
     businessPhoneId,
     participantName,
     participantLocation,
-    participantRole,
+    conversationType,
     participantProfilePic,
     referenceLink,
     snapshotSource = "untrusted",
@@ -54,7 +54,7 @@ export async function findOrCreateConversationWithSnapshot(
       participantPhone,
       participantName: participantName || `+${participantPhone}`,
       participantLocation: participantLocation || "",
-      participantRole: participantRole,
+      conversationType: conversationType,
       participantProfilePic: participantProfilePic || undefined,
       businessPhoneId,
       status: "active",
@@ -76,8 +76,8 @@ export async function findOrCreateConversationWithSnapshot(
       updates.participantLocation = participantLocation;
     }
 
-    if (!conversation.participantRole && participantRole) {
-      updates.participantRole = participantRole;
+    if (!conversation.conversationType && conversationType) {
+      updates.conversationType = conversationType;
     }
 
     if (!conversation.referenceLink && referenceLink) {
@@ -101,4 +101,3 @@ export async function findOrCreateConversationWithSnapshot(
 
   return conversation;
 }
-

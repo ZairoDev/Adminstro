@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -24,7 +24,12 @@ import type { Template, Message } from "../types";
 import { TemplateDialog } from "./TemplateDialog";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
-import { getMessageDisplayText } from "../utils";
+import { getMessageDisplayText, getTemplateBodySnippet } from "../utils";
+import {
+  filterApprovedTemplates,
+  filterTemplatesBySearchQuery,
+  filterTemplatesForConversationType,
+} from "@/lib/whatsapp/templateClassification";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   MediaSendPreview,
@@ -68,6 +73,7 @@ interface MessageComposerProps {
   onCancelReply?: () => void;
   // "You" conversation flag - templates not needed, always active
   isYouConversation?: boolean;
+  conversationType?: "owner" | "guest";
   // For media sending with individual captions
   selectedConversation?: { _id: string; participantPhone: string } | null;
   selectedPhoneConfig?: { phoneNumberId?: string } | null;
@@ -100,12 +106,14 @@ export const MessageComposer = memo(function MessageComposer({
   replyToMessage,
   onCancelReply,
   isYouConversation = false,
+  conversationType,
   selectedConversation,
   selectedPhoneConfig,
   onSendMediaWithCaptions,
 }: MessageComposerProps) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTemplateSuggestions, setShowTemplateSuggestions] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
@@ -114,6 +122,27 @@ export const MessageComposer = memo(function MessageComposer({
   const addMoreInputRef = useRef<HTMLInputElement>(null);
   const newMessageCacheRef = useRef(newMessage);
   const cursorPositionRef = useRef<number>(0);
+
+  const isTemplateOnlyMode = !canSendFreeForm && !isYouConversation;
+
+  const roleScopedTemplates = useMemo(() => {
+    const approved = filterApprovedTemplates(templates);
+    return filterTemplatesForConversationType(approved, conversationType);
+  }, [templates, conversationType]);
+
+  const templateSearchResults = useMemo(() => {
+    if (!isTemplateOnlyMode) return [];
+    return filterTemplatesBySearchQuery(roleScopedTemplates, newMessage);
+  }, [isTemplateOnlyMode, roleScopedTemplates, newMessage]);
+
+  const handlePickTemplate = useCallback(
+    (template: Template) => {
+      onSelectTemplate(template);
+      onTemplateDialogChange(true);
+      setShowTemplateSuggestions(false);
+    },
+    [onSelectTemplate, onTemplateDialogChange],
+  );
 
   useEffect(() => {
     newMessageCacheRef.current = newMessage;
@@ -237,12 +266,33 @@ export const MessageComposer = memo(function MessageComposer({
     }
   };
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      onSendMessage();
-    }
-  }, [onSendMessage]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (isTemplateOnlyMode) {
+          const first = templateSearchResults[0];
+          if (first) {
+            handlePickTemplate(first);
+          } else {
+            onTemplateDialogChange(true);
+          }
+          return;
+        }
+        onSendMessage();
+      }
+      if (e.key === "Escape" && isTemplateOnlyMode) {
+        setShowTemplateSuggestions(false);
+      }
+    },
+    [
+      isTemplateOnlyMode,
+      templateSearchResults,
+      handlePickTemplate,
+      onTemplateDialogChange,
+      onSendMessage,
+    ],
+  );
 
   // Handle paste event for image support
   // Shows preview first, only sends when user clicks send button
@@ -542,6 +592,7 @@ export const MessageComposer = memo(function MessageComposer({
           onSend={onSendTemplate}
           sendingMessage={sendingMessage}
           context={templateContext}
+          conversationType={conversationType}
         />
 
         {/* Hidden file inputs - shows preview before sending */}
@@ -729,16 +780,73 @@ export const MessageComposer = memo(function MessageComposer({
 
         {/* Message input - Responsive */}
         <div className="flex-1 relative">
+          {isTemplateOnlyMode && showTemplateSuggestions && (
+            <div
+              className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-[240px] overflow-y-auto rounded-lg border border-[#e9edef] dark:border-[#374045] bg-white dark:bg-[#2a3942] shadow-lg"
+              role="listbox"
+            >
+              {templatesLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-[#667781] dark:text-[#8696a0] text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading templates…
+                </div>
+              ) : templateSearchResults.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-[#667781] dark:text-[#8696a0]">
+                  {newMessage.trim()
+                    ? "No templates match your search"
+                    : conversationType === "owner"
+                      ? "No owner templates available"
+                      : conversationType === "guest"
+                        ? "No guest templates available"
+                        : "No templates available"}
+                </p>
+              ) : (
+                templateSearchResults.map((template) => (
+                  <button
+                    key={template.name}
+                    type="button"
+                    role="option"
+                    className="w-full text-left px-4 py-3 hover:bg-[#f0f2f5] dark:hover:bg-[#374045] border-b border-[#e9edef] dark:border-[#374045] last:border-0"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handlePickTemplate(template);
+                    }}
+                  >
+                    <p className="text-[14px] font-medium text-[#111b21] dark:text-[#e9edef] truncate">
+                      {template.name}
+                    </p>
+                    <p className="text-[12px] text-[#667781] dark:text-[#8696a0] truncate">
+                      {template.category} • {template.language}
+                      {getTemplateBodySnippet(template)
+                        ? ` — ${getTemplateBodySnippet(template)}`
+                        : ""}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             placeholder={
-              canSendFreeForm ? "Type a message" : "Send a template message..."
+              canSendFreeForm
+                ? "Type a message"
+                : "Search templates by name or message content…"
             }
             value={newMessage}
-            onChange={(e) => onMessageChange(e.target.value)}
+            onChange={(e) => {
+              onMessageChange(e.target.value);
+              if (isTemplateOnlyMode) setShowTemplateSuggestions(true);
+            }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            disabled={!canSendFreeForm}
+            onFocus={() => {
+              if (isTemplateOnlyMode) setShowTemplateSuggestions(true);
+            }}
+            onBlur={() => {
+              window.setTimeout(() => setShowTemplateSuggestions(false), 150);
+            }}
+            disabled={!canSendFreeForm && !isTemplateOnlyMode}
             rows={1}
             className={cn(
               "w-full bg-white dark:bg-[#2a3942] rounded-lg",
@@ -754,16 +862,28 @@ export const MessageComposer = memo(function MessageComposer({
           />
         </div>
 
-        {/* Send / Voice button - Responsive touch targets */}
-        {newMessage.trim() ? (
+        {/* Send / template button */}
+        {isTemplateOnlyMode ? (
+          <Button
+            type="button"
+            onClick={() => onTemplateDialogChange(true)}
+            className={cn(
+              "rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0",
+              "h-11 w-11 min-h-[44px] min-w-[44px]",
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+            )}
+            aria-label="Open templates"
+          >
+            <LayoutTemplate className="h-5 w-5 text-white" />
+          </Button>
+        ) : newMessage.trim() ? (
           <Button
             onClick={onSendMessage}
             disabled={!newMessage.trim() || sendingMessage || uploadingMedia || !canSendFreeForm}
             className={cn(
               "rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0",
-              // Mobile: Larger touch target
               "h-11 w-11 min-h-[44px] min-w-[44px]",
-              "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
             )}
           >
             {sendingMessage ? (
@@ -779,9 +899,8 @@ export const MessageComposer = memo(function MessageComposer({
             disabled={!canSendFreeForm}
             className={cn(
               "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0",
-              // Mobile: Larger touch target
               "h-11 w-11 min-h-[44px] min-w-[44px]",
-              "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
             )}
           >
             <Mic className="h-6 w-6" />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { flushSync } from "react-dom";
 import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
@@ -23,7 +23,6 @@ import {
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
-import { WindowWarningDialog } from "./components/WindowWarningDialog";
 import { MessageComposer } from "./components/MessageComposer";
 import { AddGuestModal } from "./components/AddGuestModal";
 import { ForwardDialog } from "./components/ForwardDialog";
@@ -67,7 +66,7 @@ import { WhatsAppCallOverlay } from "./components/calling/WhatsAppCallOverlay";
 
 /**
  * `/api/whatsapp/call` returns Zod `issues`, or `{ error, data }` (Meta body in `data`).
- * Axios only logs "400"; the real reason is in `response.data` — use this for toasts.
+ * Axios only logs "400"; the real reason is in `response.data` â€” use this for toasts.
  */
 function formatWhatsAppCallApiError(error: unknown): string {
   if (typeof error !== "object" || error === null) return String(error);
@@ -101,7 +100,7 @@ function simpleHashUtf8(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Webhook / socket call status → remote leg ended; close local UI + PC. */
+/** Webhook / socket call status â†’ remote leg ended; close local UI + PC. */
 function isRemoteCallTerminalStatus(status: string): boolean {
   const s = status.trim().toLowerCase();
   return (
@@ -189,8 +188,8 @@ function snapshotIceGathered(pc: RTCPeerConnection): IceGatheredCandidate[] {
  * `iceGatheringState === "complete"` event arrived slightly after our cutoff.
  *
  * Listens to both:
- *   - `icegatheringstatechange` → "complete"  (standard)
- *   - `icecandidate` → null candidate          (Chrome trickle-ICE end signal)
+ *   - `icegatheringstatechange` â†’ "complete"  (standard)
+ *   - `icecandidate` â†’ null candidate          (Chrome trickle-ICE end signal)
  */
 function awaitIceGatheringOrTimeout(pc: RTCPeerConnection, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -221,7 +220,7 @@ function awaitIceGatheringOrTimeout(pc: RTCPeerConnection, timeoutMs: number): P
 
     const timer = window.setTimeout(() => {
       const count = (pc.localDescription?.sdp?.match(/^a=candidate:/gm) ?? []).length;
-      console.warn(`[ice] gathering timeout after ${timeoutMs}ms; ${count} raw candidate(s) in SDP so far — continuing anyway`);
+      console.warn(`[ice] gathering timeout after ${timeoutMs}ms; ${count} raw candidate(s) in SDP so far â€” continuing anyway`);
       finish("timeout");
     }, timeoutMs);
 
@@ -392,16 +391,11 @@ export default function WhatsAppChat() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
-  // 24-hour window warning state (removed - allow free-form sends regardless)
-  // kept for backward compatibility variable references
-  const [showWindowWarning, setShowWindowWarning] = useState(false);
-
   // Media upload state
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
   // Call state
   const [callingAudio, setCallingAudio] = useState(false);
-  const [callingVideo, setCallingVideo] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const activeCallIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -411,7 +405,6 @@ export default function WhatsAppChat() {
   const localCallStreamRef = useRef<MediaStream | null>(null);
   const [callPermissions, setCallPermissions] = useState({
     canMakeCalls: false,
-    canMakeVideoCalls: false,
   });
   const [outboundCallUi, setOutboundCallUi] = useState<OutboundCallUiState | null>(null);
   const [pendingIncomingInvite, setPendingIncomingInvite] = useState<PendingIncomingCallInvite | null>(null);
@@ -430,7 +423,7 @@ export default function WhatsAppChat() {
   const relayConfiguredRef = useRef(false);
   const [lastAnswerSdpPreview, setLastAnswerSdpPreview] = useState<string | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  /** Single MediaStream for all remote audio tracks — avoids replace races / duplicate playback. */
+  /** Single MediaStream for all remote audio tracks â€” avoids replace races / duplicate playback. */
   const remotePlaybackStreamRef = useRef<MediaStream | null>(null);
   const pendingOutboundCallRef = useRef<{ conversationId: string } | null>(null);
   const callSoundRef = useRef<OutboundCallSoundController | null>(null);
@@ -514,8 +507,36 @@ export default function WhatsAppChat() {
 
   const handleUpdateConversation = useCallback((conversationId: string, patch: Partial<Conversation>) => {
     setConversations((prev) => prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)));
+    setArchivedConversations((prev) =>
+      prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)),
+    );
     setSelectedConversation((prev) => (prev && prev._id === conversationId ? { ...prev, ...patch } : prev));
   }, []);
+
+  const handleConversationTypeChange = useCallback(
+    async (conversationId: string, conversationType: "owner" | "guest") => {
+      try {
+        await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
+          conversationType,
+        });
+        handleUpdateConversation(conversationId, { conversationType });
+        toast({
+          title: "Conversation updated",
+          description: `Marked as ${conversationType}.`,
+        });
+      } catch (err: unknown) {
+        toast({
+          title: "Update failed",
+          description:
+            axios.isAxiosError(err) && typeof err.response?.data?.error === "string"
+              ? err.response.data.error
+              : "Could not update conversation type.",
+          variant: "destructive",
+        });
+      }
+    },
+    [handleUpdateConversation, toast],
+  );
 
   const archivedConversationIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -656,7 +677,7 @@ export default function WhatsAppChat() {
           if (!suppressPrematureInboundIceCleanupRef.current) {
             cleanupOutboundCallResources();
           } else {
-            console.warn("[call] PC closed during inbound ICE gather — suppress is ON, skipping cleanup");
+            console.warn("[call] PC closed during inbound ICE gather â€” suppress is ON, skipping cleanup");
           }
           return;
         }
@@ -664,7 +685,7 @@ export default function WhatsAppChat() {
           setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
           if (suppressPrematureInboundIceCleanupRef.current) {
             console.warn(
-              "[call] connectionState failed during inbound answer prep — waiting for Meta accept; not closing PC yet",
+              "[call] connectionState failed during inbound answer prep â€” waiting for Meta accept; not closing PC yet",
             );
             return;
           }
@@ -712,7 +733,7 @@ export default function WhatsAppChat() {
           setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
           if (suppressPrematureInboundIceCleanupRef.current) {
             console.warn(
-              "[call] ICE failed during inbound answer prep — waiting for Meta accept; not closing PC yet",
+              "[call] ICE failed during inbound answer prep â€” waiting for Meta accept; not closing PC yet",
             );
             return;
           }
@@ -869,7 +890,7 @@ export default function WhatsAppChat() {
       });
       if (pc.signalingState === "closed" || pc.connectionState === "closed") {
         throw new Error(
-          `[inbound] RTCPeerConnection closed during ICE gathering — ` +
+          `[inbound] RTCPeerConnection closed during ICE gathering â€” ` +
             `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
             `iceConnectionState=${pc.iceConnectionState}. ` +
             `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
@@ -960,7 +981,7 @@ export default function WhatsAppChat() {
       suppressPrematureInboundIceCleanupRef.current = false;
 
       setActiveCallId(inv.callId);
-      // Do NOT play the outbound ring here — the call is already live from the
+      // Do NOT play the outbound ring here â€” the call is already live from the
       // customer's side. Playing a ring tone through speakers while the mic is
       // open feeds it back to the customer (the "ting" noise). Instead wait for
       // `ontrack` to fire which plays the connect chime quietly.
@@ -976,7 +997,7 @@ export default function WhatsAppChat() {
         try {
           pc.restartIce();
         } catch {
-          /* ignore — best-effort */
+          /* ignore â€” best-effort */
         }
       }
 
@@ -985,7 +1006,7 @@ export default function WhatsAppChat() {
       );
       toast({
         title: "Call answered",
-        description: "Connecting audio with the customer…",
+        description: "Connecting audio with the customerâ€¦",
       });
     } catch (error: unknown) {
       cleanupOutboundCallResources();
@@ -1131,7 +1152,7 @@ export default function WhatsAppChat() {
         return `${m}:${s.toString().padStart(2, "0")}`;
       })();
 
-  /** RTP / outbound media watchdog — Meta drops calls when packetsSent stays ~0. */
+  /** RTP / outbound media watchdog â€” Meta drops calls when packetsSent stays ~0. */
   useEffect(() => {
     if (!outboundCallUi || outboundCallUi.phase !== "connected") return;
     const pc = peerRef.current;
@@ -1153,7 +1174,7 @@ export default function WhatsAppChat() {
           toast({
             title: "No outbound RTP (audio)",
             description:
-              "packetsSent is still 0 — Meta may disconnect (~20s). Check mic, mute, and console [call-media:periodic] logs.",
+              "packetsSent is still 0 â€” Meta may disconnect (~20s). Check mic, mute, and console [call-media:periodic] logs.",
             variant: "destructive",
             duration: 14_000,
           });
@@ -1170,7 +1191,7 @@ export default function WhatsAppChat() {
   useEffect(() => {
     const notificationController = getWhatsAppNotificationController();
 
-    console.log("🔧 Initializing notification controller");
+    console.log("ðŸ”§ Initializing notification controller");
 
     const hasWhatsAppAccess =
       token?.role === "SuperAdmin" ||
@@ -1260,7 +1281,7 @@ export default function WhatsAppChat() {
       },
       onInApp: (raw) => {
         try {
-          console.log("🔔 [NOTIF] onInApp called with:", raw);
+          console.log("ðŸ”” [NOTIF] onInApp called with:", raw);
           // Trigger in-app toast handler (SystemNotificationToast handles rendering)
           // Provide the raw payload so the toast can display contextual info
           // Use handleWhatsAppMessage to update UI state as well
@@ -1274,12 +1295,12 @@ export default function WhatsAppChat() {
             console.warn("handleWhatsAppMessageRef not set yet");
           }
         } catch (err) {
-          console.error("❌ [NOTIF] onInApp error:", err);
+          console.error("âŒ [NOTIF] onInApp error:", err);
         }
       },
       onBrowser: (raw) => {
         try {
-          console.log("🔔 [NOTIF] onBrowser called with:", raw);
+          console.log("ðŸ”” [NOTIF] onBrowser called with:", raw);
           // DEBUG: force a browser notification for testing
           const DEBUG_FORCE_NOTIF = true;
           if (DEBUG_FORCE_NOTIF) {
@@ -1300,9 +1321,9 @@ export default function WhatsAppChat() {
                   tag: raw.conversationId,
                 }
               );
-              console.log("🔔 [NOTIF] Debug notification created:", notif);
+              console.log("ðŸ”” [NOTIF] Debug notification created:", notif);
             } catch (e) {
-              console.error("🔔 [NOTIF] Debug notification failed:", e);
+              console.error("ðŸ”” [NOTIF] Debug notification failed:", e);
             }
             return;
           }
@@ -1326,7 +1347,7 @@ export default function WhatsAppChat() {
               }
             );
           } catch (createErr) {
-            console.error("❌ [NOTIF] Failed to create browser notification:", createErr);
+            console.error("âŒ [NOTIF] Failed to create browser notification:", createErr);
             return;
           }
 
@@ -1346,7 +1367,7 @@ export default function WhatsAppChat() {
 
           setTimeout(() => notif?.close(), 5000);
         } catch (err) {
-          console.error("❌ [NOTIF] onBrowser error:", err);
+          console.error("âŒ [NOTIF] onBrowser error:", err);
         }
       },
     });
@@ -1372,7 +1393,6 @@ export default function WhatsAppChat() {
         if (response.data.success) {
           setCallPermissions({
             canMakeCalls: response.data.canMakeCalls,
-            canMakeVideoCalls: response.data.canMakeVideoCalls,
           });
         }
       } catch (error) {
@@ -1638,14 +1658,6 @@ export default function WhatsAppChat() {
       });
 
       if (isCurrentConversation) {
-        // If an incoming message arrives for the open conversation, close the 24h template warning
-        if (isIncomingMessage) {
-          try {
-            setShowWindowWarning(false);
-          } catch (e) {
-            /* no-op */
-          }
-        }
         if (seenMessageIdsRef.current.has(message.messageId)) {
           return;
         }
@@ -1656,7 +1668,7 @@ export default function WhatsAppChat() {
             return prev.map((msg) => {
               if (msg.messageId === message.reactedToMessageId) {
                 const existingReactions = msg.reactions || [];
-                const reactionEmoji = message.reactionEmoji || message.content?.text?.replace("Reacted: ", "") || "👍";
+                const reactionEmoji = message.reactionEmoji || message.content?.text?.replace("Reacted: ", "") || "ðŸ‘";
                 const hasReaction = existingReactions.some(
                   (r) => r.emoji === reactionEmoji && r.direction === message.direction
                 );
@@ -1840,7 +1852,7 @@ export default function WhatsAppChat() {
       const name = data.callerInfo?.profile?.name || data.from || "Caller";
       const callIdStr = data.callId != null ? String(data.callId) : "";
       toast({
-        title: "📞 Incoming Call",
+        title: "ðŸ“ž Incoming Call",
         description: `${name} is calling...`,
         duration: 10000,
       });
@@ -1907,14 +1919,14 @@ export default function WhatsAppChat() {
       void ring.start();
 
       toast({
-        title: "📞 Incoming call",
+        title: "ðŸ“ž Incoming call",
         description: `${contactLabelRaw} is calling. Tap Answer to connect.`,
         duration: 12_000,
       });
       playNotificationSound();
       showDesktopNotification({
         title: "Incoming WhatsApp call",
-        body: `${contactLabelRaw} is calling — tap to answer in the app`,
+        body: `${contactLabelRaw} is calling â€” tap to answer in the app`,
         tag: `wa-incoming-${callId}`,
         requireInteraction: true,
       });
@@ -1923,7 +1935,7 @@ export default function WhatsAppChat() {
     // Handle missed calls
     socket.on("whatsapp-call-missed", (data: any) => {
       toast({
-        title: "📞 Missed Call",
+        title: "ðŸ“ž Missed Call",
         description: `Missed call from ${data.from}`,
         variant: "destructive",
       });
@@ -2041,7 +2053,7 @@ export default function WhatsAppChat() {
       console.log("History sync:", data);
       if (data.status === "completed") {
         toast({
-          title: "📜 History Sync Complete",
+          title: "ðŸ“œ History Sync Complete",
           description: `${data.messagesCount} messages synced`,
         });
         // Refresh conversations after history sync
@@ -2489,12 +2501,12 @@ export default function WhatsAppChat() {
         conversationId: conversation._id,
       })
       .then((response) => {
-        console.log(`✅ [FRONTEND] Successfully marked conversation ${conversation._id} as read:`, response.data);
+        console.log(`âœ… [FRONTEND] Successfully marked conversation ${conversation._id} as read:`, response.data);
       })
       .catch((err) => {
-        console.error("❌ [FRONTEND] Error marking conversation as read:", err);
+        console.error("âŒ [FRONTEND] Error marking conversation as read:", err);
         if (err.response) {
-          console.error("❌ [FRONTEND] Response error:", err.response.data);
+          console.error("âŒ [FRONTEND] Response error:", err.response.data);
         }
       });
       updateLocalLastReadAt(conversation._id);
@@ -2543,12 +2555,8 @@ export default function WhatsAppChat() {
       
       // If conversation object is provided, format it to ensure all required fields are present
       if (conversation) {
-        // Map participantRole to conversationType if conversationType is not set
-        // The backend uses participantRole, but frontend uses conversationType
-        const conversationType = conversation.conversationType || 
-          (conversation.participantRole as "owner" | "guest" | undefined) || 
-          "owner";
-        
+        const conversationType = conversation.conversationType ?? "owner";
+
         // Ensure the conversation has all required fields for the sidebar
         newConversation = {
           ...conversation,
@@ -2557,8 +2565,7 @@ export default function WhatsAppChat() {
           participantName: conversation.participantName || conversation.participantPhone || "Unknown",
           unreadCount: conversation.unreadCount ?? 0,
           status: conversation.status || "active",
-          conversationType: conversationType,
-          participantRole: conversation.participantRole || conversationType, // Keep both for compatibility
+          conversationType,
           lastMessageTime: conversation.lastMessageTime || new Date(),
           // Ensure these optional fields are set
           isArchivedByUser: conversation.isArchivedByUser || false,
@@ -2687,7 +2694,7 @@ export default function WhatsAppChat() {
     // Skip 24-hour window check for "You" conversations (always active)
     const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
     if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
-      setShowWindowWarning(true);
+      setShowTemplateDialog(true);
       return;
     }
 
@@ -3120,7 +3127,7 @@ export default function WhatsAppChat() {
   };
 
   // Handle react to message
-  const handleReactMessage = async (message: Message, emoji: string = "👍") => {
+  const handleReactMessage = async (message: Message, emoji: string = "ðŸ‘") => {
     if (!selectedConversation || !message.messageId) return;
 
     // Optimistically add reaction to the message
@@ -3279,7 +3286,7 @@ export default function WhatsAppChat() {
       // Skip 24-hour window check for "You" conversations (always active)
       const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
       if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
-        setShowWindowWarning(true);
+        setShowTemplateDialog(true);
         return;
       }
 
@@ -3287,7 +3294,7 @@ export default function WhatsAppChat() {
 
       const tempId = `temp-${Date.now()}`;
       const sendTimestamp = new Date();
-      const mediaDisplayText = `📎 ${file.name}`;
+      const mediaDisplayText = `ðŸ“Ž ${file.name}`;
 
       // Add optimistic message
       const tempMsg: Message = {
@@ -3413,7 +3420,7 @@ export default function WhatsAppChat() {
     // Skip 24-hour window check for "You" conversations (always active)
     const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
     if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
-      setShowWindowWarning(true);
+      setShowTemplateDialog(true);
       // Reset the file input
       event.target.value = "";
       return;
@@ -3448,7 +3455,7 @@ export default function WhatsAppChat() {
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
     const captionText = customCaption?.trim() || "";
-    const mediaDisplayText = captionText ? `📎 ${captionText}` : `📎 ${file.name}`;
+    const mediaDisplayText = captionText ? `ðŸ“Ž ${captionText}` : `ðŸ“Ž ${file.name}`;
     
     // Create a local preview URL for images/videos
     const localPreviewUrl = (mediaType === "image" || mediaType === "video") 
@@ -3569,7 +3576,7 @@ export default function WhatsAppChat() {
         });
       }
     } catch (error: any) {
-      console.error("❌ File upload error:", {
+      console.error("âŒ File upload error:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
@@ -3637,7 +3644,7 @@ export default function WhatsAppChat() {
 
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
-    const mediaDisplayText = caption || `📷 ${file.name}`;
+    const mediaDisplayText = caption || `ðŸ“· ${file.name}`;
     
     // Create local preview URL
     const localPreviewUrl = URL.createObjectURL(file);
@@ -3739,7 +3746,7 @@ export default function WhatsAppChat() {
         );
       }
     } catch (error: any) {
-      console.error("❌ Image send error:", error);
+      console.error("âŒ Image send error:", error);
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
@@ -3780,7 +3787,7 @@ export default function WhatsAppChat() {
     });
 
     // Update conversation list optimistically
-    const mediaDisplayText = `📷 ${files.length} image${files.length > 1 ? 's' : ''}`;
+    const mediaDisplayText = `ðŸ“· ${files.length} image${files.length > 1 ? 's' : ''}`;
     setConversations((prev) => {
       const updated = prev.map((conv) =>
         conv._id === selectedConversation._id
@@ -3875,7 +3882,7 @@ export default function WhatsAppChat() {
             );
           }
         } catch (error: any) {
-          console.error(`❌ Image ${index + 1} upload error:`, error);
+          console.error(`âŒ Image ${index + 1} upload error:`, error);
           setMessages((prev) =>
             prev.map((msg) =>
               msg._id === tempId ? { ...msg, status: "failed" } : msg
@@ -4038,7 +4045,7 @@ export default function WhatsAppChat() {
       console.log("[call] raw Chrome offer SDP:\n", rawOffer.sdp);
       await pc.setLocalDescription(rawOffer);
 
-      // Wait for ICE gathering (resolves on complete OR timeout — never rejects).
+      // Wait for ICE gathering (resolves on complete OR timeout â€” never rejects).
       const rawIceSummary = await awaitIceGatheringForMeta(
         pc,
         relayConfigured,
@@ -4054,7 +4061,7 @@ export default function WhatsAppChat() {
       });
       if (pc.signalingState === "closed" || pc.connectionState === "closed") {
         throw new Error(
-          `[outbound] RTCPeerConnection closed during ICE gathering — ` +
+          `[outbound] RTCPeerConnection closed during ICE gathering â€” ` +
             `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
             `iceConnectionState=${pc.iceConnectionState}. ` +
             `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
@@ -4064,7 +4071,7 @@ export default function WhatsAppChat() {
       logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
 
       // Build a fresh minimal RFC 8866 SDP from Chrome's local description.  This drops
-      // all Chrome-only attributes (extmap, rtcp-fb, …) and filters ICE candidates so we
+      // all Chrome-only attributes (extmap, rtcp-fb, â€¦) and filters ICE candidates so we
       // send Meta only public IPv4 srflx/relay candidates.
       const gathered = pc.localDescription?.sdp ?? "";
       if (!gathered) throw new Error("Failed to generate SDP offer");
@@ -4151,8 +4158,8 @@ export default function WhatsAppChat() {
           : prev,
       );
       toast({
-        title: "📞 Calling…",
-        description: "Call initiated. Waiting for SDP answer…",
+        title: "ðŸ“ž Callingâ€¦",
+        description: "Call initiated. Waiting for SDP answerâ€¦",
       });
     } catch (error: unknown) {
       cleanupOutboundCallResources();
@@ -4171,288 +4178,6 @@ export default function WhatsAppChat() {
     }
   };
 
-  // Handle video call
-  const handleVideoCall = async () => {
-    if (!selectedConversation || !callPermissions.canMakeVideoCalls) return;
-
-    setCallingVideo(true);
-    try {
-      rejectPendingIncomingForNewOutbound();
-      if (peerRef.current) {
-        cleanupOutboundCallResources();
-      }
-      // Same permission gating as audio call
-      const phoneNumberId = selectedConversation.businessPhoneId;
-      const userWaId = selectedConversation.participantPhone;
-      if (phoneNumberId && userWaId) {
-        try {
-          const permRes = await axios.get("/api/whatsapp/call", { params: { phoneNumberId, userWaId } });
-          const perm = permRes.data?.data?.permission;
-          const actions = Array.isArray(permRes.data?.data?.actions) ? permRes.data.data.actions : [];
-          const startAction = actions.find((a: any) => a.action_name === "start_call");
-          const canStart = startAction?.can_perform_action;
-          if (!canStart) {
-            const canReq = actions.find((a: any) => a.action_name === "send_call_permission_request")?.can_perform_action;
-            if (canReq) {
-              await axios.post("/api/whatsapp/call", {
-                conversationId: selectedConversation._id,
-                action: "permission_request",
-                bodyText: "We would like to call you to help resolve your query. Please allow calls.",
-              });
-              toast({
-                title: "Call permission request sent",
-                description: "User must accept before we can call.",
-              });
-              return;
-            }
-
-            toast({
-              title: "Cannot start call yet",
-              description: (() => {
-                const status = perm?.status || "unknown";
-                const limits = Array.isArray(startAction?.limits) ? startAction.limits : [];
-                const limitText = limits
-                  .map((l: any) => {
-                    const tp = l.time_period || "";
-                    const cur = typeof l.current_usage === "number" ? l.current_usage : "?";
-                    const max = typeof l.max_allowed === "number" ? l.max_allowed : "?";
-                    const exp = l.limit_expiration_time ? ` exp:${new Date(Number(l.limit_expiration_time) * 1000).toLocaleString()}` : "";
-                    return `${tp} ${cur}/${max}${exp}`;
-                  })
-                  .filter(Boolean)
-                  .join(" | ");
-                return `Permission: ${status}. start_call not allowed right now.${limitText ? ` Limits: ${limitText}` : ""}`;
-              })(),
-              variant: "destructive",
-            });
-            return;
-          }
-        } catch (e: any) {
-          console.warn("Call permission state check failed:", e?.response?.data || e?.message);
-        }
-      }
-
-      // Video calling via Calling API requires video SDP/media constraints. For now,
-      // keep parity with audio flow by checking permissions and then initiating the call
-      // using the same backend start_call action (audio-only SDP offer is sent).
-      const { servers: iceServers, relayConfigured } = await fetchIceServers();
-      relayConfiguredRef.current = relayConfigured;
-      console.log("[videocall] ICE servers:", iceServers.map((s) => s.urls));
-      const pc = createWhatsAppCallPeerConnection(iceServers);
-      peerRef.current = pc;
-      sdpAnswerAppliedHashRef.current = null;
-      reconnectIceAttemptedRef.current = false;
-      setPeerForStats(pc);
-      callSoundRef.current?.dispose();
-      callSoundRef.current = new OutboundCallSoundController();
-      attachOutboundCallMediaHandlers(pc);
-      pendingOutboundCallRef.current = { conversationId: String(selectedConversation._id) };
-      const contactLabel =
-        selectedConversation.participantName?.trim() ||
-        selectedConversation.participantPhone ||
-        "Contact";
-      const startedAtMs = Date.now();
-      callSessionMetaRef.current = {
-        startedAtMs,
-        conversationId: String(selectedConversation._id),
-        summaryVariant: "outbound",
-        phoneNumberId: String(selectedConversation.businessPhoneId || ""),
-      };
-      setOutboundCallUi({
-        sessionKind: "outbound",
-        phase: "connecting",
-        surface: "floating",
-        contactLabel,
-        connectionState: pc.connectionState,
-        iceState: pc.iceConnectionState,
-        signalingState: pc.signalingState,
-        startedAtMs,
-        muted: false,
-        speaker: true,
-      });
-
-      const { usedMic, silentHandle } = await attachLocalAudioOrRecvOnly(pc, localCallStreamRef);
-      silentOutboundAudioRef.current = silentHandle;
-      if (!usedMic) {
-        toast({
-          title: "Microphone unavailable",
-          description:
-            "Using a low-level silent carrier so RTP keeps flowing to WhatsApp (avoids ~20s media drops). Allow the mic for real two-way audio.",
-          duration: 10000,
-        });
-      }
-
-      restrictPeerConnectionAudioToOpus(pc);
-      const videoAudioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
-      if (videoAudioSender) {
-        try {
-          const params = videoAudioSender.getParameters();
-          if (!params.encodings?.length) params.encodings = [{}];
-          const enc = params.encodings[0];
-          if (enc) {
-            enc.maxBitrate = 40_000;
-            enc.networkPriority = "high";
-          }
-          await videoAudioSender.setParameters(params);
-        } catch {
-          /* optional tuning */
-        }
-      }
-
-      logWebRtcMediaDiagnostics(pc, "videocall-pre-createOffer");
-      console.log("[videocall] pre-createOffer PC state", {
-        signalingState: pc.signalingState,
-        connectionState: pc.connectionState,
-        iceConnectionState: pc.iceConnectionState,
-        iceGatheringState: pc.iceGatheringState,
-      });
-      const rawOffer = await pc.createOffer();
-      console.log("[videocall] raw Chrome offer SDP:\n", rawOffer.sdp);
-      await pc.setLocalDescription(rawOffer);
-
-      const rawIceSummary = await awaitIceGatheringForMeta(
-        pc,
-        relayConfigured,
-        awaitIceGatheringOrTimeout,
-      );
-
-      // Guard: if PC closed during gather abort here with diagnostic context.
-      console.log("[videocall] post-gather PC state", {
-        signalingState: pc.signalingState,
-        connectionState: pc.connectionState,
-        iceConnectionState: pc.iceConnectionState,
-        iceGatheringState: pc.iceGatheringState,
-      });
-      if (pc.signalingState === "closed" || pc.connectionState === "closed") {
-        throw new Error(
-          `[videocall] RTCPeerConnection closed during ICE gathering — ` +
-            `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
-            `iceConnectionState=${pc.iceConnectionState}. ` +
-            `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
-        );
-      }
-
-      logWebRtcMediaDiagnostics(pc, "videocall-post-ICE-gather");
-
-      const gathered = pc.localDescription?.sdp ?? "";
-      if (!gathered) throw new Error("Failed to generate SDP offer");
-
-      const { sdp, kept, dropped } = buildCleanWhatsAppOfferDetailed(gathered, { role: "offer" });
-      console.log("[videocall] kept ICE candidates:", kept);
-      console.log("[videocall] dropped ICE candidates:", dropped);
-      console.log("[videocall] Meta candidate summary:", summarizeMetaCandidates(kept));
-      console.log("[videocall] clean offer SDP sent to Meta:\n", sdp);
-      setLastIceDiagnostics({
-        kept: [...kept],
-        dropped: [...dropped],
-        metaOfferPreview: sdp.slice(0, 1600),
-        relayConfigured,
-        gathered: snapshotIceGathered(pc),
-      });
-
-      const sdpProblems = validateWhatsAppCallingSdp(sdp);
-      if (sdpProblems.length > 0) {
-        console.warn("[videocall] SDP validation warnings:", sdpProblems);
-      }
-
-      if (kept.length === 0) {
-        cleanupOutboundCallResources();
-        toast({
-          title: "Video Call Failed",
-          description: formatNoUsableMetaCandidatesMessage(dropped, relayConfigured, rawIceSummary),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await axios.post("/api/whatsapp/call", {
-        conversationId: String(selectedConversation._id),
-        action: "start_call",
-        session: { sdpType: "offer", sdp },
-        bizOpaqueCallbackData: String(selectedConversation._id),
-      });
-
-      if (!response.data?.success) {
-        cleanupOutboundCallResources();
-        toast({
-          title: "Video Call Failed",
-          description:
-            typeof response.data?.error === "string" && response.data.error.trim()
-              ? response.data.error.trim()
-              : "Call did not start.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const startedCallId =
-        typeof response.data.callId === "string" && response.data.callId.trim()
-          ? response.data.callId.trim()
-          : null;
-      if (startedCallId) {
-        setActiveCallId(startedCallId);
-      }
-      if (signalingAnswerTimerRef.current) {
-        clearTimeout(signalingAnswerTimerRef.current);
-        signalingAnswerTimerRef.current = null;
-      }
-      signalingAnswerTimerRef.current = setTimeout(() => {
-        const p = peerRef.current;
-        if (!p || p.signalingState === "stable") return;
-        toast({
-          title: "Call timed out",
-          description: "No SDP answer received in time. Check webhook connectivity.",
-          variant: "destructive",
-        });
-        cleanupOutboundCallResources();
-      }, WA_CALL_SIGNALING_ANSWER_TIMEOUT_MS);
-      void callSoundRef.current?.startOutboundRing();
-      setOutboundCallUi((prev) =>
-        prev
-          ? {
-              ...prev,
-              phase: "ringing",
-              signalingState: pc.signalingState,
-            }
-          : prev,
-      );
-      toast({
-        title: "📞 Calling…",
-        description: "Call initiated. Waiting for SDP answer…",
-      });
-    } catch (error: unknown) {
-      cleanupOutboundCallResources();
-      console.error("Video call initiation failed:", error);
-      const ax = error as { response?: { data?: unknown; status?: number; headers?: unknown } };
-      console.error("Call API response status:", ax?.response?.status);
-      console.error("Call API response headers:", ax?.response?.headers);
-      console.error("Call API response body:", ax?.response?.data);
-      toast({
-        title: "Video Call Failed",
-        description: formatWhatsAppCallApiError(error),
-        variant: "destructive",
-      });
-    } finally {
-      setCallingVideo(false);
-    }
-  };
-
-  // Handle archive conversation
-  const handleArchiveConversation = async () => {
-    if (!selectedConversation) return;
-    toast({
-      title: "Archive",
-      description: "Archive feature coming soon",
-    });
-  };
-
-  // Handle mute notifications
-  const handleMuteNotifications = () => {
-    toast({
-      title: "Mute",
-      description: "Mute feature coming soon",
-    });
-  };
 
   // "You" conversations are always active - no template requirement, no 24-hour window
   const isYouConversation = selectedConversation?.isInternal || selectedConversation?.source === "internal";
@@ -4600,6 +4325,8 @@ export default function WhatsAppChat() {
               // Mobile props
               isMobile={isMobile}
               onUpdateConversation={handleUpdateConversation}
+              onConversationTypeChange={handleConversationTypeChange}
+              onRefreshConversations={() => void fetchConversations(true)}
               // Jump to message from search results
               onJumpToMessage={(conversationId, messageId) => {
                 // Find and select the conversation
@@ -4640,9 +4367,7 @@ export default function WhatsAppChat() {
                     conversation={selectedConversation}
                     callPermissions={callPermissions}
                     callingAudio={callingAudio}
-                    callingVideo={callingVideo}
                     onAudioCall={handleAudioCall}
-                    onVideoCall={handleVideoCall}
                     onRefreshTemplates={fetchTemplates}
                     templatesLoading={templatesLoading}
                     showMessageSearch={showMessageSearch}
@@ -4653,15 +4378,7 @@ export default function WhatsAppChat() {
                     }}
                     messageSearchQuery={messageSearchQuery}
                     onMessageSearchChange={setMessageSearchQuery}
-                    onMute={handleMuteNotifications}
-                    onArchive={handleArchiveConversation}
                     toastCopy={copyPhoneNumber}
-                    onDelete={() =>
-                      toast({
-                        title: "Delete",
-                        description: "Delete feature coming soon",
-                      })
-                    }
                     readersRefreshToken={readersRefreshToken}
                     currentUserId={token?.id || (token as any)?._id}
                     onBack={handleMobileBack}
@@ -4669,6 +4386,7 @@ export default function WhatsAppChat() {
                     availablePhoneConfigs={allowedPhoneConfigs}
                     currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
                     onTransferLead={() => setShowTransferDialog(true)}
+                    onConversationTypeChange={handleConversationTypeChange}
                   />
 
                   <MessageList
@@ -4687,15 +4405,6 @@ export default function WhatsAppChat() {
                     isMobile={isMobile}
                     pendingScrollToMessageId={pendingScrollToMessageId}
                     onScrolledToMessage={() => setPendingScrollToMessageId(null)}
-                  />
-
-                  <WindowWarningDialog
-                    open={showWindowWarning}
-                    onClose={() => setShowWindowWarning(false)}
-                    onSendTemplate={() => {
-                      setShowWindowWarning(false);
-                      setShowTemplateDialog(true);
-                    }}
                   />
 
                   <MessageComposer
@@ -4727,6 +4436,7 @@ export default function WhatsAppChat() {
                     replyToMessage={replyToMessage}
                     onCancelReply={handleCancelReply}
                     isYouConversation={isYouConversation}
+                    conversationType={selectedConversation?.conversationType}
                     selectedConversation={selectedConversation}
                     selectedPhoneConfig={selectedPhoneConfig}
                     onSendMediaWithCaptions={handleSendMediaWithCaptions}
@@ -4831,7 +4541,7 @@ export default function WhatsAppChat() {
                 }}
                 className="min-h-[44px] rounded-full bg-[#25d366] px-5 text-[14px] font-semibold text-[#0b141a] hover:bg-[#20bd5a] disabled:opacity-50"
               >
-                {answeringIncoming ? "Connecting…" : "Answer"}
+                {answeringIncoming ? "Connectingâ€¦" : "Answer"}
               </button>
             </div>
           </div>

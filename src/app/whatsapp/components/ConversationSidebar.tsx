@@ -31,9 +31,6 @@ import {
   SquarePlus,
   ChevronDown,
   MessageSquarePlus,
-  CircleDot,
-  Building2,
-  Megaphone,
   Images,
   MessageCircle,
   Sun,
@@ -60,6 +57,7 @@ import {
 import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
+import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/WhatsAppConversationTypeMigrationButton";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -106,6 +104,12 @@ interface SidebarProps {
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
   // Update conversation locally after meta changes (e.g. profile pic, name)
   onUpdateConversation?: (conversationId: string, patch: Partial<Conversation>) => void;
+  onConversationTypeChange?: (
+    conversationId: string,
+    conversationType: "owner" | "guest",
+  ) => void | Promise<void>;
+  /** Refetch conversation list after SuperAdmin bulk migration */
+  onRefreshConversations?: () => void;
 }
 
 /** Theme toggle button for the nav strip: toggles between light and dark mode */
@@ -156,6 +160,7 @@ function ConversationItem({
   onUpdateConversation,
   onTriggerUpload,
   onRenameFor,
+  onConversationTypeChange,
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -168,6 +173,10 @@ function ConversationItem({
   onUpdateConversation?: (conversationId: string, patch: Partial<Conversation>) => void;
   onTriggerUpload?: (conversationId: string) => void;
   onRenameFor?: (conversationId: string, currentName?: string) => void;
+  onConversationTypeChange?: (
+    conversationId: string,
+    conversationType: "owner" | "guest",
+  ) => void | Promise<void>;
 }): JSX.Element {
   // Use parent-level upload/rename handlers to avoid input unmount issues
   const hasUnread =
@@ -212,7 +221,11 @@ function ConversationItem({
   })();
 
   const phone = conversation.participantPhone;
-  const role = conversation.participantRole || conversation.conversationType;
+  const role = conversation.conversationType;
+  const canChangeType =
+    !conversation.isInternal &&
+    conversation.source !== "internal" &&
+    Boolean(onConversationTypeChange);
 
   return (
     <div
@@ -308,7 +321,7 @@ function ConversationItem({
       </div>
 
       {/* Chevron: only on hover, absolute so it doesn't take layout space or create gap */}
-      {(onArchive || onUnarchive) && (
+      {(onArchive || onUnarchive || canChangeType || onRenameFor) && (
         <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -328,51 +341,25 @@ function ConversationItem({
                 <Images className="h-4 w-4 mr-2" />
                 Upload profile picture
               </DropdownMenuItem>
-              {/* Convert role */}
-              {((conversation.participantRole || conversation.conversationType) !== "owner") ? (
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  if (!confirm("Convert this conversation to OWNER?")) return;
-                  (async () => {
-                    try {
-                      const resp = await axios.post(`/api/whatsapp/conversations/${conversation._id}/meta`, {
-                        participantRole: "owner",
-                      });
-                      if (resp.data?.success) {
-                        onUpdateConversation?.(conversation._id, { participantRole: "owner" });
-                      } else {
-                        throw new Error(resp.data?.error || "Failed");
-                      }
-                    } catch (err) {
-                      console.error("Convert to owner failed", err);
-                      alert("Failed to convert to owner");
-                    }
-                  })();
-                }}>
-                  <UserPlus className="h-4 w-4 mr-2" />
+              {canChangeType && role !== "owner" && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onConversationTypeChange?.(conversation._id, "owner");
+                  }}
+                >
+                  <User className="h-4 w-4 mr-2" />
                   Convert to owner
                 </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  if (!confirm("Convert this conversation to GUEST?")) return;
-                  (async () => {
-                    try {
-                      const resp = await axios.post(`/api/whatsapp/conversations/${conversation._id}/meta`, {
-                        participantRole: "guest",
-                      });
-                      if (resp.data?.success) {
-                        onUpdateConversation?.(conversation._id, { participantRole: "guest" });
-                      } else {
-                        throw new Error(resp.data?.error || "Failed");
-                      }
-                    } catch (err) {
-                      console.error("Convert to guest failed", err);
-                      alert("Failed to convert to guest");
-                    }
-                  })();
-                }}>
-                  <User className="h-4 w-4 mr-2" />
+              )}
+              {canChangeType && role !== "guest" && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onConversationTypeChange?.(conversation._id, "guest");
+                  }}
+                >
+                  <Users className="h-4 w-4 mr-2" />
                   Convert to guest
                 </DropdownMenuItem>
               )}
@@ -440,7 +427,9 @@ export function ConversationSidebar({
   isMobile = false,
   // Jump to message
   onUpdateConversation,
+  onConversationTypeChange,
   onJumpToMessage,
+  onRefreshConversations,
 }: SidebarProps) {
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
@@ -484,14 +473,16 @@ export function ConversationSidebar({
       });
       const url = uploadResp?.data?.url;
       if (!url) throw new Error("Upload failed");
-      // Optimistically update UI and set role to owner by default
+      // Optimistically update UI and set type to owner by default
       if (typeof onUpdateConversation === "function") {
-        onUpdateConversation(conversationId, { participantProfilePic: url, participantRole: "owner" } as Partial<Conversation>);
+        onUpdateConversation(conversationId, {
+          participantProfilePic: url,
+          conversationType: "owner",
+        } as Partial<Conversation>);
       }
-      // Persist to server (set participantRole to owner by default)
       await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
         participantProfilePic: url,
-        participantRole: "owner",
+        conversationType: "owner",
       });
       // clear target
       uploadTargetIdRef.current = null;
@@ -637,71 +628,6 @@ export function ConversationSidebar({
           </Tooltip>
         </TooltipProvider>
 
-        {/* Status Icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="relative w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
-                <CircleDot className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-[#25d366] rounded-full border border-white dark:border-[#202c33]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Status</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Communities Icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
-                <Users className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Communities</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Groups Icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
-                <Users className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Groups</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Separator */}
-        <div className="h-px w-8 bg-[#d1d7db] dark:bg-[#374045] my-1" />
-
-        {/* Business Tools Icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
-                <Building2 className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Business Tools</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Broadcast Icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors">
-                <Megaphone className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Broadcast</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Spacer to push bottom items down */}
         <div className="flex-1" />
 
         {/* Media Icon */}
@@ -795,6 +721,14 @@ export function ConversationSidebar({
                   <DropdownMenuItem onClick={() => setConversationTab("all")}>All ({totalCount})</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setConversationTab("owners")}><User className="h-4 w-4 mr-2" />Owners ({ownerCount})</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setConversationTab("guests")}><Users className="h-4 w-4 mr-2" />Guests ({guestCount})</DropdownMenuItem>
+                  {userRole === "SuperAdmin" && (
+                    <>
+                      <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
+                      <div className="px-2 py-1.5">
+                        <WhatsAppConversationTypeMigrationButton onSuccess={onRefreshConversations} />
+                      </div>
+                    </>
+                  )}
                   {/* {showPhoneMenu && (
                     <>
                       <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
@@ -1104,6 +1038,7 @@ export function ConversationSidebar({
                 onUpdateConversation={onUpdateConversation}
                 onTriggerUpload={triggerUploadFor}
                 onRenameFor={handleRenameFor}
+                onConversationTypeChange={onConversationTypeChange}
               />
             ))}
             

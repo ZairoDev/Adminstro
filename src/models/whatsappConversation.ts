@@ -7,7 +7,6 @@ export interface IWhatsAppConversation extends Document {
 
   // Snapshot identity fields (immutable unless explicitly edited)
   participantLocation?: string;
-  participantRole?: "owner" | "guest";
 
   businessPhoneId: string;
 
@@ -92,12 +91,6 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     participantLocation: {
       type: String,
       default: "",
-    },
-
-    // Snapshot identity: role of participant in our system
-    participantRole: {
-      type: String,
-      enum: ["owner", "guest"],
     },
 
     businessPhoneId: {

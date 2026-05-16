@@ -112,7 +112,7 @@ async function sendGuestGreetingTemplate(
         businessPhoneId: phoneNumberId,
         participantName: leadName || formattedPhone,
         participantLocation: location, // Capture location at conversation creation
-        participantRole: "guest", // Lead auto-message creates guest conversations
+        conversationType: "guest",
         participantProfilePic: profilePicture,
         snapshotSource: "trusted",
       }) as any; // Cast to any to access Mongoose document properties like _id

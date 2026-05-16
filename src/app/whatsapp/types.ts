@@ -81,7 +81,6 @@ export interface Conversation {
   whatsappName?: string;
   // Snapshot identity fields mirrored from backend schema
   participantLocation?: string;
-  participantRole?: "owner" | "guest";
   lastMessageId?: string;
   lastMessageContent?: string;
   lastMessageTime?: Date;

@@ -301,9 +301,9 @@ export function formatNoUsableMetaCandidatesMessage(
   relayConfigured: boolean,
   rawSummary?: RawSdpIceSummary | null,
 ): string {
-  const credHint = relayConfigured
-    ? "Server reports TURN configured (GET /api/whatsapp/ice-servers). Creds come from server env, not the client bundle — set TURN_USERNAME + TURN_CREDENTIAL on Hostinger and redeploy."
-    : "Set TURN_USERNAME + TURN_CREDENTIAL on the server (Hostinger app env), then redeploy.";
+  const turnHint = relayConfigured
+    ? "TURN is configured via Metered dynamic API but the browser could not reach the relay servers — likely a network/firewall block on TURN ports. Check browser console [RAW ICE] / [ICE] logs for candidate details."
+    : "No TURN relay is configured. Ensure METERED_API_KEY is set on the server (Hostinger env), then redeploy.";
 
   if (rawSummary?.hasRelay || rawSummary?.hasSrflx) {
     const droppedReasons = [...new Set(dropped.map((d) => d.reason))].join(", ");
@@ -314,14 +314,14 @@ export function formatNoUsableMetaCandidatesMessage(
     const typList = Object.entries(rawSummary.byTyp)
       .map(([t, n]) => `${t}:${n}`)
       .join(", ");
-    return `After ICE gather, raw SDP had ${rawSummary.candidateLineCount} candidate line(s) (${typList}) but no typ srflx or typ relay. ${credHint}`;
+    return `ICE gather produced ${rawSummary.candidateLineCount} candidate(s) (${typList}) but no srflx or relay. ${turnHint}`;
   }
 
   const droppedSummary = dropped.length
     ? `Filter saw ${dropped.length} rejected line(s); raw SDP had no usable a=candidate lines.`
-    : "No srflx/relay lines appeared in the SDP in time (no a=candidate in localDescription).";
+    : "No srflx/relay lines appeared in the SDP (no a=candidate in localDescription).";
 
-  return `No usable public ICE candidates available. ${droppedSummary} ${credHint}`;
+  return `No usable public ICE candidates. ${droppedSummary} ${turnHint}`;
 }
 
 /**

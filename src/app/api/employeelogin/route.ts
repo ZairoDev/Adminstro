@@ -262,10 +262,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const unexpired = typeof existingExpiresAt === "number" && existingExpiresAt > nowMs;
 
       if (existingLoggedIn && existingSessionId && unexpired) {
-        return NextResponse.json(
-          { error: "User already logged in on another tab/device" },
-          { status: 409 },
-        );
+        // If the current request carries no token cookie the user has no active
+        // session on this browser (cookie was cleared manually, private window
+        // closed, or a prior auth-error cleanup silently failed in the DB).
+        // Treat the DB record as stale and wipe it so login can proceed.
+        const incomingToken = request.cookies.get("token")?.value;
+        if (!incomingToken) {
+          await Employees.updateOne(
+            { _id: temp._id },
+            {
+              $set: {
+                "webSession.sessionId": null,
+                "webSession.sessionStartedAt": null,
+                "webSession.expiresAt": null,
+                "webSession.isLoggedIn": false,
+              },
+            },
+          );
+          // Fall through to normal login flow below
+        } else {
+          return NextResponse.json(
+            { error: "User already logged in on another tab/device" },
+            { status: 409 },
+          );
+        }
       }
     }
 

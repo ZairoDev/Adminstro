@@ -99,10 +99,30 @@ export async function POST(request: NextRequest) {
         existing.expiresAt > nowMs;
 
       if (alreadyActive) {
-        return NextResponse.json(
-          { error: "User already logged in on another tab/device" },
-          { status: 409 },
-        );
+        // OTP verification is a pre-login step — the user cannot have a valid
+        // cookie at this point. If they do not carry a token cookie the DB session
+        // is stale (browser cleared, incognito window closed, prior cleanup failed).
+        // Clear it so the SuperAdmin can complete login instead of hitting a 409.
+        const incomingToken = request.cookies.get("token")?.value;
+        if (!incomingToken) {
+          await Employees.updateOne(
+            { _id: (savedUser as any)._id },
+            {
+              $set: {
+                "webSession.sessionId": null,
+                "webSession.sessionStartedAt": null,
+                "webSession.expiresAt": null,
+                "webSession.isLoggedIn": false,
+              },
+            },
+          );
+          // Fall through to issue a fresh session below
+        } else {
+          return NextResponse.json(
+            { error: "User already logged in on another tab/device" },
+            { status: 409 },
+          );
+        }
       }
     }
 

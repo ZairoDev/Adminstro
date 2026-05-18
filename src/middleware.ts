@@ -378,12 +378,13 @@ export async function middleware(request: NextRequest) {
       // NOTE: Per Next.js guidelines, middleware MUST NOT perform DB writes.
       // Session heartbeat / lastActivity updates should be performed in API routes or client pings.
     } catch (error: any) {
-      if (error.message === "Token Expired") {
-        const response = NextResponse.redirect(new URL("/login", request.url));
-        response.cookies.delete("token");
-        return response;
-      }
-      return NextResponse.redirect(new URL("/login", request.url));
+      // Always clear both auth cookies on any JWT error (expired, invalid signature,
+      // malformed, etc.) so the stale cookie never persists and causes redirect loops.
+      // jose throws { code: "ERR_JWT_EXPIRED" } — NOT message === "Token Expired".
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.set("token", "", { httpOnly: true, expires: new Date(0), path: "/" });
+      response.cookies.set("sessionId", "", { httpOnly: true, expires: new Date(0), path: "/" });
+      return response;
     }
   } else if (!isPublicRoute) {
     return NextResponse.redirect(new URL("/login", request.url));

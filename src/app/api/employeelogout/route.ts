@@ -8,10 +8,9 @@ import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
 
 export const dynamic = "force-dynamic";
 
-connectDb();
-
 export async function GET(request: NextRequest): Promise<ResponseType> {
   try {
+    await connectDb();
     const deviceType = getDeviceTypeFromHeaders(request.headers);
     // Get token from cookies or authorization header
     const token = request.cookies.get("token")?.value || 

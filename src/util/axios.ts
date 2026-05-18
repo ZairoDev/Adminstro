@@ -40,6 +40,15 @@ axios.interceptors.response.use(
     if (shouldLogout && typeof window !== "undefined") {
       console.log("🔐 Logging out due to auth failure:", { status, code });
 
+      // Fire-and-forget: clear the server-side MongoDB session so the user
+      // can log in again immediately without hitting a 409 "already logged in".
+      // keepalive ensures the request completes even as the page unloads.
+      try {
+        fetch("/api/employeelogout", { keepalive: true, credentials: "include" });
+      } catch {
+        // non-critical — proceed with client-side cleanup regardless
+      }
+
       localStorage.clear();
 
       if (!window.location.pathname.includes("/login")) {

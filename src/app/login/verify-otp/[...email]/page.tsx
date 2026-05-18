@@ -95,8 +95,12 @@ const Page = ({ params }: PageProps) => {
         description: "You have successfully logged in as Superadmin",
       });
 
-      router.refresh();
-      router.push("/");
+      // Use a hard redirect instead of router.push/refresh to guarantee the
+      // browser sends the newly-set httpOnly token cookie with the next request.
+      // router.refresh() + router.push() can race against cookie propagation and
+      // intermittently send the navigation request before the cookie is committed,
+      // causing the middleware to redirect back to /login (the "OTP loop" bug).
+      window.location.href = "/";
     } catch (err: any) {
       toast({
         variant: "destructive",

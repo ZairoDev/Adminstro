@@ -937,7 +937,7 @@ const Dashboard = () => {
       {showSalesDashboard && !showAdvertDashboard && <SalesDashboard />}
 
       {/* Visits Created By (date-wise) */}
-      {showSalesDashboard || showLeadGenDashboard && !showAdvertDashboard && (
+      { showAdminDashboard && !showAdvertDashboard && (
         <div className="mt-6">
           <VisitsCreatedByMultiLineChart
             data={visitsCreatedBySeries}

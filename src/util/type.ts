@@ -640,6 +640,10 @@ export interface TokenInterface {
     hideGuestManagement?: boolean;
     hideOwnerManagement?: boolean;
   };
+  whatsappPhoneMask?: {
+    maskOwnerPhones: boolean;
+    maskGuestPhones: boolean;
+  };
 }
 
 export interface SalesOfferInterface {

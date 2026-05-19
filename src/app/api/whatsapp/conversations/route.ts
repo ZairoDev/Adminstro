@@ -18,6 +18,10 @@ import {
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { canAccessConversation } from "@/lib/whatsapp/access";
+import {
+  applyPhoneMaskToConversation,
+  resolveMaskRulesForToken,
+} from "@/lib/whatsapp/phoneMask";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -73,10 +77,16 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Wrap in same response shape as list endpoint and return the phone context
+        const phoneMaskRules = await resolveMaskRulesForToken(token);
+        const maskedConv = applyPhoneMaskToConversation(
+          convDoc,
+          phoneMaskRules,
+          userRole,
+        );
+
         return NextResponse.json({
           success: true,
-          conversations: [convDoc],
+          conversations: [maskedConv],
           contextPhoneId: convDoc.businessPhoneId || null,
           archivedCount: 0,
           pagination: { limit: 1, hasMore: false, nextCursor: null },
@@ -477,9 +487,15 @@ export async function GET(req: NextRequest) {
     // Count archived conversations for badge display
     const archivedCount = archivedConversationIds.length;
 
+    const phoneMaskRules = await resolveMaskRulesForToken(token);
+    const maskedConversations = conversationsWithStatus.map((conv: Record<string, unknown>) =>
+      applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
+    );
+
     return NextResponse.json({
       success: true,
-      conversations: conversationsWithStatus,
+      conversations: maskedConversations,
+      phoneMaskRules,
       archivedCount, // Number of archived conversations for this user
       pagination: {
         limit,

@@ -1,6 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Loader2, Search, CheckCheck, MessageSquare } from "lucide-react";
 import { formatTime } from "../utils";
+import {
+  getMaskedMessagePreview,
+  resolveConversationDisplayLabel,
+  type WhatsAppPhoneMaskRules,
+} from "@/lib/whatsapp/phoneMask";
 
 interface UnifiedSearchResultsProps {
   results: { conversations: any[] } | null;
@@ -8,6 +13,8 @@ interface UnifiedSearchResultsProps {
   query: string;
   onSelectConversation: (conversationId: string) => void;
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
+  phoneMaskRules?: WhatsAppPhoneMaskRules;
+  userRole?: string;
 }
 
 export function UnifiedSearchResults({
@@ -16,7 +23,13 @@ export function UnifiedSearchResults({
   query,
   onSelectConversation,
   onJumpToMessage,
+  phoneMaskRules,
+  userRole = "",
 }: UnifiedSearchResultsProps) {
+  const maskRules = phoneMaskRules ?? {
+    maskOwnerPhones: false,
+    maskGuestPhones: false,
+  };
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -68,6 +81,8 @@ export function UnifiedSearchResults({
                 key={conv.conversationId}
                 conversation={conv}
                 query={query}
+                maskRules={maskRules}
+                userRole={userRole}
                 onSelect={() => onSelectConversation(conv.conversationId)}
               />
             ))}
@@ -90,6 +105,8 @@ export function UnifiedSearchResults({
                   conversation={conv}
                   message={msg}
                   query={query}
+                  maskRules={maskRules}
+                  userRole={userRole}
                   onSelect={() => {
                     if (onJumpToMessage) {
                       onJumpToMessage(conv.conversationId, msg.messageId);
@@ -112,15 +129,38 @@ export function UnifiedSearchResults({
 interface ContactResultItemProps {
   conversation: any;
   query: string;
+  maskRules: WhatsAppPhoneMaskRules;
+  userRole: string;
   onSelect: () => void;
 }
 
-function ContactResultItem({ conversation, query, onSelect }: ContactResultItemProps) {
+function ContactResultItem({
+  conversation,
+  maskRules,
+  userRole,
+  onSelect,
+}: ContactResultItemProps) {
   const matches = conversation.matches;
-  const displayName =
-    matches?.nameMatchedText ?? conversation.participantName ?? conversation.participantPhone;
+  const { title: resolvedTitle } = resolveConversationDisplayLabel(
+    {
+      participantName: conversation.participantName,
+      participantPhone: conversation.participantPhone,
+      conversationType: conversation.conversationType,
+    },
+    maskRules,
+    userRole,
+  );
   const nameWithHighlight =
-    typeof displayName === "string" && displayName.includes("<mark>");
+    typeof matches?.nameMatchedText === "string" &&
+    matches.nameMatchedText.includes("<mark>");
+
+  const preview = getMaskedMessagePreview(
+    conversation.lastMessageContent,
+    conversation.participantPhone,
+    conversation.conversationType,
+    maskRules,
+    userRole,
+  );
 
   return (
     <div
@@ -130,7 +170,7 @@ function ContactResultItem({ conversation, query, onSelect }: ContactResultItemP
       <Avatar className="h-12 w-12 flex-shrink-0">
         <AvatarImage src={conversation.participantProfilePic} />
         <AvatarFallback className="bg-[#d9fdd3] dark:bg-[#025144] text-[#111b21] dark:text-[#e9edef]">
-          {conversation.participantName?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
+          {resolvedTitle.slice(0, 1).toUpperCase() || <User className="h-5 w-5" />}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
@@ -138,11 +178,11 @@ function ContactResultItem({ conversation, query, onSelect }: ContactResultItemP
           {nameWithHighlight ? (
             <h3
               className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate [&_mark]:bg-[#d9fdd3] dark:[&_mark]:bg-[#025144] [&_mark]:rounded [&_mark]:px-0.5"
-              dangerouslySetInnerHTML={{ __html: displayName }}
+              dangerouslySetInnerHTML={{ __html: matches.nameMatchedText }}
             />
           ) : (
             <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
-              {displayName ?? ""}
+              {resolvedTitle}
             </h3>
           )}
           {conversation.lastMessageTime && (
@@ -151,9 +191,9 @@ function ContactResultItem({ conversation, query, onSelect }: ContactResultItemP
             </span>
           )}
         </div>
-        {conversation.lastMessageContent && (
+        {preview && (
           <p className="text-[14px] text-[#667781] dark:text-[#8696a0] truncate">
-            {conversation.lastMessageContent}
+            {preview}
           </p>
         )}
       </div>
@@ -169,11 +209,28 @@ interface MessageResultItemProps {
   conversation: any;
   message: any;
   query: string;
+  maskRules: WhatsAppPhoneMaskRules;
+  userRole: string;
   onSelect: () => void;
 }
 
-function MessageResultItem({ conversation, message, query, onSelect }: MessageResultItemProps) {
+function MessageResultItem({
+  conversation,
+  message,
+  maskRules,
+  userRole,
+  onSelect,
+}: MessageResultItemProps) {
   const snippetHtml = message.snippet ?? "";
+  const { title: chatTitle } = resolveConversationDisplayLabel(
+    {
+      participantName: conversation.participantName,
+      participantPhone: conversation.participantPhone,
+      conversationType: conversation.conversationType,
+    },
+    maskRules,
+    userRole,
+  );
 
   return (
     <div
@@ -183,13 +240,13 @@ function MessageResultItem({ conversation, message, query, onSelect }: MessageRe
       <Avatar className="h-12 w-12 flex-shrink-0">
         <AvatarImage src={conversation.participantProfilePic} />
         <AvatarFallback className="bg-[#d9fdd3] dark:bg-[#025144] text-[#111b21] dark:text-[#e9edef]">
-          {conversation.participantName?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
+          {chatTitle.slice(0, 1).toUpperCase() || <User className="h-5 w-5" />}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
-            {conversation.participantName ?? conversation.participantPhone}
+            {chatTitle}
           </h3>
           <span className="text-xs text-[#667781] dark:text-[#8696a0] flex-shrink-0 ml-2">
             {formatTime(new Date(message.timestamp))}

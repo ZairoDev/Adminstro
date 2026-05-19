@@ -79,6 +79,10 @@ type EmployeeRow = Pick<EmployeeInterface, "_id" | "name" | "email" | "role"> & 
   ownerLocationBlock?: {
     all?: string[];
   };
+  whatsappPhoneMask?: {
+    maskOwnerPhones?: boolean;
+    maskGuestPhones?: boolean;
+  };
 };
 
 type UiRule = {
@@ -156,6 +160,11 @@ export default function AddRulePage() {
   const [ownerBlockedLocations, setOwnerBlockedLocations] = useState<string[]>([]);
   const [savingOwnerBlockedLocations, setSavingOwnerBlockedLocations] = useState(false);
 
+  const [whatsappMaskEmployeeId, setWhatsappMaskEmployeeId] = useState<string>("");
+  const [maskOwnerPhones, setMaskOwnerPhones] = useState(false);
+  const [maskGuestPhones, setMaskGuestPhones] = useState(false);
+  const [savingWhatsappPhoneMask, setSavingWhatsappPhoneMask] = useState(false);
+
   const clearBlockedLocationsForEmployee = async (employeeId: string) => {
     try {
       setSavingBlockedLocations(true);
@@ -204,6 +213,7 @@ export default function AddRulePage() {
           ownerPricingRules: e.ownerPricingRules ?? undefined,
           ownerVisibilityRules: e.ownerVisibilityRules ?? undefined,
           ownerLocationBlock: e.ownerLocationBlock ?? undefined,
+          whatsappPhoneMask: e.whatsappPhoneMask ?? undefined,
           uiRuleIds: Array.isArray(e.uiRuleIds)
             ? e.uiRuleIds.map((x: any) => String(x))
             : [],
@@ -285,6 +295,31 @@ export default function AddRulePage() {
           name: e.name || "",
           email: e.email || "",
           blocked: b,
+        });
+      }
+    }
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeEmployees]);
+
+  const employeesWithWhatsappPhoneMask = useMemo(() => {
+    const rows: {
+      employeeId: string;
+      name: string;
+      email: string;
+      maskOwner: boolean;
+      maskGuest: boolean;
+    }[] = [];
+    for (const e of activeEmployees) {
+      const m = e.whatsappPhoneMask;
+      const maskOwner = Boolean(m?.maskOwnerPhones);
+      const maskGuest = Boolean(m?.maskGuestPhones);
+      if (maskOwner || maskGuest) {
+        rows.push({
+          employeeId: e._id,
+          name: e.name || "",
+          email: e.email || "",
+          maskOwner,
+          maskGuest,
         });
       }
     }
@@ -558,6 +593,11 @@ export default function AddRulePage() {
     [activeEmployees, ownerBlockEmployeeId],
   );
 
+  const selectedWhatsappMaskEmployee = useMemo(
+    () => activeEmployees.find((e) => e._id === whatsappMaskEmployeeId) || null,
+    [activeEmployees, whatsappMaskEmployeeId],
+  );
+
   const selectedBlockEmployeeLocations = useMemo(() => {
     const areas = selectedBlockEmployee?.allotedArea;
     if (!areas) return [];
@@ -593,6 +633,16 @@ export default function AddRulePage() {
       : [];
     setOwnerBlockedLocations(existing);
   }, [selectedOwnerBlockEmployee]);
+
+  useEffect(() => {
+    if (!selectedWhatsappMaskEmployee) {
+      setMaskOwnerPhones(false);
+      setMaskGuestPhones(false);
+      return;
+    }
+    setMaskOwnerPhones(Boolean(selectedWhatsappMaskEmployee.whatsappPhoneMask?.maskOwnerPhones));
+    setMaskGuestPhones(Boolean(selectedWhatsappMaskEmployee.whatsappPhoneMask?.maskGuestPhones));
+  }, [selectedWhatsappMaskEmployee]);
 
   const selectedVisibilityEmployeeLocations = useMemo(() => {
     const areas = selectedVisibilityEmployee?.allotedArea;
@@ -957,6 +1007,68 @@ export default function AddRulePage() {
     }
   };
 
+  const saveWhatsappPhoneMaskRule = async () => {
+    if (!whatsappMaskEmployeeId) return;
+    try {
+      setSavingWhatsappPhoneMask(true);
+      await axios.put("/api/employee/whatsapp-phone-mask", {
+        employeeId: whatsappMaskEmployeeId,
+        maskOwnerPhones,
+        maskGuestPhones,
+      });
+      await fetchEmployees();
+      toast({
+        title: "WhatsApp phone mask saved",
+        description:
+          "Employee sees partial numbers (e.g. ****3214) for checked types. They should refresh WhatsApp or sign in again.",
+      });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; message?: string } } };
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          "Failed to save WhatsApp phone mask.",
+      });
+    } finally {
+      setSavingWhatsappPhoneMask(false);
+    }
+  };
+
+  const clearWhatsappPhoneMaskForEmployee = async (employeeId: string) => {
+    try {
+      setSavingWhatsappPhoneMask(true);
+      await axios.put("/api/employee/whatsapp-phone-mask", {
+        employeeId,
+        maskOwnerPhones: false,
+        maskGuestPhones: false,
+      });
+      if (whatsappMaskEmployeeId === employeeId) {
+        setMaskOwnerPhones(false);
+        setMaskGuestPhones(false);
+      }
+      await fetchEmployees();
+      toast({
+        title: "Phone mask cleared",
+        description: "Full numbers visible again in WhatsApp for this employee.",
+      });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; message?: string } } };
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          "Failed to clear WhatsApp phone mask.",
+      });
+    } finally {
+      setSavingWhatsappPhoneMask(false);
+    }
+  };
+
   const saveOwnerBlockedLocationsRule = async () => {
     if (!ownerBlockEmployeeId) return;
     try {
@@ -1251,9 +1363,10 @@ export default function AddRulePage() {
       </div>
 
       <Tabs defaultValue="guest" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="guest">Guest rules</TabsTrigger>
           <TabsTrigger value="owner">Owner rules</TabsTrigger>
+          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
         </TabsList>
 
         <TabsContent value="guest" className="mt-4 space-y-4">
@@ -2261,6 +2374,151 @@ export default function AddRulePage() {
                                 onClick={() => clearOwnerBlockedLocationsForEmployee(e.employeeId)}
                               >
                                 Disable
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="whatsapp" className="mt-4 space-y-4">
+          <Card className="bg-background">
+            <CardHeader className="pb-3">
+              <CardTitle>WhatsApp phone visibility (per employee)</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal">
+                Hide full phone numbers in WhatsApp chat list and header. Masked numbers keep
+                only the last 4 digits are visible; the rest are asterisks (e.g. ******4520).
+                Sending still works; copy is blocked for masked chats.
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-4">
+              <div className="md:col-span-2">
+                <Label htmlFor="whatsappMaskEmployee">Employee (active only)</Label>
+                <select
+                  id="whatsappMaskEmployee"
+                  value={whatsappMaskEmployeeId}
+                  onChange={(e) => setWhatsappMaskEmployeeId(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select employee…</option>
+                  {activeEmployees
+                    .slice()
+                    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                    .map((e) => (
+                      <option key={e._id} value={e._id}>
+                        {e.name} ({e.email})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-4 space-y-3 rounded-lg border p-4">
+                <label className="flex items-start gap-3 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={maskOwnerPhones}
+                    onCheckedChange={(v) => setMaskOwnerPhones(Boolean(v))}
+                    disabled={!whatsappMaskEmployeeId}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium">Mask owner phone numbers</span>
+                    <span className="block text-muted-foreground text-xs mt-0.5">
+                      Owner conversations in WhatsApp show partial numbers only.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={maskGuestPhones}
+                    onCheckedChange={(v) => setMaskGuestPhones(Boolean(v))}
+                    disabled={!whatsappMaskEmployeeId}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium">Mask guest phone numbers</span>
+                    <span className="block text-muted-foreground text-xs mt-0.5">
+                      Guest conversations in WhatsApp show partial numbers only.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              <div className="md:col-span-4 flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  onClick={saveWhatsappPhoneMaskRule}
+                  disabled={!whatsappMaskEmployeeId || savingWhatsappPhoneMask}
+                >
+                  {savingWhatsappPhoneMask ? "Saving…" : "Save phone visibility"}
+                </Button>
+                <Badge variant="secondary" className="font-normal">
+                  {maskOwnerPhones || maskGuestPhones
+                    ? [
+                        maskOwnerPhones ? "Owners masked" : null,
+                        maskGuestPhones ? "Guests masked" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "No mask"}
+                </Badge>
+              </div>
+            </CardContent>
+
+            <CardContent className="pt-0">
+              <div className="rounded-lg border">
+                <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+                  <div className="text-sm font-medium">Employees with masked WhatsApp phones</div>
+                  <Badge variant="secondary" className="font-normal tabular-nums">
+                    {employeesWithWhatsappPhoneMask.length}
+                  </Badge>
+                </div>
+
+                {employeesWithWhatsappPhoneMask.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-muted-foreground">
+                    No employees have WhatsApp phone masking yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40">
+                        <tr className="text-left">
+                          <th className="px-4 py-3 font-medium">Employee</th>
+                          <th className="px-4 py-3 font-medium">Masked types</th>
+                          <th className="px-4 py-3 font-medium text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employeesWithWhatsappPhoneMask.map((e) => (
+                          <tr key={e.employeeId} className="border-t">
+                            <td className="px-4 py-3">
+                              <div className="font-medium line-clamp-1">{e.name || "—"}</div>
+                              <div className="text-muted-foreground line-clamp-1">{e.email || "—"}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="secondary" className="font-normal">
+                                {[
+                                  e.maskOwner ? "Owners" : null,
+                                  e.maskGuest ? "Guests" : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ") || "—"}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={savingWhatsappPhoneMask}
+                                onClick={() => clearWhatsappPhoneMaskForEmployee(e.employeeId)}
+                              >
+                                Clear mask
                               </Button>
                             </td>
                           </tr>

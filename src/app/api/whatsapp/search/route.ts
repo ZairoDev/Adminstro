@@ -3,6 +3,10 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
+import {
+  applyPhoneMaskToConversation,
+  resolveMaskRulesForToken,
+} from "@/lib/whatsapp/phoneMask";
 
 export const dynamic = "force-dynamic";
 
@@ -131,16 +135,22 @@ export async function GET(req: NextRequest) {
         .exec();
     }
 
+    const phoneMaskRules = await resolveMaskRulesForToken(token);
+
     const results = conversations
-      .map((conv: any) => ({
-        conversationId: conv._id.toString(),
-        participantPhone: conv.participantPhone,
-        participantName: conv.participantName || "",
-        participantProfilePic: conv.participantProfilePic,
-        lastMessageTime: conv.lastMessageTime,
-        lastMessageContent: conv.lastMessageContent,
-        matchedMessages: messageMap.get(conv._id.toString()) || [],
-      }))
+      .map((conv: any) => {
+        const base = {
+          conversationId: conv._id.toString(),
+          participantPhone: conv.participantPhone,
+          participantName: conv.participantName || "",
+          participantProfilePic: conv.participantProfilePic,
+          lastMessageTime: conv.lastMessageTime,
+          lastMessageContent: conv.lastMessageContent,
+          conversationType: conv.conversationType,
+          matchedMessages: messageMap.get(conv._id.toString()) || [],
+        };
+        return applyPhoneMaskToConversation(base, phoneMaskRules, String(userRole || ""));
+      })
       .filter(
         (c: any) =>
           c.matchedMessages.length > 0 || hasPhoneSearch || hasTextSearch

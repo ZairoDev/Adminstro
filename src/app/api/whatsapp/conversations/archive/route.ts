@@ -6,6 +6,10 @@ import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
+import {
+  applyPhoneMaskToConversation,
+  resolveMaskRulesForToken,
+} from "@/lib/whatsapp/phoneMask";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -281,10 +285,17 @@ export async function GET(req: NextRequest) {
       })
     );
 
+    const userRole = String(token.role || "");
+    const phoneMaskRules = await resolveMaskRulesForToken(token);
+    const maskedConversations = conversationsWithArchiveInfo.map((conv: Record<string, unknown>) =>
+      applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
+    );
+
     return NextResponse.json({
       success: true,
-      conversations: conversationsWithArchiveInfo,
-      count: conversations.length,
+      conversations: maskedConversations,
+      phoneMaskRules,
+      count: maskedConversations.length,
     });
   } catch (error: any) {
     console.error("Get archived conversations error:", error);

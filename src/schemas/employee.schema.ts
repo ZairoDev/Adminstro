@@ -263,6 +263,13 @@ export const employeeSchema = z.object({
     })
     .optional()
     .default({ all: [], byLocation: {} }),
+  whatsappPhoneMask: z
+    .object({
+      maskOwnerPhones: z.boolean().optional().default(false),
+      maskGuestPhones: z.boolean().optional().default(false),
+    })
+    .optional()
+    .default({ maskOwnerPhones: false, maskGuestPhones: false }),
   ownerLocationBlock: z
     .object({
       all: z.array(z.string()).optional().default([]),

@@ -35,6 +35,7 @@ import {
   MessageCircle,
   Sun,
   Moon,
+  Shield,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,12 @@ import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
 import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/WhatsAppConversationTypeMigrationButton";
+import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
+import {
+  getMaskedMessagePreview,
+  resolveConversationDisplayLabel,
+  type WhatsAppPhoneMaskRules,
+} from "@/lib/whatsapp/phoneMask";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -110,6 +117,10 @@ interface SidebarProps {
   ) => void | Promise<void>;
   /** Refetch conversation list after SuperAdmin bulk migration */
   onRefreshConversations?: () => void;
+  /** Per-employee rules: mask owner/guest phones in the UI */
+  phoneMaskRules?: WhatsAppPhoneMaskRules;
+  /** HR/SuperAdmin can open the phone visibility form */
+  canManagePhoneMask?: boolean;
 }
 
 /** Theme toggle button for the nav strip: toggles between light and dark mode */
@@ -161,6 +172,8 @@ function ConversationItem({
   onTriggerUpload,
   onRenameFor,
   onConversationTypeChange,
+  phoneMaskRules,
+  userRole = "",
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -177,6 +190,8 @@ function ConversationItem({
     conversationId: string,
     conversationType: "owner" | "guest",
   ) => void | Promise<void>;
+  phoneMaskRules?: WhatsAppPhoneMaskRules;
+  userRole?: string;
 }): JSX.Element {
   // Use parent-level upload/rename handlers to avoid input unmount issues
   const hasUnread =
@@ -201,26 +216,42 @@ function ConversationItem({
     }
   };
 
-  const displayName = (() => {
-    if (conversation.isInternal || conversation.source === "internal") {
-      return "You";
-    }
-    
-    const savedName = conversation.participantName;
-    const whatsappName =
-      (conversation as any).whatsappName ||
-      (conversation as any).waName ||
-      (conversation as any).waDisplayName;
+  const maskRules = phoneMaskRules ?? {
+    maskOwnerPhones: false,
+    maskGuestPhones: false,
+  };
+  const isInternal =
+    Boolean(conversation.isInternal) || conversation.source === "internal";
+  const whatsappName =
+    (conversation as { whatsappName?: string }).whatsappName ||
+    (conversation as { waName?: string }).waName ||
+    (conversation as { waDisplayName?: string }).waDisplayName;
 
-    if (savedName && whatsappName && whatsappName !== savedName) {
-      return `${savedName} (${whatsappName})`;
-    }
-    if (savedName) return savedName;
-    if (whatsappName) return whatsappName;
-    return null;
-  })();
+  const { title: listTitle, maskedPhone: phone } = resolveConversationDisplayLabel(
+    {
+      participantName: conversation.participantName,
+      participantPhone: conversation.participantPhone,
+      whatsappName: typeof whatsappName === "string" ? whatsappName : undefined,
+      conversationType: conversation.conversationType,
+      isInternal,
+    },
+    maskRules,
+    userRole,
+  );
 
-  const phone = conversation.participantPhone;
+  const hasRealDisplayName =
+    !isInternal &&
+    Boolean(conversation.participantName?.trim() || whatsappName) &&
+    listTitle !== phone;
+
+  const messagePreview = getMaskedMessagePreview(
+    conversation.lastMessageContent,
+    conversation.participantPhone,
+    conversation.conversationType,
+    maskRules,
+    userRole,
+  );
+
   const role = conversation.conversationType;
   const canChangeType =
     !conversation.isInternal &&
@@ -249,9 +280,9 @@ function ConversationItem({
               ? "bg-[#25d366] text-white"
               : "bg-[#e0e0e0] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
           )}>
-            {conversation.isInternal || conversation.source === "internal"
+            {isInternal
               ? "You"
-              : (displayName || phone)?.slice(0, 2).toUpperCase() || "??"}
+              : listTitle.slice(0, 2).toUpperCase() || "??"}
           </AvatarFallback>
         </Avatar>
         {(conversation.isOnline || hasUnread) && (
@@ -279,15 +310,15 @@ function ConversationItem({
                 hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-medium text-[#111b21] dark:text-[#e9edef]"
               )}
             >
-              {displayName || phone}
+              {listTitle}
             </span>
             {/* {hasUnread && (
               <Badge className="flex-shrink-0 bg-blue-500 text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full px-1">
                 {conversation.unreadCount}
               </Badge>
             )} */}
-            {displayName && phone && !hasUnread && (
-              <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0">
+            {hasRealDisplayName && phone && !hasUnread && (
+              <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0 tabular-nums">
                 {phone.replace(/^\+?91/, "")}
               </span>
             )}
@@ -315,7 +346,7 @@ function ConversationItem({
               hasUnread ? "text-[#111b21] dark:text-[#d1d7db] font-medium" : "text-[#667781] dark:text-[#8696a0]"
             )}
           >
-            {conversation.lastMessageContent || conversation.participantPhone || " "}
+            {messagePreview || phone || " "}
           </span>
         </div>
       </div>
@@ -430,7 +461,10 @@ export function ConversationSidebar({
   onConversationTypeChange,
   onJumpToMessage,
   onRefreshConversations,
+  phoneMaskRules,
+  canManagePhoneMask = false,
 }: SidebarProps) {
+  const [showPhoneMaskForm, setShowPhoneMaskForm] = useState(false);
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
   const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -589,7 +623,7 @@ export function ConversationSidebar({
   }, [handleScroll]);
 
   const realPhoneConfigs = allowedPhoneConfigs.filter((c: any) => !c.isInternal);
-  const showPhoneMenu = (userRole === "SuperAdmin" || realPhoneConfigs.length > 1 ||
+  const showPhoneMenu = (userRole === "SuperAdmin" || userRole === "Sales" || userRole === "Advert" || realPhoneConfigs.length > 1 ||
     (userAreas ? (Array.isArray(userAreas) ? userAreas : [userAreas]).map((a: string) => String(a).toLowerCase().trim()).filter(Boolean).length > 1 : false)) &&
     realPhoneConfigs.length > 0;
 
@@ -721,6 +755,12 @@ export function ConversationSidebar({
                   <DropdownMenuItem onClick={() => setConversationTab("all")}>All ({totalCount})</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setConversationTab("owners")}><User className="h-4 w-4 mr-2" />Owners ({ownerCount})</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setConversationTab("guests")}><Users className="h-4 w-4 mr-2" />Guests ({guestCount})</DropdownMenuItem>
+                  {canManagePhoneMask && (
+                    <DropdownMenuItem onClick={() => setShowPhoneMaskForm(true)}>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Phone visibility rules
+                    </DropdownMenuItem>
+                  )}
                   {userRole === "SuperAdmin" && (
                     <>
                       <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
@@ -925,6 +965,8 @@ export function ConversationSidebar({
             results={unifiedSearchResults}
             query={searchQuery}
             loading={searchLoading}
+            phoneMaskRules={phoneMaskRules}
+            userRole={userRole}
             onSelectConversation={async (conversationId) => {
               // Clear search first to show all chats
               handleClearSearch();
@@ -1039,6 +1081,8 @@ export function ConversationSidebar({
                 onTriggerUpload={triggerUploadFor}
                 onRenameFor={handleRenameFor}
                 onConversationTypeChange={onConversationTypeChange}
+                phoneMaskRules={phoneMaskRules}
+                userRole={userRole}
               />
             ))}
             
@@ -1071,6 +1115,13 @@ export function ConversationSidebar({
         conversation={selectedConversation}
         phoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : undefined}
       />
+
+      {canManagePhoneMask && (
+        <WhatsAppPhoneMaskForm
+          open={showPhoneMaskForm}
+          onOpenChange={setShowPhoneMaskForm}
+        />
+      )}
     </div>
   );
 }

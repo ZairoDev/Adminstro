@@ -51,6 +51,10 @@ interface IEmployee extends Document, EmployeeSchema {
     all: string[];
     byLocation: Record<string, { blocked: string[] }>;
   };
+  whatsappPhoneMask: {
+    maskOwnerPhones: boolean;
+    maskGuestPhones: boolean;
+  };
   ownerLocationBlock: {
     all: string[];
     byLocation: Record<string, { blocked: string[] }>;
@@ -442,6 +446,10 @@ const employeeSchema = new Schema<IEmployee>(
         ),
         default: {},
       },
+    },
+    whatsappPhoneMask: {
+      maskOwnerPhones: { type: Boolean, default: false },
+      maskGuestPhones: { type: Boolean, default: false },
     },
     ownerLocationBlock: {
       all: { type: [String], default: [] }, // if empty => allow all

@@ -21,6 +21,12 @@ import {
   type UnifiedConversationResult,
   type UnifiedSearchResults,
 } from "@/lib/whatsapp/unifiedSearchUtils";
+import {
+  applyPhoneMaskToConversation,
+  getDisplayPhone,
+  resolveMaskRulesForToken,
+  shouldMaskConversationPhone,
+} from "@/lib/whatsapp/phoneMask";
 
 const SEARCH_TIMEOUT = 3000; // 3 seconds
 const MAX_RESULTS_PER_QUERY = 50;
@@ -409,11 +415,41 @@ export async function GET(request: NextRequest) {
     // ========================================================================
     
     const deduplicated = deduplicateConversations(conversations);
+
+    const phoneMaskRules = await resolveMaskRulesForToken(user as {
+      id?: string;
+      _id?: string;
+      role?: string;
+      whatsappPhoneMask?: Partial<{ maskOwnerPhones: boolean; maskGuestPhones: boolean }>;
+    });
+    const roleStr = String(userRole || "");
+    const maskedDeduplicated = deduplicated.map((conv) => {
+      const type =
+        conv.conversationType === "owner" || conv.conversationType === "guest"
+          ? conv.conversationType
+          : undefined;
+      const masked = applyPhoneMaskToConversation(conv, phoneMaskRules, roleStr);
+      if (
+        masked.matches?.phoneMatchedText &&
+        shouldMaskConversationPhone(type, phoneMaskRules, roleStr)
+      ) {
+        masked.matches = {
+          ...masked.matches,
+          phoneMatchedText: getDisplayPhone(
+            conv.participantPhone,
+            type,
+            phoneMaskRules,
+            roleStr,
+          ),
+        };
+      }
+      return masked;
+    });
     
     // Verify no duplicates (development assertion)
     if (process.env.NODE_ENV === 'development') {
-      const ids = new Set(deduplicated.map(c => c.conversationId));
-      if (ids.size !== deduplicated.length) {
+      const ids = new Set(maskedDeduplicated.map(c => c.conversationId));
+      if (ids.size !== maskedDeduplicated.length) {
         console.error('DEDUPLICATION FAILED: Found duplicate conversation IDs');
       }
     }
@@ -427,7 +463,7 @@ export async function GET(request: NextRequest) {
     
     if (isPhone && normalizedPhone) {
       // Check if any result is an exact phone match
-      const hasExactMatch = deduplicated.some(
+      const hasExactMatch = maskedDeduplicated.some(
         c => c.matches.phoneMatchType === 'exact'
       );
       
@@ -444,8 +480,8 @@ export async function GET(request: NextRequest) {
     const searchTime = Date.now() - startTime;
     
     const response: UnifiedSearchResults = {
-      conversations: deduplicated,
-      totalResults: deduplicated.length,
+      conversations: maskedDeduplicated,
+      totalResults: maskedDeduplicated.length,
       searchTime,
       hasStartNewChat,
       startNewChatPhone,

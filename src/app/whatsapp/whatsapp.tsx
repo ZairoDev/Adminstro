@@ -30,6 +30,13 @@ import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
 import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
 import {
+  applyPhoneMaskToConversation,
+  getWhatsAppPhoneMaskFromToken,
+  maskConversationsForViewer,
+  shouldMaskConversationPhone,
+  type WhatsAppPhoneMaskRules,
+} from "@/lib/whatsapp/phoneMask";
+import {
   restrictPeerConnectionAudioToOpus,
   buildCleanWhatsAppOfferDetailed,
   validateWhatsAppCallingSdp,
@@ -367,6 +374,29 @@ export default function WhatsAppChat() {
   
   // Add Guest Modal state
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
+
+  const [phoneMaskRules, setPhoneMaskRules] = useState<WhatsAppPhoneMaskRules>({
+    maskOwnerPhones: false,
+    maskGuestPhones: false,
+  });
+  const phoneMaskRulesRef = useRef(phoneMaskRules);
+  const viewerRoleRef = useRef(token?.role || "");
+
+  const maskConversationForViewer = useCallback((conv: Conversation): Conversation => {
+    return applyPhoneMaskToConversation(
+      conv,
+      phoneMaskRulesRef.current,
+      viewerRoleRef.current,
+    );
+  }, []);
+
+  const maskConversationListForViewer = useCallback((list: Conversation[]): Conversation[] => {
+    return maskConversationsForViewer(
+      list,
+      phoneMaskRulesRef.current,
+      viewerRoleRef.current,
+    );
+  }, []);
   
   // Forward Dialog state
   const [showForwardDialog, setShowForwardDialog] = useState(false);
@@ -1478,6 +1508,49 @@ export default function WhatsAppChat() {
     }
   }, [token]);
 
+  useEffect(() => {
+    phoneMaskRulesRef.current = phoneMaskRules;
+  }, [phoneMaskRules]);
+
+  useEffect(() => {
+    viewerRoleRef.current = token?.role || "";
+  }, [token?.role]);
+
+  useEffect(() => {
+    const fromToken = getWhatsAppPhoneMaskFromToken(token);
+    setPhoneMaskRules(fromToken);
+    phoneMaskRulesRef.current = fromToken;
+
+    const userId = token?.id || (token as { _id?: string })?._id;
+    if (!userId) return;
+    let cancelled = false;
+    axios
+      .get("/api/employee/whatsapp-phone-mask", { params: { employeeId: String(userId) } })
+      .then((res) => {
+        if (!cancelled && res.data?.whatsappPhoneMask) {
+          const rules = res.data.whatsappPhoneMask as WhatsAppPhoneMaskRules;
+          setPhoneMaskRules(rules);
+          phoneMaskRulesRef.current = rules;
+          setConversations((prev) => maskConversationsForViewer(prev, rules, viewerRoleRef.current));
+          setArchivedConversations((prev) =>
+            maskConversationsForViewer(prev, rules, viewerRoleRef.current),
+          );
+          setSelectedConversation((prev) =>
+            prev ? applyPhoneMaskToConversation(prev, rules, viewerRoleRef.current) : prev,
+          );
+        }
+      })
+      .catch(() => {
+        /* keep token defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token?.id, (token as { _id?: string })?._id, token?.whatsappPhoneMask]);
+
+  const canManagePhoneMask =
+    token?.role === "HR" || token?.role === "SuperAdmin";
+
   // Socket.io event listeners
   // CRITICAL: This is the SINGLE canonical place where whatsapp-new-message listener is registered.
   // All other components should NOT register their own listeners to avoid duplicate processing.
@@ -1751,14 +1824,15 @@ export default function WhatsAppChat() {
       setConversations((prev) => {
         const exists = prev.find((c) => c._id === conversation.id);
         if (exists) return prev;
-        const newConversation = {
+        const newConversation = maskConversationForViewer({
           _id: conversation.id,
           participantPhone: conversation.participantPhone,
           participantName: conversation.participantName,
           unreadCount: conversation.unreadCount || 0,
           lastMessageTime: conversation.lastMessageTime,
+          conversationType: conversation.conversationType,
           status: "active",
-        };
+        } as Conversation);
         const updated = [newConversation, ...prev];
         const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
         setTotalUnreadCount(newTotalUnread);
@@ -2206,7 +2280,14 @@ export default function WhatsAppChat() {
 
       const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);
       if (response.data.success) {
-        const newConversations = response.data.conversations || [];
+        const rulesFromApi = response.data.phoneMaskRules as WhatsAppPhoneMaskRules | undefined;
+        if (rulesFromApi) {
+          setPhoneMaskRules(rulesFromApi);
+          phoneMaskRulesRef.current = rulesFromApi;
+        }
+        const newConversations = maskConversationListForViewer(
+          (response.data.conversations || []) as Conversation[],
+        );
         
         // Update archived count from response
         if (response.data.archivedCount !== undefined) {
@@ -2342,7 +2423,14 @@ export default function WhatsAppChat() {
       if (!silent) setLoading(true);
       const response = await axios.get("/api/whatsapp/conversations/archive");
       if (response.data.success) {
-        const conversations = response.data.conversations || [];
+        const rulesFromApi = response.data.phoneMaskRules as WhatsAppPhoneMaskRules | undefined;
+        if (rulesFromApi) {
+          setPhoneMaskRules(rulesFromApi);
+          phoneMaskRulesRef.current = rulesFromApi;
+        }
+        const conversations = maskConversationListForViewer(
+          (response.data.conversations || []) as Conversation[],
+        );
         setArchivedConversations(conversations);
         setArchivedCount(response.data.count || 0);
         // Count unread chats (conversations with unread messages) instead of total unread messages
@@ -2485,7 +2573,7 @@ export default function WhatsAppChat() {
   };
 
   const selectConversation = (conversation: Conversation | null) => {
-    setSelectedConversation(conversation);
+    setSelectedConversation(conversation ? maskConversationForViewer(conversation) : null);
     setReplyToMessage(null); // Clear any pending reply when switching conversations
     
     if (conversation) {
@@ -4185,6 +4273,21 @@ export default function WhatsAppChat() {
 
   const copyPhoneNumber = () => {
     if (!selectedConversation) return;
+    const role = token?.role || "";
+    if (
+      shouldMaskConversationPhone(
+        selectedConversation.conversationType,
+        phoneMaskRules,
+        role,
+      )
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Phone hidden",
+        description: "This number is masked for your role and cannot be copied.",
+      });
+      return;
+    }
     navigator.clipboard.writeText(selectedConversation.participantPhone);
     toast({
       title: "Copied",
@@ -4327,6 +4430,8 @@ export default function WhatsAppChat() {
               onUpdateConversation={handleUpdateConversation}
               onConversationTypeChange={handleConversationTypeChange}
               onRefreshConversations={() => void fetchConversations(true)}
+              phoneMaskRules={phoneMaskRules}
+              canManagePhoneMask={canManagePhoneMask}
               // Jump to message from search results
               onJumpToMessage={(conversationId, messageId) => {
                 // Find and select the conversation
@@ -4387,6 +4492,8 @@ export default function WhatsAppChat() {
                     currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
                     onTransferLead={() => setShowTransferDialog(true)}
                     onConversationTypeChange={handleConversationTypeChange}
+                    phoneMaskRules={phoneMaskRules}
+                    userRole={token?.role}
                   />
 
                   <MessageList

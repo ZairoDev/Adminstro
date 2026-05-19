@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/tooltip";
 import type { Conversation } from "../types";
 import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import {
+  resolveConversationDisplayLabel,
+  type WhatsAppPhoneMaskRules,
+} from "@/lib/whatsapp/phoneMask";
 import { getRemainingHours } from "../utils";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
@@ -59,6 +63,8 @@ interface ChatHeaderProps {
     conversationId: string,
     conversationType: "owner" | "guest",
   ) => void | Promise<void>;
+  phoneMaskRules?: WhatsAppPhoneMaskRules;
+  userRole?: string;
 }
 
 interface Reader {
@@ -89,6 +95,8 @@ export const ChatHeader = memo(function ChatHeader({
   currentPhoneId,
   onTransferLead,
   onConversationTypeChange,
+  phoneMaskRules,
+  userRole = "",
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [readers, setReaders] = useState<Reader[]>([]);
@@ -128,22 +136,27 @@ export const ChatHeader = memo(function ChatHeader({
     [conversation, isMounted],
   );
 
-  const displayName = (() => {
-    const savedName = conversation.participantName;
-    const whatsappName =
-      (conversation as { whatsappName?: string }).whatsappName ||
-      (conversation as { waName?: string }).waName ||
-      (conversation as { waDisplayName?: string }).waDisplayName;
+  const maskRules = phoneMaskRules ?? {
+    maskOwnerPhones: false,
+    maskGuestPhones: false,
+  };
+  const whatsappName =
+    (conversation as { whatsappName?: string }).whatsappName ||
+    (conversation as { waName?: string }).waName ||
+    (conversation as { waDisplayName?: string }).waDisplayName;
 
-    if (savedName && whatsappName && whatsappName !== savedName) {
-      return `${savedName} (${whatsappName})`;
-    }
-    if (savedName) return savedName;
-    if (whatsappName) return whatsappName;
-    return null;
-  })();
-
-  const phone = conversation.participantPhone;
+  const { title: headerTitle, maskedPhone: phone } = resolveConversationDisplayLabel(
+    {
+      participantName: conversation.participantName,
+      participantPhone: conversation.participantPhone,
+      whatsappName: typeof whatsappName === "string" ? whatsappName : undefined,
+      conversationType: conversation.conversationType,
+      isInternal:
+        Boolean(conversation.isInternal) || conversation.source === "internal",
+    },
+    maskRules,
+    userRole,
+  );
   const role = conversation.conversationType;
   const canChangeType =
     !conversation.isInternal &&
@@ -180,14 +193,14 @@ export const ChatHeader = memo(function ChatHeader({
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage src={conversation.participantProfilePic} />
             <AvatarFallback className="bg-[#dfe5e7] dark:bg-[#6b7b85] text-[#54656f] dark:text-white">
-              {(displayName || phone)?.slice(0, 2).toUpperCase() || "??"}
+              {headerTitle.slice(0, 2).toUpperCase() || "??"}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-[16px] font-medium text-[#111b21] dark:text-[#e9edef] truncate">
-                {displayName || phone}
+                {headerTitle}
               </h2>
               {conversation.referenceLink && (
                 <a

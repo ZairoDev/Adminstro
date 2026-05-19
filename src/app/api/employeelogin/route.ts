@@ -15,6 +15,20 @@ type UiFlags = {
   hideOwnerManagement?: boolean;
 };
 
+type WhatsAppPhoneMaskPayload = {
+  maskOwnerPhones: boolean;
+  maskGuestPhones: boolean;
+};
+
+function computeWhatsAppPhoneMask(employee: {
+  whatsappPhoneMask?: Partial<WhatsAppPhoneMaskPayload>;
+}): WhatsAppPhoneMaskPayload {
+  return {
+    maskOwnerPhones: Boolean(employee?.whatsappPhoneMask?.maskOwnerPhones),
+    maskGuestPhones: Boolean(employee?.whatsappPhoneMask?.maskGuestPhones),
+  };
+}
+
 async function computeUiFlags(uiRuleIds: any): Promise<UiFlags> {
   const ids = Array.isArray(uiRuleIds)
     ? uiRuleIds.map((x) => String(x)).filter(Boolean)
@@ -365,6 +379,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         const uiFlags = await computeUiFlags((temp as any)?.uiRuleIds);
+        const whatsappPhoneMask = computeWhatsAppPhoneMask(temp as any);
         const tokenPayload = {
           id: temp._id,
           sid: sessionIdVar,
@@ -373,6 +388,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           role: temp.role,
           allotedArea: temp.allotedArea,
           uiFlags,
+          whatsappPhoneMask,
         };
         const token = jwt.sign(
           tokenPayload,
@@ -473,6 +489,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const uiFlags = await computeUiFlags((temp as any)?.uiRuleIds);
+    const whatsappPhoneMask = computeWhatsAppPhoneMask(temp as any);
     const tokenData = {
       id: temp._id,
       sid: sessionIdVar,
@@ -481,6 +498,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       role: temp.role,
       allotedArea: Array.isArray(temp.allotedArea) ? temp.allotedArea : [],
       uiFlags,
+      whatsappPhoneMask,
     };
 
     const token = jwt.sign(tokenData, tokenSecret, deviceType === "mobile" ? {} : { expiresIn: "12h" });

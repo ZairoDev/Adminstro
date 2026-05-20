@@ -1,3 +1,4 @@
+import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { Properties } from "@/models/property";
 import { NextRequest, NextResponse } from "next/server";
@@ -29,16 +30,19 @@ export async function PUT(
       return NextResponse.json({ message: "Data not found" }, { status: 404 });
     }
 
-    // Trim phone number if needed
     if (field === "phoneNumber") {
-      data[field] = value.trim();
-    } 
-    // Handle imageUrls separately (append instead of overwrite)
-    else if (field === "imageUrls" && Array.isArray(value)) {
+      data.phoneNumber = normalizeOwnerPhoneInput(String(value ?? ""));
+    } else if (field === "imageUrls" && Array.isArray(value)) {
       data.imageUrls = [...data.imageUrls, ...value];
-    } 
-    else {
-      data[field] = value;
+    } else if (field === "geoAddressVerified") {
+      data.geoAddressVerified = value === "Verified" ? "Verified" : "None";
+    } else if (field === "propertyFloor") {
+      const s = String(value ?? "").trim();
+      const ok =
+        s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
+      data.propertyFloor = ok ? s : (data.propertyFloor ?? "");
+    } else {
+      (data as Record<string, unknown>)[field] = value;
     }
 
     if (field === "availability") {

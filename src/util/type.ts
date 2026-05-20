@@ -840,6 +840,10 @@ export interface  unregisteredOwners {
   isVerified: string;
   isImportant: string;
   isPinned: string;
+  /** Advert: address checked against geolocation */
+  geoAddressVerified?: string;
+  /** Floor level: "1"–"10", "Mezzanine", or empty */
+  propertyFloor?: string;
   locationGeo?: {
     type: "Point";
     coordinates: [number, number];

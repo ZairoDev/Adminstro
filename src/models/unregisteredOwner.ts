@@ -111,6 +111,15 @@ petStatus: {
     type: String,
     default: "None"
   },
+  geoAddressVerified: {
+    type: String,
+    enum: ["Verified", "None"],
+    default: "None",
+  },
+  propertyFloor: {
+    type: String,
+    default: "",
+  },
 
   // WhatsApp Retargeting Fields
   whatsappBlocked: {

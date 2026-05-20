@@ -1,7 +1,14 @@
 // import UnregisteredOwnersTable from "@/app/dashboard/unregistered-owner/unregisteredTable";
+import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
+
+function normalizePropertyFloorInput(raw: unknown): string {
+  const s = String(raw ?? "").trim();
+  const ok = s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
+  return ok ? s : "";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     const data = await unregisteredOwner.create({
       name: body.name,
-      phoneNumber: body.phoneNumber,
+      phoneNumber: normalizeOwnerPhoneInput(String(body.phoneNumber ?? "")),
       location: body.location,
       price: body.price,
       interiorStatus: body.interiorStatus,
@@ -32,6 +39,8 @@ export async function POST(req: NextRequest) {
       referenceLink: body.referenceLink,
       address: body.address,
       remarks: body.remarks,
+      geoAddressVerified: body.geoAddressVerified === "Verified" ? "Verified" : "None",
+      propertyFloor: normalizePropertyFloorInput(body.propertyFloor),
     });
     return NextResponse.json({ data }, { status: 200 }); 
   } catch (err) {

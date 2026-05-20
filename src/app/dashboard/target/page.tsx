@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Train, Bus, BugPlay as Subway, Trash2, Edit2, ToggleLeft, ToggleRight } from "lucide-react";
+import { MapPin, Train, Bus, BugPlay as Subway, Trash2, Edit2, ToggleLeft, ToggleRight, ChevronDown } from "lucide-react";
 import axios from "@/util/axios";
 import TargetModal from "./target_model";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { extractAreaNamesForCurrentCityUpload } from "./utils/bulkAreaParser";
+import { readSpreadsheetFileAsCsvText } from "./utils/bulkAreaFileImport";
 
 
 import {
@@ -19,6 +31,7 @@ import {
 import { EditArea } from "./components/editArea";
 import { AreaModel } from "./area-model";
 import { TargetEditModal } from "./target-edit-model";
+import { BulkFullAreasUploadDialog } from "./components/BulkFullAreasUploadDialog";
 
 export interface Area {
   _id?: string;
@@ -60,6 +73,16 @@ interface CityData {
   areas: Area[];
 }
 
+/** Example for “this city” bulk — header recommended */
+const BULK_CITY_CSV_EXAMPLE = `name
+Al Barsha
+Jumeirah Village Circle
+Dubai Marina`;
+
+const BULK_CITY_SIMPLE_LIST_EXAMPLE = `Al Barsha
+JVC
+Dubai Marina`;
+
 export default function TargetPage() {
   const [data, setData] = useState<CityData[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -97,6 +120,87 @@ export default function TargetPage() {
   });
   
   const [editBox,setEditBoxOpen] = useState(false);
+
+  const [bulkCityAreasOpen, setBulkCityAreasOpen] = useState(false);
+  const [bulkAllAreasOpen, setBulkAllAreasOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkIsSubmitting, setBulkIsSubmitting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkErrors, setBulkErrors] = useState<string[]>([]);
+
+  const cityBulkFileRef = useRef<HTMLInputElement>(null);
+
+  const targetsByCountryCity = useMemo(() => {
+    const map = new Map<string, CityData>();
+    for (const t of data) {
+      const key = `${String(t.country).toLowerCase()}::${String(t.city).toLowerCase()}`;
+      map.set(key, t);
+    }
+    return map;
+  }, [data]);
+
+  const bulkReset = () => {
+    setBulkText("");
+    setBulkErrors([]);
+    setBulkProgress(null);
+    setBulkIsSubmitting(false);
+    if (cityBulkFileRef.current) cityBulkFileRef.current.value = "";
+  };
+
+  const runBulkAddAreasToSelectedCity = async () => {
+    if (!selectedCity || !cityId) return;
+    const names = extractAreaNamesForCurrentCityUpload(bulkText);
+    if (names.length === 0) {
+      setBulkErrors([
+        "No area names found. Upload a .csv / .xlsx / .xls file, or paste text: one name per line; or a CSV with a name column; or a single-column CSV.",
+      ]);
+      return;
+    }
+
+    const existing = new Set(
+      (selectedCityData?.areas ?? []).map((a) => String(a.name).toLowerCase()),
+    );
+    const toCreate = names.filter((n) => !existing.has(n.toLowerCase()));
+    if (toCreate.length === 0) {
+      setBulkErrors(["All pasted areas already exist in this city."]);
+      return;
+    }
+
+    setBulkIsSubmitting(true);
+    setBulkErrors([]);
+    setBulkProgress({ done: 0, total: toCreate.length });
+    try {
+      for (let i = 0; i < toCreate.length; i++) {
+        const name = toCreate[i];
+        await axios.put(`/api/addons/target/updateTarget/${cityId}`, {
+          city: selectedCity,
+          name,
+        });
+        setBulkProgress({ done: i + 1, total: toCreate.length });
+      }
+      await getTargets();
+      setBulkCityAreasOpen(false);
+      bulkReset();
+    } catch (err) {
+      console.error(err);
+      setBulkErrors((prev) => [...prev, "Failed while uploading areas. Check console for details."]);
+    } finally {
+      setBulkIsSubmitting(false);
+    }
+  };
+
+  const handleCityBulkFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await readSpreadsheetFileAsCsvText(file);
+      setBulkText(text);
+      setBulkErrors([]);
+    } catch (err) {
+      setBulkErrors([err instanceof Error ? err.message : String(err)]);
+    }
+  };
 
   const getTargets = async () => {
     try {
@@ -264,6 +368,13 @@ export default function TargetPage() {
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold">Cities</h2>
               <Badge variant="secondary">{cities.length}</Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkAllAreasOpen(true)}
+              >
+                Bulk Areas Upload
+              </Button>
               <button
                 onClick={() => setAddCity(true)}
                 className="ml-auto border px-4 py-2 text-sm"
@@ -313,7 +424,11 @@ export default function TargetPage() {
                               e.stopPropagation();
                               if (c._id) handleToggleCityStatus(c._id);
                             }}
-                            title={c.isActive === false ? "Mark Active" : "Mark Inactive"}
+                            title={
+                              c.isActive === false
+                                ? "Mark Active"
+                                : "Mark Inactive"
+                            }
                           >
                             {c.isActive === false ? (
                               <ToggleLeft className="h-6 w-6 text-muted-foreground" />
@@ -354,12 +469,23 @@ export default function TargetPage() {
                 {selectedCityData?.areas?.length || 0}
               </Badge>
               {selectedCity && cityId && (
-                <button
-                  onClick={() => setAddArea(true)}
-                  className="ml-auto border px-4 py-2 text-sm"
-                >
-                  Add Area
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkCityAreasOpen(true)}
+                  >
+                    Bulk Areas (this city)
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddArea(true)}
+                  >
+                    Add Area
+                  </Button>
+                </div>
               )}
             </div>
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
@@ -392,7 +518,11 @@ export default function TargetPage() {
                               e.stopPropagation();
                               if (areas._id) handleToggleAreaStatus(areas._id);
                             }}
-                            title={areas.isActive === false ? "Mark Active" : "Mark Inactive"}
+                            title={
+                              areas.isActive === false
+                                ? "Mark Active"
+                                : "Mark Inactive"
+                            }
                           >
                             {areas.isActive === false ? (
                               <ToggleLeft className="h-6 w-6 text-muted-foreground" />
@@ -587,6 +717,184 @@ export default function TargetPage() {
         onOpenChange={setAddCity}
         getAllTargets={getTargets}
       />
+      <Dialog
+        open={bulkCityAreasOpen}
+        onOpenChange={(open) => {
+          setBulkCityAreasOpen(open);
+          if (!open) bulkReset();
+        }}
+      >
+        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk add areas — {selectedCity || "city"}</DialogTitle>
+            <DialogDescription>
+              Areas are added to the city currently selected in the Target page.
+              You do not need country or city columns. Upload a{" "}
+              <strong>.csv</strong> or <strong>.xlsx / .xls</strong> file, or
+              paste text below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Collapsible defaultOpen className="group rounded-md border">
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-between px-3 py-2 h-auto font-normal"
+              >
+                <span className="text-sm font-medium">
+                  How your file should look
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t px-3 pb-3 pt-2 space-y-3 text-sm text-muted-foreground">
+              <div>
+                <p className="font-medium text-foreground">Compulsory</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  <li>
+                    <strong>Area names only</strong> — as a plain list (one per
+                    line), or as a CSV/Excel table with a{" "}
+                    <code className="text-xs bg-muted px-1 rounded">name</code>{" "}
+                    column (recommended).
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">
+                  Optional / accepted variants
+                </p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  <li>
+                    Name column headers also accepted:{" "}
+                    <code className="text-xs bg-muted px-1 rounded">area</code>,{" "}
+                    <code className="text-xs bg-muted px-1 rounded">
+                      area name
+                    </code>
+                    .
+                  </li>
+                  <li>
+                    Single-column CSV/Excel: first row is the header; all
+                    following rows are read as names.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-foreground mb-1">
+                  Example — CSV with header (recommended)
+                </p>
+                <pre className="rounded-md bg-muted p-3 text-xs overflow-x-auto text-foreground whitespace-pre">
+                  {BULK_CITY_CSV_EXAMPLE}
+                </pre>
+              </div>
+              <div>
+                <p className="font-medium text-foreground mb-1">
+                  Example — plain list (no header)
+                </p>
+                <pre className="rounded-md bg-muted p-3 text-xs overflow-x-auto text-foreground whitespace-pre">
+                  {BULK_CITY_SIMPLE_LIST_EXAMPLE}
+                </pre>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="space-y-2 min-w-[220px] flex-1">
+                <Label htmlFor="city-bulk-file">Upload CSV or Excel</Label>
+                <Input
+                  id="city-bulk-file"
+                  ref={cityBulkFileRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  onChange={handleCityBulkFile}
+                  disabled={bulkIsSubmitting}
+                />
+                <p className="text-xs text-muted-foreground">
+                  For Excel, the <strong>first sheet</strong> is imported (saved
+                  as CSV in the preview).
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setBulkText(BULK_CITY_CSV_EXAMPLE)}
+                  disabled={bulkIsSubmitting}
+                >
+                  Load name-column example
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setBulkText(BULK_CITY_SIMPLE_LIST_EXAMPLE)}
+                  disabled={bulkIsSubmitting}
+                >
+                  Load plain list example
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="city-bulk-text">Or paste CSV / TSV / list</Label>
+              <Textarea
+                id="city-bulk-text"
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={"Example:\nAl Barsha\nJVC\nDubai Marina"}
+                className="min-h-[200px] font-mono text-xs"
+              />
+            </div>
+
+            {bulkProgress && (
+              <p className="text-xs text-muted-foreground">
+                Uploading {bulkProgress.done}/{bulkProgress.total}…
+              </p>
+            )}
+            {bulkErrors.length > 0 && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm font-medium text-destructive">Errors</p>
+                <ul className="mt-2 list-disc pl-5 text-sm text-destructive">
+                  {bulkErrors.slice(0, 8).map((e, idx) => (
+                    <li key={`${idx}-${e}`}>{e}</li>
+                  ))}
+                </ul>
+                {bulkErrors.length > 8 && (
+                  <p className="text-xs text-destructive mt-2">
+                    Showing 8 of {bulkErrors.length} errors.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkCityAreasOpen(false)}
+              disabled={bulkIsSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={runBulkAddAreasToSelectedCity}
+              disabled={bulkIsSubmitting || !bulkText.trim()}
+            >
+              {bulkIsSubmitting ? "Uploading…" : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <BulkFullAreasUploadDialog
+        open={bulkAllAreasOpen}
+        onOpenChange={setBulkAllAreasOpen}
+        targetsByCountryCity={targetsByCountryCity}
+        onSuccess={getTargets}
+      />
+
       {addArea && cityId && (
         <AreaModel
           areaModel={addArea}

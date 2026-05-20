@@ -14,6 +14,8 @@ export const columnWidths = {
   vsLink: "w-[130px] min-w-[130px] max-w-[130px]",
   vsid: "w-[120px] min-w-[120px] max-w-[120px]",
   address: "w-[180px] min-w-[180px] max-w-[180px]",
+  geoVerified: "w-[100px] min-w-[100px] max-w-[100px]",
+  propertyFloor: "w-[88px] min-w-[88px] max-w-[88px]",
   actions: "w-[80px] min-w-[80px] max-w-[80px]",
 } as const;
 
@@ -42,5 +44,17 @@ export const columns: Column[] = [
   { label: "VsLink", field: "link", sortable: false, width: columnWidths.vsLink },
   { label: "VSID", field: "vsid", sortable: false, width: columnWidths.vsid },
   { label: "Address", field: "address", sortable: false, width: columnWidths.address },
+  {
+    label: "Geo",
+    field: "geoAddressVerified",
+    sortable: false,
+    width: columnWidths.geoVerified,
+  },
+  {
+    label: "Floor",
+    field: "propertyFloor",
+    sortable: false,
+    width: columnWidths.propertyFloor,
+  },
   { label: "Actions", field: "upload", sortable: false, width: columnWidths.actions },
 ];

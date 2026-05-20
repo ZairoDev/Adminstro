@@ -27,9 +27,12 @@ export function EditableCopyCell({
   }
 
   const handleSave = () => {
-    const trimmed = draft.trim()
-    if (trimmed !== safeValue) {
-      onSave(trimmed)
+    let next = draft.trim()
+    if (allowOnlyNumbers) {
+      next = next.replace(/\s/g, "").replace(/[^\d]/g, "")
+    }
+    if (next !== safeValue) {
+      onSave(next)
     }
     setIsEditing(false)
   }
@@ -39,7 +42,7 @@ export function EditableCopyCell({
     
     // If allowOnlyNumbers is true, remove everything except digits
     if (allowOnlyNumbers) {
-      newValue = newValue.replace(/[^\d]/g, "") // Only keep digits 0-9
+      newValue = newValue.replace(/\s/g, "").replace(/[^\d]/g, "") // digits only, no spaces
     }
     
     setDraft(newValue)

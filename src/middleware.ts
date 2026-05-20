@@ -49,6 +49,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/invoice",
     /^\/dashboard\/invoice\/create\/.*$/,
     "/dashboard/rolebaseLead",
+    "/dashboard/geo-search",
     /^\/dashboard\/geo-search\/.*$/,
     "/dashboard/compareLeads",
     /^\/dashboard\/createquery\/.*$/,

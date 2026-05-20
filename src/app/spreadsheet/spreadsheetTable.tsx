@@ -7,9 +7,11 @@ import CustomTooltip from "@/components/CustomToolTip";
 import { Button } from "@/components/ui/button";
 import {
   Ban,
+  BadgeCheck,
   CheckCheck,
   CircleDot,
   Copy,
+  MapPin,
   PawPrint,
   Phone,
   Pin,
@@ -44,6 +46,13 @@ import { ActionMenu } from "./components/table/ActionMenu";
 import { SpreadsheetFormulaBar } from "./components/table/SpreadsheetFormulaBar";
 import { SpreadsheetHeader } from "./components/table/SpreadsheetHeader";
 import { formatPhoneNumber } from "./utils/formatters";
+import { normalizeOwnerPhoneInput } from "./utils/ownerPhoneNormalize";
+import { Switch } from "@/components/ui/switch";
+import {
+  ownerPropertyFloorFromSelectValue,
+  ownerPropertyFloorSelectOptions,
+  ownerPropertyFloorToSelectValue,
+} from "./constants/ownerSheetFields";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -76,11 +85,13 @@ const smallColumnWidths = {
   vsLink: "w-[120px] min-w-[120px] max-w-[120px]",
   vsid: "w-[100px] min-w-[100px] max-w-[100px]",
   address: "w-[160px] min-w-[160px] max-w-[160px]",
+  geoVerified: "w-[88px] min-w-[88px] max-w-[88px]",
+  propertyFloor: "w-[72px] min-w-[72px] max-w-[72px]",
   distance: "w-[140px] min-w-[140px] max-w-[140px]",
   actions: "w-[50px] min-w-[50px] max-w-[50px]",
 };
 
-// Large screens
+// Large screens  
 const largeColumnWidths = {
   serial: "w-[80px] min-w-[80px] max-w-[80px]",
   name: "w-[150px] min-w-[150px] max-w-[150px]",
@@ -97,6 +108,8 @@ const largeColumnWidths = {
   vsLink: "w-[130px] min-w-[130px] max-w-[130px]",
   vsid: "w-[120px] min-w-[120px] max-w-[120px]",
   address: "w-[180px] min-w-[180px] max-w-[180px]",
+  geoVerified: "w-[100px] min-w-[100px] max-w-[100px]",
+  propertyFloor: "w-[88px] min-w-[88px] max-w-[88px]",
   distance: "w-[150px] min-w-[150px] max-w-[150px]",
   actions: "w-[80px] min-w-[80px] max-w-[80px]",
 };
@@ -246,6 +259,27 @@ useEffect(() => {
       sortable: false,
       width: columnWidths.address,
     },
+    {
+      label: (
+        <span
+          className="inline-flex items-center gap-0.5"
+          title="Address verified against geolocation"
+        >
+          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>Geo</span>
+          <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
+        </span>
+      ),
+      field: "geoAddressVerified",
+      sortable: false,
+      width: columnWidths.geoVerified,
+    },
+    {
+      label: "Floor",
+      field: "propertyFloor",
+      sortable: false,
+      width: columnWidths.propertyFloor,
+    },
     ...(extraColumnLabel && extraColumnRender
       ? [
           {
@@ -361,6 +395,51 @@ useEffect(() => {
 
       toast({
         title: "Failed to update the Owner status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const canToggleGeoVerified =
+    token?.role === "Advert" || token?.role === "SuperAdmin";
+
+  const handleGeoAddressVerified = async (id: string) => {
+    if (!canToggleGeoVerified) return;
+    const currentStatus =
+      tableData.find((row) => row._id === id)?.geoAddressVerified ?? "None";
+    const newStatus = currentStatus === "Verified" ? "None" : "Verified";
+
+    setTableData((prev) =>
+      prev.map((row) =>
+        row._id === id ? { ...row, geoAddressVerified: newStatus } : row,
+      ),
+    );
+
+    try {
+      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
+        field: "geoAddressVerified",
+        value: newStatus,
+      });
+
+      toast({
+        title: "Geo verification updated",
+        description:
+          newStatus === "Verified"
+            ? "Marked as verified against geolocation."
+            : "Geo verification cleared.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Geo verification update failed", error);
+
+      setTableData((prev) =>
+        prev.map((row) =>
+          row._id === id ? { ...row, geoAddressVerified: currentStatus } : row,
+        ),
+      );
+
+      toast({
+        title: "Failed to update geo verification",
         variant: "destructive",
       });
     }
@@ -524,6 +603,8 @@ useEffect(() => {
       isVerified: "None",
       isImportant: "None",
       isPinned: "None",
+      geoAddressVerified: "None",
+      propertyFloor: "",
     };
     const tempId = `temp_${Date.now()}_${Math.random()
       .toString(36)
@@ -615,12 +696,15 @@ useEffect(() => {
     newValue: string,
     unavailableUntilPayload?: string | null
   ) => {
+    const valueToSave =
+      key === "phoneNumber" ? normalizeOwnerPhoneInput(newValue) : newValue;
+
     const prev = tableData;
     const updatedData = tableData.map((item) =>
       item._id === _id
         ? {
             ...item,
-            [key]: newValue,
+            [key]: valueToSave,
             ...(key === "availability"
               ? { unavailableUntil: unavailableUntilPayload ?? item.unavailableUntil }
               : {}),
@@ -632,7 +716,7 @@ useEffect(() => {
     try {
       await axios.put(`/api/unregisteredOwners/updateData/${_id}`, {
         field: key,
-        value: newValue,
+        value: valueToSave,
         unavailableUntil: unavailableUntilPayload,
       });
       toast({
@@ -705,7 +789,7 @@ useEffect(() => {
   const editableFields = [
     "name", "phoneNumber", "location", "price", "area", "availability",
     "interiorStatus", "petStatus", "propertyType", "remarks", 
-    "referenceLink", "link", "VSID", "address"
+    "referenceLink", "link", "VSID", "address", "geoAddressVerified", "propertyFloor",
   ];
 
   useEffect(() => {
@@ -737,7 +821,7 @@ useEffect(() => {
       if (e.ctrlKey && e.key === "c" && selectedRow && !selectedCell) {
         const row = tableData.find((r) => r._id === selectedRow);
         if (row) {
-          const rowData = `${row.name}\t${row.phoneNumber}\t${row.location}\t${row.price}\t${row.area}\t${row.availability}\t${row.interiorStatus}\t${row.petStatus}\t${row.propertyType}\t${row.remarks}\t${row.referenceLink}\t${row.link}\t${row.VSID}\t${row.address}`;
+          const rowData = `${row.name}\t${row.phoneNumber}\t${row.location}\t${row.price}\t${row.area}\t${row.availability}\t${row.interiorStatus}\t${row.petStatus}\t${row.propertyType}\t${row.remarks}\t${row.referenceLink}\t${row.link}\t${row.VSID}\t${row.address}\t${row.geoAddressVerified ?? "None"}\t${row.propertyFloor ?? ""}`;
           navigator.clipboard.writeText(rowData);
           toast({
             title: "Row copied",
@@ -890,6 +974,8 @@ useEffect(() => {
       "Pet Status": "petStatus",
       "Property Type": "propertyType",
       "Address": "address",
+      "Geo": "geoAddressVerified",
+      "Floor": "propertyFloor",
       "Ref Link": "referenceLink",
       "VS Link": "link",
       "VSID": "VSID",
@@ -897,6 +983,19 @@ useEffect(() => {
     };
 
     const fieldKey = fieldMap[selectedCell.field];
+    if (
+      fieldKey === "geoAddressVerified" &&
+      !(token?.role === "Advert" || token?.role === "SuperAdmin")
+    ) {
+      return;
+    }
+    if (fieldKey === "geoAddressVerified") {
+      const normalized =
+        newValue.trim().toLowerCase() === "verified" ? "Verified" : "None";
+      await handleSave(selectedCell.rowId, fieldKey, normalized);
+      setSelectedCell({ ...selectedCell, value: normalized });
+      return;
+    }
     if (fieldKey) {
       await handleSave(selectedCell.rowId, fieldKey, newValue);
       setSelectedCell({ ...selectedCell, value: newValue });
@@ -956,7 +1055,7 @@ useEffect(() => {
           {filterMode === 2 && "Show All"}
         </Button> */}
 
-      <div className="border-l border-r  overflow-hidden flex flex-col h-[calc(100vh-200px)] bg-background">
+      <div className="border-l border-r overflow-hidden flex flex-col h-[calc(100vh-200px)] bg-background">
         <SpreadsheetFormulaBar
           selectedCell={selectedCell}
           onAddRow={handleAddRow}
@@ -964,15 +1063,14 @@ useEffect(() => {
 
         />
 
-          <SpreadsheetHeader
-          columns={columns}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSort}
-        />
-
         <div className="overflow-auto flex-1 relative" ref={tableBodyRef}>
           <div className="min-w-full">
+            <SpreadsheetHeader
+              columns={columns}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+            />
             {applyFilter(sortedData).map(
               (item: unregisteredOwners, index: number) => (
                 <div
@@ -1654,6 +1752,93 @@ useEffect(() => {
                       value={item.address}
                       onSave={(newValue) =>
                         handleSave(item._id, "address", newValue)
+                      }
+                    />
+                  </div>
+
+                  <div
+                    ref={(el) => {
+                      if (el) cellRefs.current.set(`${item._id}-14`, el);
+                    }}
+                    className={`${
+                      columnWidths.geoVerified
+                    } px-2 py-2 h-10 border-r border-border flex items-center justify-center flex-shrink-0 ${
+                      selectedCell?.rowId === item._id &&
+                      selectedCell?.colIndex === 14
+                        ? "ring-2 ring-primary ring-inset"
+                        : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedCell({
+                        rowId: item._id,
+                        field: "Geo",
+                        value:
+                          item.geoAddressVerified === "Verified"
+                            ? "Verified"
+                            : "None",
+                        rowIndex: index,
+                        colIndex: 14,
+                      });
+                      setSelectedRow(item._id);
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-center w-full"
+                      onClick={(e) => e.stopPropagation()}
+                      title={
+                        (token?.role === "Advert" || token?.role === "SuperAdmin")
+                          ? "Toggle: address verified vs geolocation"
+                          : item.geoAddressVerified === "Verified"
+                            ? "Address verified (geo)"
+                            : "Not verified"
+                      }
+                    >
+                      <Switch
+                        checked={item.geoAddressVerified === "Verified"}
+                        disabled={!(token?.role === "Advert" || token?.role === "SuperAdmin")}
+                        onCheckedChange={() => {
+                          if (!(token?.role === "Advert" || token?.role === "SuperAdmin")) return;
+                          void handleGeoAddressVerified(item._id);
+                        }}
+                        className="scale-90 data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    ref={(el) => {
+                      if (el) cellRefs.current.set(`${item._id}-15`, el);
+                    }}
+                    className={`${
+                      columnWidths.propertyFloor
+                    } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
+                      selectedCell?.rowId === item._id &&
+                      selectedCell?.colIndex === 15
+                        ? "ring-2 ring-primary ring-inset"
+                        : ""
+                    }`}
+                    title="Property floor"
+                    onClick={() => {
+                      setSelectedCell({
+                        rowId: item._id,
+                        field: "Floor",
+                        value: item.propertyFloor ?? "",
+                        rowIndex: index,
+                        colIndex: 15,
+                      });
+                      setSelectedRow(item._id);
+                    }}
+                  >
+                    <SelectableCell
+                      maxWidth="80px"
+                      data={ownerPropertyFloorSelectOptions}
+                      value={ownerPropertyFloorToSelectValue(item.propertyFloor)}
+                      save={(v) =>
+                        handleSave(
+                          item._id,
+                          "propertyFloor",
+                          ownerPropertyFloorFromSelectValue(v),
+                        )
                       }
                     />
                   </div>

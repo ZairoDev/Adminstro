@@ -92,13 +92,15 @@ const detectSearchType = (
   searchStrategy?: "exact" | "partial" | "fuzzy";
 } => {
   const trimmedValue = value.trim();
+  /** Spaces removed — phone detection works for pasted numbers with spaces */
+  const compactNoSpaces = trimmedValue.replace(/\s/g, "");
 
   if (!trimmedValue) {
     return { type: "name", confidence: "low", searchStrategy: "fuzzy" };
   }
 
   // Extract digits for phone number analysis
-  const digitsOnly = trimmedValue.replace(/\D/g, "");
+  const digitsOnly = compactNoSpaces.replace(/\D/g, "");
   const hasLetters = /[a-zA-Z]/.test(trimmedValue);
   const hasSpecialChars = /[^a-zA-Z0-9\s+\-().]/.test(trimmedValue);
   const hasSpaces = /\s/.test(trimmedValue);
@@ -113,7 +115,7 @@ const detectSearchType = (
     ];
 
     const matchesFullPhone = fullPhonePatterns.some((pattern) =>
-      pattern.test(trimmedValue)
+      pattern.test(compactNoSpaces)
     );
 
     if (matchesFullPhone && digitsOnly.length >= 7 && digitsOnly.length <= 15) {
@@ -217,7 +219,7 @@ const detectSearchType = (
   }
 
   // 5. Check if it's purely numeric but doesn't fit phone patterns
-  if (/^\d+$/.test(trimmedValue)) {
+  if (/^\d+$/.test(compactNoSpaces)) {
     if (digitsOnly.length < 4) {
       // Too short to be meaningful phone search
       return { type: "name", confidence: "low", searchStrategy: "fuzzy" };
@@ -320,7 +322,8 @@ const FilterBar = ({
       return;
     }
 
-    const detection = detectSearchType(localSearchValue);
+    const trimmedInput = localSearchValue.trim();
+    const detection = detectSearchType(trimmedInput);
 
     // Set searching state for UI feedback
     setIsSearching(true);
@@ -335,11 +338,16 @@ const FilterBar = ({
       backendSearchType = "name";
     }
 
+    const searchValueForFilters =
+      backendSearchType === "phoneNumber"
+        ? trimmedInput.replace(/\s/g, "")
+        : trimmedInput;
+
     // Update filters with searchType, searchValue, and search strategy
     setFilters((prev) => ({
       ...prev,
       searchType: backendSearchType,
-      searchValue: localSearchValue.trim(),
+      searchValue: searchValueForFilters,
       // You might want to pass the search strategy to backend
       // searchStrategy: detection.searchStrategy
     }));

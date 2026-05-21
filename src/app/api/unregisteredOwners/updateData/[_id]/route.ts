@@ -1,21 +1,23 @@
 import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { Properties } from "@/models/property";
-import { NextRequest, NextResponse } from "next/server";
+import { scheduleLocationGeoSync } from "@/services/unregistered-owner-geocode";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { NextRequest, NextResponse } from "next/server";
+
+const GEO_TRIGGER_FIELDS = new Set(["address", "location", "area"]);
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { _id: string } }
+  { params }: { params: { _id: string } },
 ) {
   try {
-    // Authenticate request
-    let auth: any;
     try {
-      auth = await getDataFromToken(req);
-    } catch (err: any) {
-      const status = err?.status ?? 401;
-      const code = err?.code ?? "AUTH_FAILED";
+      await getDataFromToken(req);
+    } catch (err: unknown) {
+      const authErr = err as { status?: number; code?: string };
+      const status = authErr?.status ?? 401;
+      const code = authErr?.code ?? "AUTH_FAILED";
       return NextResponse.json(
         { success: false, code, message: "Unauthorized" },
         { status },
@@ -23,7 +25,11 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { field, value, unavailableUntil } = body;
+    const { field, value, unavailableUntil } = body as {
+      field: string;
+      value: unknown;
+      unavailableUntil?: string;
+    };
 
     const data = await unregisteredOwner.findById(params._id);
     if (!data) {
@@ -38,8 +44,7 @@ export async function PUT(
       data.geoAddressVerified = value === "Verified" ? "Verified" : "None";
     } else if (field === "propertyFloor") {
       const s = String(value ?? "").trim();
-      const ok =
-        s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
+      const ok = s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
       data.propertyFloor = ok ? s : (data.propertyFloor ?? "");
     } else {
       (data as Record<string, unknown>)[field] = value;
@@ -69,28 +74,43 @@ export async function PUT(
 
     await data.save();
 
-    // Sync availability status to properties collection if VSID exists
+    if (GEO_TRIGGER_FIELDS.has(field)) {
+      scheduleLocationGeoSync(data._id, {
+        address: data.address,
+        location: data.location,
+        area: data.area,
+      });
+    }
+
     if (field === "availability" && data.VSID && data.VSID.trim() !== "") {
       await Properties.updateOne(
         { VSID: data.VSID },
-        { $set: { availability: value } }
+        { $set: { availability: value } },
       );
     }
 
-    return NextResponse.json({ message: "Data updated successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Data updated successfully" },
+      { status: 200 },
+    );
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: err }, { status: 500 });
   }
 }
 
-export async function DELETE(req:NextRequest,{params}:{params:{_id:string}}){ 
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { _id: string } },
+) {
   const { _id } = params;
-  try{
-    const data = await unregisteredOwner.findByIdAndDelete(_id);
-    return NextResponse.json({ message: "Data deleted successfully" }, { status: 200 });
-  }
-  catch(err){
+  try {
+    await unregisteredOwner.findByIdAndDelete(_id);
+    return NextResponse.json(
+      { message: "Data deleted successfully" },
+      { status: 200 },
+    );
+  } catch (err) {
     console.log(err);
     return NextResponse.json({ error: err }, { status: 500 });
   }

@@ -1,8 +1,12 @@
 // import UnregisteredOwnersTable from "@/app/dashboard/unregistered-owner/unregisteredTable";
 import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
-import { NextRequest, NextResponse } from "next/server";
+import {
+  hasGeocodableFields,
+  scheduleLocationGeoSync,
+} from "@/services/unregistered-owner-geocode";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { NextRequest, NextResponse } from "next/server";
 
 function normalizePropertyFloorInput(raw: unknown): string {
   const s = String(raw ?? "").trim();
@@ -12,13 +16,12 @@ function normalizePropertyFloorInput(raw: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate request
-    let auth: any;
     try {
-      auth = await getDataFromToken(req);
-    } catch (err: any) {
-      const status = err?.status ?? 401;
-      const code = err?.code ?? "AUTH_FAILED";
+      await getDataFromToken(req);
+    } catch (err: unknown) {
+      const authErr = err as { status?: number; code?: string };
+      const status = authErr?.status ?? 401;
+      const code = authErr?.code ?? "AUTH_FAILED";
       return NextResponse.json(
         { success: false, code, message: "Unauthorized" },
         { status },
@@ -26,6 +29,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    const ownerFields = {
+      address: body.address as string | undefined,
+      location: body.location as string | undefined,
+      area: body.area as string | undefined,
+    };
 
     const data = await unregisteredOwner.create({
       name: body.name,
@@ -39,12 +48,18 @@ export async function POST(req: NextRequest) {
       referenceLink: body.referenceLink,
       address: body.address,
       remarks: body.remarks,
-      geoAddressVerified: body.geoAddressVerified === "Verified" ? "Verified" : "None",
+      geoAddressVerified:
+        body.geoAddressVerified === "Verified" ? "Verified" : "None",
       propertyFloor: normalizePropertyFloorInput(body.propertyFloor),
     });
-    return NextResponse.json({ data }, { status: 200 }); 
+
+    if (hasGeocodableFields(ownerFields)) {
+      scheduleLocationGeoSync(data._id, ownerFields);
+    }
+
+    return NextResponse.json({ data }, { status: 200 });
   } catch (err) {
     console.log(err);
-    return NextResponse.json({ error: err }, { status: 500 }); 
+    return NextResponse.json({ error: err }, { status: 500 });
   }
 }

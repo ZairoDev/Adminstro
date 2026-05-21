@@ -14,16 +14,52 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, UserPlus, Link2, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, AlertCircle, UserPlus, Link2, MapPin } from "lucide-react";
 import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { normalizeCityKey } from "@/lib/city-normalizer";
+import {
+  formatPhoneDisplayWithLocation,
+  getPhoneConfigById,
+  getPhoneIdForLocation,
+} from "@/lib/whatsapp/config";
+import type { Conversation } from "../types";
 
 interface AddGuestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGuestAdded: (conversationId: string, conversation?: any) => void;
+  onGuestAdded: (conversationId: string, conversation?: Conversation) => void;
   defaultPhoneNumberId?: string;
+  userRole?: string;
+  userAreas?: string | string[];
+}
+
+function parseUserAreaKeys(userAreas?: string | string[]): Set<string> | null {
+  if (!userAreas) return null;
+  const raw = Array.isArray(userAreas)
+    ? userAreas
+    : userAreas.split(",").map((a) => a.trim());
+  const keys = raw.map((a) => normalizeCityKey(a)).filter(Boolean);
+  return keys.length > 0 ? new Set(keys) : null;
+}
+
+function filterLocationsForUser(
+  locations: string[],
+  userRole?: string,
+  userAreas?: string | string[],
+): string[] {
+  if (userRole === "SuperAdmin") return locations;
+  const allowed = parseUserAreaKeys(userAreas);
+  if (!allowed) return locations;
+  return locations.filter((loc) => allowed.has(normalizeCityKey(loc)));
 }
 
 export const AddGuestModal = memo(function AddGuestModal({
@@ -31,16 +67,22 @@ export const AddGuestModal = memo(function AddGuestModal({
   onOpenChange,
   onGuestAdded,
   defaultPhoneNumberId,
+  userRole,
+  userAreas,
 }: AddGuestModalProps) {
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [referenceLink, setReferenceLink] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [locations, setLocations] = useState<string[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{
     phone?: string;
     referenceLink?: string;
+    location?: string;
   }>({});
   
   // Mobile detection for responsive modal/drawer
@@ -54,6 +96,74 @@ export const AddGuestModal = memo(function AddGuestModal({
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const loadLocations = async () => {
+      setLoadingLocations(true);
+      try {
+        const response = await axios.get("/api/monthlyTargets/getLocations");
+        const raw = response.data?.locations;
+        const fromDb: string[] = Array.isArray(raw)
+          ? raw.map((item: unknown) =>
+              typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
+            )
+          : [];
+        const filtered = filterLocationsForUser(
+          fromDb.filter(Boolean).sort((a, b) => a.localeCompare(b)),
+          userRole,
+          userAreas,
+        );
+        if (!cancelled) {
+          setLocations(filtered);
+          setSelectedLocation((prev) => {
+            if (prev && filtered.some((l) => normalizeCityKey(l) === normalizeCityKey(prev))) {
+              return prev;
+            }
+            if (defaultPhoneNumberId) {
+              const config = getPhoneConfigById(defaultPhoneNumberId);
+              const areas = config
+                ? Array.isArray(config.area)
+                  ? config.area
+                  : [config.area]
+                : [];
+              const match = filtered.find((loc) =>
+                areas.some((a) => normalizeCityKey(a) === normalizeCityKey(loc)),
+              );
+              if (match) return match;
+            }
+            return filtered[0] ?? "";
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+        if (!cancelled) {
+          setLocations([]);
+          toast({
+            title: "Could not load locations",
+            description: "Try again or contact support.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setLoadingLocations(false);
+      }
+    };
+
+    void loadLocations();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, userRole, userAreas, defaultPhoneNumberId, toast]);
+
+  const phoneIdForSelectedLocation = selectedLocation
+    ? getPhoneIdForLocation(selectedLocation)
+    : null;
+  const selectedPhoneConfig = phoneIdForSelectedLocation
+    ? getPhoneConfigById(phoneIdForSelectedLocation)
+    : undefined;
 
   const validatePhone = (phone: string, code: string): boolean => {
     if (!code.trim() || !phone.trim()) {
@@ -116,6 +226,23 @@ export const AddGuestModal = memo(function AddGuestModal({
       return;
     }
 
+    if (!selectedLocation.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        location: "Select a location for this owner",
+      }));
+      return;
+    }
+
+    const phoneNumberId = getPhoneIdForLocation(selectedLocation);
+    if (!phoneNumberId) {
+      setErrors((prev) => ({
+        ...prev,
+        location: "No WhatsApp line configured for this location",
+      }));
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -124,7 +251,9 @@ export const AddGuestModal = memo(function AddGuestModal({
       const response = await axios.post("/api/whatsapp/conversations", {
         participantPhone: normalizedPhone,
         participantName: ownerName.trim() || undefined,
-        phoneNumberId: defaultPhoneNumberId,
+        participantLocation: selectedLocation.trim(),
+        location: selectedLocation.trim(),
+        phoneNumberId,
         referenceLink: referenceLink.trim() || undefined,
         conversationType: "owner",
       });
@@ -139,6 +268,7 @@ export const AddGuestModal = memo(function AddGuestModal({
         setCountryCode("");
         setOwnerName("");
         setReferenceLink("");
+        setSelectedLocation("");
         setErrors({});
         onOpenChange(false);
 
@@ -160,8 +290,8 @@ export const AddGuestModal = memo(function AddGuestModal({
           // could return a chat belonging to a different account and we
           // would "open" the wrong inbox.
           const params = new URLSearchParams();
-          if (defaultPhoneNumberId) {
-            params.set("phoneId", defaultPhoneNumberId);
+          if (phoneNumberId) {
+            params.set("phoneId", phoneNumberId);
           }
           const conversationsResponse = await axios.get(
             `/api/whatsapp/conversations?${params.toString()}`
@@ -170,9 +300,9 @@ export const AddGuestModal = memo(function AddGuestModal({
             const existingConv = conversationsResponse.data.conversations.find(
               (c: any) =>
                 c.participantPhone === normalizedPhone &&
-                (!defaultPhoneNumberId ||
+                (!phoneNumberId ||
                   !c.businessPhoneId ||
-                  c.businessPhoneId === defaultPhoneNumberId)
+                  c.businessPhoneId === phoneNumberId)
             );
             if (existingConv) {
               toast({
@@ -205,6 +335,7 @@ export const AddGuestModal = memo(function AddGuestModal({
       setCountryCode("");
       setOwnerName("");
       setReferenceLink("");
+      setSelectedLocation("");
       setErrors({});
       onOpenChange(false);
     }
@@ -265,6 +396,52 @@ export const AddGuestModal = memo(function AddGuestModal({
           <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
             <p className="text-[12px] text-red-600 dark:text-red-400">{errors.phone}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Location */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0] flex items-center gap-1">
+          <MapPin className="h-3.5 w-3.5" />
+          Location <span className="text-red-500">*</span>
+        </Label>
+        <Select
+          value={selectedLocation}
+          onValueChange={(value) => {
+            setSelectedLocation(value);
+            setErrors((prev) => {
+              const next = { ...prev };
+              delete next.location;
+              return next;
+            });
+          }}
+          disabled={loading || loadingLocations || locations.length === 0}
+        >
+          <SelectTrigger className="h-11 md:h-10 bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045] rounded-lg text-base">
+            <SelectValue
+              placeholder={
+                loadingLocations ? "Loading locations..." : "Select location"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {locations.map((loc) => (
+              <SelectItem key={loc} value={loc}>
+                {loc}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedPhoneConfig && (
+          <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">
+            WhatsApp line: {formatPhoneDisplayWithLocation(selectedPhoneConfig)}
+          </p>
+        )}
+        {errors.location && (
+          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-[12px] text-red-600 dark:text-red-400">{errors.location}</p>
           </div>
         )}
       </div>
@@ -333,7 +510,13 @@ export const AddGuestModal = memo(function AddGuestModal({
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={loading || !countryCode.trim() || !phoneNumber.trim()}
+          disabled={
+            loading ||
+            loadingLocations ||
+            !countryCode.trim() ||
+            !phoneNumber.trim() ||
+            !selectedLocation.trim()
+          }
           className="flex-1 h-12 md:h-10 bg-[#25d366] hover:bg-[#1da851] text-white rounded-lg active:scale-[0.98] transition-transform"
         >
           {loading ? (

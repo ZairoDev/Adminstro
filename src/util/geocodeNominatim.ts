@@ -30,7 +30,9 @@ async function waitForRateLimit(delayMs: number): Promise<void> {
   }
 }
 
-function parseCoordinates(result: NominatimSearchResult | undefined): GeocodeCoordinates | null {
+function parseCoordinates(
+  result: NominatimSearchResult | undefined,
+): GeocodeCoordinates | null {
   if (!result?.lat || !result?.lon) {
     return null;
   }
@@ -68,7 +70,7 @@ export async function geocodeWithNominatim(
 
   const delayMs = options?.delayMs ?? DEFAULT_DELAY_MS;
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
-  const userAgent = options?.userAgent ?? "admin-property-migration/1.0";
+  const userAgent = options?.userAgent ?? "admin-property-app/1.0";
   const countryCodes = options?.countryCodes?.join(",");
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {

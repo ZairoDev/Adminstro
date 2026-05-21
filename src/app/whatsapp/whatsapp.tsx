@@ -4601,6 +4601,8 @@ export default function WhatsAppChat() {
         onOpenChange={setShowAddGuestModal}
         onGuestAdded={handleGuestAdded}
         defaultPhoneNumberId={selectedPhoneConfig?.phoneNumberId}
+        userRole={token?.role}
+        userAreas={token?.allotedArea}
       />
       
       {/* Forward Dialog */}

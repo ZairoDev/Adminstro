@@ -842,7 +842,7 @@ export interface  unregisteredOwners {
   isPinned: string;
   /** Advert: address checked against geolocation */
   geoAddressVerified?: string;
-  /** Floor level: "1"–"10", "Mezzanine", or empty */
+  /** Floor level: "-3"–"10", "Mezzanine", "ground-floor", "basement", "semi-basement", or empty */
   propertyFloor?: string;
   locationGeo?: {
     type: "Point";

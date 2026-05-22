@@ -65,6 +65,7 @@ const Spreadsheet = () => {
   const token = useAuthStore((state) => state.token);
 
   const role = token?.role;
+  const isSalesInternOnly = role === "sales-intern";
   const allocations = token?.allotedArea || [];
   const parsedAllocations =
     typeof allocations === "string"
@@ -195,26 +196,31 @@ const Spreadsheet = () => {
   return (
     <div className="m-4">
       <div className="flex items-center justify-between mb-6">
-  {/* Left section - Back button */}
-  <Link
-    href="/dashboard"
-    className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium 
-    text-foreground hover:bg-muted transition-colors"
-  >
-    ← Back
-  </Link>
+  {!isSalesInternOnly ? (
+    <Link
+      href="/dashboard"
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium 
+      text-foreground hover:bg-muted transition-colors"
+    >
+      ← Back
+    </Link>
+  ) : (
+    <div className="w-[88px]" aria-hidden />
+  )}
 
-  {/* Center section - Title */}
   <h1 className="text-xl font-bold text-center flex-1">Owner Sheet</h1>
 
-  {/* Right section - Geo Search */}
-  <Link
-    href="/dashboard/geo-search"
-    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium
-    text-foreground hover:bg-muted transition-colors whitespace-nowrap"
-  >
-    📍 Geo Search
-  </Link>
+  {!isSalesInternOnly ? (
+    <Link
+      href="/dashboard/geo-search"
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium
+      text-foreground hover:bg-muted transition-colors whitespace-nowrap"
+    >
+      📍 Geo Search
+    </Link>
+  ) : (
+    <div className="w-[108px]" aria-hidden />
+  )}
 </div>
 
       <Tabs

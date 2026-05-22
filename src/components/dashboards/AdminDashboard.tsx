@@ -50,7 +50,7 @@ import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastN
 
 // Types
 import { UserInterface } from "@/util/type";
-import { employeeRoles } from "@/models/employee";
+import { employeeRoles } from "@/constants/employeeRoles";
 import { OwnerStageChart } from "../charts/OwnerStageChart";
 
 const chartConfig = {

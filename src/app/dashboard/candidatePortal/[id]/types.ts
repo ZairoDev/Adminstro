@@ -4,6 +4,7 @@ export interface Candidate {
   email: string;
   phone: string;
   position: string;
+  employmentType?: "fulltime" | "intern" | null;
   experience: number;
   address: string;
   city: string;
@@ -77,6 +78,7 @@ export interface Candidate {
   selectionDetails?: {
     positionType: "fulltime" | "intern";
     duration: string;
+    internDuration?: string;
     trainingPeriod: string;
     trainingDate?: string; // Training start date (YYYY-MM-DD format)
     role: string;

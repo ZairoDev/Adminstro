@@ -45,6 +45,11 @@ export async function PATCH(
     // Handle flat fields
     if (body.status) updateData.status = body.status;
     if (body.position) updateData.position = body.position;
+    if (body.employmentType === "fulltime" || body.employmentType === "intern") {
+      updateData.employmentType = body.employmentType;
+    } else if (body.employmentType === null) {
+      updateData.employmentType = null;
+    }
     if (body.isImportant !== undefined) updateData.isImportant = body.isImportant;
     if (body.interviewAttendance !== undefined) {
       // Validate interviewAttendance value

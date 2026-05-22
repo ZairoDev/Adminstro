@@ -1143,6 +1143,7 @@ useEffect(() => {
                     )}
 
                     {(token?.role === "Sales" ||
+                      token?.role === "sales-intern" ||
                       token?.role === "Sales-TeamLead" ||
                       token?.role === "SuperAdmin") && (
                       <span
@@ -1171,6 +1172,7 @@ useEffect(() => {
                     )}
 
                     {(token?.role === "Sales" ||
+                      token?.role === "sales-intern" ||
                       token?.role === "Sales-TeamLead" ||
                       token?.role === "SuperAdmin") && (
                       <span

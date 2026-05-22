@@ -17,6 +17,7 @@ export type CandidateEmailStatus =
 export interface SelectionDetails {
   positionType: string;
   duration: string;
+  internDuration?: string;
   trainingPeriod: string;
   trainingDate?: string; // Training start date (YYYY-MM-DD format)
   role: string;

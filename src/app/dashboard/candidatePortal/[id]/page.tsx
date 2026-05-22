@@ -63,6 +63,7 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 import axios from "@/util/axios";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
+import { EmploymentTypeRequiredDialog } from "../components/employment-type-required-dialog";
 import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
 import { CreateEmployeeDialog } from "../components/createEmployee";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
@@ -72,7 +73,14 @@ import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
 
 // Import refactored modules
 import { Candidate } from "./types";
-import { ROLE_OPTIONS, getStatusColor, getStatusLabel } from "./constants";
+import {
+  ROLE_OPTIONS,
+  EMPLOYMENT_TYPE_OPTIONS,
+  formatEmploymentType,
+  getStatusColor,
+  getStatusLabel,
+  type EmploymentType,
+} from "./constants";
 import { useCandidate } from "./hooks/useCandidate";
 import { useCandidateActions } from "./hooks/useCandidateActions";
 import { useCandidatePermissions } from "./hooks/useCandidatePermissions";
@@ -119,7 +127,7 @@ export default function CandidateDetailPage() {
   const { actionLoading, error: actionError, handleSelectCandidate, handleShortlistCandidate, handleRejectCandidate, handleDiscontinueTraining, handleOnboarding } = useCandidateActions(candidateId, (updatedCandidate) => {
     setCandidate(updatedCandidate);
   });
-  const { canShortlist, canSelect, canReject, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled } = useCandidatePermissions(candidate);
+  const { canShortlist, canSelect, canReject, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled, hasEmploymentType } = useCandidatePermissions(candidate);
   
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -131,6 +139,8 @@ export default function CandidateDetailPage() {
   }, [candidateError, actionError]);
 
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
+  const [employmentTypeRequiredDialogOpen, setEmploymentTypeRequiredDialogOpen] =
+    useState(false);
   const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectAfterTrainingDialogOpen, setRejectAfterTrainingDialogOpen] = useState(false);
@@ -162,6 +172,7 @@ export default function CandidateDetailPage() {
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
   const [newRole, setNewRole] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
+  const [updatingEmploymentType, setUpdatingEmploymentType] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
@@ -291,9 +302,8 @@ export default function CandidateDetailPage() {
         position: candidate.position,
         date: agreementDate,
         salary: candidate.selectionDetails?.salary?.toString() || undefined,
-        // Don't pass designation/department - let API fetch from role document
         candidateId: candidate._id,
-        // No signature for unsigned PDF
+        employmentType: candidate.employmentType ?? candidate.selectionDetails?.positionType,
       };
 
       const pdfResponse = await axios.post(
@@ -414,6 +424,8 @@ export default function CandidateDetailPage() {
         witness1: "____________________",
         witness2: "____________________",
         candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
+        employmentType:
+          candidate.employmentType ?? candidate.selectionDetails?.positionType,
         // No signature for unsigned PDF - this is the key difference
       };
 
@@ -498,6 +510,68 @@ export default function CandidateDetailPage() {
 
   const handleOnboardingWrapper = async () => {
     await handleOnboarding();
+  };
+
+  const saveEmploymentType = async (
+    employmentType: EmploymentType | null,
+    options?: { silent?: boolean }
+  ): Promise<boolean> => {
+    if (!candidate) return false;
+
+    setUpdatingEmploymentType(true);
+    try {
+      const response = await fetch(`/api/candidates/${candidate._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employmentType }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCandidate((prev) =>
+          prev ? { ...prev, employmentType } : null
+        );
+        if (!options?.silent) {
+          toast.success("Employment type updated");
+        }
+        return true;
+      }
+      toast.error(result.error || "Failed to update employment type");
+      return false;
+    } catch (error) {
+      console.error("Error updating employment type:", error);
+      toast.error("Failed to update employment type");
+      return false;
+    } finally {
+      setUpdatingEmploymentType(false);
+    }
+  };
+
+  const handleEmploymentTypeChange = async (value: string) => {
+    const employmentType: EmploymentType | null =
+      value === "fulltime" || value === "intern" ? value : null;
+    await saveEmploymentType(employmentType);
+  };
+
+  const handleSelectForTrainingClick = () => {
+    if (!candidate || !canSelect()) return;
+
+    if (hasEmploymentType()) {
+      setSelectDialogOpen(true);
+      return;
+    }
+
+    setEmploymentTypeRequiredDialogOpen(true);
+  };
+
+  const handleEmploymentTypeRequiredConfirm = async (
+    employmentType: EmploymentType
+  ) => {
+    const saved = await saveEmploymentType(employmentType, { silent: true });
+    if (!saved) return;
+
+    setEmploymentTypeRequiredDialogOpen(false);
+    setSelectDialogOpen(true);
   };
 
   // Handle edit role
@@ -820,6 +894,7 @@ export default function CandidateDetailPage() {
         if (candidate.status === "rejected") return "Cannot select a rejected candidate";
         if (candidate.status === "onboarding") return "Candidate is already in onboarding";
         if (candidate.status === "interview" && !hasInterviewRemarks()) return "Interview remarks must be completed before selecting";
+        if (!hasEmploymentType()) return "Set employment type (Intern or Full Time) before selecting for training";
         return "Select this candidate for training";
       
       case "discontinue":
@@ -891,6 +966,35 @@ export default function CandidateDetailPage() {
                 <div className="flex items-start gap-2 text-sm">
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <span className="text-foreground">{candidate?.address}</span>
+                </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Employment Type
+                  </Label>
+                  <Select
+                    value={candidate.employmentType ?? "unset"}
+                    onValueChange={handleEmploymentTypeChange}
+                    disabled={updatingEmploymentType}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select employment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">Not set</SelectItem>
+                      {EMPLOYMENT_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {candidate.selectionDetails?.positionType &&
+                    candidate.selectionDetails.positionType !== candidate.employmentType && (
+                      <p className="text-xs text-muted-foreground">
+                        Selected for training as{" "}
+                        {formatEmploymentType(candidate.selectionDetails.positionType)}
+                      </p>
+                    )}
                 </div>
               </div>
             </Card>
@@ -1228,8 +1332,8 @@ export default function CandidateDetailPage() {
                     <TooltipTrigger asChild>
                       <div>
                         <Button
-                          onClick={() => setSelectDialogOpen(true)}
-                          disabled={actionLoading || !canSelect}
+                          onClick={handleSelectForTrainingClick}
+                          disabled={actionLoading || !canSelect()}
                           variant={candidate.status === "selected" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1916,8 +2020,16 @@ export default function CandidateDetailPage() {
                   )}
                   {candidate.selectionDetails.duration && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
+                      <p className="text-xs text-muted-foreground mb-0.5">Training Time</p>
                       <p className="text-foreground font-medium">{candidate.selectionDetails.duration}</p>
+                    </div>
+                  )}
+                  {candidate.selectionDetails.internDuration && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Intern Duration</p>
+                      <p className="text-foreground font-medium">
+                        {candidate.selectionDetails.internDuration}
+                      </p>
                     </div>
                   )}
                   {candidate.selectionDetails.trainingPeriod && (
@@ -2745,9 +2857,11 @@ export default function CandidateDetailPage() {
               aadharCard: candidate.onboardingDetails.documents.aadharCard,
             } : undefined,
           } : undefined,
+          employmentType: candidate.employmentType,
           selectionDetails: candidate.selectionDetails ? {
             salary: candidate.selectionDetails.salary,
             role: candidate.selectionDetails.role,
+            positionType: candidate.selectionDetails.positionType,
           } : undefined,
         }}
         onCreated={() => {
@@ -2756,12 +2870,21 @@ export default function CandidateDetailPage() {
         }}
       />
 
+      <EmploymentTypeRequiredDialog
+        open={employmentTypeRequiredDialogOpen}
+        onClose={() => setEmploymentTypeRequiredDialogOpen(false)}
+        onConfirm={handleEmploymentTypeRequiredConfirm}
+        loading={updatingEmploymentType}
+        initialValue={candidate?.employmentType}
+      />
+
       <SelectCandidateDialog
         open={selectDialogOpen}
         onClose={() => setSelectDialogOpen(false)}
         onSubmit={handleSelectCandidateWrapper}
         loading={actionLoading}
         candidatePosition={candidate?.position}
+        candidateEmploymentType={candidate?.employmentType}
       />
       <ShortlistCandidateDialog
         open={shortlistDialogOpen}

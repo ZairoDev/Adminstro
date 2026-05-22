@@ -38,7 +38,13 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
+import Role from "@/models/role";
 import { connectDb } from "@/util/db";
+import { resolveIsIntern } from "@/lib/pdf/letterOfIntentIntern";
+import {
+  renderInternOnboardingNda,
+  type OnboardingPdfWriter,
+} from "@/lib/pdf/renderInternOnboardingNda";
 
 type Payload = {
   // Party info
@@ -71,6 +77,7 @@ type Payload = {
   // Signature image URL (optional)
   signatureBase64?: string;
   candidateId?: string;
+  employmentType?: "fulltime" | "intern";
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -161,9 +168,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate onboarding date and gender if candidateId is provided
+    // Fetch candidate onboarding date, gender, employment type, and role if candidateId is provided
     let candidateOnboardingDate: Date | null = null;
     let candidateGender: string | null = null;
+    let isIntern = resolveIsIntern(data.employmentType);
+    let roleName: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
@@ -172,10 +181,40 @@ export async function POST(req: NextRequest) {
           if (candidate?.onboardingStartedAt) {
             candidateOnboardingDate = new Date(candidate.onboardingStartedAt);
           }
-          // Get candidate gender
           if (candidate.gender) {
             candidateGender = candidate.gender;
           }
+
+          let roleSearchValue: string | null = null;
+          if (candidate?.selectionDetails?.role) {
+            roleSearchValue = candidate.selectionDetails.role;
+          } else if (candidate?.position) {
+            roleSearchValue = candidate.position;
+          }
+
+          if (roleSearchValue) {
+            try {
+              let roleDoc = await Role.findOne({ role: roleSearchValue }).lean() as {
+                role: string;
+              } | null;
+              if (!roleDoc) {
+                roleDoc = await Role.findOne({
+                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") },
+                }).lean() as { role: string } | null;
+              }
+              if (roleDoc) {
+                roleName = roleDoc.role;
+              }
+            } catch (roleErr) {
+              console.error("Error fetching role document:", roleErr);
+            }
+          }
+
+          isIntern = resolveIsIntern(
+            data.employmentType,
+            (candidate as { employmentType?: string }).employmentType,
+            candidate.selectionDetails?.positionType
+          );
         }
       } catch (err) {
         console.error("Error fetching candidate data:", err);
@@ -808,6 +847,57 @@ export async function POST(req: NextRequest) {
     // Add spacing before main content
     yPosition -= 15;
 
+    const relationshipPrefix = candidateGender === "Female" ? "D/o" : "S/o";
+
+    if (isIntern) {
+      const internWriter: OnboardingPdfWriter = {
+        drawWrappedText: (text, x, fontSize, boldFont) =>
+          drawWrappedText(text, x, fontSize ?? bodySize, boldFont ?? false),
+        drawFullWidthSectionHeading: (title) => {
+          const yRef = { value: yPosition };
+          drawFullWidthSectionHeading(
+            title,
+            currentPage,
+            fontBold,
+            yRef,
+            leftMargin,
+            rightMargin,
+            sectionSize,
+            pageWidth
+          );
+          yPosition = yRef.value;
+        },
+        ensureSpace,
+        bumpY: (delta) => {
+          yPosition -= delta;
+        },
+        leftMargin,
+        bodySize,
+        paragraphSpacing,
+        lineHeight,
+      };
+
+      renderInternOnboardingNda(internWriter, {
+        companyName,
+        companyCIN,
+        companyAddress,
+        agreementCity: data.agreementCity || "Kanpur",
+        day,
+        monthName,
+        year,
+        internName: data.employeeName || "______________",
+        fatherName: data.fatherName || "_________________",
+        internAddress: data.employeeAddress || "___________________________",
+        relationshipPrefix,
+        designation: data.designation || "",
+        roleName,
+        position: data.designation || "",
+        formattedEffectiveFrom,
+        jurisdictionCity: data.agreementCity || "Kanpur",
+      });
+
+      yPosition -= paragraphSpacing * 3;
+    } else {
     // First paragraph
     drawWrappedText(
       `This Service Agreement Bond is made and executed at ${
@@ -823,9 +913,6 @@ export async function POST(req: NextRequest) {
     drawWrappedText("AND", leftMargin + 190, bodySize, true);
     yPosition -= paragraphSpacing;
 
-    // Determine relationship prefix based on gender: Male -> S/o (Son of), Female -> D/o (Daughter of)
-    const relationshipPrefix = candidateGender === "Female" ? "D/o" : "S/o";
-    
     drawWrappedText(
       ` ${data.employeeName || "______________"}, ${relationshipPrefix} ${
         data.fatherName || "_________________"
@@ -1706,6 +1793,7 @@ export async function POST(req: NextRequest) {
     );
 
     yPosition -= paragraphSpacing * 3;
+    }
 
     // Company Signature section
     drawWrappedText("SIGNED", leftMargin, bodySize, true);

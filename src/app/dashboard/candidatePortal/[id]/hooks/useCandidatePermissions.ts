@@ -12,6 +12,13 @@ export function useCandidatePermissions(candidate: Candidate | null) {
     );
   };
 
+  const hasEmploymentType = () => {
+    return (
+      candidate?.employmentType === "fulltime" ||
+      candidate?.employmentType === "intern"
+    );
+  };
+
   const canShortlist = () => {
     return candidate?.status === "pending";
   };
@@ -59,6 +66,7 @@ export function useCandidatePermissions(candidate: Candidate | null) {
   return {
     hasInterviewRemarks,
     hasAnyInterviewScheduled,
+    hasEmploymentType,
     canShortlist,
     canSelect,
     canReject,

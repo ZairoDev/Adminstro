@@ -216,6 +216,10 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Sales(New)
     "/dashboard/lowBudget",
   ],
+  "sales-intern": [
+    "/",
+    "/spreadsheet",
+  ],
   hSale: [
     "/",
     "/dashboard",
@@ -260,6 +264,7 @@ export const defaultRoutes: { [key: string]: string } = {
   Intern: "/dashboard",
   "Subscription-Sales": "/dashboard/sales-offer",
   "Sales(New)": "/dashboard/lowBudget",
+  "sales-intern": "/spreadsheet",
   hSale: "/dashboard/sales-offer",
   HAdmin: "/holidaysera",
   Default: "/dashboard",

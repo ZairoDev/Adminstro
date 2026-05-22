@@ -12,6 +12,11 @@ const CandidateSchema = new Schema(
     country: { type: String, required: true },
     college: { type: String, required: true },
     position: { type: String, required: true },
+    employmentType: {
+      type: String,
+      enum: ["fulltime", "intern"],
+      default: null,
+    },
     coverLetter: { type: String },
     linkedin: { type: String },
     portfolio: { type: String },
@@ -80,7 +85,8 @@ const CandidateSchema = new Schema(
         enum: ["fulltime", "intern"],
         default: null,
       },
-      duration: { type: String, default: null },
+      duration: { type: String, default: null }, // Daily training time slot (e.g. 12:00 pm to 4:00 pm)
+      internDuration: { type: String, default: null }, // Internship length (e.g. 3 months)
       trainingPeriod: { type: String, default: null },
       trainingDate: { type: String, default: null }, // Training start date (YYYY-MM-DD format)
       role: { type: String, default: null },

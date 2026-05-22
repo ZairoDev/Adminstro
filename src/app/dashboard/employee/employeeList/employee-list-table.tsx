@@ -30,7 +30,7 @@ import {
 import { UserInterface } from "@/util/type";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { employeeRoles } from "@/models/employee";
+import { employeeRoles } from "@/constants/employeeRoles";
 import { Badge } from "@/components/ui/badge";
 
 /**

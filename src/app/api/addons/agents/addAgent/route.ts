@@ -1,9 +1,11 @@
 import Agents from "@/models/agent";
 import { NextRequest, NextResponse } from "next/server";
+import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDb();
     await getDataFromToken(req);
     const agentData = await req.json();
     await Agents.create(agentData);

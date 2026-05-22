@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import Agents from "@/models/agent";
+import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDb();
     await getDataFromToken(req);
     const { agentId } = await req.json();
     if (!agentId)

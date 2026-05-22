@@ -32,7 +32,11 @@ export function isAdminRole(role: string): boolean {
  * Check if role is Sales team (non-exempt)
  */
 export function isSalesTeamRestricted(role: string): boolean {
-  return role === "Sales" || role === "Subscription-Sales";
+  return (
+    role === "Sales" ||
+    role === "sales-intern" ||
+    role === "Subscription-Sales"
+  );
 }
 
 /**

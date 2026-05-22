@@ -6,20 +6,28 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
 import Role from "@/models/role";
 import { connectDb } from "@/util/db";
+import {
+  buildInternDesignation,
+  formatInternStipend,
+  buildInternTerms,
+  resolveInternDuration,
+  resolveIsIntern,
+} from "@/lib/pdf/letterOfIntentIntern";
 
 type Payload = {
   candidateName: string;
   position: string;
   date: string;
   signatureBase64?: string;
-  salary?: string; 
-  designation?: string; 
-  department?: string; 
-  startDate?: string; 
+  salary?: string;
+  designation?: string;
+  department?: string;
+  startDate?: string;
   candidateSignatureBase64?: string;
-  ankitaSignatureBase64?: string; 
-  signingDate?: string; 
+  ankitaSignatureBase64?: string;
+  signingDate?: string;
   candidateId?: string;
+  employmentType?: "fulltime" | "intern";
 };
 
 async function getBase64FromPublic(relativePath: string) {
@@ -95,6 +103,8 @@ export async function POST(req: NextRequest) {
     let candidateGender: string | null = null;
     let roleDepartment: string | null = null;
     let roleName: string | null = null;
+    let isIntern = resolveIsIntern(data.employmentType);
+    let internDuration = "______________";
     if (data.candidateId) {
       try {
         await connectDb();
@@ -178,6 +188,17 @@ export async function POST(req: NextRequest) {
             }
           } else {
             console.warn("No role reference found in candidate (neither selectionDetails.role nor position)");
+          }
+
+          isIntern = resolveIsIntern(
+            data.employmentType,
+            (candidate as { employmentType?: string }).employmentType,
+            candidate.selectionDetails?.positionType
+          );
+          if (isIntern) {
+            internDuration = resolveInternDuration(
+              candidate.selectionDetails?.internDuration
+            );
           }
         }
       } catch (err) {
@@ -294,7 +315,7 @@ export async function POST(req: NextRequest) {
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
     let yPosition = pageHeight - topMargin;
     let pageNumber = 1;
-    const totalPages = 2; // Training agreement is typically 2 pages
+    const totalPages = isIntern ? 1 : 2;
 
     // Helper function to add a new page
     const addNewPage = () => {
@@ -558,26 +579,76 @@ export async function POST(req: NextRequest) {
     drawWrappedText(dateLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Subject line
-    const subjectLine = `Subject: Letter of Intent – ${data.department || data.position || "Human Resources"}`;
-    drawWrappedText(subjectLine, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Dear candidate line (with dynamic Ms./Mr. prefix based on gender)
     const candidateName = data.candidateName || "______________";
-    // Determine title based on gender: Male -> Mr., Female -> Ms., Others -> use name without title
     let titlePrefix = "";
     if (candidateGender === "Male") {
       titlePrefix = "Mr.";
     } else if (candidateGender === "Female") {
       titlePrefix = "Ms.";
-    } else {
-      // For "Other", "Prefer not to say", or null, use name without title
-      titlePrefix = "";
     }
-    const dearLine = titlePrefix 
+
+    const dearLine = titlePrefix
       ? `Dear ${titlePrefix} ${candidateName},`
       : `Dear ${candidateName},`;
+
+    if (isIntern) {
+      const subjectLine = "Subject: Internship Letter";
+      drawWrappedText(subjectLine, leftMargin, bodySize);
+      yPosition -= paragraphSpacing * 2;
+
+      drawWrappedText(dearLine, leftMargin, bodySize);
+      yPosition -= paragraphSpacing * 2;
+
+      const internDesignation = buildInternDesignation(
+        roleName,
+        data.position,
+        roleDepartment
+      );
+      const internDepartment =
+        roleDepartment || data.department || data.position || "______________";
+      const formattedStipend = formatInternStipend(data.salary);
+
+      const internIntro = `We are pleased to inform you that Zairo International Private Limited, having its registered office at ${companyAddress}, intends to offer you the position of ${internDesignation} with our organization.`;
+      drawWrappedText(internIntro, leftMargin, bodySize);
+      yPosition -= paragraphSpacing * 2;
+
+      drawWrappedText("Proposed Details (Indicative & Non-Binding):", leftMargin, bodySize, true);
+      yPosition -= paragraphSpacing;
+
+      const internProposedDetails = [
+        `- Designation: ${internDesignation}`,
+        `- Department: ${internDepartment}`,
+        `- Work Location: Kakadeo, Kanpur`,
+        `- Duration: ${internDuration}`,
+        `- Stipend: ${formattedStipend}`,
+      ];
+      internProposedDetails.forEach((detail) => {
+        drawWrappedText(detail, leftMargin, bodySize);
+        yPosition -= lineHeight;
+      });
+
+      yPosition -= paragraphSpacing * 2;
+
+      drawWrappedText("Terms & Conditions:", leftMargin, bodySize, true);
+      yPosition -= paragraphSpacing;
+
+      buildInternTerms(internDuration).forEach((term) => {
+        drawWrappedText(`- ${term}`, leftMargin, bodySize);
+        yPosition -= lineHeight;
+      });
+
+      yPosition -= paragraphSpacing * 2;
+
+      const internClosing =
+        "We look forward to having you as part of our team and wish you a great learning experience with us.";
+      drawWrappedText(internClosing, leftMargin, bodySize);
+      yPosition -= paragraphSpacing * 2;
+    } else {
+    // Subject line (full-time Letter of Intent)
+    const subjectLine = `Subject: Letter of Intent – ${data.department || data.position || "Human Resources"}`;
+    drawWrappedText(subjectLine, leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
@@ -737,6 +808,7 @@ export async function POST(req: NextRequest) {
     const noteParagraph = `Please note that this Letter of Intent does not constitute a legally binding employment contract. The final terms of employment will be governed by the Offer Letter and Appointment, we look forward to the possibility of you joining our team and contributing to the growth of Zairo International Private Limited, kindly acknowledge`;
     drawWrappedText(noteParagraph, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
+    } // end full-time Letter of Intent body
 
     // Warm regards
     drawWrappedText("Warm regards,", leftMargin, bodySize);
@@ -822,9 +894,11 @@ export async function POST(req: NextRequest) {
       // For "Other", "Prefer not to say", or null, use name without title
       acknowledgmentTitle = "";
     }
-    const acknowledgmentText = acknowledgmentTitle
-      ? `I, ${acknowledgmentTitle} ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`
-      : `I, ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`;
+    const acknowledgmentText = isIntern
+      ? `I, ${candidateName}, acknowledge receipt of this offer and express my willingness to proceed further as outlined above.`
+      : acknowledgmentTitle
+        ? `I, ${acknowledgmentTitle} ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`
+        : `I, ${candidateName}, acknowledge receipt of this Letter of Intent and express my willingness to proceed further as outlined above.`;
     drawWrappedText(acknowledgmentText, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
     // Signature label
@@ -971,9 +1045,9 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Letter-Of-Intent-${
-          data.candidateName?.replace(/\s+/g, "_") || "Candidate"
-        }.pdf"`,
+        "Content-Disposition": `attachment; filename="${
+          isIntern ? "Internship-Letter" : "Letter-Of-Intent"
+        }-${data.candidateName?.replace(/\s+/g, "_") || "Candidate"}.pdf"`,
         "Cache-Control": "no-store",
       },
     });

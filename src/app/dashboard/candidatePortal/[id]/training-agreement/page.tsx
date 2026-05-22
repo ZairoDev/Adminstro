@@ -305,13 +305,14 @@ export default function TrainingAgreementPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: letterDate,
-        salary: rawSalary, // Pass raw salary number, API will format it correctly
-        startDate: startDateISO, // Pass raw ISO date string - API will format with correct training duration
+        salary: rawSalary,
+        startDate: startDateISO,
         candidateId: candidate._id,
-        // Include signature if Training Agreement is signed
+        employmentType:
+          (candidate as { employmentType?: string }).employmentType ??
+          candidate.selectionDetails?.positionType,
         candidateSignatureBase64: candidate.trainingAgreementDetails?.eSign?.signatureImage || undefined,
-        // Include signing date for LOI
-        signingDate: candidate.trainingAgreementDetails?.eSign?.signedAt 
+        signingDate: candidate.trainingAgreementDetails?.eSign?.signedAt
           ? new Date(candidate.trainingAgreementDetails.eSign.signedAt).toISOString()
           : undefined,
       };
@@ -677,13 +678,16 @@ export default function TrainingAgreementPage() {
             candidateName: updatedCandidate.name,
             position: updatedCandidate.position,
             date: signingDate,
-            salary: rawSalary, // Pass raw salary number, API will format it correctly
+            salary: rawSalary,
             designation: designation,
             department: department,
-            startDate: startDateISO, // Pass raw ISO date string - API will format with correct training duration
+            startDate: startDateISO,
             candidateId: updatedCandidate._id,
+            employmentType:
+              (updatedCandidate as { employmentType?: string }).employmentType ??
+              updatedCandidate.selectionDetails?.positionType,
             candidateSignatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
-            signingDate: signingDate, // Add signing date for LOI
+            signingDate: signingDate,
           };
 
           const loiPdfResponse = await axios.post(

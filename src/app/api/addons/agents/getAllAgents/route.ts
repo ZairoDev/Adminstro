@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import Agents from "@/models/agent";
+import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDb();
     await getDataFromToken(request);
     const agents = await Agents.find();
     const response = NextResponse.json({ data: agents }, { status: 200 });

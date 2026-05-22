@@ -64,22 +64,7 @@ interface IEmployee extends Document, EmployeeSchema {
     byLocation: Record<string, { enabled: boolean; allowedPropertyType: string[] }>;
   };
 }
-export const employeeRoles = [
-  "HR",
-  "Admin",
-  "Sales",
-  "Sales-TeamLead",
-  "hSale",
-  "Guest",
-  "Intern",
-  "Advert",
-  "LeadGen",
-  "LeadGen-TeamLead",
-  "Content",
-  "Developer",
-  "Subscription-Sales",
-  "HAdmin",
-] as const;
+export { employeeRoles, type EmployeeRole } from "@/constants/employeeRoles";
 
 const webSessionSchema = new Schema(
   {
@@ -208,6 +193,7 @@ const employeeSchema = new Schema<IEmployee>(
         "LeadGen-TeamLead",
         "Content",
         "Sales",
+        "sales-intern",
         "hSale",
         "Sales-TeamLead",
         "HR",

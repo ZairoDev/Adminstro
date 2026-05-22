@@ -90,9 +90,11 @@ export type CandidateLite = {
       aadharCard?: string;
     };
   };
+  employmentType?: "fulltime" | "intern" | null;
   selectionDetails?: {
     salary?: number;
     role?: string;
+    positionType?: "fulltime" | "intern";
   };
 };
 
@@ -250,6 +252,7 @@ const NewUser: React.FC<NewUserProps> = ({
         "LeadGen",
         "LeadGen-TeamLead",
         "Sales",
+        "sales-intern",
         "Sales-TeamLead",
         "HR",
         "Guest",
@@ -277,11 +280,13 @@ const NewUser: React.FC<NewUserProps> = ({
           return "LeadGen";
         }
         if (positionLower.includes("sales")) {
+          if (positionLower.includes("intern")) return "sales-intern";
           if (positionLower.includes("teamlead") || positionLower.includes("team lead")) {
             return "Sales-TeamLead";
           }
           return "Sales";
         }
+        if (positionLower.includes("intern")) return "sales-intern";
         if (positionLower.includes("admin")) return "Admin";
         if (positionLower.includes("advert")) return "Advert";
         if (positionLower.includes("hr") || positionLower.includes("human resource")) return "HR";
@@ -291,20 +296,29 @@ const NewUser: React.FC<NewUserProps> = ({
         return null;
       };
       
-      // Try position first
-      if (data.position) {
-        const matchingRole = findMatchingRole(data.position);
-        if (matchingRole) {
-          setValue("role", matchingRole);
-        }
-      }
-      
-      // If position didn't match, try selectionDetails.role
-      if (!data.position || !findMatchingRole(data.position)) {
-        if (data.selectionDetails?.role) {
-          const matchingRole = findMatchingRole(data.selectionDetails.role);
+      const isInternCandidate =
+        data.employmentType === "intern" ||
+        data.selectionDetails?.positionType === "intern";
+
+      if (isInternCandidate) {
+        setValue("role", "sales-intern");
+        setValue("empType", "Intern");
+      } else {
+        // Try position first
+        if (data.position) {
+          const matchingRole = findMatchingRole(data.position);
           if (matchingRole) {
             setValue("role", matchingRole);
+          }
+        }
+
+        // If position didn't match, try selectionDetails.role
+        if (!data.position || !findMatchingRole(data.position)) {
+          if (data.selectionDetails?.role) {
+            const matchingRole = findMatchingRole(data.selectionDetails.role);
+            if (matchingRole) {
+              setValue("role", matchingRole);
+            }
           }
         }
       }
@@ -733,6 +747,7 @@ const NewUser: React.FC<NewUserProps> = ({
                         </SelectItem>
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
+                        <SelectItem value="sales-intern">Sales Intern</SelectItem>
                         <SelectItem value="Sales-TeamLead">
                           Sales-TeamLead
                         </SelectItem>

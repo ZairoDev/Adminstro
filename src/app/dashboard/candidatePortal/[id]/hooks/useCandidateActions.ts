@@ -28,6 +28,9 @@ export function useCandidateActions(
             role: data.role,
             salary: data.salary,
             duration: data.duration,
+            ...(data.internDuration
+              ? { internDuration: data.internDuration }
+              : {}),
           },
         }
       );

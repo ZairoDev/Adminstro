@@ -546,6 +546,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <CheckCheck size={18} />,
     },
   ],
+  "sales-intern": [
+    {
+      path: "/spreadsheet",
+      label: "Owner Sheet",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+  ],
   Sales: [
     {
       path: "/dashboard",

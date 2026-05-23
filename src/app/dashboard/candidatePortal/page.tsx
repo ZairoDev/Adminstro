@@ -63,12 +63,19 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { NotesModal } from "./components/notes-modal";
 
+function formatEmploymentType(type?: string | null): string {
+  if (type === "fulltime") return "Full Time";
+  if (type === "intern") return "Intern";
+  return "—";
+}
+
 interface Candidate {
   _id: string;
   name: string;
   email: string;
   phone: string;
   position: string;
+  employmentType?: "fulltime" | "intern" | null;
   experience: number;
   college?: string;
   status: "pending" | "interview" | "shortlisted" | "selected" | "rejected" | "onboarding";
@@ -1200,6 +1207,9 @@ function CandidatesPageContent() {
                 Role
               </th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                Employment
+              </th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                 Experience
               </th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
@@ -1237,7 +1247,7 @@ function CandidatesPageContent() {
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={activeTab === "interview" ? 12 : activeTab === "pending" ? 11 : 10} className="px-6 py-8 text-center">
+                <td colSpan={activeTab === "interview" ? 13 : activeTab === "pending" ? 12 : 11} className="px-6 py-8 text-center">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
@@ -1246,7 +1256,7 @@ function CandidatesPageContent() {
             ) : displayCandidates.length === 0 ? (
               <tr>
                 <td
-                  colSpan={activeTab === "interview" ? 12 : activeTab === "pending" ? 11 : 10}
+                  colSpan={activeTab === "interview" ? 13 : activeTab === "pending" ? 12 : 11}
                   className="px-6 py-8 text-center text-muted-foreground"
                 >
                   No candidates found
@@ -1319,6 +1329,13 @@ function CandidatesPageContent() {
                   <div className="text-sm text-foreground">
                     {candidate.position}
                   </div>
+                </td>
+                <td className="px-6 py-4">
+                  <Badge variant="outline" className="text-xs font-normal">
+                    {formatEmploymentType(
+                      candidate.employmentType ?? candidate.selectionDetails?.positionType
+                    )}
+                  </Badge>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-foreground">

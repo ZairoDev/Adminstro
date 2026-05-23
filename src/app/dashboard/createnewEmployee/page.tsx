@@ -530,6 +530,7 @@ const NewUser = () => {
                         </SelectItem>
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
+                        <SelectItem value="sales-intern">Sales Intern</SelectItem>
                         {(selectedOrganization === "Holidaysera" ||
                           currentUserRole === "HAdmin") && (
                           <SelectItem value="hSale">hSale</SelectItem>

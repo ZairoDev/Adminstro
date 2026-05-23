@@ -155,7 +155,7 @@ export function SpreadsheetRow({
           </span>
         )}
 
-        {(userRole === "Sales" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
+        {(userRole === "Sales" || userRole === "sales-intern" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
           <span
             className="cursor-pointer"
             onClick={(e) => {
@@ -177,7 +177,7 @@ export function SpreadsheetRow({
           </span>
         )}
 
-        {(userRole === "Sales" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
+        {(userRole === "Sales" || userRole === "sales-intern" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
           <span
             className="cursor-pointer"
             onClick={(e) => {

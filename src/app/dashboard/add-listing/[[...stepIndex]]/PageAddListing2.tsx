@@ -31,6 +31,10 @@ import axios from "@/util/axios";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import SearchableAreaSelect from "../../createquery/SearchAndSelect";
 import Loader from "@/components/loader";
+import {
+  isValidOwnerPropertyFloor,
+  listingPropertyFloorSelectOptions,
+} from "@/app/spreadsheet/constants/ownerSheetFields";
 
 // Dynamic import with proper error handling and loading state
 const Map = dynamic(
@@ -67,7 +71,7 @@ interface Page2State {
   area: string;
   subarea: string;
   neighbourhood: string;
-  floor: number;
+  floor: string;
   isTopFloor: string;
   orientation: string;
   levels: number;
@@ -269,7 +273,7 @@ const PageAddListing2: FC = () => {
     area,
     subarea,
     neighbourhood,
-    floor: Number(floor) || 0,
+    floor,
     isTopFloor,
     orientation,
     levels: Number(levels) || 0,
@@ -304,7 +308,7 @@ const PageAddListing2: FC = () => {
       area,
       subarea,
       neighbourhood,
-      floor: Number(floor) || 0,
+      floor,
       isTopFloor: isTopFloor === "true" ? "true" : "false", // Keep string but match your Page2State expectations
       orientation,
       levels: Number(levels) || 0,
@@ -355,14 +359,12 @@ const PageAddListing2: FC = () => {
   const [isValidForm, setIsValidForm] = useState(false);
   const validateForm = () => {
     const missingFields: string[] = [];
-    const parsedFloor = Number(floor);
-
     if (!country) missingFields.push("Country");
     if (!street) missingFields.push("Street");
     if (!city) missingFields.push("City");
     if (!state) missingFields.push("State");
     if (!postalCode) missingFields.push("Postal Code");
-    if (floor.trim() === "" || Number.isNaN(parsedFloor) || parsedFloor < 0) {
+    if (floor.trim() === "" || !isValidOwnerPropertyFloor(floor)) {
       missingFields.push("Floor");
     }
 
@@ -1006,12 +1008,18 @@ const PageAddListing2: FC = () => {
           </div>
           <div className="w-full">
             <FormItem label="Floor">
-              <Input
-                type="number"
-                placeholder="How many floor in numbers"
-                value={floor}
-                onChange={(e) => setFloor(e.target.value)}
-              />
+              <Select value={floor} onValueChange={setFloor}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select floor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {listingPropertyFloorSelectOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormItem>
           </div>
 

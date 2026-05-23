@@ -33,6 +33,7 @@ import axios from "@/util/axios";
     country: string;
     position: string;
     status: string;
+    employmentType?: "fulltime" | "intern" | null;
     selectionDetails?: {
       positionType: string;
       duration: string;
@@ -1068,6 +1069,8 @@ export default function OnboardingPage() {
           witness2: "____________________",
           signatureBase64: signature.url,
           candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
+          employmentType:
+            candidate.employmentType ?? candidate.selectionDetails?.positionType,
         };
 
         const pdfResponse = await axios.post(
@@ -1193,6 +1196,8 @@ export default function OnboardingPage() {
         // Without this, the PDF will be unsigned (preview only)
         signatureBase64: signature.url,
         candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
+        employmentType:
+          candidate.employmentType ?? candidate.selectionDetails?.positionType,
       };
 
       // DEFENSIVE CHECK: Ensure signature is present before PDF generation
@@ -1471,6 +1476,8 @@ export default function OnboardingPage() {
         witness1: "____________________",
         witness2: "____________________",
         candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
+        employmentType:
+          candidate.employmentType ?? candidate.selectionDetails?.positionType,
         // No signature for unsigned PDF
       };
 

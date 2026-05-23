@@ -1,4 +1,5 @@
 // import UnregisteredOwnersTable from "@/app/dashboard/unregistered-owner/unregisteredTable";
+import { isValidOwnerPropertyFloor } from "@/app/spreadsheet/constants/ownerSheetFields";
 import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import {
@@ -10,8 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 function normalizePropertyFloorInput(raw: unknown): string {
   const s = String(raw ?? "").trim();
-  const ok = s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
-  return ok ? s : "";
+  return isValidOwnerPropertyFloor(s) ? s : "";
 }
 
 export async function POST(req: NextRequest) {

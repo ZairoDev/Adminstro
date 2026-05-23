@@ -2,7 +2,7 @@ import axios from "@/util/axios";
 import { useState } from "react";
 
 import { EmployeeInterface } from "@/util/type";
-import { employeeRoles } from "@/models/employee";
+import { employeeRoles } from "@/constants/employeeRoles";
 
 interface FilterParams {
   isActive?: boolean;

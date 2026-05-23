@@ -13,6 +13,7 @@ interface SelectCandidateDialogProps {
   onSubmit: (data: SelectionData) => Promise<void>;
   loading: boolean;
   candidatePosition?: string; // Candidate's position to prefill role
+  candidateEmploymentType?: "fulltime" | "intern" | null;
 }
 
 export interface SelectionData {
@@ -21,7 +22,8 @@ export interface SelectionData {
   trainingPeriod: string;
   role: string;
   salary?: number;
-  duration?: string; // Training duration (e.g., "12:00 pm to 4:00 pm")
+  duration?: string; // Daily training time (e.g., "12:00 pm to 4:00 pm")
+  internDuration?: string; // Internship length (e.g., "3 months")
 }
 
 export function SelectCandidateDialog({
@@ -30,15 +32,19 @@ export function SelectCandidateDialog({
   onSubmit,
   loading,
   candidatePosition,
+  candidateEmploymentType,
 }: SelectCandidateDialogProps) {
   const [positionType, setPositionType] = useState<"fulltime" | "intern">(
-    "fulltime"
+    candidateEmploymentType === "intern" || candidateEmploymentType === "fulltime"
+      ? candidateEmploymentType
+      : "fulltime"
   );
   const [trainingDate, setTrainingDate] = useState("");
   const [trainingPeriod, setTrainingPeriod] = useState("5 days");
   const [role, setRole] = useState("");
   const [salary, setSalary] = useState("");
   const [duration, setDuration] = useState("");
+  const [internDuration, setInternDuration] = useState("");
 
   // Update role when candidatePosition changes (when dialog opens with different candidate)
   useEffect(() => {
@@ -69,11 +75,22 @@ export function SelectCandidateDialog({
     }
   }, [candidatePosition, open]);
 
+  useEffect(() => {
+    if (open && (candidateEmploymentType === "intern" || candidateEmploymentType === "fulltime")) {
+      setPositionType(candidateEmploymentType);
+    }
+  }, [candidateEmploymentType, open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!trainingDate.trim() || !trainingPeriod.trim() || !role.trim() || !duration.trim()) {
-      alert("Please fill in all fields including duration");
+      alert("Please fill in all fields including training time");
+      return;
+    }
+
+    if (positionType === "intern" && !internDuration.trim()) {
+      alert("Please enter intern duration (e.g., 3 months, 6 months)");
       return;
     }
 
@@ -91,6 +108,7 @@ export function SelectCandidateDialog({
       role,
       salary: Number.isNaN(parsedSalary) ? undefined : parsedSalary,
       duration,
+      ...(positionType === "intern" ? { internDuration: internDuration.trim() } : {}),
     });
 
     // Reset form
@@ -100,6 +118,7 @@ export function SelectCandidateDialog({
     setRole("");
     setSalary("");
     setDuration("");
+    setInternDuration("");
   };
 
   if (!open) return null;
@@ -253,16 +272,16 @@ export function SelectCandidateDialog({
               />
             </div>
 
-            {/* Duration Selection */}
-            <div>
+            {/* Training time — presets or manual */}
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-foreground mb-2">
-                Training Duration
+                Training Time
               </label>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 mb-2">
                 <button
                   type="button"
                   onClick={() => setDuration("12:00 pm to 4:00 pm")}
-                  className={`flex-1 py-2 px-3 rounded border transition ${
+                  className={`flex-1 min-w-[140px] py-2 px-3 rounded border transition ${
                     duration === "12:00 pm to 4:00 pm"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-muted text-muted-foreground hover:border-primary"
@@ -273,7 +292,7 @@ export function SelectCandidateDialog({
                 <button
                   type="button"
                   onClick={() => setDuration("4:00 pm to 8:00 pm")}
-                  className={`flex-1 py-2 px-3 rounded border transition ${
+                  className={`flex-1 min-w-[140px] py-2 px-3 rounded border transition ${
                     duration === "4:00 pm to 8:00 pm"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-muted text-muted-foreground hover:border-primary"
@@ -282,7 +301,46 @@ export function SelectCandidateDialog({
                   4:00 pm to 8:00 pm
                 </button>
               </div>
+              <input
+                type="text"
+                placeholder="Or enter time manually (e.g., 10:00 am to 2:00 pm)"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
+              />
             </div>
+
+            {/* Intern duration — only for interns */}
+            {positionType === "intern" && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Intern Duration
+                </label>
+                <div className="flex flex-wrap gap-3 mb-2">
+                  {["1 month", "3 months", "6 months"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setInternDuration(preset)}
+                      className={`py-2 px-3 rounded border transition ${
+                        internDuration === preset
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-muted text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Or enter intern duration manually (e.g., 2 months)"
+                  value={internDuration}
+                  onChange={(e) => setInternDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

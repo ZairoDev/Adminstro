@@ -55,7 +55,7 @@ import { UserInterface } from "@/util/type";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { employeeRoles } from "@/models/employee";
+import { employeeRoles } from "@/constants/employeeRoles";
 
 interface DataTableProps {
   columns: ColumnDef<UserInterface, any>[];

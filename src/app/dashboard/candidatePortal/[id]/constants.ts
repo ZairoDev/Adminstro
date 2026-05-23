@@ -1,3 +1,16 @@
+export type EmploymentType = "fulltime" | "intern";
+
+export const EMPLOYMENT_TYPE_OPTIONS: { value: EmploymentType; label: string }[] = [
+  { value: "fulltime", label: "Full Time" },
+  { value: "intern", label: "Intern" },
+];
+
+export function formatEmploymentType(type?: string | null): string {
+  if (type === "fulltime") return "Full Time";
+  if (type === "intern") return "Intern";
+  return "—";
+}
+
 export const ROLE_OPTIONS = [
   "Developer",
   "LeadGen",

@@ -12,7 +12,12 @@ interface Page6State {
   reviews: string[];
 }
 
-const sanitizeReview = (value: string): string => value.replace(/\s+/g, " ").trim();
+/** Preserve line breaks; only normalize line endings and trim outer whitespace. */
+const normalizeReviewForStorage = (value: string): string =>
+  value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+
+const isReviewEmpty = (value: string): boolean =>
+  normalizeReviewForStorage(value) === "";
 
 const PageAddListing6: FC<PageAddListing6Props> = () => {
   const params = useSearchParams() ?? null;
@@ -54,7 +59,7 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
 
   useEffect(() => {
     const normalizedReviews = myArray.map((_, index) =>
-      sanitizeReview(reviews[index] || "")
+      normalizeReviewForStorage(reviews[index] || "")
     );
 
     const newReviews: Page6State = {
@@ -67,9 +72,7 @@ const PageAddListing6: FC<PageAddListing6Props> = () => {
   // Function to check if any review field is empty
   const isAnyReviewEmpty = () => {
     if (reviews.length === 0) return true;
-    return myArray.some(
-      (_, index) => sanitizeReview(reviews[index] || "") === ""
-    );
+    return myArray.some((_, index) => isReviewEmpty(reviews[index] || ""));
   };
 
   return (

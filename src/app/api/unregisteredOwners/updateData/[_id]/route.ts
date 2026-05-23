@@ -1,3 +1,4 @@
+import { isValidOwnerPropertyFloor } from "@/app/spreadsheet/constants/ownerSheetFields";
 import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { Properties } from "@/models/property";
@@ -44,8 +45,9 @@ export async function PUT(
       data.geoAddressVerified = value === "Verified" ? "Verified" : "None";
     } else if (field === "propertyFloor") {
       const s = String(value ?? "").trim();
-      const ok = s === "" || s === "Mezzanine" || /^([1-9]|10)$/.test(s);
-      data.propertyFloor = ok ? s : (data.propertyFloor ?? "");
+      data.propertyFloor = isValidOwnerPropertyFloor(s)
+        ? s
+        : (data.propertyFloor ?? "");
     } else {
       (data as Record<string, unknown>)[field] = value;
     }

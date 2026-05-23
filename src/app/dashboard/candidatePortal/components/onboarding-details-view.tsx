@@ -116,6 +116,7 @@ interface OnboardingDetails {
 interface SelectionDetails {
   positionType?: string;
   duration?: string;
+  internDuration?: string;
   trainingPeriod?: string;
   trainingDate?: string; // Training start date (YYYY-MM-DD format)
   role?: string;
@@ -580,7 +581,8 @@ export function OnboardingDetailsView({
                 <InfoRow label="Role" value={selectionDetails.role} />
                 <InfoRow label="Position Type" value={selectionDetails.positionType} />
                 <InfoRow label="Training Period" value={selectionDetails.trainingPeriod} />
-                <InfoRow label="Duration" value={selectionDetails.duration} />
+                <InfoRow label="Training Time" value={selectionDetails.duration} />
+                <InfoRow label="Intern Duration" value={selectionDetails.internDuration} />
                 <InfoRow label="Salary" value={selectionDetails.salary} />
               </div>
             </Card>

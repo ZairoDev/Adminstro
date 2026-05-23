@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuthStore } from "@/AuthStore";
 import { UserInterface } from "@/util/type";
-import { employeeRoles } from "@/models/employee";
+import { employeeRoles } from "@/constants/employeeRoles";
 
 import EmployeeTable from "./employee-table";
 

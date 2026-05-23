@@ -75,6 +75,7 @@ export const generateUnsignedLetterOfIntent = async (candidate: Candidate) => {
       date: agreementDate,
       salary: candidate.selectionDetails?.salary?.toString() || undefined,
       candidateId: candidate._id,
+      employmentType: candidate.employmentType ?? candidate.selectionDetails?.positionType,
     };
 
     const pdfResponse = await axios.post(
@@ -118,6 +119,8 @@ export const generateUnsignedOnboardingAgreement = async (candidate: Candidate) 
       witness1: "____________________",
       witness2: "____________________",
       candidateId: candidate._id, // Pass candidateId so API can fetch stored onboardingStartedAt date
+      employmentType:
+        candidate.employmentType ?? candidate.selectionDetails?.positionType,
     };
 
     const pdfResponse = await axios.post(

@@ -96,7 +96,7 @@ interface CombinedData {
   neighbourhood?: string;
   internalCity?: string;
   internalArea?: string;
-  floor?: number;
+  floor?: string | number;
   isTopFloor?: string;
   constructionYear?: number;
   energyClass?: string;
@@ -378,7 +378,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         });
         clearLocalStorage();
       }
-      router.push(`/dashboard/user/`);
+      // router.push(`/dashboard/user/`);
     } catch (error) {
       toast({
         variant: "destructive",

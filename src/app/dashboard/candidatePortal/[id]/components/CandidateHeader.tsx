@@ -6,7 +6,7 @@ import { ArrowLeft, Download, Linkedin, Globe, Briefcase, Clock, MapPin, Graduat
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Candidate } from "../types";
-import { getStatusColor, getStatusLabel } from "../constants";
+import { formatEmploymentType, getStatusColor, getStatusLabel } from "../constants";
 import { formatSalary } from "../utils/time-utils";
 
 interface CandidateHeaderProps {
@@ -49,6 +49,13 @@ export function CandidateHeader({ candidate }: CandidateHeaderProps) {
                   <Briefcase className="w-3.5 h-3.5" />
                   {candidate.position}
                 </span>
+                {candidate.employmentType && (
+                  <span className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {formatEmploymentType(candidate.employmentType)}
+                    </Badge>
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" />
                   {candidate.experience === 0

@@ -4497,6 +4497,7 @@ export default function WhatsAppChat() {
                   />
 
                   <MessageList
+                    key={selectedConversation._id}
                     messages={messages}
                     messagesLoading={messagesLoading}
                     messageSearchQuery={messageSearchQuery}

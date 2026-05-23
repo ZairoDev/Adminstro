@@ -6,6 +6,7 @@ import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
+import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
 import EmployeeUiRule from "@/models/employeeUiRule";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
@@ -282,6 +283,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Treat the DB record as stale and wipe it so login can proceed.
         const incomingToken = request.cookies.get("token")?.value;
         if (!incomingToken) {
+          const staleSessionId = existing?.sessionId ?? null;
           await Employees.updateOne(
             { _id: temp._id },
             {
@@ -293,6 +295,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               },
             },
           );
+          try {
+            await endActiveEmployeeLoginSessions({
+              employeeId: temp._id.toString(),
+              logoutTime: new Date(),
+              sessionId: staleSessionId,
+            });
+          } catch {
+            // non-critical
+          }
           // Fall through to normal login flow below
         } else {
           return NextResponse.json(

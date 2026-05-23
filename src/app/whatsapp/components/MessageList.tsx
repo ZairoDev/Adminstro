@@ -1,4 +1,4 @@
-import { Loader2, Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Message } from "../types";
 import { getMessageDisplayText } from "../utils";
@@ -10,8 +10,10 @@ import {
   Check,
   MoreVertical,
   Copy,
+  Languages,
   Reply,
   Smile,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   Film,
@@ -38,7 +40,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
+import { useMessageTranslation } from "../hooks/useMessageTranslation";
+import {
+  getLanguageLabel,
+  getMessageTranslationDisplayText,
+  getTranslatableMessageText,
+  isTranslatableMessage,
+  type MessageTranslationEntry,
+} from "@/lib/translate/messageTranslate";
 
 // ReadMoreText component for messages longer than 30 words
 const ReadMoreText = memo(function ReadMoreText({
@@ -421,6 +432,9 @@ const MessageBubble = memo(function MessageBubble({
   onImageClick,
   onVideoClick,
   onScrollToMessage,
+  translationEntry,
+  translationLoading = false,
+  onTranslateToggle,
   isHighlighted,
   isMounted,
   isMobile = false,
@@ -440,6 +454,9 @@ const MessageBubble = memo(function MessageBubble({
   onImageClick?: () => void;
   onVideoClick?: (url: string) => void;
   onScrollToMessage?: (messageId: string) => void;
+  translationEntry?: MessageTranslationEntry;
+  translationLoading?: boolean;
+  onTranslateToggle?: () => void;
   isHighlighted?: boolean;
   isMounted: boolean;
   isMobile?: boolean;
@@ -447,7 +464,9 @@ const MessageBubble = memo(function MessageBubble({
 }) {
   const isOutgoing = message.direction === "outgoing";
   const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
-  const displayText = getMessageDisplayText(message);
+  const translatableText = getTranslatableMessageText(message);
+  const canTranslate = isTranslatableMessage(message) && Boolean(onTranslateToggle);
+  const displayText = getMessageTranslationDisplayText(message, translationEntry);
   const [isHovered, setIsHovered] = useState(false);
   const [isLongPressed, setIsLongPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -871,7 +890,41 @@ const MessageBubble = memo(function MessageBubble({
           }
 
           if (displayText && !displayText.startsWith("📷") && !displayText.startsWith("🎬")) {
-            return <ReadMoreText text={displayText} searchQuery={searchQuery} />;
+            return (
+              <div className="px-1">
+                <ReadMoreText text={displayText} searchQuery={searchQuery} />
+                {translationEntry?.showing === "english" && (
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696a0] mt-1 italic">
+                    Translated to English
+                    {translationEntry.sourceLanguage !== "auto" &&
+                      translationEntry.sourceLanguage !== "en" &&
+                      ` · from ${getLanguageLabel(translationEntry.sourceLanguage)}`}
+                  </p>
+                )}
+                {canTranslate && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTranslateToggle?.();
+                    }}
+                    disabled={translationLoading}
+                    className="mt-1 flex items-center gap-1 text-[12px] font-medium text-[#008069] dark:text-[#00a884] hover:underline disabled:opacity-50"
+                  >
+                    {translationLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Translating…
+                      </>
+                    ) : translationEntry?.showing === "english" ? (
+                      "Show original"
+                    ) : (
+                      "Translate to English"
+                    )}
+                  </button>
+                )}
+              </div>
+            );
           }
           return null;
         })()}
@@ -1036,6 +1089,21 @@ const MessageBubble = memo(function MessageBubble({
                     Forward
                   </DropdownMenuItem>
                 )}
+                {canTranslate && onTranslateToggle && (
+                  <DropdownMenuItem
+                    onSelect={onTranslateToggle}
+                    className={cn(isMobile && "py-3 text-base")}
+                  >
+                    {translationLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Languages className="h-4 w-4 mr-2" />
+                    )}
+                    {translationEntry?.showing === "english"
+                      ? "Show original"
+                      : "Translate to English"}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem 
                   onSelect={onCopy}
                   className={cn(isMobile && "py-3 text-base")}
@@ -1098,6 +1166,7 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
   onScrolledToMessage,
 }, ref) => {
   const { toast } = useToast();
+  const { getEntry, isLoading, toggleTranslation } = useMessageTranslation();
   const [isMounted, setIsMounted] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
@@ -1356,11 +1425,16 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
 
   // Handlers
   const handleCopy = useCallback((message: Message) => {
-    const text = message.mediaUrl || getMessageDisplayText(message);
+    const msgId = message._id || message.messageId;
+    const entry = getEntry(msgId);
+    const text =
+      message.mediaUrl ||
+      getMessageTranslationDisplayText(message, entry) ||
+      getMessageDisplayText(message);
     navigator.clipboard.writeText(text).then(() => {
       toast({ title: "Copied", description: message.mediaUrl ? "URL copied" : "Text copied" });
     });
-  }, [toast]);
+  }, [toast, getEntry]);
 
   const handleDownload = useCallback((message: Message) => {
     if (!message.mediaUrl) return;
@@ -1584,6 +1658,28 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
                   isMounted={isMounted}
                   isMobile={isMobile}
                   searchQuery={messageSearchQuery}
+                  translationEntry={getEntry(msgId)}
+                  translationLoading={isLoading(msgId)}
+                  onTranslateToggle={
+                    isTranslatableMessage(item.message)
+                      ? () => {
+                          const text = getTranslatableMessageText(item.message);
+                          if (!text) return;
+                          void toggleTranslation(msgId, text).catch((err: unknown) => {
+                            const description =
+                              axios.isAxiosError(err) &&
+                              typeof err.response?.data?.error === "string"
+                                ? err.response.data.error
+                                : "Could not translate message";
+                            toast({
+                              title: "Translation failed",
+                              description,
+                              variant: "destructive",
+                            });
+                          });
+                        }
+                      : undefined
+                  }
                 />
               </div>
             );

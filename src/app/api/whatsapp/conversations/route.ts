@@ -22,6 +22,10 @@ import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
 } from "@/lib/whatsapp/phoneMask";
+import {
+  getGuestOutboundStatsByConversationIds,
+  mergeGuestOutboundStats,
+} from "@/lib/whatsapp/guestOutboundStats";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -78,11 +82,19 @@ export async function GET(req: NextRequest) {
         }
 
         const phoneMaskRules = await resolveMaskRulesForToken(token);
-        const maskedConv = applyPhoneMaskToConversation(
+        let maskedConv = applyPhoneMaskToConversation(
           convDoc,
           phoneMaskRules,
           userRole,
-        );
+        ) as Record<string, unknown>;
+
+        if (maskedConv.conversationType === "guest") {
+          const statsMap = await getGuestOutboundStatsByConversationIds([
+            convDoc._id as mongoose.Types.ObjectId,
+          ]);
+          const [withStats] = mergeGuestOutboundStats([maskedConv], statsMap);
+          maskedConv = withStats as Record<string, unknown>;
+        }
 
         return NextResponse.json({
           success: true,
@@ -400,6 +412,23 @@ export async function GET(req: NextRequest) {
       console.warn("Lead profile picture enrichment failed:", enrichErr);
     }
 
+    const guestIdsForStats = conversationsWithStatus
+      .filter(
+        (c: { conversationType?: string; source?: string }) =>
+          c.conversationType === "guest" && c.source !== "internal",
+      )
+      .map((c: { _id: mongoose.Types.ObjectId }) => c._id);
+    let conversationsWithGuestStats = conversationsWithStatus;
+    try {
+      const guestStatsMap = await getGuestOutboundStatsByConversationIds(guestIdsForStats);
+      conversationsWithGuestStats = mergeGuestOutboundStats(
+        conversationsWithStatus,
+        guestStatsMap,
+      );
+    } catch (statsErr) {
+      console.warn("Guest outbound stats aggregation failed:", statsErr);
+    }
+
     // =========================================================
     // Get or create "You" conversation (WhatsApp-style Message Yourself)
     // =========================================================
@@ -472,7 +501,7 @@ export async function GET(req: NextRequest) {
           }
 
           // Add to conversations list (at the top, like WhatsApp)
-          conversationsWithStatus.unshift(youConversation);
+          conversationsWithGuestStats.unshift(youConversation);
         }
       }
     } catch (error) {
@@ -488,7 +517,7 @@ export async function GET(req: NextRequest) {
     const archivedCount = archivedConversationIds.length;
 
     const phoneMaskRules = await resolveMaskRulesForToken(token);
-    const maskedConversations = conversationsWithStatus.map((conv: Record<string, unknown>) =>
+    const maskedConversations = conversationsWithGuestStats.map((conv: Record<string, unknown>) =>
       applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
     );
 

@@ -5,202 +5,162 @@ import jwt from "jsonwebtoken";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
+import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
+import { getClientIpFromHeaders } from "@/util/getClientIp";
 
 export const dynamic = "force-dynamic";
+
+type TokenPayload = {
+  id: string;
+  sid?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+};
+
+async function processEmployeeLogout(
+  request: NextRequest,
+  decoded: TokenPayload,
+  deviceType: "web" | "mobile",
+): Promise<void> {
+  const logoutTime = new Date();
+  const sessionIdFromToken = decoded.sid;
+  const sessionId =
+    sessionIdFromToken || request.cookies.get("sessionId")?.value || null;
+  const employeeId = String(decoded.id);
+
+  const slotUnset =
+    deviceType === "mobile"
+      ? {
+          "mobileSession.sessionId": null,
+          "mobileSession.sessionStartedAt": null,
+          "mobileSession.lastActiveAt": null,
+          "mobileSession.isLoggedIn": false,
+        }
+      : {
+          "webSession.sessionId": null,
+          "webSession.sessionStartedAt": null,
+          "webSession.expiresAt": null,
+          "webSession.isLoggedIn": false,
+        };
+
+  const sessionField =
+    deviceType === "mobile" ? "mobileSession.sessionId" : "webSession.sessionId";
+
+  await Employees.updateOne(
+    {
+      _id: decoded.id,
+      ...(sessionIdFromToken ? { [sessionField]: sessionIdFromToken } : {}),
+    },
+    { $set: { lastLogout: logoutTime, ...slotUnset } },
+  );
+
+  try {
+    await endActiveEmployeeLoginSessions({
+      employeeId,
+      logoutTime,
+      sessionId,
+    });
+  } catch (e) {
+    console.warn("Session-based logout update failed:", e);
+  }
+
+  try {
+    const employee = await Employees.findById(decoded.id);
+    if (employee) {
+      const ipAddress =
+        getClientIpFromHeaders(request.headers) ||
+        request.headers.get("x-forwarded-for")?.split(",")[0] ||
+        request.headers.get("x-real-ip") ||
+        "Unknown";
+
+      const activityLog = new EmployeeActivityLog({
+        employeeId,
+        employeeName: decoded.name || employee.name,
+        employeeEmail: decoded.email || employee.email,
+        role: decoded.role || employee.role,
+        activityType: "logout",
+        logoutTime,
+        sessionId,
+        status: "ended",
+        lastActivityAt: logoutTime,
+        ipAddress,
+        userAgent: request.headers.get("user-agent") || "",
+        notes: "Logout from employee portal",
+      });
+
+      await activityLog.save().catch((err: Error) => {
+        console.warn("Failed to log logout activity:", err.message);
+      });
+    }
+  } catch (activityError) {
+    console.warn("Activity logging failed (non-critical):", activityError);
+  }
+
+  const io = (global as unknown as {
+    io?: { emit: (event: string, data: object) => void };
+  }).io;
+  if (io) {
+    io.emit("employee-logout", { _id: decoded.id, email: decoded.email });
+  }
+}
 
 export async function GET(request: NextRequest): Promise<ResponseType> {
   try {
     await connectDb();
     const deviceType = getDeviceTypeFromHeaders(request.headers);
-    // Get token from cookies or authorization header
-    const token = request.cookies.get("token")?.value || 
-                  request.headers.get("authorization")?.replace("Bearer ", "");
-    
+    const token =
+      request.cookies.get("token")?.value ||
+      request.headers.get("authorization")?.replace("Bearer ", "");
+
     if (token) {
+      let decoded: TokenPayload | null = null;
+
       try {
-        const decoded = jwt.verify(token, process.env.TOKEN_SECRET as string) as any;
-        
-        // Update employee login status
-        const logoutTime = new Date();
-        const sessionIdFromToken = decoded?.sid as string | undefined;
-        const slotUnset =
-          deviceType === "mobile"
-            ? {
-                "mobileSession.sessionId": null,
-                "mobileSession.sessionStartedAt": null,
-                "mobileSession.lastActiveAt": null,
-                "mobileSession.isLoggedIn": false,
-              }
-            : {
-                "webSession.sessionId": null,
-                "webSession.sessionStartedAt": null,
-                "webSession.expiresAt": null,
-                "webSession.isLoggedIn": false,
-              };
-        await Employees.updateOne(
-          { _id: decoded.id, ...(sessionIdFromToken ? { [(deviceType === "mobile" ? "mobileSession.sessionId" : "webSession.sessionId")]: sessionIdFromToken } : {}) } as any,
-          { $set: { lastLogout: logoutTime, ...slotUnset } }
-        );
+        decoded = jwt.verify(
+          token,
+          process.env.TOKEN_SECRET as string,
+        ) as TokenPayload;
+      } catch {
+        const unverified = jwt.decode(token) as TokenPayload | null;
+        if (unverified?.id) decoded = unverified;
+      }
 
-        // Session-based logout: end the matching active login record for this device/session
-        try {
-          const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value;
-          if (sessionId) {
-            const loginDoc = await EmployeeActivityLog.findOne({
-              sessionId,
-              status: "active",
-              activityType: "login",
-            });
-            if (loginDoc) {
-              const loginTime = loginDoc.loginTime ? new Date(loginDoc.loginTime) : null;
-              const durationMinutes = loginTime ? Math.max(0, Math.round((logoutTime.getTime() - loginTime.getTime()) / (1000 * 60))) : 0;
-              loginDoc.logoutTime = logoutTime;
-              loginDoc.duration = durationMinutes;
-              loginDoc.status = "ended";
-              loginDoc.lastActivityAt = logoutTime;
-              await loginDoc.save().catch(() => {});
-            }
-          }
-        } catch (e) {
-          console.warn("Session-based logout update failed:", e);
-        }
-
-        // Log logout activity
-        try {
-          const employee = await Employees.findById(decoded.id);
-          if (employee) {
-            const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value || null;
-            const activityLog = new EmployeeActivityLog({
-              employeeId: decoded.id.toString(),
-              employeeName: decoded.name || employee.name,
-              employeeEmail: decoded.email || employee.email,
-              role: decoded.role || employee.role,
-              activityType: "logout",
-              logoutTime: logoutTime,
-              sessionId,
-              status: "ended",
-              lastActivityAt: logoutTime,
-            ipAddress: (await import("@/util/getClientIp")).getClientIpFromHeaders(request.headers) || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown",
-              userAgent: request.headers.get("user-agent") || "",
-              notes: "Logout from employee portal",
-            });
-            
-            await activityLog.save().catch((err: any) => {
-              console.warn("Failed to log logout activity:", err.message);
-            });
-          }
-        } catch (activityError) {
-          console.warn("Activity logging failed (non-critical):", activityError);
-        }
-
-        // Emit socket event for real-time tracking
-        if ((global as any).io) {
-          (global as any).io.emit("employee-logout", {
-            _id: decoded.id,
-            email: decoded.email,
-          });
-        }
-      } catch (err) {
-        // Token might be expired, try to decode without verification
-        const decoded = jwt.decode(token) as any;
-        if (decoded?.id) {
-          const logoutTime = new Date();
-          const sessionIdFromToken = decoded?.sid as string | undefined;
-          const slotUnset =
-            deviceType === "mobile"
-              ? {
-                  "mobileSession.sessionId": null,
-                  "mobileSession.sessionStartedAt": null,
-                  "mobileSession.lastActiveAt": null,
-                  "mobileSession.isLoggedIn": false,
-                }
-              : {
-                  "webSession.sessionId": null,
-                  "webSession.sessionStartedAt": null,
-                  "webSession.expiresAt": null,
-                  "webSession.isLoggedIn": false,
-                };
-          await Employees.updateOne(
-            { _id: decoded.id, ...(sessionIdFromToken ? { [(deviceType === "mobile" ? "mobileSession.sessionId" : "webSession.sessionId")]: sessionIdFromToken } : {}) } as any,
-            { $set: { lastLogout: logoutTime, ...slotUnset } }
-          );
-
-          // Log logout activity
-          try {
-            const employee = await Employees.findById(decoded.id);
-            if (employee) {
-            const sessionId = sessionIdFromToken || request.cookies.get("sessionId")?.value || null;
-            const activityLog = new EmployeeActivityLog({
-                employeeId: decoded.id.toString(),
-                employeeName: decoded.name || employee.name,
-                employeeEmail: decoded.email || employee.email,
-                role: decoded.role || employee.role,
-                activityType: "logout",
-                logoutTime: logoutTime,
-              sessionId,
-              status: "ended",
-              lastActivityAt: logoutTime,
-            ipAddress: (await import("@/util/getClientIp")).getClientIpFromHeaders(request.headers) || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown",
-                userAgent: request.headers.get("user-agent") || "",
-                notes: "Logout from employee portal",
-              });
-              
-              await activityLog.save().catch((err: any) => {
-                console.warn("Failed to log logout activity:", err.message);
-              });
-            }
-          } catch (activityError) {
-            console.warn("Activity logging failed (non-critical):", activityError);
-          }
-
-          if ((global as any).io) {
-            (global as any).io.emit("employee-logout", {
-              _id: decoded.id,
-              email: decoded.email,
-            });
-          }
-        }
+      if (decoded?.id) {
+        await processEmployeeLogout(request, decoded, deviceType);
       }
     }
 
-    // Create the response
     const response = NextResponse.json({
       message: "Logged out successfully",
       success: true,
     });
 
     if (deviceType === "web") {
-      await response.cookies.delete({
+      response.cookies.delete({
         name: "token",
         path: "/",
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       });
-      // clear sessionId cookie as well
       try {
-        await response.cookies.delete({
+        response.cookies.delete({
           name: "sessionId",
           path: "/",
           sameSite: "lax",
           secure: process.env.NODE_ENV === "production",
         });
-      } catch (e) {}
+      } catch {
+        // ignore
+      }
     }
 
     response.headers.set("Cache-Control", "no-store");
-
     return response;
-  } catch (error) {
-    // Handle errors if any occur
+  } catch {
     return NextResponse.json(
       { message: "An error occurred", success: false },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
-
-function extractIPFromRequest(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const real = request.headers.get("x-real-ip");
-  return (forwarded ? forwarded.split(",")[0] : real) || "Unknown";
 }

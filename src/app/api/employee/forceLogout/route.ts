@@ -169,36 +169,15 @@ export async function POST(request: NextRequest) {
       // Don't fail the operation if logging fails
     }
 
-    // end active session(s) for this employee (either specific sessionId or all active)
-    const sessionQuery: any = {
-      employeeId,
-      status: "active",
-      activityType: "login",
-    };
-    if (sessionId) sessionQuery.sessionId = sessionId;
-
     try {
-      const activeSessions = await EmployeeActivityLog.find(sessionQuery);
-      await Promise.all(
-        activeSessions.map((session: any) => {
-          const loginTime = session.loginTime
-            ? new Date(session.loginTime)
-            : null;
-          const durationMinutes = loginTime
-            ? Math.max(
-                0,
-                Math.round(
-                  (logoutTime.getTime() - loginTime.getTime()) / (1000 * 60),
-                ),
-              )
-            : 0;
-          session.logoutTime = logoutTime;
-          session.duration = durationMinutes;
-          session.status = "ended";
-          session.lastActivityAt = logoutTime;
-          return session.save().catch(() => {});
-        }),
+      const { endActiveEmployeeLoginSessions } = await import(
+        "@/util/employeeActivitySession"
       );
+      await endActiveEmployeeLoginSessions({
+        employeeId,
+        logoutTime,
+        sessionId: sessionId || null,
+      });
     } catch (e) {
       console.warn(
         "Failed to update activity logs during force logout:",

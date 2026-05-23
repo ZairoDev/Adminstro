@@ -92,6 +92,10 @@ export interface Conversation {
   sessionExpiresAt?: Date;
   conversationType?: "owner" | "guest"; // Determined by first template message
   referenceLink?: string; // Property listing URL or reference link
+  /** Outgoing VacationSaga listing links sent to this guest (sidebar) */
+  listingLinkSentCount?: number;
+  /** Outgoing text messages matching "options sent" (sidebar, guests only) */
+  optionsSentCount?: number;
   // Real-time presence (if supported by backend)
   isOnline?: boolean;
   isTyping?: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ComponentType, type ReactNode } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,8 @@ import {
   Sun,
   Moon,
   Shield,
+  Link2,
+  ListChecks,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
@@ -55,6 +57,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
@@ -159,6 +167,95 @@ function ThemeToggleButton() {
   );
 }
 
+function ConversationActionItems({
+  MenuItem,
+  conversation,
+  isArchived,
+  canChangeType,
+  role,
+  onRenameFor,
+  onTriggerUpload,
+  onConversationTypeChange,
+  onArchive,
+  onUnarchive,
+  isMobile,
+}: {
+  MenuItem: ComponentType<{
+    onSelect?: () => void;
+    className?: string;
+    children: ReactNode;
+  }>;
+  conversation: Conversation;
+  isArchived?: boolean;
+  canChangeType: boolean;
+  role?: Conversation["conversationType"];
+  onRenameFor?: (conversationId: string, currentName?: string) => void;
+  onTriggerUpload?: (conversationId: string) => void;
+  onConversationTypeChange?: (
+    conversationId: string,
+    conversationType: "owner" | "guest",
+  ) => void | Promise<void>;
+  onArchive?: (id: string) => void;
+  onUnarchive?: (id: string) => void;
+  isMobile?: boolean;
+}) {
+  const itemClass = isMobile ? "py-3 text-base" : undefined;
+
+  return (
+    <>
+      <MenuItem
+        className={itemClass}
+        onSelect={() => onRenameFor?.(conversation._id, conversation.participantName)}
+      >
+        <MoreVertical className="h-4 w-4 mr-2" />
+        Rename
+      </MenuItem>
+      <MenuItem
+        className={itemClass}
+        onSelect={() => onTriggerUpload?.(conversation._id)}
+      >
+        <Images className="h-4 w-4 mr-2" />
+        Upload profile picture
+      </MenuItem>
+      {canChangeType && role !== "owner" && (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => void onConversationTypeChange?.(conversation._id, "owner")}
+        >
+          <User className="h-4 w-4 mr-2" />
+          Convert to owner
+        </MenuItem>
+      )}
+      {canChangeType && role !== "guest" && (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => void onConversationTypeChange?.(conversation._id, "guest")}
+        >
+          <Users className="h-4 w-4 mr-2" />
+          Convert to guest
+        </MenuItem>
+      )}
+      {isArchived ? (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => onUnarchive?.(conversation._id)}
+        >
+          <ArchiveRestore className="h-4 w-4 mr-2" />
+          Unarchive
+        </MenuItem>
+      ) : (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => onArchive?.(conversation._id)}
+        >
+          <Archive className="h-4 w-4 mr-2" />
+          Archive
+        </MenuItem>
+      )}
+    </>
+  );
+}
+
 function ConversationItem({
   conversation,
   isSelected,
@@ -258,12 +355,31 @@ function ConversationItem({
     conversation.source !== "internal" &&
     Boolean(onConversationTypeChange);
 
-  return (
+  const listingLinkSentCount = conversation.listingLinkSentCount ?? 0;
+  const optionsSentCount = conversation.optionsSentCount ?? 0;
+  const showGuestStats =
+    role === "guest" && (listingLinkSentCount > 0 || optionsSentCount > 0);
+
+  const hasActions = Boolean(onArchive || onUnarchive || canChangeType || onRenameFor);
+
+  const actionMenuProps = {
+    conversation,
+    isArchived,
+    canChangeType,
+    role,
+    onRenameFor,
+    onTriggerUpload,
+    onConversationTypeChange,
+    onArchive,
+    onUnarchive,
+    isMobile,
+  };
+
+  const row = (
     <div
       className={cn(
         "relative flex items-center gap-3 cursor-pointer transition-colors group",
         "mx-2 mb-0.5 rounded-xl px-3 py-3 min-h-[72px] md:py-2.5 md:min-h-[56px]",
-        // Rounded light grey highlight only when active or hover
         "hover:bg-[#f0f0f0] dark:hover:bg-[#2a3942]",
         "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
         isSelected && "bg-[#f0f0f0] dark:bg-[#2a3942]"
@@ -349,73 +465,89 @@ function ConversationItem({
             {messagePreview || phone || " "}
           </span>
         </div>
+        {showGuestStats && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            {listingLinkSentCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#008069] dark:text-[#00a884] bg-[#e7f8f3] dark:bg-[#0b3328] px-1.5 py-0.5 rounded-full tabular-nums">
+                      <Link2 className="h-3 w-3" />
+                      {listingLinkSentCount}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Listing link{listingLinkSentCount === 1 ? "" : "s"} sent
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {optionsSentCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#6b5b95] dark:text-[#b8a9e0] bg-[#f3f0f8] dark:bg-[#2a2438] px-1.5 py-0.5 rounded-full tabular-nums">
+                      <ListChecks className="h-3 w-3" />
+                      {optionsSentCount}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    &quot;Options sent&quot; message{optionsSentCount === 1 ? "" : "s"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Chevron: only on hover, absolute so it doesn't take layout space or create gap */}
-      {(onArchive || onUnarchive || canChangeType || onRenameFor) && (
+      {/* Chevron: hover menu */}
+      {hasActions && (
         <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                type="button"
                 className="p-1 rounded hover:bg-[#e9edef] dark:hover:bg-[#374045] transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
                 <ChevronDown className="h-5 w-5 text-[#54656f] dark:text-[#aebac1]" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRenameFor?.(conversation._id, conversation.participantName); }}>
-                <MoreVertical className="h-4 w-4 mr-2" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTriggerUpload?.(conversation._id); }}>
-                <Images className="h-4 w-4 mr-2" />
-                Upload profile picture
-              </DropdownMenuItem>
-              {canChangeType && role !== "owner" && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void onConversationTypeChange?.(conversation._id, "owner");
-                  }}
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Convert to owner
-                </DropdownMenuItem>
-              )}
-              {canChangeType && role !== "guest" && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void onConversationTypeChange?.(conversation._id, "guest");
-                  }}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Convert to guest
-                </DropdownMenuItem>
-              )}
-              {isArchived ? (
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  onUnarchive?.(conversation._id);
-                }}>
-                  <ArchiveRestore className="h-4 w-4 mr-2" />
-                  Unarchive
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  onArchive?.(conversation._id);
-                }}>
-                  <Archive className="h-4 w-4 mr-2" />
-                  Archive
-                </DropdownMenuItem>
-              )}
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <ConversationActionItems
+                MenuItem={DropdownMenuItem as ComponentType<{
+                  onSelect?: () => void;
+                  className?: string;
+                  children: ReactNode;
+                }>}
+                {...actionMenuProps}
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       )}
     </div>
+  );
+
+  if (!hasActions) {
+    return row;
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+      <ContextMenuContent className="min-w-[180px]">
+        <ConversationActionItems
+          MenuItem={ContextMenuItem as ComponentType<{
+            onSelect?: () => void;
+            className?: string;
+            children: ReactNode;
+          }>}
+          {...actionMenuProps}
+        />
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

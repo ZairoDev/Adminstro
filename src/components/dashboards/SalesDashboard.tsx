@@ -11,8 +11,6 @@ import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
 import { MoleculeVisualization } from "@/components/molecule_visual";
 import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
-import { RetargetCountDisplay } from "@/components/charts/RetargetCountChart";
-import { RetargetHistogram } from "@/components/charts/RetargetHistogram";
 // import CityStatsCharts from "@/components/charts/DonutMessageStatus";
 import BookingChartImproved from "@/components/BookingChart";
 import WeeklyTargetDashboard from "@/components/BookingTable";
@@ -25,7 +23,6 @@ import useVisitStats from "@/hooks/(VS)/useVisitStats";
 import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
-import useRetargetStats from "@/hooks/(VS)/useRetargetStats";
 import useLeads from "@/hooks/(VS)/useLeads";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useRouter } from "next/navigation";
@@ -71,11 +68,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     days?: string;
   }>({});
 
-  const [retargetFilters, setRetargetFilters] = useState<{
-    days?: string;
-    location?: string;
-  }>({ days: "this month", location: "All" });
-
   // Data hooks
   const {
     loading,
@@ -101,15 +93,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
   const { totalBoosts, fetchBoostCounts, activeBoosts } = BoostCounts();
   const { messageStatus, isLoading, isError, error } = useLeads({ date: undefined });
-
-  const {
-    counts: retargetCounts,
-    histogram: retargetHistogram,
-    loading: retargetLoading,
-    isError: retargetError,
-    error: retargetErrorMsg,
-    fetchRetargetStats,
-  } = useRetargetStats();
 
   // Filter visit stats by accessible locations (only for restricted Sales roles)
   const filteredVisitStats = useMemo(() => {
@@ -215,45 +198,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
             🎯 Weekly Target Performance
           </h2>
           <WeeklyTargetDashboard />
-        </div>
-      )}
-
-      {/* Retargeting Statistics */}
-      {canAccess("retargetingStatistics") && (
-        <div className="my-8 p-6 space-y-6 bg-white dark:bg-stone-950 rounded-xl border">
-          <h1 className="text-2xl font-bold">🔄 Retargeting Statistics</h1>
-
-          <RetargetCountDisplay
-            owners={
-              retargetCounts?.owners || {
-                pending: 0,
-                retargeted: 0,
-                blocked: 0,
-                total: 0,
-              }
-            }
-            guests={
-              retargetCounts?.guests || {
-                pending: 0,
-                retargeted: 0,
-                blocked: 0,
-                total: 0,
-              }
-            }
-            loading={retargetLoading}
-          />
-
-          <RetargetHistogram
-            data={retargetHistogram}
-            filters={retargetFilters}
-            onFilterChange={(newFilters) => {
-              setRetargetFilters(newFilters);
-              fetchRetargetStats(newFilters);
-            }}
-            loading={retargetLoading}
-            isError={retargetError}
-            error={retargetErrorMsg}
-          />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pie, PieChart } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useRouter } from "next/navigation";
 
 import {
@@ -18,41 +18,24 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-export const description = "A pie chart with a label";
+export const description = "A histogram (bar chart) with labels";
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
-  },
-  athens: {
-    label: "athens",
+  count: {
+    label: "Leads",
     color: "hsl(var(--chart-1))",
   },
-  thessaloniki: {
-    label: "thessaloniki",
-    color: "hsl(var(--chart-2))",
-  },
-  chania: {
-    label: "chania",
-    color: "hsl(var(--chart-3))",
-  },
-  rome: {
-    label: "rome",
-    color: "hsl(var(--chart-4))",
-  },
-  milan: {
-    label: "milan",
-    color: "hsl(var(--chart-5))",
-  },
 } satisfies ChartConfig;
+
+type LocationDatum = {
+  label: string;
+  count: number;
+};
 
 interface LabelledPieChartProps {
   heading: string;
   subHeading?: string;
-  chartData: {
-    label: string;
-    count: number;
-  }[];
+  chartData: LocationDatum[];
   footer?: string;
 }
 
@@ -64,36 +47,62 @@ export function LabelledPieChart({
 }: LabelledPieChartProps) {
   const router = useRouter();
 
-  const newChartData = chartData.map((item, index) => ({
-    ...item,
-    fill: `var(--color-${item.label.toLowerCase()})`,
-  }));
-
-  const handlePieClick = (data: any) => {
-    router.push(`/dashboard/lead-location-group/${data.label}`);
-  };
+  const newChartData: LocationDatum[] = [...chartData].sort(
+    (a, b) => b.count - a.count,
+  );
 
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-4">
+      <CardHeader className="pb-4">
         <CardTitle>{heading}</CardTitle>
-        <CardDescription>{subHeading}</CardDescription>
+        {subHeading ? <CardDescription>{subHeading}</CardDescription> : null}
       </CardHeader>
-      <CardContent className="flex-1 p-2 ">
+      <CardContent className="flex-1 p-2">
         <ChartContainer
           config={chartConfig}
-          className="[&_.recharts-pie-label-text]:fill-foreground mx-auto aspect-square max-h-[270px] p-0 w-[300px]"
+          className="h-[280px] w-full"
         >
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <Pie
-              data={newChartData}
-              dataKey="count"
-              label
-              nameKey="label"
-              onClick={handlePieClick}
+          <BarChart
+            accessibilityLayer
+            data={newChartData}
+            margin={{ top: 10, right: 12, left: 0, bottom: 50 }}
+          >
+            <CartesianGrid vertical={false} stroke="hsl(var(--border) / 0.6)" />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={12}
+              angle={-30}
+              textAnchor="end"
+              height={55}
+              fontSize={11}
+              tick={{ fill: "hsl(var(--muted-foreground))" }}
             />
-          </PieChart>
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              fontSize={11}
+              tick={{ fill: "hsl(var(--muted-foreground))" }}
+              width={36}
+            />
+            <ChartTooltip
+              cursor={{ fill: "hsl(var(--muted) / 0.35)" }}
+              content={<ChartTooltipContent />}
+            />
+            <Bar
+              dataKey="count"
+              fill={chartConfig.count.color}
+              radius={[6, 6, 2, 2]}
+              className="cursor-pointer transition-opacity hover:opacity-80"
+              onClick={(payload) => {
+                const label = (payload?.payload as LocationDatum | undefined)
+                  ?.label;
+                if (!label) return;
+                router.push(`/dashboard/lead-location-group/${label}`);
+              }}
+            />
+          </BarChart>
         </ChartContainer>
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm">

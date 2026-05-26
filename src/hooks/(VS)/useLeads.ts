@@ -85,12 +85,30 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     }
   };
 
-  const fetchLeadByLocation = async({days, createdBy}: {days?: string, createdBy?: string}) => {
+  const fetchLeadByLocation = async ({
+    days,
+    createdBy,
+    typeOfProperty,
+    dateFrom,
+    dateTo,
+  }: {
+    days?: string;
+    createdBy?: string;
+    typeOfProperty?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
     setIsLoading(true);
     setIsError(false);
     setError("");
     try {
-      const response: locationLeadsIn[] = await getLeadsByLocation({days, createdBy});
+      const response: locationLeadsIn[] = await getLeadsByLocation({
+        days,
+        createdBy,
+        typeOfProperty,
+        dateFrom,
+        dateTo,
+      });
       setLocationLeads(response);
     } catch (err: any) {
       const error = new Error(err);
@@ -183,7 +201,7 @@ const useLeads = ({ date }: { date: DateRange | undefined }) => {
     fetchLeadStatus({days:"this month"});
     fetchAllEmployees();
     fetchMessageStatus();
-    fetchLeadByLocation({days:"this month"});
+    fetchLeadByLocation({ days: "this month" });
     fetchRejectedLeadGroup({days:"this month"});
   }, []);
 

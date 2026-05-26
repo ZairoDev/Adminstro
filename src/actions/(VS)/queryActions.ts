@@ -64,12 +64,30 @@ export const getGroupedLeads = async ({
 export const getLeadsByLocation = async ({
   days,
   createdBy,
+  typeOfProperty,
+  dateFrom,
+  dateTo,
 }: {
   days?: string;
   createdBy?: string;
+  typeOfProperty?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }) => {
   const filters: Record<string, any> = {};
-  if (days) {
+
+  // Custom date range wins over preset days.
+  if (dateFrom || dateTo) {
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+    if (from && to) {
+      filters.createdAt = { $gte: from, $lte: to };
+    } else if (from) {
+      filters.createdAt = { $gte: from };
+    } else if (to) {
+      filters.createdAt = { $lte: to };
+    }
+  } else if (days) {
     switch (days) {
       case "yesterday":
         filters.createdAt = {
@@ -130,10 +148,34 @@ export const getLeadsByLocation = async ({
         };
         break;
     }
+  } else {
+    // Default: this month
+    const now2 = new Date();
+    const startUTC = new Date(
+      Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
+    const endUTC = new Date(
+      Date.UTC(
+        now2.getUTCFullYear(),
+        now2.getUTCMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      ),
+    );
+    filters.createdAt = {
+      $gte: startUTC,
+      $lte: endUTC,
+    };
   }
 
   if (createdBy && createdBy !== "All") {
     filters.createdBy = createdBy;
+  }
+  if (typeOfProperty && typeOfProperty !== "All") {
+    filters.typeOfProperty = typeOfProperty;
   }
 
   const pipeline = [
@@ -150,6 +192,138 @@ export const getLeadsByLocation = async ({
 
   const leadsByLocation = await Query.aggregate(pipeline);
   return leadsByLocation;
+};
+
+type LeadsCandleFilters = {
+  days?: string;
+  createdBy?: string;
+  typeOfProperty?: string;
+  location?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type LeadsCandleDay = {
+  day: string; // YYYY-MM-DD (UTC)
+  total: number;
+  locations: Record<
+    string,
+    {
+      total: number;
+      propertyTypes: Record<string, number>;
+    }
+  >;
+};
+
+export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
+  const match: Record<string, unknown> = {};
+
+  // Date range (custom wins, else preset, else this month)
+  if (filters.dateFrom || filters.dateTo) {
+    const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
+    const to = filters.dateTo ? new Date(filters.dateTo) : null;
+    if (from && to) match.createdAt = { $gte: from, $lte: to };
+    else if (from) match.createdAt = { $gte: from };
+    else if (to) match.createdAt = { $lte: to };
+  } else if (filters.days) {
+    switch (filters.days) {
+      case "yesterday":
+        match.createdAt = { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) };
+        break;
+      case "last month": {
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        match.createdAt = { $gte: startOfLastMonth, $lt: startOfThisMonth };
+        break;
+      }
+      case "this month": {
+        const now2 = new Date();
+        const startUTC = new Date(Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth(), 1, 0, 0, 0, 0));
+        const endUTC = new Date(Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+        match.createdAt = { $gte: startUTC, $lte: endUTC };
+        break;
+      }
+      default:
+        break;
+    }
+  } else {
+    const now2 = new Date();
+    const startUTC = new Date(Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth(), 1, 0, 0, 0, 0));
+    const endUTC = new Date(Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    match.createdAt = { $gte: startUTC, $lte: endUTC };
+  }
+
+  if (filters.createdBy && filters.createdBy !== "All") {
+    match.createdBy = filters.createdBy;
+  }
+  if (filters.location && filters.location !== "All") {
+    match.location = filters.location;
+  }
+  if (filters.typeOfProperty && filters.typeOfProperty !== "All") {
+    match.typeOfProperty = filters.typeOfProperty;
+  }
+
+  // Aggregate day+location+propertyType counts (NO cumulative)
+  const rows: Array<{
+    _id: { day: string; location: string; typeOfProperty: string | null };
+    count: number;
+  }> = await Query.aggregate([
+    { $match: match },
+    {
+      $project: {
+        day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        location: { $ifNull: ["$location", "Unknown"] },
+        typeOfProperty: { $ifNull: ["$typeOfProperty", "Unknown"] },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          day: "$day",
+          location: "$location",
+          typeOfProperty: "$typeOfProperty",
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.day": 1 } },
+  ]);
+
+  const byDay = new Map<string, LeadsCandleDay>();
+
+  for (const r of rows) {
+    const day = String(r._id.day);
+    const location = String(r._id.location);
+    const type = String(r._id.typeOfProperty ?? "Unknown");
+    const count = Number(r.count || 0);
+
+    const dayEntry: LeadsCandleDay =
+      byDay.get(day) ?? { day, total: 0, locations: {} };
+
+    const locEntry =
+      dayEntry.locations[location] ?? { total: 0, propertyTypes: {} };
+
+    locEntry.total += count;
+    locEntry.propertyTypes[type] = (locEntry.propertyTypes[type] || 0) + count;
+
+    dayEntry.locations[location] = locEntry;
+    dayEntry.total += count;
+
+    byDay.set(day, dayEntry);
+  }
+
+  const days = Array.from(byDay.values()).sort((a, b) =>
+    a.day.localeCompare(b.day),
+  );
+
+  const locations = Array.from(
+    new Set(
+      days.flatMap((d) => Object.keys(d.locations)).filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  return { days, locations };
 };
 
 export const getAllAgent = async () => {

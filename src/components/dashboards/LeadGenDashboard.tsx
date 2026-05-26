@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
+import type { DateRange } from "react-day-picker";
 import { Loader2, RotateCw, Users, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
-import { LabelledPieChart } from "@/components/charts/LabelledPieChart";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 import { StatsCard } from "@/components/leadCountCard/page";
@@ -15,6 +15,8 @@ import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
 import { WebsiteLeadsLineChart } from "@/components/charts/WebsiteLeadsLineChart";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
 import LocationCard from "@/components/reusableCard";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { LeadsCandleChart } from "@/components/charts/LeadsCandleChart";
 
 // Hooks
 import useLeads from "@/hooks/(VS)/useLeads";
@@ -24,6 +26,7 @@ import useLeadStats from "@/hooks/(VS)/useLeadStats";
 import useWebsiteLeadsCounts from "@/hooks/(VS)/useWebsiteLeadsCounts";
 import SalesCard from "@/hooks/(VS)/useSalesCard";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
+import { useLeadsCandleAnalytics } from "@/hooks/(VS)/useLeadsCandleAnalytics";
 
 interface LeadStats {
   location: string;
@@ -60,10 +63,49 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   const [propertyFilters, setPropertyFilters] = useState<{
     days?: string;
     createdBy?: string;
+    typeOfProperty?: string;
+    location?: string;
   }>({
     days: "this month",
     createdBy: "All",
+    typeOfProperty: "All",
+    location: "All",
   });
+
+  const [leadByLocationRange, setLeadByLocationRange] = useState<
+    DateRange | undefined
+  >(undefined);
+
+  const [leadDatePreset, setLeadDatePreset] = useState<
+    "this month" | "last month" | "custom"
+  >("this month");
+
+  const propertyTypeOptions = useMemo(
+    () => [
+      "All",
+      "Apartment",
+      "Studio / 1 bedroom",
+      "1 Bedroom",
+      "2 Bedroom",
+      "3 Bedroom",
+      "4 Bedroom",
+      "Villa",
+      "Pent House",
+      "Detached House",
+      "Loft",
+      "Shared Apartment",
+      "Maisotte",
+      "Studio",
+    ],
+    [],
+  );
+
+  const toIsoStart = (d: Date) => new Date(d).toISOString();
+  const toIsoEnd = (d: Date) => {
+    const dd = new Date(d);
+    dd.setHours(23, 59, 59, 999);
+    return dd.toISOString();
+  };
 
   const [reviewsFilters, setReviewsFilters] = useState<{
     days?: string;
@@ -83,13 +125,40 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   }>({ days: "this month" });
 
   // Data hooks
+  const { allEmployees } = useLeads({ date: undefined });
+
   const {
-    leads,
-    locationLeads,
-    fetchLeadByLocation,
-    allEmployees,
-    isLoading,
-  } = useLeads({ date: undefined });
+    days: candleDays,
+    locations: candleLocations,
+    loading: candleLoading,
+    refetch: refetchCandle,
+  } = useLeadsCandleAnalytics({
+    days: propertyFilters.days,
+    createdBy: propertyFilters.createdBy,
+    typeOfProperty: propertyFilters.typeOfProperty,
+    location: propertyFilters.location,
+  });
+
+  const locationOptions = useMemo(
+    () => ["All", ...candleLocations],
+    [candleLocations],
+  );
+
+  const applyCandleFilters = useCallback(
+    (next: typeof propertyFilters) => {
+      const range =
+        leadByLocationRange?.from
+          ? {
+              dateFrom: toIsoStart(leadByLocationRange.from),
+              dateTo: toIsoEnd(
+                leadByLocationRange.to ?? leadByLocationRange.from,
+              ),
+            }
+          : {};
+      void refetchCandle({ ...next, ...range });
+    },
+    [leadByLocationRange, refetchCandle],
+  );
 
   const {
     leads: todayLeads,
@@ -132,10 +201,6 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
       count: location.count,
     }));
     return { label, categories };
-  });
-
-  const leadByLocationData = leads?.leadsByLocation?.map((lead) => {
-    return { label: lead._id, count: lead.count };
   });
 
   // Filter lead stats by accessible locations for non-admin users
@@ -272,61 +337,111 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
           </div>
         </div>
 
-        {/* Leads by Location and Reviews - For LeadGen Team */}
+        {/* Leads by location — full width */}
         {canViewAllCharts && canAccess("leadsByLocation") && (
+          <div
+            className={`mb-4 w-full ${candleLoading ? "opacity-60 pointer-events-none" : ""}`}
+          >
+            <LeadsCandleChart
+              title="Leads by location"
+              days={candleDays}
+              locations={candleLocations}
+              selectedLocation={propertyFilters.location}
+              height={400}
+              filterBar={
+                  <>
+                    <CustomSelect
+                      itemList={["This month", "Past month", "Custom range"]}
+                      triggerText="Date"
+                      value={
+                        leadDatePreset === "this month"
+                          ? "This month"
+                          : leadDatePreset === "last month"
+                            ? "Past month"
+                            : "Custom range"
+                      }
+                      onValueChange={(value) => {
+                        if (value === "This month") {
+                          setLeadDatePreset("this month");
+                          setLeadByLocationRange(undefined);
+                          const next = { ...propertyFilters, days: "this month" };
+                          setPropertyFilters(next);
+                          applyCandleFilters(next);
+                          return;
+                        }
+                        if (value === "Past month") {
+                          setLeadDatePreset("last month");
+                          setLeadByLocationRange(undefined);
+                          const next = { ...propertyFilters, days: "last month" };
+                          setPropertyFilters(next);
+                          applyCandleFilters(next);
+                          return;
+                        }
+                        setLeadDatePreset("custom");
+                        setPropertyFilters({ ...propertyFilters, days: undefined });
+                      }}
+                      triggerClassName="w-[120px] h-8 text-xs"
+                    />
+                    {leadDatePreset === "custom" ? (
+                      <DateRangePicker
+                        date={leadByLocationRange}
+                        setDate={(range) => {
+                          setLeadByLocationRange(range);
+                          const from = range?.from;
+                          const to = range?.to ?? range?.from;
+                          const next = { ...propertyFilters, days: undefined };
+                          setPropertyFilters(next);
+                          void refetchCandle({
+                            ...next,
+                            dateFrom: from ? toIsoStart(from) : undefined,
+                            dateTo: to ? toIsoEnd(to) : undefined,
+                          });
+                        }}
+                        className="[&_button]:h-8 [&_button]:text-xs [&_button]:w-auto min-w-[200px]"
+                      />
+                    ) : null}
+                    <CustomSelect
+                      itemList={locationOptions}
+                      triggerText="Location"
+                      value={propertyFilters.location}
+                      onValueChange={(value) => {
+                        const next = { ...propertyFilters, location: value };
+                        setPropertyFilters(next);
+                        applyCandleFilters(next);
+                      }}
+                      triggerClassName="w-[110px] h-8 text-xs"
+                    />
+                    <CustomSelect
+                      itemList={propertyTypeOptions}
+                      triggerText="Property"
+                      value={propertyFilters.typeOfProperty}
+                      onValueChange={(value) => {
+                        const next = { ...propertyFilters, typeOfProperty: value };
+                        setPropertyFilters(next);
+                        applyCandleFilters(next);
+                      }}
+                      triggerClassName="w-[110px] h-8 text-xs"
+                    />
+                    <CustomSelect
+                      itemList={["All", ...allEmployees]}
+                      triggerText="Agent"
+                      value={propertyFilters.createdBy}
+                      onValueChange={(value) => {
+                        const next = { ...propertyFilters, createdBy: value };
+                        setPropertyFilters(next);
+                        applyCandleFilters(next);
+                      }}
+                      triggerClassName="w-[120px] h-8 text-xs"
+                    />
+                  </>
+                }
+            />
+          </div>
+        )}
+
+        {/* Reviews */}
+        {canViewAllCharts && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column - Leads by Location */}
-            {leadByLocationData && (
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="text-lg font-semibold">📍 Leads Distribution by Location</h3>
-                <div className="flex gap-3 flex-wrap">
-                  <CustomSelect
-                    itemList={[
-                      "All",
-                      "yesterday",
-                      "last month",
-                      "this month",
-                      "10 days",
-                      "15 days",
-                      "1 month",
-                      "3 months",
-                    ]}
-                    triggerText="Select days"
-                    value={propertyFilters.days}
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...propertyFilters };
-                      newLeadFilters.days = value;
-                      setPropertyFilters(newLeadFilters);
-                      fetchLeadByLocation(newLeadFilters);
-                    }}
-                    triggerClassName="w-32"
-                  />
-
-                  <CustomSelect
-                    itemList={["All", ...allEmployees]}
-                    triggerText="Select agent"
-                    value={propertyFilters.createdBy}
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...propertyFilters };
-                      newLeadFilters.createdBy = value;
-                      setPropertyFilters(newLeadFilters);
-                      fetchLeadByLocation(newLeadFilters);
-                    }}
-                    triggerClassName="w-32"
-                  />
-                </div>
-                <LabelledPieChart
-                  chartData={locationLeads.map((lead) => ({
-                    label: lead._id,
-                    count: lead.count,
-                  }))}
-                  heading="Leads By Location"
-                  key="leads-by-location"
-                />
-              </div>
-            )}
-
-            {/* Right Column - Reviews */}
             {canAccess("reviewsDashboard") && reviews !== undefined && (
               <div className="space-y-4 relative border rounded-md p-4">
                 <h3 className="text-lg font-semibold">⭐ Reviews Analytics</h3>

@@ -7,12 +7,6 @@ import { AlertTriangle, CheckCircle2, AlertCircle, Loader2, Phone, RefreshCw } f
 import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/AuthStore";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface PhoneHealthMetrics {
   phoneNumberId: string;
@@ -79,20 +73,20 @@ export function PhoneNumberHealth() {
     switch (status) {
       case "good":
         return (
-          <Badge className="bg-green-500 hover:bg-green-600">
+          <Badge className="bg-green-500 hover:bg-green-600 text-[11px] px-2 py-0.5">
             Good
           </Badge>
         );
       case "warning":
         return (
-          <Badge className="bg-yellow-500 hover:bg-yellow-600">
+          <Badge className="bg-yellow-500 hover:bg-yellow-600 text-[11px] px-2 py-0.5">
             Warning
           </Badge>
         );
       case "danger":
         return (
-          <Badge className="bg-red-500 hover:bg-red-600">
-            Danger Zone
+          <Badge className="bg-red-500 hover:bg-red-600 text-[11px] px-2 py-0.5">
+            Danger
           </Badge>
         );
     }
@@ -175,121 +169,98 @@ export function PhoneNumberHealth() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {metrics.map((metric) => (
-            <div
-              key={metric.phoneNumberId}
-              className="border rounded-lg p-4 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(metric.healthStatus)}
-                  <div>
-                    <h3 className="font-semibold">{metric.displayName}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {metric.displayNumber}
-                    </p>
-                  </div>
-                </div>
-                {getStatusBadge(metric.healthStatus)}
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <p className="text-muted-foreground">Quality Rating</p>
-                        <p className="font-semibold">
-                          {metric.qualityRating || "UNKNOWN"}
-                          {metric.qualityRating === "UNKNOWN" && (
-                            <span className="ml-1 text-yellow-500">⚠️</span>
-                          )}
-                        </p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {metric.qualityRating === "UNKNOWN" 
-                          ? "Meta did not return quality data. Treat cautiously."
-                          : `Quality rating from Meta API: ${metric.qualityRating}`}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div>
-                  <p className="text-muted-foreground">Status</p>
-                  <p className={`font-semibold ${
-                    metric.status === "CONNECTED" ? "text-green-500" : "text-red-500"
-                  }`}>
-                    {metric.status || "UNKNOWN"}
-                  </p>
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <p className="text-muted-foreground">Throughput</p>
-                        <p className="font-semibold">
-                          {metric.throughputLevel || "UNKNOWN"}
-                        </p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Message throughput level: {metric.throughputLevel || "Not available"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div>
-                  <p className="text-muted-foreground">Data Source</p>
-                  <div className="flex items-center gap-1">
-                    <p className="font-semibold text-xs">
-                      {metric.dataSourceStatus || "UNKNOWN"}
-                    </p>
-                    {metric.dataSourceStatus === "STALE" && (
-                      <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600">
-                        ⚠️ Stale
-                      </Badge>
-                    )}
-                    {metric.cacheAge && (
-                      <span className="text-xs text-muted-foreground">
-                        ({metric.cacheAge.toFixed(1)}h)
-                      </span>
-                    )}
-                  </div>
-                  {metric.lastSyncTime && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Synced: {new Date(metric.lastSyncTime).toLocaleTimeString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {(metric.codeVerificationStatus || metric.eligibleForGlobalSearch !== undefined) && (
-                <div className="pt-2 border-t space-y-1 text-xs">
-                  {metric.codeVerificationStatus && (
-                    <p className="text-muted-foreground">Verification: {metric.codeVerificationStatus}</p>
-                  )}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>
-                          {metric.eligibleForGlobalSearch !== undefined && (
-                            <p className="text-muted-foreground">
-                              Global Search: {metric.eligibleForGlobalSearch ? "Yes" : "No"}
-                            </p>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Eligibility for API business global search: {metric.eligibleForGlobalSearch ? "Enabled" : "Disabled"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              )}
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[900px] space-y-2">
+            <div className="grid grid-cols-[minmax(220px,1.4fr)_110px_120px_140px_160px] gap-2 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b">
+              <div>Phone</div>
+              <div>Status</div>
+              <div>Quality</div>
+              <div>Connection</div>
+              <div>Data</div>
             </div>
-          ))}
+
+            {metrics.map((metric) => {
+              const quality = metric.qualityRating || "UNKNOWN";
+              const connection = metric.status || "UNKNOWN";
+              const throughput = metric.throughputLevel || "—";
+              const dataSource = metric.dataSourceStatus || "UNKNOWN";
+              const cacheAge =
+                typeof metric.cacheAge === "number"
+                  ? `${metric.cacheAge.toFixed(1)}h`
+                  : null;
+
+              return (
+                <div
+                  key={metric.phoneNumberId}
+                  className="grid grid-cols-[minmax(220px,1.4fr)_110px_120px_140px_160px] gap-2 items-center rounded-md border border-border/60 px-3 py-2 bg-muted/10"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {getStatusIcon(metric.healthStatus)}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {metric.displayName}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {metric.displayNumber}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>{getStatusBadge(metric.healthStatus)}</div>
+
+                  <div className="text-sm font-medium">
+                    <span
+                      className={
+                        quality === "GREEN"
+                          ? "text-green-600 dark:text-green-400"
+                          : quality === "YELLOW"
+                            ? "text-yellow-600 dark:text-yellow-400"
+                            : quality === "RED"
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-muted-foreground"
+                      }
+                    >
+                      {quality}
+                    </span>
+                  </div>
+
+                  <div className="text-sm font-medium">
+                    <span
+                      className={
+                        connection === "CONNECTED"
+                          ? "text-green-600 dark:text-green-400"
+                          : connection === "DISCONNECTED"
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                      }
+                    >
+                      {connection}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground ml-2">
+                      {throughput}
+                    </span>
+                  </div>
+
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    <span className="text-muted-foreground">{dataSource}</span>
+                    {dataSource === "STALE" ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] border-yellow-500/60 text-yellow-700 dark:text-yellow-400"
+                      >
+                        Stale
+                      </Badge>
+                    ) : null}
+                    {cacheAge ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        {cacheAge}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -9,6 +9,8 @@ import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { resolveLocationFromLeadPhone } from "@/lib/whatsapp/locationAccess";
+import { isLocationAllowedForPhone } from "@/lib/whatsapp/phoneAreaConfigService";
 import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 import crypto from "crypto";
 import {
@@ -17,6 +19,8 @@ import {
   recordUserInitiatedIncomingOffer,
   createIncomingCallInternalChatMessage,
 } from "@/services/whatsapp-calling/callHistoryService";
+import { getEligibleUsersForNotification } from "@/lib/whatsapp/notificationRecipients";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 
 export const dynamic = "force-dynamic";
 
@@ -417,136 +421,6 @@ async function sendGuestQuestionsTemplate(
   }
 }
 
-/**
- * Get all eligible users who should receive notifications for a conversation
- * Based on role, location, and assignment
- * 
- * SCALABILITY NOTE: For teams > 10 users, consider Socket.IO rooms instead of per-user emissions:
- * - Create rooms per businessPhoneId or area (e.g., room:thessaloniki, room:milan)
- * - Emit once to the room instead of looping through users
- * - Benefits: O(1) emission complexity, reduces network overhead
- */
-async function getEligibleUsersForNotification(
-  conversation: any,
-  businessPhoneId: string
-): Promise<Array<{ userId: string; role: string; allotedArea: string[] }>> {
-  const eligibleUsers: Array<{ userId: string; role: string; allotedArea: string[] }> = [];
-  
-  // Get phone config to determine area
-  const { getAllowedPhoneConfigs } = await import("@/lib/whatsapp/config");
-  const phoneConfig = getAllowedPhoneConfigs("SuperAdmin", []).find(
-    (config) => config.phoneNumberId === businessPhoneId
-  );
-  
-  if (!phoneConfig) {
-    console.warn(`⚠️ Phone config not found for ${businessPhoneId}`);
-    return eligibleUsers;
-  }
-  
-  // Support both single area and array of areas
-  const phoneAreas = Array.isArray(phoneConfig.area) ? phoneConfig.area : [phoneConfig.area];
-  const normalizedPhoneAreas = phoneAreas.map(a => a.toLowerCase().trim());
-  
-  // Get all employees with WhatsApp access roles
-  // Also include Advert role so they receive notifications for retarget conversations
-  const whatsAppRoles = [...WHATSAPP_ACCESS_ROLES, "Advert"];
-  const employees = await Employee.find({
-    role: { $in: whatsAppRoles },
-    $or: [
-      { isActive: { $exists: false } }, // If field doesn't exist, include
-      { isActive: true }, // If field exists, must be true
-    ],
-  }).select("_id role allotedArea").lean();
-
-  const isRetargetConversation = !!(conversation as any).isRetarget;
-  
-  for (const employee of employees) {
-    const employeeId = (employee._id as any)?.toString() || employee._id?.toString() || "";
-    if (!employeeId) continue;
-    
-    const employeeRole = (employee.role as string) || "";
-    const employeeAreas = Array.isArray(employee.allotedArea)
-      ? employee.allotedArea
-      : employee.allotedArea
-        ? [employee.allotedArea]
-        : [];
-    
-    // SuperAdmin/Admin/Developer: always eligible
-    if (["SuperAdmin", "Admin", "Developer"].includes(employeeRole)) {
-      eligibleUsers.push({
-        userId: employeeId,
-        role: employeeRole,
-        allotedArea: employeeAreas,
-      });
-      continue;
-    }
-    
-    // Sales: Check if user has access to any of this phone's areas (area-based assignment, not conversation-based)
-    if (employeeRole === "Sales") {
-      // Skip Sales for retarget conversations unless they've been handed to sales
-      if ((conversation as any).isRetarget && (conversation as any).retargetStage !== "handed_to_sales") {
-        continue;
-      }
-      // Normalize areas for comparison (case-insensitive)
-      const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
-      
-      // Check if employee has any of the phone's areas in their assigned areas
-      // Also check for "all" or "both" which gives access to all areas
-      const hasAreaAccess = 
-        normalizedPhoneAreas.some(phoneArea => normalizedEmployeeAreas.includes(phoneArea)) ||
-        normalizedEmployeeAreas.includes("all") ||
-        normalizedEmployeeAreas.includes("both");
-      
-      if (hasAreaAccess) {
-        eligibleUsers.push({
-          userId: employeeId,
-          role: employeeRole,
-          allotedArea: employeeAreas,
-        });
-      }
-      continue;
-    }
-    
-    // Sales-TeamLead/LeadGen-TeamLead/LeadGen: check area access (area-based assignment)
-    if (["Sales-TeamLead", "LeadGen-TeamLead", "LeadGen"].includes(employeeRole)) {
-      // Normalize areas for comparison (case-insensitive)
-      const normalizedEmployeeAreas = employeeAreas.map(a => a.toLowerCase().trim());
-      
-      // Check if employee has any of the phone's areas in their assigned areas
-      // Also check for "all" or "both" which gives access to all areas
-      const hasAreaAccess = 
-        normalizedPhoneAreas.some(phoneArea => normalizedEmployeeAreas.includes(phoneArea)) ||
-        normalizedEmployeeAreas.includes("all") ||
-        normalizedEmployeeAreas.includes("both");
-      
-      if (hasAreaAccess) {
-        eligibleUsers.push({
-          userId: employeeId,
-          role: employeeRole,
-          allotedArea: employeeAreas,
-        });
-      }
-      continue;
-    }
-
-    // Advert: Only eligible for retarget conversations
-    if (employeeRole === "Advert" && isRetargetConversation) {
-      eligibleUsers.push({
-        userId: employeeId,
-        role: employeeRole,
-        allotedArea: employeeAreas,
-      });
-    }
-  }
-  
-  // SCALABILITY WARNING: Emit once to room instead of per-user loop for teams > 10
-  if (eligibleUsers.length > 10) {
-    console.warn(`⚠️ [SCALABILITY] ${eligibleUsers.length} eligible users for ${businessPhoneId}. Consider Socket.IO rooms for better performance.`);
-  }
-  
-  return eligibleUsers;
-}
-
 async function processIncomingMessage(
   message: any,
   contact: any,
@@ -571,15 +445,25 @@ async function processIncomingMessage(
       return;
     }
 
+    // Try to resolve participant location from CRM lead data (trusted backfill only)
+    const rawLeadLocation = await resolveLocationFromLeadPhone(senderPhone);
+    const leadLocation =
+      rawLeadLocation &&
+      (await isLocationAllowedForPhone(String(phoneNumberId), rawLeadLocation))
+        ? rawLeadLocation
+        : null;
+
     // Get or create conversation using snapshot-safe helper
     // CRITICAL: Webhooks are "untrusted" - they must NEVER overwrite snapshot fields
     // on existing conversations. Only allowed to set snapshots on NEW conversations.
+    // Exception: participantLocation backfill from CRM lead lookup uses "trusted"
+    // semantics so new inbound conversations get location set automatically.
     const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: senderPhone,
       businessPhoneId: phoneNumberId,
       participantName: senderName,
-      // Webhook doesn't know location/role - leave undefined
-      snapshotSource: "untrusted", // CRITICAL: Never overwrite existing snapshot fields
+      ...(leadLocation ? { participantLocation: leadLocation } : {}),
+      snapshotSource: leadLocation ? "trusted" : "untrusted",
     }) as any; // Cast to any to access Mongoose document properties like _id
 
     // ============================================================
@@ -858,7 +742,7 @@ async function processIncomingMessage(
       
       if (!existingMessage) return;
 
-      const eligibleUsers = await getEligibleUsersForNotification(conversation, phoneNumberId);
+      const eligibleUsers = await getEligibleUsersForNotification(conversation);
       if (!eligibleUsers.length) return;
 
       // Batch read-state query
@@ -886,7 +770,7 @@ async function processIncomingMessage(
         const eventId = `${conversation._id}:${message.id}:${user.userId}:duplicate`;
         const deliveryId = `${eventId}:${Date.now()}`;
 
-        const emitted = emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
+        emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
           deliveryId,
           eventId,
           conversationId: conversation._id.toString(),
@@ -911,7 +795,7 @@ async function processIncomingMessage(
             timestamp,
           },
         });
-
+        emittedCount += 1;
       }
 
       // Only log if something was actually emitted
@@ -1021,10 +905,7 @@ async function processIncomingMessage(
     // ============================================================
     // GET ELIGIBLE USERS AND EMIT NOTIFICATIONS
     // ============================================================
-    const eligibleUsers = await getEligibleUsersForNotification(
-      conversation,
-      phoneNumberId
-    );
+    const eligibleUsers = await getEligibleUsersForNotification(conversation);
 
     if (!eligibleUsers.length) {
       console.log(`✅ [NEW] ${message.id} saved (no eligible users)`);
@@ -1395,6 +1276,33 @@ async function handleWhatsAppErrorCode(
   }
 }
 
+/** Socket call events: location-scoped when we have a conversation, else phone room only. */
+async function emitCallEventForConversation(
+  event: string,
+  conversation: Record<string, unknown> | null,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const businessPhoneId =
+    (conversation?.businessPhoneId as string | undefined) ||
+    (payload.businessPhoneId as string | undefined) ||
+    (payload.phoneNumberId as string | undefined);
+
+  const base = {
+    ...payload,
+    ...(businessPhoneId ? { businessPhoneId } : {}),
+    ...(conversation?._id != null
+      ? { conversationId: String(conversation._id) }
+      : {}),
+  };
+
+  if (conversation && conversation._id != null) {
+    await emitWhatsAppEventToEligibleUsers(event, conversation, base);
+    return;
+  }
+
+  emitWhatsAppEvent(event, base);
+}
+
 /**
  * Process incoming call events from the "calls" webhook field
  * Handles: incoming voice/video calls, missed calls, call status changes
@@ -1419,8 +1327,11 @@ async function processCallEvent(value: any) {
             businessPhoneId: phoneNumberId ? String(phoneNumberId) : undefined,
           });
           if (shouldEmit) {
-            emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_SDP_ANSWER, {
-              conversationId: String(conversationId),
+            const convForSdp = (await WhatsAppConversation.findById(conversationId).lean()) as Record<
+              string,
+              unknown
+            > | null;
+            await emitCallEventForConversation(WHATSAPP_EVENTS.CALL_SDP_ANSWER, convForSdp, {
               callId: call.id,
               phoneNumberId,
               sdpType: call.session.sdp_type,
@@ -1460,11 +1371,18 @@ async function processCallEvent(value: any) {
           }).lean()) as ConvLean;
 
           if (!existing?._id) {
+            const rawCallerLocation = await resolveLocationFromLeadPhone(callerDigits);
+            const callerLeadLocation =
+              rawCallerLocation &&
+              (await isLocationAllowedForPhone(String(phoneNumberId), rawCallerLocation))
+                ? rawCallerLocation
+                : null;
             const created = await findOrCreateConversationWithSnapshot({
               participantPhone: callerDigits,
               businessPhoneId: String(phoneNumberId),
               ...(contactName ? { participantName: contactName } : {}),
-              snapshotSource: "untrusted",
+              ...(callerLeadLocation ? { participantLocation: callerLeadLocation } : {}),
+              snapshotSource: callerLeadLocation ? "trusted" : "untrusted",
             });
             existing = {
               _id: created._id,
@@ -1502,8 +1420,11 @@ async function processCallEvent(value: any) {
             console.warn("[webhook] incoming call chat line:", e);
           }
 
-          emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_INCOMING_OFFER, {
-            conversationId: conversationIdStr,
+          const convForOffer = (await WhatsAppConversation.findById(conversationIdStr).lean()) as Record<
+            string,
+            unknown
+          > | null;
+          await emitCallEventForConversation(WHATSAPP_EVENTS.CALL_INCOMING_OFFER, convForOffer, {
             businessPhoneId: String(phoneNumberId),
             callId: call.id,
             sdpType: call.session.sdp_type,
@@ -1527,26 +1448,44 @@ async function processCallEvent(value: any) {
         phoneNumberId,
       };
 
-      // Emit different events based on call status
+      const conversation = phoneNumberId
+        ? ((await WhatsAppConversation.findOne({
+            businessPhoneId: phoneNumberId,
+            $or: [
+              { participantPhone: String(call.from ?? "").replace(/\D/g, "") },
+              { participantPhone: call.from },
+            ],
+          }).lean()) as Record<string, unknown> | null)
+        : null;
+
+      const callPayload = {
+        ...callData,
+        ...(callData.callStatus === "ringing"
+          ? { callerInfo: value.contacts?.[0] || null }
+          : {}),
+      };
+
       if (callData.callStatus === "ringing") {
-        emitWhatsAppEvent(WHATSAPP_EVENTS.INCOMING_CALL, {
-          ...callData,
-          callerInfo: value.contacts?.[0] || null,
-        });
+        await emitCallEventForConversation(
+          WHATSAPP_EVENTS.INCOMING_CALL,
+          conversation,
+          callPayload
+        );
       } else if (callData.callStatus === "missed") {
-        emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_MISSED, callData);
+        await emitCallEventForConversation(
+          WHATSAPP_EVENTS.CALL_MISSED,
+          conversation,
+          callPayload
+        );
       } else {
-        emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_STATUS_UPDATE, callData);
+        await emitCallEventForConversation(
+          WHATSAPP_EVENTS.CALL_STATUS_UPDATE,
+          conversation,
+          callPayload
+        );
       }
 
-      // Optionally store call logs in conversation
-      const conversation = await WhatsAppConversation.findOne({
-        participantPhone: call.from,
-        businessPhoneId: phoneNumberId,
-      });
-
-      if (conversation) {
-        // Update conversation with call info
+      if (conversation?._id) {
         await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
           lastCallTime: callData.timestamp,
           lastCallStatus: callData.callStatus,
@@ -1574,7 +1513,24 @@ async function processCallEvent(value: any) {
           console.warn("[webhook] call history status:", e);
         }
       }
-      emitWhatsAppEvent(WHATSAPP_EVENTS.CALL_STATUS_UPDATE, callData);
+      const statusConversation = phoneNumberId
+        ? ((await WhatsAppConversation.findOne({
+            businessPhoneId: phoneNumberId,
+            ...(st.recipient_id
+              ? {
+                  $or: [
+                    { participantPhone: String(st.recipient_id).replace(/\D/g, "") },
+                    { participantPhone: st.recipient_id },
+                  ],
+                }
+              : {}),
+          }).lean()) as Record<string, unknown> | null)
+        : null;
+      await emitCallEventForConversation(
+        WHATSAPP_EVENTS.CALL_STATUS_UPDATE,
+        statusConversation,
+        callData
+      );
     }
   } catch (error) {
     console.error("❌ Error processing call event:", error);

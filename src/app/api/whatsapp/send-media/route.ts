@@ -5,10 +5,6 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
-  getDefaultPhoneId,
-  getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   INTERNAL_YOU_PHONE_ID,
@@ -16,6 +12,8 @@ import {
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import crypto from "crypto";
 import { canAccessConversation } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 
 connectDb();
 
@@ -76,7 +74,7 @@ export async function POST(req: NextRequest) {
     // Enforce conversation-level access rules if conversation exists
     if (conversation) {
       const convLean = conversation.toObject ? conversation.toObject() : conversation;
-      const allowed = await canAccessConversation(token, convLean);
+      const allowed = canAccessConversation(normalizeWhatsAppToken(token), convLean);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -186,46 +184,33 @@ export async function POST(req: NextRequest) {
     // Regular WhatsApp conversation - Continue with Meta API
     // =========================================================
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
-
-    // Advert role: allow sending media on retarget conversations
-    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken);
+    if (allowedPhoneIds.length === 0 && userRole !== "Advert") {
       return NextResponse.json(
         { error: "No WhatsApp access for your role/area" },
         { status: 403 }
       );
     }
 
-    // Determine which phone ID to use
-    let phoneNumberId = requestedPhoneId;
+    const phoneResolution = await resolveOutboundBusinessPhoneId({
+      token: normalizedToken,
+      conversation: conversation
+        ? (conversation.toObject ? conversation.toObject() : conversation)
+        : null,
+      requestedPhoneId,
+      requireConversation: Boolean(conversationId),
+    });
 
-    // If conversationId provided, get phone ID from conversation
-    if (conversationId && !phoneNumberId && conversation) {
-      phoneNumberId = conversation.businessPhoneId;
-    }
-
-    // Fall back to default if not set
-    if (!phoneNumberId) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
-
-    // Verify permission
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    if ("error" in phoneResolution) {
       return NextResponse.json(
-        { error: "You don't have permission to send from this WhatsApp number" },
-        { status: 403 }
+        { error: phoneResolution.error },
+        { status: phoneResolution.status }
       );
     }
+
+    const phoneNumberId = phoneResolution.phoneNumberId;
 
     const whatsappToken = getWhatsAppToken();
     if (!whatsappToken) {

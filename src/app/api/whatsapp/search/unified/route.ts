@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("query");
-    const phoneIdFilter = searchParams.get("phoneId") || "";
+    const locationFilterParam = searchParams.get("locationFilter")?.trim() || "";
     const limit = Math.min(
       parseInt(searchParams.get("limit") || String(MAX_RESULTS_PER_QUERY)),
       MAX_RESULTS_PER_QUERY
@@ -69,13 +69,12 @@ export async function GET(request: NextRequest) {
     }
     
     const userRole = user.role;
-    const userAreas = user.allotedArea;
     
     // Verify WhatsApp access
-    // Allow SuperAdmin / Sales roles, and allow Advert only for phone-query searches.
-    const baseAccessRoles = ["SuperAdmin", "Sales-TeamLead", "Sales"];
+    const { buildConversationVisibilityFilter } = await import("@/lib/whatsapp/locationAccess");
+    const { WHATSAPP_ACCESS_ROLES } = await import("@/lib/whatsapp/config");
     const hasAccess =
-      baseAccessRoles.includes(userRole as string) ||
+      (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(userRole as string) ||
       (userRole === "Advert" && isPhoneQuery(query || ""));
 
     if (!hasAccess) {
@@ -99,27 +98,22 @@ export async function GET(request: NextRequest) {
     // 4. BUILD SINGLE UNIFIED AGGREGATION PIPELINE
     // ========================================================================
     
-    // Permission filter
-    const permissionMatch: any = {};
+    // Permission filter — canonical visibility: phone AND location key
+    const permissionMatch: any = {
+      ...buildConversationVisibilityFilter(user as any),
+      status: { $in: ["active", "pending"] },
+      source: { $ne: "internal" },
+    };
     
-    if (userRole === "Sales") {
-      permissionMatch.assignedAgent = user.email;
-    } else if (userRole === "Sales-TeamLead" && userAreas) {
-      const areas = Array.isArray(userAreas) ? userAreas : [userAreas];
-      permissionMatch.$or = [
-        { assignedAgent: user.email },
-        { location: { $in: areas } },
-      ];
-    }
-    
-    // Filter by businessPhoneId if provided
-    if (phoneIdFilter) {
-      permissionMatch.businessPhoneId = phoneIdFilter;
-    }
-    
-    // Status filter
-    permissionMatch.status = { $in: ["active", "pending"] };
-    
+    const { applySuperAdminInboxLocationFilter } = await import(
+      "@/lib/whatsapp/locationAccess"
+    );
+    applySuperAdminInboxLocationFilter(
+      permissionMatch,
+      String(userRole ?? ""),
+      locationFilterParam
+    );
+
     // Archive filter
     if (!includeArchived) {
       permissionMatch.archived = { $ne: true };

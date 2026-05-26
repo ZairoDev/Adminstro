@@ -65,12 +65,19 @@ async function createSearchIndexes() {
     );
     // Permission + sort index created
 
-    // 4. Location-based filtering index
+    // 4. Location-based filtering index (legacy display string)
     await WhatsAppConversation.collection.createIndex(
       { participantLocation: 1, status: 1 },
       { name: "location_filter_idx" }
     );
     // Location filter index created
+
+    // 4b. Dual visibility index — phone + normalized location key (primary for queries)
+    await WhatsAppConversation.collection.createIndex(
+      { businessPhoneId: 1, participantLocationKey: 1, status: 1 },
+      { name: "phone_location_key_status_idx" }
+    );
+    // Phone + location key compound index created
 
     // 5. Tags array index for tag search
     await WhatsAppConversation.collection.createIndex(

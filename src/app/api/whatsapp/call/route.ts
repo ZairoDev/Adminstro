@@ -9,6 +9,9 @@ import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { canAccessConversation } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import { z } from "zod";
 import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
 import { recordCallStarted, updateCallFromMetaStatus } from "@/services/whatsapp-calling/callHistoryService";
@@ -96,6 +99,9 @@ export async function POST(req: NextRequest) {
       if (convIdOpt) {
         const conversation = (await WhatsAppConversation.findById(convIdOpt).lean()) as {
           businessPhoneId?: string;
+          participantLocationKey?: string;
+          source?: string;
+          isRetarget?: boolean;
         } | null;
         if (!conversation) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
@@ -105,6 +111,10 @@ export async function POST(req: NextRequest) {
             { error: "conversationId does not match phoneNumberId" },
             { status: 400 },
           );
+        }
+        const allowed = await canAccessConversation(token, conversation);
+        if (!allowed) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
       }
 
@@ -234,13 +244,19 @@ export async function POST(req: NextRequest) {
       let phoneNumberId = parsed.data.phoneNumberId?.trim();
       const convIdOpt = parsed.data.conversationId?.trim();
 
+      let terminateConversation: Record<string, unknown> | null = null;
       if (convIdOpt) {
-        const conversation = (await WhatsAppConversation.findById(convIdOpt).lean()) as {
-          businessPhoneId?: string;
-        } | null;
+        const conversation = (await WhatsAppConversation.findById(convIdOpt).lean()) as Record<
+          string,
+          unknown
+        > | null;
         if (!conversation) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
         }
+        if (!canAccessConversation(token, conversation)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        terminateConversation = conversation;
         if (phoneNumberId && String(conversation.businessPhoneId) !== phoneNumberId) {
           return NextResponse.json(
             { error: "conversationId does not match phoneNumberId" },
@@ -255,11 +271,26 @@ export async function POST(req: NextRequest) {
         phoneNumberId = log?.businessPhoneId?.trim() || "";
       }
 
-      if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+      if (!phoneNumberId) {
         return NextResponse.json(
           { error: "Valid phoneNumberId required (or conversationId to resolve it)" },
           { status: 403 },
         );
+      }
+
+      if (!terminateConversation) {
+        const phoneResolution = await resolveOutboundBusinessPhoneId({
+          token: normalizeWhatsAppToken(token),
+          conversation: null,
+          requestedPhoneId: phoneNumberId,
+        });
+        if ("error" in phoneResolution) {
+          return NextResponse.json(
+            { error: phoneResolution.error },
+            { status: phoneResolution.status },
+          );
+        }
+        phoneNumberId = phoneResolution.phoneNumberId;
       }
 
       const whatsappTokenTerminate = getWhatsAppToken();
@@ -303,21 +334,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Recipient phone number or conversation ID is required" }, { status: 400 });
     }
 
-    // Determine phone ID and recipient
-    let phoneNumberId = requestedPhoneId;
+    // Determine phone ID and recipient (conversation line + location visibility)
     let recipientPhone = to;
-    let resolvedConversation: {
-      participantPhone?: string;
-      businessPhoneId?: string;
-      participantName?: string;
-    } | null = null;
+    let resolvedConversation: Record<string, unknown> | null = null;
 
     if (conversationId) {
-      const conversation = await WhatsAppConversation.findById(conversationId).lean() as {
-        participantPhone?: string;
-        businessPhoneId?: string;
-        participantName?: string;
-      } | null;
+      const conversation = (await WhatsAppConversation.findById(conversationId).lean()) as Record<
+        string,
+        unknown
+      > | null;
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
@@ -325,20 +350,28 @@ export async function POST(req: NextRequest) {
         );
       }
       resolvedConversation = conversation;
-      phoneNumberId = phoneNumberId || conversation.businessPhoneId;
-      recipientPhone = recipientPhone || conversation.participantPhone;
+      recipientPhone = recipientPhone || String(conversation.participantPhone || "");
     }
 
     if (!recipientPhone) {
       return NextResponse.json({ error: "Recipient phone is required" }, { status: 400 });
     }
 
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    const phoneResolution = await resolveOutboundBusinessPhoneId({
+      token: normalizeWhatsAppToken(token),
+      conversation: resolvedConversation,
+      requestedPhoneId: requestedPhoneId || undefined,
+      requireConversation: Boolean(conversationId),
+    });
+
+    if ("error" in phoneResolution) {
       return NextResponse.json(
-        { error: "You don't have permission to call from this WhatsApp number" },
-        { status: 403 }
+        { error: phoneResolution.error },
+        { status: phoneResolution.status }
       );
     }
+
+    const phoneNumberId = phoneResolution.phoneNumberId;
 
     const whatsappToken = getWhatsAppToken();
     if (!whatsappToken) {
@@ -474,7 +507,10 @@ export async function POST(req: NextRequest) {
             ...(conversationId ? { conversationId: String(conversationId) } : {}),
             businessPhoneId: String(phoneNumberId),
             participantPhone: formattedPhone,
-            participantName: resolvedConversation?.participantName,
+            participantName:
+              typeof resolvedConversation?.participantName === "string"
+                ? resolvedConversation.participantName
+                : undefined,
           });
         } catch (logErr) {
           console.warn("[whatsapp/call] call history recordCallStarted:", logErr);

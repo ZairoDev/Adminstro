@@ -1,6 +1,7 @@
 import WhatsAppConversation, {
   IWhatsAppConversation,
 } from "@/models/whatsappConversation";
+import { locationKeyFromDisplay } from "@/lib/whatsapp/locationAccess";
 
 type SnapshotSource = "trusted" | "untrusted";
 
@@ -50,16 +51,21 @@ export async function findOrCreateConversationWithSnapshot(
 
   if (!conversation) {
     // New conversation: we are allowed to set full snapshot
+    const locKey = participantLocation ? locationKeyFromDisplay(participantLocation) : "";
+    const now = new Date();
     conversation = await WhatsAppConversation.create({
       participantPhone,
       participantName: participantName || `+${participantPhone}`,
       participantLocation: participantLocation || "",
+      participantLocationKey: locKey,
       conversationType: conversationType,
       participantProfilePic: participantProfilePic || undefined,
       businessPhoneId,
       status: "active",
       unreadCount: 0,
       referenceLink: referenceLink || undefined,
+      lastMessageTime: now,
+      firstMessageTime: now,
     });
     return conversation;
   }
@@ -74,6 +80,7 @@ export async function findOrCreateConversationWithSnapshot(
 
     if (!conversation.participantLocation && participantLocation) {
       updates.participantLocation = participantLocation;
+      updates.participantLocationKey = locationKeyFromDisplay(participantLocation);
     }
 
     if (!conversation.conversationType && conversationType) {

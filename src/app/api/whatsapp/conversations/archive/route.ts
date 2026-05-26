@@ -5,7 +5,9 @@ import ConversationArchiveState from "@/models/conversationArchiveState";
 import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
-import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
+import { WHATSAPP_EVENTS } from "@/lib/pusher";
+import { canAccessConversation } from "@/lib/whatsapp/access";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
@@ -40,13 +42,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify conversation exists
-    const conversation = await WhatsAppConversation.findById(conversationId);
-    if (!conversation) {
+    const conversationDoc = await WhatsAppConversation.findById(conversationId).lean();
+    if (!conversationDoc || Array.isArray(conversationDoc)) {
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }
       );
+    }
+    const conversation = conversationDoc as Record<string, unknown> & {
+      businessPhoneId?: string;
+    };
+
+    if (!canAccessConversation(token, conversation)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const userId = token.id || token._id;
@@ -71,16 +79,17 @@ export async function POST(req: NextRequest) {
     // ============================================================
     // CRITICAL: Archive API Real-Time Sync
     // ============================================================
-    // Emit socket event for real-time UI updates
-    // Event is GLOBAL - affects all users' views
-    emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
-      conversationId: conversationId.toString(),
-      // No userId - broadcast to all users
-      isArchived: true,
-      archivedAt: archiveState.archivedAt,
-      archivedBy: userId.toString(), // Track who archived
-      businessPhoneId: conversation.businessPhoneId,
-    });
+    await emitWhatsAppEventToEligibleUsers(
+      WHATSAPP_EVENTS.CONVERSATION_UPDATE,
+      conversation,
+      {
+        conversationId: conversationId.toString(),
+        isArchived: true,
+        archivedAt: archiveState.archivedAt,
+        archivedBy: userId.toString(),
+        businessPhoneId: conversation.businessPhoneId,
+      }
+    );
 
     return NextResponse.json({
       success: true,
@@ -123,13 +132,19 @@ export async function DELETE(req: NextRequest) {
 
     const userId = token.id || token._id;
 
-    // Verify conversation exists
-    const conversation = await WhatsAppConversation.findById(conversationId);
-    if (!conversation) {
+    const conversationDoc = await WhatsAppConversation.findById(conversationId).lean();
+    if (!conversationDoc || Array.isArray(conversationDoc)) {
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }
       );
+    }
+    const conversation = conversationDoc as Record<string, unknown> & {
+      businessPhoneId?: string;
+    };
+
+    if (!canAccessConversation(token, conversation)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Update global archive state to unarchived (no userId - global for everyone)
@@ -151,16 +166,17 @@ export async function DELETE(req: NextRequest) {
     // ============================================================
     // CRITICAL: Archive API Real-Time Sync
     // ============================================================
-    // Emit socket event for real-time UI updates
-    // Event is GLOBAL - affects all users' views
-    emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
-      conversationId: conversationId.toString(),
-      // No userId - broadcast to all users
-      isArchived: false,
-      unarchivedAt: archiveState?.unarchivedAt || new Date(),
-      unarchivedBy: userId.toString(), // Track who unarchived
-      businessPhoneId: conversation.businessPhoneId,
-    });
+    await emitWhatsAppEventToEligibleUsers(
+      WHATSAPP_EVENTS.CONVERSATION_UPDATE,
+      conversation,
+      {
+        conversationId: conversationId.toString(),
+        isArchived: false,
+        unarchivedAt: archiveState?.unarchivedAt || new Date(),
+        unarchivedBy: userId.toString(),
+        businessPhoneId: conversation.businessPhoneId,
+      }
+    );
 
     return NextResponse.json({
       success: true,

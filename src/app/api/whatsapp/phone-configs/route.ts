@@ -7,6 +7,7 @@ import {
   getRetargetPhoneId,
 } from "@/lib/whatsapp/config";
 import { fetchPhoneNumbersFromMeta, mapMetaPhonesToConfigs } from "@/lib/whatsapp/phoneMetadataSync";
+import { getAllPhoneLocationConfigs } from "@/lib/whatsapp/phoneAreaConfigService";
 
 // Force dynamic rendering since we use request.cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -92,11 +93,19 @@ export async function GET(req: NextRequest) {
     const businessAccountId = "770501279114785"; // WhatsApp Business Account ID
     const metaPhones = await fetchPhoneNumbersFromMeta(businessAccountId);
     
-    // Create area mapping from existing configs (to preserve area assignments)
-    // config.ts is source of truth for area/location assignments
+    // Area mapping: DB is source of truth; config.ts is fallback via service
+    const dbPhoneLocations = await getAllPhoneLocationConfigs();
     const areaMapping = new Map<string, string | string[]>();
-    WHATSAPP_PHONE_CONFIGS.forEach(config => {
-      if (config.phoneNumberId) {
+    for (const row of dbPhoneLocations) {
+      if (row.locations.length > 0) {
+        areaMapping.set(
+          row.phoneNumberId,
+          row.locations.map((loc) => loc.locationKey)
+        );
+      }
+    }
+    WHATSAPP_PHONE_CONFIGS.forEach((config) => {
+      if (config.phoneNumberId && !areaMapping.has(config.phoneNumberId)) {
         areaMapping.set(config.phoneNumberId, config.area);
       }
     });
@@ -126,6 +135,17 @@ export async function GET(req: NextRequest) {
         }
       }
     }
+
+    // Attach full location entries for clients (display + key)
+    const locationsByPhone = new Map(
+      dbPhoneLocations.map((row) => [row.phoneNumberId, row.locations])
+    );
+    allowedPhoneConfigs = allowedPhoneConfigs.map((config: { phoneNumberId?: string }) => ({
+      ...config,
+      locations: config.phoneNumberId
+        ? locationsByPhone.get(config.phoneNumberId) ?? []
+        : [],
+    }));
 
     return NextResponse.json({
       success: true,

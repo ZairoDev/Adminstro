@@ -16,6 +16,8 @@ import {
   Radio,
   User,
   Users,
+  MapPin,
+  MapPinOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,6 +40,15 @@ import {
 import { getRemainingHours } from "../utils";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -65,6 +76,9 @@ interface ChatHeaderProps {
   ) => void | Promise<void>;
   phoneMaskRules?: WhatsAppPhoneMaskRules;
   userRole?: string;
+  userEmail?: string;
+  userAreas?: string | string[];
+  onLocationSet?: (conversationId: string, location: string) => void;
 }
 
 interface Reader {
@@ -97,9 +111,52 @@ export const ChatHeader = memo(function ChatHeader({
   onConversationTypeChange,
   phoneMaskRules,
   userRole = "",
+  userEmail = "",
+  userAreas,
+  onLocationSet,
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [readers, setReaders] = useState<Reader[]>([]);
+  const [settingLocation, setSettingLocation] = useState(false);
+  const [locationInput, setLocationInput] = useState("");
+  const [assignableLocations, setAssignableLocations] = useState<
+    Array<{ displayName: string; locationKey: string }>
+  >([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
+  const businessPhoneId =
+    (conversation as { businessPhoneId?: string }).businessPhoneId ||
+    currentPhoneId ||
+    "";
+  const canAssignLocation = canAssignWhatsAppParticipantLocation({
+    role: userRole,
+    email: userEmail,
+    allotedArea: userAreas,
+  });
+
+  useEffect(() => {
+    if (!settingLocation || !canAssignLocation) return;
+    let cancelled = false;
+    setLoadingLocations(true);
+    axios
+      .get("/api/whatsapp/configured-locations")
+      .then((res) => {
+        if (!cancelled) {
+          setAssignableLocations(res.data.locations || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Could not load cities");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLocations(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingLocation, canAssignLocation]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -158,6 +215,29 @@ export const ChatHeader = memo(function ChatHeader({
     userRole,
   );
   const role = conversation.conversationType;
+  const participantLocation = (conversation as { participantLocation?: string })
+    .participantLocation;
+
+  const handleSetLocation = async () => {
+    const loc = locationInput.trim();
+    if (!loc || !conversation._id) return;
+    try {
+      await axios.post(`/api/whatsapp/conversations/${conversation._id}/meta`, {
+        participantLocation: loc,
+      });
+      onLocationSet?.(conversation._id, loc);
+      setSettingLocation(false);
+      setLocationInput("");
+      toast.success("Location assigned");
+    } catch (err: unknown) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.error
+          ? String(err.response.data.error)
+          : "Failed to set location";
+      toast.error(message);
+    }
+  };
+
   const canChangeType =
     !conversation.isInternal &&
     conversation.source !== "internal" &&
@@ -198,10 +278,87 @@ export const ChatHeader = memo(function ChatHeader({
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-[16px] font-medium text-[#111b21] dark:text-[#e9edef] truncate">
                 {headerTitle}
               </h2>
+              {participantLocation && !settingLocation ? (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-[#54656f] dark:text-[#8696a0] bg-[#f0f2f5] dark:bg-[#374045] px-1.5 py-0.5 rounded-full capitalize flex-shrink-0">
+                  <MapPin className="h-2.5 w-2.5" />
+                  {participantLocation}
+                </span>
+              ) : null}
+              {canAssignLocation ? (
+                settingLocation ? (
+                  <span className="inline-flex items-center gap-1 flex-shrink-0">
+                    {loadingLocations ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : assignableLocations.length === 0 ? (
+                      <span className="text-[10px] text-amber-600">
+                        No cities configured — Phone locations (⋮ menu)
+                      </span>
+                    ) : (
+                      <Select
+                        value={locationInput || participantLocation || ""}
+                        onValueChange={setLocationInput}
+                      >
+                        <SelectTrigger className="h-7 text-[11px] w-36">
+                          <SelectValue placeholder="Select city…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assignableLocations.map((loc) => (
+                            <SelectItem key={loc.locationKey} value={loc.displayName}>
+                              {loc.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-[11px]"
+                      disabled={!locationInput}
+                      onClick={() => void handleSetLocation()}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1 text-[11px]"
+                      onClick={() => {
+                        setSettingLocation(false);
+                        setLocationInput("");
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationInput(participantLocation || "");
+                      setSettingLocation(true);
+                    }}
+                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex-shrink-0"
+                    title="Assign or change city for this chat"
+                  >
+                    {participantLocation ? (
+                      <>
+                        <MapPin className="h-2.5 w-2.5" />
+                        Change location
+                      </>
+                    ) : (
+                      <>
+                        <MapPinOff className="h-2.5 w-2.5" />
+                        Set location
+                      </>
+                    )}
+                  </button>
+                )
+              ) : null}
               {conversation.referenceLink && (
                 <a
                   href={conversation.referenceLink}

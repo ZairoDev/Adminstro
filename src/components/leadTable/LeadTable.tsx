@@ -82,6 +82,7 @@ import { SelectableCell } from "@/app/spreadsheet/components/cells/SelectableCel
 import { AreaSelect} from "../leadTableSearch/page";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
 
 interface AreaType {
   _id: string;
@@ -93,12 +94,6 @@ interface TargetType {
   city: string;
   areas: AreaType[];
 }
-interface PhoneConfig {
-  phoneNumberId: string;
-  area: string | string[];
-  isInternal?: boolean;
-}
-
 export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: IQuery[] ,setQueries:Function, page?: number}) {
   const router = useRouter();
   const path = usePathname();
@@ -120,29 +115,6 @@ export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: 
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
-  const [phoneConfigs, setPhoneConfigs] = useState<PhoneConfig[]>([]);
-
-  useEffect(() => {
-    axios.get("/api/whatsapp/phone-configs").then((res) => {
-      if (res.data?.phoneConfigs) {
-        setPhoneConfigs(res.data.phoneConfigs.filter((c: PhoneConfig) => !c.isInternal));
-      }
-    }).catch(() => {});
-  }, []);
-
-  const getPhoneIdForLocation = (location: string | undefined): string => {
-    if (!phoneConfigs.length) return "";
-    if (location?.trim()) {
-      const normalized = location.trim().toLowerCase();
-      const config = phoneConfigs.find((c) => {
-        const areas = Array.isArray(c.area) ? c.area : [c.area];
-        return areas.some((a) => a.toLowerCase() === normalized);
-      });
-      if (config?.phoneNumberId) return config.phoneNumberId;
-    }
-    return phoneConfigs[0]?.phoneNumberId || "";
-  };
-
   const getFirstNameFromCreatedBy = (createdBy: string | undefined): string => {
     if (!createdBy) return "-";
     const base = createdBy.includes("@")
@@ -1074,10 +1046,13 @@ const handleSave = async (
                   {path?.toString().trim().split("/")[2] !== "createquery" ? (
                     <Link
                       target="_blank"
-                      href={`/whatsapp?phone=${encodeURIComponent(query?.phoneNo)}${query?.name ? `&name=${encodeURIComponent(query.name)}` : ""}${(query as any)?.profilePicture ? `&profilePic=${encodeURIComponent((query as any).profilePicture)}` : ""}${(() => {
-                        const phoneId = getPhoneIdForLocation(query?.location);
-                        return phoneId ? `&phoneId=${encodeURIComponent(phoneId)}` : "";
-                      })()}`}
+                      href={buildWhatsAppLeadOpenUrl({
+                        phone: query?.phoneNo != null ? String(query.phoneNo) : "",
+                        name: query?.name,
+                        profilePic: (query as { profilePicture?: string }).profilePicture,
+                        location: query?.location,
+                        conversationType: "guest",
+                      })}
                       rel="noopener noreferrer"
                       onClick={() => {
                         if (query.isViewed === false) {

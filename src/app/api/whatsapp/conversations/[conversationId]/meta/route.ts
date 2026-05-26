@@ -3,6 +3,11 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { canAccessConversation } from "@/lib/whatsapp/access";
+import { locationKeyFromDisplay } from "@/lib/whatsapp/locationAccess";
+import { assertParticipantLocationAssignable } from "@/lib/whatsapp/assignableLocations";
+import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import { WHATSAPP_EVENTS } from "@/lib/pusher";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +42,7 @@ export async function POST(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    const allowed = await canAccessConversation(token, conversation as any);
+    const allowed = canAccessConversation(token, conversation as Record<string, unknown>);
     if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -52,18 +57,88 @@ export async function POST(
     }
 
     // Primary field for owner/guest classification
-    const typeFromBody =
-      parseConversationType(body.conversationType) ??
-      parseConversationType(body.participantRole); // deprecated alias
-    if (typeFromBody) {
-      update.conversationType = typeFromBody;
+    if (parseConversationType(body.conversationType)) {
+      update.conversationType = parseConversationType(body.conversationType)!;
+    }
+
+    // participantLocation — owners/guests; city team + admins
+    if (typeof body.participantLocation === "string" && body.participantLocation.trim()) {
+      if (
+        !canAssignWhatsAppParticipantLocation({
+          role: token.role,
+          email: token.email,
+          allotedArea: token.allotedArea,
+        })
+      ) {
+        return NextResponse.json(
+          { error: "You do not have permission to assign participant location" },
+          { status: 403 }
+        );
+      }
+
+      const displayLocation = body.participantLocation.trim();
+
+      try {
+        await assertParticipantLocationAssignable(
+          {
+            role: token.role,
+            email: token.email,
+            allotedArea: token.allotedArea,
+          },
+          displayLocation
+        );
+      } catch (err: unknown) {
+        const status =
+          typeof err === "object" &&
+          err !== null &&
+          "status" in err &&
+          typeof (err as { status: unknown }).status === "number"
+            ? (err as { status: number }).status
+            : 403;
+        const message =
+          typeof err === "object" &&
+          err !== null &&
+          "message" in err &&
+          typeof (err as { message: unknown }).message === "string"
+            ? (err as { message: string }).message
+            : "Location not allowed";
+        return NextResponse.json({ error: message }, { status });
+      }
+
+      update.participantLocation = displayLocation;
+      update.participantLocationKey = locationKeyFromDisplay(displayLocation);
     }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    await WhatsAppConversation.findByIdAndUpdate(conversationId, update);
+    const updated = await WhatsAppConversation.findByIdAndUpdate(
+      conversationId,
+      update,
+      { new: true }
+    ).lean();
+
+    // Emit socket refresh so the conversation moves out of Admin Queue
+    // and appears in the correct city team's inbox immediately
+    if (update.participantLocationKey && updated) {
+      try {
+        await emitWhatsAppEventToEligibleUsers(
+          WHATSAPP_EVENTS.CONVERSATION_UPDATE,
+          updated as Record<string, unknown>,
+          {
+            conversationId,
+            businessPhoneId: (updated as { businessPhoneId?: string }).businessPhoneId,
+            updates: {
+              participantLocation: update.participantLocation,
+              participantLocationKey: update.participantLocationKey,
+            },
+          }
+        );
+      } catch {
+        // non-critical
+      }
+    }
 
     return NextResponse.json({ success: true, updated: update });
   } catch (err: unknown) {

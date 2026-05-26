@@ -76,7 +76,6 @@ interface MessageComposerProps {
   conversationType?: "owner" | "guest";
   // For media sending with individual captions
   selectedConversation?: { _id: string; participantPhone: string } | null;
-  selectedPhoneConfig?: { phoneNumberId?: string } | null;
   onSendMediaWithCaptions?: (files: Array<{ file: File; caption: string }>) => Promise<void>;
 }
 
@@ -108,7 +107,6 @@ export const MessageComposer = memo(function MessageComposer({
   isYouConversation = false,
   conversationType,
   selectedConversation,
-  selectedPhoneConfig,
   onSendMediaWithCaptions,
 }: MessageComposerProps) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);

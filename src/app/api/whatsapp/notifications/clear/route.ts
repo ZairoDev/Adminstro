@@ -3,6 +3,8 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent } from "@/lib/pusher";
+import { canAccessConversation } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 
 connectDb();
 
@@ -59,12 +61,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Check access: Sales users can only clear their assigned conversations
-      if (userRole === "Sales" && conversation.assignedAgent?.toString() !== userId) {
-        return NextResponse.json(
-          { error: "Unauthorized to clear this conversation" },
-          { status: 403 }
-        );
+      const normalized = normalizeWhatsAppToken(token as { id?: string; role?: string; allotedArea?: string | string[] });
+      if (!canAccessConversation(normalized, conversation.toObject?.() ?? conversation)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
 

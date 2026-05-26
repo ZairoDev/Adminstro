@@ -1,15 +1,11 @@
-import { MonthlyTarget } from "@/models/monthlytarget";
-import { dedupeCities, toDisplayCity } from "@/lib/city-normalizer";
+import { getMonthlyTargetCities } from "@/lib/monthly-target-locations";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function GET(req: NextRequest) {
   try {
     await getDataFromToken(req);
-    const locations = await MonthlyTarget.find({ month: { $exists: false }, isActive: { $ne: false } }).select("city").lean();
-    const cities = dedupeCities(
-      locations.map((location) => toDisplayCity(location.city || ""))
-    );
+    const cities = await getMonthlyTargetCities();
     return NextResponse.json({ locations: cities });
   } catch (err: unknown) {
     const error = err as { status?: number; code?: string };

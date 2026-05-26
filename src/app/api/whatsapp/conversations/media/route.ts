@@ -3,7 +3,8 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds, getRetargetPhoneId } from "@/lib/whatsapp/config";
+import { getAllowedPhoneIds, getRetargetPhoneId, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildConversationVisibilityFilter } from "@/lib/whatsapp/locationAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -46,23 +47,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build query for conversations
+    // Build query for conversations — canonical dual visibility: phone AND location key
+    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(token.role || "");
+    const visibilityFilter = isFullAccess
+      ? { businessPhoneId: { $in: allowedPhoneIds } }
+      : buildConversationVisibilityFilter(token as any);
+
     const conversationQuery: any = {
-      status: { $ne: "archived" }, // Exclude archived conversations
+      ...visibilityFilter,
+      status: { $ne: "archived" },
     };
 
-    // Filter by phoneId if provided
+    // Override phone if explicitly requested (caller is already gated by visibility filter)
     if (phoneId) {
-      if (!allowedPhoneIds.includes(phoneId)) {
+      if (!isFullAccess && !allowedPhoneIds.includes(phoneId)) {
         return NextResponse.json(
           { error: "You don't have access to this phone number" },
           { status: 403 }
         );
       }
       conversationQuery.businessPhoneId = phoneId;
-    } else {
-      // If no phoneId specified, filter by user's allowed phones
-      conversationQuery.businessPhoneId = { $in: allowedPhoneIds };
     }
 
     // Filter by specific conversation if provided

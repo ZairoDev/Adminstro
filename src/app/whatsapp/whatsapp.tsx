@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { flushSync } from "react-dom";
-import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import { type WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/AuthStore";
@@ -18,8 +18,9 @@ import {
   isMessageWindowActive,
   getTemplatePreviewText,
   getConversationTemplateContext,
-
+  getConversationBusinessPhoneId,
 } from "./utils";
+import { getRetargetPhoneId } from "@/lib/whatsapp/config";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
@@ -321,7 +322,6 @@ export default function WhatsAppChat() {
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
-  const [selectedPhoneConfig, setSelectedPhoneConfig] = useState<WhatsAppPhoneConfig | null>(null);
 
   const sortConversations = (convs: Conversation[]) => {
     return convs.sort((a, b) => {
@@ -359,6 +359,14 @@ export default function WhatsAppChat() {
   const [archivedUnreadCount, setArchivedUnreadCount] = useState(0);
   const [showingArchived, setShowingArchived] = useState(false);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
+
+  // Admin Queue: show conversations without a location key (full-access roles only)
+  const [adminQueue, setAdminQueue] = useState(false);
+  /** SuperAdmin: filter inbox by participant city ("all" = no filter) */
+  const [adminLocationFilter, setAdminLocationFilter] = useState("all");
+  const [adminLocationOptions, setAdminLocationOptions] = useState<string[]>([]);
+  /** After Add Owner/Guest, switch sidebar tab so the new chat is not hidden by tab filter */
+  const [sidebarTabHint, setSidebarTabHint] = useState<"all" | "owners" | "guests" | null>(null);
   
   // Total unread messages count (socket-based, real-time)
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
@@ -373,7 +381,8 @@ export default function WhatsAppChat() {
   });
   
   // Add Guest Modal state
-  const [showAddGuestModal, setShowAddGuestModal] = useState(false);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [addContactType, setAddContactType] = useState<"owner" | "guest">("owner");
 
   const [phoneMaskRules, setPhoneMaskRules] = useState<WhatsAppPhoneMaskRules>({
     maskOwnerPhones: false,
@@ -533,7 +542,8 @@ export default function WhatsAppChat() {
   // Ref to track selected conversation for socket events (avoids stale closure)
   const selectedConversationRef = useRef<Conversation | null>(null);
   const selectedPhoneIdRef = useRef<string | null>(null);
-  selectedPhoneIdRef.current = selectedPhoneConfig?.phoneNumberId ?? null;
+  selectedPhoneIdRef.current = getConversationBusinessPhoneId(selectedConversation) ?? null;
+  const allowedPhoneIdsRef = useRef<string[]>([]);
 
   const handleUpdateConversation = useCallback((conversationId: string, patch: Partial<Conversation>) => {
     setConversations((prev) => prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)));
@@ -1385,13 +1395,8 @@ export default function WhatsAppChat() {
             window.focus();
             notif?.close();
             if (raw.conversationId) {
-              const activePhoneId = selectedPhoneConfig?.phoneNumberId;
               const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-              if (activePhoneId) {
-                router.push(`/whatsapp?phoneId=${activePhoneId}&conversationId=${raw.conversationId}${suffix}`);
-              } else {
-                router.push(`/whatsapp?conversationId=${raw.conversationId}${suffix}`);
-              }
+              router.push(`/whatsapp?conversation=${raw.conversationId}${suffix}`);
             }
           };
 
@@ -1443,16 +1448,10 @@ export default function WhatsAppChat() {
       if (response.data.success) {
         const phoneConfigs = response.data.phoneConfigs || [];
         setAllowedPhoneConfigs(phoneConfigs);
-        
-        const realPhoneConfigs = phoneConfigs.filter((c: any) => !c.isInternal);
-        if (realPhoneConfigs.length > 0) {
-          const phoneIdParam = searchParams?.get("phoneId");
-          let selected: any = null;
-          if (phoneIdParam) {
-            selected = realPhoneConfigs.find((c: any) => c.phoneNumberId === phoneIdParam);
-          }
-          setSelectedPhoneConfig(selected || realPhoneConfigs[0]);
-        }
+        allowedPhoneIdsRef.current = phoneConfigs
+          .filter((c: WhatsAppPhoneConfig) => c.phoneNumberId && !c.isInternal)
+          .map((c: WhatsAppPhoneConfig) => c.phoneNumberId);
+
       }
     } catch (error: any) {
       console.error("Error fetching phone configs:", error);
@@ -1469,37 +1468,121 @@ export default function WhatsAppChat() {
     fetchPhoneConfigs();
   }, [searchParams]);
 
-  // Ensure phoneId is present in URL while inside WhatsApp module.
-  // If missing, redirect to default allowed phone for the user.
+  useEffect(() => {
+    const fromUrl = searchParams?.get("locationFilter");
+    if (fromUrl) {
+      setAdminLocationFilter(fromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (token?.role !== "SuperAdmin") return;
+    let cancelled = false;
+    axios
+      .get("/api/monthlyTargets/getLocations")
+      .then((res) => {
+        if (cancelled) return;
+        const raw = res.data?.locations;
+        const cities: string[] = Array.isArray(raw)
+          ? raw
+              .map((item: unknown) =>
+                typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
+              )
+              .filter(Boolean)
+          : [];
+        setAdminLocationOptions([...new Set(cities)].sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => {
+        if (!cancelled) setAdminLocationOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token?.role]);
+
+  const syncWhatsAppUrlParams = useCallback(
+    (patch: { locationFilter?: string; adminQueue?: boolean }) => {
+      const next = new URLSearchParams();
+      const retargetOnlyFlag = searchParams?.get("retargetOnly");
+      const conv =
+        searchParams?.get("conversation") || searchParams?.get("conversationId");
+      if (retargetOnlyFlag) next.set("retargetOnly", retargetOnlyFlag);
+      if (conv) next.set("conversation", conv);
+
+      const queue = patch.adminQueue ?? adminQueue;
+      const locFilter = patch.locationFilter ?? adminLocationFilter;
+
+      if (queue) {
+        next.set("adminQueue", "true");
+      } else if (locFilter && locFilter !== "all") {
+        next.set("locationFilter", locFilter);
+      }
+
+      const qs = next.toString();
+      router.replace(qs ? `/whatsapp?${qs}` : "/whatsapp", { scroll: false });
+    },
+    [adminQueue, adminLocationFilter, router, searchParams],
+  );
+
+  const handleAdminLocationFilterChange = useCallback(
+    (value: string) => {
+      setAdminLocationFilter(value);
+      if (value !== "all") {
+        setAdminQueue(false);
+      }
+      syncWhatsAppUrlParams({ locationFilter: value, adminQueue: false });
+    },
+    [syncWhatsAppUrlParams],
+  );
+
+  const handleAdminQueueChange = useCallback(
+    (value: boolean) => {
+      setAdminQueue(value);
+      syncWhatsAppUrlParams({ adminQueue: value });
+    },
+    [syncWhatsAppUrlParams],
+  );
+
+  // Legacy links used ?phoneId= — strip it; inbox is unified (location + visibility, not phone tabs).
   useEffect(() => {
     const phoneIdParam = searchParams?.get("phoneId");
-    if (phoneIdParam) return;
-    // If phone configs are loaded, pick a default and redirect
-    if (allowedPhoneConfigs.length > 0) {
-      const defaultPhone = allowedPhoneConfigs.find((c: any) => !c.isInternal) || allowedPhoneConfigs[0];
-      if (defaultPhone && defaultPhone.phoneNumberId) {
-        // preserve retargetOnly flag if present
-        const retargetOnlyFlag = searchParams?.get("retargetOnly");
-        const suffix = retargetOnlyFlag ? `&retargetOnly=${retargetOnlyFlag}` : "";
-        router.replace(`/whatsapp?phoneId=${defaultPhone.phoneNumberId}${suffix}`);
-      }
+    if (!phoneIdParam) return;
+    const conv =
+      searchParams?.get("conversation") || searchParams?.get("conversationId");
+    const retargetOnlyFlag = searchParams?.get("retargetOnly");
+    const locationParam = searchParams?.get("location");
+    const typeParam = searchParams?.get("conversationType");
+    const phoneParam = searchParams?.get("phone");
+    const nameParam = searchParams?.get("name");
+    const profilePicParam = searchParams?.get("profilePic");
+    const next = new URLSearchParams();
+    if (retargetOnlyFlag) next.set("retargetOnly", retargetOnlyFlag);
+    if (conv) next.set("conversation", conv);
+    const inboxLocationFilter = searchParams?.get("locationFilter");
+    if (inboxLocationFilter && inboxLocationFilter !== "all") {
+      next.set("locationFilter", inboxLocationFilter);
     }
-    // else wait for phone configs to load
-  }, [searchParams, allowedPhoneConfigs]);
+    if (searchParams?.get("adminQueue") === "true") {
+      next.set("adminQueue", "true");
+    }
+    if (locationParam) next.set("location", locationParam);
+    if (typeParam) next.set("conversationType", typeParam);
+    if (phoneParam) next.set("phone", phoneParam);
+    if (nameParam) next.set("name", nameParam);
+    if (profilePicParam) next.set("profilePic", profilePicParam);
+    const qs = next.toString();
+    router.replace(qs ? `/whatsapp?${qs}` : "/whatsapp", { scroll: false });
+  }, [searchParams, router]);
 
-  // CRITICAL: Refetch conversations when phone filter or search changes
+  // CRITICAL: Refetch conversations when phone filter, search, or adminQueue changes
   // Database is source of truth - always query backend, never filter client-side
   useEffect(() => {
-    if (token && selectedPhoneConfig?.phoneNumberId) {
-      // Only fetch if we have a phone config selected (skip initial null state)
-      // Debounce search to avoid excessive API calls
-      const timeoutId = setTimeout(() => {
-        fetchConversations(true); // Reset pagination when filter/search changes
-      }, searchQuery.trim() ? 300 : 0); // 300ms debounce for search, immediate for phone filter
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [selectedPhoneConfig?.phoneNumberId, searchQuery, token]);
+    if (!token) return;
+    const timeoutId = setTimeout(() => {
+      fetchConversations(true);
+    }, searchQuery.trim() ? 300 : 0);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, token, adminQueue, adminLocationFilter]);
 
   // Prefetch archived conversations so the "Archived" row can show unread count without opening archive
   useEffect(() => {
@@ -1565,42 +1648,30 @@ export default function WhatsAppChat() {
     const currentUserId = token?.id || (token as any)?._id;
     socket.emit("join-whatsapp-room", currentUserId?.toString());
 
-    // Also join phone-specific room for the currently selected phoneId so events scoped to that phone arrive.
-    const initialPhoneId = selectedPhoneIdRef.current;
-    if (initialPhoneId) {
-      socket.emit("join-whatsapp-phone", initialPhoneId);
-    }
-    // Track previous phoneId and update room membership when it changes
-    let previousPhoneId = initialPhoneId || null;
+    const joinAllAllowedPhones = () => {
+      for (const id of allowedPhoneIdsRef.current) {
+        if (id) socket.emit("join-whatsapp-phone", id);
+      }
+    };
+    joinAllAllowedPhones();
+
+    let previousUnifiedPhones = new Set(allowedPhoneIdsRef.current);
     const phoneWatcher = setInterval(() => {
-      const current = selectedPhoneIdRef.current || null;
-      if (current === previousPhoneId) return;
-      if (previousPhoneId) {
-        socket.emit("leave-whatsapp-phone", previousPhoneId);
+      const currentSet = new Set(allowedPhoneIdsRef.current);
+      for (const id of previousUnifiedPhones) {
+        if (!currentSet.has(id)) socket.emit("leave-whatsapp-phone", id);
       }
-      if (current) {
-        socket.emit("join-whatsapp-phone", current);
+      for (const id of currentSet) {
+        if (!previousUnifiedPhones.has(id)) socket.emit("join-whatsapp-phone", id);
       }
-      previousPhoneId = current;
+      previousUnifiedPhones = currentSet;
     }, 500);
 
-    // Retarget room membership for Advert / SuperAdmin
     const role = token?.role || "";
-    let previousRetargetPhone: string | null = null;
-    const retargetWatcher = setInterval(() => {
-      const currentPhone = selectedPhoneIdRef.current || null;
-      // Only join retarget room if user is Advert or SuperAdmin
-      const shouldJoin = role === "Advert" || role === "SuperAdmin";
-      if (!shouldJoin) return;
-      if (currentPhone === previousRetargetPhone) return;
-      if (previousRetargetPhone) {
-        socket.emit("leave-whatsapp-retarget", previousRetargetPhone);
-      }
-      if (currentPhone) {
-        socket.emit("join-whatsapp-retarget", currentPhone);
-      }
-      previousRetargetPhone = currentPhone;
-    }, 500);
+    const retargetPhoneId = getRetargetPhoneId();
+    if ((role === "Advert" || role === "SuperAdmin") && retargetPhoneId) {
+      socket.emit("join-whatsapp-retarget", retargetPhoneId);
+    }
 
     // Stable handler function - prevents re-attachment on re-render
     const handleWhatsAppMessage = (data: any) => {
@@ -1621,13 +1692,11 @@ export default function WhatsAppChat() {
 
       const currentPhoneId = selectedPhoneIdRef.current;
       const currentConversation = selectedConversationRef.current;
-      // Allow events through if they belong to the currently open conversation,
-      // even when the message came in on a different business phone.
       const isForCurrentConversation = currentConversation?._id === data.conversationId;
       if (
         data.businessPhoneId &&
-        currentPhoneId &&
-        data.businessPhoneId !== currentPhoneId &&
+        allowedPhoneIdsRef.current.length > 0 &&
+        !allowedPhoneIdsRef.current.includes(data.businessPhoneId) &&
         !isForCurrentConversation
       ) {
         return;
@@ -1759,6 +1828,33 @@ export default function WhatsAppChat() {
           const exists = prev.find((m) => m.messageId === message.messageId);
           if (exists) return prev;
 
+          // Merge optimistic outgoing placeholder (temp-*) when socket arrives before API response.
+          if (message.direction === "outgoing") {
+            const tempIdx = prev.findIndex(
+              (m) =>
+                typeof m.messageId === "string" &&
+                m.messageId.startsWith("temp-") &&
+                (m.status === "sending" || m.status === "sent") &&
+                m.type === message.type &&
+                m.direction === "outgoing"
+            );
+            if (tempIdx !== -1) {
+              return prev.map((m, i) =>
+                i === tempIdx
+                  ? {
+                      ...m,
+                      _id: message._id || message.id || m._id,
+                      messageId: message.messageId,
+                      content: message.content ?? m.content,
+                      mediaUrl: message.mediaUrl ?? m.mediaUrl,
+                      timestamp: new Date(message.timestamp),
+                      status: message.status || "sent",
+                    }
+                  : m
+              );
+            }
+          }
+
           return [
             ...prev,
             {
@@ -1810,13 +1906,17 @@ export default function WhatsAppChat() {
     return () => {
       socket.off("whatsapp-new-message", handleWhatsAppMessage);
       clearInterval(phoneWatcher);
-      try { clearInterval(retargetWatcher); } catch {}
+      if (retargetPhoneId) {
+        socket.emit("leave-whatsapp-retarget", retargetPhoneId);
+      }
     };
   }, [socket, token, playNotificationSound]);
 
   // Socket.io event listeners - other events (new conversations, status updates, etc.)
   useEffect(() => {
     if (!socket) return;
+
+    const currentUserId = token?.id || (token as { _id?: string })?._id;
 
     // Handle new conversations
     const handleNewConversation = (data: any) => {
@@ -1923,6 +2023,9 @@ export default function WhatsAppChat() {
     socket.on("whatsapp-message-status", handleMessageStatus);
     socket.on("whatsapp-message-echo", handleMessageEcho);
     socket.on("whatsapp-incoming-call", (data: any) => {
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
       const name = data.callerInfo?.profile?.name || data.from || "Caller";
       const callIdStr = data.callId != null ? String(data.callId) : "";
       toast({
@@ -1940,9 +2043,16 @@ export default function WhatsAppChat() {
     });
 
     socket.on("whatsapp-call-incoming-offer", (data: Record<string, unknown>) => {
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
       const phoneId = data.businessPhoneId != null ? String(data.businessPhoneId) : "";
       const selectedPid = selectedPhoneIdRef.current;
-      if (selectedPid && phoneId && phoneId !== selectedPid) {
+      if (
+        phoneId &&
+        allowedPhoneIdsRef.current.length > 0 &&
+        !allowedPhoneIdsRef.current.includes(phoneId)
+      ) {
         return;
       }
 
@@ -2008,6 +2118,9 @@ export default function WhatsAppChat() {
 
     // Handle missed calls
     socket.on("whatsapp-call-missed", (data: any) => {
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
       toast({
         title: "ðŸ“ž Missed Call",
         description: `Missed call from ${data.from}`,
@@ -2016,7 +2129,10 @@ export default function WhatsAppChat() {
     });
 
     // Handle call status updates (Meta / WhatsApp Calling statuses)
-    socket.on("whatsapp-call-status", (data: { callId?: string; callStatus?: string }) => {
+    socket.on("whatsapp-call-status", (data: { callId?: string; callStatus?: string; userId?: string }) => {
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
       const callIdStr = data?.callId != null ? String(data.callId) : "";
       const pendingInv = pendingIncomingInviteRef.current;
       if (pendingInv && callIdStr && callIdStr === pendingInv.callId) {
@@ -2045,6 +2161,9 @@ export default function WhatsAppChat() {
 
     // SDP answer for business-initiated calls
     socket.on("whatsapp-call-sdp-answer", async (data: Record<string, unknown>) => {
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        return;
+      }
       try {
         const convId = data?.conversationId != null ? String(data.conversationId) : "";
         if (!convId) return;
@@ -2236,6 +2355,14 @@ export default function WhatsAppChat() {
       if (retargetOnlyRef.current) {
         countsParams.append("retargetOnly", "1");
       }
+      if (
+        token?.role === "SuperAdmin" &&
+        adminLocationFilter &&
+        adminLocationFilter !== "all" &&
+        !adminQueue
+      ) {
+        countsParams.append("locationFilter", adminLocationFilter);
+      }
       const response = await axios.get(`/api/whatsapp/conversations/counts?${countsParams.toString()}`);
       if (response.data.success) {
         setConversationCounts({
@@ -2261,10 +2388,7 @@ export default function WhatsAppChat() {
 
       const params = new URLSearchParams();
       params.append("limit", "25");
-      // CRITICAL: Pass phoneId filter to backend - filtering happens at database level, not client-side
-      if (selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal) {
-        params.append("phoneId", selectedPhoneConfig.phoneNumberId);
-      }
+      // Inbox is unified — visibility filter on the server (areas/lines), not ?phoneId=
       // CRITICAL: Pass search query to backend - database is source of truth, no client-side filtering
       if (searchQuery.trim()) {
         params.append("search", searchQuery.trim());
@@ -2276,6 +2400,16 @@ export default function WhatsAppChat() {
       // Retarget-only mode: only fetch retarget conversations (for Advert role)
       if (retargetOnlyRef.current) {
         params.append("retargetOnly", "1");
+      }
+      // Admin Queue mode: conversations without a location key
+      if (adminQueue) {
+        params.append("adminQueue", "true");
+      } else if (
+        token?.role === "SuperAdmin" &&
+        adminLocationFilter &&
+        adminLocationFilter !== "all"
+      ) {
+        params.append("locationFilter", adminLocationFilter);
       }
 
       const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);
@@ -2296,9 +2430,19 @@ export default function WhatsAppChat() {
         
         if (reset) {
           // Deduplicate even on reset in case of any issues
-          const uniqueConversations = Array.from(
+          let uniqueConversations = Array.from(
             new Map(newConversations.map((c: Conversation) => [c._id, c])).values()
           ) as Conversation[];
+          // Keep the open chat visible if the list refresh omitted it (e.g. pagination cap)
+          if (selectedConversation?._id) {
+            const openId = String(selectedConversation._id);
+            if (!uniqueConversations.some((c) => String(c._id) === openId)) {
+              uniqueConversations = sortConversations([
+                selectedConversation,
+                ...uniqueConversations,
+              ]);
+            }
+          }
           setConversations(uniqueConversations);
           
           // Calculate total unread count from fetched conversations (socket-based)
@@ -2367,10 +2511,6 @@ export default function WhatsAppChat() {
         params.append("beforeMessageId", messagesCursor.messageId);
       }
 
-      // Always include phoneId namespace when loading messages
-      if (selectedPhoneConfig?.phoneNumberId) {
-        params.append("phoneId", selectedPhoneConfig.phoneNumberId);
-      }
       const response = await axios.get(
         `/api/whatsapp/conversations/${conversationId}/messages?${params.toString()}`
       );
@@ -2612,110 +2752,79 @@ export default function WhatsAppChat() {
         return updated;
       });
       
-      // Update URL with conversation ID for deep linking (preserve phoneId namespace and retargetOnly)
-      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
+      // Use the conversation's account so deep links stay on the correct WhatsApp line
       const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-      const convUrl = activePhoneId
-        ? `/whatsapp?phoneId=${activePhoneId}&conversation=${conversation._id}${suffix}`
-        : `/whatsapp?conversation=${conversation._id}${suffix}`;
-      router.push(convUrl, { scroll: false });
+      router.push(`/whatsapp?conversation=${conversation._id}${suffix}`, { scroll: false });
     } else {
       // Navigate back to sidebar on mobile when clearing selection
       if (isMobile) {
         setMobileView("conversations");
       }
       
-      // Clear selection but preserve phoneId in URL (and retargetOnly if present)
-      const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-      const suffixClear = retargetOnlyRef.current ? `?retargetOnly=1` : "";
-      if (activePhoneId) {
-        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-        router.push(`/whatsapp?phoneId=${activePhoneId}${suffix}`, { scroll: false });
-      } else {
-        router.push(`/whatsapp${suffixClear}`, { scroll: false });
-      }
+      const suffixClear = retargetOnlyRef.current ? "?retargetOnly=1" : "";
+      router.push(`/whatsapp${suffixClear}`, { scroll: false });
     }
   };
 
   const handleGuestAdded = async (conversationId: string, conversation?: Conversation) => {
     try {
+      // New owners have a location key — they never belong in Admin Queue
+      setAdminQueue(false);
+
+      const businessPhoneId = conversation?.businessPhoneId?.trim() || "";
+
+      const addedType = conversation?.conversationType === "guest" ? "guests" : "owners";
+      setSidebarTabHint(addedType === "guests" ? "guests" : "all");
+
       let newConversation: Conversation | null = null;
-      
-      // If conversation object is provided, format it to ensure all required fields are present
+
       if (conversation) {
         const conversationType = conversation.conversationType ?? "owner";
-
-        // Ensure the conversation has all required fields for the sidebar
         newConversation = {
           ...conversation,
-          _id: conversation._id || conversationId,
+          _id: String(conversation._id || conversationId),
+          businessPhoneId: businessPhoneId || conversation.businessPhoneId || "",
           participantPhone: conversation.participantPhone || "",
-          participantName: conversation.participantName || conversation.participantPhone || "Unknown",
+          participantName:
+            conversation.participantName || conversation.participantPhone || "Unknown",
           unreadCount: conversation.unreadCount ?? 0,
           status: conversation.status || "active",
           conversationType,
           lastMessageTime: conversation.lastMessageTime || new Date(),
-          // Ensure these optional fields are set
           isArchivedByUser: conversation.isArchivedByUser || false,
           isInternal: conversation.isInternal || conversation.source === "internal" || false,
         } as Conversation;
       } else {
-        // Otherwise, fetch the conversation by ID from the API
         try {
-          const response = await axios.get(`/api/whatsapp/conversations`);
-          if (response.data.success && response.data.conversations?.length > 0) {
-            newConversation = response.data.conversations.find(
-              (c: Conversation) => c._id === conversationId
-            ) || null;
+          const response = await axios.get(
+            `/api/whatsapp/conversations?conversation=${conversationId}`,
+          );
+          if (response.data.success && response.data.conversations?.[0]) {
+            newConversation = response.data.conversations[0] as Conversation;
           }
         } catch (fetchError) {
           console.error("Error fetching conversation:", fetchError);
         }
       }
-      
+
+      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+
       if (newConversation) {
-        // Add to conversations list if not already there (optimistic update)
+        const id = String(newConversation._id);
         setConversations((prev) => {
-          const exists = prev.find((c) => c._id === conversationId);
-          if (exists) {
-            // Update existing conversation with new data
-            return prev.map((c) => 
-              c._id === conversationId ? { ...c, ...newConversation } : c
-            );
-          }
-          // Add at the beginning of the list (most recent first)
-          return [newConversation!, ...prev];
+          const without = prev.filter((c) => c._id !== id);
+          return sortConversations([newConversation!, ...without]);
         });
-        
-        // Select and navigate to the conversation immediately (preserve phoneId)
+
         selectConversation(newConversation);
-        {
-          const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-          const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-          router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
-        }
+        router.push(`/whatsapp?conversation=${id}${suffix}`, { scroll: false });
       } else {
-        // If conversation not found, navigate directly - preserve phoneId if present
-        {
-          const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-          const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-          router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
-        }
+        router.push(`/whatsapp?conversation=${conversationId}${suffix}`, { scroll: false });
       }
-      
-      // Also refresh the full conversations list in the background to ensure consistency
-      // This ensures the conversation has all computed fields (unreadCount, lastMessageStatus, etc.)
-      setTimeout(() => {
-        fetchConversations(true).catch(console.error);
-      }, 500);
     } catch (error) {
       console.error("Error handling guest added:", error);
-      // Fallback: navigate directly to the conversation (preserve phoneId)
-      {
-        const activePhoneId = selectedPhoneConfig?.phoneNumberId;
-        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-        router.push(activePhoneId ? `/whatsapp?phoneId=${activePhoneId}&conversationId=${conversationId}${suffix}` : `/whatsapp?conversationId=${conversationId}${suffix}`);
-      }
+      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+      router.push(`/whatsapp?conversation=${conversationId}${suffix}`, { scroll: false });
     }
   };
 
@@ -2723,10 +2832,13 @@ export default function WhatsAppChat() {
 
   useEffect(() => {
     const phoneParam = searchParams?.get("phone");
-    if (!phoneParam) return;
-    if (!selectedPhoneConfig?.phoneNumberId) return;
-    
-    const cacheKey = `${phoneParam}_${selectedPhoneConfig.phoneNumberId}`;
+    if (!phoneParam || !token) return;
+
+    const locationParam = searchParams?.get("location")?.trim() || "";
+    const typeParam = searchParams?.get("conversationType");
+    const openType =
+      typeParam === "guest" || typeParam === "owner" ? typeParam : undefined;
+    const cacheKey = `${phoneParam}_${locationParam}_${openType ?? ""}`;
     if (openedByPhoneRef.current === cacheKey) return;
     openedByPhoneRef.current = cacheKey;
 
@@ -2736,14 +2848,39 @@ export default function WhatsAppChat() {
 
     (async () => {
       try {
+        let phoneNumberId = "";
+
+        if (locationParam) {
+          try {
+            const resolveRes = await axios.get(
+              "/api/whatsapp/resolve-phone-for-location",
+              { params: { location: locationParam } },
+            );
+            phoneNumberId = resolveRes.data.phoneNumberId || phoneNumberId;
+          } catch {
+            // fall through
+          }
+        }
+
+        if (!phoneNumberId) {
+          toast({
+            title: "Cannot open chat",
+            description: locationParam
+              ? `No WhatsApp line configured for ${locationParam}`
+              : "Missing location or phone line",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const convs = await fetchConversations();
-        const found = convs.find((c: any) =>
-          (c.participantPhone || "").replace(/\D/g, "").endsWith(normalized)
+        const found = convs.find((c: Conversation) =>
+          (c.participantPhone || "").replace(/\D/g, "").endsWith(normalized),
         );
 
         if (found) {
           setConversations((prev) => {
-            const exists = prev.find((c: any) => c._id === found._id);
+            const exists = prev.find((c) => c._id === found._id);
             if (exists) return prev;
             return sortConversations([found, ...prev]);
           });
@@ -2752,14 +2889,21 @@ export default function WhatsAppChat() {
           const createRes = await axios.post("/api/whatsapp/conversations", {
             participantPhone: normalized,
             participantName: nameParam || phoneParam,
-            phoneNumberId: selectedPhoneConfig.phoneNumberId,
+            phoneNumberId,
+            participantLocation: locationParam || undefined,
+            location: locationParam || undefined,
+            conversationType: openType,
             ...(profilePicParam ? { participantProfilePic: profilePicParam } : {}),
           });
           if (createRes.data.success) {
-            const conversation = createRes.data.conversation;
+            const conversation = createRes.data.conversation as Conversation;
             setConversations((prev) => {
-              const exists = prev.find((c: any) => c._id === conversation._id);
-              if (exists) return sortConversations(prev.map((c: any) => (c._id === conversation._id ? conversation : c)));
+              const exists = prev.find((c) => c._id === conversation._id);
+              if (exists) {
+                return sortConversations(
+                  prev.map((c) => (c._id === conversation._id ? conversation : c)),
+                );
+              }
               return sortConversations([conversation, ...prev]);
             });
             selectConversation(conversation);
@@ -2774,7 +2918,7 @@ export default function WhatsAppChat() {
         });
       }
     })();
-  }, [searchParams, selectedPhoneConfig?.phoneNumberId]);
+  }, [searchParams, token]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
@@ -2874,7 +3018,6 @@ export default function WhatsAppChat() {
         to: selectedConversation.participantPhone,
         message: messageContent,
         conversationId: selectedConversation._id,
-        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
         // Include reply context for WhatsApp API
         ...(currentReplyTo && {
           replyToMessageId: currentReplyTo.messageId,
@@ -3022,18 +3165,46 @@ export default function WhatsAppChat() {
       });
 
       if (response.data.success) {
-        setMessages((prev) =>
-          prev.map((msg) =>
+        const realMessageId = response.data.messageId;
+        const savedMessageId = response.data.savedMessageId;
+        const realTimestamp = new Date(response.data.timestamp || sendTimestamp);
+
+        setMessages((prev) => {
+          const existingIdx = prev.findIndex((m) => m.messageId === realMessageId);
+          if (existingIdx !== -1) {
+            return prev
+              .filter((m) => m._id !== tempId)
+              .map((m) =>
+                m.messageId === realMessageId
+                  ? {
+                      ...m,
+                      _id: savedMessageId,
+                      status: "sent",
+                      timestamp: realTimestamp,
+                    }
+                  : m
+              );
+          }
+
+          return prev.map((msg) =>
             msg._id === tempId
-              ? { 
-                  ...msg, 
-                  _id: response.data.savedMessageId,
-                  messageId: response.data.messageId, 
-                  status: "sent" 
+              ? {
+                  ...msg,
+                  _id: savedMessageId,
+                  messageId: realMessageId,
+                  status: "sent",
+                  timestamp: realTimestamp,
                 }
               : msg
-          )
-        );
+          );
+        });
+
+        try {
+          addToLRUSet(seenMessageIdsRef.current, realMessageId);
+        } catch {
+          // ignore
+        }
+
         toast({
           title: "Template Sent",
           description: "Your template message was sent successfully",
@@ -3105,29 +3276,8 @@ export default function WhatsAppChat() {
     }
     const fullPhoneNumber = `${country}${phone}`;
 
-    // CRITICAL (Bug 1 fix): Scope conversation creation to the currently-active
-    // WhatsApp account. Without this, the server falls back to the first
-    // allowed phone config (e.g. Athens) and contacts created from the
-    // Thessaloniki/Milan inbox would leak into the Athens account.
-    const activePhoneId = selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal
-      ? selectedPhoneConfig.phoneNumberId
-      : undefined;
-
-    if (!activePhoneId) {
-      toast({
-        title: "No WhatsApp account selected",
-        description: "Please pick the WhatsApp number you want to chat from before starting a new conversation.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Bug 2 fix (client side): if this phone already has a conversation in the
-    // active account, just open it instead of creating a duplicate.
     const alreadyInList = conversations.find(
-      (c) =>
-        c.participantPhone === fullPhoneNumber &&
-        (c.businessPhoneId === activePhoneId || !c.businessPhoneId)
+      (c) => (c.participantPhone || "").replace(/\D/g, "") === fullPhoneNumber.replace(/\D/g, ""),
     );
     if (alreadyInList) {
       selectConversation(alreadyInList);
@@ -3139,57 +3289,12 @@ export default function WhatsAppChat() {
       return;
     }
 
-    try {
-      setLoading(true);
-      const response = await axios.post("/api/whatsapp/conversations", {
-        participantPhone: fullPhoneNumber,
-        participantName: `+${country} ${phone}`,
-        phoneNumberId: activePhoneId,
-      });
-
-      if (response.data.success) {
-        const conversation = response.data.conversation;
-
-        // Server may indicate that a conversation already existed in the
-        // same account (deduped) or that a conversation exists in a
-        // DIFFERENT account for the same phone number. In both cases we
-        // surface that to the user so they understand why they're not
-        // getting a brand-new thread.
-        if (response.data.alreadyExisted) {
-          toast({
-            title: "Conversation exists",
-            description: "Opening existing chat in this account.",
-          });
-        } else if (response.data.existsInOtherAccount) {
-          toast({
-            title: "Contact exists in another account",
-            description:
-              "This number is already a contact under a different WhatsApp number. A new chat has been created for the currently selected account.",
-          });
-        }
-
-        setConversations((prev) => {
-          const exists = prev.find((c) => c._id === conversation._id);
-          if (exists) {
-            selectConversation(exists);
-            return prev;
-          }
-          return [conversation, ...prev];
-        });
-        setSelectedConversation(conversation);
-        setMessages([]);
-        setNewPhoneNumber("");
-        // Keep country code for convenience
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error?.response?.data?.error || "Failed to create conversation",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    toast({
+      title: "Add location first",
+      description:
+        "Use the + person icon → Owner or Guest and pick a city, or open the contact from a lead.",
+      variant: "destructive",
+    });
   };
 
   // Handle forward messages
@@ -3243,7 +3348,6 @@ export default function WhatsAppChat() {
         messageId: message.messageId, // WhatsApp message ID (wamid)
         emoji: emoji,
         conversationId: selectedConversation._id,
-        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
 
       if (response.data.success) {
@@ -3287,7 +3391,6 @@ export default function WhatsAppChat() {
       const response = await axios.post("/api/whatsapp/forward-message", {
         messageIds: messagesToForward,
         conversationIds,
-        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
 
       if (response.data.success) {
@@ -3434,7 +3537,6 @@ export default function WhatsAppChat() {
           mediaType: mediaType,
           mediaUrl: bunnyUrl, // Use Bunny CDN URL directly
           filename: filename || file.name,
-          phoneNumberId: selectedPhoneConfig?.phoneNumberId,
         });
 
         if (sendResponse.data.success) {
@@ -3478,7 +3580,7 @@ export default function WhatsAppChat() {
     return () => {
       window.removeEventListener("fileDropped", handleFileDropped);
     };
-  }, [selectedConversation, selectedPhoneConfig]);
+  }, [selectedConversation]);
 
   // Handle file/media upload
   const handleFileUpload = async (
@@ -3640,7 +3742,6 @@ export default function WhatsAppChat() {
         mediaUrl: bunnyUrl,
         ...(captionText ? { caption: captionText } : {}),
         filename: bunnyFilename || file.name,
-        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
 
       if (sendResponse.data.success) {
@@ -3816,7 +3917,6 @@ export default function WhatsAppChat() {
         mediaUrl: bunnyUrl,
         ...(caption?.trim() ? { caption: caption.trim() } : {}),
         filename: bunnyFilename || file.name,
-        phoneNumberId: selectedPhoneConfig?.phoneNumberId,
       });
 
       if (sendResponse.data.success) {
@@ -3952,7 +4052,6 @@ export default function WhatsAppChat() {
             mediaType: "image",
             mediaUrl: bunnyUrl,
             filename: bunnyFilename || file.name,
-            phoneNumberId: selectedPhoneConfig?.phoneNumberId,
           });
 
           if (sendResponse.data.success) {
@@ -3997,6 +4096,16 @@ export default function WhatsAppChat() {
   const handleAudioCall = async () => {
     if (!selectedConversation || !callPermissions.canMakeCalls) return;
 
+    const phoneNumberId = getConversationBusinessPhoneId(selectedConversation);
+    if (!phoneNumberId) {
+      toast({
+        title: "Calls not available",
+        description: "Voice calls are not supported for internal chats.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCallingAudio(true);
     try {
       rejectPendingIncomingForNewOutbound();
@@ -4004,7 +4113,6 @@ export default function WhatsAppChat() {
         cleanupOutboundCallResources();
       }
       // 0) Check permission state first (prevents wasting the limited permission-request sends)
-      const phoneNumberId = selectedConversation.businessPhoneId;
       const userWaId = selectedConversation.participantPhone;
       if (phoneNumberId && userWaId) {
         try {
@@ -4078,7 +4186,7 @@ export default function WhatsAppChat() {
         startedAtMs,
         conversationId: String(selectedConversation._id),
         summaryVariant: "outbound",
-        phoneNumberId: String(selectedConversation.businessPhoneId || ""),
+        phoneNumberId,
       };
       setOutboundCallUi({
         sessionKind: "outbound",
@@ -4392,9 +4500,6 @@ export default function WhatsAppChat() {
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
               loading={loading}
-              allowedPhoneConfigs={allowedPhoneConfigs}
-              selectedPhoneConfig={selectedPhoneConfig}
-              onPhoneConfigChange={setSelectedPhoneConfig}
               newCountryCode={newCountryCode}
               onCountryCodeChange={setNewCountryCode}
               newPhoneNumber={newPhoneNumber}
@@ -4406,7 +4511,14 @@ export default function WhatsAppChat() {
               hasMoreConversations={showingArchived ? false : hasMoreConversations}
               loadingMoreConversations={loadingMoreConversations}
               onLoadMoreConversations={showingArchived ? undefined : () => fetchConversations(false)}
-              onAddGuest={() => setShowAddGuestModal(true)}
+              onAddOwner={() => {
+                setAddContactType("owner");
+                setShowAddContactModal(true);
+              }}
+              onAddGuest={() => {
+                setAddContactType("guest");
+                setShowAddContactModal(true);
+              }}
               // Archive functionality
               archivedCount={archivedCount}
               archivedUnreadCount={archivedConversations.reduce(
@@ -4421,6 +4533,7 @@ export default function WhatsAppChat() {
               onUnarchiveConversation={unarchiveConversation}
               // User info for access control
               userRole={token?.role}
+              userEmail={token?.email}
               userAreas={token?.allotedArea}
               // User profile for nav strip
               userName={token?.name}
@@ -4432,6 +4545,14 @@ export default function WhatsAppChat() {
               onRefreshConversations={() => void fetchConversations(true)}
               phoneMaskRules={phoneMaskRules}
               canManagePhoneMask={canManagePhoneMask}
+              // Admin Queue (full-access roles only)
+              adminQueue={adminQueue}
+              onAdminQueueChange={handleAdminQueueChange}
+              adminLocationFilter={adminLocationFilter}
+              adminLocationOptions={adminLocationOptions}
+              onAdminLocationFilterChange={handleAdminLocationFilterChange}
+              sidebarTabHint={sidebarTabHint}
+              onSidebarTabHintConsumed={() => setSidebarTabHint(null)}
               // Jump to message from search results
               onJumpToMessage={(conversationId, messageId) => {
                 // Find and select the conversation
@@ -4489,11 +4610,19 @@ export default function WhatsAppChat() {
                     onBack={handleMobileBack}
                     isMobile={isMobile}
                     availablePhoneConfigs={allowedPhoneConfigs}
-                    currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
+                    currentPhoneId={getConversationBusinessPhoneId(selectedConversation) ?? null}
                     onTransferLead={() => setShowTransferDialog(true)}
                     onConversationTypeChange={handleConversationTypeChange}
                     phoneMaskRules={phoneMaskRules}
                     userRole={token?.role}
+                    userEmail={token?.email}
+                    userAreas={token?.allotedArea}
+                    onLocationSet={(conversationId, location) => {
+                      handleUpdateConversation(conversationId, {
+                        participantLocation: location,
+                      } as Partial<Conversation>);
+                      void fetchConversations(true);
+                    }}
                   />
 
                   <MessageList
@@ -4546,7 +4675,6 @@ export default function WhatsAppChat() {
                     isYouConversation={isYouConversation}
                     conversationType={selectedConversation?.conversationType}
                     selectedConversation={selectedConversation}
-                    selectedPhoneConfig={selectedPhoneConfig}
                     onSendMediaWithCaptions={handleSendMediaWithCaptions}
                   />
                 </>
@@ -4598,12 +4726,14 @@ export default function WhatsAppChat() {
       
       {/* Add Guest Modal */}
       <AddGuestModal
-        open={showAddGuestModal}
-        onOpenChange={setShowAddGuestModal}
+        open={showAddContactModal}
+        onOpenChange={setShowAddContactModal}
         onGuestAdded={handleGuestAdded}
-        defaultPhoneNumberId={selectedPhoneConfig?.phoneNumberId}
+        conversationType={addContactType}
         userRole={token?.role}
+        userEmail={token?.email}
         userAreas={token?.allotedArea}
+        hidePhoneLineLabel
       />
       
       {/* Forward Dialog */}
@@ -4620,7 +4750,7 @@ export default function WhatsAppChat() {
         open={showTransferDialog}
         onOpenChange={setShowTransferDialog}
         conversation={selectedConversation}
-        currentPhoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : null}
+        currentPhoneId={getConversationBusinessPhoneId(selectedConversation) ?? null}
         availablePhoneConfigs={allowedPhoneConfigs}
         onTransfer={handleTransferLead}
         loading={transferringLead}

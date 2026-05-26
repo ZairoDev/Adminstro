@@ -8,16 +8,27 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
 import Query from "@/models/query";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { 
-  getAllowedPhoneIds, 
+import {
+  getAllowedPhoneIds,
   canAccessPhoneId,
   getDefaultPhoneId,
-  getPhoneIdForLocation,
   getRetargetPhoneId,
   FULL_ACCESS_ROLES,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { canAccessConversation } from "@/lib/whatsapp/access";
+import {
+  assertLocationAllowedForCreate,
+} from "@/lib/whatsapp/locationAccess";
+import {
+  buildInboxListQuery,
+  parseInboxListParams,
+} from "@/lib/whatsapp/inboxQuery";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import {
+  isLocationAllowedForPhone,
+  resolvePhoneIdForLocation,
+} from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
@@ -44,23 +55,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs based on role and area
-    const userRole = token.role || "";
-    
-    // Normalize userAreas - handle string, array, or comma-separated string
-    // This ensures consistent behavior between local and production environments
-    let userAreas: string[] = [];
-    if (token.allotedArea) {
-      if (Array.isArray(token.allotedArea)) {
-        userAreas = token.allotedArea.map((a: any) => String(a).trim()).filter(Boolean);
-      } else if (typeof token.allotedArea === 'string') {
-        // Handle comma-separated string (e.g., "athens,thessaloniki") or single string
-        userAreas = token.allotedArea.split(',').map((a: any) => a.trim()).filter(Boolean);
-      }
-    }
-    
-    // Determine allowed phone IDs (not used to block access; area-based allocation is used)
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
+    let allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken);
     // Debug: log role, areas, and initial allowed phone IDs
     // console.log(`[DEBUG][conversations][GET] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIdsInitial=${JSON.stringify(allowedPhoneIds)}`);
 
@@ -76,7 +74,7 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
         }
 
-        const allowed = await canAccessConversation(token, convDoc);
+        const allowed = canAccessConversation(token, convDoc);
         if (!allowed) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -117,23 +115,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If a specific phoneId is requested and it matches the retarget phone id,
-    // allow Advert to access it even when retargetOnly flag wasn't provided.
-    const requestedPhoneIdParam = searchParams.get("phoneId") || "";
-    if (allowedPhoneIds.length === 0 && requestedPhoneIdParam) {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId && requestedPhoneIdParam === retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-
-      }
-    }
-
- 
-
     const limit = parseInt(searchParams.get("limit") || "25");
     const status = searchParams.get("status") || "active";
     const search = searchParams.get("search") || "";
-    const phoneIdFilter = searchParams.get("phoneId") || ""; // Optional filter by specific phone
     const cursor = searchParams.get("cursor"); // Cursor for pagination (lastMessageTime timestamp)
     const conversationType = searchParams.get("conversationType") || ""; // Filter by owner/guest
     const includeArchived = searchParams.get("includeArchived") === "true"; // Include archived conversations
@@ -158,43 +142,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Build query - filter by allowed phone IDs
-    const query: any = { status };
+    const inboxParams = parseInboxListParams(searchParams);
+    inboxParams.status = status;
+    inboxParams.search = search;
+    inboxParams.conversationType = conversationType;
+    inboxParams.retargetOnly = retargetOnly;
 
-    // CRITICAL (Bug 1 fix): contacts/chats MUST be scoped per WhatsApp
-    // account. Without a server-side filter, an area-restricted user
-    // (e.g. Thessaloniki-only) whose frontend forgets to pass phoneId
-    // would see conversations from other accounts (e.g. Athens).
-    //
-    // Rules:
-    // - Full-access roles (SuperAdmin/Admin/Developer) may view any account
-    //   and may pass any phoneId they like.
-    // - Advert role already has its own retarget handling above.
-    // - Everyone else is restricted to their allowedPhoneIds.
-    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
-
-    if (phoneIdFilter) {
-      // Verify the caller is allowed to view this specific phone.
-      if (!isFullAccess && !allowedPhoneIds.includes(phoneIdFilter)) {
-        return NextResponse.json(
-          { error: "You don't have access to this WhatsApp account" },
-          { status: 403 }
-        );
-      }
-      query.businessPhoneId = phoneIdFilter;
-    } else if (!isFullAccess) {
-      // No explicit phoneId: enforce the user's allowed phones so contacts
-      // from other accounts cannot leak in.
-      if (allowedPhoneIds.length === 0) {
-        return NextResponse.json({
-          success: true,
-          conversations: [],
-          archivedCount: 0,
-          pagination: { limit: 25, hasMore: false, nextCursor: null },
-        });
-      }
-      query.businessPhoneId = { $in: allowedPhoneIds };
+    if (inboxParams.adminQueue && !(FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const visibilityQuery = buildInboxListQuery(normalizedToken, inboxParams);
+    if (visibilityQuery._id === null) {
+      return NextResponse.json({
+        success: true,
+        conversations: [],
+        archivedCount: 0,
+        pagination: { limit: 25, hasMore: false, nextCursor: null },
+      });
+    }
+
+    const query: Record<string, unknown> = { ...visibilityQuery };
 
     // Handle archive filtering (global archive)
     if (archivedOnly) {
@@ -220,33 +188,6 @@ export async function GET(req: NextRequest) {
       // If search is present, don't exclude archived conversations - let them appear in search results
     }
 
-    // Filter by conversation type if provided
-    if (conversationType && (conversationType === "owner" || conversationType === "guest")) {
-      query.conversationType = conversationType;
-    }
-
-    // If retargetOnly, restrict to conversations flagged as retarget
-    if (retargetOnly) {
-      query.isRetarget = true;
-    }
-
-    // Advert should only see retarget conversations (server-enforced)
-    if (userRole === "Advert") {
-      query.isRetarget = true;
-
-    }
-
-    // Sales visibility rules: Sales must never see retarget conversations before handover
-    if (userRole === "Sales") {
-      // Ensure Sales only see non-retarget OR retarget conversations that have been handed to sales
-      query.$and = query.$and || [];
-      query.$and.push({
-        $or: [
-          { isRetarget: false },
-          { isRetarget: true, retargetStage: "handed_to_sales" },
-        ],
-      });
-    }
     if (search) {
       query.$or = [
         { participantPhone: { $regex: search, $options: "i" } },
@@ -468,6 +409,22 @@ export async function GET(req: NextRequest) {
 
         // Only include "You" conversation if not globally archived and not in archived-only view
         if (!archivedOnly && !youArchiveState) {
+          // Drop any stale internal rows (e.g. before source filter) so "You" appears once
+          const youId = youConversation._id?.toString();
+          for (let i = conversationsWithGuestStats.length - 1; i >= 0; i--) {
+            const row = conversationsWithGuestStats[i] as {
+              _id?: { toString?: () => string };
+              source?: string;
+              businessPhoneId?: string;
+            };
+            if (
+              row.source === "internal" ||
+              row.businessPhoneId === INTERNAL_YOU_PHONE_ID ||
+              (youId && row._id?.toString?.() === youId)
+            ) {
+              conversationsWithGuestStats.splice(i, 1);
+            }
+          }
           // Get read state for "You" conversation
           const youReadState = await ConversationReadState.findOne({
             conversationId: youConversation._id,
@@ -608,8 +565,7 @@ export async function POST(req: NextRequest) {
     if (phoneNumberId) {
       selectedPhoneId = phoneNumberId;
     } else if (leadLocation?.trim()) {
-      // Use the phone number configured for this lead's location
-      const phoneIdForLocation = getPhoneIdForLocation(leadLocation);
+      const phoneIdForLocation = await resolvePhoneIdForLocation(leadLocation);
       if (phoneIdForLocation) {
         selectedPhoneId = phoneIdForLocation;
       }
@@ -641,6 +597,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const resolvedLocation = (participantLocation || leadLocation || "").trim();
+    const explicitType =
+      conversationType === "owner" || conversationType === "guest"
+        ? conversationType
+        : undefined;
+
+    if (explicitType && !resolvedLocation) {
+      return NextResponse.json(
+        { error: "Location is required when adding an owner or guest" },
+        { status: 400 }
+      );
+    }
+
     // Prevent Sales from hijacking an existing retarget row on this same
     // WhatsApp account before Advert hands it over. Scoped by business phone
     // so a retarget on another line does not block creating an owner here.
@@ -663,6 +632,25 @@ export async function POST(req: NextRequest) {
         { error: "You don't have permission to use this WhatsApp number (area mismatch)" },
         { status: 403 }
       );
+    }
+
+    if (resolvedLocation) {
+      try {
+        assertLocationAllowedForCreate(token, resolvedLocation, selectedPhoneId);
+      } catch (locErr: unknown) {
+        const err = locErr as { message?: string; status?: number };
+        return NextResponse.json(
+          { error: err.message || "Location not allowed" },
+          { status: err.status || 400 }
+        );
+      }
+      const onPhone = await isLocationAllowedForPhone(selectedPhoneId, resolvedLocation);
+      if (!onPhone) {
+        return NextResponse.json(
+          { error: "Location is not assigned to this WhatsApp phone line" },
+          { status: 400 }
+        );
+      }
     }
 
 
@@ -695,12 +683,9 @@ export async function POST(req: NextRequest) {
       participantPhone: normalizedPhone,
       businessPhoneId: selectedPhoneId,
       participantName,
-      participantLocation,
+      participantLocation: resolvedLocation || undefined,
       participantProfilePic: participantProfilePic || undefined,
-      conversationType:
-        conversationType === "owner" || conversationType === "guest"
-          ? conversationType
-          : undefined,
+      conversationType: explicitType,
       referenceLink,
       snapshotSource: "trusted",
     });

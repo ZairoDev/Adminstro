@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds, getRetargetPhoneId } from "@/lib/whatsapp/config";
+import { buildInboxListQuery, parseInboxListParams } from "@/lib/whatsapp/inboxQuery";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
 
 connectDb();
 
@@ -20,39 +21,29 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs based on role and area
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken, {
+      retargetOnly:
+        req.nextUrl.searchParams.get("retargetOnly") === "1" ||
+        req.nextUrl.searchParams.get("retargetOnly") === "true",
+    });
 
-    // Advert role: grant access to retarget phone for counts
-    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
+    if (allowedPhoneIds.length === 0 && normalizedToken.role !== "Advert") {
       return NextResponse.json(
         { error: "No WhatsApp access for your role/area" },
         { status: 403 }
       );
     }
 
-    const searchParams = req.nextUrl.searchParams;
-    const status = searchParams.get("status") || "active";
-    const retargetOnly = searchParams.get("retargetOnly") === "1" || searchParams.get("retargetOnly") === "true";
-
-    // Build base query - filter by allowed phone IDs
-    const baseQuery: any = {
-      status,
-      businessPhoneId: { $in: allowedPhoneIds },
-    };
-
-    // Retarget-only mode: filter to retarget conversations only
-    if (retargetOnly) {
-      baseQuery.isRetarget = true;
+    const inboxParams = parseInboxListParams(req.nextUrl.searchParams);
+    const baseQuery = buildInboxListQuery(normalizedToken, inboxParams);
+    if (baseQuery._id === null) {
+      return NextResponse.json({
+        success: true,
+        totalCount: 0,
+        ownerCount: 0,
+        guestCount: 0,
+      });
     }
 
     // Get total count

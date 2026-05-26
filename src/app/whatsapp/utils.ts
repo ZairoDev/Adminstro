@@ -1,5 +1,14 @@
 import type { Conversation, Message, Template } from "./types";
 
+ /** Business line for outbound API calls — from the open chat, not a sidebar phone tab. */
+export function getConversationBusinessPhoneId(
+  conversation: Pick<Conversation, "businessPhoneId" | "source" | "isInternal"> | null | undefined
+): string | undefined {
+  if (!conversation?.businessPhoneId) return undefined;
+  if (conversation.isInternal || conversation.source === "internal") return undefined;
+  return conversation.businessPhoneId;
+}
+
 export function getMessageDisplayText(message: Message): string {
   if (message.displayText) return message.displayText;
 

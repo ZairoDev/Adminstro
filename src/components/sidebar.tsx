@@ -70,9 +70,14 @@ import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
 import { IoMdPaper } from "react-icons/io";
 
-// Simple active matcher (keep strict equality)
-const isActive = (currentPath: string, path: string): boolean =>
-  currentPath === path;
+const isActive = (currentPath: string, path: string): boolean => {
+  const routeBase = path.split("?")[0];
+  const currentBase = currentPath.split("?")[0];
+  if (routeBase === "/whatsapp" || routeBase === "/whatsapp/retarget") {
+    return currentBase === routeBase;
+  }
+  return currentPath === path;
+};
 
 type Route = {
   path: string;
@@ -1359,8 +1364,6 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   const [role, setRole] = useState<string | null>(null);
   const [hideGuestManagement, setHideGuestManagement] = useState(false);
   const [hideOwnerManagement, setHideOwnerManagement] = useState(false);
-  const [whatsappPhones, setWhatsappPhones] = useState<{ id: string; label: string }[]>([]);
-
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -1385,35 +1388,6 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    const loadWhatsappPhones = async () => {
-      if (!role) return;
-      const routesForRole = roleRoutes[role as keyof typeof roleRoutes];
-      const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
-      const hasWhatsApp = routesForRole?.some((r) => r.path === "/whatsapp");
-      const hasRetargetAccess = retargetAllowedRoles.includes(role);
-      if (!routesForRole || (!hasWhatsApp && !hasRetargetAccess)) return;
-      try {
-        const res = await axios.get("/api/whatsapp/phone-configs");
-        if (res.data?.success) {
-          const configs = (res.data.phoneConfigs || []).filter((c: any) => !c.isInternal && c.phoneNumberId);
-          const phones = configs.map((c: any) => {
-            const areaLabel = c.area ? String(c.area).trim() : "";
-            const baseLabel = areaLabel || c.displayName || c.displayNumber || "Number";
-            return {
-              id: c.phoneNumberId as string,
-              label: baseLabel,
-            };
-          });
-          setWhatsappPhones(phones);
-        }
-      } catch {
-        setWhatsappPhones([]);
-      }
-    };
-    loadWhatsappPhones();
-  }, [role]);
 
   const renderRoutes = (
     showText: boolean,
@@ -1462,14 +1436,15 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
     const hasWhatsAppPermission = hasChatAccess || hasRetargetAccess;
 
-    // Only show WhatsApp phone routes for roles with /whatsapp (chat) access
     const whatsappRoutes: Route[] = hasChatAccess
-      ? whatsappPhones.map((p) => ({
-          path: `/whatsapp?phoneId=${encodeURIComponent(p.id)}`,
-          label: `WhatsApp ${p.label}`,
-          Icon: <FaWhatsapp size={18} />,
-          openInNewTab: true,
-        }))
+      ? [
+          {
+            path: "/whatsapp",
+            label: "WhatsApp",
+            Icon: <FaWhatsapp size={18} />,
+            openInNewTab: true,
+          },
+        ]
       : [];
 
     // Add a separate Retarget page entry for roles that are allowed to run retargeting

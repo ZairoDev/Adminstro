@@ -200,42 +200,13 @@ export function groupMessagesByConversation(messages: any[]): Map<string, any[]>
 }
 
 /**
- * Build permission filter for MongoDB query based on user role
+ * Build permission filter for MongoDB search queries.
+ * Delegates to the canonical visibility contract: phone AND location key.
+ * assignedAgent is NOT a visibility criterion — it is ownership only.
  */
 export function buildPermissionFilter(user: any): any {
-  const userId = user.id || user._id;
-  const role = user.role;
-  const allotedArea = user.allotedArea;
-
-  // SuperAdmin sees everything
-  if (role === "SuperAdmin") {
-    return {};
-  }
-
-  // Sales-TeamLead sees their assigned conversations + conversations in their area
-  if (role === "Sales-TeamLead") {
-    const filter: any = {
-      $or: [
-        { assignedAgent: userId },
-      ],
-    };
-
-    // Add location filter if user has allotted areas
-    if (allotedArea && allotedArea.length > 0) {
-      const areas = Array.isArray(allotedArea) ? allotedArea : [allotedArea];
-      filter.$or.push({ participantLocation: { $in: areas } });
-    }
-
-    return filter;
-  }
-
-  // Sales agents see only their assigned conversations
-  if (role === "Sales") {
-    return { assignedAgent: userId };
-  }
-
-  // Default: no access
-  return { _id: null };
+  const { buildConversationVisibilityFilter } = require("@/lib/whatsapp/locationAccess");
+  return buildConversationVisibilityFilter(user);
 }
 
 /**

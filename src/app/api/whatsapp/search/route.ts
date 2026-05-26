@@ -30,20 +30,13 @@ export async function GET(req: NextRequest) {
     await connectDb();
 
     const userRole = token.role;
-    const userAreas = token.allotedArea;
 
-    const permissionFilter: any = {};
-    if (userRole === "Sales") {
-      permissionFilter.assignedAgent = token.email;
-    } else if (userRole === "Sales-TeamLead" && userAreas) {
-      const areas = Array.isArray(userAreas) ? userAreas : [userAreas];
-      permissionFilter.$or = [
-        { assignedAgent: token.email },
-        { participantLocation: { $in: areas } },
-      ];
-    }
-
-    permissionFilter.status = { $in: ["active", "pending"] };
+    const { buildConversationVisibilityFilter } = await import("@/lib/whatsapp/locationAccess");
+    const permissionFilter: any = {
+      ...buildConversationVisibilityFilter(token),
+      status: { $in: ["active", "pending"] },
+      source: { $ne: "internal" },
+    };
 
     if (phoneId) {
       permissionFilter.businessPhoneId = phoneId;

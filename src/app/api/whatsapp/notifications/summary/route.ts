@@ -5,7 +5,8 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import ConversationReadState from "@/models/conversationReadState";
-import { getAllowedPhoneIds, getAllowedPhoneConfigs } from "@/lib/whatsapp/config";
+import { getAllowedPhoneIds, getAllowedPhoneConfigs, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildConversationVisibilityFilter } from "@/lib/whatsapp/locationAccess";
 import mongoose from "mongoose";
 
 connectDb();
@@ -62,32 +63,20 @@ export async function GET(req: NextRequest) {
       (state: any) => state.conversationId
     );
 
-    // Build conversation query with location and ownership filtering
-    // CRITICAL: Exclude archived conversations and internal conversations
+    // Build conversation query — canonical dual visibility: phone AND location key
+    const visibilityFilter = buildConversationVisibilityFilter(token as any);
     let conversationQuery: any = {
+      ...visibilityFilter,
       status: "active",
-      businessPhoneId: { $in: allowedPhoneIds },
       lastCustomerMessageAt: {
         $gte: twentyFourHoursAgo,
         $lte: now,
       },
-      // Exclude internal conversations (they never notify)
       source: { $ne: "internal" },
-      // Exclude archived conversations for this user
       ...(archivedConversationIds.length > 0 && {
         _id: { $nin: archivedConversationIds },
       }),
     };
-
-    // Sales users: only see conversations assigned to them OR unassigned
-    if (userRole === "Sales" && userId) {
-      conversationQuery.$or = [
-        { assignedAgent: userId },
-        { assignedAgent: { $exists: false } },
-        { assignedAgent: null },
-      ];
-    }
-    // Sales-TeamLead and SuperAdmin see all conversations for their phone numbers
 
     // Fetch expiring conversations
     const expiringConversations = await WhatsAppConversation.find(conversationQuery)
@@ -127,21 +116,13 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a.totalMinutes - b.totalMinutes); // Most urgent first
 
     const candidateConversationsQuery: any = {
+      ...visibilityFilter,
       status: "active",
-      businessPhoneId: { $in: allowedPhoneIds },
       source: { $ne: "internal" },
       ...(archivedConversationIds.length > 0 && {
         _id: { $nin: archivedConversationIds },
       }),
     };
-
-    if (userRole === "Sales" && userId) {
-      candidateConversationsQuery.$or = [
-        { assignedAgent: userId },
-        { assignedAgent: { $exists: false } },
-        { assignedAgent: null },
-      ];
-    }
 
     const candidateConversations = await WhatsAppConversation.find(candidateConversationsQuery)
       .select("_id participantPhone participantName lastMessageContent lastMessageId lastMessageTime lastMessageDirection businessPhoneId assignedAgent")

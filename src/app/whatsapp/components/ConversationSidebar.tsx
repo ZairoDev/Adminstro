@@ -38,12 +38,13 @@ import {
   Shield,
   Link2,
   ListChecks,
+  MapPin,
+  MapPinOff,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 import { formatTime } from "../utils";
-import { formatPhoneDisplayWithLocation } from "@/lib/whatsapp/config";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -67,12 +68,15 @@ import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
 import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/WhatsAppConversationTypeMigrationButton";
+import { WhatsAppPhoneLocationsManager } from "@/components/dashboard/WhatsAppPhoneLocationsManager";
 import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
 import {
   getMaskedMessagePreview,
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
 } from "@/lib/whatsapp/phoneMask";
+import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import { SetParticipantLocationDialog } from "./SetParticipantLocationDialog";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -80,9 +84,6 @@ interface SidebarProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   loading: boolean;
-  allowedPhoneConfigs: any[];
-  selectedPhoneConfig: any;
-  onPhoneConfigChange: (config: any) => void;
   newCountryCode: string;
   onCountryCodeChange: (value: string) => void;
   newPhoneNumber: string;
@@ -98,6 +99,7 @@ interface SidebarProps {
   hasMoreConversations?: boolean;
   loadingMoreConversations?: boolean;
   onLoadMoreConversations?: () => void;
+  onAddOwner?: () => void;
   onAddGuest?: () => void;
   // Archive functionality (WhatsApp-style)
   archivedCount?: number;
@@ -109,6 +111,7 @@ interface SidebarProps {
   onUnarchiveConversation?: (conversationId: string) => void;
   // User info for access control
   userRole?: string;
+  userEmail?: string;
   userAreas?: string | string[];
   // User profile for nav strip
   userName?: string;
@@ -129,6 +132,16 @@ interface SidebarProps {
   phoneMaskRules?: WhatsAppPhoneMaskRules;
   /** HR/SuperAdmin can open the phone visibility form */
   canManagePhoneMask?: boolean;
+  /** Admin Queue: when true the sidebar shows conversations without a location key */
+  adminQueue?: boolean;
+  onAdminQueueChange?: (value: boolean) => void;
+  /** SuperAdmin: filter inbox by participant city */
+  adminLocationFilter?: string;
+  adminLocationOptions?: string[];
+  onAdminLocationFilterChange?: (value: string) => void;
+  /** Parent sets this after Add Owner/Guest so tab filter does not hide the new chat */
+  sidebarTabHint?: "all" | "owners" | "guests" | null;
+  onSidebarTabHintConsumed?: () => void;
 }
 
 /** Theme toggle button for the nav strip: toggles between light and dark mode */
@@ -178,6 +191,8 @@ function ConversationActionItems({
   onConversationTypeChange,
   onArchive,
   onUnarchive,
+  onSetLocation,
+  canSetLocation,
   isMobile,
 }: {
   MenuItem: ComponentType<{
@@ -197,12 +212,25 @@ function ConversationActionItems({
   ) => void | Promise<void>;
   onArchive?: (id: string) => void;
   onUnarchive?: (id: string) => void;
+  onSetLocation?: (conversation: Conversation) => void;
+  canSetLocation?: boolean;
   isMobile?: boolean;
 }) {
   const itemClass = isMobile ? "py-3 text-base" : undefined;
 
   return (
     <>
+      {canSetLocation && onSetLocation ? (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => onSetLocation(conversation)}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          {(conversation as { participantLocation?: string }).participantLocation
+            ? "Change location"
+            : "Set location"}
+        </MenuItem>
+      ) : null}
       <MenuItem
         className={itemClass}
         onSelect={() => onRenameFor?.(conversation._id, conversation.participantName)}
@@ -269,8 +297,11 @@ function ConversationItem({
   onTriggerUpload,
   onRenameFor,
   onConversationTypeChange,
+  onSetLocation,
   phoneMaskRules,
   userRole = "",
+  userEmail = "",
+  userAreas,
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -287,8 +318,11 @@ function ConversationItem({
     conversationId: string,
     conversationType: "owner" | "guest",
   ) => void | Promise<void>;
+  onSetLocation?: (conversation: Conversation) => void;
   phoneMaskRules?: WhatsAppPhoneMaskRules;
   userRole?: string;
+  userEmail?: string;
+  userAreas?: string | string[];
 }): JSX.Element {
   // Use parent-level upload/rename handlers to avoid input unmount issues
   const hasUnread =
@@ -360,7 +394,22 @@ function ConversationItem({
   const showGuestStats =
     role === "guest" && (listingLinkSentCount > 0 || optionsSentCount > 0);
 
-  const hasActions = Boolean(onArchive || onUnarchive || canChangeType || onRenameFor);
+  const canSetLocation =
+    !isInternal &&
+    Boolean(onSetLocation) &&
+    canAssignWhatsAppParticipantLocation({
+      role: userRole,
+      email: userEmail,
+      allotedArea: userAreas,
+    });
+
+  const hasActions = Boolean(
+    onArchive ||
+      onUnarchive ||
+      canChangeType ||
+      onRenameFor ||
+      canSetLocation
+  );
 
   const actionMenuProps = {
     conversation,
@@ -372,6 +421,8 @@ function ConversationItem({
     onConversationTypeChange,
     onArchive,
     onUnarchive,
+    onSetLocation,
+    canSetLocation,
     isMobile,
   };
 
@@ -499,6 +550,30 @@ function ConversationItem({
             )}
           </div>
         )}
+        {/* Location badge */}
+        {(conversation as any).participantLocation && (
+          <div className="flex items-center gap-0.5 mt-0.5">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-[#54656f] dark:text-[#8696a0] bg-[#f0f2f5] dark:bg-[#202c33] px-1.5 py-0.5 rounded-full capitalize">
+                    <MapPin className="h-2.5 w-2.5" />
+                    {(conversation as any).participantLocation}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">Participant location</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+        {!(conversation as any).participantLocation && !(conversation as any).participantLocationKey && (
+          <div className="flex items-center gap-0.5 mt-0.5">
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded-full">
+              <MapPinOff className="h-2.5 w-2.5" />
+              No location
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Chevron: hover menu */}
@@ -558,9 +633,6 @@ export function ConversationSidebar({
   searchQuery,
   onSearchQueryChange,
   loading,
-  allowedPhoneConfigs,
-  selectedPhoneConfig,
-  onPhoneConfigChange,
   newCountryCode,
   onCountryCodeChange,
   newPhoneNumber,
@@ -572,6 +644,7 @@ export function ConversationSidebar({
   hasMoreConversations,
   loadingMoreConversations,
   onLoadMoreConversations,
+  onAddOwner,
   onAddGuest,
   // Archive props
   archivedCount = 0,
@@ -582,6 +655,7 @@ export function ConversationSidebar({
   onUnarchiveConversation,
   // User info for access control
   userRole,
+  userEmail,
   userAreas,
   // User profile
   userName,
@@ -595,6 +669,13 @@ export function ConversationSidebar({
   onRefreshConversations,
   phoneMaskRules,
   canManagePhoneMask = false,
+  adminQueue = false,
+  onAdminQueueChange,
+  adminLocationFilter = "all",
+  adminLocationOptions = [],
+  onAdminLocationFilterChange,
+  sidebarTabHint = null,
+  onSidebarTabHintConsumed,
 }: SidebarProps) {
   const [showPhoneMaskForm, setShowPhoneMaskForm] = useState(false);
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
@@ -604,6 +685,8 @@ export function ConversationSidebar({
    const [showMediaPopup, setShowMediaPopup] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [locationDialogConversation, setLocationDialogConversation] =
+    useState<Conversation | null>(null);
 
   const {
     results: unifiedSearchResults,
@@ -614,7 +697,10 @@ export function ConversationSidebar({
     debounceMs: 300,
     includeArchived: showingArchived,
     limit: 50,
-    phoneId: selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : undefined,
+    locationFilter:
+      userRole === "SuperAdmin" && adminLocationFilter !== "all" && !adminQueue
+        ? adminLocationFilter
+        : undefined,
   });
 
   const isSearchMode = searchQuery.trim().length > 0;
@@ -622,6 +708,12 @@ export function ConversationSidebar({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!sidebarTabHint) return;
+    setConversationTab(sidebarTabHint);
+    onSidebarTabHintConsumed?.();
+  }, [sidebarTabHint, onSidebarTabHintConsumed]);
 
   // File upload ref & target for per-conversation uploads
   const perItemFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -754,11 +846,6 @@ export function ConversationSidebar({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  const realPhoneConfigs = allowedPhoneConfigs.filter((c: any) => !c.isInternal);
-  const showPhoneMenu = (userRole === "SuperAdmin" || userRole === "Sales" || userRole === "Advert" || realPhoneConfigs.length > 1 ||
-    (userAreas ? (Array.isArray(userAreas) ? userAreas : [userAreas]).map((a: string) => String(a).toLowerCase().trim()).filter(Boolean).length > 1 : false)) &&
-    realPhoneConfigs.length > 0;
-
   // Calculate unread count for notification badge
   const totalUnreadCount = conversations.reduce(
     (sum, conv) => sum + ((conv.unreadCount || 0) > 0 && conv.lastMessageDirection === "incoming" ? 1 : 0),
@@ -766,15 +853,19 @@ export function ConversationSidebar({
   );
 
   return (
-    <div className={cn(
-      "flex h-full bg-white dark:bg-[#111b21] min-h-0 min-w-0 w-full overflow-hidden",
-      "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]"
-    )}>
+    <div
+      className={cn(
+        "flex h-full bg-white dark:bg-[#111b21] min-h-0 min-w-0 w-full overflow-hidden",
+        "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]",
+      )}
+    >
       {/* Vertical Navigation Strip - Hidden on mobile, visible on desktop */}
-      <div className={cn(
-        "hidden md:flex flex-col items-center bg-[#f7f5f3] dark:bg-[#202c33] border-r border-[#e9edef] dark:border-[#222d34]",
-        "w-[70px] flex-shrink-0 py-2 gap-1"
-      )}>
+      <div
+        className={cn(
+          "hidden md:flex flex-col items-center bg-[#f7f5f3] dark:bg-[#202c33] border-r border-[#e9edef] dark:border-[#222d34]",
+          "w-[70px] flex-shrink-0 py-2 gap-1",
+        )}
+      >
         {/* Chats Icon - Active, with unread count badge */}
         <TooltipProvider>
           <Tooltip>
@@ -827,425 +918,657 @@ export function ConversationSidebar({
                 </Avatar>
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{userName || "Profile"}</TooltipContent>
+            <TooltipContent side="right">
+              {userName || "Profile"}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
       {/* Main Sidebar Content - min-w-0 so it shrinks and doesn't overflow */}
-      <div className={cn(
-        "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111b21]"
-      )}>
-      {/* Hidden file input for per-item uploads (stays mounted) */}
-      <input
-        ref={perItemFileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleProfilePicSelectedFor}
-      />
-      {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
-      <div className={cn(
-        "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0 min-w-0",
-        "h-[60px] px-3 pt-[env(safe-area-inset-top,0px)] md:pt-0 md:px-3",
-        "border-b border-[#f0f2f5] dark:border-[#222d34]"
-      )}>
-        {showNewChat ? (
-          <>
-            <Button variant="ghost" size="icon" onClick={() => setShowNewChat(false)} className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] rounded-full">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <span className="text-[17px] font-medium text-[#111b21] dark:text-[#e9edef]">New chat</span>
-            <div className="w-10" />
-          </>
-        ) : (
-          <>
-            <span className="text-[18px] font-bold text-[#111b21] dark:text-[#e9edef] truncate min-w-0">WhatsApp</span>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              {isMounted && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="p-2 rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] inline-flex">
-                        {isConnected ? <Wifi className="h-5 w-5 text-[#25d366]" /> : <WifiOff className="h-5 w-5 text-red-500" />}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{isConnected ? "Connected" : "Disconnected"}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              <Button variant="ghost" size="icon" onClick={() => setShowNewChat(true)} className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9">
-                <MessageSquarePlus className="h-5 w-5" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[180px]">
-                  <DropdownMenuItem onClick={() => setConversationTab("all")}>All ({totalCount})</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setConversationTab("owners")}><User className="h-4 w-4 mr-2" />Owners ({ownerCount})</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setConversationTab("guests")}><Users className="h-4 w-4 mr-2" />Guests ({guestCount})</DropdownMenuItem>
-                  {canManagePhoneMask && (
-                    <DropdownMenuItem onClick={() => setShowPhoneMaskForm(true)}>
-                      <Shield className="h-4 w-4 mr-2" />
-                      Phone visibility rules
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === "SuperAdmin" && (
-                    <>
-                      <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
-                      <div className="px-2 py-1.5">
-                        <WhatsAppConversationTypeMigrationButton onSuccess={onRefreshConversations} />
-                      </div>
-                    </>
-                  )}
-                  {/* {showPhoneMenu && (
-                    <>
-                      <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
-                      {realPhoneConfigs.map((config: any) => (
-                        <DropdownMenuItem key={config.phoneNumberId} onClick={() => onPhoneConfigChange(config)} className={cn(selectedPhoneConfig?.phoneNumberId === config.phoneNumberId && "bg-accent")}>
-                          <Phone className="h-4 w-4 mr-2" />
-                          {formatPhoneDisplayWithLocation(config)}
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )} */}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Search - pill shaped, WhatsApp-style highlighted area when active */}
       <div
         className={cn(
-          "px-3 py-2 flex-shrink-0 min-w-0 overflow-hidden transition-colors duration-200 rounded-t-lg",
-          (searchFocused || (searchQuery && searchQuery.trim().length > 0))
-            ? "bg-[#e9edef] dark:bg-[#2a3942]"
-            : "bg-white dark:bg-[#111b21]"
+          "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111b21]",
         )}
       >
-        {showNewChat ? (
-          <div className="space-y-3 min-w-0">
-            <div className="flex gap-2 min-w-0">
-              <div className="relative w-20 flex-shrink-0">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">+</span>
-                <Input
-                  placeholder="91"
-                  value={newCountryCode}
-                  onChange={(e) => onCountryCodeChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className={cn(
-                    "pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
-                    // Mobile: Taller inputs for touch
-                    "h-11",
-                    "md:h-9"
-                  )}
-                  maxLength={4}
-                />
-              </div>
-              <Input
-                placeholder="Phone number"
-                value={newPhoneNumber}
-                onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, ""))}
-                className={cn(
-                  "flex-1 min-w-0 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
-                  // Mobile: Taller inputs for touch
-                  "h-11",
-                  "md:h-9"
-                )}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onStartConversation();
-                }}
-              />
-              <Button
-                onClick={onStartConversation}
-                disabled={loading || !newCountryCode.trim() || !newPhoneNumber.trim()}
-                className={cn(
-                  "bg-[#25d366] hover:bg-[#1da851] text-white flex-shrink-0",
-                  // Mobile: Larger button
-                  "h-11 px-4",
-                  "md:h-9 md:px-3"
-                )}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start"}
-              </Button>
-            </div>
-            {onAddGuest && (
+        {/* Hidden file input for per-item uploads (stays mounted) */}
+        <input
+          ref={perItemFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleProfilePicSelectedFor}
+        />
+        {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
+        <div
+          className={cn(
+            "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0 min-w-0",
+            "h-[60px] px-3 pt-[env(safe-area-inset-top,0px)] md:pt-0 md:px-3",
+            "border-b border-[#f0f2f5] dark:border-[#222d34]",
+          )}
+        >
+          {showNewChat ? (
+            <>
               <Button
                 variant="ghost"
-                className={cn(
-                  "w-full justify-start text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
-                  // Mobile: Taller button for touch
-                  "h-12 text-[15px]",
-                  "md:h-10 md:text-[14px]"
-                )}
-                onClick={() => {
-                  onAddGuest();
-                  setShowNewChat(false);
-                }}
+                size="icon"
+                onClick={() => setShowNewChat(false)}
+                className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] rounded-full"
               >
-                <UserPlus className="h-5 w-5 mr-3" />
-                Add new owner with details
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-            )}
-          </div>
-        ) : (
-          <div className="relative min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
-            <Input
-              placeholder="Search by name, phone or message"
-              value={searchQuery}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              onChange={(e) => {
-                const value = e.target.value;
-                onSearchQueryChange(value);
-                if (value.trim()) {
-                  executeSearch(value);
-                } else {
-                  clearSearch();
-                }
+              <span className="text-[17px] font-medium text-[#111b21] dark:text-[#e9edef]">
+                New chat
+              </span>
+              {onAddOwner || onAddGuest ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9"
+                      aria-label="Add owner or guest"
+                    >
+                      <UserPlus className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[132px]">
+                    {onAddOwner && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          onAddOwner();
+                          setShowNewChat(false);
+                        }}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Owner
+                      </DropdownMenuItem>
+                    )}
+                    {onAddGuest && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          onAddGuest();
+                          setShowNewChat(false);
+                        }}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Guest
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="w-9" />
+              )}
+            </>
+          ) : (
+            <>
+              <span className="text-[18px] font-bold text-[#111b21] dark:text-[#e9edef] truncate min-w-0">
+                WhatsApp
+              </span>
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {isMounted && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="p-2 rounded-full hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] inline-flex">
+                          {isConnected ? (
+                            <Wifi className="h-5 w-5 text-[#25d366]" />
+                          ) : (
+                            <WifiOff className="h-5 w-5 text-red-500" />
+                          )}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isConnected ? "Connected" : "Disconnected"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {(onAddOwner || onAddGuest) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-[#008069] dark:text-[#00a884] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9"
+                        aria-label="Add owner or guest"
+                        title="Add owner or guest"
+                      >
+                        <UserPlus className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[132px]">
+                      {onAddOwner && (
+                        <DropdownMenuItem onClick={onAddOwner}>
+                          <User className="h-4 w-4 mr-2" />
+                          Owner
+                        </DropdownMenuItem>
+                      )}
+                      {onAddGuest && (
+                        <DropdownMenuItem onClick={onAddGuest}>
+                          <Users className="h-4 w-4 mr-2" />
+                          Guest
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowNewChat(true)}
+                  className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9"
+                >
+                  <MessageSquarePlus className="h-5 w-5" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-[#54656f] dark:text-[#aebac1] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] rounded-full h-9 w-9"
+                    >
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[180px]">
+                    <DropdownMenuItem onClick={() => setConversationTab("all")}>
+                      All ({totalCount})
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setConversationTab("owners")}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Owners ({ownerCount})
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setConversationTab("guests")}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Guests ({guestCount})
+                    </DropdownMenuItem>
+                    {canManagePhoneMask && (
+                      <DropdownMenuItem
+                        onClick={() => setShowPhoneMaskForm(true)}
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Phone visibility rules
+                      </DropdownMenuItem>
+                    )}
+                    {(userRole === "SuperAdmin" ||
+                      userRole === "Admin" ||
+                      userRole === "Developer") && (
+                      <>
+                        <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
+                        <DropdownMenuItem
+                          onClick={() => onAdminQueueChange?.(!adminQueue)}
+                          className={cn(
+                            adminQueue &&
+                              "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
+                          )}
+                        >
+                          <MapPinOff className="h-4 w-4 mr-2" />
+                          {adminQueue
+                            ? "Exit Admin Queue"
+                            : "Admin Queue (no location)"}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {userRole === "SuperAdmin" && (
+                      <>
+                        <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
+                        <div className="px-2 py-1.5 space-y-2">
+                          <WhatsAppPhoneLocationsManager />
+                          <WhatsAppConversationTypeMigrationButton
+                            onSuccess={onRefreshConversations}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Search - pill shaped, WhatsApp-style highlighted area when active */}
+        <div
+          className={cn(
+            "px-3 py-2 flex-shrink-0 min-w-0 overflow-hidden transition-colors duration-200 rounded-t-lg",
+            searchFocused || (searchQuery && searchQuery.trim().length > 0)
+              ? "bg-[#e9edef] dark:bg-[#2a3942]"
+              : "bg-white dark:bg-[#111b21]",
+          )}
+        >
+          {showNewChat ? (
+            <div className="space-y-2 min-w-0">
+              <div className="flex gap-2 min-w-0">
+                <div className="relative w-20 flex-shrink-0">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667781] dark:text-[#8696a0] text-sm">
+                    +
+                  </span>
+                  <Input
+                    placeholder="91"
+                    value={newCountryCode}
+                    onChange={(e) =>
+                      onCountryCodeChange(
+                        e.target.value.replace(/\D/g, "").slice(0, 4),
+                      )
+                    }
+                    className={cn(
+                      "pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                      // Mobile: Taller inputs for touch
+                      "h-11",
+                      "md:h-9",
+                    )}
+                    maxLength={4}
+                  />
+                </div>
+                <Input
+                  placeholder="Phone number"
+                  value={newPhoneNumber}
+                  onChange={(e) =>
+                    onPhoneNumberChange(e.target.value.replace(/\D/g, ""))
+                  }
+                  className={cn(
+                    "flex-1 min-w-0 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                    // Mobile: Taller inputs for touch
+                    "h-11",
+                    "md:h-9",
+                  )}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onStartConversation();
+                  }}
+                />
+                <Button
+                  onClick={onStartConversation}
+                  disabled={
+                    loading || !newCountryCode.trim() || !newPhoneNumber.trim()
+                  }
+                  className={cn(
+                    "bg-[#25d366] hover:bg-[#1da851] text-white flex-shrink-0",
+                    // Mobile: Larger button
+                    "h-11 px-4",
+                    "md:h-9 md:px-3",
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Start"
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#54656f] dark:text-[#8696a0]" />
+              <Input
+                placeholder="Search by name, phone or message"
+                value={searchQuery}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onSearchQueryChange(value);
+                  if (value.trim()) {
+                    executeSearch(value);
+                  } else {
+                    clearSearch();
+                  }
+                }}
+                className={cn(
+                  "w-full min-w-0 pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
+                  searchFocused || searchQuery?.trim()
+                    ? "bg-white dark:bg-[#111b21] shadow-sm"
+                    : "bg-[#f0f2f5] dark:bg-[#202c33]",
+                  "md:h-9 md:text-[14px]",
+                )}
+              />
+              {searchQuery && !searchLoading && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-[#e9edef] transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#25d366]" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Filter pills - All | Unread | Favourites | Groups | Labels (WhatsApp style) */}
+        {!showNewChat && (
+          <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto overflow-y-hidden min-w-0 bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
+            <button
+              onClick={() => {
+                setFilterPill("all");
+                setConversationTab("all");
               }}
               className={cn(
-                "w-full min-w-0 pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
-                (searchFocused || searchQuery?.trim())
-                  ? "bg-white dark:bg-[#111b21] shadow-sm"
-                  : "bg-[#f0f2f5] dark:bg-[#202c33]",
-                "md:h-9 md:text-[14px]"
+                "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+                filterPill === "all" && conversationTab === "all"
+                  ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                  : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
               )}
-            />
-            {searchQuery && !searchLoading && (
-              <button
-                onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-[#e9edef] transition-colors"
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterPill("unread")}
+              className={cn(
+                "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+                filterPill === "unread"
+                  ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                  : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
+              )}
+            >
+              Unread
+            </button>
+            <button className="shrink-0 px-4 py-2 rounded-full text-[14px] font-medium text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] transition-colors">
+              Favourites
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
+                    conversationTab !== "all"
+                      ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                      : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
+                  )}
+                >
+                  Labels
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setConversationTab("all");
+                    setFilterPill("all");
+                  }}
+                >
+                  All
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setConversationTab("owners");
+                    setFilterPill("all");
+                  }}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Owners
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setConversationTab("guests");
+                    setFilterPill("all");
+                  }}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Guests
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {userRole === "SuperAdmin" && !showNewChat && (
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 border-b flex-shrink-0 min-w-0",
+                  adminQueue
+                    ? "bg-[#f0f2f5] dark:bg-[#202c33] border-[#e9edef] dark:border-[#222d34] opacity-60"
+                    : "bg-[#e7f5ff] dark:bg-[#1a2a33] border-[#cfe8f6] dark:border-[#2a3942]",
+                )}
               >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            {searchLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Loader2 className="h-4 w-4 animate-spin text-[#25d366]" />
+                <MapPin className="h-4 w-4 text-[#008069] dark:text-[#00a884] flex-shrink-0" />
+                <Select
+                  value={adminLocationFilter}
+                  onValueChange={(v) => onAdminLocationFilterChange?.(v)}
+                  disabled={adminQueue}
+                >
+                  <SelectTrigger className="h-8 flex-1 text-[13px] bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045]">
+                    <SelectValue placeholder="All locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All locations</SelectItem>
+                    {adminLocationOptions.map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
         )}
-      </div>
 
-      {/* Filter pills - All | Unread | Favourites | Groups | Labels (WhatsApp style) */}
-      {!showNewChat && (
-        <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto overflow-y-hidden min-w-0 bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
-          <button
-            onClick={() => { setFilterPill("all"); setConversationTab("all"); }}
-            className={cn(
-              "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-              filterPill === "all" && conversationTab === "all"
-                ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
-            )}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilterPill("unread")}
-            className={cn(
-              "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-              filterPill === "unread"
-                ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
-            )}
-          >
-            Unread
-          </button>
-          <button className="shrink-0 px-4 py-2 rounded-full text-[14px] font-medium text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] transition-colors">
-            Favourites
-          </button>
-         
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={cn(
-                  "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-                  conversationTab !== "all"
-                    ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                    : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
-                )}
-              >
-                Labels
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => { setConversationTab("all"); setFilterPill("all"); }}>All</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setConversationTab("owners"); setFilterPill("all"); }}><User className="h-4 w-4 mr-2" />Owners</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setConversationTab("guests"); setFilterPill("all"); }}><Users className="h-4 w-4 mr-2" />Guests</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+        {/* SuperAdmin location filter */}
 
-      {/* Conversation List or Search Results */}
-      <div
-        ref={scrollRef}
-        className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        {isSearchMode ? (
-          <UnifiedSearchResults
-            results={unifiedSearchResults}
-            query={searchQuery}
-            loading={searchLoading}
-            phoneMaskRules={phoneMaskRules}
-            userRole={userRole}
-            onSelectConversation={async (conversationId) => {
-              // Clear search first to show all chats
-              handleClearSearch();
-              
-              // Try to find conversation in local array first
-              let conv = conversations.find(c => c._id === conversationId);
-              
-              // If not found locally, construct from search results
-              if (!conv && unifiedSearchResults) {
-                const searchResult = unifiedSearchResults.conversations.find(
-                  c => c.conversationId === conversationId
-                );
-                
-                if (searchResult) {
-                  // Map search result to Conversation type
-                  conv = {
-                    _id: searchResult.conversationId,
-                    participantPhone: searchResult.participantPhone,
-                    participantName: searchResult.participantName,
-                    participantProfilePic: searchResult.participantProfilePic,
-                    lastMessageContent: searchResult.lastMessageContent,
-                    lastMessageTime: searchResult.lastMessageTime,
-                    unreadCount: searchResult.unreadCount,
-                    conversationType: searchResult.conversationType,
-                    status: searchResult.status || 'active',
-                  };
-                }
-              }
-              
-              // If still not found, fetch from API as last resort
-              if (!conv) {
-                try {
-                  const response = await fetch(`/api/whatsapp/conversations/${conversationId}`);
-                  if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.conversation) {
-                      conv = data.conversation;
-                    }
+        {/* Admin Queue banner */}
+        {adminQueue && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex-shrink-0">
+            <MapPinOff className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-[13px] font-medium text-amber-700 dark:text-amber-300 flex-1">
+              Admin Queue — conversations without a location
+            </span>
+            <button
+              onClick={() => onAdminQueueChange?.(false)}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Conversation List or Search Results */}
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {isSearchMode ? (
+            <UnifiedSearchResults
+              results={unifiedSearchResults}
+              query={searchQuery}
+              loading={searchLoading}
+              phoneMaskRules={phoneMaskRules}
+              userRole={userRole}
+              onSelectConversation={async (conversationId) => {
+                // Clear search first to show all chats
+                handleClearSearch();
+
+                // Try to find conversation in local array first
+                let conv = conversations.find((c) => c._id === conversationId);
+
+                // If not found locally, construct from search results
+                if (!conv && unifiedSearchResults) {
+                  const searchResult = unifiedSearchResults.conversations.find(
+                    (c) => c.conversationId === conversationId,
+                  );
+
+                  if (searchResult) {
+                    // Map search result to Conversation type
+                    conv = {
+                      _id: searchResult.conversationId,
+                      participantPhone: searchResult.participantPhone,
+                      participantName: searchResult.participantName,
+                      participantProfilePic: searchResult.participantProfilePic,
+                      lastMessageContent: searchResult.lastMessageContent,
+                      lastMessageTime: searchResult.lastMessageTime,
+                      unreadCount: searchResult.unreadCount,
+                      conversationType: searchResult.conversationType,
+                      status: searchResult.status || "active",
+                    };
                   }
-                } catch (error) {
-                  console.error('Failed to fetch conversation:', error);
                 }
-              }
-              
-              if (conv) {
-                onSelectConversation(conv);
-              } else {
-                console.error('Conversation not found:', conversationId);
-              }
-            }}
-            onJumpToMessage={handleJumpToMessage}
-          />
-        ) : loading && conversations.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
-              <Search className="h-8 w-8 text-[#8696a0]" />
+
+                // If still not found, fetch from API as last resort
+                if (!conv) {
+                  try {
+                    const response = await fetch(
+                      `/api/whatsapp/conversations/${conversationId}`,
+                    );
+                    if (response.ok) {
+                      const data = await response.json();
+                      if (data.success && data.conversation) {
+                        conv = data.conversation;
+                      }
+                    }
+                  } catch (error) {
+                    console.error("Failed to fetch conversation:", error);
+                  }
+                }
+
+                if (conv) {
+                  onSelectConversation(conv);
+                } else {
+                  console.error("Conversation not found:", conversationId);
+                }
+              }}
+              onJumpToMessage={handleJumpToMessage}
+            />
+          ) : loading && conversations.length === 0 ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
             </div>
-            <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">No chats found</p>
-            <p className="text-sm text-[#667781] dark:text-[#8696a0]">
-              {searchQuery ? "Try a different search" : "Start a new conversation"}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Archived - reference style: box-with-arrow icon, "Archived" label, unread count only */}
-            {onToggleArchiveView && !showingArchived && (
-              <div
-                onClick={onToggleArchiveView}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-white dark:bg-[#111b21]",
-                  "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] active:bg-[#e9edef] dark:active:bg-[#1d282f]",
-                  "border-b border-[#f0f2f5] dark:border-[#222d34]"
-                )}
-              >
-                <RiInboxArchiveLine className="h-10 w-5 flex-shrink-0 text-[#54656f] dark:text-[#8696a0]" strokeWidth={0.3} />
-                <span className="flex-1 text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">Archived</span>
-                {archivedUnreadCount > 0 && (
-                  <span className="text-[14px] text-[#667781] dark:text-[#8696a0] tabular-nums">{archivedUnreadCount}</span>
-                )}
+          ) : filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
+                <Search className="h-8 w-8 text-[#8696a0]" />
               </div>
-            )}
-            {onToggleArchiveView && showingArchived && (
-              <div
-                onClick={onToggleArchiveView}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-[#f0f2f5] dark:bg-[#202c33]",
-                  "hover:bg-[#e9edef] dark:hover:bg-[#2a3942] border-b border-[#e9edef] dark:border-[#222d34]"
-                )}
-              >
-                <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center flex-shrink-0">
-                  <ArrowLeft className="h-5 w-5 text-white" />
+              <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">
+                No chats found
+              </p>
+              <p className="text-sm text-[#667781] dark:text-[#8696a0]">
+                {searchQuery
+                  ? "Try a different search"
+                  : "Start a new conversation"}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Archived - reference style: box-with-arrow icon, "Archived" label, unread count only */}
+              {onToggleArchiveView && !showingArchived && (
+                <div
+                  onClick={onToggleArchiveView}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-white dark:bg-[#111b21]",
+                    "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] active:bg-[#e9edef] dark:active:bg-[#1d282f]",
+                    "border-b border-[#f0f2f5] dark:border-[#222d34]",
+                  )}
+                >
+                  <RiInboxArchiveLine
+                    className="h-10 w-5 flex-shrink-0 text-[#54656f] dark:text-[#8696a0]"
+                    strokeWidth={0.3}
+                  />
+                  <span className="flex-1 text-[15px] font-medium text-[#111b21] dark:text-[#e9edef]">
+                    Archived
+                  </span>
+                  {archivedUnreadCount > 0 && (
+                    <span className="text-[14px] text-[#667781] dark:text-[#8696a0] tabular-nums">
+                      {archivedUnreadCount}
+                    </span>
+                  )}
                 </div>
-                <span className="flex-1 text-[16px] font-medium text-[#111b21] dark:text-[#e9edef]">Back to all chats</span>
-              </div>
-            )}
-            {filteredConversations.map((conversation) => (
-              <ConversationItem
-                key={`${conversation._id}-${conversation.lastMessageTime}-${conversation.unreadCount}`}
-                conversation={conversation}
-                isSelected={selectedConversation?._id === conversation._id}
-                onClick={() => onSelectConversation(conversation)}
-                isMounted={isMounted}
-                onArchive={showingArchived ? undefined : onArchiveConversation}
-                onUnarchive={showingArchived ? onUnarchiveConversation : undefined}
-                isArchived={showingArchived || conversation.isArchivedByUser}
-                isMobile={isMobile}
-                onUpdateConversation={onUpdateConversation}
-                onTriggerUpload={triggerUploadFor}
-                onRenameFor={handleRenameFor}
-                onConversationTypeChange={onConversationTypeChange}
-                phoneMaskRules={phoneMaskRules}
-                userRole={userRole}
-              />
-            ))}
-            
-            {/* Load More */}
-            {hasMoreConversations && (
-              <div className="flex justify-center py-3">
-                {loadingMoreConversations ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-[#25d366]" />
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onLoadMoreConversations}
-                    className="text-[#008069] dark:text-[#00a884] hover:bg-transparent"
-                  >
-                    Load more chats
-                  </Button>
-                )}
-              </div>
-            )}
-          </>
-        )}
+              )}
+              {onToggleArchiveView && showingArchived && (
+                <div
+                  onClick={onToggleArchiveView}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-[#f0f2f5] dark:bg-[#202c33]",
+                    "hover:bg-[#e9edef] dark:hover:bg-[#2a3942] border-b border-[#e9edef] dark:border-[#222d34]",
+                  )}
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#25d366] flex items-center justify-center flex-shrink-0">
+                    <ArrowLeft className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="flex-1 text-[16px] font-medium text-[#111b21] dark:text-[#e9edef]">
+                    Back to all chats
+                  </span>
+                </div>
+              )}
+              {filteredConversations.map((conversation) => (
+                <ConversationItem
+                  key={`${conversation._id}-${conversation.lastMessageTime}-${conversation.unreadCount}`}
+                  conversation={conversation}
+                  isSelected={selectedConversation?._id === conversation._id}
+                  onClick={() => onSelectConversation(conversation)}
+                  isMounted={isMounted}
+                  onArchive={
+                    showingArchived ? undefined : onArchiveConversation
+                  }
+                  onUnarchive={
+                    showingArchived ? onUnarchiveConversation : undefined
+                  }
+                  isArchived={showingArchived || conversation.isArchivedByUser}
+                  isMobile={isMobile}
+                  onUpdateConversation={onUpdateConversation}
+                  onTriggerUpload={triggerUploadFor}
+                  onRenameFor={handleRenameFor}
+                  onConversationTypeChange={onConversationTypeChange}
+                  onSetLocation={setLocationDialogConversation}
+                  phoneMaskRules={phoneMaskRules}
+                  userRole={userRole}
+                  userEmail={userEmail}
+                  userAreas={userAreas}
+                />
+              ))}
+
+              {/* Load More */}
+              {hasMoreConversations && (
+                <div className="flex justify-center py-3">
+                  {loadingMoreConversations ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-[#25d366]" />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onLoadMoreConversations}
+                      className="text-[#008069] dark:text-[#00a884] hover:bg-transparent"
+                    >
+                      Load more chats
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-      </div>
+
+      <SetParticipantLocationDialog
+        open={Boolean(locationDialogConversation)}
+        onOpenChange={(open) => {
+          if (!open) setLocationDialogConversation(null);
+        }}
+        conversation={locationDialogConversation}
+        userRole={userRole}
+        userEmail={userEmail}
+        userAreas={userAreas}
+        onSaved={(conversationId, location) => {
+          onUpdateConversation?.(conversationId, {
+            participantLocation: location,
+          });
+          onRefreshConversations?.();
+          setLocationDialogConversation(null);
+        }}
+      />
 
       {/* Media Popup */}
       <MediaPopup
         open={showMediaPopup}
         onClose={() => setShowMediaPopup(false)}
         conversation={selectedConversation}
-        phoneId={selectedPhoneConfig?.phoneNumberId && !selectedPhoneConfig.isInternal ? selectedPhoneConfig.phoneNumberId : undefined}
+        phoneId={undefined}
       />
 
       {canManagePhoneMask && (

@@ -4,7 +4,8 @@ interface UseUnifiedSearchOptions {
   debounceMs?: number;
   includeArchived?: boolean;
   limit?: number;
-  phoneId?: string;
+  /** SuperAdmin inbox city filter (display name) */
+  locationFilter?: string;
 }
 
 interface UnifiedSearchResultsShape {
@@ -25,7 +26,7 @@ interface UseUnifiedSearchReturn {
 export function useUnifiedWhatsAppSearch(
   options: UseUnifiedSearchOptions = {}
 ): UseUnifiedSearchReturn {
-  const { debounceMs = 300, phoneId } = options;
+  const { debounceMs = 300, locationFilter } = options;
   
   const [results, setResults] = useState<{ conversations: any[] } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,8 +55,8 @@ export function useUnifiedWhatsAppSearch(
     
     try {
       const params = new URLSearchParams({ query: searchQuery });
-      if (phoneId) {
-        params.append("phoneId", phoneId);
+      if (locationFilter && locationFilter !== "all") {
+        params.append("locationFilter", locationFilter);
       }
       const response = await fetch(`/api/whatsapp/search/unified?${params}`, {
         signal: abortController.signal,
@@ -82,14 +83,13 @@ export function useUnifiedWhatsAppSearch(
         setLoading(false);
       }
     }
-  }, [phoneId]);
-  
-  // Re-search when phoneId changes and there's an active query
+  }, [locationFilter]);
+
   useEffect(() => {
-    if (lastQueryRef.current && phoneId) {
+    if (lastQueryRef.current) {
       executeSearch(lastQueryRef.current);
     }
-  }, [phoneId, executeSearch]);
+  }, [locationFilter, executeSearch]);
   
   const search = useCallback((searchQuery: string) => {
     if (debounceTimerRef.current) {

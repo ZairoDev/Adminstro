@@ -29,17 +29,21 @@ import { normalizeCityKey } from "@/lib/city-normalizer";
 import {
   formatPhoneDisplayWithLocation,
   getPhoneConfigById,
-  getPhoneIdForLocation,
 } from "@/lib/whatsapp/config";
+import { parseConfiguredLocationDisplays } from "@/lib/whatsapp/areaTokenUtils";
+import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 import type { Conversation } from "../types";
 
 interface AddGuestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGuestAdded: (conversationId: string, conversation?: Conversation) => void;
-  defaultPhoneNumberId?: string;
   userRole?: string;
+  userEmail?: string;
   userAreas?: string | string[];
+  conversationType?: "owner" | "guest";
+  /** City-based inbox: phone is chosen from location, not shown to the user */
+  hidePhoneLineLabel?: boolean;
 }
 
 function parseUserAreaKeys(userAreas?: string | string[]): Set<string> | null {
@@ -54,9 +58,12 @@ function parseUserAreaKeys(userAreas?: string | string[]): Set<string> | null {
 function filterLocationsForUser(
   locations: string[],
   userRole?: string,
+  userEmail?: string,
   userAreas?: string | string[],
 ): string[] {
-  if (userRole === "SuperAdmin") return locations;
+  if (canAssignWhatsAppParticipantLocation({ role: userRole, email: userEmail })) {
+    return locations;
+  }
   const allowed = parseUserAreaKeys(userAreas);
   if (!allowed) return locations;
   return locations.filter((loc) => allowed.has(normalizeCityKey(loc)));
@@ -66,16 +73,22 @@ export const AddGuestModal = memo(function AddGuestModal({
   open,
   onOpenChange,
   onGuestAdded,
-  defaultPhoneNumberId,
   userRole,
+  userEmail,
   userAreas,
+  conversationType = "owner",
+  hidePhoneLineLabel = true,
 }: AddGuestModalProps) {
+  const isOwner = conversationType === "owner";
+  const contactLabel = isOwner ? "Owner" : "Guest";
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [referenceLink, setReferenceLink] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [resolvedPhoneNumberId, setResolvedPhoneNumberId] = useState<string | null>(null);
+  const [resolvingPhone, setResolvingPhone] = useState(false);
   const [locations, setLocations] = useState<string[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -104,16 +117,14 @@ export const AddGuestModal = memo(function AddGuestModal({
     const loadLocations = async () => {
       setLoadingLocations(true);
       try {
-        const response = await axios.get("/api/monthlyTargets/getLocations");
-        const raw = response.data?.locations;
-        const fromDb: string[] = Array.isArray(raw)
-          ? raw.map((item: unknown) =>
-              typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
-            )
-          : [];
+        const response = await axios.get("/api/whatsapp/configured-locations");
+        const fromDb = parseConfiguredLocationDisplays(response.data ?? {}).sort(
+          (a, b) => a.localeCompare(b)
+        );
         const filtered = filterLocationsForUser(
-          fromDb.filter(Boolean).sort((a, b) => a.localeCompare(b)),
+          fromDb,
           userRole,
+          userEmail,
           userAreas,
         );
         if (!cancelled) {
@@ -121,18 +132,6 @@ export const AddGuestModal = memo(function AddGuestModal({
           setSelectedLocation((prev) => {
             if (prev && filtered.some((l) => normalizeCityKey(l) === normalizeCityKey(prev))) {
               return prev;
-            }
-            if (defaultPhoneNumberId) {
-              const config = getPhoneConfigById(defaultPhoneNumberId);
-              const areas = config
-                ? Array.isArray(config.area)
-                  ? config.area
-                  : [config.area]
-                : [];
-              const match = filtered.find((loc) =>
-                areas.some((a) => normalizeCityKey(a) === normalizeCityKey(loc)),
-              );
-              if (match) return match;
             }
             return filtered[0] ?? "";
           });
@@ -156,11 +155,47 @@ export const AddGuestModal = memo(function AddGuestModal({
     return () => {
       cancelled = true;
     };
-  }, [open, userRole, userAreas, defaultPhoneNumberId, toast]);
+  }, [open, userRole, userEmail, userAreas, toast]);
 
-  const phoneIdForSelectedLocation = selectedLocation
-    ? getPhoneIdForLocation(selectedLocation)
-    : null;
+  // Resolve WhatsApp phone line from DB when location changes
+  useEffect(() => {
+    if (!open || !selectedLocation.trim()) {
+      setResolvedPhoneNumberId(null);
+      return;
+    }
+
+    let cancelled = false;
+    setResolvingPhone(true);
+
+    axios
+      .get("/api/whatsapp/resolve-phone-for-location", {
+        params: { location: selectedLocation.trim() },
+      })
+      .then((res) => {
+        if (!cancelled) {
+          setResolvedPhoneNumberId(res.data.phoneNumberId ?? null);
+          setErrors((prev) => {
+            const next = { ...prev };
+            delete next.location;
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResolvedPhoneNumberId(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setResolvingPhone(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, selectedLocation]);
+
+  const phoneIdForSelectedLocation = resolvedPhoneNumberId;
   const selectedPhoneConfig = phoneIdForSelectedLocation
     ? getPhoneConfigById(phoneIdForSelectedLocation)
     : undefined;
@@ -229,16 +264,30 @@ export const AddGuestModal = memo(function AddGuestModal({
     if (!selectedLocation.trim()) {
       setErrors((prev) => ({
         ...prev,
-        location: "Select a location for this owner",
+        location: `Select a location for this ${contactLabel.toLowerCase()}`,
       }));
       return;
     }
 
-    const phoneNumberId = getPhoneIdForLocation(selectedLocation);
+    let phoneNumberId = resolvedPhoneNumberId;
+    if (!phoneNumberId) {
+      try {
+        const resolveRes = await axios.get("/api/whatsapp/resolve-phone-for-location", {
+          params: { location: selectedLocation.trim() },
+        });
+        phoneNumberId = resolveRes.data.phoneNumberId ?? null;
+      } catch {
+        phoneNumberId = null;
+      }
+    }
+
     if (!phoneNumberId) {
       setErrors((prev) => ({
         ...prev,
-        location: "No WhatsApp line configured for this location",
+        location:
+          userRole === "SuperAdmin"
+            ? "No WhatsApp line for this city — open sidebar ⋮ → Phone locations and assign Athens to a phone line, then Save line"
+            : "No WhatsApp line configured for this location. Ask SuperAdmin to assign this city to a phone line.",
       }));
       return;
     }
@@ -255,13 +304,13 @@ export const AddGuestModal = memo(function AddGuestModal({
         location: selectedLocation.trim(),
         phoneNumberId,
         referenceLink: referenceLink.trim() || undefined,
-        conversationType: "owner",
+        conversationType,
       });
 
       if (response.data.success) {
         toast({
           title: "Success",
-          description: "Owner conversation created successfully",
+          description: `${contactLabel} conversation created successfully`,
         });
 
         setPhoneNumber("");
@@ -280,7 +329,7 @@ export const AddGuestModal = memo(function AddGuestModal({
     } catch (error: any) {
       console.error("Error creating owner conversation:", error);
       const errorMessage =
-        error.response?.data?.error || "Failed to create owner conversation";
+        error.response?.data?.error || `Failed to create ${contactLabel.toLowerCase()} conversation`;
       
       if (errorMessage.includes("already exists") || errorMessage.includes("duplicate")) {
         try {
@@ -289,13 +338,7 @@ export const AddGuestModal = memo(function AddGuestModal({
           // WhatsApp account. Without phoneId, the conversations endpoint
           // could return a chat belonging to a different account and we
           // would "open" the wrong inbox.
-          const params = new URLSearchParams();
-          if (phoneNumberId) {
-            params.set("phoneId", phoneNumberId);
-          }
-          const conversationsResponse = await axios.get(
-            `/api/whatsapp/conversations?${params.toString()}`
-          );
+          const conversationsResponse = await axios.get("/api/whatsapp/conversations");
           if (conversationsResponse.data.success) {
             const existingConv = conversationsResponse.data.conversations.find(
               (c: any) =>
@@ -433,11 +476,35 @@ export const AddGuestModal = memo(function AddGuestModal({
             ))}
           </SelectContent>
         </Select>
-        {selectedPhoneConfig && (
+        {locations.length === 0 && !loadingLocations && (
+          <p className="text-[11px] text-amber-700 dark:text-amber-400">
+            {userRole === "SuperAdmin"
+              ? "No cities on any WhatsApp line yet. Sidebar ⋮ → Phone locations → assign cities (e.g. Athens) and Save line, or use Configure from .env + config."
+              : "No locations available on your WhatsApp lines. Ask SuperAdmin to assign cities to phone lines."}
+          </p>
+        )}
+        {resolvingPhone && selectedLocation && (
+          <p className="text-[11px] text-[#667781] dark:text-[#8696a0] flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Resolving WhatsApp line…
+          </p>
+        )}
+        {!hidePhoneLineLabel && selectedPhoneConfig && !resolvingPhone && (
           <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">
             WhatsApp line: {formatPhoneDisplayWithLocation(selectedPhoneConfig)}
           </p>
         )}
+        {!resolvingPhone &&
+          selectedLocation &&
+          !phoneIdForSelectedLocation &&
+          !errors.location && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400">
+              No line for this city yet.
+              {userRole === "SuperAdmin"
+                ? " Assign it under Phone locations."
+                : " Ask SuperAdmin to assign it to a phone line."}
+            </p>
+          )}
         {errors.location && (
           <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
@@ -446,10 +513,10 @@ export const AddGuestModal = memo(function AddGuestModal({
         )}
       </div>
 
-      {/* Owner Name */}
+      {/* Display name */}
       <div className="space-y-2">
         <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
-          Owner Name
+          {contactLabel} name
           <span className="text-[11px] font-normal ml-1">(optional)</span>
         </Label>
         <Input
@@ -525,7 +592,7 @@ export const AddGuestModal = memo(function AddGuestModal({
               Creating...
             </>
           ) : (
-            "Create Owner"
+            `Create ${contactLabel}`
           )}
         </Button>
       </div>
@@ -544,9 +611,9 @@ export const AddGuestModal = memo(function AddGuestModal({
                 <UserPlus className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <p className="text-[16px] font-medium">Add New Owner</p>
+                <p className="text-[16px] font-medium">Add New {contactLabel}</p>
                 <p className="text-[13px] font-normal text-[#667781] dark:text-[#8696a0]">
-                  Create owner conversation
+                  Create {contactLabel.toLowerCase()} conversation
                 </p>
               </div>
             </DrawerTitle>
@@ -570,9 +637,9 @@ export const AddGuestModal = memo(function AddGuestModal({
               <UserPlus className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-[16px] font-medium">Add New Owner</p>
+              <p className="text-[16px] font-medium">Add New {contactLabel}</p>
               <p className="text-[13px] font-normal text-[#667781] dark:text-[#8696a0]">
-                Create owner conversation with details
+                Create {contactLabel.toLowerCase()} with phone and location
               </p>
             </div>
           </DialogTitle>

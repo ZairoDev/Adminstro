@@ -7,6 +7,8 @@ export interface IWhatsAppConversation extends Document {
 
   // Snapshot identity fields (immutable unless explicitly edited)
   participantLocation?: string;
+  // Normalized lowercase city key — used for indexed visibility queries
+  participantLocationKey?: string;
 
   businessPhoneId: string;
 
@@ -91,6 +93,13 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     participantLocation: {
       type: String,
       default: "",
+    },
+
+    // Normalized lowercase city key for indexed visibility queries (e.g. "athens")
+    participantLocationKey: {
+      type: String,
+      default: "",
+      index: true,
     },
 
     businessPhoneId: {
@@ -269,6 +278,13 @@ whatsAppConversationSchema.index({
 whatsAppConversationSchema.index({
   status: 1,
   lastMessageTime: -1,
+});
+
+// Compound index for dual-filter visibility queries (phone + location key)
+whatsAppConversationSchema.index({
+  businessPhoneId: 1,
+  participantLocationKey: 1,
+  status: 1,
 });
 
 const WhatsAppConversation =

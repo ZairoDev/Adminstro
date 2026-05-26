@@ -5,7 +5,18 @@
  * Each Greek city has its own WhatsApp Business number for local support
  */
 
-export type WhatsAppArea = "athens" | "thessaloniki" | "chania" | "milan" | "all";
+import { normalizeCityKey } from "@/lib/city-normalizer";
+
+export type WhatsAppArea =
+  | "athens"
+  | "piraeus"
+  | "glyfada"
+  | "thessaloniki"
+  | "halkidiki"
+  | "milan"
+  | "rome"
+  | "chania"
+  | "all";
 
 export interface WhatsAppPhoneConfig {
   phoneNumberId: string;
@@ -59,24 +70,44 @@ export const WHATSAPP_BUSINESS_ACCOUNT_ID = process.env.WhatsApp_Business_Accoun
 export const WHATSAPP_RETARGET_PHONE_ID = process.env.WHATSAPP_ATHENS_PHONE_ID|| "";
 
 // Configuration for each WhatsApp Business phone number by area
-// Update these with your actual phone number IDs from Meta Business Suite
+// Phone A: Athens region (athens, piraeus, glyfada)
+// Phone B: North Greece (thessaloniki, halkidiki)
+// Phone C: Italy (milan, rome)
+// Phone Chania: Crete (chania)
 export const WHATSAPP_PHONE_CONFIGS: WhatsAppPhoneConfig[] = [
   {
+    // Phone A — Athens region
     phoneNumberId:
-      process.env.WHATSAPP_ATHENS_PHONE_ID || process.env.Phone_number_ID || "",
-    displayNumber: "+91 28 0000 0003 ",
-    displayName: "VacationSaga Athens",
-    area: "athens",
+      process.env.WHATSAPP_PHONE_A_ID ||
+      process.env.WHATSAPP_ATHENS_PHONE_ID ||
+      process.env.Phone_number_ID ||
+      "",
+    displayNumber: "+30 Athens",
+    displayName: "VacationSaga Athens Region",
+    area: ["athens", "piraeus", "glyfada"],
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
   {
-    phoneNumberId: process.env.WHATSAPP_THESSALONIKI_PHONE_ID || "",
+    // Phone B — North Greece
+    phoneNumberId:
+      process.env.WHATSAPP_PHONE_B_ID ||
+      process.env.WHATSAPP_THESSALONIKI_PHONE_ID ||
+      "",
     displayNumber: "+30 9125119177",
-    displayName: "VacationSaga Thessaloniki & Milan",
-    area: ["thessaloniki", "milan"], // Same number for both areas
+    displayName: "VacationSaga North Greece",
+    area: ["thessaloniki", "halkidiki"],
     businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
   {
+    // Phone C — Italy
+    phoneNumberId: process.env.WHATSAPP_PHONE_C_ID || "",
+    displayNumber: "+39 Italy",
+    displayName: "VacationSaga Italy",
+    area: ["milan", "rome"],
+    businessAccountId: WHATSAPP_BUSINESS_ACCOUNT_ID,
+  },
+  {
+    // Chania — Crete
     phoneNumberId: process.env.WHATSAPP_CHANIA_PHONE_ID || "",
     displayNumber: "+30 28 0000 0003",
     displayName: "VacationSaga Crete",
@@ -114,6 +145,13 @@ export const WHATSAPP_ACCESS_ROLES = [
   "Developer",
 ] as const;
 
+/**
+ * One inbox for all roles: list/filter by location visibility, not by phone tab.
+ * Outbound sends still use each conversation's businessPhoneId.
+ */
+export function usesUnifiedWhatsAppInbox(_userRole?: string): boolean {
+  return true;
+}
 
 export function getAllowedPhoneConfigs(
   userRole: string,
@@ -129,8 +167,8 @@ export function getAllowedPhoneConfigs(
     return [];
   }
 
-  // Filter by user's assigned areas
-  const normalizedAreas = userAreas.map(a => a.toLowerCase().trim()).filter(Boolean);
+  // Filter by user's assigned areas (display names → keys, e.g. "Athens" → athens)
+  const normalizedAreas = userAreas.map((a) => normalizeCityKey(a)).filter(Boolean);
 
   // HR sometimes omits `allotedArea` on Sales/LeadGen. That used to yield zero
   // allowed phones while the inbox could still show a line, and POST
@@ -162,8 +200,9 @@ export function getAllowedPhoneConfigs(
     // Support both single area and array of areas
     const configAreas = Array.isArray(config.area) ? config.area : [config.area];
     
-    // Check if any of the user's areas match any of the phone's areas
-    return configAreas.some(phoneArea => normalizedAreas.includes(phoneArea));
+    return configAreas.some((phoneArea) =>
+      normalizedAreas.includes(normalizeCityKey(String(phoneArea))),
+    );
   });
 }
 
@@ -205,11 +244,11 @@ export function getPhoneConfigById(phoneNumberId: string): WhatsAppPhoneConfig |
  */
 export function getPhoneIdForLocation(location: string | undefined): string | null {
   if (!location?.trim()) return null;
-  const normalized = location.trim().toLowerCase();
+  const key = normalizeCityKey(location);
   const config = WHATSAPP_PHONE_CONFIGS.find((c) => {
     if (!c.phoneNumberId) return false;
     const areas = Array.isArray(c.area) ? c.area : [c.area];
-    return areas.some((a) => a.toLowerCase() === normalized);
+    return areas.some((a) => normalizeCityKey(String(a)) === key);
   });
   return config?.phoneNumberId || null;
 }

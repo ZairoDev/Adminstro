@@ -105,14 +105,8 @@ export async function GET(request: NextRequest) {
       source: { $ne: "internal" },
     };
     
-    const { applySuperAdminInboxLocationFilter } = await import(
-      "@/lib/whatsapp/locationAccess"
-    );
-    applySuperAdminInboxLocationFilter(
-      permissionMatch,
-      String(userRole ?? ""),
-      locationFilterParam
-    );
+    const { applyInboxLocationFilter } = await import("@/lib/whatsapp/locationAccess");
+    applyInboxLocationFilter(permissionMatch, user as { role?: string; email?: string; allotedArea?: string | string[] }, locationFilterParam);
 
     // Archive filter
     if (!includeArchived) {

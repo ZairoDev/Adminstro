@@ -148,7 +148,17 @@ export async function GET(req: NextRequest) {
     inboxParams.conversationType = conversationType;
     inboxParams.retargetOnly = retargetOnly;
 
-    if (inboxParams.adminQueue && !(FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+    const { canAccessWhatsAppAdminQueue } = await import(
+      "@/lib/whatsapp/participantLocationPrivileges"
+    );
+    if (
+      inboxParams.adminQueue &&
+      !canAccessWhatsAppAdminQueue({
+        role: userRole,
+        email: (token as { email?: string }).email,
+        allotedArea: normalizedToken.allotedArea,
+      })
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -13,6 +13,7 @@ export {
   getUserAreasFromToken,
   locationKeyFromDisplay,
   assertLocationAllowedForCreate,
+  applyInboxLocationFilter,
   applySuperAdminInboxLocationFilter,
   buildAdminQueueFilter,
   SUPERADMIN_INBOX_LOCATION_ALL,
@@ -39,6 +40,13 @@ export { resolveOutboundBusinessPhoneId } from "./resolveOutboundPhone";
 export { getEligibleUsersForNotification } from "./notificationRecipients";
 
 export { emitWhatsAppEventToEligibleUsers } from "./emitToEligibleUsers";
+
+export {
+  canAccessWhatsAppAdminQueue,
+  canUseInboxLocationFilter,
+  getInboxLocationFilterOptionsForUser,
+  isWhatsAppLocationCoordinatorEmail,
+} from "./participantLocationPrivileges";
 
 export {
   usesUnifiedWhatsAppInbox,

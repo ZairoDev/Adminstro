@@ -1,3 +1,4 @@
+import { toDisplayCity } from "@/lib/city-normalizer";
 import { FULL_ACCESS_ROLES } from "./config";
 import {
   getUserAreasFromToken,
@@ -18,13 +19,45 @@ const CITY_TEAM_ASSIGN_ROLES = [
   "LeadGen-TeamLead",
 ] as const;
 
+export function isWhatsAppLocationCoordinatorEmail(email?: string): boolean {
+  return (email || "").trim().toLowerCase() === WHATSAPP_LOCATION_ASSIGN_EMAIL;
+}
+
+/** Admin Queue: chats with no participant location key (SuperAdmin + location coordinator). */
+export function canAccessWhatsAppAdminQueue(user: LocationAssignUser): boolean {
+  const role = (user.role || "").trim();
+  if ((FULL_ACCESS_ROLES as readonly string[]).includes(role)) return true;
+  return isWhatsAppLocationCoordinatorEmail(user.email);
+}
+
+/** Assigned city keys only (excludes "all" / "both"). */
+export function getUserScopedLocationKeys(user: LocationAssignUser): string[] {
+  return normalizeAreas(getUserAreasFromToken(user)).filter(
+    (key) => key && key !== "all" && key !== "both"
+  );
+}
+
+/** Inbox city dropdown when user has 2+ assigned locations (SuperAdmin uses monthly-target list). */
+export function canUseInboxLocationFilter(user: LocationAssignUser): boolean {
+  if ((user.role || "").trim() === "SuperAdmin") return true;
+  return getUserScopedLocationKeys(user).length > 1;
+}
+
+export function getInboxLocationFilterOptionsForUser(
+  user: LocationAssignUser
+): string[] {
+  const keys = getUserScopedLocationKeys(user);
+  const displays = keys.map((key) => toDisplayCity(key)).filter(Boolean);
+  return [...new Set(displays)].sort((a, b) => a.localeCompare(b));
+}
+
 export function canAssignWhatsAppParticipantLocation(
   user: LocationAssignUser
 ): boolean {
   const role = (user.role || "").trim();
   if ((FULL_ACCESS_ROLES as readonly string[]).includes(role)) return true;
   const email = (user.email || "").trim().toLowerCase();
-  if (email === WHATSAPP_LOCATION_ASSIGN_EMAIL) return true;
+  if (isWhatsAppLocationCoordinatorEmail(email)) return true;
   return (CITY_TEAM_ASSIGN_ROLES as readonly string[]).includes(
     role as (typeof CITY_TEAM_ASSIGN_ROLES)[number]
   );

@@ -12,6 +12,10 @@
  */
 
 import { getAllowedPhoneIds, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import {
+  canAccessWhatsAppAdminQueue,
+  getUserScopedLocationKeys,
+} from "@/lib/whatsapp/participantLocationPrivileges";
 import Query from "@/models/query";
 
 export {
@@ -42,17 +46,21 @@ import {
  *              instead require an empty/missing key (Admin Queue mode).
  */
 export function buildConversationVisibilityFilter(
-  user: { role?: string; allotedArea?: string | string[] },
+  user: {
+    role?: string;
+    email?: string;
+    allotedArea?: string | string[];
+  },
   opts: { adminQueue?: boolean } = {}
 ): Record<string, unknown> {
   const role = user.role || "";
   const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
-  const userAreas = getUserAreasFromToken(user as any);
+  const userAreas = getUserAreasFromToken(user);
   const allowedPhoneIds = getAllowedPhoneIds(role, userAreas);
 
-  // Admin Queue mode — only full-access roles may query this
+  // Admin Queue mode — full-access roles + location coordinator email
   if (opts.adminQueue) {
-    if (!isFullAccess) return { _id: null }; // deny
+    if (!canAccessWhatsAppAdminQueue(user)) return { _id: null };
     return buildAdminQueueFilter();
   }
 
@@ -85,20 +93,42 @@ export function buildConversationVisibilityFilter(
 export const SUPERADMIN_INBOX_LOCATION_ALL = "all";
 
 /**
- * SuperAdmin inbox: optional filter by participant city (display name or key).
- * No-op for other roles, when value is "all", or when empty.
+ * Inbox: optional filter by participant city (display name or key).
+ * SuperAdmin: any configured city; multi-area staff: only their assigned keys.
  */
+export function applyInboxLocationFilter(
+  query: Record<string, unknown>,
+  user: {
+    role?: string;
+    email?: string;
+    allotedArea?: string | string[];
+  },
+  locationFilter: string | null | undefined
+): void {
+  const raw = locationFilter?.trim();
+  if (!raw) return;
+  const key = locationKeyFromDisplay(raw);
+  if (!key || key === SUPERADMIN_INBOX_LOCATION_ALL) return;
+
+  const role = (user.role || "").trim();
+  if (role === "SuperAdmin") {
+    query.participantLocationKey = key;
+    return;
+  }
+
+  const scopedKeys = getUserScopedLocationKeys(user);
+  if (scopedKeys.length > 1 && scopedKeys.includes(key)) {
+    query.participantLocationKey = key;
+  }
+}
+
+/** @deprecated Use {@link applyInboxLocationFilter} with full user context. */
 export function applySuperAdminInboxLocationFilter(
   query: Record<string, unknown>,
   userRole: string,
   locationFilter: string | null | undefined
 ): void {
-  if (userRole !== "SuperAdmin") return;
-  const raw = locationFilter?.trim();
-  if (!raw) return;
-  const key = locationKeyFromDisplay(raw);
-  if (!key || key === SUPERADMIN_INBOX_LOCATION_ALL) return;
-  query.participantLocationKey = key;
+  applyInboxLocationFilter(query, { role: userRole }, locationFilter);
 }
 
 export function buildAdminQueueFilter(): Record<string, unknown> {
@@ -125,7 +155,11 @@ export function buildAdminQueueFilter(): Record<string, unknown> {
  * 3. Others need: phone ∈ allowed AND locationKey ∈ normalizedUserAreas.
  */
 export function canUserSeeConversation(
-  user: { role?: string; allotedArea?: string | string[] },
+  user: {
+    role?: string;
+    email?: string;
+    allotedArea?: string | string[];
+  },
   conversation: { businessPhoneId?: string; source?: string; participantLocationKey?: string }
 ): boolean {
   // Internal conversations are always visible
@@ -149,9 +183,9 @@ export function canUserSeeConversation(
     return false;
   }
 
-  // Location key check — empty key means Admin Queue: city users cannot see
+  // Empty key = Admin Queue (location coordinator + full-access roles only)
   const key = conversation.participantLocationKey || "";
-  if (!key) return false;
+  if (!key) return canAccessWhatsAppAdminQueue(user);
 
   const normalizedAreas = normalizeAreas(userAreas);
   return normalizedAreas.includes(key);

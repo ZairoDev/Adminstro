@@ -1,9 +1,9 @@
 import { FULL_ACCESS_ROLES } from "./config";
 import {
   buildConversationVisibilityFilter,
-  buildAdminQueueFilter,
-  applySuperAdminInboxLocationFilter,
+  applyInboxLocationFilter,
 } from "./locationAccess";
+import { canAccessWhatsAppAdminQueue } from "./participantLocationPrivileges";
 import type { WhatsAppToken } from "./apiContext";
 import { normalizeWhatsAppToken } from "./apiContext";
 
@@ -49,8 +49,11 @@ export function buildInboxListQuery(
   };
 
   if (params.adminQueue) {
-    if (!isFullAccess) return { _id: null };
-    Object.assign(query, buildAdminQueueFilter());
+    if (!canAccessWhatsAppAdminQueue(normalized)) return { _id: null };
+    const visibilityFilter = buildConversationVisibilityFilter(normalized, {
+      adminQueue: true,
+    });
+    Object.assign(query, visibilityFilter);
   } else if (!isFullAccess) {
     const visibilityFilter = buildConversationVisibilityFilter(normalized);
     if (visibilityFilter._id === null) return { _id: null };
@@ -58,11 +61,7 @@ export function buildInboxListQuery(
   }
 
   if (!params.adminQueue) {
-    applySuperAdminInboxLocationFilter(
-      query,
-      userRole,
-      params.locationFilter || ""
-    );
+    applyInboxLocationFilter(query, normalized, params.locationFilter || "");
   }
 
   if (

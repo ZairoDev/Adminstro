@@ -71,6 +71,10 @@ import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/
 import { WhatsAppPhoneLocationsManager } from "@/components/dashboard/WhatsAppPhoneLocationsManager";
 import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
 import {
+  canAccessWhatsAppAdminQueue,
+  canUseInboxLocationFilter,
+} from "@/lib/whatsapp/participantLocationPrivileges";
+import {
   getMaskedMessagePreview,
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
@@ -688,6 +692,19 @@ export function ConversationSidebar({
   const [locationDialogConversation, setLocationDialogConversation] =
     useState<Conversation | null>(null);
 
+  const inboxPrivilegeUser = {
+    role: userRole,
+    email: userEmail,
+    allotedArea: userAreas,
+  };
+  const showInboxLocationFilter =
+    userRole === "SuperAdmin" || canUseInboxLocationFilter(inboxPrivilegeUser);
+  const showAdminQueueMenu =
+    userRole === "SuperAdmin" ||
+    userRole === "Admin" ||
+    userRole === "Developer" ||
+    canAccessWhatsAppAdminQueue(inboxPrivilegeUser);
+
   const {
     results: unifiedSearchResults,
     loading: searchLoading,
@@ -698,7 +715,9 @@ export function ConversationSidebar({
     includeArchived: showingArchived,
     limit: 50,
     locationFilter:
-      userRole === "SuperAdmin" && adminLocationFilter !== "all" && !adminQueue
+      showInboxLocationFilter &&
+      adminLocationFilter !== "all" &&
+      !adminQueue
         ? adminLocationFilter
         : undefined,
   });
@@ -1096,9 +1115,7 @@ export function ConversationSidebar({
                         Phone visibility rules
                       </DropdownMenuItem>
                     )}
-                    {(userRole === "SuperAdmin" ||
-                      userRole === "Admin" ||
-                      userRole === "Developer") && (
+                    {showAdminQueueMenu && (
                       <>
                         <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
                         <DropdownMenuItem
@@ -1319,7 +1336,7 @@ export function ConversationSidebar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {userRole === "SuperAdmin" && !showNewChat && (
+            {showInboxLocationFilter && !showNewChat && (
               <div
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 border-b flex-shrink-0 min-w-0",
@@ -1335,10 +1352,18 @@ export function ConversationSidebar({
                   disabled={adminQueue}
                 >
                   <SelectTrigger className="h-8 flex-1 text-[13px] bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045]">
-                    <SelectValue placeholder="All locations" />
+                    <SelectValue
+                      placeholder={
+                        userRole === "SuperAdmin"
+                          ? "All locations"
+                          : "All my locations"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All locations</SelectItem>
+                    <SelectItem value="all">
+                      {userRole === "SuperAdmin" ? "All locations" : "All my locations"}
+                    </SelectItem>
                     {adminLocationOptions.map((loc) => (
                       <SelectItem key={loc} value={loc}>
                         {loc}

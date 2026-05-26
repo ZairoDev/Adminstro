@@ -26,6 +26,10 @@ import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
 import { MessageComposer } from "./components/MessageComposer";
 import { AddGuestModal } from "./components/AddGuestModal";
+import {
+  canUseInboxLocationFilter,
+  getInboxLocationFilterOptionsForUser,
+} from "@/lib/whatsapp/participantLocationPrivileges";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
@@ -1476,29 +1480,43 @@ export default function WhatsAppChat() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (token?.role !== "SuperAdmin") return;
-    let cancelled = false;
-    axios
-      .get("/api/monthlyTargets/getLocations")
-      .then((res) => {
-        if (cancelled) return;
-        const raw = res.data?.locations;
-        const cities: string[] = Array.isArray(raw)
-          ? raw
-              .map((item: unknown) =>
-                typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
-              )
-              .filter(Boolean)
-          : [];
-        setAdminLocationOptions([...new Set(cities)].sort((a, b) => a.localeCompare(b)));
-      })
-      .catch(() => {
-        if (!cancelled) setAdminLocationOptions([]);
-      });
-    return () => {
-      cancelled = true;
+    if (!token) return;
+    const privilegeUser = {
+      role: token.role,
+      email: token.email,
+      allotedArea: token.allotedArea,
     };
-  }, [token?.role]);
+
+    if (token.role === "SuperAdmin") {
+      let cancelled = false;
+      axios
+        .get("/api/monthlyTargets/getLocations")
+        .then((res) => {
+          if (cancelled) return;
+          const raw = res.data?.locations;
+          const cities: string[] = Array.isArray(raw)
+            ? raw
+                .map((item: unknown) =>
+                  typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
+                )
+                .filter(Boolean)
+            : [];
+          setAdminLocationOptions([...new Set(cities)].sort((a, b) => a.localeCompare(b)));
+        })
+        .catch(() => {
+          if (!cancelled) setAdminLocationOptions([]);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (canUseInboxLocationFilter(privilegeUser)) {
+      setAdminLocationOptions(getInboxLocationFilterOptionsForUser(privilegeUser));
+    } else {
+      setAdminLocationOptions([]);
+    }
+  }, [token?.role, token?.email, token?.allotedArea]);
 
   const syncWhatsAppUrlParams = useCallback(
     (patch: { locationFilter?: string; adminQueue?: boolean }) => {
@@ -2355,11 +2373,16 @@ export default function WhatsAppChat() {
       if (retargetOnlyRef.current) {
         countsParams.append("retargetOnly", "1");
       }
+      const privilegeUser = {
+        role: token?.role,
+        email: token?.email,
+        allotedArea: token?.allotedArea,
+      };
       if (
-        token?.role === "SuperAdmin" &&
+        !adminQueue &&
         adminLocationFilter &&
         adminLocationFilter !== "all" &&
-        !adminQueue
+        (token?.role === "SuperAdmin" || canUseInboxLocationFilter(privilegeUser))
       ) {
         countsParams.append("locationFilter", adminLocationFilter);
       }
@@ -2404,12 +2427,19 @@ export default function WhatsAppChat() {
       // Admin Queue mode: conversations without a location key
       if (adminQueue) {
         params.append("adminQueue", "true");
-      } else if (
-        token?.role === "SuperAdmin" &&
-        adminLocationFilter &&
-        adminLocationFilter !== "all"
-      ) {
-        params.append("locationFilter", adminLocationFilter);
+      } else {
+        const privilegeUser = {
+          role: token?.role,
+          email: token?.email,
+          allotedArea: token?.allotedArea,
+        };
+        if (
+          adminLocationFilter &&
+          adminLocationFilter !== "all" &&
+          (token?.role === "SuperAdmin" || canUseInboxLocationFilter(privilegeUser))
+        ) {
+          params.append("locationFilter", adminLocationFilter);
+        }
       }
 
       const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);

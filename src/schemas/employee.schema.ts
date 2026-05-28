@@ -325,6 +325,8 @@ export const employeeSchema = z.object({
     .optional()
     .default({ sessionId: null, sessionStartedAt: null, lastActiveAt: null, isLoggedIn: false }),
   tokenValidAfter: z.number().optional(),
+  webTokenValidAfter: z.number().optional(),
+  mobileTokenValidAfter: z.number().optional(),
 });
 
 export type EmployeeSchema = z.infer<typeof employeeSchema>;

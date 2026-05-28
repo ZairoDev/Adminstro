@@ -55,13 +55,28 @@ export const getDataFromToken = async (request: NextRequest) => {
     // Without a tolerance window, a freshly issued token can be rejected
     // if tokenValidAfter is set a few hundred ms after iat's rounded timestamp.
     if (
-      typeof employee.tokenValidAfter === "number" &&
-      employee.tokenValidAfter > 0 &&
       typeof issuedAtSeconds === "number"
     ) {
       const issuedAtMs = issuedAtSeconds * 1000;
       const SKEW_TOLERANCE_MS = 1500;
-      if (issuedAtMs + SKEW_TOLERANCE_MS < employee.tokenValidAfter) {
+
+      // Prefer device-specific invalidation when present; fall back to legacy tokenValidAfter.
+      const legacy = typeof employee.tokenValidAfter === "number" ? employee.tokenValidAfter : 0;
+      const webCutoff =
+        typeof (employee as any).webTokenValidAfter === "number"
+          ? (employee as any).webTokenValidAfter
+          : 0;
+      const mobileCutoff =
+        typeof (employee as any).mobileTokenValidAfter === "number"
+          ? (employee as any).mobileTokenValidAfter
+          : 0;
+
+      const cutoff =
+        deviceType === "mobile"
+          ? (mobileCutoff > 0 ? mobileCutoff : legacy)
+          : (webCutoff > 0 ? webCutoff : legacy);
+
+      if (typeof cutoff === "number" && cutoff > 0 && issuedAtMs + SKEW_TOLERANCE_MS < cutoff) {
         throw { status: 401, code: "SESSION_INVALID" };
       }
     }

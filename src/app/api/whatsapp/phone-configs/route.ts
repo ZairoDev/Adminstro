@@ -1,53 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { 
+import {
   WHATSAPP_PHONE_CONFIGS,
-  FULL_ACCESS_ROLES,
-  WHATSAPP_ACCESS_ROLES,
+  getAllowedPhoneConfigs,
   getRetargetPhoneId,
 } from "@/lib/whatsapp/config";
+import { normalizeCityKey } from "@/lib/city-normalizer";
 import { fetchPhoneNumbersFromMeta, mapMetaPhonesToConfigs } from "@/lib/whatsapp/phoneMetadataSync";
 import { getAllPhoneLocationConfigs } from "@/lib/whatsapp/phoneAreaConfigService";
 
 // Force dynamic rendering since we use request.cookies for authentication
 export const dynamic = 'force-dynamic';
 
-/**
- * Filter phone configs by user role and allotted areas
- * Same logic as getAllowedPhoneConfigs but works with Meta-fetched configs
- */
+/** Filter Meta-fetched configs using the same rules as getAllowedPhoneConfigs. */
 function filterPhoneConfigsByRole(
-  configs: any[],
+  configs: { phoneNumberId?: string }[],
   userRole: string,
-  userAreas: string[] = []
-): any[] {
-  // Full access roles see all numbers
-  if (FULL_ACCESS_ROLES.includes(userRole as any)) {
-    return configs;
-  }
-
-  // Check if user has WhatsApp access at all
-  if (!WHATSAPP_ACCESS_ROLES.includes(userRole as any)) {
-    return [];
-  }
-
-  // Filter by user's assigned areas
-  const normalizedAreas = userAreas.map(a => a.toLowerCase().trim());
-  
-  // "all" or "both" gives access to all areas
-  if (normalizedAreas.includes("all") || normalizedAreas.includes("both")) {
-    return configs;
-  }
-
-  return configs.filter(config => {
-    if (!config.phoneNumberId) return false;
-    
-    // Support both single area and array of areas
-    const configAreas = Array.isArray(config.area) ? config.area : [config.area];
-    
-    // Check if any of the user's areas match any of the phone's areas
-    return configAreas.some((phoneArea: string) => normalizedAreas.includes(phoneArea));
-  });
+  userAreas: string[] = [],
+): { phoneNumberId?: string }[] {
+  const allowedIds = new Set(
+    getAllowedPhoneConfigs(userRole, userAreas.map((a) => normalizeCityKey(a)))
+      .map((c) => c.phoneNumberId)
+      .filter(Boolean),
+  );
+  return configs.filter(
+    (c) => c.phoneNumberId && allowedIds.has(c.phoneNumberId),
+  );
 }
 
 /**

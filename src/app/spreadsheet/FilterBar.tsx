@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 
 import { useAuthStore } from "@/AuthStore";
+import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
+import { isSalesTeamRestricted } from "@/util/apiSecurity";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 
 
@@ -303,12 +305,15 @@ const FilterBar = ({
   const [isSearching, setIsSearching] = useState(false);
 
   const token = useAuthStore((state) => state.token);
-  const allocations = token?.allotedArea || [];
+  const role = token?.role ?? "";
+  const isLocationRestricted = isSalesTeamRestricted(role);
+  const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
 
-  const parsedAllocations =
-    typeof allocations === "string"
-      ? allocations.split(",").filter(Boolean)
-      : allocations;
+  const defaultPlaceFilter = (): string[] => {
+    if (parsedAllocations.length === 0) return [];
+    if (parsedAllocations.length === 1) return [parsedAllocations[0]];
+    return [...parsedAllocations];
+  };
 
   // Handle search with Enter key or button click
   const handleSearch = useCallback(async () => {
@@ -486,11 +491,22 @@ const FilterBar = ({
             ? prev
             : { ...prev, place: [filteredTargets[0].city] }
         );
-      } else {
+      } else if (isLocationRestricted && parsedAllocations.length > 0) {
+        const allottedPlaces = filteredTargets
+          .filter((t) =>
+            parsedAllocations.some(
+              (a) => a.toLowerCase() === t.city.toLowerCase(),
+            ),
+          )
+          .map((t) => t.city);
+        if (allottedPlaces.length > 0) {
+          setFilters((prev) => ({ ...prev, place: allottedPlaces }));
+        }
+      } else if (!isLocationRestricted) {
         setFilters((prev) => (prev.place.length === 0 ? prev : { ...prev, place: [] }));
       }
     }
-  }, [filteredTargets]);
+  }, [filteredTargets, isLocationRestricted, parsedAllocations]);
 
   useEffect(() => {
     const place =
@@ -677,7 +693,7 @@ const FilterBar = ({
       searchType: "",
       searchValue: "",
       propertyType: "",
-      place: [],
+      place: defaultPlaceFilter(),
       area: [],
       zone: "",
       metroZone: "",
@@ -812,9 +828,12 @@ const FilterBar = ({
 
           <Select
             onValueChange={(value) => {
+              if (!value && isLocationRestricted && parsedAllocations.length > 0) {
+                return;
+              }
               setFilters((prev) => ({
                 ...prev,
-                place: value ? [value] : [],
+                place: value ? [value] : defaultPlaceFilter(),
               }));
             }}
             value={filters.place.length > 0 ? filters.place[0] : ""}

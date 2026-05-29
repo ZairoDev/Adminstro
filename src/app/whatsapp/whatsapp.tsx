@@ -2909,12 +2909,36 @@ export default function WhatsAppChat() {
         );
 
         if (found) {
+          let conversationToOpen = found;
+          if (
+            openType &&
+            found.conversationType !== openType
+          ) {
+            try {
+              await axios.post(
+                `/api/whatsapp/conversations/${found._id}/meta`,
+                { conversationType: openType },
+              );
+              conversationToOpen = {
+                ...found,
+                conversationType: openType,
+              };
+            } catch {
+              // non-blocking — still open the thread
+            }
+          }
           setConversations((prev) => {
-            const exists = prev.find((c) => c._id === found._id);
-            if (exists) return prev;
-            return sortConversations([found, ...prev]);
+            const exists = prev.find((c) => c._id === conversationToOpen._id);
+            if (exists) {
+              return sortConversations(
+                prev.map((c) =>
+                  c._id === conversationToOpen._id ? conversationToOpen : c,
+                ),
+              );
+            }
+            return sortConversations([conversationToOpen, ...prev]);
           });
-          selectConversation(found);
+          selectConversation(conversationToOpen);
         } else {
           const createRes = await axios.post("/api/whatsapp/conversations", {
             participantPhone: normalized,

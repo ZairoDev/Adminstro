@@ -139,6 +139,7 @@ export const WHATSAPP_ACCESS_ROLES = [
   "Admin",
   "Advert",
   "Sales",
+  "sales-intern",
   "Sales-TeamLead",
   "LeadGen",
   "LeadGen-TeamLead",
@@ -176,6 +177,7 @@ export function getAllowedPhoneConfigs(
   // no lines (retarget flows supply the phone separately).
   const UNALLOCATED_AREA_USES_ALL_LINES: readonly string[] = [
     "Sales",
+    "sales-intern",
     "Sales-TeamLead",
     "LeadGen",
     "LeadGen-TeamLead",

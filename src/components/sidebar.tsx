@@ -553,9 +553,20 @@ const roleRoutes: Record<string, Route[]> = {
   ],
   "sales-intern": [
     {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
       path: "/spreadsheet",
       label: "Owner Sheet",
       Icon: <FileSpreadsheet size={18} />,
+    },
+    {
+      path: "/whatsapp",
+      label: "WhatsApp",
+      Icon: <MessageSquare size={18} />,
+      openInNewTab: true,
     },
   ],
   Sales: [

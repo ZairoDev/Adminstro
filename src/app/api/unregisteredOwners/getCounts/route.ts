@@ -3,7 +3,12 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
+import { isLocationExempt } from "@/util/apiSecurity";
+import {
+  applyOwnerSheetLocationQuery,
+  parseAllotedAreaFromToken,
+  resolveOwnerSheetLocations,
+} from "@/util/ownerSheetLocationFilter";
 
 connectDb();
 
@@ -19,20 +24,24 @@ export async function POST(req: NextRequest) {
     }
 
     const role: string = (token.role || "") as string;
-    const assignedArea: string | string[] | undefined = token.allotedArea
-      ? Array.isArray(token.allotedArea)
-        ? token.allotedArea
-        : typeof token.allotedArea === "string"
-        ? token.allotedArea
-        : undefined
-      : undefined;
 
     const employeeId = String((token as any)?.id || "");
     const ownerRuleDoc = employeeId
       ? await Employees.findById(employeeId)
-          .select("ownerLocationBlock ownerPropertyTypeVisibilityRules")
+          .select(
+            "allotedArea ownerLocationBlock ownerPropertyTypeVisibilityRules",
+          )
           .lean()
       : null;
+
+    let tokenAllotedArea: unknown = (token as { allotedArea?: unknown }).allotedArea;
+    if (
+      !isLocationExempt(role) &&
+      parseAllotedAreaFromToken(tokenAllotedArea).length === 0 &&
+      ownerRuleDoc
+    ) {
+      tokenAllotedArea = (ownerRuleDoc as { allotedArea?: unknown }).allotedArea;
+    }
     const ownerBlocked = new Set(
       Array.isArray((ownerRuleDoc as any)?.ownerLocationBlock?.all)
         ? ((ownerRuleDoc as any).ownerLocationBlock.all as any[]).map(String)
@@ -52,18 +61,6 @@ export async function POST(req: NextRequest) {
     
     const { filters } = body;
     const baseQuery: Record<string, any> = {};
-
-    const extractLocations = (raw: any): string[] => {
-      const arr = Array.isArray(raw) ? raw.flat() : [];
-      return arr
-        .map((x: any) => {
-          if (typeof x === "string") return x;
-          if (x && typeof x === "object") return x.city || x.value || x.label || "";
-          return "";
-        })
-        .map((s: any) => String(s).trim())
-        .filter(Boolean);
-    };
 
     if (filters?.searchType && filters?.searchValue) {
       const escaped = filters.searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -88,42 +85,31 @@ export async function POST(req: NextRequest) {
     if (filters?.isImportant) baseQuery.isImportant = "Important";
     if (filters?.isPinned) baseQuery.isPinned = "Pinned";
 
-    const locations = extractLocations(filters?.place);
-    let effectiveLocationsForRules: string[] = [];
+    const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
+      role,
+      tokenAllotedArea,
+      requestedPlace: filters?.place,
+      ownerBlocked,
+    });
 
-    if (locations.length > 0) {
-      if (!isLocationExempt(role)) {
-        const userAreas = Array.isArray(assignedArea)
-          ? assignedArea.map((a: string) => a.toLowerCase())
-          : assignedArea
-          ? [String(assignedArea).toLowerCase()]
-          : [];
-        const valid = locations
-          .filter((loc: string) => userAreas.includes(loc.toLowerCase()))
-          .filter((loc: string) => !ownerBlocked.has(loc.toLowerCase()));
-        effectiveLocationsForRules = valid.map(String);
-        if (valid.length > 0) {
-          baseQuery.$or = valid.map((loc: string) => ({ location: { $regex: new RegExp(`^${loc}$`, "i") } }));
-        } else {
-          return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
-        }
-      } else {
-        const allowed = locations.filter((loc: string) => !ownerBlocked.has(loc.toLowerCase()));
-        effectiveLocationsForRules = allowed.map(String);
-        baseQuery.$or = allowed.map((loc: string) => ({ location: { $regex: new RegExp(`^${loc}$`, "i") } }));
-      }
+    if (denyAll) {
+      return NextResponse.json({
+        availableCount: 0,
+        notAvailableCount: 0,
+        upcomingCount: 0,
+      });
+    }
+
+    let effectiveLocationsForRules: string[] = [];
+    if (sheetLocations.length > 0) {
+      applyOwnerSheetLocationQuery(baseQuery, sheetLocations);
+      effectiveLocationsForRules = sheetLocations;
     } else if (!isLocationExempt(role)) {
-      const assignedFiltered = Array.isArray(assignedArea)
-        ? assignedArea.filter((a: any) => !ownerBlocked.has(String(a).toLowerCase()))
-        : assignedArea && !ownerBlocked.has(String(assignedArea).toLowerCase())
-        ? assignedArea
-        : [];
-      effectiveLocationsForRules = Array.isArray(assignedFiltered)
-        ? (assignedFiltered as any[]).map(String)
-        : assignedFiltered
-        ? [String(assignedFiltered)]
-        : [];
-      applyLocationFilter(baseQuery, role, assignedFiltered as any, undefined);
+      return NextResponse.json({
+        availableCount: 0,
+        notAvailableCount: 0,
+        upcomingCount: 0,
+      });
     }
 
     // Apply owner property-type rule per effective locations (use actual requested locations)

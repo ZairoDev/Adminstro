@@ -10,6 +10,7 @@ import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
 import EmployeeUiRule from "@/models/employeeUiRule";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
+import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 
 type UiFlags = {
   hideGuestManagement?: boolean;
@@ -397,7 +398,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           name: temp.name,
           email: temp.email,
           role: temp.role,
-          allotedArea: temp.allotedArea,
+          allotedArea: parseAllotedAreaForClient(temp.allotedArea),
           uiFlags,
           whatsappPhoneMask,
         };
@@ -507,7 +508,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name: temp.name,
       email: temp.email,
       role: temp.role,
-      allotedArea: Array.isArray(temp.allotedArea) ? temp.allotedArea : [],
+      allotedArea: parseAllotedAreaForClient(temp.allotedArea),
       uiFlags,
       whatsappPhoneMask,
     };

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import {
-  WHATSAPP_ACCESS_ROLES,
-  getPhoneConfigById,
-} from "@/lib/whatsapp/config";
+import { getPhoneConfigById } from "@/lib/whatsapp/config";
+import { isWhatsAppRole } from "@/lib/whatsapp/apiContext";
 import { resolvePhoneIdForLocation } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +21,7 @@ export async function GET(req: NextRequest) {
     }
 
     const role = (token as { role?: string }).role || "";
-    if (!WHATSAPP_ACCESS_ROLES.includes(role as (typeof WHATSAPP_ACCESS_ROLES)[number])) {
+    if (!isWhatsAppRole(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

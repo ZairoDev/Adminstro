@@ -76,7 +76,15 @@ export function buildConversationVisibilityFilter(
 
   const normalizedAreas = normalizeAreas(userAreas);
   if (normalizedAreas.length === 0) {
-    // No areas configured on this user — they see nothing
+    // For roles that get all phone lines when no area is configured, scope
+    // by phone only (mirrors UNALLOCATED_AREA_USES_ALL_LINES in config.ts).
+    // All other roles see nothing until the admin assigns them an area.
+    const unallocatedBypassRoles: readonly string[] = [
+      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
+    ];
+    if (unallocatedBypassRoles.includes(role)) {
+      return { businessPhoneId: { $in: allowedPhoneIds } };
+    }
     return { _id: null };
   }
 
@@ -188,6 +196,18 @@ export function canUserSeeConversation(
   if (!key) return canAccessWhatsAppAdminQueue(user);
 
   const normalizedAreas = normalizeAreas(userAreas);
+
+  // Mirror UNALLOCATED_AREA_USES_ALL_LINES: if no areas are assigned but the
+  // user already passed the phone check above, let them see conversations on
+  // their allowed phones regardless of location key.
+  if (normalizedAreas.length === 0) {
+    const unallocatedBypassRoles: readonly string[] = [
+      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
+    ];
+    if (unallocatedBypassRoles.includes(role)) return true;
+    return false;
+  }
+
   return normalizedAreas.includes(key);
 }
 
@@ -199,6 +219,17 @@ export function canUserSeeConversation(
  * Validate that a non-admin user is allowed to create/associate a conversation
  * with a given location and phone. Throws with { message, status } on failure.
  */
+// Roles that are allowed to create conversations for any location when they
+// have no allotedArea configured — mirrors the UNALLOCATED_AREA_USES_ALL_LINES
+// bypass in config.ts so the phone-access and location-key checks are consistent.
+const UNALLOCATED_AREA_SKIP_LOCATION_CHECK: readonly string[] = [
+  "Sales",
+  "sales-intern",
+  "Sales-TeamLead",
+  "LeadGen",
+  "LeadGen-TeamLead",
+];
+
 export function assertLocationAllowedForCreate(
   user: { role?: string; allotedArea?: string | string[] },
   location: string,
@@ -220,6 +251,13 @@ export function assertLocationAllowedForCreate(
 
   const locationKey = locationKeyFromDisplay(location);
   const normalizedAreas = normalizeAreas(userAreas);
+
+  // When this role has no configured areas we granted them all phone lines
+  // (UNALLOCATED_AREA_USES_ALL_LINES in config.ts). Apply the same bypass
+  // to the location-key check so the two guards stay in sync.
+  if (normalizedAreas.length === 0 && UNALLOCATED_AREA_SKIP_LOCATION_CHECK.includes(role)) {
+    return;
+  }
 
   if (locationKey && !normalizedAreas.includes(locationKey)) {
     const err: { message: string; status: number } = {

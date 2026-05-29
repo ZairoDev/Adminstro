@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Customized,
   XAxis,
   YAxis,
   ResponsiveContainer,
@@ -24,6 +25,17 @@ const MAX_TOOLTIP_LOCATIONS = 4;
 const MAX_TOOLTIP_TYPES_PER_LOC = 4;
 const MAX_LEGEND_LOCATIONS = 8;
 
+const CHART_PALETTE = [
+  "hsl(217 91% 60%)",
+  "hsl(160 84% 39%)",
+  "hsl(271 81% 56%)",
+  "hsl(24 95% 53%)",
+  "hsl(339 82% 58%)",
+  "hsl(199 89% 48%)",
+  "hsl(45 93% 47%)",
+  "hsl(173 80% 40%)",
+] as const;
+
 type Props = {
   title?: string;
   days: LeadsCandleDay[];
@@ -41,8 +53,67 @@ type CandleDatum = {
 };
 
 function locationColor(index: number): string {
-  const hue = (index * 137.508) % 360;
-  return `hsl(${hue} 65% 52%)`;
+  return CHART_PALETTE[index % CHART_PALETTE.length];
+}
+
+type AxisScale = {
+  scale?: (value: string | number) => number;
+  bandSize?: number;
+};
+
+type CandleTotalLabelsProps = {
+  data?: CandleDatum[];
+  offset?: { top?: number; left?: number };
+  xAxisMap?: Record<string, AxisScale>;
+  yAxisMap?: Record<string, AxisScale>;
+};
+
+/** Always-visible daily totals above each stacked bar (not tied to tooltip/hover). */
+function CandleTotalLabels({
+  data,
+  offset,
+  xAxisMap,
+  yAxisMap,
+}: CandleTotalLabelsProps) {
+  if (!data?.length || !offset) return null;
+
+  const xAxis = xAxisMap ? Object.values(xAxisMap)[0] : undefined;
+  const yAxis = yAxisMap ? Object.values(yAxisMap)[0] : undefined;
+  if (!xAxis?.scale || !yAxis?.scale) return null;
+
+  const bandSize = xAxis.bandSize ?? 0;
+  const baselineY = yAxis.scale(0);
+  if (baselineY == null) return null;
+
+  return (
+    <g className="pointer-events-none">
+      {data.map((datum) => {
+        const bandX = xAxis.scale!(datum.day);
+        if (bandX == null) return null;
+
+        const stackTopY = yAxis.scale!(datum.total);
+        const barTopY = stackTopY ?? baselineY;
+        const labelY = Math.min(barTopY, baselineY) - 8;
+        const labelX = bandX + bandSize / 2 + (offset.left ?? 0)-19;
+
+        return (
+          <text
+            key={datum.day}
+            x={labelX}
+            y={labelY}
+            textAnchor="middle"
+            fill="hsl(var(--foreground))"
+            fontSize={9}
+            fontWeight={600}
+            className="text-muted-foreground "
+            transform={`rotate(-60 ${labelX} ${labelY})`}
+          >
+            {datum.total}
+          </text>
+        );
+      })}
+    </g>
+  );
 }
 
 function formatDayLabel(day: string): string {
@@ -223,7 +294,7 @@ export function LeadsCandleChart({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data}
-                  margin={{ top: 8, right: 8, left: -8, bottom: 36 }}
+                  margin={{ top: 28, right: 8, left: -8, bottom: 36 }}
                   barCategoryGap="18%"
                 >
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -258,15 +329,25 @@ export function LeadsCandleChart({
                       />
                     )}
                   />
-                  {allowedLocations.map((loc) => (
+                  {allowedLocations.map((loc, index) => (
                     <Bar
                       key={loc}
                       dataKey={loc}
                       stackId="day"
                       fill={colors[loc]}
+                      radius={
+                        index === allowedLocations.length - 1
+                          ? [4, 4, 0, 0]
+                          : [0, 0, 0, 0]
+                      }
                       isAnimationActive={false}
                     />
                   ))}
+                  <Customized
+                    component={(props: CandleTotalLabelsProps) => (
+                      <CandleTotalLabels {...props} data={data} />
+                    )}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>

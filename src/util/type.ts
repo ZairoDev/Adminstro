@@ -400,6 +400,7 @@ export interface Property {
   lastUpdates?: string[][];
 
   isLive?: boolean;
+  origin?: "vacationsaga" | "holidaysera" | "housingsaga";
   approvalStatus?: "pending" | "approved" | "rejected";
   approvalNote?: string;
   approvedBy?: string;

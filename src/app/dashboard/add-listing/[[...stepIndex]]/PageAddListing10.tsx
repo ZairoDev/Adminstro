@@ -112,6 +112,7 @@ interface CombinedData {
   nearbyLocations?: nearbyLocationInterface;
 
   rentalType?: string;
+  origin?: "vacationsaga" | "holidaysera" | "housingsaga";
   basePriceLongTerm?: number[];
   monthlyDiscount?: number[];
   longTermMonths?: string[];
@@ -357,6 +358,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       nearbyLocations: combinedData?.nearbyLocations,
 
       rentalType: combinedData?.rentalType,
+      origin: combinedData?.origin ?? "vacationsaga",
       monthlyDiscount: combinedData?.monthlyDiscount,
       longTermMonths: combinedData?.longTermMonths,
       isLive: true,

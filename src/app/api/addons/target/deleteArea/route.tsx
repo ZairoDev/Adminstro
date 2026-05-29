@@ -1,23 +1,24 @@
-import { MonthlyTarget } from "@/models/monthlytarget";
 import { NextRequest, NextResponse } from "next/server";
-import { connectDb } from "@/util/db"; // make sure you connect DB
+import mongoose from "mongoose";
+import { connectDb } from "@/util/db";
 import { Area } from "@/models/area";
 
 export async function DELETE(req: NextRequest) {
   await connectDb();
   try {
-    const { areaName } = await req.json();
+    const { areaName, areaId } = await req.json();
+    const id = areaId ?? areaName;
 
-    if (!areaName ) {
+    if (!id || !mongoose.Types.ObjectId.isValid(String(id))) {
       return NextResponse.json(
-        { error: "areaName and cityId are required" },
-        { status: 400 }
+        { error: "Valid areaId is required" },
+        { status: 400 },
       );
     }
 
-    const updatedDoc = await Area.findOneAndDelete({ _id:areaName });
+    const updatedDoc = await Area.findByIdAndDelete(id);
     if (!updatedDoc) {
-      return NextResponse.json({ error: "City not found" }, { status: 404 });
+      return NextResponse.json({ error: "Area not found" }, { status: 404 });
     }
 
     return NextResponse.json(

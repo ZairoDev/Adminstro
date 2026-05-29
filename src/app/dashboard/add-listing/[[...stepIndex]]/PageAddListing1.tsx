@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface PageAddListing1Props {}
 
+type ListingOrigin = "vacationsaga" | "holidaysera" | "housingsaga";
+
 interface Page1State {
   propertyType: string;
   placeName: string;
@@ -24,6 +26,7 @@ interface Page1State {
   numberOfPortions: number;
   showPortionsInput: boolean;
   rentalType: string;
+  origin: ListingOrigin;
 }
 
 const PageAddListing1: FC<PageAddListing1Props> = () => {
@@ -38,6 +41,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
   const [numberOfPortions, setNumberOfPortions] = useState<number>(1);
   const [showPortionsInput, setShowPortionsInput] = useState<boolean>(false);
   const [rentalType, setRentalType] = useState<string>("Short Term");
+  const [origin, setOrigin] = useState<ListingOrigin>("vacationsaga");
 
   useEffect(() => {
     // ✅ Only runs in the browser
@@ -54,6 +58,14 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
         );
         setShowPortionsInput(parsed.showPortionsInput || false);
         setRentalType(parsed.rentalType || "Short Term");
+        const savedOrigin = parsed.origin as ListingOrigin | undefined;
+        if (
+          savedOrigin === "vacationsaga" ||
+          savedOrigin === "holidaysera" ||
+          savedOrigin === "housingsaga"
+        ) {
+          setOrigin(savedOrigin);
+        }
       } catch (err) {
         console.error("Failed to parse saved page1:", err);
       }
@@ -133,6 +145,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
       numberOfPortions,
       showPortionsInput,
       rentalType,
+      origin,
     };
     localStorage.setItem("page1", JSON.stringify(newPage1));
     checkFormCompletion();
@@ -143,6 +156,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     numberOfPortions,
     showPortionsInput,
     rentalType,
+    origin,
   ]);
 
   const handleNextClick = (e: React.MouseEvent) => {
@@ -198,6 +212,25 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
             <label htmlFor="Both" className="cursor-pointer">Both</label>
           </div>
         </div>
+
+        <FormItem
+          label="Origin"
+          desc="Select the platform this listing belongs to."
+        >
+          <Select
+            onValueChange={(value: ListingOrigin) => setOrigin(value)}
+            value={origin}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select origin" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="vacationsaga">VacationSaga</SelectItem>
+              <SelectItem value="holidaysera">HolidaySera</SelectItem>
+              <SelectItem value="housingsaga">HousingSaga</SelectItem>
+            </SelectContent>
+          </Select>
+        </FormItem>
 
         <FormItem
           label="Choose a property type"

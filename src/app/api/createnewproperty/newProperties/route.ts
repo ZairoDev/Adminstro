@@ -11,6 +11,19 @@ const generateCommonId = (length: number): string => {
   return customAlphabet(charset, length)();
 };
 
+const VALID_ORIGINS = ["vacationsaga", "holidaysera", "housingsaga"] as const;
+type ListingOrigin = (typeof VALID_ORIGINS)[number];
+
+function normalizeOrigin(value: unknown): ListingOrigin {
+  if (
+    typeof value === "string" &&
+    VALID_ORIGINS.includes(value as ListingOrigin)
+  ) {
+    return value as ListingOrigin;
+  }
+  return "vacationsaga";
+}
+
 function sanitizeAmenities(obj: unknown): Record<string, boolean> {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
   const entries = Object.entries(obj as Record<string, unknown>).filter(
@@ -87,6 +100,7 @@ export async function POST(request: Request) {
         nearbyLocations,
         hostedBy,
         rentalType, // IMPORTANT FIELD
+        origin,
         basePriceLongTerm,
         monthlyDiscountLongTerm,
         longTermMonths,
@@ -109,6 +123,7 @@ export async function POST(request: Request) {
       const mongoIds: string[] = [];  
       const propertyIds: string[] = [];
       const commonId = generateCommonId(7);
+      const normalizedOrigin = normalizeOrigin(origin);
 
       const nearbyLocationsMap = nearbyLocations
         ? {
@@ -157,6 +172,7 @@ export async function POST(request: Request) {
           propertyType,
           rentalForm,
           rentalType,
+          origin: normalizedOrigin,
           isInstantBooking: false,
           propertyName: placeName,
           placeName: portionName?.[i],

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type { DateRange } from "react-day-picker";
 import { Loader2, RotateCw, Users, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,18 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   const [leadDatePreset, setLeadDatePreset] = useState<
     "this month" | "last month" | "custom"
   >("this month");
+
+  const [openCandleDatePicker, setOpenCandleDatePicker] = useState(false);
+  const candleDatePickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openCandleDatePicker || leadDatePreset !== "custom") return;
+    const id = requestAnimationFrame(() => {
+      candleDatePickerRef.current?.querySelector("button")?.click();
+      setOpenCandleDatePicker(false);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [openCandleDatePicker, leadDatePreset]);
 
   const propertyTypeOptions = useMemo(
     () => [
@@ -363,6 +375,7 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                       onValueChange={(value) => {
                         if (value === "This month") {
                           setLeadDatePreset("this month");
+                          setOpenCandleDatePicker(false);
                           setLeadByLocationRange(undefined);
                           const next = { ...propertyFilters, days: "this month" };
                           setPropertyFilters(next);
@@ -371,6 +384,7 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                         }
                         if (value === "Past month") {
                           setLeadDatePreset("last month");
+                          setOpenCandleDatePicker(false);
                           setLeadByLocationRange(undefined);
                           const next = { ...propertyFilters, days: "last month" };
                           setPropertyFilters(next);
@@ -378,11 +392,13 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                           return;
                         }
                         setLeadDatePreset("custom");
+                        setOpenCandleDatePicker(true);
                         setPropertyFilters({ ...propertyFilters, days: undefined });
                       }}
                       triggerClassName="w-[120px] h-8 text-xs"
                     />
                     {leadDatePreset === "custom" ? (
+                      <div ref={candleDatePickerRef}>
                       <DateRangePicker
                         date={leadByLocationRange}
                         setDate={(range) => {
@@ -391,14 +407,17 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                           const to = range?.to ?? range?.from;
                           const next = { ...propertyFilters, days: undefined };
                           setPropertyFilters(next);
-                          void refetchCandle({
-                            ...next,
-                            dateFrom: from ? toIsoStart(from) : undefined,
-                            dateTo: to ? toIsoEnd(to) : undefined,
-                          });
+                          if (from) {
+                            void refetchCandle({
+                              ...next,
+                              dateFrom: toIsoStart(from),
+                              dateTo: to ? toIsoEnd(to) : undefined,
+                            });
+                          }
                         }}
                         className="[&_button]:h-8 [&_button]:text-xs [&_button]:w-auto min-w-[200px]"
                       />
+                      </div>
                     ) : null}
                     <CustomSelect
                       itemList={locationOptions}

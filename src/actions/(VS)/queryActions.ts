@@ -215,6 +215,102 @@ export type LeadsCandleDay = {
   >;
 };
 
+type LeadsCandleDateRange = { from: Date; to: Date };
+
+function toUtcDayKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function resolveLeadsCandleDateRange(
+  filters: LeadsCandleFilters,
+): LeadsCandleDateRange | null {
+  if (filters.dateFrom || filters.dateTo) {
+    const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
+    const to = filters.dateTo ? new Date(filters.dateTo) : null;
+    if (from && to) return { from, to };
+    if (from) return { from, to: from };
+    if (to) return { from: to, to };
+    return null;
+  }
+
+  if (filters.days === "last month") {
+    const now = new Date();
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1,
+    );
+    return {
+      from: startOfLastMonth,
+      to: new Date(startOfThisMonth.getTime() - 1),
+    };
+  }
+
+  if (filters.days === "this month" || !filters.days) {
+    const now2 = new Date();
+    const startUTC = new Date(
+      Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
+    const endUTC = new Date(
+      Date.UTC(now2.getUTCFullYear(), now2.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+    );
+    return { from: startUTC, to: endUTC };
+  }
+
+  return null;
+}
+
+/** Weekdays only (UTC); Sundays omitted from the chart axis. */
+function enumerateChartDays(from: Date, to: Date): string[] {
+  const days: string[] = [];
+  const cur = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()),
+  );
+  const end = new Date(
+    Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()),
+  );
+  while (cur <= end) {
+    if (cur.getUTCDay() !== 0) days.push(toUtcDayKey(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return days;
+}
+
+function shouldFillZeroLeadDays(filters: LeadsCandleFilters): boolean {
+  const hasCustomRange = Boolean(filters.dateFrom && filters.dateTo);
+  const hasPropertyType = Boolean(
+    filters.typeOfProperty && filters.typeOfProperty !== "All",
+  );
+  return hasCustomRange || hasPropertyType;
+}
+
+function fillZeroLeadDays(
+  byDay: Map<string, LeadsCandleDay>,
+  range: LeadsCandleDateRange,
+  locations: string[],
+): void {
+  for (const dayKey of enumerateChartDays(range.from, range.to)) {
+    const existing = byDay.get(dayKey);
+    if (!existing) {
+      const locationsRecord: LeadsCandleDay["locations"] = {};
+      for (const loc of locations) {
+        locationsRecord[loc] = { total: 0, propertyTypes: {} };
+      }
+      byDay.set(dayKey, { day: dayKey, total: 0, locations: locationsRecord });
+      continue;
+    }
+    for (const loc of locations) {
+      if (!existing.locations[loc]) {
+        existing.locations[loc] = { total: 0, propertyTypes: {} };
+      }
+    }
+  }
+}
+
 export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
   const match: Record<string, unknown> = {};
 
@@ -313,15 +409,33 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     byDay.set(day, dayEntry);
   }
 
-  const days = Array.from(byDay.values()).sort((a, b) =>
-    a.day.localeCompare(b.day),
-  );
-
-  const locations = Array.from(
+  let locations = Array.from(
     new Set(
-      days.flatMap((d) => Object.keys(d.locations)).filter(Boolean),
+      Array.from(byDay.values())
+        .flatMap((d) => Object.keys(d.locations))
+        .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b));
+
+  if (
+    filters.location &&
+    filters.location !== "All" &&
+    !locations.includes(filters.location)
+  ) {
+    locations = [filters.location, ...locations];
+  }
+
+  const dateRange = resolveLeadsCandleDateRange(filters);
+  if (shouldFillZeroLeadDays(filters) && dateRange) {
+    fillZeroLeadDays(byDay, dateRange, locations);
+  }
+
+  const days = Array.from(byDay.values())
+    .filter((d) => {
+      const utcDay = new Date(`${d.day}T00:00:00.000Z`).getUTCDay();
+      return utcDay !== 0;
+    })
+    .sort((a, b) => a.day.localeCompare(b.day));
 
   return { days, locations };
 };

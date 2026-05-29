@@ -4,7 +4,9 @@ export function normalizeLocation(value: string): string {
 
 export function normalizeAllotedArea(input: string | string[] | undefined): string[] {
   if (!input) return [];
-  const raw = Array.isArray(input) ? input : [input];
+  const raw = Array.isArray(input)
+    ? input.flatMap((v) => String(v).split(",").map((s) => s.trim()))
+    : String(input).split(",").map((s) => s.trim());
   const normalized = raw
     .map((v) => normalizeLocation(String(v)))
     .filter((v) => v.length > 0);

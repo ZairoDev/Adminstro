@@ -8,6 +8,7 @@ import FilterBar, { type FiltersInterfaces } from "./FilterBar";
 import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
+import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -66,11 +67,7 @@ const Spreadsheet = () => {
 
   const role = token?.role;
   const isSalesInternOnly = role === "sales-intern";
-  const allocations = token?.allotedArea || [];
-  const parsedAllocations =
-    typeof allocations === "string"
-      ? allocations.split(",").filter(Boolean)
-      : allocations;
+  const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
 
   const [filters, setFilters] = useState<FiltersInterfaces>({
     searchType: "",

@@ -11,6 +11,8 @@ export interface MiddlweareInterface {
   iat: Date;
   sid: string;
   tokenValidAfter: number;
+  webTokenValidAfter?: number;
+  mobileTokenValidAfter?: number;
 }
 
 export type WarningType =
@@ -168,6 +170,8 @@ export interface EmployeeInterface {
     isLoggedIn?: boolean;
   };
   tokenValidAfter?: number;
+  webTokenValidAfter?: number;
+  mobileTokenValidAfter?: number;
 }
 
 export interface PropertiesDataType {

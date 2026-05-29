@@ -7,7 +7,12 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
+import { isLocationExempt } from "@/util/apiSecurity";
+import {
+  applyOwnerSheetLocationQuery,
+  parseAllotedAreaFromToken,
+  resolveOwnerSheetLocations,
+} from "@/util/ownerSheetLocationFilter";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -17,20 +22,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const role: string = (token.role || "") as string;
-    const assignedArea: string | string[] | undefined = token.allotedArea
-      ? Array.isArray(token.allotedArea)
-        ? token.allotedArea
-        : typeof token.allotedArea === "string"
-        ? token.allotedArea
-        : undefined
-      : undefined;
 
     const employeeId = String((token as any)?.id || "");
     const ownerRuleDoc = employeeId
       ? await Employees.findById(employeeId)
-          .select("ownerLocationBlock ownerPropertyTypeVisibilityRules")
+          .select(
+            "allotedArea ownerLocationBlock ownerPropertyTypeVisibilityRules",
+          )
           .lean()
       : null;
+
+    let tokenAllotedArea: unknown = (token as { allotedArea?: unknown }).allotedArea;
+    if (
+      !isLocationExempt(role) &&
+      parseAllotedAreaFromToken(tokenAllotedArea).length === 0 &&
+      ownerRuleDoc
+    ) {
+      tokenAllotedArea = (ownerRuleDoc as { allotedArea?: unknown }).allotedArea;
+    }
     const ownerBlocked = new Set(
       Array.isArray((ownerRuleDoc as any)?.ownerLocationBlock?.all)
         ? ((ownerRuleDoc as any).ownerLocationBlock.all as any[]).map(String)
@@ -41,19 +50,6 @@ export async function POST(req: NextRequest) {
         await req.json();
     const query: Record<string, any> = {};
 
-    const extractLocations = (raw: any): string[] => {
-      const arr = Array.isArray(raw) ? raw.flat() : [];
-      return arr
-        .map((x: any) => {
-          if (typeof x === "string") return x;
-          if (x && typeof x === "object") return x.city || x.value || x.label || "";
-          return "";
-        })
-        .map((s: any) => String(s).trim())
-        .filter(Boolean);
-    };
-    
-  
     query["availability"]= "Not Available";
     if (upcomingOnly) {
       const now = new Date();
@@ -77,58 +73,30 @@ export async function POST(req: NextRequest) {
           : (ownerVisByLocation as any)?.[locKey];
       return byLoc || ownerVisAll || null;
     };
-    // if (filters.rentalType === "Long Term") query["rentalType"] = "Long Term";
-    let effectiveLocationsForRules: string[] = [];
-    if (filters.place) {
-  const locations = extractLocations(filters.place);
-
-  if (filters.isImportant) {
-  query["isImportant"] = "Important"; // or whatever value you use for important items
-}
-
-if (filters.isPinned) {
-  query["isPinned"] = "Pinned"; // or whatever value you use for important items
-}
-
-  if (locations.length > 0) {
-    if (!isLocationExempt(role)) {
-      const userAreas = Array.isArray(assignedArea)
-        ? assignedArea.map((a: string) => a.toLowerCase())
-        : assignedArea
-        ? [String(assignedArea).toLowerCase()]
-        : [];
-      const valid = locations
-        .filter((loc: string) => userAreas.includes(loc.toLowerCase()))
-        .filter((loc: string) => !ownerBlocked.has(loc.toLowerCase()));
-      effectiveLocationsForRules = valid.map(String);
-      if (valid.length > 0) {
-        query["$or"] = valid.map((loc: string) => ({
-          location: { $regex: new RegExp(`^${loc}$`, "i") }
-        }));
-      } else {
-        query["$or"] = [{ location: { $in: [] } }];
-      }
-    } else {
-      const allowed = locations.filter((loc: string) => !ownerBlocked.has(loc.toLowerCase()));
-      effectiveLocationsForRules = allowed.map(String);
-      query["$or"] = allowed.map((loc: string) => ({
-        location: { $regex: new RegExp(`^${loc}$`, "i") }
-      }));
+    if (filters.isImportant) {
+      query["isImportant"] = "Important";
     }
-  }
-}
-    else if (!isLocationExempt(role)) {
-      const assignedFiltered = Array.isArray(assignedArea)
-        ? assignedArea.filter((a: any) => !ownerBlocked.has(String(a).toLowerCase()))
-        : assignedArea && !ownerBlocked.has(String(assignedArea).toLowerCase())
-        ? assignedArea
-        : [];
-      effectiveLocationsForRules = Array.isArray(assignedFiltered)
-        ? (assignedFiltered as any[]).map(String)
-        : assignedFiltered
-        ? [String(assignedFiltered)]
-        : [];
-      applyLocationFilter(query, role, assignedFiltered as any, undefined);
+    if (filters.isPinned) {
+      query["isPinned"] = "Pinned";
+    }
+
+    const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
+      role,
+      tokenAllotedArea,
+      requestedPlace: filters?.place,
+      ownerBlocked,
+    });
+
+    if (denyAll) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
+    }
+
+    let effectiveLocationsForRules: string[] = [];
+    if (sheetLocations.length > 0) {
+      applyOwnerSheetLocationQuery(query, sheetLocations);
+      effectiveLocationsForRules = sheetLocations;
+    } else if (!isLocationExempt(role)) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
 
     const propertyTypeFilter = String(filters.propertyType || "").trim();

@@ -107,19 +107,23 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     );
   }, [visitStats, accessibleLocations, hasFullAccess]);
 
-  // Filter new owners count by location (only for restricted Sales roles)
+  // Filter new owners count by location (sales-intern only)
   const filteredNewOwnersCount = useMemo(() => {
     if (hasFullAccess) {
       return newOwnersCount;
     }
-    // Filter by location field if user has location restrictions
+    // Requirement: only sales-intern should be scoped by allotted locations.
+    // Other roles should see the global graph as-is.
+    if (role !== "sales-intern" || accessibleLocations.length === 0) {
+      return newOwnersCount;
+    }
     return newOwnersCount.filter((item: any) => {
       if (!item.location) return true;
       return accessibleLocations.some(
         (loc) => loc.toLowerCase() === item.location.toLowerCase()
       );
     });
-  }, [newOwnersCount, hasFullAccess, accessibleLocations]);
+  }, [newOwnersCount, hasFullAccess, accessibleLocations, role]);
 
   const monthKey = useMemo(
     () =>
@@ -410,79 +414,82 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
             </div>
           </div>
 
-          {/* Molecule Visualization & New Owners */}
-          {canAccess("moleculeVisualization") && (
-            <div className="flex flex-col justify-evenly md:flex-row gap-6 mt-8">
+          {/* New Owners charts (always under newOwners access) */}
+          <div className="flex flex-col justify-evenly md:flex-row gap-6 mt-8">
+            {/* Molecule visualization is optional */}
+            {canAccess("moleculeVisualization") && (
               <div className="flex flex-col border rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
                 <h3 className="text-lg font-semibold p-4 text-gray-800 dark:text-gray-200 text-center">
                   🔬 Owner Distribution Visualization
                 </h3>
                 <MoleculeVisualization data={ownersCount} />
               </div>
+            )}
 
-              <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-6 rounded-xl border border-border bg-card shadow-sm">
-                <CustomSelect
-                  itemList={["All", "Today", "15 days", "1 month", "3 months"]}
-                  triggerText="Select Days"
-                  defaultValue="Today"
-                  onValueChange={(value) => {
-                    const newFilters = {
-                      ...unregisteredOwnersFilters,
-                      days: value,
-                    };
-                    setUnregisteredOwnersFilters(newFilters);
-                    fetchUnregisteredVisits(newFilters);
-                  }}
-                  triggerClassName="w-36 mb-4"
-                />
+            {/* New owners by location */}
+            <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-6 rounded-xl border border-border bg-card shadow-sm">
+              <CustomSelect
+                itemList={["All", "Today", "15 days", "1 month", "3 months"]}
+                triggerText="Select Days"
+                defaultValue="Today"
+                onValueChange={(value) => {
+                  const newFilters = {
+                    ...unregisteredOwnersFilters,
+                    days: value,
+                  };
+                  setUnregisteredOwnersFilters(newFilters);
+                  fetchUnregisteredVisits(newFilters);
+                }}
+                triggerClassName="w-36 mb-4"
+              />
 
-                <h2 className="text-xl md:text-2xl font-bold text-foreground text-center mb-6">
-                  New Owners
-                </h2>
+              <h2 className="text-xl md:text-2xl font-bold text-foreground text-center mb-6">
+                New Owners
+              </h2>
 
-                <div className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-6">
-                  {filteredNewOwnersCount.length}
-                </div>
-
-                <div className="w-full flex flex-col sm:grid-cols-2 gap-4">
-                  {Object.entries(
-                    filteredNewOwnersCount.reduce((acc: any, item: any) => {
-                      acc[item.location] = (acc[item.location] || 0) + 1;
-                      return acc;
-                    }, {})
-                  ).map(([location, count], index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted shadow-sm hover:shadow-md transition-shadow duration-200"
-                    >
-                      <p className="text-lg font-medium text-muted-foreground">
-                        {location}
-                      </p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {count as ReactNode}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+              <div className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-6">
+                {filteredNewOwnersCount.length}
               </div>
 
-              <div className="flex relative flex-col items-center justify-center md:w-1/2">
-                <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                  📈 New Owners Trend
-                </h3>
-                <div className="absolute right-20 top-20 text-2xl font-extrabold">
-                  <div>
-                    {previousSum} + {todayOwners}
+              <div className="w-full flex flex-col sm:grid-cols-2 gap-4">
+                {Object.entries(
+                  filteredNewOwnersCount.reduce((acc: any, item: any) => {
+                    acc[item.location] = (acc[item.location] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([location, count], index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <p className="text-lg font-medium text-muted-foreground">
+                      {location}
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {count as ReactNode}
+                    </p>
                   </div>
-                </div>
-
-                <ReusableLineChart
-                  data={unregisteredOwnerCounts || []}
-                  title="New Owners"
-                />
+                ))}
               </div>
             </div>
-          )}
+
+            {/* Trend chart */}
+            <div className="flex relative flex-col items-center justify-center md:w-1/2">
+              <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                📈 New Owners Trend
+              </h3>
+              <div className="absolute right-20 top-20 text-2xl font-extrabold">
+                <div>
+                  {previousSum} + {todayOwners}
+                </div>
+              </div>
+
+              <ReusableLineChart
+                data={unregisteredOwnerCounts || []}
+                title="New Owners"
+              />
+            </div>
+          </div>
         </div>
       )}
 

@@ -53,6 +53,7 @@ export const ROLE_TEAM_MAP: Record<string, TeamType[]> = {
   LeadGen: ["LeadGeneration"],
   "Sales-TeamLead": ["Sales", "Admin"], // Full Sales access + some admin features
   Sales: ["Sales"],
+  "sales-intern": ["Sales"],
   Advert: ["Advert"],
   Developer: ["LeadGeneration", "Sales", "HR", "Admin", "Advert"],
   Content: ["LeadGeneration"],
@@ -112,6 +113,8 @@ export const ROLE_SECTION_OVERRIDES: Record<string, DashboardSection[]> = {
     "salesByAgent",
     "ownerOnboardingStage",
   ],
+  // Sales intern should only see Owner details (New Owners) on dashboard.
+  "sales-intern": ["newOwners"],
   "Sales-TeamLead": [
     "visitStatistics",
     "newOwners",

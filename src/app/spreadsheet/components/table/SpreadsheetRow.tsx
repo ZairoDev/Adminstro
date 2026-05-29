@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Ban, CheckCheck, CircleDot, Copy, PawPrint, Pin, Star } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { UploadCell } from "../cells/UploadCell";
 import { DownloadCell } from "../cells/DownloadCell";
 import type { unregisteredOwners } from "@/util/type";
 import { columnWidths } from "@/app/spreadsheet/utils/columnWidths";
+import { buildOwnerSheetWhatsAppUrl } from "@/app/spreadsheet/utils/ownerWhatsAppLink";
 import { apartmentTypes, interiorStatus, availabilityStatus, propertyTypeColors } from "@/app/spreadsheet/constants/apartmentTypes";
 
 interface TargetType {
@@ -84,7 +85,20 @@ export function SpreadsheetRow({
   onPinnedStatusChange,
   onUploadComplete,
 }: SpreadsheetRowProps) {
+  const router = useRouter();
   const isRowSelected = selectedRow === item._id;
+
+  const openOwnerInWhatsApp = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const url = buildOwnerSheetWhatsAppUrl({
+      phoneNumber: item.phoneNumber,
+      name: item.name,
+      location: item.location,
+    });
+    if (!url) return;
+    router.push(url);
+  };
 
   // Helper function to check if cell is selected
   const isCellSelected = (colIndex: number) => {
@@ -250,16 +264,17 @@ export function SpreadsheetRow({
           onSave={(newValue) => onSave(item._id, "phoneNumber", newValue)}
         />
 
-        {item.phoneNumber && (
-          <Link
-            href={`https://wa.me/${item.phoneNumber}?text=Hi%20${item.name}%2C%20my%20name%20is%20${userName}%2C%20and%20how%20are%20you%20doing%3F`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+        {item.phoneNumber ? (
+          <button
+            type="button"
+            className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:bg-muted/80"
+            title="Open in WhatsApp (owner)"
+            aria-label={`Open WhatsApp chat with ${item.name || "owner"}`}
+            onClick={openOwnerInWhatsApp}
           >
             <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
-          </Link>
-        )}
+          </button>
+        ) : null}
       </div>
 
       {/* Location Column */}

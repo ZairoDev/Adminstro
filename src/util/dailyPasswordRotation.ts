@@ -10,13 +10,14 @@ import { computePasswordExpiryMs } from "./passwordExpiry";
 
 const PASSWORD_VALIDITY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-/** Emit force-logout to user's socket room and disconnect their clients (same as forceLogout API). */
-async function emitForceLogoutAndDisconnect(employeeId: string): Promise<void> {
+/** Emit force-logout to a specific session room and disconnect those clients. */
+async function emitForceLogoutAndDisconnectSession(sessionId: string | null | undefined): Promise<void> {
   const io = (global as unknown as { io?: { to: (r: string) => { emit: (e: string, d: object) => void }; in: (r: string) => { fetchSockets: () => Promise<{ disconnect: (v: boolean) => void }[]> } } }).io;
   if (!io) return;
+  if (!sessionId) return;
   try {
-    const room = `user-${employeeId}`;
-    io.to(room).emit("force-logout", { _id: employeeId });
+    const room = `session-${sessionId}`;
+    io.to(room).emit("force-logout", { sessionId });
     const sockets = await io.in(room).fetchSockets();
     for (const s of sockets) {
       try {
@@ -26,7 +27,7 @@ async function emitForceLogoutAndDisconnect(employeeId: string): Promise<void> {
       }
     }
   } catch (err) {
-    console.warn(`[password-rotation] Socket force-logout for ${employeeId}:`, err);
+    console.warn(`[password-rotation] Socket force-logout for session ${sessionId}:`, err);
   }
 }
 
@@ -100,6 +101,7 @@ export const rotatePasswordsNow = async () => {
       const newMobilePin = generateMobilePin(4);
 
       const employeeId = emp._id.toString();
+      const webSessionId = (emp as any)?.webSession?.sessionId as string | null | undefined;
 
       await Employees.updateOne(
         { _id: emp._id },
@@ -108,15 +110,16 @@ export const rotatePasswordsNow = async () => {
             password: newPassword,
             mobilePin: newMobilePin,
             passwordExpiresAt: new Date(computePasswordExpiryMs()),
-            tokenValidAfter: now,
+            // Only invalidate WEB tokens/sessions on rotation.
+            // Mobile sessions must persist until admin force-logout or user explicitly logs out.
+            webTokenValidAfter: now,
+            // Keep legacy field unset so existing mobile tokens remain valid even if they
+            // still rely on tokenValidAfter in older deployments.
+            tokenValidAfter: 0,
             "webSession.sessionId": null,
             "webSession.sessionStartedAt": null,
             "webSession.expiresAt": null,
             "webSession.isLoggedIn": false,
-            "mobileSession.sessionId": null,
-            "mobileSession.sessionStartedAt": null,
-            "mobileSession.lastActiveAt": null,
-            "mobileSession.isLoggedIn": false,
             lastLogout: logoutTime,
           },
         },
@@ -124,7 +127,7 @@ export const rotatePasswordsNow = async () => {
 
       await endActivityLogSessions(employeeId, logoutTime);
       await createForcedLogoutLog(emp, logoutTime);
-      await emitForceLogoutAndDisconnect(employeeId);
+      await emitForceLogoutAndDisconnectSession(webSessionId);
 
       // 🔥 TODO: Send password securely (Email / WhatsApp / Internal Panel)
       console.log(

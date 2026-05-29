@@ -130,7 +130,11 @@ export async function POST(request: NextRequest) {
             "mobileSession.sessionStartedAt": null,
             "mobileSession.lastActiveAt": null,
             "mobileSession.isLoggedIn": false,
+            // Invalidate tokens for ALL device types (admin force logout).
+            // Keep legacy field for backward compatibility.
             tokenValidAfter: Date.now(),
+            webTokenValidAfter: Date.now(),
+            mobileTokenValidAfter: Date.now(),
             password: newPassword,
             mobilePin: newMobilePin,
             passwordExpiresAt: computePasswordExpiryDate(), // 24 hours by default

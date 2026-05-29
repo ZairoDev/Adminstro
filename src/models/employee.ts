@@ -489,6 +489,16 @@ const employeeSchema = new Schema<IEmployee>(
       type: Number,
       default: 0,
     },
+    // Device-scoped token invalidation timestamps (ms since epoch).
+    // Used to invalidate only web or only mobile tokens without impacting the other.
+    webTokenValidAfter: {
+      type: Number,
+      default: 0,
+    },
+    mobileTokenValidAfter: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true },
 );

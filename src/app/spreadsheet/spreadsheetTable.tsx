@@ -39,7 +39,7 @@ import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
 import { FaWhatsapp } from "react-icons/fa6";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UploadCell } from "./components/cells/UploadCell";
 import { DownloadCell } from "./components/cells/DownloadCell";
 import { ActionMenu } from "./components/table/ActionMenu";
@@ -47,6 +47,7 @@ import { SpreadsheetFormulaBar } from "./components/table/SpreadsheetFormulaBar"
 import { SpreadsheetHeader } from "./components/table/SpreadsheetHeader";
 import { formatPhoneNumber } from "./utils/formatters";
 import { normalizeOwnerPhoneInput } from "./utils/ownerPhoneNormalize";
+import { buildOwnerSheetWhatsAppUrl } from "./utils/ownerWhatsAppLink";
 import { Switch } from "@/components/ui/switch";
 import {
   ownerPropertyFloorFromSelectValue,
@@ -364,6 +365,22 @@ useEffect(() => {
   const { toast } = useToast();
 
   const token = useAuthStore((state: any) => state.token);
+  const router = useRouter();
+
+  const openOwnerInWhatsApp = (
+    e: React.MouseEvent,
+    owner: unregisteredOwners,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const url = buildOwnerSheetWhatsAppUrl({
+      phoneNumber: owner.phoneNumber,
+      name: owner.name,
+      location: owner.location,
+    });
+    if (!url) return;
+    router.push(url);
+  };
 
   const handleResponseStatus = async (id: string, index: number) => {
     const currentStatus = tableData[index].isVerified;
@@ -1266,21 +1283,17 @@ useEffect(() => {
                      
                     />
 
-                    <Link
-                    href={`https://wa.me/${item?.phoneNumber}?text=Hi%20${item?.name}%2C%20my%20name%20is%20${token?.name}%2C%20and%20how%20are%20you%20doing%3F`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {(item?.phoneNumber &&<FaWhatsapp
-                      className=" cursor-pointer  text-green-500"
-                      size={22}
-                      onClick={() => {
-                        // if (query.isViewed === false) {
-                        //   IsView(query?._id, index);
-                        // }
-                      }}
-                    />)}
-                  </Link>
+                    {item?.phoneNumber ? (
+                      <button
+                        type="button"
+                        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:bg-muted/80"
+                        title="Open in WhatsApp (owner)"
+                        aria-label={`Open WhatsApp chat with ${item.name || "owner"}`}
+                        onClick={(e) => openOwnerInWhatsApp(e, item)}
+                      >
+                        <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
+                      </button>
+                    ) : null}
                   </div>
 
                   <div

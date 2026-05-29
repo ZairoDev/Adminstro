@@ -5,6 +5,7 @@ import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { NextRequest, NextResponse } from "next/server";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
+import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 
 export async function POST(request: NextRequest) {
   try {
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
       name: (savedUser as any).name,
       email: (savedUser as any).email,
       role: (savedUser as any).role,
-      allotedArea: (savedUser as any).allotedArea,
+      allotedArea: parseAllotedAreaForClient((savedUser as any).allotedArea),
     };
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {

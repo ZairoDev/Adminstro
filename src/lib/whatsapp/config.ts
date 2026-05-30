@@ -276,6 +276,21 @@ export function hasWhatsAppAccess(
   return getAllowedPhoneIds(userRole, userAreas).length > 0;
 }
 
+/** Sales-family roles that use Sales retarget / inbox rules (includes intern). */
+export const SALES_WHATSAPP_ROLES = [
+  "Sales",
+  "sales-intern",
+  "Subscription-Sales",
+] as const;
+
+export function isSalesWhatsAppRole(role: string): boolean {
+  return (SALES_WHATSAPP_ROLES as readonly string[]).includes(role);
+}
+
+export function isWhatsAppAccessRole(role: string): boolean {
+  return (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(role);
+}
+
 /**
  * Get the retarget phone ID (used exclusively for retargeting)
  * Returns null if not configured

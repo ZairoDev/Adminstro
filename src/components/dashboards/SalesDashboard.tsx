@@ -73,8 +73,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     loading,
     fetchVisits,
     fetchVisitsToday,
-    goodVisits,
-    fetchGoodVisitsCount,
     unregisteredOwners,
     fetchUnregisteredVisits,
     ownersCount,
@@ -144,8 +142,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
   const handleClick = () => {
     router.push(`dashboard/unregistered-owner`);
   };
-
-  const labels = ["0", "1", "2", "3", "4", "5+"];
 
   const previousSum = unregisteredOwnerCounts
     .slice(0, -1)
@@ -335,71 +331,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
         <div className="my-8 p-6 bg-gradient-to-br from-teal-50/50 to-emerald-50/50 dark:from-teal-950/20 dark:to-emerald-950/20 rounded-xl border">
           <h2 className="text-2xl font-bold mb-6">👤 New Owners & Properties</h2>
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Properties Shown Summary */}
-            <div className="relative flex-1 p-6 bg-white dark:bg-gray-900 border rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-                📊 Properties Shown Summary
-              </h3>
-              <CustomSelect
-                itemList={[
-                  "Today",
-                  "All",
-                  "yesterday",
-                  "last month",
-                  "this month",
-                  "10 days",
-                  "15 days",
-                  "1 month",
-                  "3 months",
-                ]}
-                triggerText="Select days"
-                defaultValue="Today"
-                onValueChange={(value) => {
-                  fetchGoodVisitsCount({ days: value });
-                }}
-                triggerClassName="w-32 absolute right-6 top-4"
-              />
-              {goodVisits ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full table-auto text-sm text-left text-gray-700 dark:text-gray-200">
-                    <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                      <tr>
-                        <th className="px-4 py-2 font-semibold border-b">
-                          Total Leads
-                        </th>
-                        {labels.map((label) => (
-                          <th
-                            key={label}
-                            className="px-4 py-2 font-semibold border-b"
-                          >
-                            {label} Shown
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="bg-white dark:bg-gray-950">
-                        <td className="px-4 py-2 border-b">
-                          {goodVisits.total}
-                        </td>
-                        {labels.map((label) => (
-                          <td key={label} className="px-4 py-2 border-b">
-                            {goodVisits[label]}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="flex justify-center items-center h-24">
-                  <h1 className="text-xl text-gray-500 dark:text-gray-400">
-                    No Data Available
-                  </h1>
-                </div>
-              )}
-            </div>
-
             {/* Unregistered Owners */}
             <div className="relative w-full md:w-[250px] p-6 border rounded-xl shadow-md">
               <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">

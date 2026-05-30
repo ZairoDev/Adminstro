@@ -51,10 +51,13 @@ export async function POST(req: NextRequest) {
     }
 
     const conv = await WhatsAppConversation.findById(conversationId).lean();
-    if (!conv) {
+    if (!conv || Array.isArray(conv)) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
-    const allowed = await canAccessConversation(token as never, conv);
+    const allowed = canAccessConversation(
+      token as { role?: string; allotedArea?: string | string[]; id?: string; _id?: string },
+      conv as Record<string, unknown>,
+    );
     if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

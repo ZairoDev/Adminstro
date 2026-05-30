@@ -29,7 +29,6 @@ import {
 
 import { useAuthStore } from "@/AuthStore";
 import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
-import { isSalesTeamRestricted } from "@/util/apiSecurity";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 
 
@@ -305,15 +304,7 @@ const FilterBar = ({
   const [isSearching, setIsSearching] = useState(false);
 
   const token = useAuthStore((state) => state.token);
-  const role = token?.role ?? "";
-  const isLocationRestricted = isSalesTeamRestricted(role);
   const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
-
-  const defaultPlaceFilter = (): string[] => {
-    if (parsedAllocations.length === 0) return [];
-    if (parsedAllocations.length === 1) return [parsedAllocations[0]];
-    return [...parsedAllocations];
-  };
 
   // Handle search with Enter key or button click
   const handleSearch = useCallback(async () => {
@@ -472,41 +463,6 @@ const FilterBar = ({
     const lowerAlloc = parsedAllocations.map((a: string) => a.toLowerCase());
     return targets.filter((t) => lowerAlloc.includes(t.city.toLowerCase()));
   }, [parsedAllocations, targets]);
-
-  useEffect(() => {
-    if (!filteredTargets) return;
-
-    const current =
-      filters.place && filters.place.length > 0 ? filters.place[0] : "";
-    const matchesCurrent =
-      current &&
-      filteredTargets.some(
-        (t) => t.city.toLowerCase() === current.toLowerCase()
-      );
-
-    if (!matchesCurrent) {
-      if (filteredTargets.length === 1) {
-        setFilters((prev) =>
-          prev.place.length === 1 && prev.place[0] === filteredTargets[0].city
-            ? prev
-            : { ...prev, place: [filteredTargets[0].city] }
-        );
-      } else if (isLocationRestricted && parsedAllocations.length > 0) {
-        const allottedPlaces = filteredTargets
-          .filter((t) =>
-            parsedAllocations.some(
-              (a) => a.toLowerCase() === t.city.toLowerCase(),
-            ),
-          )
-          .map((t) => t.city);
-        if (allottedPlaces.length > 0) {
-          setFilters((prev) => ({ ...prev, place: allottedPlaces }));
-        }
-      } else if (!isLocationRestricted) {
-        setFilters((prev) => (prev.place.length === 0 ? prev : { ...prev, place: [] }));
-      }
-    }
-  }, [filteredTargets, isLocationRestricted, parsedAllocations]);
 
   useEffect(() => {
     const place =
@@ -693,7 +649,7 @@ const FilterBar = ({
       searchType: "",
       searchValue: "",
       propertyType: "",
-      place: defaultPlaceFilter(),
+      place: [],
       area: [],
       zone: "",
       metroZone: "",
@@ -828,27 +784,15 @@ const FilterBar = ({
 
           <Select
             onValueChange={(value) => {
-              if (!value && isLocationRestricted && parsedAllocations.length > 0) {
-                return;
-              }
               setFilters((prev) => ({
                 ...prev,
-                place: value ? [value] : defaultPlaceFilter(),
+                place: value === "all" ? [] : [value],
               }));
             }}
-            value={filters.place.length > 0 ? filters.place[0] : ""}
+            value={filters.place.length > 0 ? filters.place[0] : "all"}
           >
             <SelectTrigger className="w-40 h-9">
-              <SelectValue
-                placeholder={
-                  parsedAllocations.length === 0
-                    ? "Select location"
-                    : parsedAllocations.length === 1 &&
-                      filteredTargets.length === 1
-                    ? filteredTargets[0].city
-                    : "Select location"
-                }
-              />
+              <SelectValue placeholder="All" />
             </SelectTrigger>
 
             <SelectContent>
@@ -858,6 +802,8 @@ const FilterBar = ({
                     ? "Locations"
                     : "Allotted Locations"}
                 </SelectLabel>
+
+                <SelectItem value="all">All</SelectItem>
 
                 {filteredTargets.map((loc) => (
                   <SelectItem key={loc.city} value={loc.city}>

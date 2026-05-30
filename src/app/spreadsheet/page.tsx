@@ -8,7 +8,6 @@ import FilterBar, { type FiltersInterfaces } from "./FilterBar";
 import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
-import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -67,18 +66,12 @@ const Spreadsheet = () => {
 
   const role = token?.role;
   const isSalesInternOnly = role === "sales-intern";
-  const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
 
   const [filters, setFilters] = useState<FiltersInterfaces>({
     searchType: "",
     searchValue: "",
     propertyType: "",
-    place:
-      parsedAllocations.length === 1
-        ? [parsedAllocations[0]]
-        : parsedAllocations.length > 1
-        ? parsedAllocations
-        : [],
+    place: [],
     area: [],
     zone: "",
     metroZone: "",
@@ -110,9 +103,6 @@ const Spreadsheet = () => {
           : "/api/unregisteredOwners/getNotAvailableList";
 
       const effectiveFilters = { ...(appliedFilters ?? filters) };
-      if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-        effectiveFilters.place = parsedAllocations;
-      }
 
       const response = await axios.post(
         endpoint,
@@ -152,12 +142,8 @@ const Spreadsheet = () => {
 
   const getCounts = async (appliedFilters: FiltersInterfaces) => {
     try {
-      let effectiveFilters = { ...appliedFilters };
-      if (parsedAllocations.length > 0 && effectiveFilters.place.length === 0) {
-        effectiveFilters.place = parsedAllocations;
-      }
       const response = await axios.post("/api/unregisteredOwners/getCounts", {
-        filters: effectiveFilters,
+        filters: appliedFilters,
       });
       setAvailableCount(response.data.availableCount || 0);
       setNotAvailableCount(response.data.notAvailableCount || 0);

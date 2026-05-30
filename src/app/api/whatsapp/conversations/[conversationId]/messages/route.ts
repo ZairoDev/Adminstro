@@ -3,7 +3,8 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 
 export const dynamic = "force-dynamic";
 
@@ -58,11 +59,14 @@ export async function GET(
 
     // Load conversation and enforce access
     const conversationDoc = await WhatsAppConversation.findById(conversationId).lean();
-    if (!conversationDoc) {
+    if (!conversationDoc || Array.isArray(conversationDoc)) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    const allowed = await canAccessConversation(token, conversationDoc);
+    const allowed = await canAccessConversationAsync(
+      normalizeWhatsAppToken(token as { id?: string; _id?: string; role?: string; allotedArea?: string | string[] }),
+      conversationDoc as Record<string, unknown>,
+    );
     if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

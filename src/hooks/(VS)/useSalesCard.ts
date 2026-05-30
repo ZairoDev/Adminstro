@@ -1,14 +1,6 @@
 // "use client";
 
-import {
-  getSalesCardDetails,
-  getGoodVisitsCount,
-  getNewOwnersCount,
-  getUnregisteredOwners,
-  getVisitsToday,
-  getWeeksVisit,
-  OwnersCount,
-} from "@/actions/(VS)/queryActions";
+import { getSalesCardDetails } from "@/actions/(VS)/queryActions";
 import { useEffect, useState } from "react"
 
 interface CityData {

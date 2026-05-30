@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { locationKeyFromDisplay } from "@/lib/whatsapp/locationAccess";
 import { assertParticipantLocationAssignable } from "@/lib/whatsapp/assignableLocations";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
@@ -42,7 +42,10 @@ export async function POST(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    const allowed = canAccessConversation(token, conversation as Record<string, unknown>);
+    const allowed = await canAccessConversationAsync(
+      token,
+      conversation as Record<string, unknown>,
+    );
     if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

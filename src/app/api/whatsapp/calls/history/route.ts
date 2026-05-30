@@ -45,10 +45,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Invalid conversationId" }, { status: 400 });
       }
       const conv = await WhatsAppConversation.findById(conversationId).lean();
-      if (!conv) {
+      if (!conv || Array.isArray(conv)) {
         return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
       }
-      const allowed = await canAccessConversation(token, conv);
+      const allowed = canAccessConversation(token, conv as Record<string, unknown>);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

@@ -11,7 +11,8 @@
  * canUserSeeConversation() for runtime per-document checks.
  */
 
-import { getAllowedPhoneIds, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { getPhoneIdsForUserAreasSync } from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   canAccessWhatsAppAdminQueue,
   getUserScopedLocationKeys,
@@ -56,7 +57,7 @@ export function buildConversationVisibilityFilter(
   const role = user.role || "";
   const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
   const userAreas = getUserAreasFromToken(user);
-  const allowedPhoneIds = getAllowedPhoneIds(role, userAreas);
+  const allowedPhoneIds = getPhoneIdsForUserAreasSync(role, userAreas);
 
   // Admin Queue mode — full-access roles + location coordinator email
   if (opts.adminQueue) {
@@ -168,7 +169,13 @@ export function canUserSeeConversation(
     email?: string;
     allotedArea?: string | string[];
   },
-  conversation: { businessPhoneId?: string; source?: string; participantLocationKey?: string }
+  conversation: {
+    businessPhoneId?: string;
+    source?: string;
+    participantLocationKey?: string;
+    participantLocation?: string;
+  },
+  opts: { skipPhoneCheck?: boolean } = {},
 ): boolean {
   // Internal conversations are always visible
   if (
@@ -184,15 +191,36 @@ export function canUserSeeConversation(
   if (isFullAccess) return true;
 
   const userAreas = getUserAreasFromToken(user as any);
-  const allowedPhoneIds = getAllowedPhoneIds(role, userAreas);
+  const allowedPhoneIds = getPhoneIdsForUserAreasSync(role, userAreas);
 
   // Phone check
-  if (conversation.businessPhoneId && !allowedPhoneIds.includes(conversation.businessPhoneId)) {
-    return false;
+  if (
+    !opts.skipPhoneCheck &&
+    conversation.businessPhoneId &&
+    !allowedPhoneIds.includes(conversation.businessPhoneId)
+  ) {
+    // Cache may be cold — allow if location matches allotted area for WhatsApp roles
+    const normalizedAreas = normalizeAreas(userAreas);
+    const fallbackKey =
+      conversation.participantLocationKey ||
+      (conversation.participantLocation
+        ? locationKeyFromDisplay(conversation.participantLocation)
+        : "");
+    const locationOk =
+      fallbackKey &&
+      (normalizedAreas.includes(fallbackKey) ||
+        (normalizedAreas.length === 0 &&
+          ["Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead"].includes(
+            role,
+          )));
+    if (!locationOk) return false;
   }
 
-  // Empty key = Admin Queue (location coordinator + full-access roles only)
-  const key = conversation.participantLocationKey || "";
+  // Empty key — try participantLocation display, then admin queue
+  let key = conversation.participantLocationKey || "";
+  if (!key && conversation.participantLocation?.trim()) {
+    key = locationKeyFromDisplay(conversation.participantLocation);
+  }
   if (!key) return canAccessWhatsAppAdminQueue(user);
 
   const normalizedAreas = normalizeAreas(userAreas);
@@ -233,21 +261,12 @@ const UNALLOCATED_AREA_SKIP_LOCATION_CHECK: readonly string[] = [
 export function assertLocationAllowedForCreate(
   user: { role?: string; allotedArea?: string | string[] },
   location: string,
-  phoneId: string
+  _phoneId: string
 ): void {
   const role = user.role || "";
   if ((FULL_ACCESS_ROLES as readonly string[]).includes(role)) return;
 
   const userAreas = getUserAreasFromToken(user as any);
-  const allowedPhoneIds = getAllowedPhoneIds(role, userAreas);
-
-  if (!allowedPhoneIds.includes(phoneId)) {
-    const err: { message: string; status: number } = {
-      message: "You don't have access to this WhatsApp phone line",
-      status: 403,
-    };
-    throw err;
-  }
 
   const locationKey = locationKeyFromDisplay(location);
   const normalizedAreas = normalizeAreas(userAreas);

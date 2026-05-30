@@ -12,7 +12,8 @@ import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 
 connectDb();
@@ -88,13 +89,13 @@ export async function POST(req: NextRequest) {
     if (conversationId) {
       const convDoc = await WhatsAppConversation.findById(conversationId).lean() as any;
       if (!convDoc) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-      const allowed = await canAccessConversation(token, convDoc);
+      const allowed = await canAccessConversationAsync(token, convDoc);
       if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
       if ((token.role || "") === "Advert" && convDoc.isRetarget && convDoc.retargetStage === "handed_to_sales") {
         return NextResponse.json({ error: "Advert cannot send interactive after handover" }, { status: 403 });
       }
-      if ((token.role || "") === "Sales" && convDoc.isRetarget && convDoc.retargetStage !== "handed_to_sales") {
+      if (isSalesWhatsAppRole(token.role || "") && convDoc.isRetarget && convDoc.retargetStage !== "handed_to_sales") {
         return NextResponse.json({ error: "Sales cannot send interactive to retarget conversation before handover" }, { status: 403 });
       }
     }

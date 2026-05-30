@@ -5,15 +5,16 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
   getDefaultPhoneId,
   getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
+  isSalesWhatsAppRole,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import RetargetContact from "@/models/retargetContact";
 
 connectDb();
@@ -82,65 +83,76 @@ export async function POST(req: NextRequest) {
       recipientMasked: String(recipientPhone).replace(/\d(?=\d{4})/g, "x"),
     });
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
 
-    // Advert role: allow sending retarget templates via the retarget phone
-    if (allowedPhoneIds.length === 0 && isRetarget && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
+    const formattedPhone = recipientPhone.replace(/\D/g, "");
+    if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
       return NextResponse.json(
-        { error: "No WhatsApp access for your role/area" },
-        { status: 403 }
+        { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
+        { status: 400 }
       );
     }
 
-    // Determine which phone ID to use
-    let phoneNumberId = requestedPhoneId;
+    // Load conversation and enforce access before calling Meta
+    let conversation;
+    if (conversationId) {
+      conversation = await WhatsAppConversation.findById(conversationId);
+    }
 
-    // If this is a retarget message, use the retarget phone ID
+    if (conversation) {
+      const convLean = conversation.toObject ? conversation.toObject() : conversation;
+      const allowed = await canAccessConversationAsync(normalizedToken, convLean);
+      if (!allowed) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if ((token.role || "") === "Advert" && convLean.isRetarget && convLean.retargetStage === "handed_to_sales") {
+        return NextResponse.json({ error: "Advert cannot send after handover" }, { status: 403 });
+      }
+
+      if (
+        isSalesWhatsAppRole(token.role || "") &&
+        convLean.isRetarget &&
+        convLean.retargetStage !== "handed_to_sales"
+      ) {
+        return NextResponse.json(
+          { error: "Sales cannot send to retarget conversation before handover" },
+          { status: 403 },
+        );
+      }
+    }
+
+    let phoneNumberId: string;
+
     if (isRetarget) {
       const retargetPhoneId = getRetargetPhoneId();
       if (retargetPhoneId) {
         phoneNumberId = retargetPhoneId;
-   
       } else {
         console.warn("⚠️ Retarget phone ID not configured, falling back to default");
+        phoneNumberId = getDefaultPhoneId(userRole, userAreas) || "";
       }
-    }
+    } else {
+      const phoneResolution = await resolveOutboundBusinessPhoneId({
+        token: normalizedToken,
+        conversation: conversation
+          ? (conversation.toObject ? conversation.toObject() : conversation)
+          : null,
+        requestedPhoneId,
+        requireConversation: Boolean(conversationId),
+      });
 
-    // If conversationId provided, get phone ID from conversation (only if not retargeting)
-    if (conversationId && !phoneNumberId && !isRetarget) {
-      const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (conv) {
-        phoneNumberId = conv.businessPhoneId;
+      if ("error" in phoneResolution) {
+        return NextResponse.json(
+          { error: phoneResolution.error },
+          { status: phoneResolution.status },
+        );
       }
+      phoneNumberId = phoneResolution.phoneNumberId;
     }
 
-    // Fall back to default if not set (only if not retargeting)
-    if (!phoneNumberId && !isRetarget) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
-
-    // Final fallback: if retarget phone ID is not configured, use default
-    if (!phoneNumberId) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
-
-    console.log("📨 [send-template] resolved phoneNumberId", {
-      phoneNumberId,
-      allowedPhoneIdsCount: allowedPhoneIds.length,
-      isRetarget: Boolean(isRetarget),
-    });
-
-    // Verify permission (skip check for retarget phone ID if it's configured)
     if (!phoneNumberId) {
       return NextResponse.json(
         { error: "No phone number ID available" },
@@ -148,17 +160,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For retargeting, allow the retarget phone ID if configured
-    // For regular messages, check user permissions
-    if (isRetarget && getRetargetPhoneId() === phoneNumberId) {
-      // Retarget phone ID is allowed for retargeting (no permission check needed)
-
-    } else if (!canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
-      return NextResponse.json(
-        { error: "You don't have permission to send from this WhatsApp number" },
-        { status: 403 }
-      );
-    }
+    console.log("📨 [send-template] resolved phoneNumberId", {
+      phoneNumberId,
+      isRetarget: Boolean(isRetarget),
+    });
 
     const whatsappToken = getWhatsAppToken();
     if (!whatsappToken) {
@@ -167,15 +172,6 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-      // E.164 validation: only digits, 7-15 digits, no leading zero
-      const formattedPhone = recipientPhone.replace(/\D/g, "");
-      if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
-        return NextResponse.json(
-          { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
-          { status: 400 }
-        );
-      }
 
     console.log("📨 [send-template] sending to Meta", {
       countryCodePrefix: formattedPhone.substring(0, 3),
@@ -235,44 +231,18 @@ export async function POST(req: NextRequest) {
     }
     const timestamp = new Date();
 
-    // Get or create conversation using snapshot-safe helper
-    let conversation;
-    if (conversationId) {
-      conversation = await WhatsAppConversation.findById(conversationId);
-    }
-
     if (!conversation) {
-      // Use helper to find or create with proper snapshot semantics
-      // CRITICAL: isRetarget uses "untrusted" to never overwrite existing snapshots
-      // Regular template sending uses "trusted" to allow backfilling empty fields
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
-        participantName: formattedPhone, // Default name for new conversations
+        participantName: formattedPhone,
         snapshotSource: isRetarget ? "untrusted" : "trusted",
       });
-    }
 
-    // Enforce access rules on the conversation (if exists)
-    if (conversation) {
       const convLean = conversation.toObject ? conversation.toObject() : conversation;
-
-      // If conversation is already retargeted, ensure user has access
-      if (convLean.isRetarget) {
-        const allowed = await canAccessConversation(token, convLean);
-        if (!allowed) {
-          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
-
-        // Block Advert from sending after handover
-        if ((token.role || "") === "Advert" && convLean.retargetStage === "handed_to_sales") {
-          return NextResponse.json({ error: "Advert cannot send after handover" }, { status: 403 });
-        }
-
-        // Block Sales from sending before handover
-        if ((token.role || "") === "Sales" && convLean.retargetStage !== "handed_to_sales") {
-          return NextResponse.json({ error: "Sales cannot send to retarget conversation before handover" }, { status: 403 });
-        }
+      const allowed = await canAccessConversationAsync(normalizedToken, convLean);
+      if (!allowed) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 

@@ -39,7 +39,6 @@ import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
 import { FaWhatsapp } from "react-icons/fa6";
-import { useRouter } from "next/navigation";
 import { UploadCell } from "./components/cells/UploadCell";
 import { DownloadCell } from "./components/cells/DownloadCell";
 import { ActionMenu } from "./components/table/ActionMenu";
@@ -48,6 +47,7 @@ import { SpreadsheetHeader } from "./components/table/SpreadsheetHeader";
 import { formatPhoneNumber } from "./utils/formatters";
 import { normalizeOwnerPhoneInput } from "./utils/ownerPhoneNormalize";
 import { buildOwnerSheetWhatsAppUrl } from "./utils/ownerWhatsAppLink";
+import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 import { Switch } from "@/components/ui/switch";
 import {
   ownerPropertyFloorFromSelectValue,
@@ -365,7 +365,6 @@ useEffect(() => {
   const { toast } = useToast();
 
   const token = useAuthStore((state: any) => state.token);
-  const router = useRouter();
 
   const openOwnerInWhatsApp = (
     e: React.MouseEvent,
@@ -379,7 +378,7 @@ useEffect(() => {
       location: owner.location,
     });
     if (!url) return;
-    router.push(url);
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleResponseStatus = async (id: string, index: number) => {
@@ -599,11 +598,15 @@ useEffect(() => {
   }, []);
 
   const handleAddRow = async () => {
+    const allottedLocations = parseAllotedAreaForClient(token?.allotedArea);
+    const defaultLocation =
+      allottedLocations.length > 0 ? allottedLocations[0] : "Unknown";
+
     const tempRow: Omit<unregisteredOwners, "_id"> = {
       VSID: "",
       name: "",
       phoneNumber: "",
-      location: "Unknown",
+      location: defaultLocation,
       price: "",
       interiorStatus: "Fully Furnished",
       petStatus: "None",

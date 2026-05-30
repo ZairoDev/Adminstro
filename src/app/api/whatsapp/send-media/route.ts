@@ -11,8 +11,9 @@ import {
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import crypto from "crypto";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 
 connectDb();
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
     // Enforce conversation-level access rules if conversation exists
     if (conversation) {
       const convLean = conversation.toObject ? conversation.toObject() : conversation;
-      const allowed = canAccessConversation(normalizeWhatsAppToken(token), convLean);
+      const allowed = await canAccessConversationAsync(normalizeWhatsAppToken(token), convLean);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Block Sales before handover
-      if ((token.role || "") === "Sales" && convLean.isRetarget && convLean.retargetStage !== "handed_to_sales") {
+      if (isSalesWhatsAppRole(token.role || "") && convLean.isRetarget && convLean.retargetStage !== "handed_to_sales") {
         return NextResponse.json({ error: "Sales cannot send to retarget conversation before handover" }, { status: 403 });
       }
     }
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedToken = normalizeWhatsAppToken(token);
     const userRole = normalizedToken.role || "";
-    const allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken);
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
     if (allowedPhoneIds.length === 0 && userRole !== "Advert") {
       return NextResponse.json(
         { error: "No WhatsApp access for your role/area" },

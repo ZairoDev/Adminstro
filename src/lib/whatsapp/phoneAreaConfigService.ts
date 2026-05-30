@@ -1,6 +1,7 @@
 import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import {
   WHATSAPP_PHONE_CONFIGS,
+  getAllowedPhoneIds,
   type WhatsAppPhoneConfig,
 } from "@/lib/whatsapp/config";
 import WhatsAppPhoneAreaConfig, {
@@ -109,6 +110,67 @@ async function loadPhoneLocationsMap(): Promise<PhoneLocationsMap> {
 
   cache = { map, expiresAt: Date.now() + CACHE_TTL_MS };
   return map;
+}
+
+const UNALLOCATED_AREA_USES_ALL_LINES: readonly string[] = [
+  "Sales",
+  "sales-intern",
+  "Sales-TeamLead",
+  "LeadGen",
+  "LeadGen-TeamLead",
+];
+
+/** Merge static config phone access with DB-assigned locations per phone line. */
+function phoneIdsFromLocationsMap(
+  map: PhoneLocationsMap,
+  userRole: string,
+  userAreas: string[],
+): string[] {
+  const staticIds = getAllowedPhoneIds(userRole, userAreas);
+  const userKeys = userAreas.map((a) => normalizeCityKey(a)).filter(Boolean);
+  const dbIds: string[] = [];
+
+  for (const [phoneNumberId, locations] of map.entries()) {
+    if (!phoneNumberId) continue;
+    if (userKeys.length === 0) {
+      if (UNALLOCATED_AREA_USES_ALL_LINES.includes(userRole)) {
+        dbIds.push(phoneNumberId);
+      }
+    } else if (locations.some((loc) => userKeys.includes(loc.locationKey))) {
+      dbIds.push(phoneNumberId);
+    }
+  }
+
+  return [...new Set([...staticIds, ...dbIds].filter(Boolean))];
+}
+
+/** Sync helper — uses warmed cache when available, otherwise static config only. */
+export function getPhoneIdsForUserAreasSync(
+  userRole: string,
+  userAreas: string[] = [],
+): string[] {
+  if (cache?.map) {
+    return phoneIdsFromLocationsMap(cache.map, userRole, userAreas);
+  }
+  return getAllowedPhoneIds(userRole, userAreas);
+}
+
+/** DB-backed phone access — aligns with resolvePhoneIdForLocation. */
+export async function resolveUserAllowedPhoneIds(
+  userRole: string,
+  userAreas: string[] = [],
+): Promise<string[]> {
+  const map = await loadPhoneLocationsMap();
+  return phoneIdsFromLocationsMap(map, userRole, userAreas);
+}
+
+export async function canUserAccessPhoneId(
+  phoneNumberId: string,
+  userRole: string,
+  userAreas: string[] = [],
+): Promise<boolean> {
+  const allowed = await resolveUserAllowedPhoneIds(userRole, userAreas);
+  return allowed.includes(phoneNumberId);
 }
 
 export async function getLocationsForPhone(

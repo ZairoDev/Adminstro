@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { Ban, CheckCheck, CircleDot, Copy, PawPrint, Pin, Star } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
@@ -85,7 +84,6 @@ export function SpreadsheetRow({
   onPinnedStatusChange,
   onUploadComplete,
 }: SpreadsheetRowProps) {
-  const router = useRouter();
   const isRowSelected = selectedRow === item._id;
 
   const openOwnerInWhatsApp = (e: React.MouseEvent) => {
@@ -97,7 +95,7 @@ export function SpreadsheetRow({
       location: item.location,
     });
     if (!url) return;
-    router.push(url);
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   // Helper function to check if cell is selected

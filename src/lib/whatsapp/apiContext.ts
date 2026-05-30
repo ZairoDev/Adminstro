@@ -5,6 +5,7 @@ import {
   FULL_ACCESS_ROLES,
 } from "./config";
 import { getUserAreasFromToken } from "./locationAccess";
+import { resolveUserAllowedPhoneIds } from "./phoneAreaConfigService";
 
 export type WhatsAppToken = {
   id?: string;
@@ -47,6 +48,28 @@ export function resolveAllowedPhoneIds(
   const normalized = normalizeWhatsAppToken(token);
   const role = normalized.role || "";
   let ids = getAllowedPhoneIds(role, normalized.allotedArea);
+
+  if (ids.length === 0 && role === "Advert") {
+    const retargetPhoneId = getRetargetPhoneId();
+    if (retargetPhoneId) ids = [retargetPhoneId];
+  }
+
+  if (ids.length === 0 && opts.retargetOnly) {
+    const retargetPhoneId = getRetargetPhoneId();
+    if (retargetPhoneId) ids = [retargetPhoneId];
+  }
+
+  return ids;
+}
+
+/** DB + static phone access (use in API routes that must match resolvePhoneIdForLocation). */
+export async function resolveAllowedPhoneIdsAsync(
+  token: WhatsAppToken,
+  opts: { retargetOnly?: boolean } = {},
+): Promise<string[]> {
+  const normalized = normalizeWhatsAppToken(token);
+  const role = normalized.role || "";
+  let ids = await resolveUserAllowedPhoneIds(role, normalized.allotedArea);
 
   if (ids.length === 0 && role === "Advert") {
     const retargetPhoneId = getRetargetPhoneId();

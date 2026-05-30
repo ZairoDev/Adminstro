@@ -1,4 +1,7 @@
-import { FULL_ACCESS_ROLES } from "./config";
+import {
+  FULL_ACCESS_ROLES,
+  isSalesWhatsAppRole,
+} from "./config";
 import {
   buildConversationVisibilityFilter,
   applyInboxLocationFilter,
@@ -79,7 +82,7 @@ export function buildInboxListQuery(
     query.isRetarget = true;
   }
 
-  if (userRole === "Sales") {
+  if (isSalesWhatsAppRole(userRole)) {
     const and = (query.$and as Record<string, unknown>[]) || [];
     and.push({
       $or: [

@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { getAllowedPhoneIds, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { getUserAreasFromToken } from "@/lib/whatsapp/locationAccess";
+import {
+  canUserAccessPhoneId,
+  resolveUserAllowedPhoneIds,
+} from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 connectDb();
@@ -35,23 +40,19 @@ export async function POST(req: NextRequest) {
     }
 
     const userRole = token.role || "";
-    let userAreas: string[] = [];
-    if (token.allotedArea) {
-      if (Array.isArray(token.allotedArea)) {
-        userAreas = token.allotedArea.map((a: any) => String(a).trim()).filter(Boolean);
-      } else if (typeof token.allotedArea === "string") {
-        userAreas = token.allotedArea.split(",").map((a: any) => a.trim()).filter(Boolean);
-      }
-    }
+    const userAreas = getUserAreasFromToken(token);
 
     const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const allowedPhoneIds = await resolveUserAllowedPhoneIds(userRole, userAreas);
 
     // Build an account-scoped query.
-    const query: any = { participantPhone: normalizedPhone };
+    const query: Record<string, unknown> = { participantPhone: normalizedPhone };
 
     if (phoneNumberId) {
-      if (!isFullAccess && !allowedPhoneIds.includes(phoneNumberId)) {
+      if (
+        !isFullAccess &&
+        !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas))
+      ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       query.businessPhoneId = phoneNumberId;
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
       .lean();
     if (!conv) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
-    const allowed = await canAccessConversation(token, conv);
+    const allowed = await canAccessConversationAsync(token, conv as Record<string, unknown>);
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     return NextResponse.json({ success: true, conversation: conv });

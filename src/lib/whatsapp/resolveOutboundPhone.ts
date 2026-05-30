@@ -1,13 +1,13 @@
 import {
   INTERNAL_YOU_PHONE_ID,
   isInternalPhoneId,
-  canAccessPhoneId,
   getDefaultPhoneId,
   getRetargetPhoneId,
 } from "./config";
-import { canAccessConversation } from "./access";
+import { canAccessConversationAsync } from "./access";
 import type { WhatsAppToken } from "./apiContext";
 import { normalizeWhatsAppToken } from "./apiContext";
+import { canUserAccessPhoneId } from "./phoneAreaConfigService";
 
 type ConversationLike = {
   businessPhoneId?: string;
@@ -35,7 +35,10 @@ export async function resolveOutboundBusinessPhoneId(params: {
   const userAreas = token.allotedArea;
 
   if (params.conversation) {
-    const allowed = canAccessConversation(token, params.conversation);
+    const allowed = await canAccessConversationAsync(
+      token,
+      params.conversation as Record<string, unknown>,
+    );
     if (!allowed) {
       return { error: "Forbidden", status: 403 };
     }
@@ -67,10 +70,8 @@ export async function resolveOutboundBusinessPhoneId(params: {
     return { error: "No WhatsApp line available for send", status: 403 };
   }
 
-  if (
-    !canAccessPhoneId(phoneNumberId, userRole, userAreas) &&
-    !(userRole === "Advert" && phoneNumberId === getRetargetPhoneId())
-  ) {
+  const canUsePhone = await canUserAccessPhoneId(phoneNumberId, userRole, userAreas);
+  if (!canUsePhone && !(userRole === "Advert" && phoneNumberId === getRetargetPhoneId())) {
     return {
       error: "You don't have permission to send from this WhatsApp number",
       status: 403,

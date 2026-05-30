@@ -316,8 +316,6 @@ const Dashboard = () => {
     loading,
     fetchVisits,
     fetchVisitsToday,
-    goodVisits,
-    fetchGoodVisitsCount,
     unregisteredOwners,
     fetchUnregisteredVisits,
     ownersCount,

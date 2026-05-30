@@ -3,7 +3,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { buildInboxListQuery, parseInboxListParams } from "@/lib/whatsapp/inboxQuery";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 
 connectDb();
 
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     }
 
     const normalizedToken = normalizeWhatsAppToken(token);
-    const allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken, {
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken, {
       retargetOnly:
         req.nextUrl.searchParams.get("retargetOnly") === "1" ||
         req.nextUrl.searchParams.get("retargetOnly") === "true",

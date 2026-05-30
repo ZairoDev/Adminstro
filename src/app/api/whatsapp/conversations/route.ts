@@ -10,7 +10,6 @@ import Query from "@/models/query";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import {
   getAllowedPhoneIds,
-  canAccessPhoneId,
   getDefaultPhoneId,
   getRetargetPhoneId,
   FULL_ACCESS_ROLES,
@@ -25,6 +24,7 @@ import {
   parseInboxListParams,
 } from "@/lib/whatsapp/inboxQuery";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   isLocationAllowedForPhone,
   resolvePhoneIdForLocation,
@@ -636,8 +636,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify user can access this phone (single source of truth with GET/list)
-    if (!canAccessPhoneId(selectedPhoneId, userRole, userAreas)) {
+    // Verify user can access this phone (DB + static — matches resolvePhoneIdForLocation)
+    if (!(await canUserAccessPhoneId(selectedPhoneId, userRole, userAreas))) {
       return NextResponse.json(
         { error: "You don't have permission to use this WhatsApp number (area mismatch)" },
         { status: 403 }

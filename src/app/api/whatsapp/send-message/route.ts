@@ -11,8 +11,8 @@ import {
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import crypto from "crypto";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 
 connectDb();
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedToken = normalizeWhatsAppToken(token);
     const userRole = normalizedToken.role || "";
-    const allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken);
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
     if (allowedPhoneIds.length === 0 && userRole !== "Advert") {
       return NextResponse.json(
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     // Enforce conversation-level access rules if conversation exists
     if (conversation) {
       const convLean = conversation.toObject ? conversation.toObject() : conversation;
-      const allowed = canAccessConversation(normalizedToken, convLean);
+      const allowed = await canAccessConversationAsync(normalizedToken, convLean);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

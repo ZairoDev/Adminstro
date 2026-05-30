@@ -13,7 +13,6 @@ function getModel(model: string) {
   if (key === "candidate") return { key, mongooseModel: Candidate };
   return null;
 }
-
 function employeeProjection() {
   // Never expose auth/session secrets on public endpoints.
   return [
@@ -43,8 +42,7 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: "Unsupported model" },
         { status: 400 },
-      );
-    }
+      )    }
 
     const query =
       resolved.key === "employee"

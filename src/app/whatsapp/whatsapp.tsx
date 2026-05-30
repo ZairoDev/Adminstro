@@ -2904,9 +2904,14 @@ export default function WhatsAppChat() {
         }
 
         const convs = await fetchConversations();
-        const found = convs.find((c: Conversation) =>
-          (c.participantPhone || "").replace(/\D/g, "").endsWith(normalized),
-        );
+        const found = convs.find((c: Conversation) => {
+          const phoneMatch = (c.participantPhone || "")
+            .replace(/\D/g, "")
+            .endsWith(normalized);
+          const lineMatch =
+            !phoneNumberId || c.businessPhoneId === phoneNumberId;
+          return phoneMatch && lineMatch;
+        });
 
         if (found) {
           let conversationToOpen = found;

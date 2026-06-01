@@ -47,13 +47,25 @@ import { SpreadsheetHeader } from "./components/table/SpreadsheetHeader";
 import { formatPhoneNumber } from "./utils/formatters";
 import { normalizeOwnerPhoneInput } from "./utils/ownerPhoneNormalize";
 import { buildOwnerSheetWhatsAppUrl } from "./utils/ownerWhatsAppLink";
-import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
+import {
+  filterOwnerSheetTargetCities,
+  parseAllotedAreaForClient,
+  resolveDefaultOwnerRowLocation,
+} from "@/util/ownerSheetLocationFilter";
 import { Switch } from "@/components/ui/switch";
 import {
   ownerPropertyFloorFromSelectValue,
   ownerPropertyFloorSelectOptions,
   ownerPropertyFloorToSelectValue,
 } from "./constants/ownerSheetFields";
+import {
+  getOwnerRowToneClasses,
+  getStickyRightOffsetPx,
+  getVisibleStickyRightFields,
+  isStickyRightField,
+  STICKY_RIGHT_SHADOW,
+  type StickyRightField,
+} from "./utils/rowTone";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -136,6 +148,26 @@ const propertyTypeColors: Record<string, string> = {
   Maisotte: "bg-lime-200 dark:bg-lime-800/30 text-lime-900 dark:text-lime-200",
 };
 
+function getStickyCellProps(
+  field: string,
+  rowTone: string,
+  isLargeScreen: boolean,
+  visibleStickyFields: readonly StickyRightField[],
+): { className: string; style?: React.CSSProperties } {
+  const offset = getStickyRightOffsetPx(
+    field,
+    isLargeScreen,
+    visibleStickyFields,
+  );
+  if (offset === null || !isStickyRightField(field)) {
+    return { className: rowTone };
+  }
+  return {
+    className: `${rowTone} sticky z-10 ${STICKY_RIGHT_SHADOW}`,
+    style: { right: offset },
+  };
+}
+
 export function SpreadsheetTable({
   tableData,
   setTableData,
@@ -145,6 +177,7 @@ export function SpreadsheetTable({
   onAvailabilityChange,
   extraColumnLabel,
   extraColumnRender,
+  filterPlace = [],
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
@@ -154,6 +187,8 @@ export function SpreadsheetTable({
   onAvailabilityChange?: () => void;
   extraColumnLabel?: string;
   extraColumnRender?: (owner: unregisteredOwners) => React.ReactNode;
+  /** Active city filter from FilterBar — used as default location for new rows. */
+  filterPlace?: string[];
 }): ReactElement {
 
   const [isLargeScreen, setIsLargeScreen] = useState(true);
@@ -298,6 +333,10 @@ useEffect(() => {
       width: columnWidths.actions,
     },
   ].filter((column) => !hiddenColumns.includes(column.field));
+
+  const visibleStickyFields = getVisibleStickyRightFields(
+    columns.map((column) => column.field),
+  );
 
   interface TargetType {
     _id: string;
@@ -597,10 +636,33 @@ useEffect(() => {
     fetchTargets();
   }, []);
 
+  const locationOptions = React.useMemo(
+    () =>
+      filterOwnerSheetTargetCities(
+        targets,
+        token?.allotedArea,
+        token?.role ?? "",
+      ).map((t) => t.city),
+    [targets, token?.allotedArea, token?.role],
+  );
+
   const handleAddRow = async () => {
-    const allottedLocations = parseAllotedAreaForClient(token?.allotedArea);
-    const defaultLocation =
-      allottedLocations.length > 0 ? allottedLocations[0] : "Unknown";
+    const defaultLocation = resolveDefaultOwnerRowLocation({
+      role: token?.role ?? "",
+      tokenAllotedArea: token?.allotedArea,
+      filterPlace,
+      targets,
+    });
+
+    if (!defaultLocation) {
+      toast({
+        title: "No allotted location",
+        description:
+          "Your account has no assigned cities. Contact an admin, or pick a location in the filter bar first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const tempRow: Omit<unregisteredOwners, "_id"> = {
       VSID: "",
@@ -1084,34 +1146,31 @@ useEffect(() => {
         />
 
         <div className="overflow-auto flex-1 relative" ref={tableBodyRef}>
-          <div className="min-w-full">
+          <div className="w-max min-w-full">
             <SpreadsheetHeader
               columns={columns}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
+              isLargeScreen={isLargeScreen}
+              visibleStickyFields={visibleStickyFields}
             />
             {applyFilter(sortedData).map(
-              (item: unregisteredOwners, index: number) => (
+              (item: unregisteredOwners, index: number) => {
+                const rowTone = getOwnerRowToneClasses(item, selectedRow);
+                const actionsSticky = getStickyCellProps(
+                  "upload",
+                  rowTone,
+                  isLargeScreen,
+                  visibleStickyFields,
+                );
+
+                return (
                 <div
                   key={item?._id}
                   data-owner-row-id={item._id}
                   onClick={() => setSelectedRow(item._id)}
-                  className={`flex cursor-pointer hover:bg-accent/50 border-b border-border ${
-                    (!item.VSID || item.VSID.trim() === "") &&
-                    (!item.link || item.link.trim() === "") &&
-                    (!item.referenceLink || item.referenceLink.trim() === "") &&
-                    (!item.imageUrls || item.imageUrls.length === 0)
-                      ? "bg-red-100 dark:bg-red-700/30"
-                      : (!item.VSID || item.VSID.trim() === "") &&
-                        (!item.link || item.link.trim() === "")
-                      ? "bg-blue-100 dark:bg-blue-700/30"
-                      : ""
-                  } ${
-                    selectedRow === item._id
-                      ? "!bg-amber-200 dark:!bg-amber-500/40 ring-2 ring-inset ring-amber-500 shadow-sm"
-                      : ""
-                  }`}
+                  className={`flex w-max min-w-full cursor-pointer hover:bg-accent/50 border-b border-border ${rowTone}`}
                 >
                   <div
                     ref={(el) => {
@@ -1326,7 +1385,11 @@ useEffect(() => {
                     <SelectableCell
                       maxWidth="100px"
                       value={item.location}
-                      data={targets.map((target) => target.city)}
+                      data={
+                        locationOptions.length > 0
+                          ? locationOptions
+                          : targets.map((target) => target.city)
+                      }
                       save={(newValue: string) =>
                         handleSave(item._id, "location", newValue)
                       }
@@ -1870,7 +1933,8 @@ useEffect(() => {
                   )}
 
                   <div
-                    className={`${columnWidths.actions} px-3 py-2 h-10 whitespace-nowrap flex items-center flex-shrink-0`}
+                    style={actionsSticky.style}
+                    className={`${columnWidths.actions} px-3 py-2 h-10 whitespace-nowrap flex items-center flex-shrink-0 ${actionsSticky.className}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ActionMenu
@@ -1887,7 +1951,8 @@ useEffect(() => {
                     />
                   </div>
                 </div>
-              )
+                );
+              },
             )}
             
           </div>

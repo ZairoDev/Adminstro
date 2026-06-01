@@ -1365,16 +1365,13 @@ export default function GeoSearchPage() {
         >
           <div className="flex-1 px-2 pb-20 overflow-y-auto">
             <TabsContent value="available" className="h-full mt-0">
-              <div className="overflow-x-auto">
-                <FilterBar
+              <FilterBar
                   filters={filters}
                   setFilters={setFilters}
                   selectedTab={selectedTab}
                   isDataLoading={isSearching}
                 />
-              </div>  
-              <div className="overflow-x-auto">
-                <SpreadsheetTable
+              <SpreadsheetTable
                   tableData={tableData}
                   setTableData={setTableData}
                   {...({ serialOffset } as { serialOffset: number })}
@@ -1393,7 +1390,6 @@ export default function GeoSearchPage() {
                       : undefined
                   }
                 />
-              </div>
               {isSearching && (
                 <div className="mt-4 space-y-2" aria-label="Loading rows">
                   <Skeleton className="h-8 w-full" />
@@ -1410,16 +1406,13 @@ export default function GeoSearchPage() {
             </TabsContent>
 
             <TabsContent value="notAvailable" className="h-full mt-0">
-              <div className="overflow-x-auto">
-                <FilterBar
+              <FilterBar
                   filters={filters}
                   setFilters={setFilters}
                   selectedTab={selectedTab}
                   isDataLoading={isSearching}
                 />
-              </div>
-              <div className="overflow-x-auto">
-                <SpreadsheetTable
+              <SpreadsheetTable
                   tableData={tableData}
                   setTableData={setTableData}
                   {...({ serialOffset } as { serialOffset: number })}
@@ -1438,7 +1431,6 @@ export default function GeoSearchPage() {
                       : undefined
                   }
                 />
-              </div>
               {isSearching && (
                 <div className="mt-4 space-y-2" aria-label="Loading rows">
                   <Skeleton className="h-8 w-full" />

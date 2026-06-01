@@ -6,7 +6,9 @@ import {
   hasGeocodableFields,
   scheduleLocationGeoSync,
 } from "@/services/unregistered-owner-geocode";
+import { isLocationExempt } from "@/util/apiSecurity";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { resolveDefaultOwnerRowLocation } from "@/util/ownerSheetLocationFilter";
 import { NextRequest, NextResponse } from "next/server";
 
 function normalizePropertyFloorInput(raw: unknown): string {
@@ -16,8 +18,12 @@ function normalizePropertyFloorInput(raw: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
+    let token: { role?: string; allotedArea?: unknown };
     try {
-      await getDataFromToken(req);
+      token = (await getDataFromToken(req)) as {
+        role?: string;
+        allotedArea?: unknown;
+      };
     } catch (err: unknown) {
       const authErr = err as { status?: number; code?: string };
       const status = authErr?.status ?? 401;
@@ -29,17 +35,47 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    const role = token.role ?? "";
+
+    const requestedLocation = String(body.location ?? "").trim();
+    const hasExplicitLocation =
+      requestedLocation.length > 0 &&
+      requestedLocation.toLowerCase() !== "unknown";
+
+    let location = resolveDefaultOwnerRowLocation({
+      role,
+      tokenAllotedArea: token.allotedArea,
+      filterPlace: hasExplicitLocation ? [requestedLocation] : [],
+    });
+
+    // Restricted user explicitly requested a city outside their allocation:
+    // resolveDefaultOwnerRowLocation already snapped it back to an allowed city.
+    // For exempt roles, honor the explicit value as-is.
+    if (hasExplicitLocation && isLocationExempt(role)) {
+      location = requestedLocation;
+    }
+
+    if (!location) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "No allotted location on your account. Ask an admin to assign cities before adding rows.",
+        },
+        { status: 400 },
+      );
+    }
 
     const ownerFields = {
       address: body.address as string | undefined,
-      location: body.location as string | undefined,
+      location,
       area: body.area as string | undefined,
     };
 
     const data = await unregisteredOwner.create({
       name: body.name,
       phoneNumber: normalizeOwnerPhoneInput(String(body.phoneNumber ?? "")),
-      location: body.location,
+      location,
       price: body.price,
       interiorStatus: body.interiorStatus,
       propertyType: body.propertyType,

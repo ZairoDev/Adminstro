@@ -14,6 +14,15 @@ const generateCommonId = (length: number): string => {
 const VALID_ORIGINS = ["vacationsaga", "holidaysera", "housingsaga"] as const;
 type ListingOrigin = (typeof VALID_ORIGINS)[number];
 
+const APPROVAL_REQUIRED_ORIGINS = new Set<ListingOrigin>([
+  "holidaysera",
+  "housingsaga",
+]);
+
+function resolveApprovalStatus(origin: ListingOrigin): "pending" | "approved" {
+  return APPROVAL_REQUIRED_ORIGINS.has(origin) ? "pending" : "approved";
+}
+
 function normalizeOrigin(value: unknown): ListingOrigin {
   if (
     typeof value === "string" &&
@@ -247,7 +256,7 @@ export async function POST(request: Request) {
           lastUpdatedBy: [],
           lastUpdates: [],
           longTermMonths,
-          approvalStatus: "approved",
+          approvalStatus: resolveApprovalStatus(normalizedOrigin),
           isLive,
         };
 

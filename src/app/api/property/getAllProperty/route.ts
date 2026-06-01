@@ -7,6 +7,20 @@ export const dynamic = "force-dynamic";
 
 connectDb();
 
+function resolveEffectiveApprovalStatus(property: {
+  approvalStatus?: string;
+  origin?: string;
+}): string {
+  if (property.approvalStatus) {
+    return property.approvalStatus;
+  }
+  const source = (property.origin ?? "").toLowerCase();
+  if (source.includes("holidaysera") || source.includes("housingsaga")) {
+    return "pending";
+  }
+  return "approved";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = request.nextUrl;
@@ -15,11 +29,21 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "VSID";
+    const holidayseraOnly = url.searchParams.get("holidayseraOnly") === "true";
     const regex = new RegExp(searchTerm, "i");
-    let query: Record<string, any> = {};
+    let query: Record<string, unknown> = {};
 
     if (searchTerm) {
       query[searchType] = regex;
+    }
+
+    if (holidayseraOnly) {
+      const holidayseraFilter = { origin: { $regex: /holidaysera/i } };
+      if (Object.keys(query).length > 0) {
+        query = { $and: [query, holidayseraFilter] };
+      } else {
+        query = holidayseraFilter;
+      }
     }
 
     // HAdmin filter: only Short Term OR hostedFrom = "holidaysera"
@@ -87,11 +111,17 @@ export async function GET(request: NextRequest) {
     );
     const totalPages = Math.ceil(totalProperties / limit);
 
-    const normalizedProperties = allProperties.map((property: any) => {
-      const plain = typeof property.toObject === "function" ? property.toObject() : property;
+    const normalizedProperties = allProperties.map((property: { toObject?: () => Record<string, unknown> }) => {
+      const plain =
+        typeof property.toObject === "function"
+          ? property.toObject()
+          : (property as Record<string, unknown>);
       return {
         ...plain,
-        effectiveApprovalStatus: plain.approvalStatus ?? "approved",
+        effectiveApprovalStatus: resolveEffectiveApprovalStatus({
+          approvalStatus: plain.approvalStatus as string | undefined,
+          origin: plain.origin as string | undefined,
+        }),
       };
     });
 

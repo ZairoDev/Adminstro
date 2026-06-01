@@ -108,3 +108,85 @@ export function applyOwnerSheetLocationQuery(
     location: { $regex: locationRegexForCity(loc) },
   }));
 }
+
+function matchCityCase(
+  city: string,
+  targets?: { city: string }[],
+): string {
+  const match = targets?.find(
+    (t) => t.city.toLowerCase() === city.toLowerCase(),
+  );
+  return match?.city ?? city;
+}
+
+/**
+ * Fallback city for location-exempt roles (e.g. SuperAdmin) that have no
+ * allotted area configured and no active location filter.
+ */
+export const DEFAULT_OWNER_ROW_LOCATION = "Athens";
+
+/**
+ * Resolve the default city for a NEW owner-sheet row.
+ *
+ * Priority:
+ *  1. Active location filter (validated against allocations for restricted roles).
+ *  2. First allotted city.
+ *  3. For location-exempt roles only: DEFAULT_OWNER_ROW_LOCATION (Athens).
+ *  4. Otherwise "" — caller must block creation (restricted user, no allocation).
+ */
+export function resolveDefaultOwnerRowLocation(params: {
+  role?: string;
+  tokenAllotedArea: unknown;
+  filterPlace?: unknown;
+  targets?: { city: string }[];
+}): string {
+  const { role = "", targets } = params;
+  const exempt = isLocationExempt(role);
+  const allocations = parseAllotedAreaForClient(params.tokenAllotedArea);
+  const requested = extractPlaceLocations(params.filterPlace);
+
+  // 1. Active location filter wins.
+  if (requested.length > 0) {
+    const req = requested[0];
+    // Exempt roles (or users with no allocation) may use any filtered city.
+    if (exempt || allocations.length === 0) {
+      return matchCityCase(req, targets);
+    }
+    const allowed = allocations.find(
+      (a) => a.toLowerCase() === req.toLowerCase(),
+    );
+    return matchCityCase(allowed ?? allocations[0], targets);
+  }
+
+  // 2. First allotted city.
+  if (allocations.length > 0) {
+    return matchCityCase(allocations[0], targets);
+  }
+
+  // 3. Exempt roles default to Athens.
+  if (exempt) {
+    return matchCityCase(DEFAULT_OWNER_ROW_LOCATION, targets);
+  }
+
+  // 4. Restricted user with no allocation — cannot resolve a location.
+  return "";
+}
+
+/** Cities the user may pick in the location column / filter dropdown. */
+export function filterOwnerSheetTargetCities(
+  targets: { city: string }[],
+  tokenAllotedArea: unknown,
+  role: string,
+): { city: string }[] {
+  if (isLocationExempt(role)) {
+    return targets;
+  }
+  const allocations = parseAllotedAreaForClient(tokenAllotedArea);
+  if (allocations.length === 0) {
+    return [];
+  }
+  const allowed = new Set(allocations.map((a) => a.toLowerCase()));
+  return targets.filter((t) => allowed.has(t.city.toLowerCase()));
+}
+
+export const OWNER_SHEET_FILTER_STORAGE_KEY = "owner-sheet-filters-v1";

@@ -5,6 +5,10 @@ import { useEffect, useState, useRef, type ReactNode } from "react";
 import type { unregisteredOwners } from "@/util/type";
 // import type { FilteredPropertiesInterface } from "../newproperty/filteredProperties/page"
 import FilterBar, { type FiltersInterfaces } from "./FilterBar";
+import {
+  OWNER_SHEET_FILTER_STORAGE_KEY,
+  parseAllotedAreaForClient,
+} from "@/util/ownerSheetLocationFilter";
 import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
@@ -12,6 +16,43 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 const DEFAULT_LIMIT = 50;
+
+const DEFAULT_FILTERS: FiltersInterfaces = {
+  searchType: "",
+  searchValue: "",
+  propertyType: "",
+  place: [],
+  area: [],
+  zone: "",
+  metroZone: "",
+  minPrice: 0,
+  maxPrice: 0,
+  beds: 0,
+  dateRange: undefined,
+  isImportant: false,
+  isPinned: false,
+};
+
+function loadPersistedFilters(): FiltersInterfaces {
+  if (typeof window === "undefined") {
+    return DEFAULT_FILTERS;
+  }
+  try {
+    const raw = sessionStorage.getItem(OWNER_SHEET_FILTER_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILTERS;
+    const saved = JSON.parse(raw) as {
+      place?: string[];
+      area?: string[];
+    };
+    return {
+      ...DEFAULT_FILTERS,
+      place: Array.isArray(saved.place) ? saved.place : [],
+      area: Array.isArray(saved.area) ? saved.area : [],
+    };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
 
 function SheetDataPanel({
   isLoading,
@@ -63,25 +104,12 @@ const Spreadsheet = () => {
   const observerInstance = useRef<IntersectionObserver | null>(null);
   const getDataAbortRef = useRef<AbortController | null>(null);
   const token = useAuthStore((state) => state.token);
+  const setToken = useAuthStore((state) => state.setToken);
 
   const role = token?.role;
   const isSalesInternOnly = role === "sales-intern";
 
-  const [filters, setFilters] = useState<FiltersInterfaces>({
-    searchType: "",
-    searchValue: "",
-    propertyType: "",
-    place: [],
-    area: [],
-    zone: "",
-    metroZone: "",
-    minPrice: 0,
-    maxPrice: 0,
-    beds: 0,
-    dateRange: undefined,
-    isImportant:false,
-    isPinned:false
-  });
+  const [filters, setFilters] = useState<FiltersInterfaces>(loadPersistedFilters);
 
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
 
@@ -139,6 +167,41 @@ const Spreadsheet = () => {
 
   const prevFiltersRef = useRef<string>("");
   const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      OWNER_SHEET_FILTER_STORAGE_KEY,
+      JSON.stringify({
+        place: filters.place,
+        area: filters.area,
+      }),
+    );
+  }, [filters.place, filters.area]);
+
+  useEffect(() => {
+    const syncAllotedArea = async () => {
+      if (!token?.id) return;
+      try {
+        const response = await axios.post("/api/employee/getEmployeeDetails", {
+          userId: token.id,
+        });
+        const fresh = parseAllotedAreaForClient(
+          response.data?.data?.allotedArea,
+        );
+        const current = parseAllotedAreaForClient(token.allotedArea);
+        const same =
+          fresh.length === current.length &&
+          fresh.every((c, i) => c.toLowerCase() === current[i]?.toLowerCase());
+        if (!same) {
+          setToken({ ...token, allotedArea: fresh });
+        }
+      } catch {
+        // Non-blocking: keep JWT allocations if refresh fails
+      }
+    };
+    void syncAllotedArea();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token?.id]);
 
   const getCounts = async (appliedFilters: FiltersInterfaces) => {
     try {
@@ -216,7 +279,7 @@ const Spreadsheet = () => {
         className="relative flex flex-col min-h-[80vh] border rounded-lg shadow-sm bg-background"
       >
         {/* Tab Content Area */}
-        <div className="flex-1 px-2  pb-16 overflow-auto">
+        <div className="flex-1 px-2 pb-16 overflow-hidden">
           {/* Available Tab */}
           <TabsContent value="available" className="h-full">
             <FilterBar
@@ -230,6 +293,7 @@ const Spreadsheet = () => {
                 tableData={data}
                 setTableData={setData}
                 {...({ serialOffset } as any)}
+                filterPlace={filters.place}
                 onAvailabilityChange={handleAvailabilityChange}
               />
             </SheetDataPanel>
@@ -267,6 +331,7 @@ const Spreadsheet = () => {
                 tableData={data}
                 setTableData={setData}
                 {...({ serialOffset } as any)}
+                filterPlace={filters.place}
                 onAvailabilityChange={handleAvailabilityChange}
               />
             </SheetDataPanel>
@@ -306,6 +371,7 @@ const Spreadsheet = () => {
                 tableData={data}
                 setTableData={setData}
                 {...({ serialOffset } as any)}
+                filterPlace={filters.place}
                 onAvailabilityChange={handleAvailabilityChange}
               />
             </SheetDataPanel>

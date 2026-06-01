@@ -41,8 +41,11 @@ const HolidaySeraPropertyPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        const holidayseraQuery = showHolidaySeraOnly
+          ? "&holidayseraOnly=true"
+          : "";
         const response = await fetch(
-          `/api/property/getAllProperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}`
+          `/api/property/getAllProperty?page=${page}&limit=${limit}&searchTerm=${searchTerm}&searchType=${searchType}${holidayseraQuery}`
         );
         const data = await response.json();
 
@@ -59,13 +62,18 @@ const HolidaySeraPropertyPage: React.FC = () => {
         setLoading(false);
       }
     }, 500),
-    [page, searchType, limit]
+    [page, searchType, limit, showHolidaySeraOnly]
   );
 
   useEffect(() => {
     fetchProperties(searchTerm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, page]);
+  }, [searchTerm, page, showHolidaySeraOnly]);
+
+  const handleHolidaySeraOnlyChange = useCallback((value: boolean) => {
+    setShowHolidaySeraOnly(value);
+    setPage(1);
+  }, []);
 
   const getApprovalStatus = useCallback((item: PropertyItem) => {
     return item.approvalStatus ?? item.effectiveApprovalStatus ?? "approved";
@@ -76,26 +84,15 @@ const HolidaySeraPropertyPage: React.FC = () => {
     return source.includes("holidaysera") || source.includes("housingsaga");
   }, []);
 
-  const filteredProperties = useMemo(() => {
-    if (!property) return [];
-
-    if (showHolidaySeraOnly) {
-      return property.filter((prop) => {
-        const source = (prop.origin ?? "").toLowerCase().trim();
-        return source.includes("holidaysera");
-      });
-    }
-
-    return property;
-  }, [property, showHolidaySeraOnly]);
+  const displayedProperties = property ?? [];
 
   const pendingIds = useMemo(() => {
-    return filteredProperties
+    return displayedProperties
       .filter(
         (item) => requiresApproval(item) && getApprovalStatus(item) === "pending"
       )
       .map((item) => item._id);
-  }, [filteredProperties, getApprovalStatus, requiresApproval]);
+  }, [displayedProperties, getApprovalStatus, requiresApproval]);
 
   const updateLocalApprovalStatus = useCallback(
     (ids: string[]) => {
@@ -251,10 +248,10 @@ const HolidaySeraPropertyPage: React.FC = () => {
               </button>
             )}
           </div>
-          {showHolidaySeraOnly && filteredProperties && (
+          {showHolidaySeraOnly && displayedProperties.length > 0 && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
               <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                Showing {filteredProperties.length} HolidaySera {filteredProperties.length === 1 ? 'property' : 'properties'}
+                Showing HolidaySera properties only
               </span>
             </div>
           )}
@@ -289,7 +286,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
             </span>
             <ToggleButton
               value={showHolidaySeraOnly}
-              onChange={setShowHolidaySeraOnly}
+              onChange={handleHolidaySeraOnlyChange}
             />
           </div>
         </div>
@@ -303,7 +300,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
           <div className="text-center py-16">
             <p className="text-red-600 dark:text-red-400">{error}</p>
           </div>
-        ) : filteredProperties.length === 0 ? (
+        ) : displayedProperties.length === 0 ? (
           <div className="text-center py-16">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
               <Search className="w-8 h-8 text-gray-400 dark:text-gray-500" />
@@ -320,7 +317,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-10">
-              {filteredProperties?.map((prop) => {
+              {displayedProperties.map((prop) => {
                 const isExpanded = expandedCard === prop._id;
                 const price =
                   prop.rentalType === "Short Term"
@@ -454,7 +451,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {properties.length > 0 && totalPages > 1 && (
+            {displayedProperties.length > 0 && totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 pb-8">
                 {renderPaginationItems()}
               </div>

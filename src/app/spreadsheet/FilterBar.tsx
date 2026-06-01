@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import {
   Select,
@@ -28,7 +28,10 @@ import {
 } from "lucide-react";
 
 import { useAuthStore } from "@/AuthStore";
-import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
+import {
+  OWNER_SHEET_FILTER_STORAGE_KEY,
+  parseAllotedAreaForClient,
+} from "@/util/ownerSheetLocationFilter";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 
 
@@ -445,6 +448,8 @@ const FilterBar = ({
     fetchTargets();
   }, []);
 
+  const prevSelectedLocationRef = useRef<string>("");
+
   useEffect(() => {
     const target = targets.find((t) => t.city === selectedLocation);
     if (target) {
@@ -452,9 +457,19 @@ const FilterBar = ({
     } else {
       setAreas([]);
     }
-    // Avoid unnecessary state updates (prevents pagination resetting)
-    setFilters((prev) => (prev.area.length > 0 ? { ...prev, area: [] } : prev));
-  }, [selectedLocation, targets]);
+
+    const prev = prevSelectedLocationRef.current;
+    if (
+      prev &&
+      selectedLocation &&
+      prev.toLowerCase() !== selectedLocation.toLowerCase()
+    ) {
+      setFilters((prevFilters) =>
+        prevFilters.area.length > 0 ? { ...prevFilters, area: [] } : prevFilters,
+      );
+    }
+    prevSelectedLocationRef.current = selectedLocation;
+  }, [selectedLocation, targets, setFilters]);
 
   const filteredTargets = useMemo(() => {
     if (!targets || targets.length === 0) return [];
@@ -464,6 +479,8 @@ const FilterBar = ({
     return targets.filter((t) => lowerAlloc.includes(t.city.toLowerCase()));
   }, [parsedAllocations, targets]);
 
+  const prevFilterPlaceRef = useRef<string>("");
+
   useEffect(() => {
     const place =
       filters.place && filters.place.length > 0 ? filters.place[0] : "";
@@ -471,14 +488,12 @@ const FilterBar = ({
     if (!place) {
       setAreas([]);
       setSelectedLocation("");
-      if (filters.area && filters.area.length > 0) {
-        setFilters((prev) => ({ ...prev, area: [] }));
-      }
+      prevFilterPlaceRef.current = "";
       return;
     }
 
     const match = targets.find(
-      (t) => t.city.toLowerCase() === place.toLowerCase()
+      (t) => t.city.toLowerCase() === place.toLowerCase(),
     );
 
     if (match) {
@@ -489,10 +504,16 @@ const FilterBar = ({
       setSelectedLocation(place);
     }
 
-    if (filters.area && filters.area.length > 0) {
+    const prevPlace = prevFilterPlaceRef.current;
+    if (
+      prevPlace &&
+      prevPlace.toLowerCase() !== place.toLowerCase() &&
+      filters.area.length > 0
+    ) {
       setFilters((prev) => ({ ...prev, area: [] }));
     }
-  }, [filters.place, targets]);
+    prevFilterPlaceRef.current = place;
+  }, [filters.place, filters.area.length, targets, setFilters]);
 
   const getActiveFilters = () => {
   const active: Array<{ key: string; label: string; value: any }> = [];
@@ -645,6 +666,9 @@ const FilterBar = ({
   const clearAllFilters = () => {
     setLocalSearchValue("");
     setDetectionResult(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(OWNER_SHEET_FILTER_STORAGE_KEY);
+    }
     setFilters({
       searchType: "",
       searchValue: "",

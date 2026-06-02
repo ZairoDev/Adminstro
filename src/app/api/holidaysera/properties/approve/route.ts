@@ -39,11 +39,17 @@ export async function POST(req: NextRequest) {
       {
         ...filter,
         origin: { $in: [/holidaysera/i, /housingsaga/i] },
-        approvalStatus: "pending",
+        $or: [
+          { approvalStatus: "pending" },
+          { approvalStatus: { $exists: false } },
+          { approvalStatus: null },
+          { approvalStatus: "" },
+        ],
       },
       {
         $set: {
           approvalStatus: "approved",
+          isLive: true,
           approvalNote: approvalNote?.trim() ?? "",
           approvedBy: token.email ?? token.name ?? "System",
           approvedAt: new Date(),

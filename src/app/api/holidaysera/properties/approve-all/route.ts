@@ -30,7 +30,12 @@ export async function POST(req: NextRequest) {
 
     const query: Record<string, any> = {
       origin: { $in: [/holidaysera/i, /housingsaga/i] },
-      approvalStatus: "pending",
+      $or: [
+        { approvalStatus: "pending" },
+        { approvalStatus: { $exists: false } },
+        { approvalStatus: null },
+        { approvalStatus: "" },
+      ],
     };
 
     if (searchTerm) {
@@ -44,6 +49,7 @@ export async function POST(req: NextRequest) {
     const result = await Properties.updateMany(query, {
       $set: {
         approvalStatus: "approved",
+        isLive: true,
         approvalNote,
         approvedBy,
         approvedAt,

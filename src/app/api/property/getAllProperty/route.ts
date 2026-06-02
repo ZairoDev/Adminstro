@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import {
+  buildNotLiveQuery,
+  buildPropertyListQuery,
+} from "@/lib/holidaysera/property-query";
 
 export const dynamic = "force-dynamic";
 
@@ -30,21 +34,7 @@ export async function GET(request: NextRequest) {
     const searchTerm = url.searchParams.get("searchTerm") || "";
     const searchType = url.searchParams.get("searchType") || "VSID";
     const holidayseraOnly = url.searchParams.get("holidayseraOnly") === "true";
-    const regex = new RegExp(searchTerm, "i");
-    let query: Record<string, unknown> = {};
-
-    if (searchTerm) {
-      query[searchType] = regex;
-    }
-
-    if (holidayseraOnly) {
-      const holidayseraFilter = { origin: { $regex: /holidaysera/i } };
-      if (Object.keys(query).length > 0) {
-        query = { $and: [query, holidayseraFilter] };
-      } else {
-        query = holidayseraFilter;
-      }
-    }
+    let query = buildPropertyListQuery(searchTerm, searchType, holidayseraOnly);
 
     // HAdmin filter: only Short Term OR hostedFrom = "holidaysera"
     let isHAdmin = false;
@@ -93,22 +83,13 @@ export async function GET(request: NextRequest) {
       _id: 1,
     };
 
-    let allProperties;
-    if (!searchTerm && !isHAdmin) {
-      allProperties = await Properties.find({}, projection)
-        .skip(skip)
-        .limit(limit)
-        .sort({ _id: -1 });
-    } else {
-      allProperties = await Properties.find(query, projection)
-        .skip(skip)
-        .limit(limit)
-        .sort({ _id: -1 });
-    }
+    const allProperties = await Properties.find(query, projection)
+      .skip(skip)
+      .limit(limit)
+      .sort({ _id: -1 });
 
-    const totalProperties = await Properties.countDocuments(
-      !searchTerm && !isHAdmin ? {} : query
-    );
+    const totalProperties = await Properties.countDocuments(query);
+    const notLiveCount = await Properties.countDocuments(buildNotLiveQuery(query));
     const totalPages = Math.ceil(totalProperties / limit);
 
     const normalizedProperties = allProperties.map((property: { toObject?: () => Record<string, unknown> }) => {
@@ -130,6 +111,7 @@ export async function GET(request: NextRequest) {
       page,
       totalPages,
       totalProperties,
+      notLiveCount,
     });
   } catch (error: any) {
     console.error("Error in GET request:", error);

@@ -32,10 +32,12 @@ const HolidaySeraPropertyPage: React.FC = () => {
   );
   const [bulkApproving, setBulkApproving] = useState<boolean>(false);
   const [bulkMakingLive, setBulkMakingLive] = useState<boolean>(false);
+  const [notLiveCount, setNotLiveCount] = useState<number>(0);
   const limit: number = 12;
   const role = useAuthStore((state) => state.token?.role);
   const canApprove = role === "SuperAdmin" || role === "HAdmin";
-  const canChangeVisibility = role === "SuperAdmin" || role === "Advert";
+  const canChangeVisibility =
+    role === "SuperAdmin" || role === "HAdmin" || role === "Advert";
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchProperties = useCallback(
@@ -55,6 +57,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
           setProperties(data.data);
           setProperty(data.data);
           setTotalPages(data.totalPages);
+          setNotLiveCount(data.notLiveCount ?? 0);
         } else {
           throw new Error("Failed to fetch properties");
         }
@@ -96,17 +99,6 @@ const HolidaySeraPropertyPage: React.FC = () => {
       .map((item) => item._id);
   }, [displayedProperties, getApprovalStatus, requiresApproval]);
 
-  const makeLiveEligibleIds = useMemo(() => {
-    return displayedProperties
-      .filter((item) => {
-        if (!requiresApproval(item)) return false;
-        if (getApprovalStatus(item) !== "approved") return false;
-        // Treat missing isLive as false for eligibility/count.
-        return item.isLive !== true;
-      })
-      .map((item) => item._id);
-  }, [displayedProperties, getApprovalStatus, requiresApproval]);
-
   const updateLocalApprovalStatus = useCallback(
     (ids: string[]) => {
       setProperty((prev) =>
@@ -135,12 +127,16 @@ const HolidaySeraPropertyPage: React.FC = () => {
     []
   );
 
-  const updateLocalLiveStatus = useCallback((ids: string[]) => {
+  const updateLocalLiveStatus = useCallback(() => {
     setProperty((prev) =>
-      prev?.map((item) => (ids.includes(item._id) ? { ...item, isLive: true } : item))
+      prev?.map((item) =>
+        item.isLive !== true ? { ...item, isLive: true } : item
+      )
     );
     setProperties((prev) =>
-      prev.map((item) => (ids.includes(item._id) ? { ...item, isLive: true } : item))
+      prev.map((item) =>
+        item.isLive !== true ? { ...item, isLive: true } : item
+      )
     );
   }, []);
 
@@ -197,10 +193,10 @@ const HolidaySeraPropertyPage: React.FC = () => {
   }, [pendingIds, property, searchTerm, searchType, updateLocalApprovalStatus]);
 
   const makeLiveAllEligible = useCallback(async () => {
-    if (makeLiveEligibleIds.length === 0) return;
+    if (notLiveCount === 0) return;
     const rollback = property?.map((item) => ({ ...item })) ?? [];
     setBulkMakingLive(true);
-    updateLocalLiveStatus(makeLiveEligibleIds);
+    updateLocalLiveStatus();
     try {
       const response = await fetch("/api/holidaysera/properties/make-live-all", {
         method: "POST",
@@ -215,9 +211,9 @@ const HolidaySeraPropertyPage: React.FC = () => {
       if (!response.ok) {
         throw new Error(data?.message || "Failed to make properties live");
       }
-      toast.success(
-        `Made live ${data.modifiedCount ?? makeLiveEligibleIds.length} properties`
-      );
+      const modifiedCount = data.modifiedCount ?? 0;
+      toast.success(`Made live ${modifiedCount} properties`);
+      fetchProperties(searchTerm);
     } catch (error: any) {
       setProperty(rollback);
       setProperties(rollback);
@@ -226,12 +222,13 @@ const HolidaySeraPropertyPage: React.FC = () => {
       setBulkMakingLive(false);
     }
   }, [
-    makeLiveEligibleIds,
+    notLiveCount,
     property,
     searchTerm,
     searchType,
     showHolidaySeraOnly,
     updateLocalLiveStatus,
+    fetchProperties,
   ]);
 
   const renderPaginationItems = () => {
@@ -301,11 +298,11 @@ const HolidaySeraPropertyPage: React.FC = () => {
               {canChangeVisibility && (
                 <button
                   onClick={makeLiveAllEligible}
-                  disabled={bulkMakingLive || makeLiveEligibleIds.length === 0}
+                  disabled={bulkMakingLive || notLiveCount === 0}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {bulkMakingLive && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Make Live All ({makeLiveEligibleIds.length})
+                  Make Live All ({notLiveCount})
                 </button>
               )}
               {canApprove && (

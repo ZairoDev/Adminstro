@@ -110,6 +110,7 @@
     "next": "14.2.7",
     "next-themes": "^0.3.0",
     "next-view-transitions": "^0.3.2",
+    "ffmpeg-static": "^5.2.0",
     "ngrok": "^5.0.0-beta.2",
     "node-cron": "^4.2.1",
     "node-fetch": "^2.7.0",

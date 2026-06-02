@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
         ? { $in: [/holidaysera/i] }
         : { $in: [/holidaysera/i, /housingsaga/i] },
       approvalStatus: "approved",
-      isLive: false,
+      $or: [
+        { isLive: false },
+        { isLive: { $exists: false } },
+        { isLive: null },
+      ],
     };
 
     if (searchTerm) {

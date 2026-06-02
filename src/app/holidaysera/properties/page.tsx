@@ -86,7 +86,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
     return source.includes("holidaysera") || source.includes("housingsaga");
   }, []);
 
-  const displayedProperties = property ?? [];
+  const displayedProperties = useMemo(() => property ?? [], [property]);
 
   const pendingIds = useMemo(() => {
     return displayedProperties
@@ -101,7 +101,8 @@ const HolidaySeraPropertyPage: React.FC = () => {
       .filter((item) => {
         if (!requiresApproval(item)) return false;
         if (getApprovalStatus(item) !== "approved") return false;
-        return item.isLive === false;
+        // Treat missing isLive as false for eligibility/count.
+        return item.isLive !== true;
       })
       .map((item) => item._id);
   }, [displayedProperties, getApprovalStatus, requiresApproval]);

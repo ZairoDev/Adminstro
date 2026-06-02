@@ -13,6 +13,11 @@ import { resolveLocationFromLeadPhone } from "@/lib/whatsapp/locationAccess";
 import { isLocationAllowedForPhone } from "@/lib/whatsapp/phoneAreaConfigService";
 import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 import crypto from "crypto";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
+import { spawn } from "child_process";
+import ffmpegPath from "ffmpeg-static";
 import {
   shouldEmitSdpAnswerAndMark,
   updateCallFromMetaStatus,
@@ -245,10 +250,59 @@ async function getMediaPermanentUrl(
       return null;
     }
 
-    const mediaBuffer = await mediaResponse.arrayBuffer();
+    let mediaBuffer = await mediaResponse.arrayBuffer();
 
     // Step 4: Upload to Bunny CDN
-    const ext = mimeType.split("/")[1] || "bin";
+    let finalMimeType = mimeType || "application/octet-stream";
+
+    // iOS can't reliably play WhatsApp voice notes (audio/ogg; codecs=opus).
+    // Transcode ogg/opus → m4a (aac) so mobile clients can play incoming voice notes.
+    const isOggOpus =
+      finalMimeType.includes("audio/ogg") ||
+      finalMimeType.includes("audio/opus") ||
+      finalMimeType.includes("ogg");
+
+    if (isOggOpus && ffmpegPath) {
+      try {
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "wa-audio-"));
+        const inPath = path.join(tmpDir, `${mediaId}.ogg`);
+        const outPath = path.join(tmpDir, `${mediaId}.m4a`);
+        await fs.writeFile(inPath, Buffer.from(mediaBuffer));
+
+        await new Promise<void>((resolve, reject) => {
+          const args = [
+            "-y",
+            "-i",
+            inPath,
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-movflags",
+            "+faststart",
+            outPath,
+          ];
+          const p = spawn(ffmpegPath as string, args);
+          let err = "";
+          p.stderr.on("data", (d) => (err += String(d)));
+          p.on("error", reject);
+          p.on("close", (code) => {
+            if (code === 0) return resolve();
+            reject(new Error(`ffmpeg failed (${code}): ${err.slice(0, 400)}`));
+          });
+        });
+
+        const outBuf = await fs.readFile(outPath);
+        mediaBuffer = outBuf.buffer.slice(outBuf.byteOffset, outBuf.byteOffset + outBuf.byteLength);
+        finalMimeType = "audio/mp4";
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      } catch (e) {
+        console.error("Audio transcode failed; falling back to original:", e);
+      }
+    }
+
+    const ext =
+      finalMimeType.startsWith("audio/") ? "m4a" : (finalMimeType.split("/")[1] || "bin");
     const filename = `whatsapp/${Date.now()}-${mediaId}.${ext}`;
 
     const uploadResponse = await fetch(
@@ -257,7 +311,7 @@ async function getMediaPermanentUrl(
         method: "PUT",
         headers: {
           AccessKey: accessKey,
-          "Content-Type": mimeType || "application/octet-stream",
+          "Content-Type": finalMimeType || "application/octet-stream",
         },
         body: mediaBuffer,
       }
@@ -274,7 +328,7 @@ async function getMediaPermanentUrl(
 
     return {
       url: permanentUrl,
-      mimeType,
+      mimeType: finalMimeType,
     };
   } catch (error) {
     console.error("Error in getMediaPermanentUrl:", error);

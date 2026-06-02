@@ -225,12 +225,17 @@ export async function POST(req: NextRequest) {
     const formattedPhone = to.replace(/[\s\-\+]/g, "");
 
     // Build media payload
-    const mediaPayload: MediaPayload = {};
+    const mediaPayload: MediaPayload & { voice?: boolean } = {};
     
     if (mediaId) {
       mediaPayload.id = mediaId;
     } else {
       mediaPayload.link = mediaUrl;
+    }
+
+    // Make WhatsApp render audio as a voice note (not an audio file)
+    if (mediaType === "audio") {
+      (mediaPayload as any).voice = true;
     }
 
     if (caption && (mediaType === "image" || mediaType === "video" || mediaType === "document")) {

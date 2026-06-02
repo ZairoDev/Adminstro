@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     const result = await Properties.updateMany(query, {
       $set: {
         approvalStatus: "approved",
+        isLive: true,
         approvalNote,
         approvedBy,
         approvedAt,

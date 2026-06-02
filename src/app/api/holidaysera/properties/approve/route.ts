@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       {
         $set: {
           approvalStatus: "approved",
+          isLive: true,
           approvalNote: approvalNote?.trim() ?? "",
           approvedBy: token.email ?? token.name ?? "System",
           approvedAt: new Date(),

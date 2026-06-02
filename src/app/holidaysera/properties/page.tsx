@@ -31,9 +31,11 @@ const HolidaySeraPropertyPage: React.FC = () => {
     null
   );
   const [bulkApproving, setBulkApproving] = useState<boolean>(false);
+  const [bulkMakingLive, setBulkMakingLive] = useState<boolean>(false);
   const limit: number = 12;
   const role = useAuthStore((state) => state.token?.role);
   const canApprove = role === "SuperAdmin" || role === "HAdmin";
+  const canChangeVisibility = role === "SuperAdmin" || role === "Advert";
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchProperties = useCallback(
@@ -94,6 +96,16 @@ const HolidaySeraPropertyPage: React.FC = () => {
       .map((item) => item._id);
   }, [displayedProperties, getApprovalStatus, requiresApproval]);
 
+  const makeLiveEligibleIds = useMemo(() => {
+    return displayedProperties
+      .filter((item) => {
+        if (!requiresApproval(item)) return false;
+        if (getApprovalStatus(item) !== "approved") return false;
+        return item.isLive === false;
+      })
+      .map((item) => item._id);
+  }, [displayedProperties, getApprovalStatus, requiresApproval]);
+
   const updateLocalApprovalStatus = useCallback(
     (ids: string[]) => {
       setProperty((prev) =>
@@ -121,6 +133,15 @@ const HolidaySeraPropertyPage: React.FC = () => {
     },
     []
   );
+
+  const updateLocalLiveStatus = useCallback((ids: string[]) => {
+    setProperty((prev) =>
+      prev?.map((item) => (ids.includes(item._id) ? { ...item, isLive: true } : item))
+    );
+    setProperties((prev) =>
+      prev.map((item) => (ids.includes(item._id) ? { ...item, isLive: true } : item))
+    );
+  }, []);
 
   const approveSingle = useCallback(
     async (propertyId: string, commonId?: string) => {
@@ -173,6 +194,44 @@ const HolidaySeraPropertyPage: React.FC = () => {
       setBulkApproving(false);
     }
   }, [pendingIds, property, searchTerm, searchType, updateLocalApprovalStatus]);
+
+  const makeLiveAllEligible = useCallback(async () => {
+    if (makeLiveEligibleIds.length === 0) return;
+    const rollback = property?.map((item) => ({ ...item })) ?? [];
+    setBulkMakingLive(true);
+    updateLocalLiveStatus(makeLiveEligibleIds);
+    try {
+      const response = await fetch("/api/holidaysera/properties/make-live-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          searchTerm,
+          searchType,
+          holidayseraOnly: showHolidaySeraOnly,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to make properties live");
+      }
+      toast.success(
+        `Made live ${data.modifiedCount ?? makeLiveEligibleIds.length} properties`
+      );
+    } catch (error: any) {
+      setProperty(rollback);
+      setProperties(rollback);
+      toast.error(error.message || "Make live failed");
+    } finally {
+      setBulkMakingLive(false);
+    }
+  }, [
+    makeLiveEligibleIds,
+    property,
+    searchTerm,
+    searchType,
+    showHolidaySeraOnly,
+    updateLocalLiveStatus,
+  ]);
 
   const renderPaginationItems = () => {
     const items = [];
@@ -237,16 +296,28 @@ const HolidaySeraPropertyPage: React.FC = () => {
                 Browse and manage HolidaySera property listings
               </p>
             </div>
-            {canApprove && (
-              <button
-                onClick={approveAllPending}
-                disabled={bulkApproving || pendingIds.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {bulkApproving && <Loader2 className="h-4 w-4 animate-spin" />}
-                Approve All Pending ({pendingIds.length})
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {canChangeVisibility && (
+                <button
+                  onClick={makeLiveAllEligible}
+                  disabled={bulkMakingLive || makeLiveEligibleIds.length === 0}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {bulkMakingLive && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Make Live All ({makeLiveEligibleIds.length})
+                </button>
+              )}
+              {canApprove && (
+                <button
+                  onClick={approveAllPending}
+                  disabled={bulkApproving || pendingIds.length === 0}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {bulkApproving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Approve All Pending ({pendingIds.length})
+                </button>
+              )}
+            </div>
           </div>
           {showHolidaySeraOnly && displayedProperties.length > 0 && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">

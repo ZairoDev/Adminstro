@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { debounce } from "lodash";
 import CustomTooltip from "@/components/CustomToolTip";
@@ -38,6 +38,7 @@ import type { unregisteredOwners } from "@/util/type";
 import { AreaSelect } from "@/components/leadTableSearch/page";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirm } from "@/hooks/use-confirm";
 import { FaWhatsapp } from "react-icons/fa6";
 import { UploadCell } from "./components/cells/UploadCell";
 import { DownloadCell } from "./components/cells/DownloadCell";
@@ -50,6 +51,8 @@ import { buildOwnerSheetWhatsAppUrl } from "./utils/ownerWhatsAppLink";
 import {
   filterOwnerSheetTargetCities,
   parseAllotedAreaForClient,
+  findOwnerSheetTargetByCity,
+  normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
 } from "@/util/ownerSheetLocationFilter";
 import { Switch } from "@/components/ui/switch";
@@ -402,6 +405,12 @@ useEffect(() => {
   } | null>(null);
 
   const { toast } = useToast();
+
+  const [DeleteRowDialog, confirmDeleteRow] = useConfirm(
+    "Delete owner row",
+    "This will permanently remove this owner from the sheet. This action cannot be undone.",
+    "destructive",
+  );
 
   const token = useAuthStore((state: any) => state.token);
 
@@ -779,7 +788,11 @@ useEffect(() => {
     unavailableUntilPayload?: string | null
   ) => {
     const valueToSave =
-      key === "phoneNumber" ? normalizeOwnerPhoneInput(newValue) : newValue;
+      key === "phoneNumber"
+        ? normalizeOwnerPhoneInput(newValue)
+        : key === "location"
+          ? normalizeOwnerSheetCityName(newValue, targets)
+          : newValue;
 
     const prev = tableData;
     const updatedData = tableData.map((item) =>
@@ -874,28 +887,53 @@ useEffect(() => {
     "referenceLink", "link", "VSID", "address", "geoAddressVerified", "propertyFloor",
   ];
 
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      // Delete row with Ctrl+Delete
-      if (e.ctrlKey && e.key === "Delete" && selectedRow) {
-        setTableData((prev) => prev.filter((row) => row._id !== selectedRow));
-        setSelectedRow(null);
+  const performDeleteRow = useCallback(
+    async (rowId: string) => {
+      const snapshot = tableData;
 
+      setTableData((prev) => prev.filter((row) => row._id !== rowId));
+      setSelectedRow((prev) => (prev === rowId ? null : prev));
+      setSelectedCell((prev) => (prev?.rowId === rowId ? null : prev));
+
+      try {
         const res = await axios.delete(
-          `/api/unregisteredOwners/updateData/${selectedRow}`
+          `/api/unregisteredOwners/updateData/${rowId}`,
         );
         if (res.status === 200) {
           toast({
-            title: "Response status updated",
-            description: "Owner Deleted successfully.",
+            title: "Owner deleted",
+            description: "Owner removed from the sheet successfully.",
             variant: "default",
           });
         } else {
-          toast({
-            title: "Error deleting Owner",
-            variant: "destructive",
-          });
+          throw new Error("Delete failed");
         }
+      } catch {
+        setTableData(snapshot);
+        toast({
+          title: "Error deleting owner",
+          variant: "destructive",
+        });
+      }
+    },
+    [tableData, toast, setTableData],
+  );
+
+  const requestDeleteRow = useCallback(
+    async (rowId: string) => {
+      const ok = await confirmDeleteRow();
+      if (!ok) return;
+      await performDeleteRow(rowId);
+    },
+    [confirmDeleteRow, performDeleteRow],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Delete row with Ctrl+Delete (confirmation required)
+      if (e.ctrlKey && e.key === "Delete" && selectedRow) {
+        e.preventDefault();
+        await requestDeleteRow(selectedRow);
         return;
       }
 
@@ -980,7 +1018,7 @@ useEffect(() => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedRow, selectedCell, tableData, sortedData]);
+  }, [selectedRow, selectedCell, tableData, sortedData, requestDeleteRow]);
 
  useEffect(() => {
   if (selectedCell) {
@@ -1086,6 +1124,7 @@ useEffect(() => {
 
   return (
     <div className="space-y-4">
+      <DeleteRowDialog />
       <Dialog
         open={availabilityDialogOpen}
         onOpenChange={(open) => {
@@ -1454,8 +1493,8 @@ useEffect(() => {
                     <AreaSelect
                       maxWidth="100px"
                       data={(
-                        targets.find((t) => t.city === item.location)?.areas ||
-                        []
+                        findOwnerSheetTargetByCity(targets, item.location)
+                          ?.areas || []
                       )
                         .map((a) => ({
                           label: a.name,

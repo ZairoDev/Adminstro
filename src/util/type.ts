@@ -492,6 +492,8 @@ export interface IQuery {
   idName?: string;
   reason?: string;
   profilePicture?: string; // Client profile picture URL (e.g. from Bunny CDN)
+  /** Numbered document URLs from Bunny CDN: { "1": "...", "2": "..." } */
+  leadDocuments?: Record<string, string>;
 }
 
 export interface VisitInterface {

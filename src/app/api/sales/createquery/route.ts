@@ -14,6 +14,7 @@ import {
 } from "@/lib/whatsapp/config";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { sanitizeLeadDocumentsForSave } from "@/util/leadDocuments";
 
 connectDb();
 
@@ -217,6 +218,7 @@ export async function POST(req: NextRequest) {
       idName,
       leadQualityByCreator,
       profilePicture,
+      leadDocuments,
     } = await req.json();
 
     // ✅ Check for duplicates (within same area, less than 30 days old)
@@ -262,6 +264,7 @@ export async function POST(req: NextRequest) {
       leadQualityByCreator,
       idName,
       profilePicture: profilePicture || "",
+      leadDocuments: sanitizeLeadDocumentsForSave(leadDocuments),
       createdBy: token.email,
       leadStatus: "fresh",
     });

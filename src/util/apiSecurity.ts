@@ -18,7 +18,8 @@ export const LOCATION_EXEMPT_ROLES = [
  * Check if a role is exempt from location filtering
  */
 export function isLocationExempt(role: string): boolean {
-  return LOCATION_EXEMPT_ROLES.includes(role as any);
+  const normalized = (role || "").trim();
+  return LOCATION_EXEMPT_ROLES.includes(normalized as (typeof LOCATION_EXEMPT_ROLES)[number]);
 }
 
 /**

@@ -14,6 +14,7 @@ import { DownloadCell } from "../cells/DownloadCell";
 import type { unregisteredOwners } from "@/util/type";
 import { columnWidths } from "@/app/spreadsheet/utils/columnWidths";
 import { buildOwnerSheetWhatsAppUrl } from "@/app/spreadsheet/utils/ownerWhatsAppLink";
+import { findOwnerSheetTargetByCity } from "@/util/ownerSheetLocationFilter";
 import { apartmentTypes, interiorStatus, availabilityStatus, propertyTypeColors } from "@/app/spreadsheet/constants/apartmentTypes";
 
 interface TargetType {
@@ -350,7 +351,7 @@ export function SpreadsheetRow({
       >
         <AreaSelect
           maxWidth="100px"
-          data={(targets.find((t) => t.city === item.location)?.areas || [])
+          data={(findOwnerSheetTargetByCity(targets, item.location)?.areas || [])
             .map((a) => ({ label: a.name, value: a.name }))
             .sort((a, b) => a.label.localeCompare(b.label))}
           value={item.area || ""}

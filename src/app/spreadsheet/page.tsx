@@ -106,12 +106,18 @@ const Spreadsheet = () => {
   const token = useAuthStore((state) => state.token);
   const setToken = useAuthStore((state) => state.setToken);
 
-  const role = token?.role;
-  const isSalesInternOnly = role === "sales-intern";
-
-  const [filters, setFilters] = useState<FiltersInterfaces>(loadPersistedFilters);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [filters, setFilters] = useState<FiltersInterfaces>(DEFAULT_FILTERS);
 
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
+
+  const role = hasMounted ? token?.role : undefined;
+  const isSalesInternOnly = role === "sales-intern";
+
+  useEffect(() => {
+    setFilters(loadPersistedFilters());
+    setHasMounted(true);
+  }, []);
 
   const getData = async (
     tab: string,
@@ -217,6 +223,7 @@ const Spreadsheet = () => {
   };
 
   useEffect(() => {
+    if (!hasMounted) return;
     const filtersKey = JSON.stringify({ selectedTab, limit, filters });
     if (prevFiltersRef.current === filtersKey && isMountedRef.current) return;
     prevFiltersRef.current = filtersKey;
@@ -226,16 +233,13 @@ const Spreadsheet = () => {
     getCounts(filters);
   // getData/getCounts are defined in-component and intentionally not memoized.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTab, limit, filters]);
+  }, [hasMounted, selectedTab, limit, filters]);
 
   useEffect(() => {
-    // When user navigates pages (including back to page 1),
-    // always fetch that page. Previously we skipped page 1,
-    // which caused page 2 data to remain visible on page 1.
-    if (!isMountedRef.current) return;
+    if (!hasMounted || !isMountedRef.current) return;
     getData(selectedTab, page, filters, limit);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, selectedTab, filters, limit]);
+  }, [hasMounted, page, selectedTab, filters, limit]);
 
   const serialOffset = (page - 1) * limit;
 
@@ -269,6 +273,15 @@ const Spreadsheet = () => {
   )}
 </div>
 
+      {!hasMounted ? (
+        <div
+          className="relative flex min-h-[80vh] items-center justify-center rounded-lg border bg-background"
+          aria-busy="true"
+          aria-label="Loading owner sheet"
+        >
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      ) : (
       <Tabs
         value={selectedTab}
         onValueChange={(val) => {
@@ -459,6 +472,7 @@ const Spreadsheet = () => {
           </div>
         </div>
       </Tabs>
+      )}
     </div>
   );
 };

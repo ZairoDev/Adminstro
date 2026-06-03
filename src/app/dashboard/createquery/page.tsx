@@ -71,6 +71,8 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 import { useSocket } from "@/hooks/useSocket";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { LeadDocumentsUpload } from "@/components/leads/LeadDocumentsUpload";
+import { canViewLeadDocuments } from "@/util/leadDocuments";
 
 interface ApiResponse {
   data: IQuery[];
@@ -98,6 +100,7 @@ interface AreaType {
 const SalesDashboard = () => {
   const { toast } = useToast();
   const { token } = useAuthStore();
+  const canManageLeadDocuments = canViewLeadDocuments(token?.role);
 
   const [queries, setQueries] = useState<IQuery[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -135,6 +138,10 @@ const SalesDashboard = () => {
 
   const { uploadFiles } = useBunnyUpload();
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const [leadDocuments, setLeadDocuments] = useState<Record<string, string>>(
+    {}
+  );
+  const [documentsUploading, setDocumentsUploading] = useState(false);
 
   const [formData, setFormData] = useState<IQuery>({
     startDate: "",
@@ -281,6 +288,8 @@ const SalesDashboard = () => {
     setNumberStatus("");
     setSelectedLocation("");
     setNormalInput(false);
+    setLeadDocuments({});
+    setDocumentsUploading(false);
   };
 
   const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,6 +373,7 @@ const SalesDashboard = () => {
       const formDataToSubmit = {
         ...formData,
         phoneNo: phone.replace(/\D/g, ""),
+        leadDocuments,
       };
 
       setSubmitQuery(true);
@@ -656,37 +666,59 @@ const SalesDashboard = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Client photo - top center */}
-              <div className="flex flex-col items-center justify-center py-4 px-6 border-b bg-muted/30 shrink-0">
-                <Label className="text-xs font-medium text-muted-foreground mb-2">
-                  Client Photo (Optional)
-                </Label>
-                <div
-                  className="relative w-24 h-24 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all bg-background overflow-hidden"
-                  onClick={() => profilePictureInputRef.current?.click()}
-                >
-                  {formData.profilePicture ? (
-                    <img
-                      src={formData.profilePicture}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Plus className="h-10 w-10 text-muted-foreground" />
-                  )}
-                </div>
-                <Input
-                  type="file"
-                  ref={profilePictureInputRef}
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleProfilePictureChange}
-                />
-              </div>
-
               <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 <div className="px-6 py-4 pb-6">
                   <div className="space-y-6 pr-2">
+                    {/* Attachments: photo + docs in one compact row */}
+                    <div className="space-y-2 pb-4 border-b">
+                      <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">
+                        Attachments
+                        <span className="ml-1.5 font-normal normal-case text-muted-foreground">
+                          optional
+                        </span>
+                      </h3>
+                      <div className="flex gap-4 items-start">
+                        <div className="shrink-0">
+                          <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                            Photo
+                          </p>
+                          <button
+                            type="button"
+                            className="relative h-14 w-14 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center overflow-hidden bg-background hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                            onClick={() =>
+                              profilePictureInputRef.current?.click()
+                            }
+                            aria-label="Upload client photo"
+                          >
+                            {formData.profilePicture ? (
+                              <img
+                                src={formData.profilePicture}
+                                alt="Client"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Plus className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </button>
+                          <Input
+                            type="file"
+                            ref={profilePictureInputRef}
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={handleProfilePictureChange}
+                          />
+                        </div>
+                        {canManageLeadDocuments && (
+                          <LeadDocumentsUpload
+                            value={leadDocuments}
+                            onChange={setLeadDocuments}
+                            onUploadingChange={setDocumentsUploading}
+                            disabled={submitQuery}
+                          />
+                        )}
+                      </div>
+                    </div>
+
                     {/* Section 1: Personal Details */}
                     <div className="space-y-4">
                       <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide border-b pb-2.5">
@@ -1217,10 +1249,14 @@ const SalesDashboard = () => {
                 <DialogFooter>
                   <Button
                     className="w-full sm:w-auto"
-                    disabled={submitQuery}
+                    disabled={submitQuery || documentsUploading}
                     onClick={handleSubmit}
                   >
-                    {submitQuery ? "Submitting..." : "Submit Lead"}
+                    {documentsUploading
+                      ? "Uploading documents..."
+                      : submitQuery
+                        ? "Submitting..."
+                        : "Submit Lead"}
                   </Button>
                 </DialogFooter>
               </div>

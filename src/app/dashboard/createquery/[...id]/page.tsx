@@ -36,6 +36,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import { metroLines } from "@/app/dashboard/target/components/editArea";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
+import { LeadDocumentsViewer } from "@/components/leads/LeadDocumentsViewer";
+import {
+  canViewLeadDocuments,
+  normalizeLeadDocuments,
+} from "@/util/leadDocuments";
 
 interface PageProps {
   params: {
@@ -57,6 +62,7 @@ interface PropertyBooster {
 const QueryDetails = ({ params }: PageProps) => {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { token } = useAuthStore();
+  const showLeadDocuments = canViewLeadDocuments(token?.role);
   const { emitDispositionChange } = useLeadSocketEmit();
 
   const [apiData, setApiData] = useState<IQuery>();
@@ -757,6 +763,11 @@ setBooster(res.data);
                   </div>
                 )}
               </div>
+              {showLeadDocuments && (
+                <LeadDocumentsViewer
+                  documents={normalizeLeadDocuments(apiData?.leadDocuments)}
+                />
+              )}
               {(token?.email === "vikas@vacationsaga.com" ||
                 token?.role === "SuperAdmin") && (
                   <p className=" text-gray-500">Created By: {createdByEmail}</p>

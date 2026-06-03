@@ -30,6 +30,8 @@ import {
 import { useAuthStore } from "@/AuthStore";
 import {
   OWNER_SHEET_FILTER_STORAGE_KEY,
+  filterOwnerSheetTargetCities,
+  hasFullOwnerSheetLocationAccess,
   parseAllotedAreaForClient,
 } from "@/util/ownerSheetLocationFilter";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
@@ -307,7 +309,9 @@ const FilterBar = ({
   const [isSearching, setIsSearching] = useState(false);
 
   const token = useAuthStore((state) => state.token);
+  const role = token?.role ?? "";
   const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
+  const hasFullLocationAccess = hasFullOwnerSheetLocationAccess(role);
 
   // Handle search with Enter key or button click
   const handleSearch = useCallback(async () => {
@@ -471,13 +475,10 @@ const FilterBar = ({
     prevSelectedLocationRef.current = selectedLocation;
   }, [selectedLocation, targets, setFilters]);
 
-  const filteredTargets = useMemo(() => {
-    if (!targets || targets.length === 0) return [];
-    if (!parsedAllocations || parsedAllocations.length === 0) return targets;
-
-    const lowerAlloc = parsedAllocations.map((a: string) => a.toLowerCase());
-    return targets.filter((t) => lowerAlloc.includes(t.city.toLowerCase()));
-  }, [parsedAllocations, targets]);
+  const filteredTargets = useMemo(
+    () => filterOwnerSheetTargetCities(targets, token?.allotedArea, role),
+    [targets, token?.allotedArea, role],
+  );
 
   const prevFilterPlaceRef = useRef<string>("");
 
@@ -822,26 +823,19 @@ const FilterBar = ({
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>
-                  {parsedAllocations.length === 0
-                    ? "Locations"
-                    : "Allotted Locations"}
+                  {hasFullLocationAccess ? "Locations" : "Allotted Locations"}
                 </SelectLabel>
 
                 <SelectItem value="all">All</SelectItem>
 
                 {filteredTargets.map((loc) => (
-                  <SelectItem key={loc.city} value={loc.city}>
+                  <SelectItem
+                    key={loc._id ?? loc.city}
+                    value={loc.city}
+                  >
                     {loc.city}
                   </SelectItem>
                 ))}
-
-                {filteredTargets.length === 0 &&
-                  parsedAllocations.length > 0 &&
-                  parsedAllocations.map((city: string) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
               </SelectGroup>
             </SelectContent>
           </Select>

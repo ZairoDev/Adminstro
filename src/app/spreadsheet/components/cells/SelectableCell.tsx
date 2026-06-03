@@ -1,10 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Option = { label: string; value: string } | string
+
+function resolveOptionValue(val: string, data: Option[]): string {
+  if (!val) return val
+  const lower = val.toLowerCase()
+  for (const item of data) {
+    if (typeof item === "string") {
+      if (item.toLowerCase() === lower) return item
+    } else if (item.value.toLowerCase() === lower) {
+      return item.value
+    }
+  }
+  return val
+}
 
 export function SelectableCell({
   data,
@@ -17,13 +30,25 @@ export function SelectableCell({
   save: (val: string) => void
   maxWidth?: string
 }) {
+  const canonicalValue = useMemo(
+    () => resolveOptionValue(value, data),
+    [value, data],
+  )
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
+  const [draft, setDraft] = useState(canonicalValue)
 
-  // Normalize: get label for display
+  useEffect(() => {
+    setDraft(resolveOptionValue(value, data))
+  }, [value, data])
+
   const getLabel = (val: string) => {
-    const found = data.find((item) => (typeof item === "string" ? item === val : item.value === val))
-    if (!found) return val
+    const resolved = resolveOptionValue(val, data)
+    const found = data.find((item) =>
+      typeof item === "string"
+        ? item.toLowerCase() === resolved.toLowerCase()
+        : item.value.toLowerCase() === resolved.toLowerCase(),
+    )
+    if (!found) return resolved
     return typeof found === "string" ? found : found.label
   }
 
@@ -38,7 +63,8 @@ export function SelectableCell({
     >
       {editing ? (
         <Select
-          defaultValue={draft}
+          key={`${canonicalValue}-edit`}
+          defaultValue={canonicalValue || undefined}
           onValueChange={(val) => {
             setDraft(val)
             save(val)
@@ -68,15 +94,15 @@ export function SelectableCell({
             <TooltipTrigger asChild>
               <span
                 className={`text-md border truncate rounded-md w-full  p-1 block ${
-                  value ? "text-foreground" : "text-muted-foreground italic"
+                  canonicalValue ? "text-foreground" : "text-muted-foreground italic"
                 }`}
               >
-                {value ? getLabel(value) : "Click"}
+                {canonicalValue ? getLabel(canonicalValue) : "Click"}
               </span>
             </TooltipTrigger>
-            {value && (
+            {canonicalValue && (
               <TooltipContent>
-                <p className="whitespace-pre-wrap">{value}</p>
+                <p className="whitespace-pre-wrap">{getLabel(canonicalValue)}</p>
               </TooltipContent>
             )}
           </Tooltip>

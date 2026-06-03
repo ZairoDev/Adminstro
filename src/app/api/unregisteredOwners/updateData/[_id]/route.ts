@@ -4,6 +4,7 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { Properties } from "@/models/property";
 import { scheduleLocationGeoSync } from "@/services/unregistered-owner-geocode";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { normalizeOwnerSheetCityName } from "@/util/ownerSheetLocationFilter";
 import { NextRequest, NextResponse } from "next/server";
 
 const GEO_TRIGGER_FIELDS = new Set(["address", "location", "area"]);
@@ -48,6 +49,8 @@ export async function PUT(
       data.propertyFloor = isValidOwnerPropertyFloor(s)
         ? s
         : (data.propertyFloor ?? "");
+    } else if (field === "location") {
+      data.location = normalizeOwnerSheetCityName(String(value ?? ""));
     } else {
       (data as Record<string, unknown>)[field] = value;
     }

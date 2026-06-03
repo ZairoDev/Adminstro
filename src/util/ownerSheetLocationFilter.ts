@@ -1,5 +1,11 @@
-import { isLocationExempt } from "@/util/apiSecurity";
+import { isAdminRole, isLocationExempt } from "@/util/apiSecurity";
 import { normalizeAllotedArea } from "@/util/location";
+
+/** SuperAdmin, Admin, Developer, Advert, LeadGen*, etc. — all cities in filter + data */
+export function hasFullOwnerSheetLocationAccess(role: string): boolean {
+  const normalized = (role || "").trim();
+  return isLocationExempt(normalized) || isAdminRole(normalized);
+}
 
 function splitAllotedAreaRaw(raw: unknown): string[] {
   if (raw == null) return [];
@@ -75,11 +81,11 @@ export function resolveOwnerSheetLocations(params: {
   const dropBlocked = (locs: string[]) =>
     locs.filter((loc) => !ownerBlocked.has(loc.trim().toLowerCase()));
 
-  if (isLocationExempt(role)) {
+  if (hasFullOwnerSheetLocationAccess(role)) {
     if (requested.length === 0) {
       return { locations: [], denyAll: false };
     }
-    return { locations: dropBlocked(requested), denyAll: false };
+    return { locations: requested, denyAll: false };
   }
 
   if (userAreas.length === 0) {
@@ -109,14 +115,41 @@ export function applyOwnerSheetLocationQuery(
   }));
 }
 
+/** First letter uppercase, rest lowercase (e.g. athens → Athens). */
+export function titleCaseOwnerSheetCity(city: string): string {
+  const trimmed = (city || "").trim();
+  if (!trimmed) return "";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 function matchCityCase(
   city: string,
   targets?: { city: string }[],
 ): string {
+  const trimmed = (city || "").trim();
+  if (!trimmed) return "";
   const match = targets?.find(
-    (t) => t.city.toLowerCase() === city.toLowerCase(),
+    (t) => t.city.toLowerCase() === trimmed.toLowerCase(),
   );
-  return match?.city ?? city;
+  if (match) return match.city;
+  return titleCaseOwnerSheetCity(trimmed);
+}
+
+/** Canonical city for DB + UI: target casing if known, else title case. */
+export function normalizeOwnerSheetCityName(
+  city: string,
+  targets?: { city: string }[],
+): string {
+  return matchCityCase(city, targets);
+}
+
+export function findOwnerSheetTargetByCity<T extends { city: string }>(
+  targets: T[],
+  city: string,
+): T | undefined {
+  const key = (city || "").trim().toLowerCase();
+  if (!key) return undefined;
+  return targets.find((t) => (t.city || "").trim().toLowerCase() === key);
 }
 
 /**
@@ -141,7 +174,7 @@ export function resolveDefaultOwnerRowLocation(params: {
   targets?: { city: string }[];
 }): string {
   const { role = "", targets } = params;
-  const exempt = isLocationExempt(role);
+  const exempt = hasFullOwnerSheetLocationAccess(role);
   const allocations = parseAllotedAreaForClient(params.tokenAllotedArea);
   const requested = extractPlaceLocations(params.filterPlace);
 
@@ -172,21 +205,39 @@ export function resolveDefaultOwnerRowLocation(params: {
   return "";
 }
 
+/** One entry per city (case-insensitive) — avoids duplicate React keys in selects. */
+export function dedupeOwnerSheetTargetsByCity<T extends { city: string }>(
+  targets: T[],
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const t of targets) {
+    const key = (t.city || "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
 /** Cities the user may pick in the location column / filter dropdown. */
-export function filterOwnerSheetTargetCities(
-  targets: { city: string }[],
+export function filterOwnerSheetTargetCities<T extends { _id?: string; city: string }>(
+  targets: T[],
   tokenAllotedArea: unknown,
   role: string,
-): { city: string }[] {
-  if (isLocationExempt(role)) {
-    return targets;
+): T[] {
+  let filtered: T[];
+  if (hasFullOwnerSheetLocationAccess(role)) {
+    filtered = targets;
+  } else {
+    const allocations = parseAllotedAreaForClient(tokenAllotedArea);
+    if (allocations.length === 0) {
+      return [];
+    }
+    const allowed = new Set(allocations.map((a) => a.toLowerCase()));
+    filtered = targets.filter((t) => allowed.has(t.city.toLowerCase()));
   }
-  const allocations = parseAllotedAreaForClient(tokenAllotedArea);
-  if (allocations.length === 0) {
-    return [];
-  }
-  const allowed = new Set(allocations.map((a) => a.toLowerCase()));
-  return targets.filter((t) => allowed.has(t.city.toLowerCase()));
+  return dedupeOwnerSheetTargetsByCity(filtered);
 }
 
 export const OWNER_SHEET_FILTER_STORAGE_KEY = "owner-sheet-filters-v1";

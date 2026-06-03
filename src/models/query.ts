@@ -276,6 +276,12 @@ const querySchema = new Schema(
       type: String,
       default: "",
     },
+    /** Numbered Bunny CDN URLs: { "1": "...", "2": "..." } */
+    leadDocuments: {
+      type: Map,
+      of: String,
+      default: () => new Map(),
+    },
   },
   { timestamps: true }
 );

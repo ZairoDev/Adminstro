@@ -1,155 +1,241 @@
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 
+export type WhatsAppReplyClassification = {
+  /** Agent sent a message after the customer's latest incoming message */
+  replied: boolean;
+  /** Customer's latest message has no agent reply after it */
+  notReplied: boolean;
+  /** At least one outgoing message has status failed (from status webhook) */
+  notDelivered: boolean;
+};
+
+type MessageLike = {
+  direction: string;
+  status: string;
+  timestamp: Date | string;
+};
+
+function isSuccessfulOutgoing(msg: MessageLike): boolean {
+  return (
+    msg.direction === "outgoing" &&
+    msg.status !== "failed" &&
+    msg.status !== "sending"
+  );
+}
+
+function isFailedOutgoing(msg: MessageLike): boolean {
+  return msg.direction === "outgoing" && msg.status === "failed";
+}
+
 /**
- * Computes WhatsApp reply status dynamically from message history
- * 
+ * Classify reply state from WhatsApp message history.
+ *
+ * - Replied: any successful agent message after the customer's latest incoming
+ * - Not Replied: customer has messaged and their latest message has no agent reply yet
+ * - Not Delivered: any outgoing message with status failed (statusEvents-driven)
+ */
+export function classifyMessagesReplyState(
+  messages: MessageLike[],
+): WhatsAppReplyClassification {
+  if (messages.length === 0) {
+    return { replied: false, notReplied: false, notDelivered: false };
+  }
+
+  const sorted = [...messages].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+
+  const notDelivered = sorted.some(isFailedOutgoing);
+
+  const incomingMessages = sorted.filter((m) => m.direction === "incoming");
+  if (incomingMessages.length === 0) {
+    return { replied: false, notReplied: false, notDelivered };
+  }
+
+  const lastIncoming = incomingMessages[incomingMessages.length - 1];
+  const lastIncomingTime = new Date(lastIncoming.timestamp).getTime();
+
+  const agentReplyAfterLastIncoming = sorted.some(
+    (m) =>
+      isSuccessfulOutgoing(m) &&
+      new Date(m.timestamp).getTime() > lastIncomingTime,
+  );
+
+  if (agentReplyAfterLastIncoming) {
+    return { replied: true, notReplied: false, notDelivered };
+  }
+
+  return { replied: false, notReplied: true, notDelivered };
+}
+
+function normalizePhone(phoneNo: string | number | undefined | null): string {
+  return (phoneNo ?? "").toString().replace(/\D/g, "");
+}
+
+async function findConversationsForPhone(normalizedPhone: string) {
+  if (!normalizedPhone || normalizedPhone.length < 7) {
+    return [];
+  }
+
+  let conversations = await WhatsAppConversation.find({
+    participantPhone: normalizedPhone,
+    source: { $ne: "internal" },
+  }).lean();
+
+  if (conversations.length > 0) {
+    return conversations;
+  }
+
+  const tryLengths = [9, 8, 7];
+  for (const len of tryLengths) {
+    if (normalizedPhone.length < len) continue;
+    const lastDigits = normalizedPhone.slice(-len);
+    const escapedDigits = lastDigits.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`${escapedDigits}$`);
+
+    const partialMatches = await WhatsAppConversation.find({
+      participantPhone: { $regex: regex },
+      source: { $ne: "internal" },
+    }).lean();
+
+    const verifiedMatches = partialMatches.filter((conv) => {
+      const convPhone = (conv.participantPhone || "")
+        .toString()
+        .replace(/\D/g, "");
+      return convPhone.endsWith(lastDigits);
+    });
+
+    if (verifiedMatches.length > 0) {
+      return verifiedMatches;
+    }
+  }
+
+  return [];
+}
+
+async function loadMessagesForPhone(
+  normalizedPhone: string,
+): Promise<MessageLike[]> {
+  const conversations = await findConversationsForPhone(normalizedPhone);
+  if (conversations.length === 0) {
+    return [];
+  }
+
+  const conversationIds = conversations.map((conv) => conv._id);
+  return WhatsAppMessage.find({
+    conversationId: { $in: conversationIds },
+    source: { $ne: "internal" },
+  })
+    .select("direction status timestamp")
+    .sort({ timestamp: 1 })
+    .lean();
+}
+
+/**
+ * Computes WhatsApp reply status dynamically from message history.
+ *
  * Status rules:
- * - NR1/NR2/NR3: Count successful outgoing messages before first customer reply
- * - NTR: Customer replied but agent hasn't responded yet
- * - WFR: Agent replied after customer message
- * 
- * @param phoneNo - Lead phone number (normalized, digits only)
- * @returns Promise<string> - Status: "NR1" | "NR2" | "NR3" | "NTR" | "WFR" | null
+ * - NR1/NR2/NR3: Count successful outgoing messages before any customer reply
+ * - NTR: Customer's latest message — agent hasn't responded yet
+ * - WFR: Agent replied after customer's latest message
  */
 export async function computeWhatsAppReplyStatus(
-  phoneNo: string
+  phoneNo: string,
 ): Promise<string | null> {
   try {
-    // Normalize phone number (digits only)
-    const normalizedPhone = (phoneNo || "").toString().replace(/\D/g, "");
+    const normalizedPhone = normalizePhone(phoneNo);
     if (!normalizedPhone || normalizedPhone.length < 7) {
       return null;
     }
 
-    // Find ALL conversations for this phone number (across all businessPhoneIds/locations)
-    // Strategy: Try exact match first, then try partial matches (last N digits)
-    // This handles cases where phone numbers might be stored with/without country codes
-    let conversations: any[] = [];
-    
-    // First, try exact match on normalized phone
-    conversations = await WhatsAppConversation.find({
-      participantPhone: normalizedPhone,
-      source: { $ne: "internal" },
-    }).lean();
-    
-    // If no exact match, try partial matches (last 9, 8, 7 digits)
-    // This handles cases where phone numbers have different formats
-    if (conversations.length === 0) {
-      const tryLengths = [9, 8, 7];
-      
-      for (const len of tryLengths) {
-        if (normalizedPhone.length < len) continue;
-        const lastDigits = normalizedPhone.slice(-len);
-        // Use regex to match phone numbers ending with these digits
-        const escapedDigits = lastDigits.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`${escapedDigits}$`);
-        
-        const partialMatches = await WhatsAppConversation.find({
-          participantPhone: { $regex: regex },
-          source: { $ne: "internal" },
-        }).lean();
-        
-        // Verify matches by normalizing participantPhone and comparing
-        const verifiedMatches = partialMatches.filter((conv) => {
-          const convPhone = (conv.participantPhone || "").toString().replace(/\D/g, "");
-          return convPhone.endsWith(lastDigits);
-        });
-        
-        if (verifiedMatches.length > 0) {
-          conversations = verifiedMatches;
-          break;
-        }
-      }
-    }
-
-    if (conversations.length === 0) {
-      // No conversations found - no WhatsApp messages yet
-      return null;
-    }
-
-    // Get all messages from ALL conversations for this phone number, sorted by timestamp
-    const conversationIds = conversations.map((conv) => conv._id);
-    const messages = await WhatsAppMessage.find({
-      conversationId: { $in: conversationIds },
-      source: { $ne: "internal" }, // Exclude internal messages
-    })
-      .sort({ timestamp: 1 }) // Oldest first
-      .lean();
-
+    const messages = await loadMessagesForPhone(normalizedPhone);
     if (messages.length === 0) {
       return null;
     }
 
-    // Find first customer (incoming) message across all conversations
     const firstIncomingMessage = messages.find(
-      (msg) => msg.direction === "incoming"
+      (msg) => msg.direction === "incoming",
     );
 
-    // If no incoming messages at all, count successful outgoing messages
     if (!firstIncomingMessage) {
-      // Count only successful outgoing messages (not failed, not sending)
-      const successfulOutgoing = messages.filter(
-        (msg) =>
-          msg.direction === "outgoing" &&
-          msg.status !== "failed" &&
-          msg.status !== "sending"
-      );
-
+      const successfulOutgoing = messages.filter(isSuccessfulOutgoing);
       const count = successfulOutgoing.length;
       if (count === 0) return null;
       if (count === 1) return "NR1";
       if (count === 2) return "NR2";
-      return "NR3"; // 3 or more
+      return "NR3";
     }
 
-    // Customer has replied - get timestamp of first reply
-    const firstIncomingTime = new Date(firstIncomingMessage.timestamp);
-
-    // Count successful outgoing messages sent BEFORE first customer reply
-    // (for NR status if customer hasn't replied yet to those messages)
-    const outgoingBeforeReply = messages.filter(
-      (msg) =>
-        msg.direction === "outgoing" &&
-        msg.status !== "failed" &&
-        msg.status !== "sending" &&
-        new Date(msg.timestamp) < firstIncomingTime
-    );
-
-    // Find first agent (outgoing) message AFTER first customer reply
-    const firstOutgoingAfterReply = messages.find(
-      (msg) =>
-        msg.direction === "outgoing" &&
-        msg.status !== "failed" &&
-        msg.status !== "sending" &&
-        new Date(msg.timestamp) > firstIncomingTime
-    );
-
-    if (!firstOutgoingAfterReply) {
-      // Customer replied but agent hasn't responded yet
-      return "NTR";
-    }
-
-    // Agent has replied after customer message
-    return "WFR";
+    const classification = classifyMessagesReplyState(messages);
+    if (classification.replied) return "WFR";
+    if (classification.notReplied) return "NTR";
+    return null;
   } catch (error) {
     console.error("Error computing WhatsApp reply status:", error);
     return null;
   }
 }
 
+export async function classifyWhatsAppReplyForPhone(
+  phoneNo: string | number | undefined | null,
+): Promise<WhatsAppReplyClassification> {
+  const normalizedPhone = normalizePhone(phoneNo);
+  if (!normalizedPhone || normalizedPhone.length < 7) {
+    return { replied: false, notReplied: false, notDelivered: false };
+  }
+
+  try {
+    const messages = await loadMessagesForPhone(normalizedPhone);
+    return classifyMessagesReplyState(messages);
+  } catch (error) {
+    console.error("Error classifying WhatsApp reply for phone:", error);
+    return { replied: false, notReplied: false, notDelivered: false };
+  }
+}
+
 /**
- * Batch compute WhatsApp reply status for multiple leads
- * 
- * @param phoneNumbers - Array of lead phone numbers
- * @returns Promise<Map<string, string | null>> - Map of phone -> status
+ * Batch classify phones (deduped). Returns map keyed by normalized phone digits.
  */
+export async function batchClassifyWhatsAppReplyForPhones(
+  phoneNumbers: Array<string | number | undefined | null>,
+): Promise<Map<string, WhatsAppReplyClassification>> {
+  const uniquePhones = [
+    ...new Set(
+      phoneNumbers
+        .map(normalizePhone)
+        .filter((phone) => phone.length >= 7),
+    ),
+  ];
+
+  const results = new Map<string, WhatsAppReplyClassification>();
+  const chunkSize = 25;
+
+  for (let i = 0; i < uniquePhones.length; i += chunkSize) {
+    const chunk = uniquePhones.slice(i, i + chunkSize);
+    const chunkResults = await Promise.all(
+      chunk.map(async (phone) => {
+        const messages = await loadMessagesForPhone(phone);
+        return {
+          phone,
+          classification: classifyMessagesReplyState(messages),
+        };
+      }),
+    );
+
+    chunkResults.forEach(({ phone, classification }) => {
+      results.set(phone, classification);
+    });
+  }
+
+  return results;
+}
+
+/** @deprecated Use batchClassifyWhatsAppReplyForPhones for dashboard stats */
 export async function batchComputeWhatsAppReplyStatus(
-  phoneNumbers: string[]
+  phoneNumbers: string[],
 ): Promise<Map<string, string | null>> {
   const results = new Map<string, string | null>();
-
-  // Process in parallel with Promise.all
   const promises = phoneNumbers.map(async (phoneNo) => {
     const status = await computeWhatsAppReplyStatus(phoneNo);
     return { phoneNo, status };
@@ -161,4 +247,87 @@ export async function batchComputeWhatsAppReplyStatus(
   });
 
   return results;
+}
+
+export type ReplyCountByLocationRow = {
+  location: string;
+  replied: number;
+  notReplied: number;
+  notDelivered: number;
+  total: number;
+};
+
+function resolveLocationKey(
+  leadLocation: string | undefined,
+  validLocations: string[],
+): string {
+  const lower = (leadLocation ?? "unknown").toLowerCase().trim();
+  const match = validLocations.find(
+    (loc) => lower.includes(loc) || loc.includes(lower),
+  );
+  return match ?? lower;
+}
+
+export async function aggregateReplyCountsByLocation(
+  leads: Array<{ phoneNo?: string | number; location?: string }>,
+  validLocations: string[],
+): Promise<ReplyCountByLocationRow[]> {
+  const phones = leads.map((lead) => lead.phoneNo);
+  const classificationByPhone =
+    await batchClassifyWhatsAppReplyForPhones(phones);
+
+  const counts = new Map<string, ReplyCountByLocationRow>();
+  for (const loc of validLocations) {
+    counts.set(loc, {
+      location: loc,
+      replied: 0,
+      notReplied: 0,
+      notDelivered: 0,
+      total: 0,
+    });
+  }
+
+  for (const lead of leads) {
+    const locationKey = resolveLocationKey(lead.location, validLocations);
+    const row =
+      counts.get(locationKey) ??
+      ({
+        location: locationKey,
+        replied: 0,
+        notReplied: 0,
+        notDelivered: 0,
+        total: 0,
+      } satisfies ReplyCountByLocationRow);
+
+    row.total += 1;
+
+    const normalizedPhone = normalizePhone(lead.phoneNo);
+    const classification =
+      classificationByPhone.get(normalizedPhone) ??
+      ({
+        replied: false,
+        notReplied: false,
+        notDelivered: false,
+      } satisfies WhatsAppReplyClassification);
+
+    if (classification.replied) row.replied += 1;
+    if (classification.notReplied) row.notReplied += 1;
+    if (classification.notDelivered) row.notDelivered += 1;
+
+    counts.set(locationKey, row);
+  }
+
+  const finalResult = validLocations.map(
+    (loc) =>
+      counts.get(loc) ?? {
+        location: loc,
+        replied: 0,
+        notReplied: 0,
+        notDelivered: 0,
+        total: 0,
+      },
+  );
+
+  finalResult.sort((a, b) => a.location.localeCompare(b.location));
+  return finalResult;
 }

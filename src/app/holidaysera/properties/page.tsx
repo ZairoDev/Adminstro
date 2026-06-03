@@ -37,7 +37,7 @@ const HolidaySeraPropertyPage: React.FC = () => {
   const role = useAuthStore((state) => state.token?.role);
   const canApprove = role === "SuperAdmin" || role === "HAdmin";
   const canChangeVisibility =
-    role === "SuperAdmin" || role === "HAdmin" || role === "Advert";
+    role === "SuperAdmin" || role === "HAdmin" || role === "Advert"; 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchProperties = useCallback(

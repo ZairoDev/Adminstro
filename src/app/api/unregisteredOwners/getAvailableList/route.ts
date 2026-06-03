@@ -10,6 +10,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { isLocationExempt } from "@/util/apiSecurity";
 import {
   applyOwnerSheetLocationQuery,
+  hasFullOwnerSheetLocationAccess,
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
 } from "@/util/ownerSheetLocationFilter";
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     if (sheetLocations.length > 0) {
       applyOwnerSheetLocationQuery(query, sheetLocations);
       effectiveLocationsForRules = sheetLocations;
-    } else if (!isLocationExempt(role)) {
+    } else if (!hasFullOwnerSheetLocationAccess(role)) {
       return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
 

@@ -8,7 +8,10 @@ import {
 } from "@/services/unregistered-owner-geocode";
 import { isLocationExempt } from "@/util/apiSecurity";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { resolveDefaultOwnerRowLocation } from "@/util/ownerSheetLocationFilter";
+import {
+  normalizeOwnerSheetCityName,
+  resolveDefaultOwnerRowLocation,
+} from "@/util/ownerSheetLocationFilter";
 import { NextRequest, NextResponse } from "next/server";
 
 function normalizePropertyFloorInput(raw: unknown): string {
@@ -54,6 +57,8 @@ export async function POST(req: NextRequest) {
     if (hasExplicitLocation && isLocationExempt(role)) {
       location = requestedLocation;
     }
+
+    location = normalizeOwnerSheetCityName(location);
 
     if (!location) {
       return NextResponse.json(

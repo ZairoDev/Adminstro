@@ -217,14 +217,15 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
 
   // Filter lead stats by accessible locations for non-admin users
   const filteredLeadStats = useMemo(() => {
-    if (isAdmin || accessibleLocations.length === 0) {
-      return leadStats;
-    }
-    return leadStats.filter((stat: LeadStats) =>
-      accessibleLocations.some(
-        (loc) => loc.toLowerCase() === stat.location.toLowerCase()
-      )
-    );
+    const byAccess =
+      isAdmin || accessibleLocations.length === 0
+        ? leadStats
+        : leadStats.filter((stat: LeadStats) =>
+            accessibleLocations.some(
+              (loc) => loc.toLowerCase() === stat.location.toLowerCase(),
+            ),
+          );
+    return byAccess.filter((stat) => stat.target > 0);
   }, [leadStats, accessibleLocations, isAdmin]);
 
   // Security: Only LeadGen team should access this dashboard

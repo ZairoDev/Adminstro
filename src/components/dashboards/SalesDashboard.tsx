@@ -94,15 +94,15 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
 
   // Filter visit stats by accessible locations (only for restricted Sales roles)
   const filteredVisitStats = useMemo(() => {
-    // Sales-TeamLead, Admin, and other exempt roles see all locations
-    if (hasFullAccess || accessibleLocations.length === 0) {
-      return visitStats;
-    }
-    return visitStats.filter((stat: VisitStats) =>
-      accessibleLocations.some(
-        (loc) => loc.toLowerCase() === stat.location.toLowerCase()
-      )
-    );
+    const byAccess =
+      hasFullAccess || accessibleLocations.length === 0
+        ? visitStats
+        : visitStats.filter((stat: VisitStats) =>
+            accessibleLocations.some(
+              (loc) => loc.toLowerCase() === stat.location.toLowerCase(),
+            ),
+          );
+    return byAccess.filter((stat) => stat.target > 0);
   }, [visitStats, accessibleLocations, hasFullAccess]);
 
   // Filter new owners count by location (sales-intern only)

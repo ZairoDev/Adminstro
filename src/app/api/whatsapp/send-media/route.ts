@@ -15,6 +15,11 @@ import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
+import { spawn } from "child_process";
+import ffmpegPath from "ffmpeg-static";
 
 connectDb();
 
@@ -25,6 +30,111 @@ interface MediaPayload {
   id?: string;
   caption?: string;
   filename?: string;
+}
+
+async function uploadToBunny(params: {
+  buffer: ArrayBuffer;
+  mimeType: string;
+  fileName: string;
+}): Promise<string | null> {
+  const storageZoneName = process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE;
+  const accessKey = process.env.NEXT_PUBLIC_BUNNY_ACCESS_KEY;
+  const cdnUrl = process.env.NEXT_PUBLIC_BUNNY_CDN_URL || `https://${storageZoneName}.b-cdn.net`;
+  if (!storageZoneName || !accessKey) return null;
+
+  const uploadResponse = await fetch(
+    `https://storage.bunnycdn.com/${storageZoneName}/${params.fileName}`,
+    {
+      method: "PUT",
+      headers: {
+        AccessKey: accessKey,
+        "Content-Type": params.mimeType || "application/octet-stream",
+      },
+      body: params.buffer,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    console.error("Failed Bunny upload:", await uploadResponse.text());
+    return null;
+  }
+  return `${cdnUrl}/${params.fileName}`;
+}
+
+async function getPermanentUrlFromWhatsAppMedia(params: {
+  mediaId: string;
+  mimeTypeHint?: string;
+}): Promise<{ url: string; mimeType: string } | null> {
+  const whatsappToken = getWhatsAppToken();
+  if (!params.mediaId || !whatsappToken) return null;
+
+  const metadataResponse = await fetch(`${WHATSAPP_API_BASE_URL}/${params.mediaId}`, {
+    headers: { Authorization: `Bearer ${whatsappToken}` },
+  });
+  if (!metadataResponse.ok) return null;
+  const metadata = await metadataResponse.json();
+  const tempUrl = metadata?.url;
+  const mimeType = metadata?.mime_type || params.mimeTypeHint || "";
+  if (!tempUrl) return null;
+
+  const mediaResponse = await fetch(tempUrl, {
+    headers: { Authorization: `Bearer ${whatsappToken}` },
+  });
+  if (!mediaResponse.ok) return null;
+
+  let mediaBuffer = await mediaResponse.arrayBuffer();
+  let finalMimeType = mimeType || "application/octet-stream";
+
+  const isOggOpus =
+    finalMimeType.includes("audio/ogg") ||
+    finalMimeType.includes("audio/opus") ||
+    finalMimeType.includes("ogg");
+
+  if (isOggOpus && ffmpegPath) {
+    try {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "wa-audio-"));
+      const inPath = path.join(tmpDir, `${params.mediaId}.ogg`);
+      const outPath = path.join(tmpDir, `${params.mediaId}.m4a`);
+      await fs.writeFile(inPath, Buffer.from(mediaBuffer));
+
+      await new Promise<void>((resolve, reject) => {
+        const args = [
+          "-y",
+          "-i",
+          inPath,
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-movflags",
+          "+faststart",
+          outPath,
+        ];
+        const p = spawn(ffmpegPath as string, args);
+        let err = "";
+        p.stderr.on("data", (d) => (err += String(d)));
+        p.on("error", reject);
+        p.on("close", (code) => {
+          if (code === 0) return resolve();
+          reject(new Error(`ffmpeg failed (${code}): ${err.slice(0, 400)}`));
+        });
+      });
+
+      const outBuf = await fs.readFile(outPath);
+      mediaBuffer = outBuf.buffer.slice(outBuf.byteOffset, outBuf.byteOffset + outBuf.byteLength);
+      finalMimeType = "audio/mp4";
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error("Outgoing audio transcode failed; fallback original:", e);
+    }
+  }
+
+  const ext =
+    finalMimeType.startsWith("audio/") ? "m4a" : (finalMimeType.split("/")[1] || "bin");
+  const fileName = `whatsapp/${Date.now()}-${params.mediaId}.${ext}`;
+  const url = await uploadToBunny({ buffer: mediaBuffer, mimeType: finalMimeType, fileName });
+  if (!url) return null;
+  return { url, mimeType: finalMimeType };
 }
 
 export async function POST(req: NextRequest) {
@@ -277,6 +387,22 @@ export async function POST(req: NextRequest) {
     const whatsappMessageId = data.messages?.[0]?.id;
     const timestamp = new Date();
 
+    // If the client passed a WhatsApp temp URL (not publicly playable) or only mediaId,
+    // resolve a permanent Bunny CDN URL so mobile can play sent voice notes.
+    let permanentMediaUrl = mediaUrl || "";
+    if (mediaId) {
+      try {
+        const permanent = await getPermanentUrlFromWhatsAppMedia({
+          mediaId,
+        });
+        if (permanent?.url) {
+          permanentMediaUrl = permanent.url;
+        }
+      } catch {
+        // non-blocking; keep the provided URL if any
+      }
+    }
+
     // Get or create conversation if not already loaded
     if (!conversation) {
       if (conversationId) {
@@ -314,7 +440,7 @@ export async function POST(req: NextRequest) {
       to: formattedPhone,
       type: mediaType,
       content: contentObj,
-      mediaUrl: mediaUrl || "",
+      mediaUrl: permanentMediaUrl || "",
       mediaId: mediaId || "",
       filename: filename || "",
       status: "sent",
@@ -349,7 +475,7 @@ export async function POST(req: NextRequest) {
         to: formattedPhone,
         type: mediaType,
         content: contentObj,
-        mediaUrl: mediaUrl || "",
+        mediaUrl: permanentMediaUrl || "",
         mediaId: mediaId || "",
         filename: filename || "",
         status: "sent",

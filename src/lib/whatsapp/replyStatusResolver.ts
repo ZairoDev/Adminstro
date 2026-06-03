@@ -129,7 +129,7 @@ async function loadMessagesForPhone(
   })
     .select("direction status timestamp")
     .sort({ timestamp: 1 })
-    .lean();
+    .lean<MessageLike[]>();
 }
 
 /**

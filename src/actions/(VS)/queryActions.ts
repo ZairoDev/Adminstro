@@ -1550,43 +1550,26 @@ export const getLocationVisitStats = async (selectedMonth?: Date) => {
   return { visits };
 };
 
-export const getMonthlyVisitStats = async (monthName?: string) => {
-  const today = new Date();
+export type MonthlyCityVisitStat = {
+  location: string;
+  completed: number;
+  pending: number;
+  completedPitch: number;
+  pendingPitch: number;
+  total: number;
+  totalPitch: number;
+};
 
-  // 🗓️ Determine month and year
-  const monthNames = [
-    "january",
-    "february",
-    "march",
-    "april",
-    "may",
-    "june",
-    "july",
-    "august",
-    "september",
-    "october",
-    "november",
-    "december",
-  ];
+export const getMonthlyVisitStats = async (
+  selectedMonth?: Date,
+): Promise<MonthlyCityVisitStat[]> => {
+  const reference = selectedMonth ? new Date(selectedMonth) : new Date();
+  const year = reference.getUTCFullYear();
+  const monthIndex = reference.getUTCMonth();
 
-  let monthIndex = today.getMonth(); // default current month
-  let year = today.getFullYear();
-
-  if (monthName) {
-    const idx = monthNames.indexOf(monthName.toLowerCase());
-    if (idx !== -1) {
-      monthIndex = idx;
-      // handle case where month is in future (previous year)
-      if (idx > today.getMonth()) {
-        year = year - 1;
-      }
-    }
-  }
-
-  // 🕐 Start & end of month (UTC safe)
-  const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
+  const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
   const endOfMonth = new Date(
-    Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)
+    Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999),
   );
 
   // ----------------------------
@@ -1609,21 +1592,59 @@ export const getMonthlyVisitStats = async (monthName?: string) => {
     { $unwind: "$leadInfo" },
     {
       $group: {
-        _id: { $toLower: "$leadInfo.location" },
-        visits: { $sum: 1 },
+        _id: { $toLower: { $trim: { input: "$leadInfo.location" } } },
+        completed: {
+          $sum: {
+            $cond: [{ $eq: ["$visitStatus", "completed"] }, 1, 0],
+          },
+        },
+        pending: {
+          $sum: {
+            $cond: [{ $ne: ["$visitStatus", "completed"] }, 1, 0],
+          },
+        },
+        completedPitch: {
+          $sum: {
+            $cond: [
+              { $eq: ["$visitStatus", "completed"] },
+              { $ifNull: ["$pitchAmount", 0] },
+              0,
+            ],
+          },
+        },
+        pendingPitch: {
+          $sum: {
+            $cond: [
+              { $ne: ["$visitStatus", "completed"] },
+              { $ifNull: ["$pitchAmount", 0] },
+              0,
+            ],
+          },
+        },
       },
     },
     {
       $project: {
         _id: 0,
-        location: { $ifNull: ["$_id", "Unknown"] },
-        visits: 1,
+        location: {
+          $cond: [
+            { $or: [{ $eq: ["$_id", null] }, { $eq: ["$_id", ""] }] },
+            "Unknown",
+            "$_id",
+          ],
+        },
+        completed: 1,
+        pending: 1,
+        completedPitch: 1,
+        pendingPitch: 1,
+        total: { $add: ["$completed", "$pending"] },
+        totalPitch: { $add: ["$completedPitch", "$pendingPitch"] },
       },
     },
-    { $sort: { visits: -1 } },
+    { $sort: { total: -1 } },
   ]);
 
-  return result;
+  return result as MonthlyCityVisitStat[];
 };
 
 export const getWeeksVisit = async ({ days }: { days?: string }) => {
@@ -3517,6 +3538,14 @@ export const getReviews = async ({
     filters.createdBy = { $regex: new RegExp(`^${createdBy}$`, "i") };
   }
 
+  type ReviewBucket = { _id: string | null; count: number };
+  type NotReviewedBreakdownItem = {
+    messageStatus: string;
+    salesPriority: string;
+    count: number;
+    percent: number;
+  };
+
   const pipeline: any[] = [
     {
       $match: filters,
@@ -3534,8 +3563,57 @@ export const getReviews = async ({
     },
   ];
 
-  const reviews = await Query.aggregate(pipeline);
-  return { reviews };
+  const reviews = (await Query.aggregate(pipeline)) as ReviewBucket[];
+
+  const notReviewedPipeline: any[] = [
+    {
+      $match: {
+        ...filters,
+        leadQualityByReviewer: null,
+      },
+    },
+    {
+      $group: {
+        _id: {
+          messageStatus: { $ifNull: ["$messageStatus", "None"] },
+          salesPriority: { $ifNull: ["$salesPriority", "None"] },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        messageStatus: "$_id.messageStatus",
+        salesPriority: "$_id.salesPriority",
+        count: 1,
+      },
+    },
+    { $sort: { count: -1 } },
+  ];
+
+  const rawNotReviewedBreakdown = (await Query.aggregate(
+    notReviewedPipeline,
+  )) as Array<{
+    messageStatus: string;
+    salesPriority: string;
+    count: number;
+  }>;
+
+  const notReviewedTotal = rawNotReviewedBreakdown.reduce(
+    (acc, r) => acc + (r.count ?? 0),
+    0,
+  );
+
+  const notReviewedBreakdown: NotReviewedBreakdownItem[] =
+    rawNotReviewedBreakdown.map((r) => ({
+      messageStatus: r.messageStatus ?? "None",
+      salesPriority: r.salesPriority ?? "None",
+      count: r.count ?? 0,
+      percent: notReviewedTotal > 0 ? Math.round((r.count / notReviewedTotal) * 100) : 0,
+    }));
+
+  return { reviews, notReviewedBreakdown };
 };
 
 export const getUnregisteredOwners = async () => {

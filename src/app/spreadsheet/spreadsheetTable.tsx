@@ -55,6 +55,10 @@ import {
   normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
 } from "@/util/ownerSheetLocationFilter";
+import {
+  isGeoTriggerField,
+  type LocationGeoPoint,
+} from "@/services/unregistered-owner-geocode";
 import { Switch } from "@/components/ui/switch";
 import {
   ownerPropertyFloorFromSelectValue,
@@ -809,14 +813,39 @@ useEffect(() => {
     setTableData(updatedData);
 
     try {
-      await axios.put(`/api/unregisteredOwners/updateData/${_id}`, {
+      const res = await axios.put<{
+        message: string;
+        locationGeo?: LocationGeoPoint | null;
+        geoSyncStatus?: string;
+      }>(`/api/unregisteredOwners/updateData/${_id}`, {
         field: key,
         value: valueToSave,
         unavailableUntil: unavailableUntilPayload,
       });
+
+      if (isGeoTriggerField(key)) {
+        setTableData((prev) =>
+          prev.map((item) =>
+            item._id === _id
+              ? {
+                  ...item,
+                  locationGeo: res.data.locationGeo ?? undefined,
+                }
+              : item,
+          ),
+        );
+      }
+
+      const geoDescription =
+        isGeoTriggerField(key) && res.data.geoSyncStatus === "updated"
+          ? "Location updated on the map."
+          : isGeoTriggerField(key) && res.data.geoSyncStatus === "failed"
+            ? "Saved. Could not geocode; map pin unchanged."
+            : "Saved successfully.";
+
       toast({
-        title: "Response status updated",
-        description: "Lead verified successfully.",
+        title: "Saved",
+        description: geoDescription,
         variant: "default",
       });
 

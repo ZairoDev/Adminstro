@@ -1,5 +1,8 @@
 import { unregisteredOwner } from "@/models/unregisteredOwner";
-import { geocodeWithNominatim } from "@/util/geocodeNominatim";
+import {
+  geocodeWithGoogle,
+  inferCountryCodeFromLocation,
+} from "@/util/geocodeGoogle";
 import type { Types } from "mongoose";
 
 export interface LocationGeoPoint {
@@ -13,7 +16,26 @@ export interface OwnerGeoFields {
   area?: string | null;
 }
 
+/** Fields that trigger a locationGeo re-sync when saved via the owner sheet API */
+export const GEO_TRIGGER_FIELDS = new Set<keyof OwnerGeoFields>([
+  "address",
+  "location",
+  "area",
+]);
+
+export function isGeoTriggerField(
+  field: string,
+): field is keyof OwnerGeoFields {
+  return GEO_TRIGGER_FIELDS.has(field as keyof OwnerGeoFields);
+}
+
 const GEO_PLACEHOLDER_VALUES = new Set(["unknown", "n/a", "na", "-"]);
+
+const URL_LIKE_PATTERN =
+  /^(https?:\/\/|www\.)/i;
+
+const URL_HOST_PATTERN =
+  /\b(airbnb\.|booking\.com|google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|bit\.ly|t\.co|facebook\.com|instagram\.com)\b/i;
 
 function sanitizeGeoPart(value: unknown): string {
   const normalized = String(value ?? "").trim();
@@ -26,40 +48,90 @@ function sanitizeGeoPart(value: unknown): string {
   return normalized;
 }
 
-/** Address-first queries; falls back to area + location when address is empty. */
-export function buildGeocodeQueryCandidates(
-  input: OwnerGeoFields,
-): string[] {
-  const address = sanitizeGeoPart(input.address);
-  const location = sanitizeGeoPart(input.location);
-  const area = sanitizeGeoPart(input.area);
-
-  const candidates: string[] = [];
-
-  if (address) {
-    candidates.push(
-      [address, location, area].filter(Boolean).join(", "),
-      [address, area].filter(Boolean).join(", "),
-      [address, location].filter(Boolean).join(", "),
-      address,
-    );
-  } else {
-    candidates.push(
-      [location, area].filter(Boolean).join(", "),
-      area,
-      location,
-    );
+/** True when the value looks like a URL / listing link, not a postal address. */
+export function isLinkLikeGeoValue(value: unknown): boolean {
+  const normalized = sanitizeGeoPart(value);
+  if (!normalized) {
+    return false;
   }
+  if (URL_LIKE_PATTERN.test(normalized)) {
+    return true;
+  }
+  if (URL_HOST_PATTERN.test(normalized)) {
+    return true;
+  }
+  // domain.tld/... pasted without scheme (not a street address with a leading number)
+  if (
+    /^[a-z0-9][-a-z0-9.]*\.[a-z]{2,}(\/|$)/i.test(normalized) &&
+    !/^\d{1,5}\s/.test(normalized)
+  ) {
+    return true;
+  }
+  return false;
+}
 
+export function isGeocodableAddress(value: unknown): boolean {
+  const normalized = sanitizeGeoPart(value);
+  return normalized.length > 0 && !isLinkLikeGeoValue(normalized);
+}
+
+function dedupeQueries(queries: string[]): string[] {
   return [
     ...new Set(
-      candidates.map((query) => query.trim()).filter((query) => query.length > 0),
+      queries.map((query) => query.trim()).filter((query) => query.length > 0),
     ),
   ];
 }
 
+/** Street/postal address queries (skipped when address is empty or link-like). */
+export function buildAddressGeocodeCandidates(
+  input: OwnerGeoFields,
+): string[] {
+  const address = isGeocodableAddress(input.address)
+    ? sanitizeGeoPart(input.address)
+    : "";
+  const location = sanitizeGeoPart(input.location);
+  const area = sanitizeGeoPart(input.area);
+
+  if (!address) {
+    return [];
+  }
+
+  return dedupeQueries([
+    [address, location, area].filter(Boolean).join(", "),
+    [address, area].filter(Boolean).join(", "),
+    [address, location].filter(Boolean).join(", "),
+    address,
+  ]);
+}
+
+/** City/area fallback when address is missing, link-like, or geocoding failed. */
+export function buildPlaceGeocodeCandidates(input: OwnerGeoFields): string[] {
+  const location = sanitizeGeoPart(input.location);
+  const area = sanitizeGeoPart(input.area);
+
+  return dedupeQueries([
+    [location, area].filter(Boolean).join(", "),
+    area,
+    location,
+  ]);
+}
+
+/** All candidates in priority order (address tier, then place tier). */
+export function buildGeocodeQueryCandidates(
+  input: OwnerGeoFields,
+): string[] {
+  return dedupeQueries([
+    ...buildAddressGeocodeCandidates(input),
+    ...buildPlaceGeocodeCandidates(input),
+  ]);
+}
+
 export function hasGeocodableFields(input: OwnerGeoFields): boolean {
-  return buildGeocodeQueryCandidates(input).length > 0;
+  return (
+    buildAddressGeocodeCandidates(input).length > 0 ||
+    buildPlaceGeocodeCandidates(input).length > 0
+  );
 }
 
 export function isValidLocationGeo(input: unknown): input is LocationGeoPoint {
@@ -85,23 +157,21 @@ export function isValidLocationGeo(input: unknown): input is LocationGeoPoint {
   return validLng && validLat;
 }
 
-function getNominatimUserAgent(): string {
-  return process.env.NOMINATIM_USER_AGENT ?? "admin-property-app/1.0";
+function resolveCountryCodesForGeocode(
+  input: OwnerGeoFields,
+): string[] | undefined {
+  const inferred = inferCountryCodeFromLocation(input.location);
+  return inferred ? [inferred] : undefined;
 }
 
-export async function resolveLocationGeo(
-  input: OwnerGeoFields,
+async function geocodeQueryTier(
+  queries: string[],
+  countryCodes: string[] | undefined,
 ): Promise<LocationGeoPoint | null> {
-  const candidates = buildGeocodeQueryCandidates(input);
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  for (const query of candidates) {
-    const geo = await geocodeWithNominatim(query, {
-      delayMs: 1100,
+  for (const query of queries) {
+    const geo = await geocodeWithGoogle(query, {
+      countryCodes,
       maxRetries: 3,
-      userAgent: getNominatimUserAgent(),
     });
 
     if (geo) {
@@ -111,8 +181,29 @@ export async function resolveLocationGeo(
       };
     }
   }
-
   return null;
+}
+
+export async function resolveLocationGeo(
+  input: OwnerGeoFields,
+): Promise<LocationGeoPoint | null> {
+  const addressCandidates = buildAddressGeocodeCandidates(input);
+  const placeCandidates = buildPlaceGeocodeCandidates(input);
+
+  if (addressCandidates.length === 0 && placeCandidates.length === 0) {
+    return null;
+  }
+
+  const countryCodes = resolveCountryCodesForGeocode(input);
+
+  const fromAddress = await geocodeQueryTier(addressCandidates, countryCodes);
+  if (fromAddress) {
+    return fromAddress;
+  }
+
+  const triedAddress = new Set(addressCandidates);
+  const remainingPlace = placeCandidates.filter((q) => !triedAddress.has(q));
+  return geocodeQueryTier(remainingPlace, countryCodes);
 }
 
 export type SyncLocationGeoResult =
@@ -120,6 +211,19 @@ export type SyncLocationGeoResult =
   | { status: "cleared" }
   | { status: "unchanged" }
   | { status: "failed" };
+
+export function resolveLocationGeoAfterSync(
+  result: SyncLocationGeoResult,
+  existing: LocationGeoPoint | null | undefined,
+): LocationGeoPoint | null {
+  if (result.status === "updated") {
+    return result.locationGeo;
+  }
+  if (result.status === "cleared") {
+    return null;
+  }
+  return existing ?? null;
+}
 
 /**
  * Persists geocoded coordinates for an owner.

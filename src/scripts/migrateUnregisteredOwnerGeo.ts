@@ -5,7 +5,6 @@ import mongoose, { type Types } from "mongoose";
 import { unregisteredOwner } from "../models/unregisteredOwner";
 import {
   buildGeocodeQueryCandidates,
-  isValidLocationGeo,
   syncLocationGeoForOwner,
 } from "../services/unregistered-owner-geocode";
 import { connectDb } from "../util/db";
@@ -15,16 +14,11 @@ interface OwnerGeoCandidate {
   address?: string | null;
   location?: string | null;
   area?: string | null;
-  locationGeo?: {
-    type?: string;
-    coordinates?: number[];
-  } | null;
 }
 
 interface MigrationStats {
   total: number;
   processed: number;
-  skippedExisting: number;
   skippedNoQuery: number;
   updated: number;
   failed: number;
@@ -55,7 +49,6 @@ async function migrateUnregisteredOwnerGeo(): Promise<void> {
   const stats: MigrationStats = {
     total,
     processed: 0,
-    skippedExisting: 0,
     skippedNoQuery: 0,
     updated: 0,
     failed: 0,
@@ -71,7 +64,6 @@ async function migrateUnregisteredOwnerGeo(): Promise<void> {
         address: 1,
         location: 1,
         area: 1,
-        locationGeo: 1,
       },
     )
     .sort({ _id: 1 })
@@ -81,16 +73,6 @@ async function migrateUnregisteredOwnerGeo(): Promise<void> {
   for await (const rawDoc of cursor) {
     const doc = rawDoc as OwnerGeoCandidate;
     stats.processed += 1;
-
-    if (isValidLocationGeo(doc.locationGeo)) {
-      stats.skippedExisting += 1;
-      if (shouldLogProgress(stats.processed, stats.total)) {
-        console.log(
-          `[${stats.processed}/${stats.total}] updated=${stats.updated}, skippedExisting=${stats.skippedExisting}, failed=${stats.failed}`,
-        );
-      }
-      continue;
-    }
 
     const candidates = buildGeocodeQueryCandidates(doc);
     if (candidates.length === 0) {
@@ -116,7 +98,7 @@ async function migrateUnregisteredOwnerGeo(): Promise<void> {
 
     if (shouldLogProgress(stats.processed, stats.total)) {
       console.log(
-        `[${stats.processed}/${stats.total}] updated=${stats.updated}, skippedExisting=${stats.skippedExisting}, failed=${stats.failed}`,
+        `[${stats.processed}/${stats.total}] updated=${stats.updated}, failed=${stats.failed}`,
       );
     }
   }
@@ -128,7 +110,6 @@ async function migrateUnregisteredOwnerGeo(): Promise<void> {
         total: stats.total,
         processed: stats.processed,
         updated: stats.updated,
-        skippedExisting: stats.skippedExisting,
         skippedNoQuery: stats.skippedNoQuery,
         failed: stats.failed,
       },

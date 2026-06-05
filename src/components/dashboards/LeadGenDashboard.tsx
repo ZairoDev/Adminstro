@@ -181,7 +181,7 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
     chartData1,
   } = useTodayLeads();
 
-  const { reviews, fetchReviews } = useReview();
+  const { reviews, notReviewedBreakdown, fetchReviews } = useReview();
 
   const {
     leadStats,
@@ -460,51 +460,53 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
         )}
 
         {/* Reviews */}
-        {canViewAllCharts && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {canAccess("reviewsDashboard") && reviews !== undefined && (
-              <div className="space-y-4 relative border rounded-md p-4">
-                <h3 className="text-lg font-semibold">⭐ Reviews Analytics</h3>
-                <div className="flex gap-3 flex-wrap">
-                  <CustomSelect
-                    itemList={[
-                      "All",
-                      "yesterday",
-                      "last month",
-                      "this month",
-                      "10 days",
-                      "15 days",
-                      "1 month",
-                      "3 months",
-                    ]}
-                    triggerText="Select days"
-                    value={reviewsFilters.days || "this month"}
-                    onValueChange={(value) => {
-                      const newLeadFilters = { ...reviewsFilters, days: value };
-                      setReviewsFilters(newLeadFilters);
-                      fetchReviews(newLeadFilters);
-                    }}
-                    triggerClassName="w-32"
-                  />
-
-                  <CustomSelect
-                    itemList={["All", ...allEmployees]}
-                    triggerText="Select agent"
-                    value={reviewsFilters.createdBy || "All"}
-                    onValueChange={(value) => {
-                      const newLeadFilters = {
-                        ...reviewsFilters,
-                        createdBy: value,
-                      };
-                      setReviewsFilters(newLeadFilters);
-                      fetchReviews(newLeadFilters);
-                    }}
-                    triggerClassName="w-32"
-                  />
-                </div>
-                <ReviewPieChart chartData={reviews} />
+        {canViewAllCharts && canAccess("reviewsDashboard") && reviews !== undefined && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Reviews Analytics
+              </h3>
+              <div className="flex gap-3 flex-wrap">
+                <CustomSelect
+                  itemList={[
+                    "All",
+                    "yesterday",
+                    "last month",
+                    "this month",
+                    "10 days",
+                    "15 days",
+                    "1 month",
+                    "3 months",
+                  ]}
+                  triggerText="Select days"
+                  value={reviewsFilters.days || "this month"}
+                  onValueChange={(value) => {
+                    const newLeadFilters = { ...reviewsFilters, days: value };
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName="w-32 h-9 text-xs bg-zinc-900 border-zinc-700 text-zinc-100"
+                />
+                <CustomSelect
+                  itemList={["All", ...allEmployees]}
+                  triggerText="Select agent"
+                  value={reviewsFilters.createdBy || "All"}
+                  onValueChange={(value) => {
+                    const newLeadFilters = {
+                      ...reviewsFilters,
+                      createdBy: value,
+                    };
+                    setReviewsFilters(newLeadFilters);
+                    fetchReviews(newLeadFilters);
+                  }}
+                  triggerClassName="w-36 h-9 text-xs bg-zinc-900 border-zinc-700 text-zinc-100"
+                />
               </div>
-            )}
+            </div>
+            <ReviewPieChart
+              chartData={reviews}
+              notReviewedBreakdown={notReviewedBreakdown}
+            />
           </div>
         )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, ReactNode } from "react";
+import React, { useState, useMemo, ReactNode, useCallback } from "react";
 import { BarChart3, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
@@ -87,7 +87,19 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     directionVisit,
   } = useVisitStats();
 
-  const { monthlyStats, fetchMonthlyVisitStats } = useMonthlyVisitStats();
+  const [selectedCityChartMonth, setSelectedCityChartMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  });
+
+  const handleCityChartMonthChange = useCallback((month: Date) => {
+    setSelectedCityChartMonth(month);
+  }, []);
+
+  const {
+    monthlyStats,
+    loading: monthlyChartLoading,
+  } = useMonthlyVisitStats(selectedCityChartMonth);
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
   const { totalBoosts, fetchBoostCounts, activeBoosts } = BoostCounts();
   const { messageStatus, isLoading, isError, error } = useLeads({ date: undefined });
@@ -310,7 +322,10 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
                   <CityVisitsChart
                     chartData={monthlyStats}
                     title="City Visit Stats"
-                    description="Top cities by visit count"
+                    description="Stacked completed vs pending visits with pitch amounts"
+                    selectedMonth={selectedCityChartMonth}
+                    onMonthChange={handleCityChartMonthChange}
+                    loading={monthlyChartLoading}
                   />
                 </div>
 

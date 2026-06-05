@@ -2,12 +2,16 @@ import { isValidOwnerPropertyFloor } from "@/app/spreadsheet/constants/ownerShee
 import { normalizeOwnerPhoneInput } from "@/app/spreadsheet/utils/ownerPhoneNormalize";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { Properties } from "@/models/property";
-import { scheduleLocationGeoSync } from "@/services/unregistered-owner-geocode";
+import {
+  isGeoTriggerField,
+  isValidLocationGeo,
+  resolveLocationGeoAfterSync,
+  syncLocationGeoForOwner,
+  type LocationGeoPoint,
+} from "@/services/unregistered-owner-geocode";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { normalizeOwnerSheetCityName } from "@/util/ownerSheetLocationFilter";
 import { NextRequest, NextResponse } from "next/server";
-
-const GEO_TRIGGER_FIELDS = new Set(["address", "location", "area"]);
 
 export async function PUT(
   req: NextRequest,
@@ -79,12 +83,22 @@ export async function PUT(
 
     await data.save();
 
-    if (GEO_TRIGGER_FIELDS.has(field)) {
-      scheduleLocationGeoSync(data._id, {
+    let locationGeo: LocationGeoPoint | null = isValidLocationGeo(
+      data.locationGeo,
+    )
+      ? data.locationGeo
+      : null;
+    let geoSyncStatus: string | undefined;
+
+    if (isGeoTriggerField(field)) {
+      const existingGeo = locationGeo;
+      const geoResult = await syncLocationGeoForOwner(data._id, {
         address: data.address,
         location: data.location,
         area: data.area,
       });
+      geoSyncStatus = geoResult.status;
+      locationGeo = resolveLocationGeoAfterSync(geoResult, existingGeo);
     }
 
     if (field === "availability" && data.VSID && data.VSID.trim() !== "") {
@@ -95,7 +109,12 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { message: "Data updated successfully" },
+      {
+        message: "Data updated successfully",
+        ...(geoSyncStatus !== undefined
+          ? { locationGeo, geoSyncStatus }
+          : {}),
+      },
       { status: 200 },
     );
   } catch (err) {

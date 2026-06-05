@@ -390,8 +390,16 @@ const Dashboard = () => {
     directionVisit,
   } = useVisitStats();
 
-  const { monthlyStats, errMsg, fetchMonthlyVisitStats } =
-    useMonthlyVisitStats();
+  const [selectedCityChartMonth, setSelectedCityChartMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  });
+
+  const {
+    monthlyStats,
+    errMsg,
+    loading: monthlyChartLoading,
+  } = useMonthlyVisitStats(selectedCityChartMonth);
 
   const emp = allEmployees.length;
   const averagedata = (average / 30).toFixed(0);

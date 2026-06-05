@@ -5,6 +5,7 @@ import { DateRange } from "react-day-picker";
 import { Loader2, User, MapPin, Shield, Users } from "lucide-react";
 import { CelebrationView } from "@/components/CelebrationView";
 import { CelebrationNotification } from "@/components/CelebrationNotification";
+import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderBanner";
 import { getTodaysEvents, TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
@@ -686,6 +687,8 @@ const Dashboard = () => {
             onViewDetails={handleViewCelebrationDetails}
           />
         )}
+
+      <PersonalReminderBanner />
 
       {/* Welcome Quote Section / Celebration View */}
       <div

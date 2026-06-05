@@ -1425,7 +1425,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const inGroup = (group: Route[]) =>
       routesForRole.filter((r) => group.some((g) => g.path === r.path));
 
-    const dashboardRoutes = inGroup(dashboardManagementRoutes);
+    const dashboardRoutes = [
+      ...inGroup(dashboardManagementRoutes),
+      {
+        path: "/dashboard/my-reminders",
+        label: "My Reminders",
+        Icon: <Bell size={18} />,
+      },
+    ];
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes);
     const bookingsManagementRoute = inGroup(bookingsManagementRoutes);

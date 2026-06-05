@@ -18,6 +18,7 @@ import { useSocket } from "@/hooks/useSocket";
 import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
 import { MonthlyTargetGate } from "@/components/monthly-target/MonthlyTargetGate";
+import { PersonalReminderNavBell } from "@/components/reminders/PersonalReminderBanner";
 
 export default function DashboardLayout({
   children,
@@ -115,6 +116,7 @@ export default function DashboardLayout({
             )}
             {/* System Notification Center - Visible to all authenticated users */}
             {token && <SystemNotificationCenter />}
+            {token && <PersonalReminderNavBell />}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
                 <CommandDialogDemo />

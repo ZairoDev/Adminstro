@@ -7,6 +7,7 @@ import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { parse } from "url";
 import { startDailyPasswordScheduler } from '@/util/dailyPasswordRotation';
+import { startPersonalReminderScheduler } from '@/util/personalReminderScheduler';
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0"; // ✅ Listen on all network interfaces (important for VPS)
@@ -18,6 +19,7 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   startDailyPasswordScheduler();
+  startPersonalReminderScheduler();
   // Create one HTTP server for both Next.js and Socket.IO
   const httpServer = createServer(async (req, res) => {
     try {

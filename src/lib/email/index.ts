@@ -10,6 +10,7 @@ import { getWarningEmailTemplate, getWarningReasonText } from "./templates/warni
 import { getPIPEmailTemplate, getPIPLevelDescription, getPIPCompletionEmailTemplate } from "./templates/pip";
 import { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templates/appreciation";
 import { getSeparationEmailTemplate, getSeparationReasonText, SeparationEmailPayload, SeparationType } from "./templates/separation";
+import { getPersonalReminderEmailTemplate } from "./templates/personalReminder";
 import {
   CandidateEmailPayload,
   WarningEmailPayload,
@@ -270,6 +271,58 @@ export async function sendCustomEmail(
   } catch (error: any) {
     console.error("❌ Custom email sending error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export interface PersonalReminderEmailPayload {
+  to: string;
+  employeeName: string;
+  title: string;
+  note: string;
+  scheduledAt: Date;
+  appUrl: string;
+}
+
+export async function sendPersonalReminderEmail(
+  payload: PersonalReminderEmailPayload,
+): Promise<EmailResponse> {
+  try {
+    const scheduledAtFormatted = payload.scheduledAt.toLocaleString("en-GB", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+
+    const { subject, html } = getPersonalReminderEmailTemplate({
+      employeeName: payload.employeeName,
+      title: payload.title,
+      note: payload.note,
+      scheduledAtFormatted,
+      appUrl: payload.appUrl,
+    });
+
+    const transporter = createTransporter();
+
+    const mailResponse = await transporter.sendMail({
+      from: `Adminstro <${DEFAULT_FROM_EMAIL}>`,
+      to: payload.to,
+      subject,
+      html,
+    });
+
+    if (mailResponse.rejected.length > 0) {
+      throw new Error("Email address was rejected or invalid");
+    }
+
+    return { success: true, messageId: mailResponse.messageId };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Personal reminder email error:", message);
+    return { success: false, error: message };
   }
 }
 

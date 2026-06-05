@@ -24,6 +24,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/dashboard",
+    "/dashboard/my-reminders",
     "/spreadsheet",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
@@ -39,6 +40,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/admin",
     "/dashboard",
+    "/dashboard/my-reminders",
     "/whatsapp", // WhatsApp chat access for Advert (retarget conversations only, filtered client-side)
     "/whatsapp/retarget",
     "/dashboard/addons",
@@ -69,6 +71,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   LeadGen: [
     "/",
     "/dashboard", // Dashboard access for LeadGen
+    "/dashboard/my-reminders",
     "/dashboard/createquery",
     /^\/dashboard\/createquery\/.*$/,
     "/dashboard/notReplying",
@@ -78,6 +81,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   "LeadGen-TeamLead": [
     "/",
     "/dashboard", // Dashboard access for LeadGen-TeamLead
+    "/dashboard/my-reminders",
     "/dashboard/addons",
     "/dashboard/createquery",
     /^\/dashboard\/createquery\/.*$/,
@@ -94,6 +98,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Content: [
     "/",
     "/dashboard", // Dashboard access for Content
+    "/dashboard/my-reminders",
     "/spreadsheet",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
@@ -106,6 +111,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Sales: [
     "/",
     "/dashboard", // Dashboard access for Sales
+    "/dashboard/my-reminders",
     "/spreadsheet",
     "/whatsapp",
     "/whatsapp/retarget",
@@ -135,6 +141,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   "Sales-TeamLead": [
     "/",
     "/dashboard", // Dashboard access for Sales-TeamLead
+    "/dashboard/my-reminders",
     "/spreadsheet",
     "/whatsapp",
     "/dashboard/rejectedleads",
@@ -165,6 +172,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   HR: [
     "/",
     "/dashboard", // Dashboard access for HR
+    "/dashboard/my-reminders",
     "/dashboard/employee",
     "/dashboard/compareLeads",
     "/dashboard/addons",
@@ -187,10 +195,11 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/.*$/,
     /^\/property\/.*$/,
   ],
-  Agent: ["/", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
+  Agent: ["/", "/dashboard/my-reminders", "/dashboard/sales-offer", /^\/dashboard\/sales-offer\/.*$/],
   Guest: [
     "/",
     "/dashboard", // Dashboard access for Guest (limited view)
+    "/dashboard/my-reminders",
     "/dashboard/guest-window",
     "/dashboard/owners",
     "/dashboard/owners/owner-list",
@@ -200,6 +209,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   Intern: [
     "/",
     "/dashboard", // Dashboard access for Intern (limited view)
+    "/dashboard/my-reminders",
     "/dashboard/owners",
     "/dashboard/owners/owner-list",
     "/dashboard/sales-offer",
@@ -208,23 +218,27 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   "Subscription-Sales": [
     "/",
     "/dashboard", // Dashboard access for Subscription-Sales
+    "/dashboard/my-reminders",
     "/dashboard/sales-offer",
     /^\/dashboard\/sales-offer\/.*$/,
   ],
   "Sales(New)": [
     "/",
     "/dashboard", // Dashboard access for Sales(New)
+    "/dashboard/my-reminders",
     "/dashboard/lowBudget",
   ],
   "sales-intern": [
     "/",
     "/dashboard",
+    "/dashboard/my-reminders",
     "/spreadsheet",
     "/whatsapp",
   ],
   hSale: [
     "/",
     "/dashboard",
+    "/dashboard/my-reminders",
     "/holidaysera",
     /^\/holidaysera(\/.*)?$/,
     "/dashboard/sales-offer",
@@ -232,6 +246,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
   ],
   HAdmin: [
     "/",
+    "/dashboard/my-reminders",
     "/holidaysera",
     /^\/holidaysera(\/.*)?$/,
     // Allow HAdmin to create new users and manage specific newproperty pages

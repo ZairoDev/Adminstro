@@ -5,6 +5,7 @@ import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
+import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 
 connectDb();
 
@@ -28,6 +29,7 @@ interface RequestBody {
   role?: string;
   organization?: string;
   assignedCountry?: string;
+  rentalType?: string | null;
   allotedArea?: string[];
   salary?: number;
   empType?: string;
@@ -91,6 +93,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
     if (updateFields.assignedCountry)
       updateData.assignedCountry = updateFields.assignedCountry;
+    if (Object.keys(updateFields).includes("rentalType")) {
+      updateData.rentalType = normalizeEmployeeRentalType(
+        updateFields.rentalType,
+      );
+    }
     if (updateFields.allotedArea) {
       updateData.allotedArea = normalizeAllotedArea(updateFields.allotedArea);
     }

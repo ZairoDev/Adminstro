@@ -7,6 +7,7 @@ import { employeeSchema } from "@/schemas/employee.schema";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
+import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       accountNo,
       empType,
       assignedCountry,
+      rentalType,
       salary,
       ifsc,
       aadhar,
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       alias,
       empType,
       assignedCountry,
+      rentalType: normalizeEmployeeRentalType(rentalType),
       salary,
       dateOfJoining,
       dateOfBirth,

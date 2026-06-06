@@ -19,8 +19,6 @@ import { DateRange } from "react-day-picker";
 import {
   X,
   Search,
-  Star,
-  Pin,
   Euro,
   ArrowUp,
   ArrowDown,
@@ -34,6 +32,7 @@ import {
   hasFullOwnerSheetLocationAccess,
   parseAllotedAreaForClient,
 } from "@/util/ownerSheetLocationFilter";
+import { OWNER_SHEET_LONG_TERM_CONFIG } from "./ownerSheetConfig";
 import { MultiAreaSelect } from "@/components/multipleAreaSearch/page";
 
 
@@ -43,6 +42,8 @@ interface PageProps {
   selectedTab: string;
   /** True while the sheet is fetching rows for the current filters. */
   isDataLoading?: boolean;
+  apiBasePath?: string;
+  filterStorageKey?: string;
 }
 interface TargetType {
   _id: string;
@@ -67,8 +68,6 @@ export interface FiltersInterfaces {
   sortByPrice?: "asc" | "desc" | "";
   beds: number;
   dateRange: DateRange | undefined;
-  isImportant?: boolean;
-  isPinned?: boolean;
 }
 
 const apartmentTypes = ["1 Bedroom","2 Bedroom","3 Bedroom","4 Bedroom","Villa","Pent House","Detached House","Loft","Shared Apartment","Maisotte","Studio",];
@@ -292,14 +291,14 @@ const FilterBar = ({
   setFilters,
   selectedTab,
   isDataLoading = false,
+  apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
+  filterStorageKey = OWNER_SHEET_FILTER_STORAGE_KEY,
 }: PageProps) => {
   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
   const [locationws, setLocationws] = useState<string[]>([]);
   const [targets, setTargets] = useState<TargetType[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [areas, setAreas] = useState<AreaType[]>([]);
-  const [isImportant, setIsImportant] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
   const [localSearchValue, setLocalSearchValue] = useState<string>(
     filters.searchValue || ""
   );
@@ -404,7 +403,7 @@ const FilterBar = ({
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const endpoint = "/api/unregisteredOwners/getCounts";
+        const endpoint = `${apiBasePath}/getCounts`;
         const res = await axios.post(endpoint, {
           filters: {
             ...filters,
@@ -420,7 +419,7 @@ const FilterBar = ({
       }
     };
     fetchCounts();
-  }, [filters, selectedTab]);
+  }, [filters, selectedTab, apiBasePath]);
 
   useEffect(() => {
     const getAllLocations = async () => {
@@ -587,17 +586,6 @@ const FilterBar = ({
     active.push({ key: "beds", label: `Beds: ${filters.beds}`, value: null });
   }
 
-  if (filters.isImportant) {
-    active.push({
-      key: "isImportant",
-      label: "⭐ Important",
-      value: null,
-    });
-  }
-
-  if (filters.isPinned) {
-    active.push({ key: "isPinned", label: "📌 Pinned", value: null });
-  }
 
   return active;
 };
@@ -650,12 +638,6 @@ const FilterBar = ({
         case "beds":
           updatedFilters.beds = 0;
           break;
-        case "isImportant":
-          updatedFilters.isImportant = false;
-          break;
-        case "isPinned":
-          updatedFilters.isPinned = false;
-          break;
         default:
           break;
       }
@@ -668,7 +650,7 @@ const FilterBar = ({
     setLocalSearchValue("");
     setDetectionResult(null);
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem(OWNER_SHEET_FILTER_STORAGE_KEY);
+      sessionStorage.removeItem(filterStorageKey);
     }
     setFilters({
       searchType: "",
@@ -683,8 +665,6 @@ const FilterBar = ({
       sortByPrice: "",
       beds: 0,
       dateRange: undefined,
-      isImportant: false,
-      isPinned: false,
     });
   };
 
@@ -1083,57 +1063,6 @@ const FilterBar = ({
             )}
           </Button>
 
-          <Button
-            variant="outline"
-            className={`h-9 flex items-center gap-2 px-3 transition-all border
-    ${
-      filters.isImportant
-        ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500 dark:bg-yellow-400 dark:hover:bg-yellow-300 dark:text-gray-900"
-        : "text-yellow-500 border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900"
-    }`}
-            onClick={() => {
-              setFilters((prev) => ({
-                ...prev,
-                isImportant: !prev.isImportant,
-              }));
-            }}
-          >
-            <Star
-              className={`h-4 w-4 transition-all
-      ${
-        filters.isImportant
-          ? "fill-white text-white dark:fill-gray-900 dark:text-gray-900"
-          : "text-yellow-500"
-      }`}
-            />
-            <span>Star</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            className={`h-9 flex items-center gap-2 px-3 transition-all border
-    ${
-      filters.isPinned
-        ? "bg-red-500 hover:bg-red-600 text-white border-red-500 dark:bg-red-400 dark:hover:bg-red-300 dark:text-gray-900"
-        : "text-red-500 border-red-500 hover:bg-blue-50 dark:hover:bg-red-900"
-    }`}
-            onClick={() => {
-              setFilters((prev) => ({
-                ...prev,
-                isPinned: !prev.isPinned,
-              }));
-            }}
-          >
-            <Pin
-              className={`h-4 w-4 transition-all
-      ${
-        filters.isPinned
-          ? "fill-white text-white dark:fill-gray-900 dark:text-gray-900"
-          : "text-red-500"
-      }`}
-            />
-            <span>Pin</span>
-          </Button>
         </div>
       </div>
 

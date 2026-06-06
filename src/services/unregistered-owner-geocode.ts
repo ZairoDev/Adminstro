@@ -1,9 +1,15 @@
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+<<<<<<< Updated upstream
 import {
   geocodeWithGoogle,
   inferCountryCodeFromLocation,
 } from "@/util/geocodeGoogle";
 import type { Types } from "mongoose";
+=======
+import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm";
+import { geocodeWithNominatim } from "@/util/geocodeNominatim";
+import type { Model, Types } from "mongoose";
+>>>>>>> Stashed changes
 
 export interface LocationGeoPoint {
   type: "Point";
@@ -231,12 +237,13 @@ export function resolveLocationGeoAfterSync(
  * - On failure: keeps existing locationGeo (Geo Search pins stay valid).
  * - When address/location/area are all empty: clears locationGeo only then.
  */
-export async function syncLocationGeoForOwner(
+async function syncLocationGeoForOwnerModel(
+  model: Model<any>,
   ownerId: Types.ObjectId | string,
   fields: OwnerGeoFields,
 ): Promise<SyncLocationGeoResult> {
   if (!hasGeocodableFields(fields)) {
-    const unset = await unregisteredOwner.updateOne(
+    const unset = await model.updateOne(
       { _id: ownerId },
       { $unset: { locationGeo: "" } },
     );
@@ -250,11 +257,45 @@ export async function syncLocationGeoForOwner(
     return { status: "failed" };
   }
 
-  await unregisteredOwner.updateOne(
+  await model.updateOne(
     { _id: ownerId },
     { $set: { locationGeo: resolved } },
   );
   return { status: "updated", locationGeo: resolved };
+}
+
+export async function syncLocationGeoForOwner(
+  ownerId: Types.ObjectId | string,
+  fields: OwnerGeoFields,
+): Promise<SyncLocationGeoResult> {
+  return syncLocationGeoForOwnerModel(unregisteredOwner, ownerId, fields);
+}
+
+export async function syncLocationGeoForShortTermOwner(
+  ownerId: Types.ObjectId | string,
+  fields: OwnerGeoFields,
+): Promise<SyncLocationGeoResult> {
+  return syncLocationGeoForOwnerModel(
+    unregisteredOwnerShortTerm,
+    ownerId,
+    fields,
+  );
+}
+
+function scheduleLocationGeoSyncForModel(
+  model: Model<any>,
+  ownerId: Types.ObjectId | string,
+  fields: OwnerGeoFields,
+  label: string,
+): void {
+  void syncLocationGeoForOwnerModel(model, ownerId, fields).catch(
+    (error: unknown) => {
+      console.error(
+        `[geocode] Background sync failed for ${label} owner ${String(ownerId)}`,
+        error,
+      );
+    },
+  );
 }
 
 /** Non-blocking geocode after Owner Sheet save; errors are logged only. */
@@ -262,10 +303,22 @@ export function scheduleLocationGeoSync(
   ownerId: Types.ObjectId | string,
   fields: OwnerGeoFields,
 ): void {
-  void syncLocationGeoForOwner(ownerId, fields).catch((error: unknown) => {
-    console.error(
-      `[geocode] Background sync failed for owner ${String(ownerId)}`,
-      error,
-    );
-  });
+  scheduleLocationGeoSyncForModel(
+    unregisteredOwner,
+    ownerId,
+    fields,
+    "long-term",
+  );
+}
+
+export function scheduleShortTermLocationGeoSync(
+  ownerId: Types.ObjectId | string,
+  fields: OwnerGeoFields,
+): void {
+  scheduleLocationGeoSyncForModel(
+    unregisteredOwnerShortTerm,
+    ownerId,
+    fields,
+    "short-term",
+  );
 }

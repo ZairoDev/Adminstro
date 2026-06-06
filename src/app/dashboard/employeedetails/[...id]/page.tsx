@@ -78,6 +78,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Loader from "@/components/loader";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
+import { formatEmployeeRentalTypeLabel } from "@/util/employeeRentalTypeAccess";
 import { Badge } from "@/components/ui/badge";
 import {
   EmployeeInterface,
@@ -1415,6 +1416,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   }
                 />
                 <InfoItem icon={AtSign} label="Alias" value={user?.alias} />
+                <InfoItem
+                  icon={Building2}
+                  label="Rental Type"
+                  value={formatEmployeeRentalTypeLabel(user?.rentalType)}
+                />
                 <InfoItem
                   icon={Globe}
                   label="Verified"

@@ -34,6 +34,7 @@ import { employeeRoles } from "@/constants/employeeRoles";
 import { ToggleButton } from "@/components/toggle_button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { formatEmployeeRentalTypeLabel } from "@/util/employeeRentalTypeAccess";
 
 /** Employee row may include pips from API */
 type EmployeeRow = UserInterface & {
@@ -267,6 +268,7 @@ export default function EmployeeTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Rental Type</TableHead>
             {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Password / PIN</TableHead>
@@ -332,6 +334,15 @@ export default function EmployeeTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      employee.rentalType ? "outline" : "secondary"
+                    }
+                  >
+                    {formatEmployeeRentalTypeLabel(employee.rentalType)}
+                  </Badge>
+                </TableCell>
                 {["SuperAdmin", "HR"].includes(role) && (
                   <TableCell>
                     <Badge variant="secondary">

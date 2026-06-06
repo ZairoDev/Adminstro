@@ -7,14 +7,19 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
 import axios from "@/util/axios";
 import type { unregisteredOwners } from "@/util/type";
+import { OWNER_SHEET_LONG_TERM_CONFIG } from "../../ownerSheetConfig";
 
 interface UploadCellProps {
   item: unregisteredOwners;
+  apiBasePath?: string;
   onUploadComplete?: (id: string, newUrls: string[]) => void;
 }
 
-
-export  function UploadCell({ item, onUploadComplete }: UploadCellProps) {
+export function UploadCell({
+  item,
+  apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
+  onUploadComplete,
+}: UploadCellProps) {
     const { uploadFiles, loading } = useBunnyUpload();
     const [isUploading, setIsUploading] = React.useState(false);
     const [hasImages, setHasImages] = React.useState(
@@ -64,7 +69,7 @@ export  function UploadCell({ item, onUploadComplete }: UploadCellProps) {
         console.log("Saving to server:", allImageUrls);
 
         const response = await axios.put(
-          `/api/unregisteredOwners/updateData/${item._id}`,
+          `${apiBasePath}/updateData/${item._id}`,
           {
             field: "imageUrls",
             value: allImageUrls,

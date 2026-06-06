@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { useSocket } from "./useSocket";
 import { useToast } from "./use-toast";
 import { IQuery } from "@/util/type";
+import { isLeadBookingTermAllowed } from "@/util/employeeRentalTypeAccess";
+import { useAuthStore } from "@/AuthStore";
 
 type LeadDisposition = "fresh" | "active" | "rejected" | "declined" | "closed";
 
@@ -44,6 +46,7 @@ export const useLeadSocket = ({
 }: UseLeadSocketOptions) => {
   const { socket, isConnected } = useSocket();
   const { toast } = useToast();
+  const token = useAuthStore((state) => state.token);
 
   const setQueriesRef = useRef(setQueries);
   const toastRef = useRef(toast);
@@ -51,6 +54,8 @@ export const useLeadSocket = ({
   const setTotalQueriesRef = useRef(setTotalQueries);
   const pageSizeRef = useRef(pageSize);
   const allotedAreaRef = useRef(allotedArea);
+  const rentalTypeRef = useRef<string | null>(null);
+  const roleRef = useRef<string | null>(null);
   const joinedRoomsRef = useRef<{ area: string; disposition: string }[]>([]);
   const processedLeadsRef = useRef<Set<string>>(new Set());
 
@@ -62,6 +67,11 @@ export const useLeadSocket = ({
     pageSizeRef.current = pageSize;
     allotedAreaRef.current = allotedArea;
   }, [setQueries, toast, page, setTotalQueries, setTotalPages, pageSize, allotedArea]);
+
+  useEffect(() => {
+    rentalTypeRef.current = token?.rentalType ?? null;
+    roleRef.current = token?.role ?? "";
+  }, [token?.rentalType, token?.role]);
 
   const areaKey = Array.isArray(allotedArea)
     ? allotedArea.sort().join(",")
@@ -81,6 +91,16 @@ export const useLeadSocket = ({
 
         if (processedLeadsRef.current.has(leadId)) return;
         processedLeadsRef.current.add(leadId);
+
+        if (
+          !isLeadBookingTermAllowed(
+            rentalTypeRef.current,
+            roleRef.current ?? "",
+            data.bookingTerm,
+          )
+        ) {
+          return;
+        }
 
         const currentAllotedArea = allotedAreaRef.current;
         const rawAreas = Array.isArray(currentAllotedArea)

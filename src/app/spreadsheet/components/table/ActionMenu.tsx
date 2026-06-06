@@ -11,12 +11,19 @@ import { UploadCell } from "../cells/UploadCell";
 import { DownloadCell } from "../cells/DownloadCell";
 import { useMemo } from "react";
 
+import { OWNER_SHEET_LONG_TERM_CONFIG } from "../../ownerSheetConfig";
+
 interface ActionMenuProps {
   item: unregisteredOwners;
+  apiBasePath?: string;
   onUploadComplete?: (id: string, newUrls: string[]) => void;
 }
 
-export function ActionMenu({ item, onUploadComplete }: ActionMenuProps) {
+export function ActionMenu({
+  item,
+  apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
+  onUploadComplete,
+}: ActionMenuProps) {
   // ✅ Determine if there's something to download
   const hasDownloadable = useMemo(() => {
     return (
@@ -47,7 +54,11 @@ export function ActionMenu({ item, onUploadComplete }: ActionMenuProps) {
       <DropdownMenuContent align="start" className="w-32">
         <DropdownMenuItem asChild >
           <div  onClick={(e) => e.stopPropagation()}>
-            <UploadCell item={item} onUploadComplete={onUploadComplete} />
+            <UploadCell
+              item={item}
+              apiBasePath={apiBasePath}
+              onUploadComplete={onUploadComplete}
+            />
             
           </div>
         </DropdownMenuItem>

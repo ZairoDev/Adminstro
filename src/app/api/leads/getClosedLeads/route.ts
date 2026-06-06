@@ -12,6 +12,11 @@ import Query from "@/models/query";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
+import {
+  applyGuestLeadLocationToQuery,
+  resolveEffectiveLeadLocations,
+} from "@/util/guestLeadLocationScope";
 import {
   applyEffectiveRangeToQuery,
   computeEffectiveRange,
@@ -129,13 +134,11 @@ export async function POST(req: NextRequest) {
 
     if (guest) query.guest = { $gte: parseInt(guest, 10) };
     if (noOfBeds) query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
-    let effectiveLocations: string[] | null = (() => {
-      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead") {
-        return Array.isArray(assignedArea) ? (assignedArea as any[]).map(String) : [String(assignedArea)];
-      }
-      return null;
-    })();
+    let effectiveLocations = resolveEffectiveLeadLocations({
+      role: String(role ?? ""),
+      assignedArea,
+      uiAllotedArea: allotedArea,
+    });
 
     const blocked = new Set(
       Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
@@ -195,17 +198,11 @@ export async function POST(req: NextRequest) {
       leadStatus: "closed",
     };
 
-    if (allotedArea) {
-      query.location = new RegExp(allotedArea, "i");
-    } else {
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead") {
-        if (Array.isArray(assignedArea)) {
-          query.location = { $in: assignedArea };
-        } else {
-          query.location = assignedArea;
-        }
-      }
-    }
+    applyGuestLeadLocationToQuery(query, {
+      role: String(role ?? ""),
+      assignedArea,
+      uiAllotedArea: allotedArea,
+    });
 
     // Enforce "hide guest leads by location" at the query level too
     if (blocked.size) {
@@ -225,6 +222,8 @@ export async function POST(req: NextRequest) {
         query.location = { $in: filtered };
       }
     }
+
+    query = await applyEmployeeRentalTypeLeadFilter(query, token);
 
     const allquery = await Query.aggregate([
       { $match: query },

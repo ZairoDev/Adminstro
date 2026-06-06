@@ -11,6 +11,7 @@ import {
   getTemplatePreviewText,
   getTemplateParamIntents,
 } from "@/app/whatsapp/utils";
+import { parseMonthlyTargetLocationNames } from "@/util/monthlyTargetLocations";
 
 // Enhanced recipient type with retarget tracking
 type RetargetRecipient = {
@@ -113,11 +114,8 @@ export default function RetargetPage() {
     const getLocations = async () => {
       try {
         const response = await axios.get("/api/monthlyTargets/getLocations");
-        if (response) {
-          const cities = response.data.locations.map(
-            (location: any) => location.city
-          );
-          setLocations(cities);
+        if (response?.data?.locations) {
+          setLocations(parseMonthlyTargetLocationNames(response.data.locations));
         }
       } catch (err) {
         console.error("Failed to fetch locations:", err);

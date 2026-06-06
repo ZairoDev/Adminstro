@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,8 +11,12 @@ connectDb();
 
 export async function GET(req: NextRequest) {
   try {
-    await getDataFromToken(req);
+    const token = await getDataFromToken(req);
+    const rentalTypeQuery = await applyEmployeeRentalTypeLeadFilter({}, token);
     const statusPipeline = [
+  ...(rentalTypeQuery.bookingTerm
+    ? [{ $match: { bookingTerm: rentalTypeQuery.bookingTerm } }]
+    : []),
   {
     $match: {
       leadStatus: { $nin: ["rejected","declined" ] },

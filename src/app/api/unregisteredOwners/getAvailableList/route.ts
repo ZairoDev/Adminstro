@@ -7,6 +7,7 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { isLocationExempt } from "@/util/apiSecurity";
 import {
   applyOwnerSheetLocationQuery,
@@ -23,6 +24,9 @@ export async function POST(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
 
     const role: string = (token.role || "") as string;
 
@@ -69,13 +73,6 @@ export async function POST(req: NextRequest) {
     // console.log("filters: ", filters);
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
-
-    if (filters.isImportant) {
-      query["isImportant"] = "Important";
-    }
-    if (filters.isPinned) {
-      query["isPinned"] = "Pinned";
-    }
 
     const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
       role,

@@ -25,7 +25,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { token } = useAuthStore();
+  const { token, setToken } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const isOnboarding = pathname?.includes("/onboarding");
@@ -42,6 +42,22 @@ export default function DashboardLayout({
     const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
     return match ? match[2] : null;
   };
+
+  useEffect(() => {
+    const syncTokenRentalType = async () => {
+      if (!token?.id) return;
+      try {
+        const res = await axios.get("/api/user/getloggedinuser");
+        const user = res.data?.user as { rentalType?: string | null } | undefined;
+        if (!user || user.rentalType === token.rentalType) return;
+        setToken({ ...token, rentalType: user.rentalType ?? null });
+      } catch {
+        // Non-blocking: keep existing client token if refresh fails
+      }
+    };
+    void syncTokenRentalType();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token?.id]);
 
   useEffect(() => {
     if (!socket) return;

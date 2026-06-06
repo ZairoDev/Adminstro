@@ -8,6 +8,7 @@ import {
 } from "@/services/unregistered-owner-geocode";
 import { isLocationExempt } from "@/util/apiSecurity";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import {
   normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
         { status },
       );
     }
+
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
 
     const body = await req.json();
     const role = token.role ?? "";

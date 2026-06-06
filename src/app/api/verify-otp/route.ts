@@ -6,6 +6,7 @@ import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { NextRequest, NextResponse } from "next/server";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
 import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
+import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 
 export async function POST(request: NextRequest) {
   try {
@@ -192,6 +193,7 @@ export async function POST(request: NextRequest) {
       email: (savedUser as any).email,
       role: (savedUser as any).role,
       allotedArea: parseAllotedAreaForClient((savedUser as any).allotedArea),
+      rentalType: normalizeEmployeeRentalType((savedUser as any).rentalType),
     };
 
     const token = jwt.sign(tokenData, process.env.TOKEN_SECRET as string, {

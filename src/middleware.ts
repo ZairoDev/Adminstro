@@ -1,6 +1,10 @@
 import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  canAccessOwnerSheetVariant,
+  getDefaultOwnerSheetPath,
+} from "@/util/employeeRentalTypeAccess";
 
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
@@ -12,6 +16,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/whatsapp/retarget",
     "/application-form",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/dashboard",
     "/holidaysera",
     /^\/holidaysera(\/.*)?$/,
@@ -26,6 +31,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard",
     "/dashboard/my-reminders",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     /^\/dashboard\/user$/,
     /^\/dashboard\/edituserdetails$/,
     /^\/dashboard\/property$/,
@@ -46,6 +52,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/addons",
     "/dashboard/createquery",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/dashboard/invoice/list",
     /^\/dashboard\/invoice\/list\/.*$/,
     "/dashboard/invoice",
@@ -100,6 +107,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Content
     "/dashboard/my-reminders",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     /^\/dashboard\/createblog$/,
     /^\/dashboard\/remainingproperties\/description\/.*$/,
     /^\/dashboard\/remainingproperties$/,
@@ -113,6 +121,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Sales
     "/dashboard/my-reminders",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/whatsapp",
     "/whatsapp/retarget",
     "/dashboard/rejectedleads",
@@ -143,6 +152,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard", // Dashboard access for Sales-TeamLead
     "/dashboard/my-reminders",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/whatsapp",
     "/dashboard/rejectedleads",
     /^\/dashboard\/createquery\/.*$/,
@@ -191,6 +201,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/admin",
     "/dashboard", // Dashboard access for Developer
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/whatsapp",
     /^\/dashboard\/.*$/,
     /^\/property\/.*$/,
@@ -233,6 +244,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard",
     "/dashboard/my-reminders",
     "/spreadsheet",
+    "/spreadsheet-short-term",
     "/whatsapp",
   ],
   hSale: [
@@ -353,6 +365,7 @@ export async function middleware(request: NextRequest) {
       const isOwnerManagementPath = (p: string) => {
         const prefixes = [
           "/spreadsheet",
+          "/spreadsheet-short-term",
           "/dashboard/user",
           "/dashboard/newproperty",
           "/dashboard/newproperty/filteredProperties",
@@ -377,6 +390,24 @@ export async function middleware(request: NextRequest) {
       if ((uiFlags as any)?.hideOwnerManagement && isOwnerManagementPath(path)) {
         return NextResponse.redirect(
           new URL(defaultRoutes[role] || "/dashboard", request.url),
+        );
+      }
+
+      const rentalType = (decodedToken?.payload as any)?.rentalType;
+      if (
+        path === "/spreadsheet" &&
+        !canAccessOwnerSheetVariant(rentalType, role, "long-term")
+      ) {
+        return NextResponse.redirect(
+          new URL(getDefaultOwnerSheetPath(rentalType, role), request.url),
+        );
+      }
+      if (
+        path === "/spreadsheet-short-term" &&
+        !canAccessOwnerSheetVariant(rentalType, role, "short-term")
+      ) {
+        return NextResponse.redirect(
+          new URL(getDefaultOwnerSheetPath(rentalType, role), request.url),
         );
       }
 

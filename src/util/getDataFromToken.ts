@@ -3,6 +3,7 @@ import { jwtVerify, decodeJwt } from "jose";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
+import { resolveEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 
 export const getDataFromToken = async (request: NextRequest) => {
   let token: string | undefined;
@@ -112,7 +113,15 @@ export const getDataFromToken = async (request: NextRequest) => {
       ).catch(() => undefined);
     }
 
-    return payload;
+    const rentalType = resolveEmployeeRentalType(
+      payload.rentalType,
+      (employee as { rentalType?: unknown }).rentalType,
+    );
+
+    return {
+      ...payload,
+      rentalType,
+    };
   } catch (error: any) {
     // 🔥 JWT Expired Handling
     if (error?.code === "ERR_JWT_EXPIRED" && token) {

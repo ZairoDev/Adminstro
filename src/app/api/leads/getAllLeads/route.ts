@@ -12,6 +12,13 @@ import Query from "@/models/query";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
+import {
+  ALL_LEADS_LOCATION_EXEMPT_ROLES,
+  parseAssignedAreasFromToken,
+  resolveEffectiveLeadLocations,
+} from "@/util/guestLeadLocationScope";
+import { exactCaseInsensitiveRegex } from "@/util/regex";
 import { loadEmployeePricingRules, applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
   applyPropertyVisibilityRuleToLeadQuery,
@@ -149,13 +156,12 @@ export async function POST(req: NextRequest) {
     }
     // propertyType enforced below (intersection with employee rule)
     if (billStatus) query.billStatus = billStatus;
-    let effectiveLocations: string[] | null = (() => {
-      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
-      // For this route we have normalized assignedArea already; apply only for restricted roles
-      const locationExemptRoles = ["SuperAdmin", "Admin", "Developer", "HR", "Sales-TeamLead", "LeadGen-TeamLead", "LeadGen", "Advert"];
-      if (!locationExemptRoles.includes(role)) return assignedArea;
-      return null;
-    })();
+    let effectiveLocations = resolveEffectiveLeadLocations({
+      role,
+      assignedArea,
+      uiAllotedArea: allotedArea,
+      exemptRoles: ALL_LEADS_LOCATION_EXEMPT_ROLES,
+    });
 
     const blocked = new Set(
       Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
@@ -240,16 +246,13 @@ export async function POST(req: NextRequest) {
           query.location = { $in: [] };
         }
       } else {
-        // No specific location requested - filter by all assigned areas
-        if (assignedArea) {
-          if (Array.isArray(assignedArea)) {
-            query.location = { $in: assignedArea };
-          } else {
-            query.location = assignedArea;
-          }
-        } else {
-          // No assigned areas - deny access (return empty result)
-          query.location = { $in: [] };
+        const userAreas = parseAssignedAreasFromToken(assignedArea);
+        if (userAreas.length === 1) {
+          query.location = exactCaseInsensitiveRegex(userAreas[0]);
+        } else if (userAreas.length > 1) {
+          query.$or = userAreas.map((area) => ({
+            location: exactCaseInsensitiveRegex(area),
+          }));
         }
       }
     } else if (allotedArea && allotedArea !== "All") {
@@ -277,6 +280,8 @@ export async function POST(req: NextRequest) {
     }
 
     // console.log("created query: ", query);
+
+    query = await applyEmployeeRentalTypeLeadFilter(query, token);
 
     const allquery = await Query.aggregate([
       { $match: query },

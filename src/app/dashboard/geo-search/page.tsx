@@ -356,8 +356,6 @@ export default function GeoSearchPage() {
     maxPrice: 0,
     beds: 0,
     dateRange: undefined,
-    isImportant: false,
-    isPinned: false,
     sortByPrice: "",
   });
   const geoHiddenColumns = useMemo(

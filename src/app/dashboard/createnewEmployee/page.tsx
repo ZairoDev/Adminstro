@@ -234,6 +234,14 @@ const NewUser = () => {
   const selectedOrganization = watch("organization");
   const selectedCountry = watch("assignedCountry");
   const selectedCity = watch("allotedArea");
+  const selectedRentalType = watch("rentalType");
+
+  const isSalesRole =
+    selectedRole === "Sales" ||
+    selectedRole === "Sales-TeamLead" ||
+    selectedRole === "sales-intern";
+  const isAllotedAreaRequired =
+    selectedRole === "Sales" || selectedRole === "sales-intern";
 
   return (
     <div className="min-h-screen bg-white dark:bg-stone-950 py-8">
@@ -549,6 +557,109 @@ const NewUser = () => {
                     )}
                   </div>
 
+                  {isSalesRole && (
+                    <>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="rentalType"
+                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                          Rental Type *
+                        </Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setValue(
+                              "rentalType",
+                              value as "Short Term" | "Long Term",
+                            )
+                          }
+                          value={selectedRentalType ?? ""}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select rental type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Short Term">Short Term</SelectItem>
+                            <SelectItem value="Long Term">Long Term</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.rentalType && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.rentalType.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="assignedCountry"
+                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                          Assigned Country *
+                        </Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setValue("assignedCountry", value)
+                          }
+                          value={selectedCountry}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {country.map((country: String, index) => (
+                              <SelectItem
+                                key={index}
+                                value={country.toString()}
+                              >
+                                {country}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.assignedCountry && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.assignedCountry.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="allotedArea"
+                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                          Alloted Area{isAllotedAreaRequired ? " *" : ""}
+                        </Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setValue("allotedArea", [value as string])
+                          }
+                          value={selectedCity?.[0]}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {city.map((cityItem: String, index) => (
+                              <SelectItem
+                                key={index}
+                                value={cityItem.toString().toLowerCase()}
+                              >
+                                {cityItem.toString().toLowerCase()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.allotedArea && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.allotedArea.message}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="empType"
@@ -666,79 +777,6 @@ const NewUser = () => {
                       </p>
                     )}
                   </div>
-
-                  {(selectedRole === "Sales" ||
-                    selectedRole === "Sales-TeamLead") && (
-                    <>
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="assignedCountry"
-                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                        >
-                          Assigned Country *
-                        </Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setValue("assignedCountry", value)
-                          }
-                          value={selectedCountry}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select country" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {country.map((country: String, index) => (
-                              <SelectItem
-                                key={index}
-                                value={country.toString()}
-                              >
-                                {country}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.assignedCountry && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.assignedCountry.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="allotedArea"
-                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                        >
-                          Alloted Area *
-                        </Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setValue("allotedArea", [value as string])
-                          }
-                          value={selectedCity?.[0]}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select area" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {city.map((cityItem: String, index) => (
-                              <SelectItem
-                                key={index}
-                                value={cityItem.toString().toLowerCase()}
-                              >
-                                {cityItem.toString().toLowerCase()}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.allotedArea && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.allotedArea.message}
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
 
                   <div className="space-y-2">
                     <Label

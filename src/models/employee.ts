@@ -171,6 +171,11 @@ const employeeSchema = new Schema<IEmployee>(
       type: String,
       default: "",
     },
+    rentalType: {
+      type: String,
+      enum: ["Short Term", "Long Term", null],
+      default: null,
+    },
     empType: {
       type: String,
       default: "",

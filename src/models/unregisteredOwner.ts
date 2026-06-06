@@ -103,14 +103,6 @@ petStatus: {
     type: String,
     default: "None"
   },
-  isImportant:{
-    type: String,
-    default: "None"
-  },
-  isPinned:{
-    type: String,
-    default: "None"
-  },
   geoAddressVerified: {
     type: String,
     enum: ["Verified", "None"],

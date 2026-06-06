@@ -48,6 +48,7 @@ import {
 import { IQuery } from "@/util/type";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
+import { parseMonthlyTargetLocationNames } from "@/util/monthlyTargetLocations";
 
 import {
   AlertDialog,
@@ -138,12 +139,12 @@ export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: 
         setLoadingLocations(true);
         const response = await axios.get("/api/monthlyTargets/getLocations");
         if (response.data?.locations) {
-          // Extract city values from the locations array and convert to lowercase
-          const locationNames: string[] = response.data.locations.map(
-            (location: { city: string }) => location.city.toLowerCase()
-          );
-          // Remove duplicates and sort
-          const uniqueLocations: string[] = Array.from(new Set(locationNames)).sort();
+          const locationNames = parseMonthlyTargetLocationNames(
+            response.data.locations,
+          ).map((name) => name.toLowerCase());
+          const uniqueLocations: string[] = Array.from(
+            new Set(locationNames),
+          ).sort();
           setLocations(uniqueLocations);
         }
       } catch (error) {

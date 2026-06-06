@@ -45,6 +45,11 @@ export const employeeSchema = z.object({
     "HAdmin",
   ]),
   assignedCountry: z.string().optional().default(""),
+  rentalType: z
+    .enum(["Short Term", "Long Term"])
+    .nullable()
+    .optional()
+    .default(null),
   empType: z.string().optional().default(""),
   lastLogin: z.date().optional(),
   lastLogout: z.date().optional(),
@@ -327,6 +332,33 @@ export const employeeSchema = z.object({
   tokenValidAfter: z.number().optional(),
   webTokenValidAfter: z.number().optional(),
   mobileTokenValidAfter: z.number().optional(),
+}).superRefine((data, ctx) => {
+  const salesRoles = ["Sales", "Sales-TeamLead", "sales-intern"];
+  const allotedAreaRequiredRoles = ["Sales", "sales-intern"];
+
+  if (salesRoles.includes(data.role)) {
+    if (!data.rentalType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Rental type is required for Sales employees",
+        path: ["rentalType"],
+      });
+    }
+  }
+
+  if (allotedAreaRequiredRoles.includes(data.role)) {
+    const hasArea =
+      Array.isArray(data.allotedArea) &&
+      data.allotedArea.some((area) => String(area ?? "").trim().length > 0);
+
+    if (!hasArea) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Alloted area is required for this role",
+        path: ["allotedArea"],
+      });
+    }
+  }
 });
 
 export type EmployeeSchema = z.infer<typeof employeeSchema>;

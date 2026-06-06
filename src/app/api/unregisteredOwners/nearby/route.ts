@@ -7,6 +7,7 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 
 const EARTH_RADIUS_M = 6_378_100;
 
@@ -22,8 +23,6 @@ const filtersSchema = z
     minPrice: z.number().nullable().optional().default(0),
     maxPrice: z.number().nullable().optional().default(0),      
     sortByPrice: z.enum(["asc", "desc", ""]).optional().default(""),
-    isImportant: z.boolean().optional().default(false),
-    isPinned: z.boolean().optional().default(false),
   })
   .optional()
   .default({});
@@ -328,13 +327,6 @@ async function applyCommonFilters(
     query[filters.searchType] = new RegExp(filters.searchValue, "i");
   }
 
-  if (filters.isImportant) {
-    query.isImportant = "Important";
-  }
-  if (filters.isPinned) {
-    query.isPinned = "Pinned";
-  }
-
   if (filters.propertyType.trim()) {
     query.propertyType = strictRegex(filters.propertyType.trim());
   }
@@ -439,6 +431,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await connectDb();
 
     const token = await getDataFromToken(req);
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
+
     const role = String((token as { role?: unknown })?.role ?? "");
     const alloted = (token as { allotedArea?: unknown })?.allotedArea;
     const assignedArea =

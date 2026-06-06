@@ -1,6 +1,7 @@
 import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,8 +9,9 @@ connectDb();
 
 export async function POST(req: NextRequest) {
   try {
+    let token: Awaited<ReturnType<typeof getDataFromToken>>;
     try {
-      await getDataFromToken(req);
+      token = await getDataFromToken(req);
     } catch (err: any) {
       const status = err?.status ?? 401;
       const code = err?.code ?? "AUTH_FAILED";
@@ -18,6 +20,9 @@ export async function POST(req: NextRequest) {
         { status },
       );
     }
+
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
 
     const { petId, changedStatus } = await req.json();
     // console.log("lead: ", petId, changedStatus);

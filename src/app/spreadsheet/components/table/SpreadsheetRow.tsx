@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Ban, CheckCheck, CircleDot, Copy, PawPrint, Pin, Star } from "lucide-react";
+import { Ban, CheckCheck, CircleDot, Copy, PawPrint } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
@@ -52,8 +52,6 @@ interface SpreadsheetRowProps {
   onSave: (id: string, field: keyof unregisteredOwners, value: string) => void;
   onPetStatusChange: (id: string, index: number) => void;
   onVerifiedStatusChange: (id: string, index: number) => void;
-  onImportantStatusChange: (id: string, index: number) => void;
-  onPinnedStatusChange: (id: string, index: number) => void;
   onUploadComplete: (id: string, newUrls: string[]) => void;
 }
 
@@ -81,8 +79,6 @@ export function SpreadsheetRow({
   onSave,
   onPetStatusChange,
   onVerifiedStatusChange,
-  onImportantStatusChange,
-  onPinnedStatusChange,
   onUploadComplete,
 }: SpreadsheetRowProps) {
   const isRowSelected = selectedRow === item._id;
@@ -168,46 +164,6 @@ export function SpreadsheetRow({
           </span>
         )}
 
-        {(userRole === "Sales" || userRole === "sales-intern" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
-          <span
-            className="cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onImportantStatusChange(item._id, index);
-            }}
-          >
-            {item.isImportant === "Important" ? (
-              <CustomTooltip
-                icon={<Star color="yellow" fill="yellow" size={14} />}
-                desc="Important"
-              />
-            ) : (
-              <CustomTooltip
-                icon={<CircleDot className="text-muted-foreground" size={14} />}
-                desc="None"
-              />
-            )}
-          </span>
-        )}
-
-        {(userRole === "Sales" || userRole === "sales-intern" || userRole === "Sales-TeamLead" || userRole === "SuperAdmin") && (
-          <span
-            className="cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPinnedStatusChange(item._id, index);
-            }}
-          >
-            {item.isPinned === "Pinned" ? (
-              <CustomTooltip icon={<Pin color="red" fill="red" size={14} />} desc="Pinned" />
-            ) : (
-              <CustomTooltip
-                icon={<CircleDot className="text-muted-foreground" size={14} />}
-                desc="None"
-              />
-            )}
-          </span>
-        )}
       </div>
 
       {/* Name Column */}

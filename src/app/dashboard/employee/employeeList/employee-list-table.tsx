@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { employeeRoles } from "@/constants/employeeRoles";
 import { Badge } from "@/components/ui/badge";
+import { formatEmployeeRentalTypeLabel } from "@/util/employeeRentalTypeAccess";
 
 /**
  * Utility function to check if HR user is viewing SuperAdmin account
@@ -169,6 +170,7 @@ export default function EmployeeListTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Rental Type</TableHead>
             {["SuperAdmin", "HR"].includes(role) && <TableHead>Organization</TableHead>}
             <TableHead>Password / PIN</TableHead>
             <TableHead>Actions </TableHead>
@@ -211,6 +213,15 @@ export default function EmployeeListTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      employee.rentalType ? "outline" : "secondary"
+                    }
+                  >
+                    {formatEmployeeRentalTypeLabel(employee.rentalType)}
+                  </Badge>
+                </TableCell>
                 {["SuperAdmin", "HR"].includes(role) && (
                   <TableCell>
                     <Badge variant="secondary">

@@ -72,10 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const userRole = String(token.role);
     if (!allowedRoles.includes(userRole)) {
-      return NextResponse.json(
-        { message: "Unauthorized: You don't have permission to access employee data" },
-        { status: 403 }
-      );
+      return NextResponse.json({ allEmployees: [], totalEmployee: 0 });
     }
 
     let allEmployees: EmployeeWithLock[] = [];

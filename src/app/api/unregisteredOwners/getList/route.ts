@@ -4,11 +4,14 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 
 connectDb();
 export async function POST(req: NextRequest) {
   try{
-    await getDataFromToken(req);
+    const token = await getDataFromToken(req);
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
     const { filters }: { filters: FiltersInterface; page: number } =
         await req.json();
     const query: Record<string, any> = {};

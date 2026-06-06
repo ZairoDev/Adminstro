@@ -69,6 +69,7 @@ import { FaWhatsapp } from "react-icons/fa6";
 import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
 import { IoMdPaper } from "react-icons/io";
+import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
 
 const isActive = (currentPath: string, path: string): boolean => {
   const routeBase = path.split("?")[0];
@@ -85,6 +86,29 @@ type Route = {
   Icon?: JSX.Element;
    openInNewTab?: boolean;
 };
+
+const filterOwnerSheetRoutes = (
+  routes: Route[],
+  currentRole: string,
+  currentRentalType: string | null,
+): Route[] =>
+  routes.filter((route) => {
+    if (route.path === "/spreadsheet") {
+      return canAccessOwnerSheetVariant(
+        currentRentalType,
+        currentRole,
+        "long-term",
+      );
+    }
+    if (route.path === "/spreadsheet-short-term") {
+      return canAccessOwnerSheetVariant(
+        currentRentalType,
+        currentRole,
+        "short-term",
+      );
+    }
+    return true;
+  });
 
 const roleRoutes: Record<string, Route[]> = {
   Advert: [
@@ -130,7 +154,13 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/spreadsheet",
-      label: "Owners List",
+      label: "Owner Sheet Long Term",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
       Icon: <PencilLine size={18} />,
       openInNewTab: true,
     },
@@ -267,7 +297,13 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/spreadsheet",
-      label: "Owners List",
+      label: "Owner Sheet Long Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
       Icon: <FileSpreadsheet size={18} />,
       openInNewTab: true,
     },
@@ -559,7 +595,12 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/spreadsheet",
-      label: "Owner Sheet",
+      label: "Owner Sheet Long Term",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
       Icon: <FileSpreadsheet size={18} />,
     },
     {
@@ -577,7 +618,13 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/spreadsheet",
-      label: "Owners List",
+      label: "Owner Sheet Long Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
       Icon: <FileSpreadsheet size={18} />,
       openInNewTab: true,
     },
@@ -1126,7 +1173,13 @@ const bookingsManagementRoutes = [
 const ownerManagementRoutes = [
   {
     path: "/spreadsheet",
-    label: "Owners List",
+    label: "Owner Sheet Long Term",
+    Icon: <PencilLine size={18} />,
+    openInNewTab: true,
+  },
+  {
+    path: "/spreadsheet-short-term",
+    label: "Owner Sheet Short Term",
     Icon: <PencilLine size={18} />,
     openInNewTab: true,
   },
@@ -1373,6 +1426,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   // const [collapsed, setCollapsed] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
+  const [rentalType, setRentalType] = useState<string | null>(null);
   const [hideGuestManagement, setHideGuestManagement] = useState(false);
   const [hideOwnerManagement, setHideOwnerManagement] = useState(false);
   useEffect(() => {
@@ -1384,10 +1438,12 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         const token =
           typeof store?.getState === "function" ? store.getState()?.token : undefined;
         const tokenRole = token?.role;
+        const tokenRentalType = token?.rentalType ?? null;
         const hideGuest = Boolean(token?.uiFlags?.hideGuestManagement);
         const hideOwner = Boolean(token?.uiFlags?.hideOwnerManagement);
         if (mounted) {
           setRole(tokenRole ?? null);
+          setRentalType(tokenRentalType);
           setHideGuestManagement(hideGuest);
           setHideOwnerManagement(hideOwner);
         }
@@ -1417,10 +1473,12 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       );
     }
 
-    const routesForRole = roleRoutes[role as keyof typeof roleRoutes];
-    if (!routesForRole) {
+    const rawRoutes = roleRoutes[role as keyof typeof roleRoutes];
+    if (!rawRoutes) {
       return <li className="px-4 py-2 text-sm">{role ?? "Invalid Role"}</li>;
     }
+
+    const routesForRole = filterOwnerSheetRoutes(rawRoutes, role, rentalType);
 
     const inGroup = (group: Route[]) =>
       routesForRole.filter((r) => group.some((g) => g.path === r.path));

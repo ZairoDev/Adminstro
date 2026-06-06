@@ -49,6 +49,7 @@ const AccountPage = ({ params }: PageProps) => {
   const [experience, setExperience] = useState("");
   const [alias, setAlias] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
+  const [rentalType, setRentalType] = useState<string>("unset");
   const [allotedArea, setAllotedArea] = useState<String[]>([]);
   const [salary, setSalary] = useState("");
   const [empType, setEmpType] = useState("");
@@ -85,6 +86,7 @@ const AccountPage = ({ params }: PageProps) => {
         setCountry(response.data.data.country || " ");
         setAlias(response.data.data.alias || " ");
         setAssignedTo(response.data.data.assignedCountry || " ");
+        setRentalType(response.data.data.rentalType || "unset");
         const raw = response.data.data.allotedArea;
         setAllotedArea(
           Array.isArray(raw)
@@ -154,6 +156,7 @@ const AccountPage = ({ params }: PageProps) => {
         ifsc,
         role,
         assignedCountry: assignedTo,
+        rentalType: rentalType === "unset" ? null : rentalType,
         allotedArea,
         salary,
         empType,
@@ -406,6 +409,22 @@ const AccountPage = ({ params }: PageProps) => {
               onChange={(vals) => setAllotedArea(vals)}
               placeholder="Add location..."
             />
+          </div>
+        </div>
+
+        <div className="flex items-center mt-2 gap-2 sm:flex-row flex-col">
+          <div className="w-full">
+            <Label>Rental Type</Label>
+            <Select onValueChange={setRentalType} value={rentalType}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select rental type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unset">Not set (access all)</SelectItem>
+                <SelectItem value="Short Term">Short Term</SelectItem>
+                <SelectItem value="Long Term">Long Term</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

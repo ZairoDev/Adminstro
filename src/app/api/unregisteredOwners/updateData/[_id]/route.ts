@@ -10,6 +10,7 @@ import {
   type LocationGeoPoint,
 } from "@/services/unregistered-owner-geocode";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { normalizeOwnerSheetCityName } from "@/util/ownerSheetLocationFilter";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -18,8 +19,9 @@ export async function PUT(
   { params }: { params: { _id: string } },
 ) {
   try {
+    let token: Awaited<ReturnType<typeof getDataFromToken>>;
     try {
-      await getDataFromToken(req);
+      token = await getDataFromToken(req);
     } catch (err: unknown) {
       const authErr = err as { status?: number; code?: string };
       const status = authErr?.status ?? 401;
@@ -29,6 +31,9 @@ export async function PUT(
         { status },
       );
     }
+
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
 
     const body = await req.json();
     const { field, value, unavailableUntil } = body as {

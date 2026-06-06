@@ -527,10 +527,26 @@ const Dashboard = () => {
 
 
 
+  const canFetchEmployeeDirectory = [
+    "SuperAdmin",
+    "HR",
+    "Admin",
+    "Developer",
+    "LeadGen-TeamLead",
+    "Sales-TeamLead",
+    "HAdmin",
+  ].includes(String(token?.role ?? ""));
+
   // Fetch employees and detect today's events (for quote flip UI)
   useEffect(() => {
     const fetchEvents = async () => {
       if (!token?.id) {
+        setIsLoadingEvents(false);
+        return;
+      }
+
+      if (!canFetchEmployeeDirectory) {
+        setTodaysEvents({ birthdays: [], anniversaries: [], hasEvents: false });
         setIsLoadingEvents(false);
         return;
       }
@@ -591,7 +607,7 @@ const Dashboard = () => {
     };
 
     fetchEvents();
-  }, [token?.id]);
+  }, [token?.id, canFetchEmployeeDirectory]);
 
   // Handle celebration dismissal (quote flip UI)
   const handleDismissCelebration = () => {

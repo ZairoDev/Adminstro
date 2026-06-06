@@ -12,12 +12,17 @@ import Query from "@/models/query";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
 import { applyPricingRulesByLocationToQuery, loadEmployeePricingRules } from "@/util/pricingRule";
 import {
   applyPropertyVisibilityRulesByLocationToLeadQuery,
   loadEmployeePropertyVisibilityRules,
 } from "@/util/propertyVisibilityRule";
 import { exactCaseInsensitiveRegex } from "@/util/regex";
+import {
+  applyGuestLeadLocationToQuery,
+  resolveEffectiveLeadLocations,
+} from "@/util/guestLeadLocationScope";
 
 connectDb();
 
@@ -149,13 +154,11 @@ export async function POST(req: NextRequest) {
     // Determine effective locations list for location-scoped rules.
     // If a specific location filter is provided, scope to that.
     // Otherwise for non-exempt roles, scope to assigned areas.
-    let effectiveLocations: string[] | null = (() => {
-      if (allotedArea && String(allotedArea).trim() !== "") return [String(allotedArea)];
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead" && role !== "Advert") {
-        return Array.isArray(assignedArea) ? (assignedArea as any[]).map(String) : [String(assignedArea)];
-      }
-      return null;
-    })();
+    let effectiveLocations = resolveEffectiveLeadLocations({
+      role: String(role ?? ""),
+      assignedArea,
+      uiAllotedArea: allotedArea,
+    });
 
     const blocked = new Set(
       Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
@@ -237,22 +240,11 @@ export async function POST(req: NextRequest) {
       /* Only search leads for alloted area, but only in case of agents not for TL and SuperAdmin */
     }
     
-    if (allotedArea) {
-      query.location = new RegExp(allotedArea, "i");
-    } else {
-      if (role !== "SuperAdmin" && role !== "Sales-TeamLead" && role !== "LeadGen-TeamLead" && role !== "Advert") {
-        if (effectiveLocations && effectiveLocations.length > 1) {
-          const areas = effectiveLocations.map((a) => String(a)).filter((a) => a.trim() !== "");
-          query.$or = areas.map((area) => ({ location: exactCaseInsensitiveRegex(area) }));
-        } else {
-          const single =
-            effectiveLocations && effectiveLocations.length === 1
-              ? String(effectiveLocations[0])
-              : String(assignedArea);
-          query.location = exactCaseInsensitiveRegex(single);
-        }
-      }
-    }
+    applyGuestLeadLocationToQuery(query, {
+      role: String(role ?? ""),
+      assignedArea: effectiveLocations ?? assignedArea,
+      uiAllotedArea: allotedArea,
+    });
 
     // Enforce "hide guest leads by location" at the query level too
     if (blocked.size) {
@@ -276,6 +268,8 @@ export async function POST(req: NextRequest) {
     // console.log("query after leadQualityByTeamLead: ", query);
 
     // console.log("created query: ", query);
+
+    query = await applyEmployeeRentalTypeLeadFilter(query, token);
 
     const allquery = await Query.aggregate([
       { $match: query },

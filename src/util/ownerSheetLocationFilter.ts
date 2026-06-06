@@ -241,3 +241,5 @@ export function filterOwnerSheetTargetCities<T extends { _id?: string; city: str
 }
 
 export const OWNER_SHEET_FILTER_STORAGE_KEY = "owner-sheet-filters-v1";
+export const OWNER_SHEET_SHORT_TERM_FILTER_STORAGE_KEY =
+  "owner-sheet-short-term-filters-v1";

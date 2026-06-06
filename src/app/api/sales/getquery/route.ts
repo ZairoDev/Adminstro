@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import Employee from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
 import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 connectDb();
 export const dynamic = "force-dynamic";
@@ -230,6 +231,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
    }
    
    console.log(`[getquery] Final query filter:`, JSON.stringify(query, null, 2));
+
+    query = await applyEmployeeRentalTypeLeadFilter(query, token);
 
     // CRITICAL FIX: For date-specific queries, skip pagination to get all results
     const aggregationPipeline: any[] = [

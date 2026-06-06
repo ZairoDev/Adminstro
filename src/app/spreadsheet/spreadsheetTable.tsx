@@ -14,10 +14,7 @@ import {
   MapPin,
   PawPrint,
   Phone,
-  Pin,
   Plus,
-  Star, 
-
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -73,6 +70,7 @@ import {
   STICKY_RIGHT_SHADOW,
   type StickyRightField,
 } from "./utils/rowTone";
+import { OWNER_SHEET_LONG_TERM_CONFIG } from "./ownerSheetConfig";
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -185,6 +183,7 @@ export function SpreadsheetTable({
   extraColumnLabel,
   extraColumnRender,
   filterPlace = [],
+  apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
@@ -196,6 +195,7 @@ export function SpreadsheetTable({
   extraColumnRender?: (owner: unregisteredOwners) => React.ReactNode;
   /** Active city filter from FilterBar — used as default location for new rows. */
   filterPlace?: string[];
+  apiBasePath?: string;
 }): ReactElement {
 
   const [isLargeScreen, setIsLargeScreen] = useState(true);
@@ -265,10 +265,10 @@ useEffect(() => {
       width: columnWidths.interiorStatus,
     },
     {
-      label: "Pet. Status",
-      field: "petStatus",
+      label: "Floor",
+      field: "propertyFloor",
       sortable: false,
-      width: columnWidths.petStatus,
+      width: columnWidths.propertyFloor,
     },
     {
       label: "Property Type",
@@ -318,10 +318,10 @@ useEffect(() => {
       width: columnWidths.geoVerified,
     },
     {
-      label: "Floor",
-      field: "propertyFloor",
+      label: "Pet. Status",
+      field: "petStatus",
       sortable: false,
-      width: columnWidths.propertyFloor,
+      width: columnWidths.petStatus,
     },
     ...(extraColumnLabel && extraColumnRender
       ? [
@@ -443,7 +443,7 @@ useEffect(() => {
     setTableData(updatedData);
 
     try {
-      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
+      await axios.put(`${apiBasePath}/updateData/${id}`, {
         field: "isVerified",
         value: newStatus,
       });
@@ -484,7 +484,7 @@ useEffect(() => {
     );
 
     try {
-      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
+      await axios.put(`${apiBasePath}/updateData/${id}`, {
         field: "geoAddressVerified",
         value: newStatus,
       });
@@ -508,76 +508,6 @@ useEffect(() => {
 
       toast({
         title: "Failed to update geo verification",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleImportantStatus = async (id: string, index: number) => {
-    const currentStatus = tableData[index].isImportant;
-    const newStatus = currentStatus === "Important" ? "None" : "Important";
-
-    const updatedData = tableData.map((item, i) =>
-      i === index ? { ...item, isImportant: newStatus } : item
-    );
-    setTableData(updatedData);
-
-    try {
-      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
-        field: "isImportant",
-        value: newStatus,
-      });
-
-      toast({
-        title: "Response status updated",
-        description: "Important set successfully.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Response status update failed", error);
-
-      const rollbackData = tableData.map((item, i) =>
-        i === index ? { ...item, isImportant: currentStatus } : item
-      );
-      setTableData(rollbackData);
-
-      toast({
-        title: "Failed to update the Owner status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePinnedStatus = async (id: string, index: number) => {
-    const currentStatus = tableData[index].isPinned;
-    const newStatus = currentStatus === "Pinned" ? "None" : "Pinned";
-
-    const updatedData = tableData.map((item, i) =>
-      i === index ? { ...item, isPinned: newStatus } : item
-    );
-    setTableData(updatedData);
-
-    try {
-      await axios.put(`/api/unregisteredOwners/updateData/${id}`, {
-        field: "isPinned",
-        value: newStatus,
-      });
-
-      toast({
-        title: "Response status updated",
-        description: "Pin set successfully.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Response status update failed", error);
-
-      const rollbackData = tableData.map((item, i) =>
-        i === index ? { ...item, isPinned: currentStatus } : item
-      );
-      setTableData(rollbackData);
-
-      toast({
-        title: "Failed to update the Owner status",
         variant: "destructive",
       });
     }
@@ -696,8 +626,6 @@ useEffect(() => {
       date: new Date(),
       imageUrls: [],
       isVerified: "None",
-      isImportant: "None",
-      isPinned: "None",
       geoAddressVerified: "None",
       propertyFloor: "",
     };
@@ -709,7 +637,7 @@ useEffect(() => {
     setTableData((prev) => [optimisticRow, ...prev]);
 
     try {
-      const res = await axios.post(`/api/unregisteredOwners/addUser`, tempRow);
+      const res = await axios.post(`${apiBasePath}/addUser`, tempRow);
       const savedRow = res.data.data;
 
       if (!savedRow || !savedRow._id) {
@@ -813,11 +741,15 @@ useEffect(() => {
     setTableData(updatedData);
 
     try {
+<<<<<<< Updated upstream
       const res = await axios.put<{
         message: string;
         locationGeo?: LocationGeoPoint | null;
         geoSyncStatus?: string;
       }>(`/api/unregisteredOwners/updateData/${_id}`, {
+=======
+      await axios.put(`${apiBasePath}/updateData/${_id}`, {
+>>>>>>> Stashed changes
         field: key,
         value: valueToSave,
         unavailableUntil: unavailableUntilPayload,
@@ -912,8 +844,8 @@ useEffect(() => {
 
   const editableFields = [
     "name", "phoneNumber", "location", "price", "area", "availability",
-    "interiorStatus", "petStatus", "propertyType", "remarks", 
-    "referenceLink", "link", "VSID", "address", "geoAddressVerified", "propertyFloor",
+    "interiorStatus", "propertyFloor", "propertyType", "remarks",
+    "referenceLink", "link", "VSID", "address", "geoAddressVerified", "petStatus",
   ];
 
   const performDeleteRow = useCallback(
@@ -926,7 +858,7 @@ useEffect(() => {
 
       try {
         const res = await axios.delete(
-          `/api/unregisteredOwners/updateData/${rowId}`,
+          `${apiBasePath}/updateData/${rowId}`,
         );
         if (res.status === 200) {
           toast({
@@ -970,7 +902,7 @@ useEffect(() => {
       if (e.ctrlKey && e.key === "c" && selectedRow && !selectedCell) {
         const row = tableData.find((r) => r._id === selectedRow);
         if (row) {
-          const rowData = `${row.name}\t${row.phoneNumber}\t${row.location}\t${row.price}\t${row.area}\t${row.availability}\t${row.interiorStatus}\t${row.petStatus}\t${row.propertyType}\t${row.remarks}\t${row.referenceLink}\t${row.link}\t${row.VSID}\t${row.address}\t${row.geoAddressVerified ?? "None"}\t${row.propertyFloor ?? ""}`;
+          const rowData = `${row.name}\t${row.phoneNumber}\t${row.location}\t${row.price}\t${row.area}\t${row.availability}\t${row.interiorStatus}\t${row.propertyFloor ?? ""}\t${row.propertyType}\t${row.remarks}\t${row.referenceLink}\t${row.link}\t${row.VSID}\t${row.address}\t${row.geoAddressVerified ?? "None"}\t${row.petStatus ?? "None"}`;
           navigator.clipboard.writeText(rowData);
           toast({
             title: "Row copied",
@@ -1088,7 +1020,7 @@ useEffect(() => {
   const changePetStatus = React.useCallback(
     debounce(async (petId: string, status: string) => {
       const response = await axios.post(
-        "/api/unregisteredOwners/updatePetStatus",
+        `${apiBasePath}/updatePetStatus`,
         {
           petId,
           changedStatus: status,
@@ -1289,61 +1221,6 @@ useEffect(() => {
                       </span>
                     )}
 
-                    {(token?.role === "Sales" ||
-                      token?.role === "sales-intern" ||
-                      token?.role === "Sales-TeamLead" ||
-                      token?.role === "SuperAdmin") && (
-                      <span
-                        className="cursor-pointer"
-                        onClick={() => handleImportantStatus(item?._id, index)}
-                      >
-                        {item?.isImportant === "Important" ? (
-                          <CustomTooltip
-                            icon={
-                              <Star color="yellow" fill="yellow" size={14} />
-                            }
-                            desc="Important"
-                          />
-                        ) : (
-                          <CustomTooltip
-                            icon={
-                              <CircleDot
-                                className="text-muted-foreground"
-                                size={14}
-                              />
-                            }
-                            desc="None"
-                          />
-                        )}
-                      </span>
-                    )}
-
-                    {(token?.role === "Sales" ||
-                      token?.role === "sales-intern" ||
-                      token?.role === "Sales-TeamLead" ||
-                      token?.role === "SuperAdmin") && (
-                      <span
-                        className="cursor-pointer"
-                        onClick={() => handlePinnedStatus(item?._id, index)}
-                      >
-                        {item?.isPinned === "Pinned" ? (
-                          <CustomTooltip
-                            icon={<Pin color="red" fill="red" size={14} />}
-                            desc="Pinned"
-                          />
-                        ) : (
-                          <CustomTooltip
-                            icon={
-                              <CircleDot
-                                className="text-muted-foreground"
-                                size={14}
-                              />
-                            }
-                            desc="None"
-                          />
-                        )}
-                      </span>
-                    )}
                   </div>
 
                   <div
@@ -1609,41 +1486,37 @@ useEffect(() => {
                       if (el) cellRefs.current.set(`${item._id}-7`, el);
                     }}
                     className={`${
-                      columnWidths.petStatus
-                    } cursor-pointer px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
+                      columnWidths.propertyFloor
+                    } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === 7
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
-                    onClick={(e) => {
+                    title="Property floor"
+                    onClick={() => {
                       setSelectedCell({
                         rowId: item._id,
-                        field: "Pet Status",
-                        value: item.petStatus || "None",
+                        field: "Floor",
+                        value: item.propertyFloor ?? "",
                         rowIndex: index,
                         colIndex: 7,
                       });
                       setSelectedRow(item._id);
-                      handlePetStatus(item?._id, index);
                     }}
                   >
-                    {item.petStatus === "Allowed" ? (
-                      <CustomTooltip
-                        icon={<PawPrint color="green" size={14} />}
-                        desc="First Message"
-                      />
-                    ) : item.petStatus === "Not Allowed" ? (
-                      <CustomTooltip
-                        icon={<Ban color="yellow" size={14} />}
-                        desc="Second Message"
-                      />
-                    ) : (
-                      <CustomTooltip
-                        icon={<CircleDot fill="" color="gray" size={14} />}
-                        desc="No Status"
-                      />
-                    )}
+                    <SelectableCell
+                      maxWidth="80px"
+                      data={ownerPropertyFloorSelectOptions}
+                      value={ownerPropertyFloorToSelectValue(item.propertyFloor)}
+                      save={(v) =>
+                        handleSave(
+                          item._id,
+                          "propertyFloor",
+                          ownerPropertyFloorFromSelectValue(v),
+                        )
+                      }
+                    />
                   </div>
 
                   <div
@@ -1959,37 +1832,41 @@ useEffect(() => {
                       if (el) cellRefs.current.set(`${item._id}-15`, el);
                     }}
                     className={`${
-                      columnWidths.propertyFloor
-                    } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
+                      columnWidths.petStatus
+                    } cursor-pointer px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === 15
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
-                    title="Property floor"
-                    onClick={() => {
+                    onClick={(e) => {
                       setSelectedCell({
                         rowId: item._id,
-                        field: "Floor",
-                        value: item.propertyFloor ?? "",
+                        field: "Pet Status",
+                        value: item.petStatus || "None",
                         rowIndex: index,
                         colIndex: 15,
                       });
                       setSelectedRow(item._id);
+                      handlePetStatus(item?._id, index);
                     }}
                   >
-                    <SelectableCell
-                      maxWidth="80px"
-                      data={ownerPropertyFloorSelectOptions}
-                      value={ownerPropertyFloorToSelectValue(item.propertyFloor)}
-                      save={(v) =>
-                        handleSave(
-                          item._id,
-                          "propertyFloor",
-                          ownerPropertyFloorFromSelectValue(v),
-                        )
-                      }
-                    />
+                    {item.petStatus === "Allowed" ? (
+                      <CustomTooltip
+                        icon={<PawPrint color="green" size={14} />}
+                        desc="First Message"
+                      />
+                    ) : item.petStatus === "Not Allowed" ? (
+                      <CustomTooltip
+                        icon={<Ban color="yellow" size={14} />}
+                        desc="Second Message"
+                      />
+                    ) : (
+                      <CustomTooltip
+                        icon={<CircleDot fill="" color="gray" size={14} />}
+                        desc="No Status"
+                      />
+                    )}
                   </div>
 
                   {extraColumnLabel && extraColumnRender && (
@@ -2007,6 +1884,7 @@ useEffect(() => {
                   >
                     <ActionMenu
                       item={item}
+                      apiBasePath={apiBasePath}
                       onUploadComplete={(id, newUrls) => {
                         setTableData((prev) =>
                           prev.map((row) =>

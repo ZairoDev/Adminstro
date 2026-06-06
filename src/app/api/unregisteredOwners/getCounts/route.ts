@@ -3,6 +3,7 @@ import { unregisteredOwner } from "@/models/unregisteredOwner";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { isLocationExempt } from "@/util/apiSecurity";
 import {
   applyOwnerSheetLocationQuery,
@@ -23,6 +24,9 @@ export async function POST(req: NextRequest) {
       const code = err?.code ?? "AUTH_FAILED";
       return NextResponse.json({ code }, { status });
     }
+
+    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+    if (denied) return denied;
 
     const role: string = (token.role || "") as string;
 
@@ -83,9 +87,6 @@ export async function POST(req: NextRequest) {
     if (propertyTypeFilter) {
       baseQuery.propertyType = strictValueRegex(propertyTypeFilter);
     }
-    if (filters?.isImportant) baseQuery.isImportant = "Important";
-    if (filters?.isPinned) baseQuery.isPinned = "Pinned";
-
     const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
       role,
       tokenAllotedArea,

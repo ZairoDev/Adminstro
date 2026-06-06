@@ -37,7 +37,7 @@ export const columns: Column[] = [
   { label: "Area", field: "area", sortable: false, width: columnWidths.area },
   { label: "Avail.", field: "availability", sortable: true, width: columnWidths.availability },
   { label: "Int. Status", field: "intStatus", sortable: false, width: columnWidths.interiorStatus },
-  { label: "Pet. Status", field: "petStatus", sortable: false, width: columnWidths.petStatus },
+  { label: "Floor", field: "propertyFloor", sortable: false, width: columnWidths.propertyFloor },
   { label: "Property Type", field: "propertyType", sortable: false, width: columnWidths.propertyType },
   { label: "Remarks", field: "remarks", sortable: false, width: columnWidths.remarks },
   { label: "Ref. Link", field: "refLink", sortable: false, width: columnWidths.refLink },
@@ -51,10 +51,10 @@ export const columns: Column[] = [
     width: columnWidths.geoVerified,
   },
   {
-    label: "Floor",
-    field: "propertyFloor",
+    label: "Pet. Status",
+    field: "petStatus",
     sortable: false,
-    width: columnWidths.propertyFloor,
+    width: columnWidths.petStatus,
   },
   { label: "Actions", field: "upload", sortable: false, width: columnWidths.actions },
 ];

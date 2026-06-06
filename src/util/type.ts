@@ -97,6 +97,7 @@ export interface EmployeeInterface {
   lastLogout?: string;
   role: [string];
   allotedArea?: string | string[];
+  rentalType?: string | null;
   createdAt: string;
   updatedAt: string;
   warnings?: WarningRecord[];
@@ -288,6 +289,7 @@ export interface UserInterface {
   phone: number;
   profilePic: string;
   role: string;
+  rentalType?: string | null;
   spokenLanguage: string;
   updatedAt: string;
   isActive: boolean;
@@ -643,6 +645,7 @@ export interface TokenInterface {
   email: string;
   role: string;
   allotedArea?: string | string[];
+  rentalType?: string | null;
   uiFlags?: {
     hideGuestManagement?: boolean;
     hideOwnerManagement?: boolean;
@@ -845,8 +848,6 @@ export interface  unregisteredOwners {
   petStatus: string;
   imageUrls: string[];
   isVerified: string;
-  isImportant: string;
-  isPinned: string;
   /** Advert: address checked against geolocation */
   geoAddressVerified?: string;
   /** Floor level: "-3"–"10", "Mezzanine", "ground-floor", "basement", "semi-basement", or empty */

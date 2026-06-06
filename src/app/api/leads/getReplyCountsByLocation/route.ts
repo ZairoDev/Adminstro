@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MonthlyTarget } from "@/models/monthlytarget";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-<<<<<<< Updated upstream
 import { aggregateWhatsAppReplyCountsByLocation } from "@/lib/whatsapp/replyCountsByLocation";
-=======
-import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
-import { aggregateReplyCountsByLocation } from "@/lib/whatsapp/replyStatusResolver";
->>>>>>> Stashed changes
 
 connectDb();
 
@@ -36,27 +31,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-<<<<<<< Updated upstream
     const finalResult = await aggregateWhatsAppReplyCountsByLocation(
-=======
-    const query = await applyEmployeeRentalTypeLeadFilter(
-      buildLeadQuery(
-        validLocations,
-        days,
-        createdBy,
-        role,
-        assignedArea,
-      ),
-      token,
-    );
-
-    const leads = await Query.find(query)
-      .select("phoneNo location")
-      .lean();
-
-    const finalResult = await aggregateReplyCountsByLocation(
-      leads as Array<{ phoneNo?: string | number; location?: string }>,
->>>>>>> Stashed changes
       validLocations,
       {
         days,

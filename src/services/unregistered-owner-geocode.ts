@@ -1,15 +1,11 @@
 import { unregisteredOwner } from "@/models/unregisteredOwner";
-<<<<<<< Updated upstream
 import {
   geocodeWithGoogle,
   inferCountryCodeFromLocation,
 } from "@/util/geocodeGoogle";
-import type { Types } from "mongoose";
-=======
 import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm";
-import { geocodeWithNominatim } from "@/util/geocodeNominatim";
+// import { geocodeWithNominatim } from "@/util/geocodeNominatim";
 import type { Model, Types } from "mongoose";
->>>>>>> Stashed changes
 
 export interface LocationGeoPoint {
   type: "Point";

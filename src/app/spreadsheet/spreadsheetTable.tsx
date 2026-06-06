@@ -741,15 +741,11 @@ useEffect(() => {
     setTableData(updatedData);
 
     try {
-<<<<<<< Updated upstream
       const res = await axios.put<{
         message: string;
         locationGeo?: LocationGeoPoint | null;
         geoSyncStatus?: string;
-      }>(`/api/unregisteredOwners/updateData/${_id}`, {
-=======
-      await axios.put(`${apiBasePath}/updateData/${_id}`, {
->>>>>>> Stashed changes
+      }>(`${apiBasePath}/updateData/${_id}`, {
         field: key,
         value: valueToSave,
         unavailableUntil: unavailableUntilPayload,

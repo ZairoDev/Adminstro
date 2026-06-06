@@ -246,6 +246,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/spreadsheet",
     "/spreadsheet-short-term",
     "/whatsapp",
+    "/whatsapp/calls",
   ],
   hSale: [
     "/",

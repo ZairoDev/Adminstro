@@ -610,6 +610,7 @@ export async function GET(req: NextRequest) {
       "SuperAdmin",
       "Admin",
       "Sales",
+      "sales-intern",
       "Sales-TeamLead",
       "LeadGen",
       "LeadGen-TeamLead",

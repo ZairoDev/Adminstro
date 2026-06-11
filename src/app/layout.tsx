@@ -37,7 +37,7 @@ export default function RootLayout({
               // "orange",
               // "rose",
               "dark",
-              // "light",
+              "light",
               // "green",
               // "blue",
               // "violet",

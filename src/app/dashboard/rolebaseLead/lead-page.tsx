@@ -41,18 +41,12 @@ import LeadTable from "@/components/leadTable/LeadTable";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
-import { InfinityLoader } from "@/components/Loaders";
+import PropertyQuickFilters, {
+  WordsCount,
+} from "@/components/lead-component/PropertyQuickFilters";
 import HandLoader from "@/components/HandLoader";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
-
-interface WordsCount {
-  "1bhk": number;
-  "2bhk": number;
-  "3bhk": number;
-  "4bhk": number;
-  studio: number;
-  sharedApartment: number;
-} 
+import { mergeLeadFilters } from "@/util/leadFilterUtils";
 
 export const LeadPage = () => {
   const router = useRouter();
@@ -100,6 +94,7 @@ export const LeadPage = () => {
     leadQuality: "",
     allotedArea: "",
     typeOfProperty: "",
+    quickPropertyFilters: [],
     leadQualityByTeamLead: "Approved",
   };
 
@@ -117,7 +112,7 @@ export const LeadPage = () => {
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
     // console.log("area ::", area);
-    filterLeads(newPage, { ...filters, allotedArea: area });
+    filterLeads(newPage, mergeLeadFilters(filters, area));
 
     setPage(newPage);
   };
@@ -208,9 +203,8 @@ export const LeadPage = () => {
   };
 
   useEffect(() => {
-    filterLeads(1, filters);
+    filterLeads(1, mergeLeadFilters(filters, area));
     setPage(parseInt(searchParams?.get("page") ?? "1"));
-    // allotedArea is derived from token now
   }, [activeTab]);
 
   // useEffect(() => {
@@ -235,108 +229,52 @@ export const LeadPage = () => {
   // }, [queries, allotedArea]);
 
   useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1);
+    filterLeads(1, mergeLeadFilters(filters, area));
   }, [filters.searchTerm]);
 
-
-   const handlePropertyCountFilter = (typeOfProperty: string, noOfBeds?: string) => {
-
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds?? prevFilters.noOfBeds,
-     
-    }));
-
-    filterLeads(1, {
+  const handleQuickFilterToggle = (key: string) => {
+    const current = filters.quickPropertyFilters ?? [];
+    const next = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : [...current, key];
+    const updated: FilterState = {
       ...filters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds?? filters.noOfBeds,
-      allotedArea: Array.isArray(allotedArea) ? allotedArea[0] || "" : allotedArea
-    });
+      quickPropertyFilters: next,
+      typeOfProperty: "",
+      noOfBeds: "0",
+    };
+    setFilters(updated);
+    setPage(1);
+    filterLeads(1, mergeLeadFilters(updated, area));
+  };
 
-
-  }
-
+  const handleQuickFilterClear = () => {
+    const updated: FilterState = {
+      ...filters,
+      quickPropertyFilters: [],
+      typeOfProperty: "",
+      noOfBeds: "0",
+    };
+    setFilters(updated);
+    setPage(1);
+    filterLeads(1, mergeLeadFilters(updated, area));
+  };
 
   return (
     <div className=" w-full">
       <Toaster />
-      <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full  flex ">
-          {/* heading component where all leads is*/}
-          <Heading heading="Fresh Leads" subheading="" />
-          <div className="w-full flex flex-wrap gap-4 justify-center ">
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
-                {wordsCount[0]?.["1bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
-                1 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "2")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
-                {wordsCount[0]?.["2bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
-                2 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "3")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
-                {wordsCount[0]?.["3bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
-                3 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "4")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
-                {wordsCount[0]?.["4bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
-                4 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Studio", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["studio"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
-                Studio
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Shared Apartment", "1")}
-              className="min-w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["sharedApartment"]}
-              </p>
-              <p className="text-white font-medium text-xs  text-center group-hover:text-pink-100">
-                Shrd Aprt
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+        <Heading heading="Fresh Leads" subheading="" />
+        <PropertyQuickFilters
+          wordsCount={wordsCount}
+          selected={filters.quickPropertyFilters ?? []}
+          onToggle={handleQuickFilterToggle}
+          onClearAll={handleQuickFilterClear}
+          className="md:justify-end"
+        />
+      </div>
 
+      <div className="flex items-center md:flex-row flex-col justify-between w-full mt-3">
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           {/* top filter component */}
           <div className="flex w-full items-center gap-x-2">
@@ -350,10 +288,10 @@ export const LeadPage = () => {
                   onValueChange={(value: string) => {
                     if (value === "all") {
                       setArea("");
-                      filterLeads(1, { ...filters, allotedArea: "" });
+                      filterLeads(1, mergeLeadFilters(filters, ""));
                     } else {
                       setArea(value);
-                      filterLeads(1, { ...filters, allotedArea: value });
+                      filterLeads(1, mergeLeadFilters(filters, value));
                     }
                   }}
                   value={area}
@@ -427,15 +365,12 @@ export const LeadPage = () => {
                     <SlidersHorizontal size={18} />
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
-                  {/* Lead Filters */}
-                  <div className=" flex flex-col items-center">
-                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
+                <SheetContent className="flex flex-col">
+                  <div className="flex-1 overflow-y-auto pb-6">
                     <LeadsFilter filters={filters} setFilters={setFilters} />
-                    {/* Apply Button */}
                   </div>
 
-                  <SheetFooter className=" flex flex-col">
+                  <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4">
                     <SheetClose asChild>
                       <Button
                         onClick={() => {
@@ -444,42 +379,41 @@ export const LeadPage = () => {
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1, { ...filters, allotedArea: area });
+                          filterLeads(1, mergeLeadFilters(filters, area));
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full"
                       >
                         Apply
                       </Button>
                     </SheetClose>
                     <SheetClose asChild>
                       <Button
+                        variant="outline"
                         onClick={() => {
                           router.push(`?page=1`);
+                          setArea("");
                           setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, defaultFilters);
+                          filterLeads(1, mergeLeadFilters(defaultFilters, ""));
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full"
                       >
                         Clear
                       </Button>
                     </SheetClose>
-                    <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
-                      </p>
-                    </div>
+                    <Select onValueChange={(value) => setView(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select View" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Table View">Table View</SelectItem>
+                        <SelectItem value="Card View">Card View</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Fill in your search details, apply custom filters, and let
+                      us bring you the most relevant results.
+                    </p>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
@@ -586,7 +520,7 @@ export const LeadPage = () => {
           </div>
           <div>
             <div className="flex  items-center justify-between p-2 w-full">
-              <div className="border border-white">
+              <div className="border border-border">
                 <p className="text-xs">
                   Page {page} of {totalPages} — {totalQuery} total results
                 </p>

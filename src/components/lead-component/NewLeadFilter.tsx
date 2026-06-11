@@ -32,6 +32,7 @@ export interface FilterState {
   leadQuality: string;
   allotedArea: string;
   typeOfProperty?: string;
+  quickPropertyFilters?: string[];
   rejectionReason?: string;
   leadQualityByTeamLead?: string;
 }
@@ -51,7 +52,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
   };
 
   return (
-    <div className="w-[350px] dark:text-white p-4 rounded-lg space-y-4">
+    <div className="w-[350px] text-foreground p-4 rounded-lg space-y-4">
       <h2 className="text-lg font-semibold mb-4">Data Filters</h2>
 
       {/* Data filters Dropdown */}
@@ -60,31 +61,31 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           value={filters.dateFilter}
           onValueChange={(value) => updateFilter("dateFilter", value)}
         >
-          <SelectTrigger className="w-full  border-gray-700 text-white">
+          <SelectTrigger className="w-full  border-input text-foreground">
             <SelectValue placeholder="All" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All" className="text-white hover:bg-gray-700">
+            <SelectItem value="All" className="hover:bg-accent hover:text-accent-foreground">
               <div className="flex items-center">All</div>
             </SelectItem>
-            <SelectItem value="Today" className="text-white hover:bg-gray-700">
+            <SelectItem value="Today" className="hover:bg-accent hover:text-accent-foreground">
               Today
             </SelectItem>
             <SelectItem
               value="Yesterday"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Yesterday
             </SelectItem>
             <SelectItem
               value="Last X Days"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Last X Days
             </SelectItem>
             <SelectItem
               value="Custom Date Range"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Custom Date Range
             </SelectItem>
@@ -97,7 +98,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             placeholder="Enter number of days"
             value={filters.customDays}
             onChange={(e) => updateFilter("customDays", e.target.value)}
-            className=" border-gray-700 text-white placeholder-gray-400"
+            className=" border-input text-foreground placeholder:text-muted-foreground"
           />
         )}
 
@@ -136,15 +137,15 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           value={filters.sortBy}
           onValueChange={(value) => updateFilter("sortBy", value)}
         >
-          <SelectTrigger className="w-full  border-gray-700 text-white">
+          <SelectTrigger className="w-full  border-input text-foreground">
             <SelectValue placeholder="Select Priority Order" />
           </SelectTrigger>
-          <SelectContent className=" border-gray-700">
+          <SelectContent>
             <SelectItem value="None">None</SelectItem>
-            <SelectItem value="Asc" className="text-white hover:bg-gray-700">
+            <SelectItem value="Asc" className="hover:bg-accent hover:text-accent-foreground">
               Response : &nbsp; waiting for reply to send reply
             </SelectItem>
-            <SelectItem value="Desc" className="text-white hover:bg-gray-700">
+            <SelectItem value="Desc" className="hover:bg-accent hover:text-accent-foreground">
               Response : &nbsp; send reply to waiting for reply
             </SelectItem>
           </SelectContent>
@@ -157,15 +158,15 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           value={filters.status}
           onValueChange={(value) => updateMessageStatusFilter("status", value)}
         >
-          <SelectTrigger className="w-full  border-gray-700 text-white">
+          <SelectTrigger className="w-full  border-input text-foreground">
             <SelectValue placeholder="Select Priority Order" />
           </SelectTrigger>
-          <SelectContent className=" border-gray-700">
+          <SelectContent>
             <SelectItem value="None">None</SelectItem>
-            <SelectItem value="Default" className="text-white hover:bg-gray-700">
+            <SelectItem value="Default" className="hover:bg-accent hover:text-accent-foreground">
               Status : &nbsp; Default Order
             </SelectItem>
-            <SelectItem value="Reverse" className="text-white hover:bg-gray-700">
+            <SelectItem value="Reverse" className="hover:bg-accent hover:text-accent-foreground">
               Status : &nbsp; Reverse Order
             </SelectItem>
           </SelectContent>
@@ -182,7 +183,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           <Input
             value={filters.guest}
             onChange={(e) => updateFilter("guest", e.target.value)}
-            className=" border-gray-700 text-white"
+            className=" border-input text-foreground"
           />
         </div>
 
@@ -192,7 +193,7 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           <Input
             value={filters.noOfBeds}
             onChange={(e) => updateFilter("noOfBeds", e.target.value)}
-            className=" border-gray-700 text-white"
+            className=" border-input text-foreground"
           />
         </div>
 
@@ -203,25 +204,25 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             value={filters.propertyType}
             onValueChange={(value) => updateFilter("propertyType", value)}
           >
-            <SelectTrigger className=" border-gray-700 text-white">
+            <SelectTrigger className=" border-input text-foreground">
               <SelectValue placeholder="Property Type" />
             </SelectTrigger>
-            <SelectContent className=" border-gray-700">
+            <SelectContent>
               <SelectItem
                 value="Furnished"
-                className="text-white hover:bg-gray-700"
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 Furnished
               </SelectItem>
               <SelectItem
                 value="Unfurnished"
-                className="text-white hover:bg-gray-700"
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 Unfurnished
               </SelectItem>
               <SelectItem
                 value="Semi-furnished"
-                className="text-white hover:bg-gray-700"
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 Semi-Furnished
               </SelectItem>
@@ -236,19 +237,19 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             value={filters.billStatus}
             onValueChange={(value) => updateFilter("billStatus", value)}
           >
-            <SelectTrigger className=" border-gray-700 text-white">
+            <SelectTrigger className=" border-input text-foreground">
               <SelectValue placeholder="Bill" />
             </SelectTrigger>
-            <SelectContent className=" border-gray-700">
+            <SelectContent>
               <SelectItem
                 value="With Bill"
-                className="text-white hover:bg-gray-700"
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 With Bill
               </SelectItem>
               <SelectItem
                 value="Without Bill"
-                className="text-white hover:bg-gray-700"
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 Without Bill
               </SelectItem>
@@ -265,13 +266,13 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             placeholder="From"
             value={filters.budgetFrom}
             onChange={(e) => updateFilter("budgetFrom", e.target.value)}
-            className=" border-gray-700 text-white placeholder-gray-400"
+            className=" border-input text-foreground placeholder:text-muted-foreground"
           />
           <Input
             placeholder="To"
             value={filters.budgetTo}
             onChange={(e) => updateFilter("budgetTo", e.target.value)}
-            className=" border-gray-700 text-white placeholder-gray-400"
+            className=" border-input text-foreground placeholder:text-muted-foreground"
           />
         </div>
       </div>
@@ -283,28 +284,28 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           value={filters.leadQuality}
           onValueChange={(value) => updateFilter("leadQuality", value)}
         >
-          <SelectTrigger className=" border-gray-700 text-white">
+          <SelectTrigger className=" border-input text-foreground">
             <SelectValue placeholder="Lead Quality" />
           </SelectTrigger>
-          <SelectContent className=" border-gray-700">
-            <SelectItem value="Good" className="text-white hover:bg-gray-700">
+          <SelectContent>
+            <SelectItem value="Good" className="hover:bg-accent hover:text-accent-foreground">
               Good
             </SelectItem>
             <SelectItem
               value="Very Good"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Very Good
             </SelectItem>
             <SelectItem
               value="Average"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Average
             </SelectItem>
             <SelectItem
               value="Below Average"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Below Average
             </SelectItem>
@@ -317,61 +318,61 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
           value={filters.rejectionReason}
           onValueChange={(value) => updateFilter("rejectionReason", value)}
         >
-          <SelectTrigger className=" border-gray-700 text-white">
+          <SelectTrigger className=" border-input text-foreground">
             <SelectValue placeholder="Rejection Reason" />
           </SelectTrigger>
-          <SelectContent className=" border-gray-700">
+          <SelectContent>
             <SelectItem
               value="Allready got it"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Allready got it
             </SelectItem>
             <SelectItem
               value="Number of people exceeded"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Number of people exceeded
             </SelectItem>
             <SelectItem
               value="Low Budget"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Low Budget
             </SelectItem>
             <SelectItem
               value="Not Replying"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Not Replying
             </SelectItem>
             <SelectItem
               value="Late Response"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Late Response
             </SelectItem>
             <SelectItem
               value="Blocked on whatsapp"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Blocked on whatsapp
             </SelectItem>
             <SelectItem
               value="Not on whatsapp"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Not on whatsapp
             </SelectItem>
             <SelectItem
               value="Delayed the Traveling"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Delayed the Traveling
             </SelectItem>
             <SelectItem
               value="Didn't like the option"
-              className="text-white hover:bg-gray-700"
+              className="hover:bg-accent hover:text-accent-foreground"
             >
               Didn&apos;t like the option
             </SelectItem>

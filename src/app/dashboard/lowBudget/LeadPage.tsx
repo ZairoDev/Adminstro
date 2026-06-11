@@ -431,12 +431,12 @@ export const LeadPage = () => {
                   Filters
                 </Button>
               </SheetTrigger>
-              <SheetContent>
-                <div className="flex flex-col items-center">
+              <SheetContent className="flex flex-col">
+                <div className="flex-1 overflow-y-auto pb-6">
                   <LeadsFilter filters={filters} setFilters={setFilters} />
                 </div>
 
-                <SheetFooter className="flex flex-col gap-2 mt-4">
+                <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4">
                   <SheetClose asChild>
                     <Button
                       onClick={handleApplyFilters}

@@ -1271,7 +1271,7 @@ const SalesDashboard = () => {
                     <SlidersHorizontal size={18} />
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
+                <SheetContent className="flex flex-col">
                   <SheetHeader>
                     <SheetTitle className="text-start">Data Filters</SheetTitle>
                     <SheetDescription className="flex flex-col gap-y-2">
@@ -1336,23 +1336,20 @@ const SalesDashboard = () => {
                       </SheetClose>
                     </SheetDescription>
                   </SheetHeader>
-                  <SheetFooter className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                    <div className="flex flex-col gap-y-2">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
-                      </p>
-                    </div>
+                  <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4 mt-auto">
+                    <Select onValueChange={(value) => setView(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select View" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Table View">Table View</SelectItem>
+                        <SelectItem value="Card View">Card View</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Fill in your search details, apply custom filters, and let
+                      us bring you the most relevant results.
+                    </p>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>

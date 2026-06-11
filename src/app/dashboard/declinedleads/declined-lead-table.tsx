@@ -642,7 +642,7 @@ export default function DeclinedLeadTable({ queries, page = 1 }: { queries: IQue
                         className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
                           query?.note && query?.note?.length > 0
                             ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
-                            : "bg-white/20 text-white"
+                            : "bg-muted text-muted-foreground"
                         } text-sm font-bold `}
                       >
                         <p className=" rotate-90">Note</p>

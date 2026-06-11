@@ -38,21 +38,15 @@ import { Toaster } from "@/components/ui/toaster";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
-import { InfinityLoader } from "@/components/Loaders";
+import PropertyQuickFilters, {
+  WordsCount,
+} from "@/components/lead-component/PropertyQuickFilters";
 import HandLoader from "@/components/HandLoader";
+import { mergeLeadFilters } from "@/util/leadFilterUtils";
 import GoodTable from "./good-table";
 import CreateLeadDialog from "./createLead";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-
-interface WordsCount {
-  "1bhk": number;
-  "2bhk": number;
-  "3bhk": number;
-  "4bhk": number;
-  studio: number;
-  sharedApartment: number;
-}
 
 export const GoodToGoLeads = () => {
   const router = useRouter();
@@ -101,6 +95,7 @@ export const GoodToGoLeads = () => {
     leadQuality: "",
     allotedArea: "",
     typeOfProperty: "",
+    quickPropertyFilters: [],
   };
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
@@ -119,7 +114,7 @@ export const GoodToGoLeads = () => {
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
 
-    filterLeads(newPage, { ...filters, allotedArea: area });
+    filterLeads(newPage, mergeLeadFilters(filters, area));
 
     setPage(newPage);
   };
@@ -248,30 +243,40 @@ export const GoodToGoLeads = () => {
     }
   }, [activeTab]);
   
-  const handlePropertyCountFilter = (
-    typeOfProperty: string,
-    noOfBeds?: string
-  ) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds ?? prevFilters.noOfBeds,
-    }));
-
-    filterLeads(1, {
+  const handleQuickFilterToggle = (key: string) => {
+    const current = filters.quickPropertyFilters ?? [];
+    const next = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : [...current, key];
+    const updated: FilterState = {
       ...filters,
-      typeOfProperty: typeOfProperty,
-      noOfBeds: noOfBeds ?? filters.noOfBeds,
-      allotedArea: area,
-    });
+      quickPropertyFilters: next,
+      typeOfProperty: "",
+      noOfBeds: "0",
+    };
+    setFilters(updated);
+    setPage(1);
+    filterLeads(1, mergeLeadFilters(updated, area));
+  };
+
+  const handleQuickFilterClear = () => {
+    const updated: FilterState = {
+      ...filters,
+      quickPropertyFilters: [],
+      typeOfProperty: "",
+      noOfBeds: "0",
+    };
+    setFilters(updated);
+    setPage(1);
+    filterLeads(1, mergeLeadFilters(updated, area));
   };
 
   const debouncedFilterLeads = React.useCallback(
-  debounce((page: number, filters: FilterState) => {
-    filterLeads(page, filters);
-  }, 500), // 500ms delay
-  []
-);
+    debounce((page: number, filtersToUse: FilterState, areaValue: string) => {
+      filterLeads(page, mergeLeadFilters(filtersToUse, areaValue));
+    }, 500),
+    [],
+  );
 
   return (
     <div className=" w-full">
@@ -287,82 +292,18 @@ export const GoodToGoLeads = () => {
         </div>
 
         <TabsContent value="leads" className="mt-0">
-      <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full  flex ">
-          {/* heading component where all leads is*/}
-          <Heading heading="Good To Go Leads" subheading="" />
-          <div className="w-full flex flex-wrap gap-2 justify-center">
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "1")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-blue-100">
-                {wordsCount[0]?.["1bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-blue-100">
-                1 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "2")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 border-2 border-green-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-green-100">
-                {wordsCount[0]?.["2bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-green-100">
-                2 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "3")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 border-2 border-purple-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-purple-100">
-                {wordsCount[0]?.["3bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-purple-100">
-                3 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Apartment", "4")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-orange-100">
-                {wordsCount[0]?.["4bhk"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-orange-100">
-                4 BHK
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Studio", "1")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 border-2 border-pink-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["studio"]}
-              </p>
-              <p className="text-white font-medium text-xs text-center group-hover:text-pink-100">
-                Studio
-              </p>
-            </div>
-            <div
-              onClick={() => handlePropertyCountFilter("Shared Apartment", "1")}
-              className="min-w-16 h-16 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 border-2 border-yellow-300 flex flex-col items-center justify-center p-3 cursor-pointer hover:scale-105 hover:shadow-lg transition-all duration-300 group"
-            >
-              <p className="text-white font-bold text-lg leading-none group-hover:text-pink-100">
-                {wordsCount[0]?.["sharedApartment"]}
-              </p>
-              <p
-                className="text-white truncate font-medium text-xs  text-center group-hover:text-pink-100"
-                title="Shared "
-              >
-                Shard
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+        <Heading heading="Good To Go Leads" subheading="" />
+        <PropertyQuickFilters
+          wordsCount={wordsCount}
+          selected={filters.quickPropertyFilters ?? []}
+          onToggle={handleQuickFilterToggle}
+          onClearAll={handleQuickFilterClear}
+          className="md:justify-end"
+        />
+      </div>
+
+      <div className="flex items-center md:flex-row flex-col justify-between w-full mt-3">
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
           <div>
             <CreateLeadDialog />
@@ -375,13 +316,11 @@ export const GoodToGoLeads = () => {
                 <Select
                   onValueChange={(value: string) => {
                     if (value === "all") {
-                      setArea("all");
-                      // For Sales roles, selecting "All" should show leads for user's assigned areas.
-                      // Passing empty allotedArea lets backend fallback to token.assignedArea.
-                      filterLeads(1, { ...filters, allotedArea: "" });
+                      setArea("");
+                      filterLeads(1, mergeLeadFilters(filters, ""));
                     } else {
                       setArea(value);
-                      filterLeads(1, { ...filters, allotedArea: value });
+                      filterLeads(1, mergeLeadFilters(filters, value));
                     }
                   }}
                   value={area}
@@ -461,15 +400,12 @@ export const GoodToGoLeads = () => {
       };
 
       setFilters(updatedFilters);
-      
-      // ✅ Trigger the search after state update
-      debouncedFilterLeads(1, updatedFilters);
+      debouncedFilterLeads(1, updatedFilters, area);
     }}
     onKeyDown={(e) => {
-      // Allow immediate search on Enter key
       if (e.key === "Enter") {
-        debouncedFilterLeads.cancel(); // Cancel any pending debounced call
-        filterLeads(1, filters);
+        debouncedFilterLeads.cancel();
+        filterLeads(1, mergeLeadFilters(filters, area));
       }
     }}
     className="pr-24"
@@ -490,26 +426,24 @@ export const GoodToGoLeads = () => {
                     <SlidersHorizontal size={18} />
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
-                  {/* Lead Filters */}
-                  <div className=" flex flex-col items-center">
+                <SheetContent className="flex flex-col">
+                  <div className="flex-1 overflow-y-auto pb-6">
                     <LeadsFilter filters={filters} setFilters={setFilters} />
                   </div>
 
-                  <SheetFooter className="flex flex-col gap-3 p-4 border-t border-gray-200">
-                    {/* Buttons Row */}
+                  <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4">
                     <div className="flex gap-3">
                       <SheetClose asChild>
                         <Button
                           onClick={() => {
                             const params = new URLSearchParams(
-                              Object.entries(filters)
+                              Object.entries(filters),
                             );
                             setPage(1);
                             router.push(`?${params.toString()}&page=1`);
-                            filterLeads(1, { ...filters, allotedArea: area });
+                            filterLeads(1, mergeLeadFilters(filters, area));
                           }}
-                          className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+                          className="w-1/2"
                         >
                           Apply
                         </Button>
@@ -517,31 +451,30 @@ export const GoodToGoLeads = () => {
 
                       <SheetClose asChild>
                         <Button
+                          variant="outline"
                           onClick={() => {
                             router.push(`?page=1`);
+                            setArea("");
                             setFilters({ ...defaultFilters });
                             setPage(1);
-                            filterLeads(1, defaultFilters);
+                            filterLeads(1, mergeLeadFilters(defaultFilters, ""));
                           }}
-                          className="w-1/2 bg-white text-black hover:bg-gray-100 font-medium border border-gray-300"
+                          className="w-1/2"
                         >
                           Clear
                         </Button>
                       </SheetClose>
                     </div>
 
-                    {/* Select Dropdown */}
-                    <div className="w-full">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Select onValueChange={(value) => setView(value)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select View" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Table View">Table View</SelectItem>
+                        <SelectItem value="Card View">Card View</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
@@ -566,7 +499,7 @@ export const GoodToGoLeads = () => {
                     alt="Temporary Image"
                     className=" w-96 h-96 opacity-30"
                   />
-                  <h1 className=" text-gray-600 text-3xl">No Leads</h1>
+                  <h1 className="text-muted-foreground text-3xl">No Leads</h1>
                 </div>
               )}
             </div>
@@ -661,7 +594,7 @@ export const GoodToGoLeads = () => {
                         alt="Temporary Image"
                         className=" w-96 h-96 opacity-30"
                       />
-                      <h1 className=" text-gray-600 text-3xl">No Brokers</h1>
+                      <h1 className="text-muted-foreground text-3xl">No Brokers</h1>
                     </div>
                   )}
                 </div>

@@ -354,7 +354,7 @@ setBooster(res.data);
                     {(token?.role === "SuperAdmin" || token?.role === "Advert") && (
                       <div>
                         <Pencil
-                          className={`p-2 border rounded-md cursor-pointer ${editDisabled ? " text-gray-700" : "text-white"
+                          className={`p-2 border border-input rounded-md cursor-pointer ${editDisabled ? "text-muted-foreground" : "text-foreground bg-muted"
                             }`}
                           size={44}
                           onClick={() => setEditDisabled((prev) => !prev)}

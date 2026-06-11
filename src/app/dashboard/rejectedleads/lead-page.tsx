@@ -361,15 +361,12 @@ export const RejectedLeads = () => {
                     <SlidersHorizontal size={18} />
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
-                  {/* Lead Filters */}
-                  <div className=" flex flex-col items-center">
-                    {/* <LeadFilter filters={filters} setFilters={setFilters} /> */}
+                <SheetContent className="flex flex-col">
+                  <div className="flex-1 overflow-y-auto pb-6">
                     <LeadsFilter filters={filters} setFilters={setFilters} />
-                    {/* Apply Button */}
                   </div>
 
-                  <SheetFooter className=" flex flex-col">
+                  <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4">
                     <SheetClose asChild>
                       <Button
                         onClick={() => {
@@ -380,40 +377,39 @@ export const RejectedLeads = () => {
                           router.push(`?${params.toString()}&page=1`);
                           filterLeads(1, { ...filters, allotedArea: area });
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full"
                       >
                         Apply
                       </Button>
                     </SheetClose>
                     <SheetClose asChild>
                       <Button
+                        variant="outline"
                         onClick={() => {
                           router.push(`?page=1`);
+                          setArea("");
                           setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, defaultFilters);
+                          filterLeads(1, { ...defaultFilters, allotedArea: "" });
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full"
                       >
                         Clear
                       </Button>
                     </SheetClose>
-                    <div className="absolute text-pretty bottom-0 px-4 py-2 text-xs left-0 right-0">
-                      <Select onValueChange={(value) => setView(value)}>
-                        <SelectTrigger className="">
-                          <SelectValue placeholder="Select View" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Table View">Table View</SelectItem>
-                          <SelectItem value="Card View">Card View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="px-2">
-                        Fill in your search details, apply custom filters, and
-                        let us bring you the most relevant results with just a
-                        click of the Apply button !
-                      </p>
-                    </div>
+                    <Select onValueChange={(value) => setView(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select View" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Table View">Table View</SelectItem>
+                        <SelectItem value="Card View">Card View</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Fill in your search details, apply custom filters, and let
+                      us bring you the most relevant results.
+                    </p>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>

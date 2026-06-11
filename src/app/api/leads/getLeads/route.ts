@@ -23,6 +23,11 @@ import {
   applyGuestLeadLocationToQuery,
   resolveEffectiveLeadLocations,
 } from "@/util/guestLeadLocationScope";
+import {
+  applyQuickPropertyFiltersToQuery,
+  buildWordsCountGroupFields,
+  stripQuickPropertyFiltersFromQuery,
+} from "@/util/leadFilterUtils";
 
 connectDb();
 
@@ -65,8 +70,11 @@ export async function POST(req: NextRequest) {
       leadQuality,
       allotedArea,
       typeOfProperty,
-      leadQualityByTeamLead
+      leadQualityByTeamLead,
+      quickPropertyFilters,
     } = reqBody.filters;
+    const hasQuickPropertyFilters =
+      Array.isArray(quickPropertyFilters) && quickPropertyFilters.length > 0;
     const PAGE = reqBody.page;
 
     const LIMIT = 50;
@@ -139,14 +147,12 @@ export async function POST(req: NextRequest) {
     // Other filters
     if (guest) query.guest = { $gte: parseInt(guest, 10) };
    
-    if(noOfBeds){
-      if(noOfBeds==="0"){
-          query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
-      }
-      else{
+    if (!hasQuickPropertyFilters && noOfBeds) {
+      if (noOfBeds === "0") {
+        query.noOfBeds = { $gte: parseInt(noOfBeds, 10) };
+      } else {
         query.noOfBeds = parseInt(noOfBeds, 10);
       }
-
     }
     // propertyType is enforced later (intersection with employee rule)
     if (billStatus) query.billStatus = billStatus;
@@ -185,7 +191,7 @@ export async function POST(req: NextRequest) {
         rules: employeeVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
-        uiTypeOfProperty: typeOfProperty,
+        uiTypeOfProperty: hasQuickPropertyFilters ? "" : typeOfProperty,
       });
       if (impossible) {
         return NextResponse.json({
@@ -195,6 +201,10 @@ export async function POST(req: NextRequest) {
           wordsCount: [],
         });
       }
+    }
+
+    if (hasQuickPropertyFilters) {
+      applyQuickPropertyFiltersToQuery(query, quickPropertyFilters);
     }
 
     // Enforce pricing rule (location-scoped)
@@ -315,108 +325,22 @@ export async function POST(req: NextRequest) {
       });
     }
     
+  const wordsCountMatchQuery = stripQuickPropertyFiltersFromQuery(query);
   const pipeline = [
-  {
-    $match: {
-      leadStatus: "fresh",   
-      ...(allotedArea
-      ? { location: new RegExp(allotedArea, "i") }  
-      : (effectiveLocations && effectiveLocations.length > 0
-          ? { $or: effectiveLocations.map((a) => ({ location: exactCaseInsensitiveRegex(String(a)) })) }
-          : {})),
-    }
-  },
-  {
-    $group: {
-      _id: null,
-      "1bhk": {
-        $sum: {
-          $cond: [
-            { 
-              $and: [
-                { $eq: ["$typeOfProperty", "Apartment"] }, 
-                { $eq: ["$noOfBeds", 1] }
-              ] 
-            },
-            1,
-            0
-          ]
-        }
+    { $match: wordsCountMatchQuery },
+    { $group: buildWordsCountGroupFields() },
+    {
+      $project: {
+        _id: 0,
+        "1bhk": 1,
+        "2bhk": 1,
+        "3bhk": 1,
+        "4bhk": 1,
+        studio: 1,
+        sharedApartment: 1,
       },
-      "2bhk": {
-        $sum: {
-          $cond: [
-            { 
-              $and: [
-                { $eq: ["$typeOfProperty", "Apartment"] }, 
-                { $eq: ["$noOfBeds", 2] }
-              ] 
-            },
-            1,
-            0
-          ]
-        }
-      },
-      "3bhk": {
-        $sum: {
-          $cond: [
-            { 
-              $and: [
-                { $eq: ["$typeOfProperty", "Apartment"] }, 
-                { $eq: ["$noOfBeds", 3] }
-              ] 
-            },
-            1,
-            0
-          ]
-        }
-      },
-      "4bhk": {
-        $sum: {
-          $cond: [
-            { 
-              $and: [
-                { $eq: ["$typeOfProperty", "Apartment"] }, 
-                { $eq: ["$noOfBeds", 4] }
-              ] 
-            },
-            1,
-            0
-          ]
-        }
-      },
-      studio: {
-        $sum: {
-          $cond: [
-            { $in: ["$typeOfProperty", ["Studio", "Studio / 1 bedroom"]] },
-            1,
-            0
-          ]
-        }
-      },
-      sharedApartment: {
-        $sum: {
-          $cond: [
-            { $eq: ["$typeOfProperty", "Shared Apartment"] },
-            1,
-            0
-          ]
-        }
-      }
-    }
-  },
-  {
-    $project: {
-      _id: 0,
-      "1bhk": 1,
-      "2bhk": 1,
-      "3bhk": 1,
-      "4bhk": 1,
-      studio: 1,
-      sharedApartment: 1
-    }
-  }
-]
+    },
+  ];
 
 
    const statusPipeline = [
@@ -448,7 +372,7 @@ export async function POST(req: NextRequest) {
     // console.log("statusCount: ", statusCount);
 
 
-    const wordsCount = await Query.aggregate(pipeline);
+    const wordsCount = await Query.aggregate(pipeline as any[]);
     //  console.log("wordsCount: ", wordsCount);
 
     const totalQueries = await Query.countDocuments(query);
